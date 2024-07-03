@@ -14,28 +14,6 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def get_carrier(n, c, nice_names=True):
-    """
-    Get the nice carrier names for a component.
-    """
-    df = n.df(c)
-    fall_back = pd.Series("", index=df.index)
-    carrier_series = df.get("carrier", fall_back).rename("carrier")
-    if nice_names:
-        carrier_series = carrier_series.replace(
-            n.carriers.nice_name[lambda ds: ds != ""]
-        ).replace("", "-")
-    return carrier_series
-
-
-def get_bus_and_carrier(n, c, port="", nice_names=True):
-    """
-    Get the buses and nice carrier names for a component.
-    """
-    bus = f"bus{port}"
-    return [n.df(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
-
-
 def get_bus_unit_and_carrier(n, c, port="", nice_names=True):
     """
     Get the buses and nice carrier names for a component.
@@ -44,48 +22,8 @@ def get_bus_unit_and_carrier(n, c, port="", nice_names=True):
     return [
         n.df(c)[bus].rename("bus"),
         n.df(c)[bus].map(n.buses.unit).rename("unit"),
-        get_carrier(n, c, nice_names=nice_names),
+        Groupers.get_carrier(n, c, nice_names=nice_names),
     ]
-
-
-def get_name_bus_and_carrier(n, c, port="", nice_names=True):
-    """
-    Get the name, buses and nice carrier names for a component.
-    """
-    return [
-        n.df(c).index.to_series().rename("name"),
-        *get_bus_and_carrier(n, c, port, nice_names=nice_names),
-    ]
-
-
-def get_country_and_carrier(n, c, port="", nice_names=True):
-    """
-    Get component country and carrier.
-    """
-    bus = f"bus{port}"
-    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    country = bus.map(n.buses.country).rename("country")
-    return [country, carrier]
-
-
-def get_bus_and_carrier_and_bus_carrier(n, c, port="", nice_names=True):
-    """
-    Get component's carrier, bus and bus carrier in one combined list.
-
-    Used for MultiIndex in energy balance.
-    """
-    bus_and_carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    bus_carrier = bus_and_carrier[0].map(n.buses.carrier).rename("bus_carrier")
-    return [*bus_and_carrier, bus_carrier]
-
-
-def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
-    """
-    Get component carrier and bus carrier in one combined list.
-    """
-    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    bus_carrier = bus.map(n.buses.carrier).rename("bus_carrier")
-    return [carrier, bus_carrier]
 
 
 def get_operation(n, c):
@@ -112,13 +50,6 @@ def get_weightings(n, c):
         return n.snapshot_weightings["objective"]
 
 
-# TODO: remove in 0.29
-@deprecated(deprecated_in="0.28", removed_in="0.29")
-def get_ports(n, c):
-    """
-    Get a list of existent ports of a component.
-    """
-    return [col[3:] for col in n.df(c) if col.startswith("bus")]
 
 
 def _port_efficiency(n, c, port=""):
@@ -268,7 +199,7 @@ def _aggregate_components(
     if comps is None:
         comps = n.branch_components | n.one_port_components
     if groupby is None:
-        groupby = get_carrier
+        groupby = Groupers.get_carrier
     for c in comps:
         if n.df(c).empty:
             continue
@@ -320,15 +251,87 @@ class Groupers:
     Container for all the get_ methods.
     """
 
-    get_carrier = staticmethod(get_carrier)
-    get_bus_and_carrier = staticmethod(get_bus_and_carrier)
-    get_name_bus_and_carrier = staticmethod(get_name_bus_and_carrier)
-    get_country_and_carrier = staticmethod(get_country_and_carrier)
-    get_carrier_and_bus_carrier = staticmethod(get_carrier_and_bus_carrier)
-    get_bus_and_carrier_and_bus_carrier = staticmethod(
-        get_bus_and_carrier_and_bus_carrier
-    )
-    get_bus_unit_and_carrier = staticmethod(get_bus_unit_and_carrier)
+    @staticmethod
+    def get_carrier(n, c, nice_names=True):
+        """
+        Get the nice carrier names for a component.
+        """
+        df = n.df(c)
+        fall_back = pd.Series("", index=df.index)
+        carrier_series = df.get("carrier", fall_back).rename("carrier")
+        if nice_names:
+            carrier_series = carrier_series.replace(
+                n.carriers.nice_name[lambda ds: ds != ""]
+            ).replace("", "-")
+        return carrier_series
+
+    @staticmethod
+    def get_bus_and_carrier(n, c, port="", nice_names=True):
+        """
+        Get the buses and nice carrier names for a component.
+        """
+        bus = f"bus{port}"
+        return [
+            n.df(c)[bus].rename("bus"),
+            Groupers.get_carrier(n, c, nice_names=nice_names),
+        ]
+
+    def get_name_bus_and_carrier(n, c, port="", nice_names=True):
+        """
+        Get the name, buses and nice carrier names for a component.
+        """
+        return [
+            n.df(c).index.to_series().rename("name"),
+            *Groupers.get_bus_and_carrier(n, c, port, nice_names=nice_names),
+        ]
+
+    def get_country_and_carrier(n, c, port="", nice_names=True):
+        """
+        Get component country and carrier.
+        """
+        bus = f"bus{port}"
+        bus, carrier = Groupers.get_bus_and_carrier(n, c, port, nice_names=nice_names)
+        country = bus.map(n.buses.country).rename("country")
+        return [country, carrier]
+
+    def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
+        """
+        Get component carrier and bus carrier in one combined list.
+        """
+        bus, carrier = Groupers.get_bus_and_carrier(n, c, port, nice_names=nice_names)
+        bus_carrier = bus.map(n.buses.carrier).rename("bus_carrier")
+        return [carrier, bus_carrier]
+
+    def get_bus_and_carrier_and_bus_carrier(n, c, port="", nice_names=True):
+        """
+        Get component's carrier, bus and bus carrier in one combined list.
+
+        Used for MultiIndex in energy balance.
+        """
+        bus_and_carrier = Groupers.get_bus_and_carrier(
+            n, c, port, nice_names=nice_names
+        )
+        bus_carrier = bus_and_carrier[0].map(n.buses.carrier).rename("bus_carrier")
+        return [*bus_and_carrier, bus_carrier]
+
+    def get_bus_unit_and_carrier(n, c, port="", nice_names=True):
+        """
+        Get the buses and nice carrier names for a component.
+        """
+        bus = f"bus{port}"
+        return [
+            n.df(c)[bus].rename("bus"),
+            n.df(c)[bus].map(n.buses.unit).rename("unit"),
+            Groupers.get_carrier(n, c, nice_names=nice_names),
+        ]
+
+    # TODO: remove in 0.29
+    @deprecated(deprecated_in="0.28", removed_in="0.29")
+    def get_ports(n, c):
+        """
+        Get a list of existent ports of a component.
+        """
+        return [col[3:] for col in n.df(c) if col.startswith("bus")]
 
 
 class StatisticsAccessor:
@@ -338,13 +341,13 @@ class StatisticsAccessor:
 
     def __init__(self, network):
         self._parent = network
-        self.groupers = Groupers()  # Create an instance of the Groupers class
+        self.groupers = Groupers  # Create an instance of the Groupers class
 
     def __call__(
         self,
         comps=None,
         aggregate_groups="sum",
-        groupby=get_carrier,
+        groupby=Groupers.get_carrier,
         nice_names=True,
         **kwargs,
     ):
@@ -893,7 +896,7 @@ class StatisticsAccessor:
         aggregate_time="sum",
         aggregate_groups="sum",
         aggregate_bus=True,
-        groupby=get_carrier_and_bus_carrier,
+        groupby=Groupers.get_carrier_and_bus_carrier,
         at_port=True,
         bus_carrier=None,
         nice_names=True,
@@ -929,14 +932,14 @@ class StatisticsAccessor:
 
         # TODO remove aggregate_bus in 0.29
         if not aggregate_bus:
-            if groupby != get_carrier_and_bus_carrier:
+            if groupby != Groupers.get_carrier_and_bus_carrier:
                 logger.warning(
                     "Argument 'groupby' is ignored when 'aggregate_bus' is set to True. Falling back to default."
                 )
             logger.warning(
                 "Argument 'aggregate_bus' is deprecated in 0.28 and will be removed in 0.29. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
             )
-            groupby = get_bus_and_carrier_and_bus_carrier
+            groupby = Groupers.get_bus_and_carrier_and_bus_carrier
 
         @_pass_empty_series_if_keyerror
         def func(n, c, port):
