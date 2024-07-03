@@ -50,8 +50,6 @@ def get_weightings(n, c):
         return n.snapshot_weightings["objective"]
 
 
-
-
 def _port_efficiency(n, c, port=""):
     if (port == "") or "efficiency" not in n.df(c):
         efficiency = 1
