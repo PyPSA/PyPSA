@@ -86,6 +86,7 @@ branch = true
 source = ["pypsa"]
 omit = ["test/*"]
 comment = false
+threshold = 1
 
 # Formater and linter settings
 
