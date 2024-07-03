@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
-from pypsa.statistics import get_transmission_branches
+from pypsa.statistics import _get_transmission_branches
 
 try:
     import cartopy.crs as ccrs
@@ -180,7 +180,7 @@ def test_plot_from_statistics(ac_dc_network):
     )
     bus_sizes = bus_sizes.Generator
 
-    transmission_branches = get_transmission_branches(n, bus_carrier=bus_carrier)
+    transmission_branches = _get_transmission_branches(n, bus_carrier=bus_carrier)
     branch_widths = n.statistics.installed_capacity(groupby=False).loc[
         transmission_branches
     ]

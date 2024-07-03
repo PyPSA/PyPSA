@@ -138,7 +138,7 @@ def test_multiindexed(ac_dc_network_multiindexed):
 def test_transmission_carriers(ac_dc_network_r):
     n = ac_dc_network_r
     n.lines["carrier"] = "AC"
-    df = pypsa.statistics.get_transmission_carriers(ac_dc_network_r)
+    df = pypsa.statistics._get_transmission_carriers(ac_dc_network_r)
     assert "AC" in df.unique(1)
 
 
