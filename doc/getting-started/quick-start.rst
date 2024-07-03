@@ -4,8 +4,6 @@ Quick Start
 
 For installation instructions see :doc:`/getting-started/installation`.
 
-See also the :doc:`/getting-started/examples-basic` examples with executable Jupyter notebooks.
-
 In principle, PyPSA networks can be assigned with
 
 .. code:: python
