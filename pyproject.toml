@@ -85,6 +85,7 @@ filterwarnings = [
 branch = true
 source = ["pypsa"]
 omit = ["test/*"]
+comment = false
 
 # Formater and linter settings
 
