@@ -24,7 +24,8 @@ test/results/*
 
 
 doc/_build/
-
+doc/_build_html
+doc/api/_source/
 # doc/img/
 
 build/

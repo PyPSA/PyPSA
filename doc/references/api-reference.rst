@@ -1,128 +1,21 @@
-.. _api:
-
-######################
+##############
 API Reference
-######################
+##############
 
-Network
--------
-
-.. autoclass:: pypsa.Network
-    :members:
+:Release: |version|
+:Date: |today|
 
 
-Sub-Network
------------
+.. toctree::
+   :maxdepth: 1
 
-.. autoclass:: pypsa.SubNetwork
-    :members:
+   ../api/networks
+   ../api/power-flow
+   ../api/contingency
+   ../api/clustering
+   ../api/optimization
+   ../api/statistics
+   ../api/plots
+   ../api/examples
+   
 
-
-Descriptors
------------
-
-.. automodule:: pypsa.descriptors
-    :members:
-
-
-Input and Output
-----------------
-
-.. automodule:: pypsa.io
-    :members:
-
-
-Examples
---------
-
-.. automodule:: pypsa.examples
-   :members:
-
-
-Network Graph
--------------
-
-.. automodule:: pypsa.graph
-    :members:
-
-
-Power Flow
-----------
-
-.. automodule:: pypsa.pf
-    :members:
-
-
-Linopy Optimisation Module
---------------------------
-
-
-``abstract.py``
-
-.. automodule:: pypsa.optimization.abstract
-    :members:
-
-``common.py``
-
-.. automodule:: pypsa.optimization.common
-    :members:
-
-``compat.py``
-
-.. automodule:: pypsa.optimization.compat
-    :members:
-
-``constraints.py``
-
-.. automodule:: pypsa.optimization.constraints
-    :members:
-
-``global_constraints.py``
-
-.. automodule:: pypsa.optimization.global_constraints
-    :members:
-
-``optimize.py``
-
-.. automodule:: pypsa.optimization.optimize
-    :members:
-
-``variables.py``
-
-.. automodule:: pypsa.optimization.variables
-    :members:
-
-
-Contingency Analysis
--------------------------------
-
-.. automodule:: pypsa.contingency
-   :members:
-
-
-Statistics
-----------
-
-.. automodule:: pypsa.statistics
-   :members:
-
-
-Plotting Networks
------------------
-
-.. automodule:: pypsa.plot
-   :members:
-
-
-Network Clustering
-------------------
-
-.. automodule:: pypsa.clustering.spatial
-    :members:
-
-
-Georeferencing Utilities
-------------------------
-
-.. automodule:: pypsa.geo
-    :members:
