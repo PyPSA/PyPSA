@@ -131,6 +131,7 @@ html_theme_options = {
     "repository_url": "https://github.com/pypsa/pypsa",
     "use_repository_button": True,
     "show_navbar_depth": 1,
+    "show_toc_level": 2,
 }
 
 

@@ -89,7 +89,6 @@ Documentation
 * :doc:`/getting-started/introduction`
 * :doc:`/getting-started/installation`
 * :doc:`/getting-started/quick-start`
-* :doc:`/getting-started/examples-basic`
 
 .. toctree::
    :hidden:
@@ -99,7 +98,6 @@ Documentation
    getting-started/introduction
    getting-started/installation
    getting-started/quick-start
-   getting-started/examples-basic
 
 **User Guide**
 
