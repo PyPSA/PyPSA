@@ -1083,6 +1083,11 @@ class Network(Basic):
 
         """
 
+        # Use copy.deepcopy if no arguments are passed
+        args = [snapshots, investment_periods, ignore_standard_types, with_time]
+        if all(arg is None or arg is False for arg in args):
+            return copy.deepcopy(self)
+
         # Set default arguments
         if snapshots is None:
             snapshots = self.snapshots
@@ -1107,11 +1112,6 @@ class Network(Basic):
                 stacklevel=2,
             )
 
-        # Use copy.deepcopy if no arguments are passed
-        args = [snapshots, investment_periods, ignore_standard_types, with_time]
-        if all(arg is None or arg is False for arg in args):
-            return copy.deepcopy(self)
-
         # Setup new network
         (
             override_components,
@@ -1125,7 +1125,9 @@ class Network(Basic):
         )
 
         # Copy components
-        for component in self.iterate_components(self.all_components):
+        other_comps = sorted(self.all_components - {"Bus", "Carrier"})
+        # Needs to copy buses and carriers first, since there are dependencies on them
+        for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
             # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
