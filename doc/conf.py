@@ -131,6 +131,7 @@ html_theme_options = {
     "repository_url": "https://github.com/pypsa/pypsa",
     "use_repository_button": True,
     "show_navbar_depth": 1,
+    "show_toc_level": 2,
 }
 
 
@@ -151,7 +152,7 @@ html_logo = "img/pypsa-logo.png"
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-# html_favicon = None
+html_favicon = "_static/favicon.ico"
 
 # These folders are copied to the documentation's HTML output
 html_static_path = ["_static"]
