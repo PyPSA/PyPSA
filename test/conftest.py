@@ -123,10 +123,10 @@ def all_networks(
 ):
     return [
         ac_dc_network,
-        # ac_dc_network_r,
-        # ac_dc_network_multiindexed,
-        # ac_dc_network_shapes,
-        # storage_hvdc_network,
+        ac_dc_network_r,
+        ac_dc_network_multiindexed,
+        ac_dc_network_shapes,
+        storage_hvdc_network,
     ]
 
 
