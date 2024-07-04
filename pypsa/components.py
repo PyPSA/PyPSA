@@ -170,55 +170,41 @@ class Network(Basic):
 
     _crs = CRS.from_epsg(4326)
 
-    # methods imported from other sub-modules
+    # Methods from pypsa.io
     import_from_csv_folder = import_from_csv_folder
-
     export_to_csv_folder = export_to_csv_folder
-
     import_from_hdf5 = import_from_hdf5
-
     export_to_hdf5 = export_to_hdf5
-
     import_from_netcdf = import_from_netcdf
-
     export_to_netcdf = export_to_netcdf
-
     import_from_pypower_ppc = import_from_pypower_ppc
-
     import_from_pandapower_net = import_from_pandapower_net
-
     import_components_from_dataframe = import_components_from_dataframe
-
     merge = merge
-
     import_series_from_dataframe = import_series_from_dataframe
 
+    # Methods from pypsa.pf
+    calculate_dependent_values = calculate_dependent_values
     lpf = network_lpf
-
     pf = network_pf
 
+    # Methods from pypsa.plot
     plot = plot
-
     iplot = iplot
 
-    calculate_dependent_values = calculate_dependent_values
-
+    # Methods from pypsa.contingency
     lpf_contingency = network_lpf_contingency
 
+    # Methods from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
-    get_switchable_as_dense = get_switchable_as_dense
-
-    get_extendable_i = get_extendable_i
-
-    get_non_extendable_i = get_non_extendable_i
-
+    # Methods from pypsa.descriptors
     get_committable_i = get_committable_i
-
+    get_extendable_i = get_extendable_i
+    get_switchable_as_dense = get_switchable_as_dense
+    get_non_extendable_i = get_non_extendable_i
     get_active_assets = get_active_assets
 
     def __init__(
@@ -1445,26 +1431,21 @@ class SubNetwork(Common):
 
     list_name = "sub_networks"
 
+    # Methods from pypsa.pf
     lpf = sub_network_lpf
-
     pf = sub_network_pf
-
     find_bus_controls = find_bus_controls
-
     find_slack_bus = find_slack_bus
-
     calculate_Y = calculate_Y
-
     calculate_PTDF = calculate_PTDF
-
     calculate_B_H = calculate_B_H
 
+    # Methods from pypsa.contingency
     calculate_BODF = calculate_BODF
 
+    # Methods from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
     def buses_i(self):
