@@ -497,7 +497,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
+            lim_up = get_as_dense(n, c, "ramp_limit_up")[com_i].iloc[start_i].fillna(1)
+            lim_start_up = get_as_dense(n, c, "ramp_limit_start_up")[com_i].iloc[start_i].fillna(1)
+            rhs.loc[sns[0]] += (lim_up - lim_start_up)*status_start
 
         mask = active.reindex(columns=com_i) & limit_up.to_pandas().T.notnull()
         m.add_constraints(
@@ -530,7 +532,8 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += -limit_shut * status_start
+            lim_shut = get_as_dense(n, c, "ramp_limit_shut_down")[com_i].iloc[start_i].fillna(1)
+            rhs.loc[sns[0]] += -lim_shut * status_start
 
         mask = active.reindex(columns=com_i) & limit_down.to_pandas().T.notnull()
 
