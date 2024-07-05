@@ -25,7 +25,7 @@ from pypsa.optimization.common import reindex
 logger = logging.getLogger(__name__)
 
 def get_committable_ramp_limit(n, nominal, parameter, sns, com_i):
-    return nominal * DataArray(get_as_dense(n, "Generator", parameter, sns, com_i)).reindex(com_i, axis=1).fillna(1)
+    return nominal * DataArray(get_as_dense(n, "Generator", parameter, sns, com_i).reindex(com_i, axis=1).fillna(1))
 
 def define_operational_constraints_for_non_extendables(
     n, sns, c, attr, transmission_losses
@@ -456,9 +456,21 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     # ----------------------------- Committable Generators ----------------------------- #
 
     assets = n.df(c).reindex(com_i)
+    nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(com_i))
+
+    limit_start = get_committable_ramp_limit(n, nominal, "ramp_limit_start_up", sns, com_i)
+    limit_up = get_committable_ramp_limit(n, nominal, "ramp_limit_up", sns, com_i)
+    limit_shut = get_committable_ramp_limit(n, nominal, "ramp_limit_shut_down", sns, com_i)
+    limit_down = get_committable_ramp_limit(n, nominal, "ramp_limit_down", sns, com_i)
+
+    # limit_start = nominal * DataArray(get_as_dense(n, c, "ramp_limit_start_up", sns)[com_i].reindex(com_i, axis=1).fillna(1))
+    # limit_up = nominal * DataArray(get_as_dense(n, c, "ramp_limit_up", sns)[com_i].reindex(com_i, axis=1).fillna(1))
+    # limit_shut = nominal * DataArray(get_as_dense(n, c, "ramp_limit_shut_down")[com_i].reindex(com_i, axis=1).fillna(1))
+    # limit_down = nominal * DataArray(get_as_dense(n, c, "ramp_limit_down")[com_i].reindex(com_i, axis=1).fillna(1))
+
 
     # com up
-    if not assets.ramp_limit_up.isnull().all():
+    if not limit_up.isnull().all():
         limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
         limit_up = assets.eval("ramp_limit_up * p_nom").to_xarray()
 
@@ -466,11 +478,19 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
         lhs = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_start - limit_up, status_prev),
-            (-limit_start, status),
-        )
+            p_actual(com_i) 
+            - p_previous(com_i)
+            +(limit_start - limit_up) * status_prev
+            - limit_start * status
+
+        ).sel(snapshot=status_prev.coords["snapshot"])
+
+        # lhs = (
+        #     (1, p_actual(com_i)),
+        #     (-1, p_previous(com_i)),
+        #     (limit_start - limit_up, status_prev),
+        #     (-limit_start, status),
+        # )
 
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
@@ -483,7 +503,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         )
 
     # com down
-    if not assets.ramp_limit_down.isnull().all():
+    if not limit_down.isnull().all():
         limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
         limit_down = assets.eval("ramp_limit_down * p_nom").to_xarray()
 
@@ -491,11 +511,19 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
         lhs = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_down - limit_shut, status),
-            (limit_shut, status_prev),
-        )
+            p_actual(com_i) 
+            - p_previous(com_i)
+            +(limit_down - limit_shut) * status
+            - limit_shut * status_prev
+        ).sel(snapshot=status_prev.coords["snapshot"])
+
+
+        # lhs = (
+        #     (1, p_actual(com_i)),
+        #     (-1, p_previous(com_i)),
+        #     (limit_down - limit_shut, status),
+        #     (limit_shut, status_prev),
+        # )
 
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
