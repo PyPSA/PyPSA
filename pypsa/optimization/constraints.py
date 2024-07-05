@@ -18,11 +18,14 @@ from pypsa.descriptors import (
     get_bounds_pu,
     nominal_attrs,
 )
+
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
 
 logger = logging.getLogger(__name__)
 
+def get_committable_ramp_limit(n, nominal, parameter, sns, com_i):
+    return nominal * DataArray(get_as_dense(n, "Generator", parameter, sns, com_i)).reindex(com_i, axis=1).fillna(1)
 
 def define_operational_constraints_for_non_extendables(
     n, sns, c, attr, transmission_losses
@@ -146,10 +149,13 @@ def define_operational_constraints_for_committables(n, sns, c):
     upper_p = max_pu * nominal
     min_up_time_set = n.df(c).min_up_time[com_i]
     min_down_time_set = n.df(c).min_down_time[com_i]
-    ramp_up_limit = nominal * n.df(c).ramp_limit_up[com_i].fillna(1)
-    ramp_down_limit = nominal * n.df(c).ramp_limit_down[com_i].fillna(1)
-    ramp_start_up = nominal * n.df(c).ramp_limit_start_up[com_i]
-    ramp_shut_down = nominal * n.df(c).ramp_limit_shut_down[com_i]
+    
+    # Allow for dynamic ramp limits if specified as series
+    ramp_up_limit = get_committable_ramp_limit(n, nominal, "ramp_limit_up", sns, com_i)
+    ramp_down_limit = get_committable_ramp_limit(n, nominal, "ramp_limit_down", sns, com_i)
+    ramp_start_up = get_committable_ramp_limit(n, nominal, "ramp_limit_start_up", sns, com_i)
+    ramp_shut_down = get_committable_ramp_limit(n, nominal, "ramp_limit_shut_down", sns, com_i)
+    
     up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
     down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
     initially_up = up_time_before_set.astype(bool)
