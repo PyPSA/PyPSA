@@ -471,8 +471,8 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     # com up
     if not limit_up.isnull().all():
-        limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
-        limit_up = assets.eval("ramp_limit_up * p_nom").to_xarray()
+        #limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
+        #limit_up = assets.eval("ramp_limit_up * p_nom").to_xarray()
 
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
@@ -504,8 +504,8 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     # com down
     if not limit_down.isnull().all():
-        limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
-        limit_down = assets.eval("ramp_limit_down * p_nom").to_xarray()
+        #limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
+        #limit_down = assets.eval("ramp_limit_down * p_nom").to_xarray()
 
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
