@@ -485,7 +485,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             +(limit_start - limit_up) * status_prev
             - limit_start * status
 
-        ).sel(snapshot=status_prev.coords["snapshot"])
+        )
 
         # lhs = (
         #     (1, p_actual(com_i)),
@@ -499,7 +499,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
 
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
+        mask = active.reindex(columns=com_i) & limit_up.to_pandas().T.notnull()
         m.add_constraints(
             lhs, "<=", rhs, name=f"{c}-com-{attr}-ramp_limit_up", mask=mask
         )
@@ -517,7 +517,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             - p_previous(com_i)
             +(limit_down - limit_shut) * status
             + limit_shut * status_prev
-        ).sel(snapshot=status_prev.coords["snapshot"])
+        )
 
 
         # lhs = (
@@ -532,7 +532,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             status_start = n.pnl(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += -limit_shut * status_start
 
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
+        mask = active.reindex(columns=com_i) & limit_down.to_pandas().T.notnull()
 
         m.add_constraints(
             lhs, ">=", rhs, name=f"{c}-com-{attr}-ramp_limit_down", mask=mask
