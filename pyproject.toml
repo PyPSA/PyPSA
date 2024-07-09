@@ -28,7 +28,7 @@ dependencies = [
     "xarray",
     "netcdf4",
     "tables",
-    "linopy>=0.3.9",
+    "linopy>=0.3.12",
     "matplotlib",
     "geopandas>=0.9",
     "networkx>=2",
@@ -77,9 +77,6 @@ include = ["pypsa"]
 filterwarnings = [
     "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     "error::FutureWarning",      # Raise all FutureWarnings as errors
-    # Ignore https://github.com/pydata/xarray/issues/6505 (occurs via linopy)
-    # When https://github.com/PyPSA/linopy/issues/303 is fixed, this can be removed
-    "ignore:Deleting a single level of a MultiIndex is deprecated:DeprecationWarning",
 ]
 
 # Coverage settings
