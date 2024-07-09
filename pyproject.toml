@@ -52,14 +52,17 @@ dev = [
 ]
 cartopy = ["cartopy>=0.16"]
 docs = [
-    "numpydoc",
-    "sphinx",
-    "sphinx-book-theme",
-    "sphinx-reredirects",
-    "nbsphinx",
-    "nbsphinx-link",
-    "scikit-learn",
+    "numpydoc==1.7.0",
+    "sphinx==7.3.7",
+    "sphinx-book-theme==1.1.3",
+    "pydata-sphinx-theme==0.15.4",
+    "sphinx-reredirects==0.1.4",
+    "nbsphinx==0.9.4",
+    "nbsphinx-link==1.3.0",
+    "scikit-learn==1.5.1",
     "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
+    "ipython===8.26.0",
+    "ipykernel==6.29.5",
 ]
 gurobipy = ["gurobipy"]
 
