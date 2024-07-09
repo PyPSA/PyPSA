@@ -920,6 +920,7 @@ class StatisticsAccessor:
             n.buses.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
+            and at_port
         ):
             logger.warning(
                 "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
