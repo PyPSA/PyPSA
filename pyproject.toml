@@ -28,7 +28,7 @@ dependencies = [
     "xarray",
     "netcdf4",
     "tables",
-    "linopy>=0.3.9",
+    "linopy>=0.3.12",
     "matplotlib",
     "geopandas>=0.9",
     "networkx>=2",
