@@ -91,7 +91,6 @@ threshold = 1
 # Formatter and linter settings
 
 [tool.ruff]
-line-length = 88
 extend-include = ['*.ipynb']
 
 [tool.ruff.lint]
