@@ -2,9 +2,7 @@
 Quick Start
 ###########################
 
-For installation instructions see :doc:`installation`.
-
-See also the :doc:`examples-basic` examples with executable Jupyter notebooks.
+For installation instructions see :doc:`/getting-started/installation`.
 
 In principle, PyPSA networks can be assigned with
 
@@ -25,7 +23,7 @@ Components like buses can be added with :py:meth:`pypsa.Network.add` or :py:meth
     for i in range(n_buses):
         network.add("Bus", "My bus {}".format(i),  v_nom=20.)
 
-The same counts for lines, generators and loads, see the list of all components :doc:`components`.
+The same counts for lines, generators and loads, see the list of all components :doc:`/user-guide/components`.
 
 .. code:: python
 
@@ -52,3 +50,17 @@ The same counts for lines, generators and loads, see the list of all components 
 
 
 Note that fixed values of active and reactive power are set with ``p_set`` and ``q_set`` respectively. After initializing, there are plenty of options what you can do with your network. The examples section gives a broad overview.
+
+Basic Examples
+~~~~~~~~~~~~~~~
+
+Two more basic examples are given in the following notebooks:
+
+.. toctree::
+   :maxdepth: 1
+
+   ../examples/minimal_example_pf.ipynb
+   ../examples/ac-dc-lopf.ipynb
+
+Find many more extensive examples in the :doc:`Examples </examples-index/lopf>` section. Also
+have a look on the :doc:`User Guide </user-guide/design>` section. 

@@ -185,7 +185,7 @@ def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list
     elif isinstance(groupby, str):
         by = n.df(c)[groupby]
     elif groupby is not False:
-        ValueError(
+        raise ValueError(
             f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
         )
     return dict(by=by, level=level)

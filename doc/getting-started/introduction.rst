@@ -51,28 +51,28 @@ Screenshots
 
 * `PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>`_ optimising capacities of generation, storage and transmission lines (9% line volume expansion allowed) for a 95% reduction in CO2 emissions in Europe compared to 1990 levels
 
-.. image:: img/elec_s_256_lv1.09_Co2L-3H.png
+.. image:: ../img/elec_s_256_lv1.09_Co2L-3H.png
     :align: center
     :width: 700px
 
 
 *  `SciGRID model <https://power.scigrid.de/>`_ simulating the German power system for 2015. Interactive plots also be generated with the `plotly <https://plot.ly/python/>`_ library, as shown in this `Notebook <https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html>`_
 
-.. image:: img/stacked-gen_and_storage-scigrid.png
+.. image:: ../img/stacked-gen_and_storage-scigrid.png
     :align: center
 
-.. image:: img/lmp_and_line-loading.png
+.. image:: ../img/lmp_and_line-loading.png
     :align: right
 
 
-.. image:: img/reactive-power.png
+.. image:: ../img/reactive-power.png
     :align: center
     :width: 600px
 
 
 * Small meshed AC-DC toy model
 
-.. image:: img/ac_dc_meshed.png
+.. image:: ../img/ac_dc_meshed.png
     :align: center
     :width: 400px
 
@@ -110,7 +110,7 @@ licenses are available.
 Other comparable software
 =========================
 
-For a full list see :doc:`comparable_software`.
+For a full list see :doc:`/references/comparable-software`.
 
 PyPSA is not as fully featured as other power system simulation tools
 such as the Matlab-based free software `PSAT
@@ -136,6 +136,6 @@ and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
 Licence
 =======
 
-Copyright 2015-2024 :doc:`developers`
+Copyright 2015-2024 :doc:`/references/developers`
 
 PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.

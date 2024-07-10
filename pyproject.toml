@@ -28,7 +28,7 @@ dependencies = [
     "xarray",
     "netcdf4",
     "tables",
-    "linopy>=0.3.9",
+    "linopy>=0.3.12",
     "matplotlib",
     "geopandas>=0.9",
     "networkx>=2",
@@ -52,13 +52,17 @@ dev = [
 ]
 cartopy = ["cartopy>=0.16"]
 docs = [
-    "numpydoc",
-    "sphinx",
-    "sphinx-book-theme",
-    "nbsphinx",
-    "nbsphinx-link",
-    "scikit-learn",
+    "numpydoc==1.7.0",
+    "sphinx==7.3.7",
+    "sphinx-book-theme==1.1.3",
+    "pydata-sphinx-theme==0.15.4",
+    "sphinx-reredirects==0.1.4",
+    "nbsphinx==0.9.4",
+    "nbsphinx-link==1.3.0",
+    "scikit-learn==1.5.1",
     "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
+    "ipython===8.26.0",
+    "ipykernel==6.29.5",
 ]
 gurobipy = ["gurobipy"]
 
@@ -73,18 +77,20 @@ include = ["pypsa"]
 filterwarnings = [
     "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     "error::FutureWarning",      # Raise all FutureWarnings as errors
-    # Ignore https://github.com/pydata/xarray/issues/6505 (occurs via linopy)
-    # When https://github.com/PyPSA/linopy/issues/303 is fixed, this can be removed
-    "ignore:Deleting a single level of a MultiIndex is deprecated:DeprecationWarning",
 ]
 
-# Formater and linter settings
+# Coverage settings
 
-[tool.black]
-line-length = 88
+[tool.coverage.run]
+branch = true
+source = ["pypsa"]
+omit = ["test/*"]
+comment = false
+threshold = 1
+
+# Formatter and linter settings
 
 [tool.ruff]
-line-length = 88
 extend-include = ['*.ipynb']
 
 [tool.ruff.lint]

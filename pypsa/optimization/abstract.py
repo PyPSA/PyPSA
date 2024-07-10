@@ -291,26 +291,31 @@ def optimize_security_constrained(
             continue
 
         sn.calculate_BODF()
-        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)
-        BODF = (BODF - np.diagflat(np.diag(BODF)))[outages]
+        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)[outages]
 
         for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
+            c_outage_ = c_outage + "-outage"
             c_outages = outages.get_loc_level(c_outage)[1]
-            flow = m.variables[c_outage + "-s"].loc[:, c_outages]
+            flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
+            flow_outage = flow_outage.rename({c_outage: c_outage_})
 
             bodf = BODF.loc[c_affected, c_outage]
-            bodf = xr.DataArray(bodf, dims=[c_affected + "-affected", c_outage])
-            additional_flow = (bodf * flow).rename({c_outage: c_outage + "-outage"})
+            bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
+            additional_flow = flow_outage * bodf
             for bound, kind in product(("lower", "upper"), ("fix", "ext")):
-                constraint = c_affected + "-" + kind + "-s-" + bound
+                coord = c_affected + "-" + kind
+                constraint = coord + "-s-" + bound
                 if constraint not in m.constraints:
                     continue
-                lhs = m.constraints[constraint].lhs
-                sign = m.constraints[constraint].sign
-                rhs = m.constraints[constraint].rhs
-                rename = {c_affected + "-affected": c_affected + "-" + kind}
-                lhs = lhs + additional_flow.rename(rename)
-                m.add_constraints(lhs, sign, rhs, name=constraint + "-security")
+                rename = {c_affected: coord}
+                added_flow = additional_flow.rename(rename)
+                con = m.constraints[constraint]  # use this as a template
+                # idx now contains fixed/extendable for the subnetwork
+                idx = con.lhs.indexes[coord].intersection(added_flow.indexes[coord])
+                sel = {coord: idx}
+                lhs = con.lhs.sel(sel) + added_flow.sel(sel)
+                name = constraint + f"-security-for-{c_outage_}-in-{sn}"
+                m.add_constraints(lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name)
 
     return n.optimize.solve_model(**kwargs)
 

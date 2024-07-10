@@ -121,8 +121,6 @@ class Basic:
 class Common(Basic):
     """Common to all objects inside Network object."""
 
-    network = None
-
     def __init__(self, network, name=""):
         Basic.__init__(self, name)
         self._network = ref(network)
@@ -174,57 +172,43 @@ class Network(Basic):
 
     _crs = CRS.from_epsg(4326)
 
-    # methods imported from other sub-modules
+    # Methods from pypsa.io
     import_from_csv_folder = import_from_csv_folder
-
     export_to_csv_folder = export_to_csv_folder
-
     import_from_hdf5 = import_from_hdf5
-
     export_to_hdf5 = export_to_hdf5
-
     import_from_netcdf = import_from_netcdf
-
     export_to_netcdf = export_to_netcdf
-
     import_from_pypower_ppc = import_from_pypower_ppc
-
     import_from_pandapower_net = import_from_pandapower_net
-
     merge = merge
-
     _import_components_from_dataframe = _import_components_from_dataframe
     import_components_from_dataframe = import_components_from_dataframe  # Deprecated
-
     _import_series_from_dataframe = _import_series_from_dataframe
     import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
+    # Methods from pypsa.pf
+    calculate_dependent_values = calculate_dependent_values
     lpf = network_lpf
-
     pf = network_pf
 
+    # Methods from pypsa.plot
     plot = plot
-
     iplot = iplot
 
-    calculate_dependent_values = calculate_dependent_values
-
+    # Methods from pypsa.contingency
     lpf_contingency = network_lpf_contingency
 
+    # Methods from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
-    get_switchable_as_dense = get_switchable_as_dense
-
-    get_extendable_i = get_extendable_i
-
-    get_non_extendable_i = get_non_extendable_i
-
+    # Methods from pypsa.descriptors
     get_committable_i = get_committable_i
-
+    get_extendable_i = get_extendable_i
+    get_switchable_as_dense = get_switchable_as_dense
+    get_non_extendable_i = get_non_extendable_i
     get_active_assets = get_active_assets
 
     def __init__(
@@ -328,7 +312,7 @@ class Network(Basic):
 
             # exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                str_b = attrs.typ == str
+                str_b = attrs.typ.apply(lambda x: x is str)
                 attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
                 for typ in (str, float, int):
                     typ_b = attrs.typ == typ
@@ -806,7 +790,7 @@ class Network(Basic):
         names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`/user-guide/components`.
 
         Parameters
         ----------
@@ -998,7 +982,7 @@ class Network(Basic):
         subset of names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`/user-guide/components`.
 
         Parameters
         ----------
@@ -1147,6 +1131,11 @@ class Network(Basic):
 
         """
 
+        # Use copy.deepcopy if no arguments are passed
+        args = [snapshots, investment_periods, ignore_standard_types, with_time]
+        if all(arg is None or arg is False for arg in args):
+            return copy.deepcopy(self)
+
         # Set default arguments
         if snapshots is None:
             snapshots = self.snapshots
@@ -1171,11 +1160,6 @@ class Network(Basic):
                 stacklevel=2,
             )
 
-        # Use copy.deepcopy if no arguments are passed
-        args = [snapshots, investment_periods, ignore_standard_types, with_time]
-        if all(arg is None or arg is False for arg in args):
-            return copy.deepcopy(self)
-
         # Setup new network
         (
             override_components,
@@ -1189,7 +1173,9 @@ class Network(Basic):
         )
 
         # Copy components
-        for component in self.iterate_components(self.all_components):
+        other_comps = sorted(self.all_components - {"Bus", "Carrier"})
+        # Needs to copy buses and carriers first, since there are dependencies on them
+        for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
             # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
@@ -1495,26 +1481,21 @@ class SubNetwork(Common):
 
     list_name = "sub_networks"
 
+    # Methods from pypsa.pf
     lpf = sub_network_lpf
-
     pf = sub_network_pf
-
     find_bus_controls = find_bus_controls
-
     find_slack_bus = find_slack_bus
-
     calculate_Y = calculate_Y
-
     calculate_PTDF = calculate_PTDF
-
     calculate_B_H = calculate_B_H
 
+    # Methods from pypsa.contingency
     calculate_BODF = calculate_BODF
 
+    # Methods from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
     def buses_i(self):

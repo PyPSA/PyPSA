@@ -19,7 +19,7 @@ It is always helpful to use dedicated `conda/mamba environments <https://mamba.r
 Getting a solver for optimisation
 =================================
 
-PyPSA passes optimisation problems for :doc:`optimal_power_flow` to an
+PyPSA passes optimisation problems for :doc:`/user-guide/optimal-power-flow` to an
 external solver. PyPSA is known to work via ``linopy`` with the free software
 
 - `HiGHS <https://highs.dev/>`_
@@ -114,5 +114,5 @@ To upgrade PyPSA with conda, do at the command line::
 
     conda update pypsa
 
-Don't forget to read the :doc:`release_notes` regarding API changes
+Don't forget to read the :doc:`/references/release-notes` regarding API changes
 that might require you to update your code.

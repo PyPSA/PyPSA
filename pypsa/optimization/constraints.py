@@ -5,8 +5,9 @@ Define optimisation constraints from PyPSA networks with Linopy.
 
 import logging
 
+import linopy
 import pandas as pd
-from linopy import LinearExpression, Variable, merge
+from linopy import LinearExpression, merge
 from numpy import inf, isfinite
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
@@ -565,9 +566,7 @@ def define_nodal_balance_constraints(
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum())
 
-    lhs = merge(exprs, join="outer").reindex(
-        Bus=buses, fill_value=LinearExpression.fill_value
-    )
+    lhs = merge(exprs, join="outer").reindex(Bus=buses)
     rhs = (
         (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
         .T.groupby(n.loads.bus)
@@ -818,7 +817,7 @@ def define_storage_unit_constraints(n, sns):
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
         previous_soc_pp = previous_soc_pp.where(
-            include_previous_soc_pp.values, Variable.fill_value
+            include_previous_soc_pp.values, linopy.variables.FILL_VALUE
         )
 
         # update the previous_soc variables and right hand side
@@ -892,7 +891,7 @@ def define_store_constraints(n, sns):
         include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
         previous_e_pp = previous_e_pp.where(
-            include_previous_e_pp.values, Variable.fill_value
+            include_previous_e_pp.values, linopy.variables.FILL_VALUE
         )
 
         # update the previous_e variables and right hand side

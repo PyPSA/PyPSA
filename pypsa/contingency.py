@@ -119,11 +119,11 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
         sn = network.sub_networks.obj[passive_branches.sub_network[branch]]
 
         branch_i = sn._branches.index.get_loc(branch)
-
         p0_new = p0_base + pd.Series(
             sn.BODF[:, branch_i] * p0_base[branch], sn._branches.index
         )
+        p0_new.name = branch
 
-        p0[branch] = p0_new
+        p0 = pd.concat([p0, p0_new], axis=1)
 
     return p0
