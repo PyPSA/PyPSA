@@ -488,9 +488,7 @@ def define_transmission_expansion_cost_limit(n, sns):
             )
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
                 weights = 1
 
             elif isinstance(sns, pd.MultiIndex):
