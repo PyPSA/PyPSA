@@ -50,7 +50,7 @@ dev = [
     "pre-commit", 
     "ruff"
 ]
-geomap = [
+cartopy = [
     "cartopy>=0.16",
     "requests",
 ]
