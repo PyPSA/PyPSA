@@ -97,6 +97,8 @@ PyPSA 0.27.1 (22nd March 2024)
 
 * Rewrite function ``get_switchable_as_dense`` so that it consumes less memory when calling it with large dataframes.
 
+* Fix of the capex description in the attribute CSV files.
+
 PyPSA 0.27.0 (18th February 2024)
 =================================
 
