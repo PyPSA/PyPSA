@@ -435,7 +435,7 @@ Where :math:`d_{n,s,t}` is the exogenous load at each node (``load.p_set``) and 
 The bus's role is to enforce energy conservation for all elements
 feeding in and out of it (i.e. like Kirchhoff's Current Law).
 
-.. image:: img/buses.png
+.. image:: ../img/buses.png
 
 
 .. _global-constraints-opf:
@@ -598,11 +598,11 @@ PyPSA component ``carrier``.
 
 Technology Capacity Expansion Limit
 """""""""""""""""""""""""""""""""""
-See above description in Global Constraints for `Technology  Capacity Expansion Limit <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#technology-capacity-expansion-limit>`_.
+See above description in Global Constraints for `Technology  Capacity Expansion Limit <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#technology-capacity-expansion-limit>`_.
 
 :math:`\mathrm{CO}_2` targets for single investment periods
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-This can be implemented via a global primary energy constraint, see above description for `Primary Energy Constraint <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#primary-energy>`_.
+This can be implemented via a global primary energy constraint, see above description for `Primary Energy Constraint <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#primary-energy>`_.
 
 
 Abstract problem formulations
@@ -621,7 +621,7 @@ Security-Constrained Power Flow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-To ensure that the optimized power system is robust against line failures, security-constrained optimization through `Network.optimize.optimize_security_constrained` enforces security margins for power flow on `Line` components. See :doc:`contingency_analysis` for more details.
+To ensure that the optimized power system is robust against line failures, security-constrained optimization through `Network.optimize.optimize_security_constrained` enforces security margins for power flow on `Line` components. See :doc:`/user-guide/contingency-analysis` for more details.
 
 
 
@@ -636,11 +636,11 @@ To build custom constraints, users can access and modify the Linopy model instan
 
 Given a network `n` and the corresponding model instance `m`, some key functions used in the code for working with custom constraints include:
 
-* :py:meth:`n.optimize.create_model()`: Creates a Linopy model instance for the PyPSA network.
-* :py:meth:`m.variables[]`: Accesses the optimization variables of the Linopy model instance.
-* :py:meth:`m.add_variables()`: Adds custom variables to the Linopy model instance.
-* :py:meth:`m.add_constraints()`: Adds custom constraints to the Linopy model instance.
-* :py:meth:`n.optimize.solve_model()`: Solves the optimization problem using the current Linopy model instance and updates the PyPSA network with the solution.
+* :meth:`Network.optimize.create_model`: Creates a Linopy model instance for the PyPSA network.
+* :meth:`linopy.model.variables`: Accesses the optimization variables of the Linopy model instance.
+* :meth:`linopy.model.add_variables``: Adds custom variables to the Linopy model instance.
+* :meth:`linopy.model.add_constraints`: Adds custom constraints to the Linopy model instance.
+* :meth:`Network.optimize.solve_model`: Solves the optimization problem using the current Linopy model instance and updates the PyPSA network with the solution.
 
 
 A typical workflow starts with creating a Linopy model instance for a PyPSA network using the `n.optimize.create_model()` function. This model instance contains all the optimization variables, constraints, and the objective function, which can be accessed and modified to incorporate custom constraints.
@@ -698,7 +698,7 @@ Inputs
 
 For the linear optimal power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
-explicitly set. For the defaults and units, see :doc:`components`.
+explicitly set. For the defaults and units, see :doc:`/user-guide/components`.
 
 * network.{snapshot_weightings}
 

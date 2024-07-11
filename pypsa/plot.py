@@ -2,14 +2,6 @@
 Functions for plotting networks.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
 
 import matplotlib.pyplot as plt
@@ -250,9 +242,10 @@ def plot(
 
     # Plot buses:
 
+    rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
     patches = []
     if isinstance(bus_sizes, pd.Series) and isinstance(bus_sizes.index, pd.MultiIndex):
@@ -600,7 +593,7 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
-def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
+def add_legend_lines(ax, sizes, labels, colors=None, patch_kw=None, legend_kw=None):
     """
     Add a legend for lines and links.
 
@@ -620,7 +613,11 @@ def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
-    colors = np.atleast_1d(colors)
+    colors = [] if colors is None else np.atleast_1d(colors)
+    if patch_kw is None:
+        patch_kw = {}
+    if legend_kw is None:
+        legend_kw = {}
 
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
@@ -642,7 +639,7 @@ def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     ax.get_figure().add_artist(legend)
 
 
-def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
+def add_legend_patches(ax, colors, labels, patch_kw=None, legend_kw=None):
     """
     Add patches for color references.
 
@@ -660,6 +657,10 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     """
     colors = np.atleast_1d(colors)
     labels = np.atleast_1d(labels)
+    if patch_kw is None:
+        patch_kw = {}
+    if legend_kw is None:
+        legend_kw = {}
 
     if len(colors) != len(labels):
         msg = "Colors and labels must have the same length."
@@ -672,7 +673,7 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     ax.get_figure().add_artist(legend)
 
 
-def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=None):
     """
     Add a legend for reference circles.
 
@@ -690,6 +691,10 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
+    if patch_kw is None:
+        patch_kw = {}
+    if legend_kw is None:
+        legend_kw = {}
 
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
@@ -904,7 +909,7 @@ def iplot(
     mapbox=False,
     mapbox_style="open-street-map",
     mapbox_token="",
-    mapbox_parameters={},
+    mapbox_parameters=None,
 ):
     """
     Plot the network buses and lines interactively using plotly.
@@ -988,6 +993,9 @@ def iplot(
     fig: dictionary for plotly figure
     """
 
+    if mapbox_parameters is None:
+        mapbox_parameters = {}
+
     if fig is None:
         fig = dict(data=[], layout={})
 
@@ -996,9 +1004,10 @@ def iplot(
 
     x, y = _get_coordinates(n, layouter=layouter)
 
+    rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
-        x = x + np.random.uniform(low=-jitter, high=jitter, size=len(x))
-        y = y + np.random.uniform(low=-jitter, high=jitter, size=len(y))
+        x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
     bus_trace = dict(
         x=x,

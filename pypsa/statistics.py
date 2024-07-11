@@ -2,14 +2,6 @@
 Statistics Accessor.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-4 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
 from functools import wraps
 from inspect import signature
@@ -193,7 +185,7 @@ def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list
     elif isinstance(groupby, str):
         by = n.df(c)[groupby]
     elif groupby is not False:
-        ValueError(
+        raise ValueError(
             f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
         )
     return dict(by=by, level=level)
@@ -395,7 +387,7 @@ class StatisticsAccessor:
             self.installed_capacity,
             self.supply,
             self.withdrawal,
-            self.dispatch,
+            self.energy_balance,
             self.transmission,
             self.capacity_factor,
             self.curtailment,

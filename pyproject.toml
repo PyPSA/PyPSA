@@ -1,17 +1,99 @@
 [build-system]
-requires = ["setuptools", "wheel"]
-
-[tool.wheel]
-universal = 1
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
 
 
-# Formater and linter settings
+[project]
+name="pypsa"
+dynamic = ["version"]
+description="Python for Power Systems Analysis"
+readme="README.md"
+authors=[{name = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html", email = "t.brown@tu-berlin.de"}]
+license = { file = "LICENSE" }
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+]
 
-[tool.black]
-line-length = 88
+requires-python = ">=3.9"
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas>=0.24",
+    "xarray",
+    "netcdf4",
+    "tables",
+    "linopy>=0.3.12",
+    "matplotlib",
+    "geopandas>=0.9",
+    "networkx>=2",
+    "deprecation",
+    "validators",
+    "highspy",
+]
+
+[project.urls]
+Homepage = "https://github.com/PyPSA/PyPSA"
+Source = "https://github.com/PyPSA/PyPSA"
+
+[project.optional-dependencies]
+dev = [
+    "pytest", 
+    "pypower",
+    "pandapower",
+    "scikit-learn",
+    "pre-commit", 
+    "ruff"
+]
+cartopy = [
+    "cartopy>=0.16",
+    "requests",
+]
+docs = [
+    "numpydoc==1.7.0",
+    "sphinx==7.3.7",
+    "sphinx-book-theme==1.1.3",
+    "pydata-sphinx-theme==0.15.4",
+    "sphinx-reredirects==0.1.4",
+    "nbsphinx==0.9.4",
+    "nbsphinx-link==1.3.0",
+    "scikit-learn==1.5.1",
+    "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
+    "ipython===8.26.0",
+    "ipykernel==6.29.5",
+]
+gurobipy = ["gurobipy"]
+
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+include = ["pypsa"]
+
+# Pytest settings
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
+    "error::FutureWarning",      # Raise all FutureWarnings as errors
+]
+
+# Coverage settings
+
+[tool.coverage.run]
+branch = true
+source = ["pypsa"]
+omit = ["test/*"]
+comment = false
+threshold = 1
+
+# Formatter and linter settings
 
 [tool.ruff]
-line-length = 88
 extend-include = ['*.ipynb']
 
 [tool.ruff.lint]
@@ -23,6 +105,7 @@ select = [
     'D',   # pydocstyle
     'UP',  # pyupgrade
     'TID', # flake8-tidy-imports
+    'NPY', # numpy
 ]
 
 ignore = [

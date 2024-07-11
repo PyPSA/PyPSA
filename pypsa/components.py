@@ -1,22 +1,14 @@
 """Power system components."""
 
-from weakref import ref
-
-from pypsa.clustering import ClusteringAccessor
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
+import copy
 import logging
 import os
+import warnings
 from collections import namedtuple
+from collections.abc import Collection
 from pathlib import Path
-from typing import List, Union
+from typing import Union
+from weakref import ref
 
 import geopandas as gpd
 import numpy as np
@@ -26,11 +18,13 @@ import validators
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
+from pypsa.clustering import ClusteringAccessor
 from pypsa.consistency import (
     check_assets,
     check_dtypes_,
     check_for_disconnected_buses,
     check_for_unknown_buses,
+    check_for_unknown_carriers,
     check_for_zero_impedances,
     check_for_zero_s_nom,
     check_generators,
@@ -83,6 +77,7 @@ from pypsa.plot import iplot, plot
 from pypsa.statistics import StatisticsAccessor
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 dir_name = os.path.dirname(__file__)
@@ -123,8 +118,6 @@ class Basic:
 
 class Common(Basic):
     """Common to all objects inside Network object."""
-
-    network = None
 
     def __init__(self, network, name=""):
         Basic.__init__(self, name)
@@ -177,55 +170,41 @@ class Network(Basic):
 
     _crs = CRS.from_epsg(4326)
 
-    # methods imported from other sub-modules
+    # Methods from pypsa.io
     import_from_csv_folder = import_from_csv_folder
-
     export_to_csv_folder = export_to_csv_folder
-
     import_from_hdf5 = import_from_hdf5
-
     export_to_hdf5 = export_to_hdf5
-
     import_from_netcdf = import_from_netcdf
-
     export_to_netcdf = export_to_netcdf
-
     import_from_pypower_ppc = import_from_pypower_ppc
-
     import_from_pandapower_net = import_from_pandapower_net
-
     import_components_from_dataframe = import_components_from_dataframe
-
     merge = merge
-
     import_series_from_dataframe = import_series_from_dataframe
 
+    # Methods from pypsa.pf
+    calculate_dependent_values = calculate_dependent_values
     lpf = network_lpf
-
     pf = network_pf
 
+    # Methods from pypsa.plot
     plot = plot
-
     iplot = iplot
 
-    calculate_dependent_values = calculate_dependent_values
-
+    # Methods from pypsa.contingency
     lpf_contingency = network_lpf_contingency
 
+    # Methods from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
-    get_switchable_as_dense = get_switchable_as_dense
-
-    get_extendable_i = get_extendable_i
-
-    get_non_extendable_i = get_non_extendable_i
-
+    # Methods from pypsa.descriptors
     get_committable_i = get_committable_i
-
+    get_extendable_i = get_extendable_i
+    get_switchable_as_dense = get_switchable_as_dense
+    get_non_extendable_i = get_non_extendable_i
     get_active_assets = get_active_assets
 
     def __init__(
@@ -240,7 +219,7 @@ class Network(Basic):
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        from pypsa import __version__ as pypsa_version
+        from pypsa import release_version as pypsa_version
 
         Basic.__init__(self, name)
 
@@ -329,7 +308,7 @@ class Network(Basic):
 
             # exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                str_b = attrs.typ == str
+                str_b = attrs.typ.apply(lambda x: x is str)
                 attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
                 for typ in (str, float, int):
                     typ_b = attrs.typ == typ
@@ -383,6 +362,54 @@ class Network(Basic):
     def __add__(self, other):
         """Merge all components of two networks."""
         self.merge(other)
+
+    def __eq__(self, other):
+        """Check for equality of two networks."""
+
+        def equals(a, b):
+            assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
+            # Classes with equality methods
+            if isinstance(a, np.ndarray):
+                if not np.array_equal(a, b):
+                    return False
+            elif isinstance(a, (pd.DataFrame, pd.Series, pd.Index)):
+                if not a.equals(b):
+                    return False
+            # Iterators
+            elif isinstance(a, (dict, Dict)):
+                for k, v in a.items():
+                    if not equals(v, b[k]):
+                        return False
+            elif isinstance(a, (list, tuple)):
+                for i, v in enumerate(a):
+                    if not equals(v, b[i]):
+                        return False
+            # Ignore for now
+            elif isinstance(
+                value, (OptimizationAccessor, ClusteringAccessor, StatisticsAccessor)
+            ):
+                pass
+            # Nans
+            elif pd.isna(a) and pd.isna(b):
+                pass
+            else:
+                if a != b:
+                    return False
+
+            return True
+
+        if isinstance(other, self.__class__):
+            for key, value in self.__dict__.items():
+                if not equals(value, other.__dict__[key]):
+                    return False
+        else:
+            logger.warning(
+                "Can only compare two pypsa.Network objects with each other. Got %s.",
+                type(other),
+            )
+
+            return False
+        return True
 
     def _build_dataframes(self):
         """
@@ -490,7 +517,7 @@ class Network(Basic):
         Set the coordinate reference system of the network's geometries
         (n.shapes).
         """
-        self.shapes.crs = new
+        self.shapes.set_crs(new)
         self._crs = self.shapes.crs
 
     def to_crs(self, new):
@@ -524,18 +551,20 @@ class Network(Basic):
 
     def set_snapshots(
         self,
-        snapshots: Union[List, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
+        snapshots: Union[list, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
         default_snapshot_weightings: float = 1.0,
         weightings_from_timedelta: bool = False,
     ) -> None:
         """
         Set the snapshots/time steps and reindex all time-dependent data.
 
-        Snapshot weightings, typically representing the hourly length of each snapshot, is filled with the `default_snapshot_weighintgs` value,
-        or uses the timedelta of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are of type `pd.DatetimeIndex`.
+        Snapshot weightings, typically representing the hourly length of each snapshot,
+        is filled with the `default_snapshot_weighintgs` value, or uses the timedelta
+        of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are
+        of type `pd.DatetimeIndex`.
 
-        This will reindex all components time-dependent DataFrames (:role:`Network.pnl`); NaNs are filled
-        with the default value for that quantity.
+        This will reindex all components time-dependent DataFrames
+        (:role:`Network.pnl`). NaNs are filled with the default value for that quantity.
 
         Parameters
         ----------
@@ -561,6 +590,9 @@ class Network(Basic):
         else:
             self._snapshots = pd.Index(snapshots, name="snapshot")
 
+        if len(self._snapshots) == 0:
+            raise ValueError("Snapshots must not be empty.")
+
         self.snapshot_weightings = self.snapshot_weightings.reindex(
             self._snapshots, fill_value=default_snapshot_weightings
         )
@@ -585,11 +617,15 @@ class Network(Basic):
             pnl = self.pnl(component)
             attrs = self.components[component]["attrs"]
 
-            for k, default in attrs.default[attrs.varying].items():
+            for k in pnl.keys():
                 if pnl[k].empty:  # avoid expensive reindex operation
                     pnl[k].index = self._snapshots
+                elif k in attrs.default[attrs.varying]:
+                    pnl[k] = pnl[k].reindex(
+                        self._snapshots, fill_value=attrs.default[attrs.varying][k]
+                    )
                 else:
-                    pnl[k] = pnl[k].reindex(self._snapshots, fill_value=default)
+                    pnl[k] = pnl[k].reindex(self._snapshots)
 
         # NB: No need to rebind pnl to self, since haven't changed it
 
@@ -674,9 +710,8 @@ class Network(Basic):
             names = ["period", "timestep"]
             for component in self.all_components:
                 pnl = self.pnl(component)
-                attrs = self.components[component]["attrs"]
 
-                for k, default in attrs.default[attrs.varying].items():
+                for k in pnl.keys():
                     pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
                     pnl[k].index.name = "snapshot"
 
@@ -736,7 +771,7 @@ class Network(Basic):
         Adds it to component DataFrame.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`/user-guide/components`.
 
         This method is slow for many components; instead use ``madd`` or
         ``import_components_from_dataframe`` (see below).
@@ -786,6 +821,9 @@ class Network(Basic):
         obj_df = pd.DataFrame(
             data=[static_attrs.default], index=[name], columns=static_attrs.index
         )
+
+        # Remove all NaN columns before concatenating
+        obj_df = obj_df.dropna(axis=1, how="all")
         new_df = pd.concat([cls_df, obj_df], sort=False)
 
         new_df.index.name = class_name
@@ -860,7 +898,7 @@ class Network(Basic):
         subset of names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`/user-guide/components`.
 
         Parameters
         ----------
@@ -1002,34 +1040,79 @@ class Network(Basic):
 
     def copy(
         self,
-        with_time=True,
-        snapshots=None,
-        investment_periods=None,
-        ignore_standard_types=False,
+        snapshots: Collection = None,
+        investment_periods: Collection = None,
+        ignore_standard_types: bool = False,
+        with_time: bool = None,
     ):
         """
-        Returns a deep copy of the Network object with all components and time-
-        dependent data.
+        Returns a deep copy of Network object.
+
+        If only default arguments are passed, the copy will be created via
+        :func:`copy.deepcopy` and will contain all components and time-varying data.
+        For most networks this is the fastest way. However, if the network is very
+        large, it might be better to filter snapshots and investment periods to reduce
+        the size of the copy. In this case :func:`copy.deepcopy` is not used and only
+        the selected snapshots and investment periods are copied to a new object.
+
+
+        Parameters
+        ----------
+        snapshots : list or index slice , default self.snapshots
+            A list of snapshots to copy, must be a subset of network.snapshots. Pass
+            an empty list ignore all snapshots.
+        investment_periods : list or index slice, default self.investment_period_weightings.index
+            A list of investment periods to copy, must be a subset of network.investment_periods. Pass
+        ignore_standard_types : boolean, default False
+            Ignore the PyPSA standard types.
+        with_time : boolean, default True
+            Copy snapshots and time-varying network.component_names_t data too.
+
+            .. deprecated:: 0.29.0
+              Will be removed in a future version. Pass an empty list to 'snapshots'
+              instead.
 
         Returns
         -------
         network : pypsa.Network
-
-        Parameters
-        ----------
-        with_time : boolean, default True
-            Copy snapshots and time-varying network.component_names_t data too.
-        snapshots : list or index slice
-            A list of snapshots to copy, must be a subset of
-            network.snapshots, defaults to network.snapshots
-        ignore_standard_types : boolean, default False
-            Ignore the PyPSA standard types.
+            The copied network object.
 
         Examples
         --------
         >>> network_copy = network.copy()
 
         """
+
+        # Use copy.deepcopy if no arguments are passed
+        args = [snapshots, investment_periods, ignore_standard_types, with_time]
+        if all(arg is None or arg is False for arg in args):
+            return copy.deepcopy(self)
+
+        # Set default arguments
+        if snapshots is None:
+            snapshots = self.snapshots
+        if investment_periods is None:
+            investment_periods = self.investment_period_weightings.index
+
+        # Deprecation warnings
+        if with_time is not None:
+            warnings.warn(
+                "Argument 'with_time' is deprecated in 0.29 and will be "
+                "removed in a future version. Pass an empty list to 'snapshots' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            snapshots = []
+
+        if not isinstance(snapshots, (Collection)):
+            warnings.warn(
+                f"Argument 'snapshots' should be a collection, got {type(snapshots)}"
+                f"instead. This will raise an error in a future version.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        # Setup new network
         (
             override_components,
             override_component_attrs,
@@ -1041,10 +1124,11 @@ class Network(Basic):
             override_component_attrs=override_component_attrs,
         )
 
+        # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
+        # Needs to copy buses and carriers first, since there are dependencies on them
         for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
-            df = component.df
-            # drop the standard types to avoid them being read in twice
+            # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
                 and component.name in self.standard_type_components
@@ -1052,29 +1136,49 @@ class Network(Basic):
                 df = component.df.drop(
                     network.components[component.name]["standard_types"].index
                 )
+            else:
+                df = component.df
 
             import_components_from_dataframe(network, df, component.name)
 
-        if with_time:
-            if snapshots is None:
-                snapshots = self.snapshots
-            if investment_periods is None:
-                investment_periods = self.investment_period_weightings.index
+        # Copy time-varying data, if given
+
+        if len(snapshots) > 0:
             network.set_snapshots(snapshots)
-            if not investment_periods.empty:
-                network.set_investment_periods(investment_periods)
+            # Apply time-varying data
             for component in self.iterate_components():
                 pnl = getattr(network, component.list_name + "_t")
                 for k in component.pnl.keys():
-                    pnl[k] = component.pnl[k].loc[snapshots].copy()
+                    try:
+                        pnl[k] = component.pnl[k].loc[snapshots].copy()
+                    except KeyError:
+                        pnl[k] = component.pnl[k].reindex(snapshots).copy()
+
+            # Apply investment periods
+            if not investment_periods.empty:
+                network.set_investment_periods(investment_periods)
+
+            # Add weightings
             network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
             network.investment_period_weightings = (
                 self.investment_period_weightings.loc[investment_periods].copy()
             )
 
-        # catch all remaining attributes of network
-        for attr in ["name", "srid"]:
-            setattr(network, attr, getattr(self, attr))
+        # Catch all remaining attributes of network
+        for attr in [
+            "name",
+            "srid",
+            "_meta",
+            "_linearized_uc",
+            "_multi_invest",
+            "objective",
+            "objective_constant",
+            "now",
+        ]:
+            try:
+                setattr(network, attr, getattr(self, attr))
+            except AttributeError:
+                pass
 
         return network
 
@@ -1296,6 +1400,7 @@ class Network(Basic):
         for c in self.iterate_components():
             # Checks all components
             check_for_unknown_buses(self, c)
+            check_for_unknown_carriers(self, c)
             check_time_series(self, c)
             check_static_power_attributes(self, c)
             check_time_series_power_attributes(self, c)
@@ -1328,26 +1433,21 @@ class SubNetwork(Common):
 
     list_name = "sub_networks"
 
+    # Methods from pypsa.pf
     lpf = sub_network_lpf
-
     pf = sub_network_pf
-
     find_bus_controls = find_bus_controls
-
     find_slack_bus = find_slack_bus
-
     calculate_Y = calculate_Y
-
     calculate_PTDF = calculate_PTDF
-
     calculate_B_H = calculate_B_H
 
+    # Methods from pypsa.contingency
     calculate_BODF = calculate_BODF
 
+    # Methods from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
     def buses_i(self):

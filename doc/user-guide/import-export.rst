@@ -14,7 +14,7 @@ Create a folder with CSVs for each component type
 time-dependent variable (e.g. ``generators-p_max_pu.csv,
 loads-p_set.csv``). Then run :py:meth:`pypsa.Network.import_from_csv_folder`
 
-.. note:: It is not necessary to add every single column, only those where values differ from the defaults listed in :doc:`components`. All empty values/columns are filled with the defaults.
+.. note:: It is not necessary to add every single column, only those where values differ from the defaults listed in :doc:`/user-guide/components`. All empty values/columns are filled with the defaults.
 
 .. _export-csv:
 

@@ -72,6 +72,32 @@ def check_for_disconnected_buses(network: Network) -> None:
         )
 
 
+def check_for_unknown_carriers(network: Network, component: Component) -> None:
+    """
+    Check if carriers are attached to component but are not defined in the network.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        The network to check.
+    component : pypsa.Component
+        The component to check.
+
+    """
+    if "carrier" in component.df.columns:
+        missing = (
+            ~component.df["carrier"].isin(network.carriers.index)
+            & component.df["carrier"].notna()
+            & (component.df["carrier"] != "")
+        )
+        if missing.any():
+            logger.warning(
+                "The following %s have carriers which are not defined:\n%s",
+                component.list_name,
+                component.df.index[missing],
+            )
+
+
 def check_for_zero_impedances(network: Network, component: Component) -> None:
     """
     Check if component has zero impedances. Only checks passive branch components.
@@ -433,30 +459,41 @@ def check_nans_for_component_default_attrs(
         The component to check.
 
     """
-    # Get non-NA default attributes for the current component
-    not_na_component_attrs = network.component_attrs[component.name][
-        network.component_attrs[component.name].replace("", np.nan)["default"].notna()
+    # Get non-NA and not-empty default attributes for the current component
+    default = network.component_attrs[component.name]["default"]
+    not_null_component_attrs = network.component_attrs[component.name][
+        default.notna() & default.ne("")
     ].index
 
     # Remove attributes that are not in the component's static data
     relevant_static_df = component.df[
-        list(set(component.df.columns).intersection(not_na_component_attrs))
+        list(set(component.df.columns).intersection(not_null_component_attrs))
     ]
+
+    # Run the check for nan values on relevant static data
+    if (isna := relevant_static_df.isna().any()).any():
+        nan_cols = relevant_static_df.columns[isna]
+        logger.warning(
+            "Encountered nan's in static data for columns %s of component '%s'.",
+            nan_cols.to_list(),
+            component.name,
+        )
 
     # Remove attributes that are not in the component's time series data (if
     # there is any)
-    relevant_series_dfs = [
-        value
+    relevant_series_dfs = {
+        key: value
         for key, value in component.pnl.items()
-        if key in not_na_component_attrs and not value.empty
-    ]
+        if key in not_null_component_attrs and not value.empty
+    }
 
     # Run the check for nan values on relevant data
-    for values_df in [relevant_static_df] + relevant_series_dfs:
-        if values_df.isna().to_numpy().any():
-            nan_cols = values_df.columns[values_df.isna().any()]
+    for key, values_df in relevant_series_dfs.items():
+        if (isna := values_df.isna().any()).any():
+            nan_cols = values_df.columns[isna]
             logger.warning(
-                "Encountered nan's in columns %s of component '%s'.",
-                nan_cols,
+                "Encountered nan's in varying data '%s' for columns %s of component '%s'.",
+                key,
+                nan_cols.to_list(),
                 component.name,
             )

@@ -20,7 +20,7 @@ to a bus as you want. The bus's role is to enforce energy conservation for all
 elements feeding in and out of it (i.e. like Kirchhoff's Current Law).
 
 
-.. image:: img/buses.png
+.. image:: ../img/buses.png
 
 
 Energy flow in the model
@@ -47,7 +47,7 @@ modern RAM availability and speed considerations, pandas DataFrames
 were felt to be preferable and simpler.
 
 
-To see which data is stored for each component, see :doc:`components`.
+To see which data is stored for each component, see :doc:`/user-guide/components`.
 
 
 Static component data
@@ -69,7 +69,7 @@ component.
 
 The columns contain data such as impedance, capacity and the buses to
 which components are attached. All attributes for each component type
-are listed with their properties (defaults, etc.) in :doc:`components`
+are listed with their properties (defaults, etc.) in :doc:`/user-guide/components`
 and are accessible from the network object in
 e.g. ``network.components["Bus"]["attrs"]``.
 
@@ -103,7 +103,7 @@ corresponding to generator names and index corresponding to
 ``network.snapshots``. You can also access the dictionary like an
 attribute ``network.generators_t.p_set``.
 
-Time-varying data are defined as ``series`` in the listings in  :doc:`components`.
+Time-varying data are defined as ``series`` in the listings in  :doc:`/user-guide/components`.
 
 
 For **input data** such as ``p_set`` of a generator you can store the
@@ -213,7 +213,7 @@ the full non-linear network equations (with no approximations) and the
 linearised network equations (with certain approximations to make the
 equations linear).
 
-All equations are listed in the section :doc:`power_flow`.
+All equations are listed in the section :doc:`/user-guide/power-flow`.
 
 
 Set points are stored separately from actual dispatch points

@@ -2,10 +2,10 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, positive and negative capacity values if a `bus_carrier` is selected. Positive values correspond to production capacities, negative values to consumption capacities.
 
@@ -14,15 +14,25 @@ Release Notes
 
 * HiGHS becomes the new default solver for ``n.optimize()``.
 
+* Add functionality to compare two networks for equality via equality operator (``==``). 
+  (https://github.com/PyPSA/PyPSA/pull/924)
+
 * Bugfix: Retain investment periods and weightings when clustering networks.
 
-* When adding components with bus ports greater than 1, e.g. `bus2`, pypsa checks if the bus exists and prints a warning if it does not.
+* When adding components with bus ports greater than 1, e.g. `bus2`, pypsa checks if 
+  the bus exists and prints a warning if it does not.
 
-* When adding bus ports on the fly with `add` methods, the dtype of the freshly created column is now fixed to `string`.
+* When adding bus ports on the fly with `add` methods, the dtype of the freshly created 
+  column is now fixed to `string`.
 
 * Add functionality to provide individual colors for lines in legend during plot.
 
-* Also check for missing values of default attributes in the `n.consistency_check()` function. (https://github.com/PyPSA/PyPSA/pull/903)
+* Also check for missing values of default attributes in the `n.consistency_check()` 
+  function. (https://github.com/PyPSA/PyPSA/pull/903)
+
+* The security-constrained optimization via `n.optimize.optimize_security_constrained` was fixed for correctly handling multiple subnetworks. 
+
+* Bugfix: The global constraint on the total transmission costs now includes the weight of the investment periods and persistence of investment costs of active assets in multi-horizon optimisations.
 
 PyPSA 0.28.0 (8th May 2024)
 =================================
@@ -89,6 +99,8 @@ PyPSA 0.27.1 (22nd March 2024)
 * Always use name and mask keys in variable and constraint assignment to protect against future changes in argument order.
 
 * Rewrite function ``get_switchable_as_dense`` so that it consumes less memory when calling it with large dataframes.
+
+* Fix of the capex description in the attribute CSV files.
 
 PyPSA 0.27.0 (18th February 2024)
 =================================
@@ -835,8 +847,8 @@ documentation's examples section as well as compatibility and bug fixes.
   with multi-indexed snapshots.
 
 * Many example notebooks are now also integrated in the
-  documentation. See :doc:`examples-basic`, :doc:`examples-lopf`,
-  :doc:`examples-sector_coupling` and :doc:`examples-other`.
+  documentation. See :doc:`/getting-started/examples-basic`, :doc:`/examples-index/lopf`,
+  :doc:`/examples-index/sector-coupling` and :doc:`/examples-index/other`.
 
 
 * A new module ``examples`` was added which contains frontend functions for
@@ -962,14 +974,14 @@ new features and bug fixes.
 
     * It is now possible to alter the objective function.
       Terms can be added to the objective via ``extra_functionality``
-      using the function :func:`pypsa.linopt.write_objective`.
+      using the function `pypsa.linopt.write_objective`.
       When a pure custom objective function needs to be declared,
       one can set ``skip_objective=True``.
       In this case, only terms defined through ``extra_functionality``
       will be considered in the objective function.
     * Shadow prices of capacity bounds for non-extendable passive branches
       are parsed (similar to the ``pyomo=True`` setting)
-    * Fixed :func:`pypsa.linopf.define_kirchhoff_constraints` to handle
+    * Fixed `pypsa.linopf.define_kirchhoff_constraints` to handle
       exclusively radial network topologies.
     * CPLEX is now supported as an additional solver option. Enable it by installing the `cplex <https://pypi.org/project/cplex/>`_ package (e.g. via ``pip install cplex`` or ``conda install -c ibmdecisionoptimization cplex``) and setting ``solver_name='cplex'``
 
@@ -982,7 +994,7 @@ new features and bug fixes.
 * The ``carrier`` component has two new columns 'color' and 'nice_name'.
   The color column is used by the plotting function if ``bus_sizes`` is
   a pandas.Series with a MultiIndex and ``bus_colors`` is not explicitly defined.
-* The function :func:`pypsa.linopf.ilopf` can now track the intermediate branch capacities
+* The function `pypsa.linopf.ilopf` can now track the intermediate branch capacities
   and objective values for each iteration using the ``track_iterations`` keyword.
 * Fixed unit commitment:
 
@@ -1018,7 +1030,7 @@ nomopyomo in the previous release, as well as a few minor features.
   is now consistent between the ``nomopyomo`` and ``pyomo``
   formulations. The possible return values are documented in the LOPF
   docstring, see also the `LOPF documentation
-  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pypsa.Network.lopf>`_.
+  <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#pypsa.Network.lopf>`_.
   Furthermore in the ``nomopyomo`` formulation, the solution is still
   returned when gurobi finds a suboptimal solution, since this
   solution is usually close to optimal. In this case the LOPF returns
@@ -1061,7 +1073,7 @@ package in conda is updated.
   for unit commitment. If you use the ``extra_functionality`` argument
   for ``network.lopf`` you will need to update your code for the new
   syntax. There is `documentation
-  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#pyomo-is-set-to-false>`_
+  <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#pyomo-is-set-to-false>`_
   for the new syntax as well as a `Jupyter notebook of examples
   <https://github.com/PyPSA/PyPSA/blob/master/examples/lopf_with_pyomo_False.ipynb>`_.
 
@@ -1072,7 +1084,7 @@ package in conda is updated.
   according to the distribution scheme provided in the argument
   ``slack_weights``. If ``distribute_slack=False`` only the slack
   generator takes up the slack. There is further `documentation
-  <https://pypsa.readthedocs.io/en/latest/power_flow.html#full-non-linear-power-flow>`__.
+  <https://pypsa.readthedocs.io/en/latest/user-guide/power-flow.html#full-non-linear-power-flow>`__.
 
 * Unit testing is now performed on all of GNU/Linux, Windows and MacOS.
 
@@ -1099,7 +1111,7 @@ This release contains new improvements and bug fixes.
   up-times and down-times are also enforced. Ramping constraints also
   look before the simulation at previous results, if there are
   any. See the `unit commitment documentation
-  <https://pypsa.readthedocs.io/en/latest/optimal_power_flow.html#generator-unit-commitment-constraints>`_
+  <https://pypsa.readthedocs.io/en/latest/user-guide/optimal-power-flow.html#generator-unit-commitment-constraints>`_
   for full details. The `UC example
   <https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.html>`_ has been updated
   with a rolling horizon example at the end.
@@ -1336,7 +1348,7 @@ This release contains new features but no changes to existing APIs.
   <https://plot.ly/python/>`_ library. This reveals bus and branch
   properties when the mouse hovers over them and allows users to
   easily zoom in and out on the network. See the (sparse) documentation
-  :doc:`plotting`.
+  :doc:`/user-guide/plotting`.
 * There is a new function ``network.madd()`` for adding multiple new
   components to the network. This is significantly faster than
   repeatedly calling ``network.add()`` and uses the functions
@@ -1500,7 +1512,7 @@ changes to the internal API.
   e.g. ``network.components["Line"]["attrs"]`` will show a pandas
   DataFrame with all attributes and their types, defaults, units and
   descriptions.  These CSVs are also sourced for the documentation in
-  :doc:`components`, so the documentation will always be up-to-date.
+  :doc:`/user-guide/components`, so the documentation will always be up-to-date.
 * All examples have been updated appropriately.
 
 
@@ -1567,7 +1579,7 @@ particularly regarding time-varying component attributes.
   switches and print statements have been removed.
 * There are now more warnings.
 * You can call ``network.consistency_check()`` to make sure all your
-  components are well defined; see :doc:`troubleshooting`.
+  components are well defined; see :doc:`/contributing/troubleshooting`.
 
 
 All `examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_ have been updated to
@@ -1610,7 +1622,7 @@ your old code. Models for Combined Heat and Power (CHP) units, heat
 pumps, resistive Power-to-Heat (P2H), Power-to-Gas (P2G), battery
 electric vehicles (BEVs) and chained hydro reservoirs can now be built
 (see the `sector coupling examples
-<https://pypsa.readthedocs.io/en/latest/examples-sector_coupling.html>`_). The
+<https://pypsa.readthedocs.io/en/latest/examples-index/sector-coupling.html>`_). The
 refactoring of time-dependent variable handling has been postponed
 until the 0.7.0 release. In 0.7.0 the object interface to attributes
 may also be removed; see below.
@@ -1709,7 +1721,7 @@ found in the GitHub repository at
 
 * graph: A new sub-module ``pypsa.graph`` has been introduced to
   replace most of the networkx functionality with scipy.sparse
-  methods, which are more performant the the pure python methods of
+  methods, which are more performant the pure python methods of
   networkx. The discovery of network connected components is now
   significantly faster.
 
@@ -1857,18 +1869,19 @@ main component pandas.DataFrame.
 Release process
 ===============
 
-* Update ``doc/release_notes.rst``
-* Update version in ``setup.py``, ``doc/conf.py``, ``pypsa/__init__.py``
+* Update ``doc/references/release-notes.rst``
+* You don't need to update the version number anywhere, this is done automatically.
 * ``git commit`` and put release notes in commit message
-* ``git tag v0.x.0``
+* ``git tag vx.x.x``
 * ``git push`` and  ``git push --tags``
-* The upload to `PyPI <https://pypi.org/>`_ is automated in the Github Action ``deploy.yml``.
+* The upload to `PyPI <https://pypi.org/>`_ is automated in the Github Action 
+  ``deploy.yml``, which is triggered by pushing a tag.
   To upload manually, run ``python setup.py sdist``,
   then ``twine check dist/pypsa-0.x.0.tar.gz`` and
   ``twine upload dist/pypsa-0.x.0.tar.gz``
+* The `GitHub release <https://github.com/PyPSA/PyPSA/releases>`_ is also automated in 
+  the Github Action. Making a GitHub release will also trigger 
+  `zenodo <https://zenodo.org/>`_ to archive the release with its own DOI.
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Making a `GitHub release <https://github.com/PyPSA/PyPSA/releases>`_
-  will trigger `zenodo <https://zenodo.org/>`_ to archive the release
-  with its own DOI.
 * Inform the PyPSA mailing list.

@@ -2,14 +2,6 @@
 Functions for importing and exporting data.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import json
 import logging
 import math
@@ -771,7 +763,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         for attr, val in attrs.items():
             setattr(network, attr, val)
 
-    ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+    ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
     if pypsa_version is None or pypsa_version < current_pypsa_version:
         pypsa_version_str = (
             ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
@@ -1525,8 +1517,8 @@ def import_from_pandapower_net(
         network.remove("Bus", i)
 
     for c in network.iterate_components({"Load", "Generator", "ShuntImpedance"}):
-        c.df.bus.replace(to_replace, inplace=True)
+        c.df.replace({"bus": to_replace}, inplace=True)
 
     for c in network.iterate_components({"Line", "Transformer"}):
-        c.df.bus0.replace(to_replace, inplace=True)
-        c.df.bus1.replace(to_replace, inplace=True)
+        c.df.replace({"bus0": to_replace}, inplace=True)
+        c.df.replace({"bus1": to_replace}, inplace=True)

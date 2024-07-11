@@ -2,14 +2,6 @@
 Power flow functionality.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
 import time
 from operator import itemgetter
@@ -293,7 +285,7 @@ def newton_raphson_sparse(
     converged = False
     n_iter = 0
     F = f(guess, **slack_args)
-    diff = norm(F, np.Inf)
+    diff = norm(F, np.inf)
 
     logger.debug("Error at iteration %d: %f", n_iter, diff)
 
@@ -303,7 +295,7 @@ def newton_raphson_sparse(
         guess = guess - spsolve(dfdx(guess, **slack_args), F)
 
         F = f(guess, **slack_args)
-        diff = norm(F, np.Inf)
+        diff = norm(F, np.inf)
 
         logger.debug("Error at iteration %d: %f", n_iter, diff)
 
@@ -889,25 +881,27 @@ def apply_line_types(network):
         raise ValueError(msg)
 
     # Get a copy of the lines data
-    l = network.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
-        network.line_types, on="type"
-    )
+    lines = network.lines.loc[
+        lines_with_types_b, ["type", "length", "num_parallel"]
+    ].join(network.line_types, on="type")
 
     for attr in ["r", "x"]:
-        l[attr] = l[attr + "_per_length"] * l["length"] / l["num_parallel"]
-    l["b"] = (
+        lines[attr] = (
+            lines[attr + "_per_length"] * lines["length"] / lines["num_parallel"]
+        )
+    lines["b"] = (
         2
         * np.pi
         * 1e-9
-        * l["f_nom"]
-        * l["c_per_length"]
-        * l["length"]
-        * l["num_parallel"]
+        * lines["f_nom"]
+        * lines["c_per_length"]
+        * lines["length"]
+        * lines["num_parallel"]
     )
 
     # now set calculated values on live lines
     for attr in ["r", "x", "b"]:
-        network.lines.loc[lines_with_types_b, attr] = l[attr]
+        network.lines.loc[lines_with_types_b, attr] = lines[attr]
 
 
 def apply_transformer_types(network):
@@ -1205,9 +1199,9 @@ def calculate_PTDF(sub_network, skip_pre=False):
     n_pvpq = len(sub_network.pvpqs)
     index = np.r_[:n_pvpq]
 
-    I = csc_matrix((np.ones(n_pvpq), (index, index)))
+    identity = csc_matrix((np.ones(n_pvpq), (index, index)))
 
-    B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
+    B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), identity)
 
     # exception for two-node networks, where B_inverse is a 1d array
     if issparse(B_inverse):
@@ -1327,7 +1321,7 @@ def aggregate_multi_graph(sub_network):
             continue
         line_objs = list(graph.adj[u][v].keys())
         if len(line_objs) > 1:
-            lines = network.lines.loc[[l[1] for l in line_objs]]
+            lines = network.lines.loc[[line[1] for line in line_objs]]
             attr_inv = ["x", "r"]
             attr_sum = ["s_nom", "b", "g", "s_nom_max", "s_nom_min"]
             attr_mean = ["capital_cost", "length", "terrain_factor"]
