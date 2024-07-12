@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 import pypsa
 from pypsa.statistics import get_bus_and_carrier, get_country_and_carrier
@@ -176,3 +177,10 @@ def test_parameters(ac_dc_network_r):
     n.statistics.set_parameters(nice_names=False, round=2)
     df = n.statistics.capex()
     assert np.allclose(df, target)
+    with pytest.raises(ValueError):
+        # Test setting not existing parameters
+        n.statistics.set_parameters(groupby=False)
+        # Test setting wrong dtype of parameter
+        n.statistics.set_parameters(round="one")
+    # Test parameter representation
+    isinstance(n.statistics.parameters, str)
