@@ -168,3 +168,11 @@ def test_groupers(ac_dc_network_r):
     grouper = n.statistics.groupers.get_bus_and_carrier_and_bus_carrier(n, c)
     assert isinstance(grouper, list)
     assert all(isinstance(ds, pd.Series) for ds in grouper)
+
+
+def test_parameters(ac_dc_network_r):
+    n = ac_dc_network_r
+    target = n.statistics.capex(nice_names=False).round(2)
+    n.statistics.set_parameters(nice_names=False, round=2)
+    df = n.statistics.capex()
+    assert np.allclose(df, target)
