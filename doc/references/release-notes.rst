@@ -7,6 +7,8 @@ Upcoming Release
 
 .. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, positive and negative capacity values if a `bus_carrier` is selected. Positive values correspond to production capacities, negative values to consumption capacities.
+
 * Remove ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with ``n.optimize()`` instead.
 
@@ -30,6 +32,7 @@ Upcoming Release
 
 * The security-constrained optimization via `n.optimize.optimize_security_constrained` was fixed for correctly handling multiple subnetworks. 
 
+* Bugfix: The global constraint on the total transmission costs now includes the weight of the investment periods and persistence of investment costs of active assets in multi-horizon optimisations.
 
 PyPSA 0.28.0 (8th May 2024)
 =================================
@@ -96,6 +99,8 @@ PyPSA 0.27.1 (22nd March 2024)
 * Always use name and mask keys in variable and constraint assignment to protect against future changes in argument order.
 
 * Rewrite function ``get_switchable_as_dense`` so that it consumes less memory when calling it with large dataframes.
+
+* Fix of the capex description in the attribute CSV files.
 
 PyPSA 0.27.0 (18th February 2024)
 =================================
