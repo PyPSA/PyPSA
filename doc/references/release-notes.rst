@@ -34,6 +34,8 @@ Upcoming Release
 
 * Bugfix: The global constraint on the total transmission costs now includes the weight of the investment periods and persistence of investment costs of active assets in multi-horizon optimisations.
 
+* Add option `n.optimize(compute_infeasibilities=True)` to compute Irreducible Inconsistent Subset (IIS) in case an infeasibility was encountered and Gurobi is installed.
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
