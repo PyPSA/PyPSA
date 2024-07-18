@@ -465,17 +465,8 @@ def define_ramp_limit_constraints(n, sns, c, attr):
     limit_shut = get_committable_ramp_limit(n, nominal, "ramp_limit_shut_down", sns, com_i)
     limit_down = get_committable_ramp_limit(n, nominal, "ramp_limit_down", sns, com_i)
 
-    # limit_start = nominal * DataArray(get_as_dense(n, c, "ramp_limit_start_up", sns)[com_i].reindex(com_i, axis=1).fillna(1))
-    # limit_up = nominal * DataArray(get_as_dense(n, c, "ramp_limit_up", sns)[com_i].reindex(com_i, axis=1).fillna(1))
-    # limit_shut = nominal * DataArray(get_as_dense(n, c, "ramp_limit_shut_down")[com_i].reindex(com_i, axis=1).fillna(1))
-    # limit_down = nominal * DataArray(get_as_dense(n, c, "ramp_limit_down")[com_i].reindex(com_i, axis=1).fillna(1))
-
-
     # com up
     if not limit_up.isnull().all():
-        #limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
-        #limit_up = assets.eval("ramp_limit_up * p_nom").to_xarray()
-
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
@@ -486,13 +477,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             - limit_start * status
 
         )
-
-        # lhs = (
-        #     (1, p_actual(com_i)),
-        #     (-1, p_previous(com_i)),
-        #     (limit_start - limit_up, status_prev),
-        #     (-limit_start, status),
-        # )
 
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
@@ -508,9 +492,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
     # com down
     if not limit_down.isnull().all():
-        #limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
-        #limit_down = assets.eval("ramp_limit_down * p_nom").to_xarray()
-
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
@@ -520,14 +501,6 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             +(limit_down - limit_shut) * status
             + limit_shut * status_prev
         )
-
-
-        # lhs = (
-        #     (1, p_actual(com_i)),
-        #     (-1, p_previous(com_i)),
-        #     (limit_down - limit_shut, status),
-        #     (limit_shut, status_prev),
-        # )
 
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
