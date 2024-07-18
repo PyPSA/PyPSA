@@ -50,7 +50,10 @@ dev = [
     "pre-commit", 
     "ruff"
 ]
-cartopy = ["cartopy>=0.16"]
+cartopy = [
+    "cartopy>=0.16",
+    "requests",
+]
 docs = [
     "numpydoc==1.7.0",
     "sphinx==7.3.7",
