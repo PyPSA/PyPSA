@@ -248,7 +248,7 @@ generators and storage units with fundamental links and stores
 The ``marginal_cost`` of a Store apply to both the charging and the discharging.
 In the case of a cyclic store without losses, these costs would balance out to
 zero. This is different to the ``StorageUnit`` where the marginal cost apply to the
-marginal cost of production.
+marginal cost of production (discharging).
 The ``marginal_cost`` of the Store component can represent another market
 where you can buy or sell an energy carrier. If you want to model the technical
 marginal cost of the Store where both charging and discharging increase the objective
