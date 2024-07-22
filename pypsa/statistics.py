@@ -1185,7 +1185,7 @@ class StatisticsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)
+        df = self.revenue(**kwargs) / self.supply(**{**kwargs, "at_port": False})
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
