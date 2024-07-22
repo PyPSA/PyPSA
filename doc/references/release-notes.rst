@@ -11,6 +11,8 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Add semicircle legend to the plot module. To add semicircle to your plot axis you can do `pypsa.plot.add_legend_semicircle(ax, sizes=[1000/scaling_factor], labels=["1 GWh"])`, where sizes should have the same order of magintude as `bus_sizes`.
+
 * The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, 
   positive and negative capacity values if a `bus_carrier` is selected. Positive values 
   correspond to production capacities, negative values to consumption capacities.

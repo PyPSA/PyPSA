@@ -13,7 +13,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
+from pypsa.plot import (
+    add_legend_circles,
+    add_legend_lines,
+    add_legend_patches,
+    add_legend_semicircles,
+)
 from pypsa.statistics import get_transmission_branches
 
 try:
@@ -295,5 +300,17 @@ def test_plot_legend_circles_geomap(ac_dc_network):
     n.plot(ax=ax, geomap=True)
 
     add_legend_circles(ax, [1, 0.5], ["reference A", "reference B"])
+
+    plt.close()
+
+
+@pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
+def test_plot_legend_semicircles_geomap(ac_dc_network):
+    n = ac_dc_network
+
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    n.plot(ax=ax, geomap=True)
+
+    add_legend_semicircles(ax, [1, 0.5], ["reference A", "reference B"])
 
     plt.close()
