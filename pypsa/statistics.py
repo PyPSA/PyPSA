@@ -449,7 +449,9 @@ class StatisticsAccessor:
         df.attrs["name"] = "Capital Expenditure"
         df.attrs["unit"] = "currency"
         return df
+    
 
+    
     def installed_capex(
         self,
         comps=None,
@@ -524,6 +526,121 @@ class StatisticsAccessor:
         df.attrs["name"] = "Capital Expenditure Expanded"
         df.attrs["unit"] = "currency"
         return df
+
+
+    def investments(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        at_port=False,
+        bus_carrier=None,
+        nice_names=True,
+    ):
+        """
+        Calculate the capital investment of the network in given currency.
+
+        If `bus_carrier` is given, only components which are connected to buses
+        with carrier `bus_carrier` are considered.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c, port):
+            col = n.df(c).eval(f"{nominal_attrs[c]}_opt * investment")
+            return col
+
+        df = aggregate_components(
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+        )
+        df.attrs["name"] = "Capital Investment"
+        df.attrs["unit"] = "currency"
+        return df
+    
+    def installed_investments(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        at_port=False,
+        bus_carrier=None,
+        nice_names=True,
+    ):
+        """
+        Calculate the capital investment of already built components of the
+        network in given currency.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+        """
+        n = self._parent
+
+        @pass_empty_series_if_keyerror
+        def func(n, c, port):
+            col = n.df(c).eval(f"{nominal_attrs[c]} * investment")
+            return col
+
+        df = aggregate_components(
+            n,
+            func,
+            comps=comps,
+            agg=aggregate_groups,
+            groupby=groupby,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+        )
+        df.attrs["name"] = "Capital Investment Fixed"
+        df.attrs["unit"] = "currency"
+        return df
+
+    def expanded_investments(
+        self,
+        comps=None,
+        aggregate_groups="sum",
+        groupby=None,
+        at_port=False,
+        bus_carrier=None,
+        nice_names=True,
+    ):
+        """
+        Calculate the capital investment of expanded capacities of the network components in
+        currency.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+        """
+        df = self.investments(
+            comps=comps,
+            aggregate_groups=aggregate_groups,
+            groupby=groupby,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+        ).sub(
+            self.installed_investments(
+                comps=comps,
+                aggregate_groups=aggregate_groups,
+                groupby=groupby,
+                at_port=at_port,
+                bus_carrier=bus_carrier,
+                nice_names=nice_names,
+            ),
+            fill_value=0,
+        )
+        df.attrs["name"] = "Capital Investment Expanded"
+        df.attrs["unit"] = "currency"
+        return df 
 
     def optimal_capacity(
         self,
