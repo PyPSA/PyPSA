@@ -24,16 +24,19 @@ def define_operational_variables(n, sns, c, attr):
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if n.df(c).empty:
+    dispatchable_i = n.df(c).index.difference(n.get_fixed_operation_i(c)).rename(c)
+
+    if dispatchable_i.empty:
         return
 
     active = get_activity_mask(n, c, sns) if n._multi_invest else None
-    coords = [sns, n.df(c).index.rename(c)]
+    coords = [sns, dispatchable_i]
     n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
 
 def define_status_variables(n, sns, c):
     com_i = n.get_committable_i(c)
+    com_i = com_i.difference(n.get_fixed_operation_i(c)).rename(com_i.name)
 
     if com_i.empty:
         return
@@ -49,6 +52,7 @@ def define_status_variables(n, sns, c):
 
 def define_start_up_variables(n, sns, c):
     com_i = n.get_committable_i(c)
+    com_i = com_i.difference(n.get_fixed_operation_i(c)).rename(com_i.name)
 
     if com_i.empty:
         return
@@ -64,6 +68,7 @@ def define_start_up_variables(n, sns, c):
 
 def define_shut_down_variables(n, sns, c):
     com_i = n.get_committable_i(c)
+    com_i = com_i.difference(n.get_fixed_operation_i(c)).rename(com_i.name)
 
     if com_i.empty:
         return

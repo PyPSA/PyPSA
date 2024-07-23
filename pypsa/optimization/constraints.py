@@ -17,9 +17,9 @@ from pypsa.descriptors import (
     expand_series,
     get_activity_mask,
     get_bounds_pu,
-    nominal_attrs,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,8 @@ def define_operational_constraints_for_non_extendables(
         name of the attribute, e.g. 'p'
     """
     fix_i = n.get_non_extendable_i(c)
-    fix_i = fix_i.difference(n.get_committable_i(c)).rename(fix_i.name)
+    excluded_i = n.get_committable_i(c).union(n.get_fixed_operation_i(c))
+    fix_i = fix_i.difference(excluded_i).rename(fix_i.name)
 
     if fix_i.empty:
         return
@@ -87,6 +88,7 @@ def define_operational_constraints_for_extendables(
         name of the attribute, e.g. 'p'
     """
     ext_i = n.get_extendable_i(c)
+    ext_i = ext_i.difference(n.get_fixed_operation_i(c)).rename(ext_i.name)
 
     if ext_i.empty:
         return
@@ -382,8 +384,9 @@ def define_ramp_limit_constraints(n, sns, c, attr):
             return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
     com_i = n.get_committable_i(c)
+    pro_i = n.get_fixed_operation_i(c)
     fix_i = n.get_non_extendable_i(c)
-    fix_i = fix_i.difference(com_i).rename(fix_i.name)
+    fix_i = fix_i.difference(com_i.union(pro_i)).rename(fix_i.name)
     ext_i = n.get_extendable_i(c)
 
     # ----------------------------- Fixed Generators ----------------------------- #
@@ -573,6 +576,14 @@ def define_nodal_balance_constraints(
         .sum()
         .T.reindex(columns=buses, fill_value=0)
     )
+    for c in n.iterate_components({"Generator", "Link"}):
+        port = "" if c.name == "Generator" else "0"
+        rhs -= (
+            (get_as_dense(n, c.name, "p_set", sns) * c.df.get("sign", 1))
+            .T.groupby(c.df["bus" + port])
+            .sum()
+            .T.reindex(columns=buses, fill_value=0)
+        )
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0
     rhs.index.name = "snapshot"
@@ -726,7 +737,10 @@ def define_fixed_operation_constraints(n, sns, c, attr):
         return
 
     dim = f"{c}-{attr}_set_i"
-    fix = n.pnl(c)[attr + "_set"].reindex(index=sns).rename_axis(columns=dim)
+    fix = n.pnl(c)[attr + "_set"]
+    # skip non-extendable fixed profile assets where no variables are created
+    columns = fix.columns.difference(n.get_fixed_operation_i(c))
+    fix = fix.reindex(index=sns, columns=columns).rename_axis(columns=dim)
     fix.index.name = "snapshot"  # still necessary: reindex loses the index name
 
     if fix.empty:

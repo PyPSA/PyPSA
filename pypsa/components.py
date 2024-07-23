@@ -41,6 +41,7 @@ from pypsa.descriptors import (
     get_active_assets,
     get_committable_i,
     get_extendable_i,
+    get_fixed_operation_i,
     get_non_extendable_i,
     get_switchable_as_dense,
     update_linkports_component_attrs,
@@ -202,6 +203,7 @@ class Network(Basic):
 
     # Methods from pypsa.descriptors
     get_committable_i = get_committable_i
+    get_fixed_operation_i = get_fixed_operation_i
     get_extendable_i = get_extendable_i
     get_switchable_as_dense = get_switchable_as_dense
     get_non_extendable_i = get_non_extendable_i

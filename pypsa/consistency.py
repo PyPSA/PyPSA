@@ -339,6 +339,30 @@ def check_generators(component: Component) -> None:
             )
 
 
+def check_fixed_operation_committable(network: Network, component: Component) -> None:
+    """
+    Check if committable components have fixed profiles.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        The network to check.
+    component : pypsa.Component
+        The component to check.
+
+    """
+    if component.name in {"Generator", "Link"}:
+        fixed_operation_i = network.get_fixed_operation_i(component.name)
+        committable_i = network.get_committable_i(component.name)
+        intersection = fixed_operation_i.intersection(committable_i)
+        if not intersection.empty:
+            logger.warning(
+                f"The following {component.list_name} have fixed profiles but"
+                f" are also committable:\n{intersection}\n"
+                "The unit commitment constraints will be ignored."
+            )
+
+
 def check_dtypes_(component: Component) -> None:
     """
     Check if the dtypes of the attributes in the component are as expected.

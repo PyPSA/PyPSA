@@ -11,8 +11,9 @@ import numpy as np
 import pandas as pd
 from linopy import Model, merge
 
-from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
+from pypsa.descriptors import additional_linkports
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
     optimize_mga,
     optimize_security_constrained,
@@ -111,8 +112,10 @@ def define_objective(n, sns):
         weighting = weighting.loc[sns]
 
     for c, attr in lookup.query("marginal_cost").index:
+        dispatchable_i = n.df(c).index.difference(n.get_fixed_operation_i(c))
         cost = (
             get_as_dense(n, c, "marginal_cost", sns)
+            .reindex(columns=dispatchable_i)
             .loc[:, lambda ds: (ds != 0).any()]
             .mul(weighting, axis=0)
         )
@@ -130,8 +133,10 @@ def define_objective(n, sns):
 
     for c, attr in lookup.query("marginal_cost").index:
         if "marginal_cost_quadratic" in n.df(c):
+            dispatchable_i = n.df(c).index.difference(n.get_fixed_operation_i(c))
             cost = (
                 get_as_dense(n, c, "marginal_cost_quadratic", sns)
+                .reindex(columns=dispatchable_i)
                 .loc[:, lambda ds: (ds != 0).any()]
                 .mul(weighting, axis=0)
             )
@@ -144,7 +149,7 @@ def define_objective(n, sns):
     # stand-by cost
     comps = {"Generator", "Link"}
     for c in comps:
-        com_i = get_committable_i(n, c)
+        com_i = n.get_committable_i(c).difference(n.get_fixed_operation_i(c))
 
         if com_i.empty:
             continue
@@ -181,7 +186,7 @@ def define_objective(n, sns):
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c, attr in lookup.query("variable in @keys").index:
-        com_i = n.get_committable_i(c)
+        com_i = n.get_committable_i(c).difference(n.get_fixed_operation_i(c))
         cost = n.df(c)[attr + "_cost"].reindex(com_i)
 
         if cost.sum():
@@ -330,6 +335,12 @@ def assign_solution(n):
         try:
             c, attr = name.split("-", 1)
             df = sol.to_pandas()
+
+            # append fixed profile components
+            profile_i = n.get_fixed_operation_i(c)
+            if attr == "p" and not profile_i.empty:
+                p_set = get_as_dense(n, c, "p_set", sns)[profile_i]
+                df = pd.concat([df, p_set], axis=1)
         except ValueError:
             continue
 
