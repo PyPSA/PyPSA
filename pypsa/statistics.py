@@ -449,9 +449,7 @@ class StatisticsAccessor:
         df.attrs["name"] = "Capital Expenditure"
         df.attrs["unit"] = "currency"
         return df
-    
 
-    
     def installed_capex(
         self,
         comps=None,
@@ -527,7 +525,6 @@ class StatisticsAccessor:
         df.attrs["unit"] = "currency"
         return df
 
-
     def investments(
         self,
         comps=None,
@@ -566,7 +563,7 @@ class StatisticsAccessor:
         df.attrs["name"] = "Capital Investment"
         df.attrs["unit"] = "currency"
         return df
-    
+
     def installed_investments(
         self,
         comps=None,
@@ -640,7 +637,7 @@ class StatisticsAccessor:
         )
         df.attrs["name"] = "Capital Investment Expanded"
         df.attrs["unit"] = "currency"
-        return df 
+        return df
 
     def optimal_capacity(
         self,
