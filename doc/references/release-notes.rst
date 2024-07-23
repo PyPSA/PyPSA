@@ -5,9 +5,15 @@ Release Notes
 Upcoming Release
 ================
 
-.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. warning:: 
+  
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, positive and negative capacity values if a `bus_carrier` is selected. Positive values correspond to production capacities, negative values to consumption capacities.
+* The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, 
+  positive and negative capacity values if a `bus_carrier` is selected. Positive values 
+  correspond to production capacities, negative values to consumption capacities.
 
 * Remove ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with ``n.optimize()`` instead.
@@ -30,9 +36,19 @@ Upcoming Release
 * Also check for missing values of default attributes in the `n.consistency_check()` 
   function. (https://github.com/PyPSA/PyPSA/pull/903)
 
-* The security-constrained optimization via `n.optimize.optimize_security_constrained` was fixed for correctly handling multiple subnetworks. 
+* The security-constrained optimization via `n.optimize.optimize_security_constrained` 
+  was fixed for correctly handling multiple subnetworks. 
 
-* Bugfix: The global constraint on the total transmission costs now includes the weight of the investment periods and persistence of investment costs of active assets in multi-horizon optimisations.
+* Add option `n.optimize(compute_infeasibilities=True)` to compute Irreducible 
+  Inconsistent Subset (IIS) in case an infeasibility was encountered and Gurobi is 
+  installed.
+
+* Bugfix: The global constraint on the total transmission costs now includes the weight 
+  of the investment periods and persistence of investment costs of active assets in 
+  multi-horizon optimisations.
+
+* Bugfix: Using timezone information in `n.snapshots` raises an error now, since it 
+  leads to issues with `numpy`/ `xarray`. 
 
 * Performance: Dispatch variables for non-extendable links and generators with
   fixed dispatch profiles (``p_set``) are now no longer created and

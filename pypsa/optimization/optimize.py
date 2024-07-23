@@ -10,6 +10,7 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 from linopy import Model, merge
+from linopy.solvers import available_solvers
 
 from pypsa.descriptors import additional_linkports, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -524,6 +525,7 @@ def optimize(
     assign_all_duals=False,
     solver_name="highs",
     solver_options={},
+    compute_infeasibilities=False,
     **kwargs,
 ):
     """
@@ -560,6 +562,9 @@ def optimize(
         Name of the solver to use.
     solver_options : dict
         Keyword arguments used by the solver. Can also be passed via **kwargs.
+    compute_infeasibilities : bool, default False
+        Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
+        of an infeasible solution. Requires Gurobi.
     **kwargs:
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
         `problem_fn` or solver options directly passed to the solver.
@@ -596,6 +601,13 @@ def optimize(
         assign_solution(n)
         assign_duals(n, assign_all_duals)
         post_processing(n)
+
+    if (
+        condition == "infeasible"
+        and compute_infeasibilities
+        and "gurobi" in available_solvers
+    ):
+        n.model.print_infeasibilities()
 
     return status, condition
 
