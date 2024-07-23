@@ -11,9 +11,8 @@ import numpy as np
 import pandas as pd
 from linopy import Model, merge
 
-from pypsa.descriptors import additional_linkports
+from pypsa.descriptors import additional_linkports, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
     optimize_mga,
     optimize_security_constrained,

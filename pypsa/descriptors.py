@@ -301,7 +301,7 @@ def get_fixed_operation_i(n, c):
         return pd.Index([])
     fix_i = n.get_non_extendable_i(c)
     p_set = get_switchable_as_dense(n, c, "p_set")
-    fixed_operation_i  = p_set.where(p_set != 0).dropna(how='all', axis=1).columns
+    fixed_operation_i = p_set.where(p_set != 0).dropna(how="all", axis=1).columns
     idx = fixed_operation_i.intersection(fix_i)
     return idx
 
