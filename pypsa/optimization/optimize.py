@@ -148,7 +148,8 @@ def define_objective(n, sns):
     # stand-by cost
     comps = {"Generator", "Link"}
     for c in comps:
-        com_i = n.get_committable_i(c).difference(n.get_fixed_operation_i(c))
+        com_i = n.get_committable_i(c)
+        com_i = com_i.difference(n.get_fixed_operation_i(c)).rename(com_i.name)
 
         if com_i.empty:
             continue
@@ -185,7 +186,8 @@ def define_objective(n, sns):
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c, attr in lookup.query("variable in @keys").index:
-        com_i = n.get_committable_i(c).difference(n.get_fixed_operation_i(c))
+        com_i = n.get_committable_i(c)
+        com_i = com_i.difference(n.get_fixed_operation_i(c)).rename(com_i.name)
         cost = n.df(c)[attr + "_cost"].reindex(com_i)
 
         if cost.sum():

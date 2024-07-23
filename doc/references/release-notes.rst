@@ -38,8 +38,6 @@ Upcoming Release
   fixed dispatch profiles (``p_set``) are now no longer created and
   added as constants to the optimisation problem.
 
-* The ``p_set`` and ``q_set`` of all components but the Load component now default to NaN rather than zero.
-
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
