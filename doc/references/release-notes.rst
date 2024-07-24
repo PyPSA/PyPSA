@@ -54,6 +54,10 @@ Upcoming Release
 * Bugfix: Using timezone information in `n.snapshots` raises an error now, since it 
   leads to issues with `numpy`/ `xarray`. 
 
+* The statistics module now supports ``nice_name``s for bus carriers. Before nice names 
+  were only supported for components carriers.
+
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
