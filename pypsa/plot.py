@@ -593,6 +593,33 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
+class WedgeHandler(HandlerPatch):
+    """
+    Legend Handler used to create sermi-circles for legend entries.
+
+    This handler resizes the semi-circles in order to match the same
+    dimensional scaling as in the applied axis.
+    """
+
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        fig = legend.get_figure()
+        ax = legend.axes
+        center = 5 - xdescent, 3 - ydescent
+        unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
+        r = orig_handle.r * (72 / fig.dpi) * unit
+        p = Wedge(
+            center=center,
+            r=r,
+            theta1=orig_handle.theta1,
+            theta2=orig_handle.theta2,
+        )
+        self.update_prop(p, orig_handle, legend)
+        p.set_transform(trans)
+        return [p]
+
+
 def add_legend_lines(ax, sizes, labels, colors=None, patch_kw=None, legend_kw=None):
     """
     Add a legend for lines and links.
@@ -708,6 +735,43 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=No
 
     legend = ax.legend(
         handles, labels, handler_map={Circle: HandlerCircle()}, **legend_kw
+    )
+
+    ax.get_figure().add_artist(legend)
+
+
+def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+    """
+    Add a legend for reference semi-circles.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the reference circle; for example [3, 2, 1]
+    labels : list-like, str
+        Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to matplotlib.patches.Wedges
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+
+    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+
+    if hasattr(ax, "projection"):
+        area_correction = projected_area_factor(ax, srid) ** 2
+        sizes = [s * area_correction for s in sizes]
+
+    radius = [np.sign(s) * np.abs(s) ** 0.5 for s in sizes]
+    handles = [
+        Wedge((0, -r / 2), r=r, theta1=0, theta2=180, **patch_kw) for r in radius
+    ]
+
+    legend = ax.legend(
+        handles, labels, handler_map={Wedge: WedgeHandler()}, **legend_kw
     )
 
     ax.get_figure().add_artist(legend)
