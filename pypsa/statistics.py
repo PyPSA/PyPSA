@@ -494,6 +494,7 @@ class StatisticsAccessor:
         at_port=False,
         bus_carrier=None,
         nice_names=None,
+        cost_attribute="capital_cost",
     ):
         """
         Calculate the capital expenditure of the network in given currency.
@@ -503,11 +504,16 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        cost_attribute : str
+            Network attribute that should be used to calculate Capital Expenditure. Defaults to `capital_cost`.
         """
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
-            col = n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
+            col = n.df(c).eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
             return col
 
         df = self._aggregate_components(
@@ -531,6 +537,7 @@ class StatisticsAccessor:
         at_port=False,
         bus_carrier=None,
         nice_names=None,
+        cost_attribute="capital_cost",
     ):
         """
         Calculate the capital expenditure of already built components of the
@@ -538,11 +545,16 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        cost_attribute : str
+            Network attribute that should be used to calculate Capital Expenditure. Defaults to `capital_cost`.
         """
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
-            col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
+            col = n.df(c).eval(f"{nominal_attrs[c]} * {cost_attribute}")
             return col
 
         df = self._aggregate_components(
@@ -566,6 +578,7 @@ class StatisticsAccessor:
         at_port=False,
         bus_carrier=None,
         nice_names=None,
+        cost_attribute="capital_cost",
     ):
         """
         Calculate the capex of expanded capacities of the network components in
@@ -573,6 +586,11 @@ class StatisticsAccessor:
 
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        cost_attribute : str
+            Network attribute that should be used to calculate Capital Expenditure. Defaults to `capital_cost`.
         """
         df = self.capex(
             comps=comps,
@@ -581,6 +599,7 @@ class StatisticsAccessor:
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            cost_attribute=cost_attribute,
         ).sub(
             self.installed_capex(
                 comps=comps,
@@ -589,6 +608,7 @@ class StatisticsAccessor:
                 at_port=at_port,
                 bus_carrier=bus_carrier,
                 nice_names=nice_names,
+                cost_attribute=cost_attribute,
             ),
             fill_value=0,
         )
