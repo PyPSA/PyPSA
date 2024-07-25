@@ -11,6 +11,8 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The `statistics` functions `capex`, `installed_capex`, and `expanded_capex` now have an optional `cost_attribute` argument, which defaults to `capital_cost`. The default behavior of the functions is not changed.
+
 * Add semicircle legend to the plot module. To add semicircle to your plot axis you can do `pypsa.plot.add_legend_semicircle(ax, sizes=[1000/scaling_factor], labels=["1 GWh"])`, where sizes should have the same order of magnitude as `bus_sizes`.
 
 * The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, 
