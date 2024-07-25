@@ -220,7 +220,7 @@ def filter_active_assets(n, c, df: [pd.Series, pd.DataFrame]):
     if not isinstance(n.snapshots, pd.MultiIndex) or isinstance(df, pd.DataFrame):
         return df
     per_period = {}
-    for p in n.snapshots.get_level_values(0):
+    for p in n.snapshots.get_level_values(0).drop_duplicates():
         per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
     return pd.concat(per_period, axis=1)
 

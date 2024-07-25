@@ -54,6 +54,8 @@ Upcoming Release
 * Bugfix: Using timezone information in `n.snapshots` raises an error now, since it 
   leads to issues with `numpy`/ `xarray`. 
 
+* Fixed performance regression of statistics module.
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
