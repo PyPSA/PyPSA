@@ -11,6 +11,8 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* The `statistics` functions `capex`, `installed_capex`, and `expanded_capex` now have an optional `cost_attribute` argument, which defaults to `capital_cost`. The default behavior of the functions is not changed.
+
 * The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, 
   positive and negative capacity values if a `bus_carrier` is selected. Positive values 
   correspond to production capacities, negative values to consumption capacities.
