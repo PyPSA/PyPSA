@@ -248,60 +248,6 @@ def filter_bus_carrier(n, c, port, bus_carrier, df):
         )
 
 
-def aggregate_components(
-    n,
-    func,
-    agg="sum",
-    comps=None,
-    groupby=None,
-    at_port=None,
-    bus_carrier=None,
-    nice_names=True,
-):
-    """
-    Apply a function and group the result for a collection of components.
-    """
-    d = {}
-
-    if is_one_component := isinstance(comps, str):
-        comps = [comps]
-    if comps is None:
-        comps = n.branch_components | n.one_port_components
-    if groupby is None:
-        groupby = get_carrier
-    for c in comps:
-        if n.df(c).empty:
-            continue
-
-        ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
-        if not at_port:
-            ports = [ports[0]]
-
-        df = []
-        for port in ports:
-            vals = func(n, c, port)
-            vals = filter_active_assets(n, c, vals)  # for multiinvest
-            vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
-
-            # unit tracker
-            if groupby is not False:
-                grouping = get_grouping(n, c, groupby, port=port, nice_names=nice_names)
-                vals = vals.groupby(**grouping).agg(agg)
-            df.append(vals)
-
-        df = pd.concat(df, copy=False) if len(df) > 1 else df[0]
-        if not df.index.is_unique:
-            df = df.groupby(level=df.index.names).agg(agg)
-        d[c] = df
-
-    if d == {}:
-        return pd.Series([])
-    if is_one_component:
-        return d[c]
-    index_names = ["component"] + df.index.names
-    return pd.concat(d, names=index_names)[lambda ds: ds != 0]
-
-
 def pass_empty_series_if_keyerror(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -311,6 +257,53 @@ def pass_empty_series_if_keyerror(func):
             return pd.Series([], dtype=float)
 
     return wrapper
+
+
+class Parameters:
+    """
+    Container for all the parameters.
+
+    Attributes
+    ----------
+        drop_zero (bool): Flag indicating whether to drop zero values in statistic metrics.
+        nice_names (bool): Flag indicating whether to use nice names in statistic metrics.
+        round (int): Number of decimal places to round the values to in statistic metrics.
+
+    Methods
+    -------
+        set_parameters(**kwargs): Sets the values of the parameters based on the provided keyword arguments.
+    """
+
+    PARAMETER_TYPES = {
+        "drop_zero": bool,
+        "nice_names": bool,
+        "round": int,
+    }
+
+    def __init__(self):
+        self.drop_zero = True
+        self.nice_names = True
+        self.round = 5
+
+    def __repr__(self):
+        param_str = ", ".join(
+            f"{key}={getattr(self, key)}" for key in self.PARAMETER_TYPES
+        )
+        return f"Parameters({param_str})"
+
+    def set_parameters(self, **kwargs):
+        for key, value in kwargs.items():
+            expected_type = self.PARAMETER_TYPES.get(key)
+            if expected_type is None:
+                raise ValueError(
+                    f"Invalid parameter name: {key} \n Possible parameters are {list(self.PARAMETER_TYPES.keys())}"
+                )
+            elif not isinstance(value, expected_type):
+                raise ValueError(
+                    f"Invalid type for parameter {key}: expected {expected_type.__name__}, got {type(value).__name__}"
+                )
+            else:
+                setattr(self, key, value)
 
 
 class Groupers:
@@ -337,6 +330,78 @@ class StatisticsAccessor:
     def __init__(self, network):
         self._parent = network
         self.groupers = Groupers()  # Create an instance of the Groupers class
+        self.parameters = Parameters()  # Create an instance of the Parameters class
+
+    def set_parameters(self, **kwargs):
+        """
+        Setting the parameters for the statistics accessor.
+
+        To see the list of parameters, one can simply call `network.statistics.parameters`.
+        """
+        self.parameters.set_parameters(**kwargs)
+
+    def _aggregate_components(
+        self,
+        func,
+        agg="sum",
+        comps=None,
+        groupby=None,
+        at_port=None,
+        bus_carrier=None,
+        nice_names=True,
+    ):
+        """
+        Apply a function and group the result for a collection of components.
+        """
+        n = self._parent
+        d = {}
+
+        if is_one_component := isinstance(comps, str):
+            comps = [comps]
+        if comps is None:
+            comps = n.branch_components | n.one_port_components
+        if groupby is None:
+            groupby = get_carrier
+        if nice_names is None:
+            nice_names = self.parameters.nice_names
+        for c in comps:
+            if n.df(c).empty:
+                continue
+
+            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            if not at_port:
+                ports = [ports[0]]
+
+            df = []
+            for port in ports:
+                vals = func(n, c, port)
+                vals = filter_active_assets(n, c, vals)  # for multiinvest
+                vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
+
+                # unit tracker
+                if groupby is not False:
+                    grouping = get_grouping(
+                        n, c, groupby, port=port, nice_names=nice_names
+                    )
+                    vals = vals.groupby(**grouping).agg(agg)
+                df.append(vals)
+
+            df = pd.concat(df, copy=False) if len(df) > 1 else df[0]
+            if not df.index.is_unique:
+                df = df.groupby(level=df.index.names).agg(agg)
+            d[c] = df
+
+        if d == {}:
+            return pd.Series([])
+        if is_one_component:
+            return d[c]
+        index_names = ["component"] + df.index.names
+        df = pd.concat(d, names=index_names)
+        if self.parameters.round:
+            df = df.round(self.parameters.round)
+        if self.parameters.drop_zero:
+            df = df[df != 0]
+        return df
 
     def __call__(
         self,
@@ -418,7 +483,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capital expenditure of the network in given currency.
@@ -429,15 +494,13 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
             col = n.df(c).eval(f"{nominal_attrs[c]}_opt * capital_cost")
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -457,7 +520,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capital expenditure of already built components of the
@@ -466,15 +529,13 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
             col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -494,7 +555,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capex of expanded capacities of the network components in
@@ -533,7 +594,7 @@ class StatisticsAccessor:
         at_port=None,
         bus_carrier=None,
         storage=False,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the optimal capacity of the network components in MW.
@@ -548,7 +609,6 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         if storage:
             comps = ("Store", "StorageUnit")
@@ -565,8 +625,7 @@ class StatisticsAccessor:
                 col = col * n.df(c).max_hours
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -587,7 +646,7 @@ class StatisticsAccessor:
         at_port=None,
         bus_carrier=None,
         storage=False,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the installed capacity of the network components in MW.
@@ -602,7 +661,6 @@ class StatisticsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         if storage:
             comps = ("Store", "StorageUnit")
@@ -619,8 +677,7 @@ class StatisticsAccessor:
                 col = col * n.df(c).max_hours
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -640,7 +697,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=None,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the expanded capacity of the network components in MW.
@@ -682,7 +739,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the operational expenditure in the network in given currency.
@@ -700,7 +757,6 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated
             using snapshot weightings. With False the time series is given. Defaults to 'sum'.
         """
-        n = self._parent
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
@@ -715,8 +771,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(opex, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -737,7 +792,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the supply of components in the network. Units depend on the
@@ -771,7 +826,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the withdrawal of components in the network. Units depend on
@@ -809,7 +864,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
         kind=None,
     ):
         """
@@ -851,7 +906,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the transmission of branch components in the network. Units
@@ -871,6 +926,7 @@ class StatisticsAccessor:
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         n = self._parent
+
         if comps is None:
             comps = n.branch_components
 
@@ -882,8 +938,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -905,7 +960,7 @@ class StatisticsAccessor:
         groupby=get_carrier_and_bus_carrier,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
         kind=None,
     ):
         """
@@ -962,8 +1017,7 @@ class StatisticsAccessor:
                 )
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -985,7 +1039,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=False,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the curtailment of components in the network in MWh.
@@ -1006,7 +1060,6 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        n = self._parent
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
@@ -1017,8 +1070,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -1039,7 +1091,7 @@ class StatisticsAccessor:
         at_port=False,
         groupby=None,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the capacity factor of components in the network.
@@ -1057,8 +1109,8 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
         """
-        n = self._parent
 
+        # TODO: Why not just take p_max_pu, s_max_pu, etc. directly from the network?
         @pass_empty_series_if_keyerror
         def func(n, c, port):
             p = get_operation(n, c).abs()
@@ -1072,7 +1124,7 @@ class StatisticsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = aggregate_components(n, func, agg=aggregate_groups, **kwargs)
+        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
@@ -1087,7 +1139,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
         kind=None,
     ):
         """
@@ -1113,7 +1165,6 @@ class StatisticsAccessor:
             If 'output' only the revenue of the output is considered. Defaults to None.
 
         """
-        n = self._parent
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
@@ -1136,8 +1187,7 @@ class StatisticsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -1158,7 +1208,7 @@ class StatisticsAccessor:
         groupby=None,
         at_port=True,
         bus_carrier=None,
-        nice_names=True,
+        nice_names=None,
     ):
         """
         Calculate the market value of components in the network in given

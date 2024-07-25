@@ -17,6 +17,8 @@ Upcoming Release
   positive and negative capacity values if a `bus_carrier` is selected. Positive values 
   correspond to production capacities, negative values to consumption capacities.
 
+* Introduce the functionality of parameters to the statistics module. With this one can set the parameters `nice_names`, `drop_zero` and `round` which is then applied to all statistics methods without the need to set them individually. To set parameters one can do `n.statistics.set_parameters(nice_names=False, round=2)` and to view current parameters setting `n.statistics.parameters`. 
+
 * Remove ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with ``n.optimize()`` instead.
 
