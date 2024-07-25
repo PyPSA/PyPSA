@@ -1063,7 +1063,10 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
-            p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
+            p = (
+                n.get_switchable_as_dense(c, "p_max_pu") * n.df(c).p_nom_opt
+                - n.pnl(c).p
+            ).clip(lower=0)
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 

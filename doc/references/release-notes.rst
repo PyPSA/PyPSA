@@ -5,9 +5,17 @@ Release Notes
 Upcoming Release
 ================
 
-.. warning:: The features listed below are not released yet, but will be part of the next release! To use the features already you have to install the ``master`` branch, e.g. ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+.. warning:: 
+  
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, positive and negative capacity values if a `bus_carrier` is selected. Positive values correspond to production capacities, negative values to consumption capacities.
+* Add semicircle legend to the plot module. To add semicircle to your plot axis you can do `pypsa.plot.add_legend_semicircle(ax, sizes=[1000/scaling_factor], labels=["1 GWh"])`, where sizes should have the same order of magnitude as `bus_sizes`.
+
+* The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, 
+  positive and negative capacity values if a `bus_carrier` is selected. Positive values 
+  correspond to production capacities, negative values to consumption capacities.
 
 * Introduce the functionality of parameters to the statistics module. With this one can set the parameters `nice_names`, `drop_zero` and `round` which is then applied to all statistics methods without the need to set them individually. To set parameters one can do `n.statistics.set_parameters(nice_names=False, round=2)` and to view current parameters setting `n.statistics.parameters`. 
 
@@ -32,9 +40,19 @@ Upcoming Release
 * Also check for missing values of default attributes in the `n.consistency_check()` 
   function. (https://github.com/PyPSA/PyPSA/pull/903)
 
-* The security-constrained optimization via `n.optimize.optimize_security_constrained` was fixed for correctly handling multiple subnetworks. 
+* The security-constrained optimization via `n.optimize.optimize_security_constrained` 
+  was fixed for correctly handling multiple subnetworks. 
 
-* Bugfix: The global constraint on the total transmission costs now includes the weight of the investment periods and persistence of investment costs of active assets in multi-horizon optimisations.
+* Add option `n.optimize(compute_infeasibilities=True)` to compute Irreducible 
+  Inconsistent Subset (IIS) in case an infeasibility was encountered and Gurobi is 
+  installed.
+
+* Bugfix: The global constraint on the total transmission costs now includes the weight 
+  of the investment periods and persistence of investment costs of active assets in 
+  multi-horizon optimisations.
+
+* Bugfix: Using timezone information in `n.snapshots` raises an error now, since it 
+  leads to issues with `numpy`/ `xarray`. 
 
 PyPSA 0.28.0 (8th May 2024)
 =================================

@@ -580,6 +580,15 @@ class Network(Basic):
         None
 
         """
+        # Check if snapshots contain timezones
+        if isinstance(snapshots, pd.DatetimeIndex) and snapshots.tz is not None:
+            msg = (
+                "Numpy datetime64[ns] objects with timezones are not supported and are "
+                "thus not allowed in snapshots. Please pass timezone-naive timestamps "
+                "(e.g. via ds.values)."
+            )
+            raise ValueError(msg)
+
         if isinstance(snapshots, pd.MultiIndex):
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"
