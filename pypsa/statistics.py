@@ -28,6 +28,15 @@ def get_carrier(n, c, nice_names=True):
     return carrier_series
 
 
+def get_bus_carrier(n, c, port="", nice_names=True):
+    """
+    Get the bus carrier for a component.
+    """
+    bus = f"bus{port}"
+    buses_carrier = get_carrier(n, "Bus", nice_names=nice_names)
+    return n.df(c)[bus].map(buses_carrier).rename("bus_carrier")
+
+
 def get_bus_and_carrier(n, c, port="", nice_names=True):
     """
     Get the buses and nice carrier names for a component.
@@ -75,7 +84,7 @@ def get_bus_and_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     Used for MultiIndex in energy balance.
     """
     bus_and_carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    bus_carrier = bus_and_carrier[0].map(n.buses.carrier).rename("bus_carrier")
+    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
     return [*bus_and_carrier, bus_carrier]
 
 
@@ -83,8 +92,8 @@ def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     """
     Get component carrier and bus carrier in one combined list.
     """
-    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    bus_carrier = bus.map(n.buses.carrier).rename("bus_carrier")
+    carrier = get_carrier(n, c, nice_names=nice_names)
+    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
     return [carrier, bus_carrier]
 
 
@@ -312,6 +321,7 @@ class Groupers:
     """
 
     get_carrier = staticmethod(get_carrier)
+    get_bus_carrier = staticmethod(get_bus_carrier)
     get_bus_and_carrier = staticmethod(get_bus_and_carrier)
     get_name_bus_and_carrier = staticmethod(get_name_bus_and_carrier)
     get_country_and_carrier = staticmethod(get_country_and_carrier)

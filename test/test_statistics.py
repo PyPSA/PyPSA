@@ -150,6 +150,9 @@ def test_groupers(ac_dc_network_r):
     grouper = n.statistics.groupers.get_carrier(n, c)
     assert isinstance(grouper, pd.Series)
 
+    grouper = n.statistics.groupers.get_bus_carrier(n, c)
+    assert isinstance(grouper, pd.Series)
+
     grouper = n.statistics.groupers.get_bus_and_carrier(n, c)
     assert isinstance(grouper, list)
     assert all(isinstance(ds, pd.Series) for ds in grouper)

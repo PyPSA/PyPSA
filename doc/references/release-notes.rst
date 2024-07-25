@@ -56,6 +56,9 @@ Upcoming Release
 
 * Fixed performance regression of statistics module.
 
+* The statistics module now supports ``nice_name``s for bus carriers. Before nice names 
+  were only supported for components carriers.
+
 PyPSA 0.28.0 (8th May 2024)
 =================================
 
