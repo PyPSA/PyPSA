@@ -24,9 +24,16 @@ Upcoming Release
 * Introduce the functionality of parameters to the statistics module. With this one can set the parameters `nice_names`, `drop_zero` and `round` which is then applied to all statistics methods without the need to set them individually. To set parameters one can do `n.statistics.set_parameters(nice_names=False, round=2)` and to view current parameters setting `n.statistics.parameters`. 
 
 * Remove ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
-  linopy-based optimization with ``n.optimize()`` instead.
+  linopy-based optimization with :func:`n.optimize <pypsa.optimization.optimize.optimize>` instead.
 
-* HiGHS becomes the new default solver for ``n.optimize()``.
+* HiGHS becomes the new default solver for :func:`n.optimize <pypsa.optimization.optimize.optimize>`.
+
+* Deprecate :meth:`n.madd <pypsa.Network.madd>` and :meth:`n.mremove <pypsa.Network.mremove>`. 
+  :meth:`n.add <pypsa.Network.add>` and :meth:`n.remove <pypsa.Network.remove>` are now used for 
+  adding/ removing multiple as well as single components. (https://github.com/PyPSA/PyPSA/pull/896)
+
+* When adding bus ports on the fly with :meth:`n.add <pypsa.Network.add>` methods, the dtype of 
+  the freshly created column is now fixed to `string`.
 
 * Add functionality to compare two networks for equality via equality operator (``==``). 
   (https://github.com/PyPSA/PyPSA/pull/924)
@@ -36,13 +43,10 @@ Upcoming Release
 * When adding components with bus ports greater than 1, e.g. `bus2`, pypsa checks if 
   the bus exists and prints a warning if it does not.
 
-* When adding bus ports on the fly with `add` methods, the dtype of the freshly created 
-  column is now fixed to `string`.
-
 * Add functionality to provide individual colors for lines in legend during plot.
 
-* Also check for missing values of default attributes in the `n.consistency_check()` 
-  function. (https://github.com/PyPSA/PyPSA/pull/903)
+* Also check for missing values of default attributes in the 
+  :meth:`n.consistency_check <pypsa.Network.consistency_check>` function. (https://github.com/PyPSA/PyPSA/pull/903)
 
 * The security-constrained optimization via `n.optimize.optimize_security_constrained` 
   was fixed for correctly handling multiple subnetworks. 
