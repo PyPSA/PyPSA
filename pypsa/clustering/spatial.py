@@ -341,6 +341,8 @@ def aggregatelines(
         Custom aggregation strategies (default is empty dict).
     bus_strategies : dict, optional
         Custom aggregation strategies for buses (default is empty dict).
+    custom_line_groupers : list, optional
+        Additional custom groupers for the lines. Specifies that different column values are not aggregated. (default is empty list).
 
     Returns
     -------
