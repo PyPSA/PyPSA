@@ -172,3 +172,18 @@ def test_cluster_accessor(scipy_network):
         bus_weightings=weighting, n_clusters=50, random_state=42
     ).buses
     assert buses.equals(buses_direct)
+
+
+def test_custom_line_groupers(scipy_network):
+    n = scipy_network
+    random_build_years = [1900, 2000]
+    rng = np.random.default_rng()
+    n.lines.loc[:, "build_year"] = rng.choice(random_build_years, size=len(n.lines))
+    prepare_network_for_aggregation(n)
+    weighting = pd.Series(1, n.buses.index)
+    busmap = busmap_by_kmeans(n, bus_weightings=weighting, n_clusters=20)
+    C = get_clustering_from_busmap(n, busmap, custom_line_groupers=["build_year"])
+    linemap = C.linemap
+    nc = C.network
+    assert len(nc.buses) == 20
+    assert (n.lines.groupby(linemap).build_year.nunique() == 1).all()

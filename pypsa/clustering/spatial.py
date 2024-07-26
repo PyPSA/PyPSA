@@ -322,6 +322,7 @@ def aggregatelines(
     with_time=True,
     custom_strategies=None,
     bus_strategies=None,
+    custom_line_groupers=[],
 ):
     """
     Aggregate lines in the network based on the given busmap.
@@ -340,6 +341,8 @@ def aggregatelines(
         Custom aggregation strategies (default is empty dict).
     bus_strategies : dict, optional
         Custom aggregation strategies for buses (default is empty dict).
+    custom_line_groupers : list, optional
+        Additional custom groupers for the lines. Specifies that different column values are not aggregated. (default is empty list).
 
     Returns
     -------
@@ -375,7 +378,7 @@ def aggregatelines(
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, "Line")
 
-    grouper = df.groupby(["bus0", "bus1"]).ngroup().astype(str)
+    grouper = df.groupby(["bus0", "bus1", *custom_line_groupers]).ngroup().astype(str)
 
     coords = buses[["x", "y"]]
     length = (
@@ -455,6 +458,7 @@ def get_clustering_from_busmap(
     generator_strategies=dict(),
     line_strategies=dict(),
     aggregate_generators_buses=None,
+    custom_line_groupers=[],
 ):
     if aggregate_one_ports is None:
         aggregate_one_ports = {}
@@ -468,6 +472,7 @@ def get_clustering_from_busmap(
         with_time=with_time,
         custom_strategies=line_strategies,
         bus_strategies=bus_strategies,
+        custom_line_groupers=custom_line_groupers,
     )
 
     clustered = Network()
