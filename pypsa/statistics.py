@@ -964,7 +964,6 @@ class StatisticsAccessor:
                 "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
             )
 
-
         @pass_empty_series_if_keyerror
         def func(n, c, port):
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
