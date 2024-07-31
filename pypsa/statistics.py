@@ -7,7 +7,6 @@ from functools import wraps
 from inspect import signature
 
 import pandas as pd
-from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
 
@@ -119,15 +118,6 @@ def get_weightings(n, c):
         return n.snapshot_weightings["stores"]
     else:
         return n.snapshot_weightings["objective"]
-
-
-# TODO: remove in 0.29
-@deprecated(deprecated_in="0.28", removed_in="0.29")
-def get_ports(n, c):
-    """
-    Get a list of existent ports of a component.
-    """
-    return [col[3:] for col in n.df(c) if col.startswith("bus")]
 
 
 def port_efficiency(n, c, port=""):
@@ -882,52 +872,6 @@ class StatisticsAccessor:
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    # TODO: remove in 0.29
-    @deprecated(
-        deprecated_in="0.28", removed_in="0.29", details="Use 'energy_balance' instead."
-    )
-    def dispatch(
-        self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=None,
-        kind=None,
-    ):
-        """
-        Calculate the dispatch of components in the network. Units depend on
-        the regarded bus carrier.
-
-        If `bus_carrier` is given, only the dispatch to and from buses with
-        carrier `bus_carrier` is calculated.
-
-        For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
-
-        Parameters
-        ----------
-        aggregate_time : str, bool, optional
-            Type of aggregation when aggregating time series.
-            Note that for {'mean', 'sum'} the time series are aggregated to MWh
-            using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
-        """
-        df = self.energy_balance(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
-            groupby=groupby,
-            at_port=at_port,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            kind=kind,
-        )
-        df.attrs["name"] = "Dispatch"
-        df.attrs["unit"] = "carrier dependent"
-        return df
-
     def transmission(
         self,
         comps=None,
@@ -986,7 +930,6 @@ class StatisticsAccessor:
         comps=None,
         aggregate_time="sum",
         aggregate_groups="sum",
-        aggregate_bus=True,
         groupby=get_carrier_and_bus_carrier,
         at_port=True,
         bus_carrier=None,
@@ -1020,17 +963,6 @@ class StatisticsAccessor:
             logger.warning(
                 "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
             )
-
-        # TODO remove aggregate_bus in 0.29
-        if not aggregate_bus:
-            if groupby != get_carrier_and_bus_carrier:
-                logger.warning(
-                    "Argument 'groupby' is ignored when 'aggregate_bus' is set to True. Falling back to default."
-                )
-            logger.warning(
-                "Argument 'aggregate_bus' is deprecated in 0.28 and will be removed in 0.29. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
-            )
-            groupby = get_bus_and_carrier_and_bus_carrier
 
         @pass_empty_series_if_keyerror
         def func(n, c, port):
