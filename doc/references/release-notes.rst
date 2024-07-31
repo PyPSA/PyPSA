@@ -11,57 +11,121 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Add exemptions for clusting of lines and links in the spatial clustering module. With the `custom_line_groupers` parameter one can specify additional columns besides the `bus0` and `bus1` columns to aggregate lines and links. This is useful for example to avoid the aggregation of lines/links with different `build_year` or `carrier` together. 
+* new feature or bugfix
 
-* The `statistics` functions `capex`, `installed_capex`, and `expanded_capex` now have an optional `cost_attribute` argument, which defaults to `capital_cost`. The default behavior of the functions is not changed.
+PyPSA 0.29.0 (31st July 2024)
+=============================
 
-* Add semicircle legend to the plot module. To add semicircle to your plot axis you can do `pypsa.plot.add_legend_semicircle(ax, sizes=[1000/scaling_factor], labels=["1 GWh"])`, where sizes should have the same order of magnitude as `bus_sizes`.
-
-* The `statistics` module has now for `optimal_capacity` and `expanded_capacity`, 
-  positive and negative capacity values if a `bus_carrier` is selected. Positive values 
-  correspond to production capacities, negative values to consumption capacities.
-
-* Introduce the functionality of parameters to the statistics module. With this one can set the parameters `nice_names`, `drop_zero` and `round` which is then applied to all statistics methods without the need to set them individually. To set parameters one can do `n.statistics.set_parameters(nice_names=False, round=2)` and to view current parameters setting `n.statistics.parameters`. 
-
-* Remove ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
+* Removed ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with ``n.optimize()`` instead.
+  (https://github.com/PyPSA/PyPSA/pull/884)
 
 * HiGHS becomes the new default solver for ``n.optimize()``.
+  (https://github.com/PyPSA/PyPSA/pull/884)
 
-* Add functionality to compare two networks for equality via equality operator (``==``). 
-  (https://github.com/PyPSA/PyPSA/pull/924)
+* Changes to the ``statistics`` module:
 
-* Bugfix: Retain investment periods and weightings when clustering networks.
+  - The statistics functions ``n.statistics.capex()``,
+    ``n.statistics.installed_capex()``, and ``expanded_capex`` now have an
+    optional ``cost_attribute`` argument, which defaults to `capital_cost`. The
+    default behavior of the functions is not changed.
+    (https://github.com/PyPSA/PyPSA/pull/989)
 
-* When adding components with bus ports greater than 1, e.g. `bus2`, pypsa checks if 
-  the bus exists and prints a warning if it does not.
+  - The functions ``n.statistics.optimal_capacity()`` and
+    ``n.statistics.expanded_capacity()`` now return positive and negative
+    capacity values if a ``bus_carrier`` is selected. Positive values correspond
+    to production capacities, negative values to consumption capacities.
+    (https://github.com/PyPSA/PyPSA/pull/885)
 
-* When adding bus ports on the fly with `add` methods, the dtype of the freshly created 
-  column is now fixed to `string`.
+  - The statistics module now supports the ``nice_name`` argument for bus
+    carriers. Previously, nice names were only supported for components
+    carriers. (https://github.com/PyPSA/PyPSA/pull/991)
 
-* Add functionality to provide individual colors for lines in legend during plot.
+  - The statistics module now features functionality to set global style
+    parameters (e.g. ``nice_names``, ``drop_zero`` and ``round``) which is then
+    applied to all statistics methods without the need to set them individually.
+    To set parameters one can run
+    ``n.statistics.set_parameters(nice_names=False, round=2)`` and to view
+    current parameters setting ``n.statistics.parameters``.
+    (https://github.com/PyPSA/PyPSA/pull/886)
 
-* Also check for missing values of default attributes in the `n.consistency_check()` 
-  function. (https://github.com/PyPSA/PyPSA/pull/903)
+* Changes to the ``clustering`` module:
 
-* The security-constrained optimization via `n.optimize.optimize_security_constrained` 
-  was fixed for correctly handling multiple subnetworks. 
+  - Add attribute-based exemptions for clustering lines and links. With the
+    argument ``custom_line_groupers`` in the function ``aggregatelines()`` one
+    can specify additional columns besides ``bus0`` and ``bus1`` to consider as
+    unique criteria for clustering. This is useful, for example, to avoid the
+    aggregation of lines/links with different ``build_year`` or ``carrier``.
+    (https://github.com/PyPSA/PyPSA/pull/982)
 
-* Add option `n.optimize(compute_infeasibilities=True)` to compute Irreducible 
-  Inconsistent Subset (IIS) in case an infeasibility was encountered and Gurobi is 
-  installed.
+* Changes to the ``plot```module:
 
-* Bugfix: The global constraint on the total transmission costs now includes the weight 
-  of the investment periods and persistence of investment costs of active assets in 
-  multi-horizon optimisations.
+  - Add option to add semicircle legends by running
+    ``pypsa.plot.add_legend_semicircle(ax, sizes=[1000/scaling_factor],
+    labels=["1 GWh"])``. (https://github.com/PyPSA/PyPSA/pull/986)
 
-* Bugfix: Using timezone information in `n.snapshots` raises an error now, since it 
-  leads to issues with `numpy`/ `xarray`. 
+  - Add functionality to provide list of colors in ``add_legend_lines()``.
+    (https://github.com/PyPSA/PyPSA/pull/902)
 
-* Fixed performance regression of statistics module.
+* Bugfixes:
+  
+  - The security-constrained optimization via
+    ``n.optimize.optimize_security_constrained()`` was fixed to correctly handle
+    multiple subnetworks. (https://github.com/PyPSA/PyPSA/pull/946)
 
-* The statistics module now supports ``nice_name``s for bus carriers. Before nice names 
-  were only supported for components carriers.
+  - The global constraint on the total transmission costs now includes the
+    weight of the investment periods and persistence of investment costs of
+    active assets in multi-horizon optimisations.
+
+  - Retain investment periods and weightings when clustering networks.
+    (https://github.com/PyPSA/PyPSA/pull/891)
+
+  - Removed performance regression of ``statistics`` module.
+    (https://github.com/PyPSA/PyPSA/pull/990)
+
+  - When adding bus ports on the fly with `add` methods, the dtype of the
+    freshly created column is now fixed to `string`. (https://github.com/PyPSA/PyPSA/pull/893)
+
+  - Using timezone information in `n.snapshots` raises an error now, since it
+    leads to issues with `numpy`/ `xarray`. (https://github.com/PyPSA/PyPSA/pull/976)
+
+* Improvements to consistency checks and model debugging:
+
+  - When adding components with bus ports greater than 1, e.g. `bus2`, pypsa
+    checks if the bus exists and prints a warning if it does not.
+    (https://github.com/PyPSA/PyPSA/pull/893)
+
+  - Also check for missing values of default attributes in the
+    `n.consistency_check()` function. (https://github.com/PyPSA/PyPSA/pull/903)
+
+  - Restructure ``n.consistency_check()``.
+    (https://github.com/PyPSA/PyPSA/pull/903,https://github.com/PyPSA/PyPSA/pull/918, https://github.com/PyPSA/PyPSA/pull/920)
+
+  - Add option `n.optimize(compute_infeasibilities=True)` to compute Irreducible
+    Inconsistent Subset (IIS) in case an infeasibility was encountered and Gurobi
+    is installed. (https://github.com/PyPSA/PyPSA/pull/978)
+
+  - Improved error messages. (https://github.com/PyPSA/PyPSA/pull/897)
+
+* Add functionality to compare two networks for equality via equality operator
+  (``==``). (https://github.com/PyPSA/PyPSA/pull/924)
+
+* Add single-node electricity-only and sector-coupled capacity expansion
+  example. (https://github.com/PyPSA/PyPSA/pull/904)
+
+* Added new line type "Al/St 490/64 4-bundle 380.0".
+  (https://github.com/PyPSA/PyPSA/pull/887)
+
+* Use ``ruff``. (https://github.com/PyPSA/PyPSA/pull/900,
+  https://github.com/PyPSA/PyPSA/pull/901)
+
+* Improve CI and auto-release process. (https://github.com/PyPSA/PyPSA/pull/907,
+  https://github.com/PyPSA/PyPSA/pull/921)
+
+* Restructured API reference. (https://github.com/PyPSA/PyPSA/pull/960)
+
+* Compatibility with ``numpy>=2.0``. (https://github.com/PyPSA/PyPSA/pull/932)
+
 
 PyPSA 0.28.0 (8th May 2024)
 =================================
