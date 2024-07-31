@@ -126,6 +126,9 @@ PyPSA 0.29.0 (31st July 2024)
 
 * Compatibility with ``numpy>=2.0``. (https://github.com/PyPSA/PyPSA/pull/932)
 
+* See full list of changes `here
+  <https://github.com/PyPSA/PyPSA/releases/tag/v0.29.0>`__.
+
 
 PyPSA 0.28.0 (8th May 2024)
 =================================
@@ -149,18 +152,20 @@ PyPSA 0.28.0 (8th May 2024)
   - The statistics module introduces a new keyword argument ``at_port`` to all
     functions. This allows considering the port of a component when calculating
     statistics. Depending on the function, the default of ``at_port`` is set to
-    ``True`` or ``False``, for example for the dispatch all ports are considered.
+    ``True`` or ``False``, for example for the dispatch all ports are
+    considered.
 
-  - The statistics module now supports an optional `port` argument in `groupby`
-    functions. This allows to group statistics while considering the port of a
+  - The statistics module now supports an optional ``port`` argument in
+    ``groupby`` functions. This allows to group statistics while considering the
+    port of a component.
+
+  - The ``statistics.revenue`` function introduces a new keyword argument
+    ``kind`` to optionally calculate the revenue based on the ``input``
+    commodity or the ``output`` commodity of a component.
+
+  - The ``statistics.energy_balance`` function introduces a new keyword argument
+    ``kind`` to optionally calculate the ``supply`` and ``withdrawal`` of a
     component.
-
-  - The `statistics.revenue` function introduces a new keyword argument `kind` to
-    optionally calculate the revenue based on the `input` commodity or the
-    `output` commodity of a component.
-
-  - The `statistics.energy_balance` function introduces a new keyword argument
-    `kind` to optionally calculate the `supply` and `withdrawal` of a component.
 
   - Deprecation warnings are added to the statistics module for the
     functionalities that will be removed in the next major release.
