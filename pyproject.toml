@@ -68,7 +68,7 @@ docs = [
     "nbsphinx-link==1.3.0",
     "scikit-learn==1.5.1",
     "docutils==0.20.0", # Just temporarily until sphinx-docutils is updated (see https://github.com/sphinx-doc/sphinx/issues/12340)
-    "ipython===8.26.0",
+    "ipython==8.26.0",
     "ipykernel==6.29.5",
 ]
 gurobipy = ["gurobipy"]
