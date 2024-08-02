@@ -37,7 +37,7 @@ release_version = re.match(r"(\d+\.\d+(\.\d+)?)", __version__).group(0)
 
 assert not __version__.startswith(
     "0.0"
-), "Could not determine version of powerplantmatching."
+), "Could not determine version of pypsa."
 
 __all__ = [
     "clustering",
