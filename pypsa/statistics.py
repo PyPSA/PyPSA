@@ -959,6 +959,7 @@ class StatisticsAccessor:
             n.buses.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
+            and at_port
         ):
             logger.warning(
                 "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
@@ -1199,7 +1200,7 @@ class StatisticsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)
+        df = self.revenue(**kwargs) / self.supply(**{**kwargs, "at_port": False})
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
