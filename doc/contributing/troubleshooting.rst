@@ -2,8 +2,9 @@
 Troubleshooting
 ################
 
-Creating and sharing a Minimum Working Example (MWE)
+Minimum Working Examples (MWEs)
 ====================================================
+
 If you are experiencing problems with PyPSA, please create a MWE and share it when asking for help.
 
 A MWE is a small example that reproduces the problem you are experiencing.
@@ -27,13 +28,13 @@ See :ref:`upgrading-pypsa`.
 Consistency check on network
 ============================
 
-A consistency check can be performed using the function :py:meth:`pypsa.Network.consistency_check`.
+A consistency check can be performed using the function :py:meth:`pypsa.n.consistency_check`.
 
 
 Problems with power flow convergence
 ====================================
 
-If your ``network.pf()`` is not converging there are two possible reasons:
+If your ``n.pf()`` is not converging there are two possible reasons:
 
 * The problem you have defined is not solvable (e.g. because in
   reality you would have a voltage collapse)
@@ -49,18 +50,19 @@ There are some steps you can take to distinguish these two cases:
   If your units are out by a factor 1000
   (e.g. using kW instead of MW) don't be surprised if your problem is
   no longer solvable.
-* Check with a linear power flow ``network.lpf()`` that all voltage
+* Check with a linear power flow ``n.lpf()`` that all voltage
   angles differences across branches are less than 40 degrees. You can do this with the following code:
 
 .. code:: python
 
-   import pandas as pd, numpy as np
+   import pandas as pd
+   import numpy as np
 
-   now = network.snapshots[0]
+   now = n.snapshots[0]
 
-   angle_diff = pd.Series(network.buses_t.v_ang.loc[now,network.lines.bus0].values -
-                          network.buses_t.v_ang.loc[now,network.lines.bus1].values,
-                          index=network.lines.index)
+   angle_diff = pd.Series(n.buses_t.v_ang.loc[now,n.lines.bus0].values -
+                          n.buses_t.v_ang.loc[now,n.lines.bus1].values,
+                          index=n.lines.index)
 
    (angle_diff*180/np.pi).describe()
 
@@ -72,8 +74,8 @@ There are some steps you can take to distinguish these two cases:
 
 .. code:: python
 
-   network.lpf()
-   network.pf(use_seed=True)
+   n.lpf()
+   n.pf(use_seed=True)
 
 
 * Reduce all power values ``p_set`` and ``q_set`` of generators and
@@ -84,13 +86,13 @@ There are some steps you can take to distinguish these two cases:
 Problems with optimisation convergence
 ======================================
 
-If your ``network.optimize()`` is not converging here are some suggestions:
+If your ``n.optimize()`` is not converging here are some suggestions:
 
 * Very small non-zero values, for example in
-  ``network.generators_t.p_max_pu`` can confuse the
+  ``n.generators_t.p_max_pu`` can confuse the
   optimiser. Consider e.g. removing values smaller than 0.001 with
   ``numpy.clip``.
-* Open source solvers like GLPK and clp struggle with large
+* Open source solvers like GLPK and CBC struggle with large
   problems. Consider switching to a commercial solver like Gurobi,
   CPLEX or Xpress.
 * Use the interior point or barrier method, and stop it from crossing
@@ -101,27 +103,23 @@ If your ``network.optimize()`` is not converging here are some suggestions:
   <https://github.com/PyPSA/pypsa-eur/blob/master/config.default.yaml>`_.
 
 
-Pitfalls/Gotchas
-================
+Pitfalls & Gotchas
+==================
 
 Some attributes are generated dynamically and are therefore only
-copies. If you change data in them, this will NOT update the original
+copies. If you change data in them, this will not update the original
 data. They are all defined as functions to make this clear.
 
 For example:
 
-* ``network.branches()`` returns a DataFrame which is a concatenation
-  of ``network.lines`` and ``network.transformers``
-* ``sub_network.generators()`` returns a DataFrame consisting of
+* ``n.branches()`` returns a DataFrame which is a concatenation
+  of ``n.lines`` and ``n.transformers``
+* ``sub_n.generators()`` returns a DataFrame consisting of
   generators in ``sub_network``
 
 
 Reporting bugs/issues
 =====================
-
-Instead, please post questions to the `mailing list
-<https://groups.google.com/group/pypsa>`_. This is preferred over contacting the
-developers directly.
 
 If you found a bug, raise it as an issue on the `PyPSA Github Issues page
 <https://github.com/PyPSA/PyPSA/issues>`_ or prepare a pull request.
