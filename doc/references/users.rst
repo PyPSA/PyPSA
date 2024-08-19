@@ -1,5 +1,5 @@
 ###############
-Users of PyPSA
+Users
 ###############
 
 The following universities, research institutes, companies and non-governmental organisations are known to have either used PyPSA in the past, or to continue to use PyPSA. This list is necessarily incomplete, since we cannot track who uses PyPSA and we only find out who our users are when they contact the main developers of PyPSA.
