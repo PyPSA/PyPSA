@@ -161,7 +161,6 @@ Documentation
 
 * :doc:`/references/api-reference`
 * :doc:`/references/release-notes`
-* :doc:`/references/comparable-software`
 * :doc:`/references/citing`
 * :doc:`/references/users`
 * :doc:`/references/developers`
@@ -173,7 +172,6 @@ Documentation
 
    references/api-reference
    references/release-notes
-   references/comparable-software
    references/citing
    references/users
    references/developers

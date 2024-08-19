@@ -377,7 +377,6 @@ redirects = {
     "api.html": "references/api-reference.html",
     "release_notes.html": "references/release-notes.html",
     "release-notes.html": "references/release-notes.html",
-    "comparable_software.html": "references/comparable-software.html",
     "citing.html": "references/citing.html",
     "users.html": "references/users.html",
     "developers.html": "references/developers.html",

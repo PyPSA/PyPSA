@@ -3,7 +3,7 @@
 ###########
 
 
-PyPSA represents the power system using the following components:
+PyPSA represents power and energy systems using the following components:
 
 .. csv-table::
    :class: full-width
@@ -11,46 +11,40 @@ PyPSA represents the power system using the following components:
    :file: ../pypsa/components.csv
 
 This table is also available as a dictionary within each network
-object as ``network.components``.
+object as ``n.components``.
 
 For each class of components, the data describing the components is
 stored in a ``pandas.DataFrame`` corresponding to the
 ``list_name``. For example, all static data for buses is stored in
-``network.buses``. In this ``pandas.DataFrame`` the index corresponds
+``n.buses``. In this ``pandas.DataFrame`` the index corresponds
 to the unique string names of the components, while the columns
 correspond to the component static attributes. For example,
-``network.buses.v_nom`` gives the nominal voltages of each bus.
+``n.buses.v_nom`` gives the nominal voltages of each bus.
 
 Time-varying series attributes are stored in a dictionary of
-``pandas.DataFrame`` based on the ``list_name`` followed by ``_t``,
-e.g. ``network.buses_t``. For example, the set points for the per unit
-voltage magnitude at each bus for each snapshot can be found in
-``network.buses_t.v_mag_pu_set``. Please also read :ref:`time-varying`.
+``pandas.DataFrame`` based on the ``list_name`` followed by the suffix ``_t``,
+e.g. ``n.buses_t``. Please also read :ref:`time-varying`.
 
-For each component class their attributes, their types
-(float/boolean/string/int/series), their defaults, their descriptions
-and their statuses are stored in a ``pandas.DataFrame`` in the
-dictionary ``network.components`` as
-e.g. ``network.components["Bus"]["attrs"]``. This data is reproduced
-as tables for each component below.
+For each component class, their attributes, types
+(float/boolean/string/int/series), defaults, descriptions
+and statuses are stored in a ``pandas.DataFrame`` in the
+dictionary ``n.components`` as
+e.g. ``n.components["Bus"]["attrs"]``.
 
-
-Their status is either "Input" for those which the user specifies or
+Their status is either "Input" for those attributes which the user specifies or
 "Output" for those results which PyPSA calculates.
 
 The inputs can be either "required", if the user *must* give the
 input, or "optional", if PyPSA will use a sensible default if the user
 gives no input.
 
-For functions such as :doc:`/user-guide/power-flow` and :doc:`/user-guide/optimal-power-flow` the inputs used and outputs given are listed in their documentation.
-
 
 Network
 =======
 
-The ``Network`` is the overall container for all components. It also
-has the major functions as methods, such as ``network.optimize()`` and
-``network.pf()``.
+The ``Network`` is the overall container for all components. It also has the
+major functions as methods, such as ``n.optimize()``, ``n.statistics()``,
+``n.plot()`` and ``n.pf()``.
 
 .. csv-table::
    :class: full-width
@@ -61,8 +55,7 @@ has the major functions as methods, such as ``network.optimize()`` and
 Sub-Network
 ===========
 
-Sub-networks are determined by PyPSA and should not be entered by the
-user.
+Sub-networks are determined by PyPSA and are not be entered by the user.
 
 Sub-networks are subsets of buses and passive branches (i.e. lines and
 transformers) that are connected.
@@ -73,11 +66,12 @@ correspond to synchronous areas. Only "AC" and "DC" sub-networks can
 contain passive branches; all other sub-networks must contain a single
 isolated bus.
 
-The power flow in sub-networks is determined by the passive flow
-through passive branches due to the impedances of the passive branches.
+The power flow in sub-networks is determined by the passive flow through passive
+branches due to the impedances of the passive branches following Kirchhoff's
+voltage law.
 
 Sub-Network are determined by calling
-``network.determine_network_topology()``.
+``n.determine_network_topology()``.
 
 
 .. csv-table::
@@ -133,19 +127,8 @@ relevant for limits on CO2 emissions.
 Global Constraints
 ==================
 
-Global constraints are added to OPF problems and apply to many
-components at once. Currently only constraints related to primary
-energy (i.e. before conversion with losses by generators) are
-supported, the canonical example being CO2 emissions for an
-optimisation period. Other primary-energy-related gas emissions also
-fall into this framework.
-
-Other types of global constraints will be added in future, e.g. "final
-energy" (for limits on the share of renewable or nuclear electricity
-after conversion), "generation capacity" (for limits on total capacity
-expansion of given carriers) and "transmission capacity" (for limits
-on the total expansion of lines and links).
-
+Global constraints are added to the optimization problems created by
+``n.optimize()`` and apply to many components at once.
 
 .. csv-table::
    :class: full-width
@@ -156,13 +139,13 @@ on the total expansion of lines and links).
 Generator
 =========
 
-Generators attach to a single bus and can feed in power. It converts
-energy from its ``carrier`` to the carrier-type of the bus to which it
-is attached.
+Generators attach to a single bus and can feed in power. They convert
+energy from their carrier to the carrier of the bus to which they attach.
 
-In the linear optimal power flow (LOPF) the limits which a generator can output are set by
-``p_nom*p_max_pu`` and ``p_nom*p_min_pu``, i.e. by limits defined per
-unit of the nominal power ``p_nom``.
+In the linear optimal power flow (LOPF) and capacity expansion (CE) the limits
+which a generator can output are set by ``p_nom*p_max_pu`` and
+``p_nom*p_min_pu``, i.e. by limits defined per unit of the nominal power
+``p_nom``.
 
 
 Generators can either have static or time-varying ``p_max_pu`` and
@@ -171,19 +154,19 @@ Generators can either have static or time-varying ``p_max_pu`` and
 Generators with static limits are like controllable conventional
 generators which can dispatch anywhere between ``p_nom*p_min_pu`` and
 ``p_nom*p_max_pu`` at all times. The static factor ``p_max_pu``,
-stored at ``network.generator.loc[gen_name,"p_max_pu"]`` essentially
+stored at ``n.generator.loc[gen_name, "p_max_pu"]`` essentially
 acts like a de-rating factor.
 
 Generators with time-varying limits are like variable
 weather-dependent renewable generators. The time series ``p_max_pu``,
-stored as a series in ``network.generators_t.p_max_pu[gen_name]``,
+stored as a series in ``n.generators_t.p_max_pu[gen_name]``,
 dictates the active power availability for each snapshot per unit of
 the nominal power ``p_nom`` and another time series ``p_min_pu`` which
 dictates the minimum dispatch.
 
 This time series is then multiplied by ``p_nom`` to get the available
 power dispatch, which is the maximum that may be dispatched. The
-actual dispatch ``p``, stored in ``network.generators_t.p[gen_name]``,
+actual dispatch ``p``, stored in ``n.generators_t.p[gen_name]``,
 may be below this value.
 
 For the implementation of unit commitment, see :ref:`unit-commitment`.
@@ -206,12 +189,11 @@ Storage Unit
 Storage units attach to a single bus and are used for inter-temporal
 power shifting. Each storage unit has a time-varying state of charge
 and various efficiencies. The nominal energy is given as a fixed ratio
-``max_hours`` of the nominal power. If you want to optimise the
+``max_hours`` of the nominal power (MW * h = MWh). If you want to optimise the
 storage energy capacity independently from the storage power capacity,
-you should use a fundamental ``Store`` component (see below) attached
+you should use a fundamental ``Store`` component in combination
 with two ``Link`` components, one for charging and one for
-discharging. See also the `example that replaces generators and
-storage units with fundamental links and stores
+discharging. See also `this example
 <https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html>`_.
 
 
@@ -236,23 +218,23 @@ carriers). It inherits its energy carrier from the bus to which it is
 attached.
 
 The Store, Bus and Link are fundamental components with which one can
-build more complicated components (Generators, Storage Units, CHPs,
+build more complicated components (like generators, storage units, CHPs,
 etc.).
 
-The Store has controls and optimisation on the size of its energy
-capacity, but not it's power output; to control the power output, you
-must put a link in front of it, see the `example that replaces
-generators and storage units with fundamental links and stores
+The Store has controls and optimisation on the size of its energy capacity, but
+not its power output; to control the power output, a link must be placed in
+front of it. See also `this example
 <https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html>`_.
 
 The ``marginal_cost`` of a Store apply to both the charging and the discharging.
 In the case of a cyclic store without losses, these costs would balance out to
 zero. This is different to the ``StorageUnit`` where the marginal cost apply to the
 marginal cost of production (discharging).
+
 The ``marginal_cost`` of the Store component can represent another market
-where you can buy or sell an energy carrier. If you want to model the technical
+where an energy carrier can be bought or sold. For modelling the technical
 marginal cost of the Store where both charging and discharging increase the objective
-function, you should use two separate links to represent the charging and
+function, two separate links should be used to represent the charging and
 discharging processes as described above.
 
 .. csv-table::
@@ -264,7 +246,8 @@ discharging processes as described above.
 Load
 ====
 
-The load attaches to a single bus and consumes power as a PQ load.
+The load attaches to a single bus and consumes power as a PQ load. It can also
+be used to model other loads than power, such as hydrogen or heat.
 
 For loads, if :math:`p>0` the load is consuming active power from the
 bus and if :math:`q>0` it is consuming reactive power (i.e. behaving
@@ -301,12 +284,11 @@ an capacitor).
 Line
 ====
 
-Lines represent transmission and distribution lines. They connect a
-``bus0`` to a ``bus1``. They can connect either AC buses or DC
-buses. Power flow through lines is not directly controllable, but is
-determined passively by their impedances and the nodal power
-imbalances. To see how the impedances are used in the power flow, see
-:ref:`line-model`.
+Lines represent transmission and distribution lines. They connect a ``bus0`` to
+a ``bus1``. They can connect either AC buses or DC buses. Power flow through
+lines is not directly controllable, but is determined passively by their
+impedances and the nodal power imbalances according to Kirchhoff's voltage law.
+To see how the impedances are used in the power flow, see :ref:`line-model`.
 
 
 .. csv-table::
@@ -326,28 +308,22 @@ If for a line the attribute "type" is non-empty, then these values are
 multiplied with the line length to get the line's electrical
 parameters.
 
-The line type parameters in the following table and the implementation
-in PyPSA are based on `pandapower's standard types
-<https://pandapower.readthedocs.io/en/latest/std_types/basic.html>`__,
-whose parameterisation is in turn loosely based on `DIgSILENT
-PowerFactory
-<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
-
-
 .. csv-table::
    :class: full-width
    :header-rows: 1
    :file: ../../pypsa/component_attrs/line_types.csv
 
-
-If you do not import your own line types, then PyPSA will provide
-standard types using the following table. We thank the pandapower team for allowing us to include this data.
-We take no responsibility for the accuracy of the values.
+The following standard line types are available:
 
 .. csv-table::
    :class: full-width
    :header-rows: 1
    :file: ../pypsa/standard_types/line_types.csv
+
+The line type parameters intable above are based on `pandapower's standard types
+<https://pandapower.readthedocs.io/en/latest/std_types/basic.html>`__, whose
+parameterisation is in turn loosely based on `DIgSILENT PowerFactory
+<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
 
 
 Transformer
@@ -378,34 +354,23 @@ If for a transformer the attribute "type" is non-empty, then these
 values are used for the transformer's electrical parameters.
 
 
-The transformer type parameters in the following table and the
-implementation in PyPSA are based on `pandapower's standard
-types
-<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_,
-whose parameterisation is in turn loosely based on `DIgSILENT
-PowerFactory
-<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
-
 .. csv-table::
    :class: full-width
    :header-rows: 1
    :file: ../../pypsa/component_attrs/transformer_types.csv
 
-
-
-If you do not import your own transformer types, then PyPSA will
-provide standard types using the following table. This table was
-initially based on `pandapower's standard types
-<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_
-and we thank the pandapower team for allowing us to include this data.
-We take no responsibility for the accuracy of the values.
-
+The following standard transformer types are available:
 
 .. csv-table::
    :class: full-width
    :header-rows: 1
    :file: ../pypsa/standard_types/transformer_types.csv
 
+The transformer type parameters in the table above are based on `pandapower's
+standard types
+<http://www.uni-kassel.de/eecs/fileadmin/datas/fb16/Fachgebiete/energiemanagement/Software/pandapower-doc/std_types/basic.html>`_,
+whose parameterisation is in turn loosely based on `DIgSILENT PowerFactory
+<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
 
 .. _controllable-link:
 
@@ -420,10 +385,10 @@ direction, from ``bus0`` to ``bus1`` (i.e. ``p_min_pu = 0``). To build
 a bidirectional lossless link, set ``efficiency = 1``, ``marginal_cost
 = 0`` and ``p_min_pu = -1``.
 
-The ``Link`` component can be used for any element with a controllable
-power flow: a bidirectional point-to-point HVDC link, a unidirectional
-lossy HVDC link, a converter between an AC and a DC network, a heat
-pump or resistive heater from an AC/DC bus to a heat bus, etc.
+The ``Link`` component can be used for any element with a controllable power
+flow: a bidirectional point-to-point HVDC link, a unidirectional lossy HVDC
+link, a converter between an AC and a DC network, a heat pump, an electrolyser,
+or resistive heater from an AC/DC bus to a heat bus, etc.
 
 .. csv-table::
    :class: full-width
@@ -433,13 +398,13 @@ pump or resistive heater from an AC/DC bus to a heat bus, etc.
 
 .. _components-links-multiple-outputs:
 
-Link with multiple outputs or inputs
-------------------------------------
+Multilink
+---------
 
 Links can also be defined with multiple outputs in fixed ratio to the
 power in the single input by defining new columns ``bus2``, ``bus3``,
-etc. (``bus`` followed by an integer) in ``network.links`` along with
-associated columns for the efficiencies ``efficiency2``,
+etc. in ``n.links`` along with
+associated columns for ``efficiency2``,
 ``efficiency3``, etc. The different outputs are then equal to
 the input multiplied by the corresponding efficiency; see :ref:`opf-links` for how
 these are used in the LOPF and the `example of a CHP with a fixed
@@ -447,9 +412,9 @@ power-heat ratio
 <https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html>`_.
 
 The columns ``bus2``, ``efficiency2``, ``bus3``, ``efficiency3``, etc. in
-``network.links`` are automatically added to the component attributes. The
-values in these columns are not compulsory; if the link has no 2nd output,
-simply leave it empty ``network.links.at["my_link","bus2"] = ""`` or as NaN.
+``n.links`` are automatically added to the component attributes. The
+values in these columns are not compulsory; if the link has no second output,
+simply leave it empty ``n.links.at["my_link", "bus2"] = ""`` or as NaN.
 
 For links with multiple inputs in fixed ratio to one of the inputs,
 you can define the other inputs as outputs with a negative efficiency
@@ -471,11 +436,11 @@ The example `Biomass, synthetic fuels and carbon management <https://pypsa.readt
 Shapes
 ======
 
-Shapes is of a geopandas dataframe which can be used to store network-related
-geographical data (for plotting, calculating potentials, etc.). The dataframe has
-the columns geometry, component, idx and type. The columns component, idx and
-type do not require specific values, but give the user the possibility to store
-additional information about the shapes.
+Shapes is of a ``geopandas.GeoDataFrame`` which can be used to store
+network-related geographical data (for plotting, calculating potentials, etc.).
+The dataframe has the columns geometry, component, idx and type. The columns
+component, idx and type do not require specific values, but give the user the
+possibility to store additional information about the shapes.
 
 .. csv-table::
    :class: full-width
@@ -483,27 +448,25 @@ additional information about the shapes.
    :file: ../../pypsa/component_attrs/shapes.csv
 
 
-Groups of Components
-====================
+Component Groups
+================
 
-In the code components are grouped according to their properties in
-sets such as ``network.one_port_components`` and
-``network.branch_components``.
+Components are grouped according to their properties in
+sets such as ``n.one_port_components`` and
+``n.branch_components``.
 
-One-ports share the property that they all connect to a single bus,
+**One-port components** share the property that they all connect to a single bus,
 i.e. generators, loads, storage units, etc.. They share the attributes
 ``bus``, ``p_set``, ``q_set``, ``p``, ``q``.
 
-Branches connect two buses. A copy of their attributes can be accessed
-as a group by the function ``network.branches()``. They share the
-attributes ``bus0``, ``bus1``.
+**Branches** connect two buses. They share the attributes ``bus0``, ``bus1``.
 
-Passive branches are branches whose power flow is not directly
+**Passive branches** are branches whose power flow is not directly
 controllable, but is determined passively by their impedances and the
 nodal power imbalances, i.e. lines and transformers.
 
-Controllable branches are branches whose power flow can be controlled
-by e.g. the LOPF optimisation, i.e. links.
+**Controllable branches** are branches whose power flow can be controlled
+by the optimisation, i.e. links.
 
 
 .. _custom_components:
@@ -512,8 +475,8 @@ Custom Components
 =================
 
 If you want to define your own components and override the standard
-functionality of PyPSA, you can easily override the standard
-components by passing pypsa.Network() the arguments
+functionality of PyPSA, you can override the standard
+components by passing ``pypsa.Network()`` the arguments
 ``override_components`` and ``override_component_attrs``.
 
 For this network, these will replace the standard definitions in
@@ -527,8 +490,3 @@ repository CSV files ``pypsa/components.csv`` and
 pypsa.descriptors.Dict of pandas.DataFrame with the attribute
 properties for each component.  Just follow the formatting for the
 standard components.
-
-There are examples for defining new components in the git repository
-in ``examples/new_components/``, including an example of
-overriding e.g. ``network.optimize()`` for functionality for
-combined-heat-and-power (CHP) plants.
