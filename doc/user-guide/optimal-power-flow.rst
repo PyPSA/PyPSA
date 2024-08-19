@@ -1,6 +1,6 @@
-#########################
-Power System Optimization
-#########################
+###################
+System Optimization
+###################
 
 
 Overview

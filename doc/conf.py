@@ -370,7 +370,6 @@ redirects = {
     "contributing.html": "contributing/contributing.html",
     "support.html": "contributing/support.html",
     "troubleshooting.html": "contributing/troubleshooting.html",
-    "mailing_list.html": "contributing/mailing-list.html",
     # References
     "api_reference.html": "references/api-reference.html",
     "api-reference.html": "references/api-reference.html",

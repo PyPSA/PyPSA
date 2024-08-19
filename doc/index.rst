@@ -144,7 +144,6 @@ Documentation
 * :doc:`/contributing/contributing`
 * :doc:`/contributing/support`
 * :doc:`/contributing/troubleshooting`
-* :doc:`/contributing/mailing-list`
 
 .. toctree::
    :hidden:
@@ -154,7 +153,6 @@ Documentation
    contributing/contributing
    contributing/support
    contributing/troubleshooting
-   contributing/mailing-list
 
 
 **References**
