@@ -17,6 +17,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+nominal_attrs = {
+    "Generator": "p_nom",
+    "Line": "s_nom",
+    "Transformer": "s_nom",
+    "Link": "p_nom",
+    "Store": "e_nom",
+    "StorageUnit": "p_nom",
+}
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
     return df.columns[df.columns.str.startswith("bus")]
@@ -314,10 +322,11 @@ def check_assets(network: Network, component: Component) -> None:
     if component.name in {"Generator", "Link"}:
         committables = network.get_committable_i(component.name)
         extendables = network.get_extendable_i(component.name)
-        intersection = committables.intersection(extendables)
+        not_mod_i = network.df(component.name).query(f"({nominal_attrs[component.name]}_mod==0)").index
+        intersection = committables.intersection(extendables).intersection(not_mod_i)
         if not intersection.empty:
             logger.warning(
-                "Assets can only be committable or extendable. Found "
+                "Assets can only be committable or extendable, if not modular. Found "
                 f"assets in component {component.name} which are both:"
                 f"\n\n\t{', '.join(intersection)}"
             )
