@@ -22,6 +22,9 @@ from pypsa.optimization.abstract import (
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
+    define_committability_variables_constraints_for_modular_and_extendables,
+    define_committability_variables_constraints_for_modular_and_non_extendables,
+    define_committability_variables_constraints_for_non_modular,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -29,11 +32,8 @@ from pypsa.optimization.constraints import (
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
-    define_committability_variables_constraints_for_non_modular,
-    define_committability_variables_constraints_for_modular_and_non_extendables,
-    define_committability_variables_constraints_for_modular_and_extendables,
-    define_operational_constraints_for_committables_non_modular_non_extendables,
     define_operational_constraints_for_committables_and_modular,
+    define_operational_constraints_for_committables_non_modular_non_extendables,
     define_operational_constraints_for_extendables_and_committables_but_non_modular,
     define_operational_constraints_for_extendables_but_non_committables,
     define_operational_constraints_for_non_extendables_and_non_committables,
@@ -51,18 +51,18 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.variables import (
+    # Removed function no longer used
+    # define_start_up_variables,
+    # Removed function no longer used
+    # define_status_variables,
+    define_integer_committability_variables,
     define_loss_variables,
     define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
-    #Removed function no longer used
-    #define_shut_down_variables,
+    # Removed function no longer used
+    # define_shut_down_variables,
     define_spillage_variables,
-    #Removed function no longer used
-    #define_start_up_variables,
-    #Removed function no longer used
-    #define_status_variables,
-    define_integer_committability_variables,
 )
 from pypsa.pf import _as_snapshots
 
@@ -255,14 +255,13 @@ def create_model(
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_variables(n, sns, c, attr)
-        #Removed functions no longer used
-        #define_status_variables(n, sns, c)
-        #define_start_up_variables(n, sns, c)
-        #define_shut_down_variables(n, sns, c)
-        #Define all variable used in committability (status, start_upm and shut_down)
-        #for all committable components  (ext/non ext and mod/non mod)
+        # Removed functions no longer used
+        # define_status_variables(n, sns, c)
+        # define_start_up_variables(n, sns, c)
+        # define_shut_down_variables(n, sns, c)
+        # Define all variable used in committability (status, start_upm and shut_down)
+        # for all committable components  (ext/non ext and mod/non mod)
         define_integer_committability_variables(n, sns, c)
-        
 
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")
@@ -276,42 +275,48 @@ def create_model(
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
         define_modular_constraints(n, c, attr)
-        #Define upper limit of committable variables for committable but NON modular components (ext/non ext) --> up.lim. = 1
+        # Define upper limit of committable variables for committable but NON modular components (ext/non ext) --> up.lim. = 1
         define_committability_variables_constraints_for_non_modular(n, sns, c, attr)
-        #Define upper limit of committable variables for committable, modular, but NON extendable components --> up.lim. = p_nom/p_nom_mod
-        define_committability_variables_constraints_for_modular_and_non_extendables(n, sns, c, attr)
-        #Define upper limit of committable variables for committable, modular, and extendable components --> up.lim. = n_mod (variable)
-        #ATT: : ALERTON FORM OF WRITTEN EQUATIONS
-        define_committability_variables_constraints_for_modular_and_extendables(n, sns, c, attr)
+        # Define upper limit of committable variables for committable, modular, but NON extendable components --> up.lim. = p_nom/p_nom_mod
+        define_committability_variables_constraints_for_modular_and_non_extendables(
+            n, sns, c, attr
+        )
+        # Define upper limit of committable variables for committable, modular, and extendable components --> up.lim. = n_mod (variable)
+        # ATT: : ALERTON FORM OF WRITTEN EQUATIONS
+        define_committability_variables_constraints_for_modular_and_extendables(
+            n, sns, c, attr
+        )
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        #Define operational constraints for non extendable and non committable components (mod/non mod).
-        #Function is kept as it was.
+        # Define operational constraints for non extendable and non committable components (mod/non mod).
+        # Function is kept as it was.
         define_operational_constraints_for_non_extendables_and_non_committables(
             n, sns, c, attr, transmission_losses
         )
-        #Define operational constraints for extendable but non committable components (mod/non mod).
-        #Function is kept as it was, I only added filter for non committable.
+        # Define operational constraints for extendable but non committable components (mod/non mod).
+        # Function is kept as it was, I only added filter for non committable.
         define_operational_constraints_for_extendables_but_non_committables(
             n, sns, c, attr, transmission_losses
         )
-        #Define operational constraints for committable but non modular components and non extendable.
-        #Function is kept as it was, I only: 1)  added filter for non modular and non extendable; 2) changed the name of the function according to 1).
-        define_operational_constraints_for_committables_non_modular_non_extendables(n, sns, c)
-        #Define operational constraints for committable, extendable but non-modular. This function is identical
-        #to "define_operational_constraints_for_extendables_but_non_committables". The only difference is the
-        #identification of the components on which to apply the function. Extendability is preferred over
-        #committability (committability is simply ignored) to ensure compatibility with previous tests.
+        # Define operational constraints for committable but non modular components and non extendable.
+        # Function is kept as it was, I only: 1)  added filter for non modular and non extendable; 2) changed the name of the function according to 1).
+        define_operational_constraints_for_committables_non_modular_non_extendables(
+            n, sns, c
+        )
+        # Define operational constraints for committable, extendable but non-modular. This function is identical
+        # to "define_operational_constraints_for_extendables_but_non_committables". The only difference is the
+        # identification of the components on which to apply the function. Extendability is preferred over
+        # committability (committability is simply ignored) to ensure compatibility with previous tests.
         define_operational_constraints_for_extendables_and_committables_but_non_modular(
             n, sns, c, attr, transmission_losses
         )
-        #Define operational constraints for committable and modular components (ext/non ext).
-        #Function similar to "define_operational_constraints_for_committables_non_modular_non_extendables". The only difference is the
-        #multiplication of committable variables per p_nom_mod.
+        # Define operational constraints for committable and modular components (ext/non ext).
+        # Function similar to "define_operational_constraints_for_committables_non_modular_non_extendables". The only difference is the
+        # multiplication of committable variables per p_nom_mod.
         define_operational_constraints_for_committables_and_modular(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
-        
+
     meshed_buses = get_strongly_meshed_buses(n)
     weakly_meshed_buses = n.buses.index.difference(meshed_buses)
     if not meshed_buses.empty and not weakly_meshed_buses.empty:

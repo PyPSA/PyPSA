@@ -26,6 +26,7 @@ nominal_attrs = {
     "StorageUnit": "p_nom",
 }
 
+
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
     return df.columns[df.columns.str.startswith("bus")]
 
@@ -322,7 +323,11 @@ def check_assets(network: Network, component: Component) -> None:
     if component.name in {"Generator", "Link"}:
         committables = network.get_committable_i(component.name)
         extendables = network.get_extendable_i(component.name)
-        not_mod_i = network.df(component.name).query(f"({nominal_attrs[component.name]}_mod==0)").index
+        not_mod_i = (
+            network.df(component.name)
+            .query(f"({nominal_attrs[component.name]}_mod==0)")
+            .index
+        )
         intersection = committables.intersection(extendables).intersection(not_mod_i)
         if not intersection.empty:
             logger.warning(

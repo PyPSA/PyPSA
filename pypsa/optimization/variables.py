@@ -31,7 +31,8 @@ def define_operational_variables(n, sns, c, attr):
     coords = [sns, n.df(c).index.rename(c)]
     n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
-#TO BE REMOVED
+
+# TO BE REMOVED
 def define_status_variables(n, sns, c):
     com_i = n.get_committable_i(c)
 
@@ -45,6 +46,7 @@ def define_status_variables(n, sns, c):
     n.model.add_variables(
         coords=coords, name=f"{c}-status", mask=active, binary=is_binary, **kwargs
     )
+
 
 def define_integer_committability_variables(n, sns, c):
     """
@@ -69,20 +71,21 @@ def define_integer_committability_variables(n, sns, c):
     active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
     coords = (sns, com_i)
     is_integer = not n._linearized_uc
-    
-    n.model.add_variables(
-        lower=0, coords=coords, name=f"{c}-status",  mask=active, integer=is_integer
-        )
-    
-    n.model.add_variables(
-        lower=0, coords=coords, name=f"{c}-start_up",  mask=active, integer=is_integer
-        )
-    
-    n.model.add_variables(
-        lower=0, coords=coords, name=f"{c}-shut_down",  mask=active, integer=is_integer
-        )
 
-#TO BE REMOVED
+    n.model.add_variables(
+        lower=0, coords=coords, name=f"{c}-status", mask=active, integer=is_integer
+    )
+
+    n.model.add_variables(
+        lower=0, coords=coords, name=f"{c}-start_up", mask=active, integer=is_integer
+    )
+
+    n.model.add_variables(
+        lower=0, coords=coords, name=f"{c}-shut_down", mask=active, integer=is_integer
+    )
+
+
+# TO BE REMOVED
 def define_start_up_variables(n, sns, c):
     com_i = n.get_committable_i(c)
 
@@ -97,7 +100,8 @@ def define_start_up_variables(n, sns, c):
         coords=coords, name=f"{c}-start_up", mask=active, binary=is_binary, **kwargs
     )
 
-#TO BE REMOVED
+
+# TO BE REMOVED
 def define_shut_down_variables(n, sns, c):
     com_i = n.get_committable_i(c)
 
