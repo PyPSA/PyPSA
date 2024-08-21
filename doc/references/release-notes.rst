@@ -58,7 +58,7 @@ PyPSA 0.29.0 (31st July 2024)
     aggregation of lines/links with different ``build_year`` or ``carrier``.
     (https://github.com/PyPSA/PyPSA/pull/982)
 
-* Changes to the ``plot```module:
+* Changes to the ``plot`` module:
 
   - Add option to add semicircle legends by running
     ``pypsa.plot.add_legend_semicircle(ax, sizes=[1000/scaling_factor],
@@ -907,8 +907,7 @@ documentation's examples section as well as compatibility and bug fixes.
 
 * With this release, we have changed the licence from the copyleft GPLv3
   to the more liberal MIT licence with the consent of all contributors
-  (for the reasoning why, see the `pull request
-  <https://github.com/PyPSA/PyPSA/pull/274>`_).
+  (for the reasoning why, see `#274 <https://github.com/PyPSA/PyPSA/pull/274>`_).
 
 **New features**
 
@@ -945,7 +944,7 @@ documentation's examples section as well as compatibility and bug fixes.
   with multi-indexed snapshots.
 
 * Many example notebooks are now also integrated in the
-  documentation. See :doc:`/getting-started/examples-basic`, :doc:`/examples-index/lopf`,
+  documentation. See :doc:`/getting-started/quick-start`, :doc:`/examples-index/lopf`,
   :doc:`/examples-index/sector-coupling` and :doc:`/examples-index/other`.
 
 
@@ -1393,7 +1392,7 @@ This release contains new features and bug fixes.
   ``prepare_solver`` and ``solve`` to allow more fine-grained control of the
   solving steps.  Currently the new Pyomo PersistentSolver interface
   is not in the main Pyomo branch, see
-  the `pull request <https://github.com/Pyomo/pyomo/pull/223>`_; you can obtain it with
+  `#223 <https://github.com/Pyomo/pyomo/pull/223>`_; you can obtain it with
   ``pip install git+https://github.com/Pyomo/pyomo@persistent_interfaces``
 * Lines and transformers (i.e. passive branches) have a new attribute
   ``s_max_pu`` to restrict the flow in the OPF, just like ``p_max_pu``

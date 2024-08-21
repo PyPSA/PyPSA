@@ -8,7 +8,7 @@ PyPSA represents the power system using the following components:
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/components.csv
+   :file: ../../pypsa/components.csv
 
 This table is also available as a dictionary within each network
 object as ``network.components``.
@@ -347,7 +347,7 @@ We take no responsibility for the accuracy of the values.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/standard_types/line_types.csv
+   :file: ../../pypsa/standard_types/line_types.csv
 
 
 Transformer
@@ -404,7 +404,7 @@ We take no responsibility for the accuracy of the values.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/standard_types/transformer_types.csv
+   :file: ../../pypsa/standard_types/transformer_types.csv
 
 
 .. _controllable-link:

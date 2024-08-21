@@ -53,4 +53,4 @@ PyPSA is compared to `PYPOWER <https://github.com/rwl/PYPOWER>`_ in the followin
 
 .. csv-table::
    :header-rows: 1
-   :file: pypower.csv
+   :file: ../pypower.csv

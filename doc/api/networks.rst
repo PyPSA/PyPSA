@@ -7,7 +7,7 @@ Network
 ======== 
 
 Constructor
-~~~~~~~~
+~~~~~~~~~~~~
 
 .. autoclass:: pypsa.Network
 
@@ -120,7 +120,7 @@ Sub-Network
 ============
 
 Constructor
-~~~~~~~~
+~~~~~~~~~~~~
 
 .. autoclass:: pypsa.SubNetwork
 

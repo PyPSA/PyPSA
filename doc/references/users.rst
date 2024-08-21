@@ -51,7 +51,7 @@ Universities and Research Institutes
 
 * `Fraunhofer Institute for Solar Energy Systems <https://www.ise.fraunhofer.de/>`_ (ISE): uses PyPSA for grid modelling, research paper: `doi:/10.1016/j.epsr.2020.106349 <https://doi.org/10.1016/j.epsr.2020.106349>`_
 
-* `Fraunhofer Institute for Energy Infrastructures and Geothermal Systems <https://www.ieg.fraunhofer.de/>`_ (IEG): uses PyPSA-Eur-Sec for infrastructure analysis in Europe, e.g. in `this report <https://www.wasserstoff-leitprojekte.de/lw_resource/datapool/systemfiles/elements/files/148FFEF003673B67E0637E695E8625E5/live/document/20240321_European_Hydrogen_Infrastructure_Planning.pdf>`_ on European hydrogen infrastructure planning.
+* `Fraunhofer Institute for Energy Infrastructures and Geothermal Systems <https://www.ieg.fraunhofer.de/>`_ (IEG): uses PyPSA-Eur-Sec for infrastructure analysis in Europe, e.g. in the `European Hydrogen Infrastructure Planning report <https://www.wasserstoff-leitprojekte.de/lw_resource/datapool/systemfiles/elements/files/148FFEF003673B67E0637E695E8625E5/live/document/20240321_European_Hydrogen_Infrastructure_Planning.pdf>`_ on European hydrogen infrastructure planning.
 
 * `Fraunhofer-Institut für Energiewirtschaft und Energiesystemtechnik <https://www.iee.fraunhofer.de/>`_ (IEE): used PyPSA for an investigation of power-to-X in South Africa together with Stellenbosch University in `this report <20240430_PtX-Allocation-Study_Stakeholder-Workshop-Interim-Results.pdf>`_.
 
