@@ -1,6 +1,6 @@
-##############
+###########################
 Linopy Optimisation Module
-##############
+###########################
 
 Optimization functions which can be called within a :class:`pypsa.Network` via
 ``n.optimize`` or ``n.optimization.func``. For example ``n.optimize.create_model()``.

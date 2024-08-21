@@ -549,7 +549,7 @@ def optimize(
     solver_name : str
         Name of the solver to use.
     solver_options : dict
-        Keyword arguments used by the solver. Can also be passed via **kwargs.
+        Keyword arguments used by the solver. Can also be passed via `**kwargs`.
     compute_infeasibilities : bool, default False
         Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
         of an infeasible solution. Requires Gurobi.
@@ -632,7 +632,7 @@ class OptimizationAccessor:
         solver_name : str
             Name of the solver to use.
         solver_options : dict
-            Keyword arguments used by the solver. Can also be passed via **kwargs.
+            Keyword arguments used by the solver. Can also be passed via `**kwargs`.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
