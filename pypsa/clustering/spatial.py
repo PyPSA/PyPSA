@@ -827,7 +827,7 @@ def hac_clustering(
 def busmap_by_greedy_modularity(n, n_clusters, buses_i=None):
     """
     Create a busmap according to Clauset-Newman-Moore greedy modularity
-    maximization [1]_.
+    maximization [CNM2004_1]_.
 
     Parameters
     ----------
@@ -845,9 +845,9 @@ def busmap_by_greedy_modularity(n, n_clusters, buses_i=None):
 
     References
     ----------
-    .. [1] Clauset, A., Newman, M. E., & Moore, C.
-    "Finding community structure in very large networks."
-    Physical Review E 70(6), 2004.
+    .. [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
+       "Finding community structure in very large networks."
+       Physical Review E 70(6), 2004.
     """
     if parse(nx.__version__) < Version("2.8"):
         raise NotImplementedError(
@@ -885,7 +885,7 @@ def busmap_by_greedy_modularity(n, n_clusters, buses_i=None):
 def greedy_modularity_clustering(n, n_clusters, buses_i=None, line_length_factor=1.0):
     """
     Create a busmap according to Clauset-Newman-Moore greedy modularity
-    maximization [1]_.
+    maximization [CNM2004_2]_.
 
     Parameters
     ----------
@@ -904,9 +904,9 @@ def greedy_modularity_clustering(n, n_clusters, buses_i=None, line_length_factor
 
     References
     ----------
-    .. [1] Clauset, A., Newman, M. E., & Moore, C.
-    "Finding community structure in very large networks."
-    Physical Review E 70(6), 2004.
+    .. [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
+       "Finding community structure in very large networks."
+       Physical Review E 70(6), 2004.
     """
 
     busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)

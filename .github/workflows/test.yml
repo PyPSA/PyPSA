@@ -78,17 +78,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v4
 
-  test-example-notebooks:
+  test-notebooks-and-docs:
     # Test package build in matrix of OS and Python versions
-    name: Test example notebooks
+    name: Test example notebooks and docs build
     needs: [build]
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0 # Needed for setuptools_scm
-
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
@@ -104,8 +100,12 @@ jobs:
       run: |
         python -m pip install uv
         uv pip install --system nbmake requests
-        uv pip install --system "$(ls dist/*.whl)[dev, cartopy]"
+        uv pip install --system "$(ls dist/*.whl)[dev, cartopy, docs]"
 
-    - name: Test with pytest
+    - name: Test example notebooks
       run: |
         pytest --nbmake examples/notebooks
+
+    - name: Test docs build
+      run: |
+        pytest test_docs.py --test-docs
