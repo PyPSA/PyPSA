@@ -85,6 +85,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Needed for setuptools_scm
     - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
@@ -108,4 +111,5 @@ jobs:
 
     - name: Test docs build
       run: |
-        pytest test_docs.py --test-docs
+        sudo apt-get install -y pandoc
+        pytest test/test_docs.py --test-docs

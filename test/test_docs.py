@@ -67,7 +67,7 @@ def test_sphinx_build(pytestconfig):
 
         if filtered_stderr:
             pytest.fail(
-                f"Sphinx build failed with warnings:\n{'\n'.join(filtered_stderr)}"
+                "Sphinx build failed with warnings:\n" + "\n".join(filtered_stderr)
             )
 
     # Check if the build was successful by looking for an index.html file
