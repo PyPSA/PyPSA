@@ -80,7 +80,7 @@ the Linear Optimal Power Flow (LOPF) described in
 branches may not become overloaded after the outage of a selection of
 branches.
 
-The SCLOPF is called with the method :meth:`pypsa.Network.optimize.optimize_security_constrained`.
+The SCLOPF is called with the method :py:meth:`pypsa.Network.optimize.optimize_security_constrained`.
 
 
 Note that
