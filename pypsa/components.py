@@ -564,7 +564,7 @@ class Network(Basic):
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:role:`Network.pnl`). NaNs are filled with the default value for that quantity.
+        (:py:meth:`pypsa.network.pnl`). NaNs are filled with the default value for that quantity.
 
         Parameters
         ----------

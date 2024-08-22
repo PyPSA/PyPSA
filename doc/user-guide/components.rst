@@ -8,7 +8,7 @@ PyPSA represents power and energy systems using the following components:
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/components.csv
+   :file: ../../pypsa/components.csv
 
 This table is also available as a dictionary within each network
 object as ``n.components``.
@@ -318,7 +318,7 @@ The following standard line types are available:
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/standard_types/line_types.csv
+   :file: ../../pypsa/standard_types/line_types.csv
 
 The line type parameters intable above are based on `pandapower's standard types
 <https://pandapower.readthedocs.io/en/latest/std_types/basic.html>`__, whose
@@ -364,7 +364,7 @@ The following standard transformer types are available:
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../pypsa/standard_types/transformer_types.csv
+   :file: ../../pypsa/standard_types/transformer_types.csv
 
 The transformer type parameters in the table above are based on `pandapower's
 standard types
