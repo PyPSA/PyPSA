@@ -1267,7 +1267,7 @@ def explore(
     """
     try:
         import mapclassify  # noqa: F401
-        from folium import LayerControl, Map, TileLayer
+        from folium import Element, IFrame, LayerControl, Map, TileLayer
     except ImportError:
         logger.warning(
             "folium and mapclassify need to be installed to use `n.explore()`."
@@ -1370,9 +1370,15 @@ def explore(
     generator_colors = mcolors.CSS4_COLORS["purple"]
     load_colors = mcolors.CSS4_COLORS["red"]
     storage_unit_colors = mcolors.CSS4_COLORS["black"]
-
+    
     # Initialize the map
     map = Map(tiles=None)
+
+    # Add map title
+    map_title = f"PyPSA Network: {n.name}"
+    map.get_root().html.add_child(
+        Element(f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>")
+    )
 
     # Add tile layer legend entries
     TileLayer("CartoDB dark_matter", name="CartoDB Dark Matter").add_to(map)
