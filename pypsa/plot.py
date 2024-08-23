@@ -13,7 +13,7 @@ import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
-from shapely import LineString, Point
+from shapely import linestrings
 
 cartopy_present = True
 try:
@@ -1288,60 +1288,6 @@ def explore(
     if components is None:
         components = {"Bus", "Line", "Transformer", "Link"}
 
-    gdf_buses = gpd.GeoDataFrame(
-        n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
-    )
-
-    x1 = n.links.bus0.map(n.buses.x)
-    y1 = n.links.bus0.map(n.buses.y)
-    x2 = n.links.bus1.map(n.buses.x)
-    y2 = n.links.bus1.map(n.buses.y)
-    gdf_links = gpd.GeoDataFrame(
-        n.links,
-        geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
-        crs="EPSG:4326",
-    )
-
-    x1 = n.lines.bus0.map(n.buses.x)
-    y1 = n.lines.bus0.map(n.buses.y)
-    x2 = n.lines.bus1.map(n.buses.x)
-    y2 = n.lines.bus1.map(n.buses.y)
-    gdf_lines = gpd.GeoDataFrame(
-        n.lines,
-        geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
-        crs=crs,
-    )
-
-    x1 = n.transformers.bus0.map(n.buses.x)
-    y1 = n.transformers.bus0.map(n.buses.y)
-    x2 = n.transformers.bus1.map(n.buses.x)
-    y2 = n.transformers.bus1.map(n.buses.y)
-    gdf_transformers = gpd.GeoDataFrame(
-        n.transformers,
-        geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
-        crs=crs,
-    )
-
-    gdf_generators = gpd.GeoDataFrame(
-        n.generators,
-        geometry=gpd.points_from_xy(n.generators.bus.map(n.buses.x), n.generators.bus.map(n.buses.y)),
-        crs=crs,
-    )
-
-    loads = n.loads.copy()
-    loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
-    gdf_loads = gpd.GeoDataFrame(
-        loads,
-        geometry=gpd.points_from_xy(loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)),
-        crs=crs,
-    )
-
-    gdf_storage_units = gpd.GeoDataFrame(
-        n.storage_units,
-        geometry=gpd.points_from_xy(n.storage_units.bus.map(n.buses.x), n.storage_units.bus.map(n.buses.y)),
-        crs=crs,
-    )
-
     # Map related settings
     bus_colors = mcolors.CSS4_COLORS["cadetblue"]
     line_colors = mcolors.CSS4_COLORS["rosybrown"]
@@ -1376,7 +1322,18 @@ def explore(
     ]
     components_present = []
 
-    if not gdf_transformers.empty and "Transformer" in components:
+    if not n.transformers.empty and "Transformer" in components:
+
+        x1 = n.transformers.bus0.map(n.buses.x)
+        y1 = n.transformers.bus0.map(n.buses.y)
+        x2 = n.transformers.bus1.map(n.buses.x)
+        y2 = n.transformers.bus1.map(n.buses.y)
+        gdf_transformers = gpd.GeoDataFrame(
+            n.transformers,
+            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            crs=crs,
+        )
+
         gdf_transformers.explore(
             m=map,
             color=transformer_colors,
@@ -1386,19 +1343,46 @@ def explore(
         )
         components_present.append("Transformer")
 
-    if not gdf_lines.empty and "Line" in components:
+    if not n.lines.empty and "Line" in components:
+
+        x1 = n.lines.bus0.map(n.buses.x)
+        y1 = n.lines.bus0.map(n.buses.y)
+        x2 = n.lines.bus1.map(n.buses.x)
+        y2 = n.lines.bus1.map(n.buses.y)
+        gdf_lines = gpd.GeoDataFrame(
+            n.lines,
+            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            crs=crs,
+        )
+
         gdf_lines.explore(
             m=map, color=line_colors, tooltip=tooltip, popup=popup, name="Lines"
         )
         components_present.append("Line")
 
-    if not gdf_links.empty and "Link" in components:
+    if not n.links.empty and "Link" in components:
+
+        x1 = n.links.bus0.map(n.buses.x)
+        y1 = n.links.bus0.map(n.buses.y)
+        x2 = n.links.bus1.map(n.buses.x)
+        y2 = n.links.bus1.map(n.buses.y)
+        gdf_links = gpd.GeoDataFrame(
+            n.links,
+            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            crs="EPSG:4326",
+        )
+
         gdf_links.explore(
             m=map, color=link_colors, tooltip=tooltip, popup=popup, name="Links"
         )
         components_present.append("Link")
 
-    if not gdf_buses.empty and "Bus" in components:
+    if not n.buses.empty and "Bus" in components:
+
+        gdf_buses = gpd.GeoDataFrame(
+            n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
+        )
+
         gdf_buses.explore(
             m=map,
             color=bus_colors,
@@ -1409,7 +1393,16 @@ def explore(
         )
         components_present.append("Bus")
 
-    if not gdf_generators.empty and "Generator" in components:
+    if not n.generators.empty and "Generator" in components:
+
+        gdf_generators = gpd.GeoDataFrame(
+            n.generators,
+            geometry=gpd.points_from_xy(
+                n.generators.bus.map(n.buses.x), n.generators.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
         gdf_generators.explore(
             m=map,
             color=generator_colors,
@@ -1420,7 +1413,16 @@ def explore(
         )
         components_present.append("Generator")
 
-    if not gdf_loads.empty and "Load" in components:
+    if not n.loads.empty and "Load" in components:
+
+        loads = n.loads.copy()
+        loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
+        gdf_loads = gpd.GeoDataFrame(
+            loads,
+            geometry=gpd.points_from_xy(loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)),
+            crs=crs,
+        )
+
         gdf_loads.explore(
             m=map,
             color=load_colors,
@@ -1431,7 +1433,16 @@ def explore(
         )
         components_present.append("Load")
 
-    if not gdf_storage_units.empty and "StorageUnit" in components:
+    if not n.storage_units.empty and "StorageUnit" in components:
+
+        gdf_storage_units = gpd.GeoDataFrame(
+            n.storage_units,
+            geometry=gpd.points_from_xy(
+                n.storage_units.bus.map(n.buses.x), n.storage_units.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
         gdf_storage_units.explore(
             m=map,
             color=storage_unit_colors,
