@@ -1323,7 +1323,6 @@ def explore(
     components_present = []
 
     if not n.transformers.empty and "Transformer" in components:
-
         x1 = n.transformers.bus0.map(n.buses.x)
         y1 = n.transformers.bus0.map(n.buses.y)
         x2 = n.transformers.bus1.map(n.buses.x)
@@ -1344,7 +1343,6 @@ def explore(
         components_present.append("Transformer")
 
     if not n.lines.empty and "Line" in components:
-
         x1 = n.lines.bus0.map(n.buses.x)
         y1 = n.lines.bus0.map(n.buses.y)
         x2 = n.lines.bus1.map(n.buses.x)
@@ -1361,7 +1359,6 @@ def explore(
         components_present.append("Line")
 
     if not n.links.empty and "Link" in components:
-
         x1 = n.links.bus0.map(n.buses.x)
         y1 = n.links.bus0.map(n.buses.y)
         x2 = n.links.bus1.map(n.buses.x)
@@ -1378,7 +1375,6 @@ def explore(
         components_present.append("Link")
 
     if not n.buses.empty and "Bus" in components:
-
         gdf_buses = gpd.GeoDataFrame(
             n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
         )
@@ -1394,7 +1390,6 @@ def explore(
         components_present.append("Bus")
 
     if not n.generators.empty and "Generator" in components:
-
         gdf_generators = gpd.GeoDataFrame(
             n.generators,
             geometry=gpd.points_from_xy(
@@ -1414,12 +1409,13 @@ def explore(
         components_present.append("Generator")
 
     if not n.loads.empty and "Load" in components:
-
         loads = n.loads.copy()
         loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
         gdf_loads = gpd.GeoDataFrame(
             loads,
-            geometry=gpd.points_from_xy(loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)),
+            geometry=gpd.points_from_xy(
+                loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)
+            ),
             crs=crs,
         )
 
@@ -1434,7 +1430,6 @@ def explore(
         components_present.append("Load")
 
     if not n.storage_units.empty and "StorageUnit" in components:
-
         gdf_storage_units = gpd.GeoDataFrame(
             n.storage_units,
             geometry=gpd.points_from_xy(
