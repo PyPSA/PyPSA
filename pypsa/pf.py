@@ -961,13 +961,13 @@ def wye_to_delta(
     """
     Follows http://home.earthlink.net/~w6rmk/math/wyedelta.html.
 
-    Args:
-    ----
+    Parameters
+    ----------
         z1 (int, float, or complex): First impedance value
         z2 (int, float, or complex): Second impedance value
         z3 (int, float, or complex): Third impedance value
 
-    Returns:
+    Returns
     -------
         tuple[float, float, float]:
             A tuple containing the three transformed impedance values

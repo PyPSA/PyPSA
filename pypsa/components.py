@@ -158,7 +158,7 @@ class Network(Basic):
         pypsa.components.components. See git repository examples/new_components/.
     override_component_attrs : pypsa.descriptors.Dict of pandas.DataFrame
         If you want to override pypsa.component_attrs, follow its format.
-        See :doc:`/user-guide/components#custom-components` for more information.
+        See :doc:`/user-guide/components` for more information.
     kwargs
         Any remaining attributes to set
 
