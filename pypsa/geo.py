@@ -2,6 +2,8 @@
 Functionality to help with georeferencing and calculate distances/areas.
 """
 
+from __future__ import annotations
+
 import logging
 
 import numpy as np

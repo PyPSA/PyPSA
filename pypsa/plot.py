@@ -3,6 +3,8 @@
 Functions for plotting networks.
 """
 
+from __future__ import annotations
+
 import logging
 
 import geopandas as gpd

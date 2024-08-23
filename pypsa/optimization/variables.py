@@ -3,6 +3,8 @@
 Define optimisation variables from PyPSA networks with Linopy.
 """
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -16,9 +18,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def define_operational_variables(
-    n: "Network", sns: Sequence, c: str, attr: str
-) -> None:
+def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -> None:
     """
     Initializes variables for power dispatch for a given component and a given
     attribute.
@@ -39,7 +39,7 @@ def define_operational_variables(
     n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
 
-def define_status_variables(n: "Network", sns: Sequence, c: str) -> None:
+def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
@@ -54,7 +54,7 @@ def define_status_variables(n: "Network", sns: Sequence, c: str) -> None:
     )
 
 
-def define_start_up_variables(n: "Network", sns: Sequence, c: str) -> None:
+def define_start_up_variables(n: Network, sns: Sequence, c: str) -> None:
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
@@ -69,7 +69,7 @@ def define_start_up_variables(n: "Network", sns: Sequence, c: str) -> None:
     )
 
 
-def define_shut_down_variables(n: "Network", sns: Sequence, c: str) -> None:
+def define_shut_down_variables(n: Network, sns: Sequence, c: str) -> None:
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
@@ -84,7 +84,7 @@ def define_shut_down_variables(n: "Network", sns: Sequence, c: str) -> None:
     )
 
 
-def define_nominal_variables(n: "Network", c: str, attr: str) -> None:
+def define_nominal_variables(n: Network, c: str, attr: str) -> None:
     """
     Initializes variables for nominal capacities for a given component and a
     given attribute.
@@ -104,7 +104,7 @@ def define_nominal_variables(n: "Network", c: str, attr: str) -> None:
     n.model.add_variables(coords=[ext_i], name=f"{c}-{attr}")
 
 
-def define_modular_variables(n: "Network", c: str, attr: str) -> None:
+def define_modular_variables(n: Network, c: str, attr: str) -> None:
     """
     Initializes variables 'attr' for a given component c to allow a modular
     expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
@@ -127,7 +127,7 @@ def define_modular_variables(n: "Network", c: str, attr: str) -> None:
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c}-n_mod", integer=True)
 
 
-def define_spillage_variables(n: "Network", sns: Sequence) -> None:
+def define_spillage_variables(n: Network, sns: Sequence) -> None:
     """
     Defines the spillage variables for storage units.
     """
@@ -143,7 +143,7 @@ def define_spillage_variables(n: "Network", sns: Sequence) -> None:
     n.model.add_variables(0, upper, name="StorageUnit-spill", mask=active)
 
 
-def define_loss_variables(n: "Network", sns: Sequence, c: str) -> None:
+def define_loss_variables(n: Network, sns: Sequence, c: str) -> None:
     """
     Initializes variables for transmission losses.
     """

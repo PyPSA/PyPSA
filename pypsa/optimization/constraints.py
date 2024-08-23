@@ -3,6 +3,8 @@
 Define optimisation constraints from PyPSA networks with Linopy.
 """
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -33,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 
 def define_operational_constraints_for_non_extendables(
-    n: "Network", sns: pd.Index, c: str, attr: str, transmission_losses: int
+    n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
     """
     Sets power dispatch constraints for non-extendable and non-commitable
@@ -80,7 +82,7 @@ def define_operational_constraints_for_non_extendables(
 
 
 def define_operational_constraints_for_extendables(
-    n: "Network", sns: pd.Index, c: str, attr: str, transmission_losses: int
+    n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
     """
     Sets power dispatch constraints for extendable devices for a given
@@ -126,7 +128,7 @@ def define_operational_constraints_for_extendables(
 
 
 def define_operational_constraints_for_committables(
-    n: "Network", sns: pd.Index, c: str
+    n: Network, sns: pd.Index, c: str
 ) -> None:
     """
     Sets power dispatch constraints for committable devices for a given
@@ -311,7 +313,7 @@ def define_operational_constraints_for_committables(
         )
 
 
-def define_nominal_constraints_for_extendables(n: "Network", c: str, attr: str) -> None:
+def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) -> None:
     """
     Sets capacity expansion constraints for extendable assets for a given
     component and a given attribute.
@@ -341,9 +343,7 @@ def define_nominal_constraints_for_extendables(n: "Network", c: str, attr: str) 
     )
 
 
-def define_ramp_limit_constraints(
-    n: "Network", sns: pd.Index, c: str, attr: str
-) -> None:
+def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) -> None:
     """
     Defines ramp limits for assets with valid ramplimit.
 
@@ -522,7 +522,7 @@ def define_ramp_limit_constraints(
 
 
 def define_nodal_balance_constraints(
-    n: "Network",
+    n: Network,
     sns: pd.Index,
     transmission_losses: int = 0,
     buses: Sequence | None = None,
@@ -616,7 +616,7 @@ def define_nodal_balance_constraints(
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
 
-def define_kirchhoff_voltage_constraints(n: "Network", sns: pd.Index) -> None:
+def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     """
     Defines Kirchhoff voltage constraints.
     """
@@ -675,7 +675,7 @@ def define_kirchhoff_voltage_constraints(n: "Network", sns: pd.Index) -> None:
         m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
 
-def define_fixed_nominal_constraints(n: "Network", c: str, attr: str) -> None:
+def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
     """
     Sets constraints for fixing static variables of a given component and
     attribute to the corresponding values in `n.df(c)[attr + '_set']`.
@@ -702,7 +702,7 @@ def define_fixed_nominal_constraints(n: "Network", c: str, attr: str) -> None:
     n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set")
 
 
-def define_modular_constraints(n: "Network", c: str, attr: str) -> None:
+def define_modular_constraints(n: Network, c: str, attr: str) -> None:
     """
     Sets constraints for fixing modular variables of a given component. It
     allows to define optimal capacity of a component as multiple of the nominal
@@ -731,7 +731,7 @@ def define_modular_constraints(n: "Network", c: str, attr: str) -> None:
 
 
 def define_fixed_operation_constraints(
-    n: "Network", sns: pd.Index, c: str, attr: str
+    n: Network, sns: pd.Index, c: str, attr: str
 ) -> None:
     """
     Sets constraints for fixing time-dependent variables of a given component
@@ -766,7 +766,7 @@ def define_fixed_operation_constraints(
     n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set", mask=mask)
 
 
-def define_storage_unit_constraints(n: "Network", sns: pd.Index) -> None:
+def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     """
     Defines energy balance constraints for storage units. In principal the
     constraints states:
@@ -855,7 +855,7 @@ def define_storage_unit_constraints(n: "Network", sns: pd.Index) -> None:
     m.add_constraints(lhs, "=", rhs, name=f"{c}-energy_balance", mask=active)
 
 
-def define_store_constraints(n: "Network", sns: pd.Index) -> None:
+def define_store_constraints(n: Network, sns: pd.Index) -> None:
     """
     Defines energy balance constraints for stores. In principal the constraints
     states:
@@ -930,7 +930,7 @@ def define_store_constraints(n: "Network", sns: pd.Index) -> None:
 
 
 def define_loss_constraints(
-    n: "Network", sns: pd.Index, c: str, transmission_losses: int
+    n: Network, sns: pd.Index, c: str, transmission_losses: int
 ) -> None:
     if n.df(c).empty or c not in n.passive_branch_components:
         return

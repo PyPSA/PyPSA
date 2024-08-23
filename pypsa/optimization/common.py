@@ -3,6 +3,8 @@
 Use common methods for optimization problem definition with Linopy.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from pypsa.components import Network
 
 
-def reindex(ds: "xr.DataArray", dim: str, index: pd.Index) -> "xr.DataArray":
+def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     """
     Index a xarray.DataArray by a pandas.Index while renaming according to the
     new index name.
@@ -33,7 +35,7 @@ def reindex(ds: "xr.DataArray", dim: str, index: pd.Index) -> "xr.DataArray":
     return ds.sel({dim: index}).rename({dim: index.name})
 
 
-def set_from_frame(n: "Network", c: str, attr: str, df: pd.DataFrame) -> None:
+def set_from_frame(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
     """
     Update values in time-dependent attribute from new dataframe.
     """
@@ -45,7 +47,7 @@ def set_from_frame(n: "Network", c: str, attr: str, df: pd.DataFrame) -> None:
         pnl[attr] = pnl[attr].fillna(0.0)
 
 
-def get_strongly_meshed_buses(n: "Network", threshold: int = 45) -> pd.Series:
+def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     """
     Get the buses which are strongly meshed in the network.
 

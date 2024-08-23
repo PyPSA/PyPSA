@@ -6,6 +6,8 @@ This module intends to make the transition from the native pypsa
 optimization code to the linopy implementation easier.
 """
 
+from __future__ import annotations
+
 import linopy
 from deprecation import deprecated
 

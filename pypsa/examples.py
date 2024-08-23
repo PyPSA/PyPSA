@@ -4,6 +4,8 @@ This module contains functions for retrieving/loading example networks provided
 by the PyPSA project.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING
 from urllib.error import HTTPError
@@ -67,7 +69,7 @@ def _retrieve_if_not_local(
 
 def ac_dc_meshed(
     update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
-) -> "Network":
+) -> Network:
     """
     Load the meshed AC-DC network example of pypsa stored in the PyPSA
     repository.
@@ -94,7 +96,7 @@ def ac_dc_meshed(
     return n
 
 
-def storage_hvdc(update: bool = False, from_master: bool = False) -> "Network":
+def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     """
     Load the storage network example of pypsa stored in the PyPSA repository.
 
@@ -115,7 +117,7 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> "Network":
     return Network(path)
 
 
-def scigrid_de(update: bool = False, from_master: bool = False) -> "Network":
+def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     """
     Load the SciGrid network example of pypsa stored in the PyPSA repository.
 
