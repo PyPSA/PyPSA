@@ -1267,7 +1267,7 @@ def explore(
     """
     try:
         import mapclassify  # noqa: F401
-        from folium import Element, IFrame, LayerControl, Map, TileLayer
+        from folium import Element, LayerControl, Map, TileLayer
     except ImportError:
         logger.warning(
             "folium and mapclassify need to be installed to use `n.explore()`."

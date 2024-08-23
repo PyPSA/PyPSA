@@ -30,8 +30,8 @@ except ImportError:
 
 
 try:
-    import folium
-    import mapclassify
+    import folium  # noqa: F401
+    import mapclassify  # noqa: F401
 
     explore_deps_present = True
 except ImportError:
@@ -332,4 +332,4 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
 def test_network_explore(ac_dc_network):
     n = ac_dc_network
 
-    map = n.explore()
+    n.explore()
