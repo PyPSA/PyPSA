@@ -1370,14 +1370,16 @@ def explore(
     generator_colors = mcolors.CSS4_COLORS["purple"]
     load_colors = mcolors.CSS4_COLORS["red"]
     storage_unit_colors = mcolors.CSS4_COLORS["black"]
-    
+
     # Initialize the map
     map = Map(tiles=None)
 
     # Add map title
     map_title = f"PyPSA Network: {n.name}"
     map.get_root().html.add_child(
-        Element(f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>")
+        Element(
+            f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>"
+        )
     )
 
     # Add tile layer legend entries
