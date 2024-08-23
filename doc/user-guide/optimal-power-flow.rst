@@ -640,7 +640,7 @@ security margins for power flow on ``Line`` components. See
 Modelling-to-Generate-Alternatives
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The funciton :py:meth:`pypsa.Network.optimize.optimize_mga` runs
+The function :py:meth:`pypsa.Network.optimize.optimize_mga` runs
 modelling-to-generate-alternatives (MGA) on network to find near-optimal
 solutions.
 
