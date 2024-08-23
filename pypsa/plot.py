@@ -1269,24 +1269,29 @@ def explore(
         import folium
         import mapclassify
     except ImportError:
-        logger.warning("folium and mapclassify need to be installed to use `n.explore()`.")
+        logger.warning(
+            "folium and mapclassify need to be installed to use `n.explore()`."
+        )
         return None
 
-    from folium import FeatureGroup, LayerControl, Map, TileLayer
+    from folium import LayerControl, Map, TileLayer
 
     gdf_buses = gpd.GeoDataFrame(
         n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
     )
 
-    links_subset = n.links[n.links.carrier=="DC"].copy() # Filter out non DC links
+    links_subset = n.links[n.links.carrier == "DC"].copy()  # Filter out non DC links
     gdf_links = gpd.GeoDataFrame(
         links_subset,
         geometry=[
-            LineString([
-                (n.buses.loc[link.bus0, "x"], n.buses.loc[link.bus0, "y"]),
-                (n.buses.loc[link.bus1, "x"], n.buses.loc[link.bus1, "y"])
-                ]) for link in links_subset.itertuples()
-            ], 
+            LineString(
+                [
+                    (n.buses.loc[link.bus0, "x"], n.buses.loc[link.bus0, "y"]),
+                    (n.buses.loc[link.bus1, "x"], n.buses.loc[link.bus1, "y"]),
+                ]
+            )
+            for link in links_subset.itertuples()
+        ],
         crs="EPSG:4326",
     )
 
@@ -1376,8 +1381,10 @@ def explore(
 
     if len(components_present) > 0:
         logger.info(f"Components rendered on the map: {', '.join(components_present)}.")
-    if (len(set(components) - set(components_present)) > 0):
-        logger.info(f"Components omitted as they are missing: {', '.join(set(components) - set(components_present))}.")
+    if len(set(components) - set(components_present)) > 0:
+        logger.info(
+            f"Components omitted as they are missing: {', '.join(set(components) - set(components_present))}."
+        )
 
     # Set the default view to the bounds of the elements in the map
     map.fit_bounds(map.get_bounds())
