@@ -1286,60 +1286,39 @@ def explore(
         n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
     )
 
+    x1 = n.links.bus0.map(n.buses.x)
+    y1 = n.links.bus0.map(n.buses.y)
+    x2 = n.links.bus1.map(n.buses.x)
+    y2 = n.links.bus1.map(n.buses.y)
     gdf_links = gpd.GeoDataFrame(
         n.links,
-        geometry=[
-            LineString(
-                [
-                    (n.buses.loc[link.bus0, "x"], n.buses.loc[link.bus0, "y"]),
-                    (n.buses.loc[link.bus1, "x"], n.buses.loc[link.bus1, "y"]),
-                ]
-            )
-            for link in n.links.itertuples()
-        ],
+        geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
         crs="EPSG:4326",
     )
 
+    x1 = n.lines.bus0.map(n.buses.x)
+    y1 = n.lines.bus0.map(n.buses.y)
+    x2 = n.lines.bus1.map(n.buses.x)
+    y2 = n.lines.bus1.map(n.buses.y)
     gdf_lines = gpd.GeoDataFrame(
         n.lines,
-        geometry=[
-            LineString(
-                [
-                    (n.buses.loc[line.bus0, "x"], n.buses.loc[line.bus0, "y"]),
-                    (n.buses.loc[line.bus1, "x"], n.buses.loc[line.bus1, "y"]),
-                ]
-            )
-            for line in n.lines.itertuples()
-        ],
+        geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
         crs=crs,
     )
 
+    x1 = n.transformers.bus0.map(n.buses.x)
+    y1 = n.transformers.bus0.map(n.buses.y)
+    x2 = n.transformers.bus1.map(n.buses.x)
+    y2 = n.transformers.bus1.map(n.buses.y)
     gdf_transformers = gpd.GeoDataFrame(
         n.transformers,
-        geometry=[
-            LineString(
-                [
-                    (
-                        n.buses.loc[transformer.bus0, "x"],
-                        n.buses.loc[transformer.bus0, "y"],
-                    ),
-                    (
-                        n.buses.loc[transformer.bus1, "x"],
-                        n.buses.loc[transformer.bus1, "y"],
-                    ),
-                ]
-            )
-            for transformer in n.transformers.itertuples()
-        ],
+        geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
         crs=crs,
     )
 
     gdf_generators = gpd.GeoDataFrame(
         n.generators,
-        geometry=[
-            Point(n.buses.loc[generator.bus, "x"], n.buses.loc[generator.bus, "y"])
-            for generator in n.generators.itertuples()
-        ],
+        geometry=gpd.points_from_xy(n.generators.bus.map(n.buses.x), n.generators.bus.map(n.buses.y)),
         crs=crs,
     )
 
@@ -1347,21 +1326,13 @@ def explore(
     loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
     gdf_loads = gpd.GeoDataFrame(
         loads,
-        geometry=[
-            Point(n.buses.loc[load.bus, "x"], n.buses.loc[load.bus, "y"])
-            for load in loads.itertuples()
-        ],
+        geometry=gpd.points_from_xy(loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)),
         crs=crs,
     )
 
     gdf_storage_units = gpd.GeoDataFrame(
         n.storage_units,
-        geometry=[
-            Point(
-                n.buses.loc[storage_unit.bus, "x"], n.buses.loc[storage_unit.bus, "y"]
-            )
-            for storage_unit in n.storage_units.itertuples()
-        ],
+        geometry=gpd.points_from_xy(n.storage_units.bus.map(n.buses.x), n.storage_units.bus.map(n.buses.y)),
         crs=crs,
     )
 
