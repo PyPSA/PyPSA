@@ -1240,7 +1240,7 @@ def iplot(
 
 def explore(
     n,
-    crs: str = "EPSG:4326",
+    crs: str = None,
     tooltip=True,
     popup=True,
 ):
@@ -1251,9 +1251,9 @@ def explore(
 
     Parameters
     ----------
-    n : object
-        PyPSA.Network object containing components `buses`, `links`, `lines`, `transformers`, `generators`, and `loads`.
-    crs : str, optional, default="EPSG:4326"
+    n : PyPSA.Network object
+        containing components `buses`, `links`, `lines`, `transformers`, `generators`, `loads`, and `storage_units`.
+    crs : str, optional. If not specified, it will check whether `n.crs` exists and use it, else it will default to "EPSG:4326".
         Coordinate Reference System for the GeoDataFrames.
     tooltip : bool, optional, default=True
         Whether to include tooltips (on hover) for the features.
@@ -1273,6 +1273,11 @@ def explore(
             "folium and mapclassify need to be installed to use `n.explore()`."
         )
         return None
+
+    if n.crs and crs is None:
+        crs = n.crs
+    else:
+        crs = "EPSG:4326"
 
     gdf_buses = gpd.GeoDataFrame(
         n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
