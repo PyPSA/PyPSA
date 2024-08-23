@@ -26,7 +26,7 @@ repos:
   hooks:
   - id: mypy
     files: ^(pypsa|test)/
-    additional_dependencies: [numpy, pandas, xarray, linopy]
+    additional_dependencies: [numpy, pandas, xarray]
 
 # Find common spelling mistakes in comments and docstrings
 - repo: https://github.com/codespell-project/codespell
