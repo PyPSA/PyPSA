@@ -1283,9 +1283,8 @@ def explore(
         n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
     )
 
-    links_subset = n.links[n.links.carrier == "DC"].copy()  # Filter out non DC links
     gdf_links = gpd.GeoDataFrame(
-        links_subset,
+        n.links,
         geometry=[
             LineString(
                 [
@@ -1293,7 +1292,7 @@ def explore(
                     (n.buses.loc[link.bus1, "x"], n.buses.loc[link.bus1, "y"]),
                 ]
             )
-            for link in links_subset.itertuples()
+            for link in n.links.itertuples()
         ],
         crs="EPSG:4326",
     )
