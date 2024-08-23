@@ -13,7 +13,7 @@ import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
-from shapely import LineString
+from shapely import LineString, Point
 
 cartopy_present = True
 try:
@@ -1252,7 +1252,7 @@ def explore(
     Parameters
     ----------
     n : object
-        PyPSA.Network object containing components `buses`, `links`, `lines`, and `transformers`.
+        PyPSA.Network object containing components `buses`, `links`, `lines`, `transformers`, `generators`, and `loads`.
     crs : str, optional, default="EPSG:4326"
         Coordinate Reference System for the GeoDataFrames.
     tooltip : bool, optional, default=True
@@ -1327,11 +1327,45 @@ def explore(
         crs=crs,
     )
 
+    gdf_generators = gpd.GeoDataFrame(
+        n.generators,
+        geometry=[
+            Point(n.buses.loc[generator.bus, "x"], n.buses.loc[generator.bus, "y"])
+            for generator in n.generators.itertuples()
+        ],
+        crs=crs,
+    )
+
+    loads = n.loads.copy()
+    loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
+    gdf_loads = gpd.GeoDataFrame(
+        loads,
+        geometry=[
+            Point(n.buses.loc[load.bus, "x"], n.buses.loc[load.bus, "y"])
+            for load in loads.itertuples()
+        ],
+        crs=crs,
+    )
+
+    gdf_storage_units = gpd.GeoDataFrame(
+        n.storage_units,
+        geometry=[
+            Point(
+                n.buses.loc[storage_unit.bus, "x"], n.buses.loc[storage_unit.bus, "y"]
+            )
+            for storage_unit in n.storage_units.itertuples()
+        ],
+        crs=crs,
+    )
+
     # Map related settings
     bus_colors = mcolors.CSS4_COLORS["cadetblue"]
     line_colors = mcolors.CSS4_COLORS["rosybrown"]
     link_colors = mcolors.CSS4_COLORS["darkseagreen"]
     transformer_colors = mcolors.CSS4_COLORS["orange"]
+    generator_colors = mcolors.CSS4_COLORS["purple"]
+    load_colors = mcolors.CSS4_COLORS["red"]
+    storage_unit_colors = mcolors.CSS4_COLORS["black"]
 
     # Initialize the map
     map = Map(tiles=None)
@@ -1341,7 +1375,15 @@ def explore(
     TileLayer("CartoDB positron", name="CartoDB Positron").add_to(map)
     TileLayer("OpenStreetMap", name="OpenStreetMap").add_to(map)
 
-    components = ["buses", "lines", "links", "transformers"]
+    components = [
+        "buses",
+        "lines",
+        "links",
+        "transformers",
+        "generators",
+        "loads",
+        "storage_units",
+    ]
     components_present = []
 
     if not gdf_transformers.empty:
@@ -1373,15 +1415,50 @@ def explore(
             tooltip=tooltip,
             popup=popup,
             name="Buses",
-            marker_kwds={"radius": 3},
+            marker_kwds={"radius": 4},
         )
         components_present.append("buses")
 
+    if not gdf_generators.empty:
+        gdf_generators.explore(
+            m=map,
+            color=generator_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Generators",
+            marker_kwds={"radius": 2.5},
+        )
+        components_present.append("generators")
+
+    if not gdf_loads.empty:
+        gdf_loads.explore(
+            m=map,
+            color=load_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Loads",
+            marker_kwds={"radius": 1.5},
+        )
+        components_present.append("loads")
+
+    if not gdf_storage_units.empty:
+        gdf_storage_units.explore(
+            m=map,
+            color=storage_unit_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Storage Units",
+            marker_kwds={"radius": 1},
+        )
+        components_present.append("storage_units")
+
     if len(components_present) > 0:
-        logger.info(f"Components rendered on the map: {', '.join(components_present)}.")
+        logger.info(
+            f"Components rendered on the map: {', '.join(sorted(components_present))}."
+        )
     if len(set(components) - set(components_present)) > 0:
         logger.info(
-            f"Components omitted as they are missing: {', '.join(set(components) - set(components_present))}."
+            f"Components omitted as they are missing: {', '.join(sorted(set(components) - set(components_present)))}."
         )
 
     # Set the default view to the bounds of the elements in the map
