@@ -1450,8 +1450,7 @@ This release contains new features but no changes to existing APIs.
   components to the network. This is significantly faster than
   repeatedly calling ``network.add()`` and uses the functions
   ``network.import_components_from_dataframe()`` and
-  ``network.import_series_from_dataframe()`` internally. Documentation
-  and examples can be found at :ref:`madd`.
+  ``network.import_series_from_dataframe()`` internally.
 * There are new functions ``network.export_to_hdf5()`` and
   ``network.import_from_hdf5()`` for exporting and importing networks
   as single files in the `Hierarchical Data Format
@@ -1550,7 +1549,7 @@ changes.
   commitment example
   <https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.html>`_.
 * Different mathematically-equivalent formulations for the Linear
-  Optimal Power Flow (LOPF) are now documented in :ref:`formulations`
+  Optimal Power Flow (LOPF) are now documented
   and the arXiv preprint paper `Linear Optimal Power Flow Using Cycle
   Flows <https://arxiv.org/abs/1704.01881>`_. The new formulations can
   solve up to 20 times faster than the standard angle-based
@@ -1824,8 +1823,7 @@ found in the GitHub repository at
   component attributes. Static and series attributes of all components
   are not exported if they are default values.  The functionality to
   selectively export series has been removed from the export function,
-  because it was clumsy and hard to use.  See :ref:`export-csv` for
-  more details.
+  because it was clumsy and hard to use.
 
 
 * plot: Plotting networks is now more performant (using matplotlib

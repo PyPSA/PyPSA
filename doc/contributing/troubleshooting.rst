@@ -28,7 +28,7 @@ See :ref:`upgrading-pypsa`.
 Consistency check on network
 ============================
 
-A consistency check can be performed using the function :py:meth:`pypsa.n.consistency_check`.
+A consistency check can be performed using the function :py:meth:`pypsa.Network.consistency_check`.
 
 
 Problems with power flow convergence
@@ -114,7 +114,7 @@ For example:
 
 * ``n.branches()`` returns a DataFrame which is a concatenation
   of ``n.lines`` and ``n.transformers``
-* ``sub_n.generators()`` returns a DataFrame consisting of
+* ``sub_network.generators()`` returns a DataFrame consisting of
   generators in ``sub_network``
 
 
