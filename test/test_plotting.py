@@ -29,6 +29,15 @@ except ImportError:
     cartopy_present = False
 
 
+try:
+    import folium
+    import mapclassify
+
+    explore_deps_present = True
+except ImportError:
+    explore_deps_present = False
+
+
 @pytest.mark.parametrize("margin", (None, 0.1))
 @pytest.mark.parametrize("jitter", (None, 1))
 @pytest.mark.skipif(os.name == "nt", reason="tcl_findLibrary on Windows")
@@ -314,3 +323,10 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
     add_legend_semicircles(ax, [1, 0.5], ["reference A", "reference B"])
 
     plt.close()
+
+
+@pytest.mark.skipif(not explore_deps_present, reason="Dependencies for n.explore() not installed: folium, mapclassify")
+def test_network_explore(ac_dc_network):
+    n = ac_dc_network
+
+    map = n.explore()
