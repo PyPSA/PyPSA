@@ -325,7 +325,10 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
     plt.close()
 
 
-@pytest.mark.skipif(not explore_deps_present, reason="Dependencies for n.explore() not installed: folium, mapclassify")
+@pytest.mark.skipif(
+    not explore_deps_present,
+    reason="Dependencies for n.explore() not installed: folium, mapclassify",
+)
 def test_network_explore(ac_dc_network):
     n = ac_dc_network
 
