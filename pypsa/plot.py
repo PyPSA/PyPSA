@@ -4,6 +4,8 @@ Functions for plotting networks.
 
 import logging
 
+import geopandas as gpd
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -11,6 +13,7 @@ import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
+from shapely import LineString
 
 cartopy_present = True
 try:
@@ -32,6 +35,13 @@ try:
     import plotly.offline as pltly
 except ImportError:
     pltly_present = False
+
+explore_deps_present = True
+try:
+    import folium
+    import mapclassify
+except ImportError:
+    explore_deps_present = False
 
 logger = logging.getLogger(__name__)
 
@@ -1233,3 +1243,149 @@ def iplot(
             pltly.iplot(fig)
 
     return fig
+
+
+def explore(
+    n,
+    crs: str = "EPSG:4326",
+    tooltip = True,
+    popup = True,
+):
+    """
+    Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
+
+    This function generates a Folium map showing buses, lines, links, and transformers from the provided network object.
+
+    Parameters
+    ----------
+    n : object
+        PyPSA.Network object containing components `buses`, `links`, `lines`, and `transformers`.
+    crs : str, optional, default="EPSG:4326"
+        Coordinate Reference System for the GeoDataFrames.
+    tooltip : bool, optional, default=True
+        Whether to include tooltips (on hover) for the features.
+    popup : bool, optional, default=True
+        Whether to include popups (on click) for the features.
+
+    Returns
+    -------
+    folium.Map
+        A Folium map object with the PyPSA.Network components plotted.
+    """
+    if not explore_deps_present:
+        logger.warning("folium and mapclassify need to be installed to use `n.explore()`.")
+        return None
+    
+    from folium import FeatureGroup, LayerControl, Map, TileLayer
+
+    gdf_buses = gpd.GeoDataFrame(
+        n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
+    )
+
+    n.links = n.links[n.links.carrier=="DC"] # Filter out non DC links
+    gdf_links = gpd.GeoDataFrame(
+        n.links,
+        geometry=[
+            LineString([
+                (n.buses.loc[link.bus0, "x"], n.buses.loc[link.bus0, "y"]),
+                (n.buses.loc[link.bus1, "x"], n.buses.loc[link.bus1, "y"])
+                ]) for link in n.links.itertuples()
+            ], 
+        crs="EPSG:4326",
+    )
+
+    gdf_lines = gpd.GeoDataFrame(
+        n.lines,
+        geometry=[
+            LineString([
+                (n.buses.loc[line.bus0, "x"], n.buses.loc[line.bus0, "y"]),
+                (n.buses.loc[line.bus1, "x"], n.buses.loc[line.bus1, "y"])
+                ]) for line in n.lines.itertuples()
+            ], 
+        crs=crs,
+        )
+
+    gdf_transformers = gpd.GeoDataFrame(
+        n.transformers,
+        geometry=[
+            LineString([
+                (n.buses.loc[transformer.bus0, "x"], n.buses.loc[transformer.bus0, "y"]),
+                (n.buses.loc[transformer.bus1, "x"], n.buses.loc[transformer.bus1, "y"])
+                ]) for transformer in n.transformers.itertuples()
+            ], 
+        crs=crs,
+        )
+    
+    # Map related settings
+    bus_colors = mcolors.CSS4_COLORS['cadetblue']
+    line_colors = mcolors.CSS4_COLORS['rosybrown']
+    link_colors = mcolors.CSS4_COLORS['darkseagreen']
+    transformer_colors = mcolors.CSS4_COLORS['orange']
+        
+    # Initialize the map 
+    map = Map(tiles=None)
+
+    # Add tile layer legend entries
+    TileLayer('CartoDB dark_matter', name='CartoDB Dark Matter').add_to(map)
+    TileLayer('CartoDB positron', name='CartoDB Positron').add_to(map)
+    TileLayer('OpenStreetMap', name='OpenStreetMap').add_to(map)
+
+    components = ["buses", "lines", "links", "transformers"]
+    components_present = []
+
+    if not gdf_transformers.empty:
+        gdf_transformers.explore(
+            m=map, 
+            color=transformer_colors, 
+            tooltip=tooltip, 
+            popup=popup, 
+            name="Transformers"
+        )
+        components_present.append("transformers")
+
+    if not gdf_lines.empty:
+        gdf_lines.explore(
+            m=map, 
+            color=line_colors, 
+            tooltip=tooltip, 
+            popup=popup, 
+            name="Lines"
+        )
+        components_present.append("lines")
+
+    if not gdf_links.empty:
+        gdf_links.explore(
+            m=map, 
+            color=link_colors, 
+            tooltip=tooltip, 
+            popup=popup, 
+            name="Links"
+        )
+        components_present.append("links")
+
+    if not gdf_buses.empty:
+        buses_group = FeatureGroup(name="Buses")
+        gdf_buses.explore(
+            m=map, 
+            color=bus_colors,
+            tooltip=tooltip, 
+            popup=popup, 
+            name="Buses", 
+            marker_kwds={'radius': 3},
+        )
+        components_present.append("buses")
+
+    logger_explore = ""
+    if len(components_present) > 0:
+        logger_explore += f"Components rendered on the map: {', '.join(components_present)}."
+    if (len(set(components) - set(components_present)) > 0):
+        logger_explore += f" Components omitted as they are missing: {', '.join(set(components) - set(components_present))}."
+    logger.info(logger_explore)
+
+    # Set the default view to the bounds of the elements in the map
+    map.fit_bounds(map.get_bounds())
+
+    # Add a Layer Control to toggle layers on and off
+    LayerControl().add_to(map)
+
+    return map

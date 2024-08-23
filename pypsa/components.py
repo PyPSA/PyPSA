@@ -73,7 +73,7 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import iplot, plot
+from pypsa.plot import iplot, plot, explore
 from pypsa.statistics import StatisticsAccessor
 
 logger = logging.getLogger(__name__)
@@ -191,6 +191,7 @@ class Network(Basic):
     # Methods from pypsa.plot
     plot = plot
     iplot = iplot
+    explore = explore
 
     # Methods from pypsa.contingency
     lpf_contingency = network_lpf_contingency
