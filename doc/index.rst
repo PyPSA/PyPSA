@@ -144,7 +144,6 @@ Documentation
 * :doc:`/contributing/contributing`
 * :doc:`/contributing/support`
 * :doc:`/contributing/troubleshooting`
-* :doc:`/contributing/mailing-list`
 
 .. toctree::
    :hidden:
@@ -154,14 +153,12 @@ Documentation
    contributing/contributing
    contributing/support
    contributing/troubleshooting
-   contributing/mailing-list
 
 
 **References**
 
 * :doc:`/references/api-reference`
 * :doc:`/references/release-notes`
-* :doc:`/references/comparable-software`
 * :doc:`/references/citing`
 * :doc:`/references/users`
 * :doc:`/references/developers`
@@ -173,7 +170,6 @@ Documentation
 
    references/api-reference
    references/release-notes
-   references/comparable-software
    references/citing
    references/users
    references/developers
