@@ -1244,6 +1244,7 @@ def explore(
     tooltip=True,
     popup=True,
     tiles="OpenStreetMap",
+    components=None,
 ):
     """
     Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
@@ -1262,6 +1263,8 @@ def explore(
         Whether to include popups (on click) for the features.
     tiles : str, optional, default="OpenStreetMap"
         The tileset to use for the map. Options include "OpenStreetMap", "CartoDB Positron", and "CartoDB dark_matter".
+    components : list-like, optional, default=None
+        The components to plot. Default includes "Bus", "Line", "Link", "Transformer".
 
     Returns
     -------
@@ -1281,6 +1284,9 @@ def explore(
         crs = n.crs
     else:
         crs = "EPSG:4326"
+
+    if components is None:
+        components = {"Bus", "Line", "Transformer", "Link"}
 
     gdf_buses = gpd.GeoDataFrame(
         n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
@@ -1359,18 +1365,18 @@ def explore(
     # Add tile layer legend entries
     TileLayer(tiles, name=tiles).add_to(map)
 
-    components = [
-        "buses",
-        "lines",
-        "links",
-        "transformers",
-        "generators",
-        "loads",
-        "storage_units",
+    components_possible = [
+        "Bus",
+        "Line",
+        "Link",
+        "Transformer",
+        "Generator",
+        "Load",
+        "StorageUnit",
     ]
     components_present = []
 
-    if not gdf_transformers.empty:
+    if not gdf_transformers.empty and "Transformer" in components:
         gdf_transformers.explore(
             m=map,
             color=transformer_colors,
@@ -1378,21 +1384,21 @@ def explore(
             popup=popup,
             name="Transformers",
         )
-        components_present.append("transformers")
+        components_present.append("Transformer")
 
-    if not gdf_lines.empty:
+    if not gdf_lines.empty and "Line" in components:
         gdf_lines.explore(
             m=map, color=line_colors, tooltip=tooltip, popup=popup, name="Lines"
         )
-        components_present.append("lines")
+        components_present.append("Line")
 
-    if not gdf_links.empty:
+    if not gdf_links.empty and "Link" in components:
         gdf_links.explore(
             m=map, color=link_colors, tooltip=tooltip, popup=popup, name="Links"
         )
-        components_present.append("links")
+        components_present.append("Link")
 
-    if not gdf_buses.empty:
+    if not gdf_buses.empty and "Bus" in components:
         gdf_buses.explore(
             m=map,
             color=bus_colors,
@@ -1401,9 +1407,9 @@ def explore(
             name="Buses",
             marker_kwds={"radius": 4},
         )
-        components_present.append("buses")
+        components_present.append("Bus")
 
-    if not gdf_generators.empty:
+    if not gdf_generators.empty and "Generator" in components:
         gdf_generators.explore(
             m=map,
             color=generator_colors,
@@ -1412,9 +1418,9 @@ def explore(
             name="Generators",
             marker_kwds={"radius": 2.5},
         )
-        components_present.append("generators")
+        components_present.append("Generator")
 
-    if not gdf_loads.empty:
+    if not gdf_loads.empty and "Load" in components:
         gdf_loads.explore(
             m=map,
             color=load_colors,
@@ -1423,9 +1429,9 @@ def explore(
             name="Loads",
             marker_kwds={"radius": 1.5},
         )
-        components_present.append("loads")
+        components_present.append("Load")
 
-    if not gdf_storage_units.empty:
+    if not gdf_storage_units.empty and "StorageUnit" in components:
         gdf_storage_units.explore(
             m=map,
             color=storage_unit_colors,
@@ -1434,7 +1440,7 @@ def explore(
             name="Storage Units",
             marker_kwds={"radius": 1},
         )
-        components_present.append("storage_units")
+        components_present.append("StorageUnit")
 
     if len(components_present) > 0:
         logger.info(
@@ -1442,7 +1448,7 @@ def explore(
         )
     if len(set(components) - set(components_present)) > 0:
         logger.info(
-            f"Components omitted as they are missing: {', '.join(sorted(set(components) - set(components_present)))}."
+            f"Components omitted as they are missing: {', '.join(sorted(set(components_possible) - set(components_present)))}."
         )
 
     # Set the default view to the bounds of the elements in the map
