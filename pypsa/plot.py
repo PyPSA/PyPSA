@@ -1243,6 +1243,7 @@ def explore(
     crs: str = None,
     tooltip=True,
     popup=True,
+    tiles="OpenStreetMap",
 ):
     """
     Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
@@ -1259,6 +1260,8 @@ def explore(
         Whether to include tooltips (on hover) for the features.
     popup : bool, optional, default=True
         Whether to include popups (on click) for the features.
+    tiles : str, optional, default="OpenStreetMap"
+        The tileset to use for the map. Options include "OpenStreetMap", "CartoDB Positron", and "CartoDB dark_matter".
 
     Returns
     -------
@@ -1383,9 +1386,7 @@ def explore(
     )
 
     # Add tile layer legend entries
-    TileLayer("CartoDB dark_matter", name="CartoDB Dark Matter").add_to(map)
-    TileLayer("CartoDB positron", name="CartoDB Positron").add_to(map)
-    TileLayer("OpenStreetMap", name="OpenStreetMap").add_to(map)
+    TileLayer(tiles, name=tiles).add_to(map)
 
     components = [
         "buses",
