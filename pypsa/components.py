@@ -73,7 +73,7 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import iplot, plot, explore
+from pypsa.plot import explore, iplot, plot
 from pypsa.statistics import StatisticsAccessor
 
 logger = logging.getLogger(__name__)
