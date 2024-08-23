@@ -1266,15 +1266,13 @@ def explore(
         A Folium map object with the PyPSA.Network components plotted.
     """
     try:
-        import folium
-        import mapclassify
+        import mapclassify  # noqa: F401
+        from folium import LayerControl, Map, TileLayer
     except ImportError:
         logger.warning(
             "folium and mapclassify need to be installed to use `n.explore()`."
         )
         return None
-
-    from folium import LayerControl, Map, TileLayer
 
     gdf_buses = gpd.GeoDataFrame(
         n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
