@@ -73,7 +73,7 @@ docs = [
 ]
 gurobipy = ["gurobipy"]
 
- # setuptools_scm settings
+# setuptools_scm settings
  
 [tool.setuptools_scm]
 version_scheme = "post-release"
@@ -83,7 +83,7 @@ include = ["pypsa"]
 
 # Pytest settings
 
-[tool.pytest.ini_options]
+[tool.pytest.ini_options]   
 filterwarnings = [
     "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     "error::FutureWarning",      # Raise all FutureWarnings as errors
@@ -95,8 +95,6 @@ filterwarnings = [
 branch = true
 source = ["pypsa"]
 omit = ["test/*"]
-comment = false
-threshold = 1
 
 # Formatter and linter settings
 
