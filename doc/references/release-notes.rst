@@ -11,7 +11,7 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new feature or bugfix
+* Added basic n.explore() function based on folium and geopandas to interactively explore the network.
 
 v0.29.0 (31st July 2024)
 =============================
