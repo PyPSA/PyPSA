@@ -2,16 +2,19 @@
 Power flow functionality.
 """
 
+from __future__ import annotations
+
 import logging
 import time
+from collections.abc import Callable, Sequence
 from operator import itemgetter
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 from numpy import ones, r_
 from numpy.linalg import norm
-from pandas.api.types import is_list_like
 from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
@@ -25,36 +28,28 @@ from pypsa.descriptors import (
     zsum,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.utils import as_index
+
+if TYPE_CHECKING:
+    from components import Network, SubNetwork
 
 pd.Series.zsum = zsum
 logger = logging.getLogger(__name__)
 
 
-def normed(s):
+def normed(s: pd.Series) -> pd.Series:
     return s / s.sum()
 
 
-def real(X):
+def real(X: pd.Series) -> pd.Series:
     return np.real(X.to_numpy())
 
 
-def imag(X):
+def imag(X: pd.Series) -> pd.Series:
     return np.imag(X.to_numpy())
 
 
-def _as_snapshots(network, snapshots):
-    if snapshots is None:
-        snapshots = network.snapshots
-    if not is_list_like(snapshots):
-        snapshots = pd.Index([snapshots])
-    if not isinstance(snapshots, pd.MultiIndex):
-        snapshots = pd.Index(snapshots)
-    assert snapshots.isin(network.snapshots).all()
-    snapshots.name = "snapshot"
-    return snapshots
-
-
-def _allocate_pf_outputs(network, linear=False):
+def _allocate_pf_outputs(network: Network, linear: bool = False) -> None:
     to_allocate = {
         "Generator": ["p"],
         "Load": ["p"],
@@ -78,8 +73,11 @@ def _allocate_pf_outputs(network, linear=False):
 
 
 def _calculate_controllable_nodal_power_balance(
-    sub_network, network, snapshots, buses_o
-):
+    sub_network: SubNetwork,
+    network: Network,
+    snapshots: Sequence,
+    buses_o: Sequence,
+) -> None:
     for n in ("q", "p"):
         # allow all one ports to dispatch as set
         for c in sub_network.iterate_components(
@@ -116,46 +114,43 @@ def _calculate_controllable_nodal_power_balance(
 
 
 def _network_prepare_and_run_pf(
-    network,
-    snapshots,
-    skip_pre,
-    linear=False,
-    distribute_slack=False,
-    slack_weights="p_set",
-    **kwargs,
-):
+    network: Network,
+    snapshots: Sequence | None,
+    skip_pre: bool,
+    linear: bool = False,
+    distribute_slack: bool = False,
+    slack_weights: str = "p_set",
+    **kwargs: Any,
+) -> Dict | None:
     if linear:
-        sub_network_pf_fun = sub_network_lpf
-        sub_network_prepare_fun = calculate_B_H
+        sub_network_pf_fun: Callable = sub_network_lpf
+        sub_network_prepare_fun: Callable = calculate_B_H
     else:
-        sub_network_pf_fun = sub_network_pf
-        sub_network_prepare_fun = calculate_Y
+        sub_network_pf_fun: Callable = sub_network_pf  # type: ignore
+        sub_network_prepare_fun: Callable = calculate_Y  # type: ignore
 
     if not skip_pre:
         network.determine_network_topology()
         calculate_dependent_values(network)
         _allocate_pf_outputs(network, linear)
 
-    snapshots = _as_snapshots(network, snapshots)
+    sns = as_index(network, snapshots, "snapshots", "snapshot")
 
     # deal with links
     if not network.links.empty:
-        p_set = get_as_dense(network, "Link", "p_set", snapshots)
-        network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
+        p_set = get_as_dense(network, "Link", "p_set", sns)
+        network.links_t.p0.loc[sns] = p_set.loc[sns]
         for i in ["1"] + additional_linkports(network):
             eff_name = "efficiency" if i == "1" else f"efficiency{i}"
-            efficiency = get_as_dense(network, "Link", eff_name, snapshots)
+            efficiency = get_as_dense(network, "Link", eff_name, sns)
             links = network.links.index[network.links[f"bus{i}"] != ""]
-            network.links_t[f"p{i}"].loc[snapshots, links] = (
-                -network.links_t.p0.loc[snapshots, links]
-                * efficiency.loc[snapshots, links]
+            network.links_t[f"p{i}"].loc[sns, links] = (
+                -network.links_t.p0.loc[sns, links] * efficiency.loc[sns, links]
             )
 
-    itdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index, dtype=int)
-    difdf = pd.DataFrame(index=snapshots, columns=network.sub_networks.index)
-    cnvdf = pd.DataFrame(
-        index=snapshots, columns=network.sub_networks.index, dtype=bool
-    )
+    itdf = pd.DataFrame(index=sns, columns=network.sub_networks.index, dtype=int)
+    difdf = pd.DataFrame(index=sns, columns=network.sub_networks.index)
+    cnvdf = pd.DataFrame(index=sns, columns=network.sub_networks.index, dtype=bool)
     for sub_network in network.sub_networks.obj:
         if not skip_pre:
             find_bus_controls(sub_network)
@@ -173,9 +168,7 @@ def _network_prepare_and_run_pf(
             sn_slack_weights = pd.Series(sn_slack_weights)
 
         if linear:
-            sub_network_pf_fun(
-                sub_network, snapshots=snapshots, skip_pre=True, **kwargs
-            )
+            sub_network_pf_fun(sub_network, snapshots=sns, skip_pre=True, **kwargs)
 
         elif len(sub_network.buses()) <= 1:
             (
@@ -184,7 +177,7 @@ def _network_prepare_and_run_pf(
                 cnvdf[sub_network.name],
             ) = sub_network_pf_singlebus(
                 sub_network,
-                snapshots=snapshots,
+                snapshots=sns,
                 skip_pre=True,
                 distribute_slack=distribute_slack,
                 slack_weights=sn_slack_weights,
@@ -196,7 +189,7 @@ def _network_prepare_and_run_pf(
                 cnvdf[sub_network.name],
             ) = sub_network_pf_fun(
                 sub_network,
-                snapshots=snapshots,
+                snapshots=sns,
                 skip_pre=True,
                 distribute_slack=distribute_slack,
                 slack_weights=sn_slack_weights,
@@ -204,17 +197,19 @@ def _network_prepare_and_run_pf(
             )
     if not linear:
         return Dict({"n_iter": itdf, "error": difdf, "converged": cnvdf})
+    else:
+        return None
 
 
 def network_pf(
-    network,
-    snapshots=None,
-    skip_pre=False,
-    x_tol=1e-6,
-    use_seed=False,
-    distribute_slack=False,
-    slack_weights="p_set",
-):
+    network: Network,
+    snapshots: Sequence | None = None,
+    skip_pre: bool = False,
+    x_tol: float = 1e-6,
+    use_seed: bool = False,
+    distribute_slack: bool = False,
+    slack_weights: str = "p_set",
+) -> Dict:
     """
     Full non-linear power flow for generic network.
 
@@ -262,18 +257,18 @@ def network_pf(
         use_seed=use_seed,
         distribute_slack=distribute_slack,
         slack_weights=slack_weights,
-    )
+    )  # type: ignore
 
 
 def newton_raphson_sparse(
-    f,
-    guess,
-    dfdx,
-    x_tol=1e-10,
-    lim_iter=100,
-    distribute_slack=False,
-    slack_weights=None,
-):
+    f: Callable,
+    guess: np.ndarray,
+    dfdx: Callable,
+    x_tol: float = 1e-10,
+    lim_iter: int = 100,
+    distribute_slack: bool = False,
+    slack_weights: np.ndarray | None = None,
+) -> tuple[np.ndarray, int, Any, bool]:
     """
     Solve f(x) = 0 with initial guess for x and dfdx(x).
 
@@ -312,13 +307,13 @@ def newton_raphson_sparse(
 
 
 def sub_network_pf_singlebus(
-    sub_network,
-    snapshots=None,
-    skip_pre=False,
-    distribute_slack=False,
-    slack_weights="p_set",
-    linear=False,
-):
+    sub_network: SubNetwork,
+    snapshots: Sequence | None = None,
+    skip_pre: float = False,
+    distribute_slack: bool = False,
+    slack_weights: str | pd.Series = "p_set",
+    linear: bool = False,
+) -> tuple[int, float, bool]:
     """
     Non-linear power flow for a sub-network consiting of a single bus.
 
@@ -341,7 +336,7 @@ def sub_network_pf_singlebus(
         that has the generators of the single bus as index/keys.
     """
 
-    snapshots = _as_snapshots(sub_network.network, snapshots)
+    sns = as_index(sub_network.network, snapshots, "snapshots", "snapshot")
     network = sub_network.network
     logger.info(
         f"Balancing power on single-bus sub-network {sub_network} for snapshots {snapshots}"
@@ -356,15 +351,13 @@ def sub_network_pf_singlebus(
 
     buses_o = sub_network.buses_o
 
-    _calculate_controllable_nodal_power_balance(
-        sub_network, network, snapshots, buses_o
-    )
+    _calculate_controllable_nodal_power_balance(sub_network, network, sns, buses_o)
 
-    v_mag_pu_set = get_as_dense(network, "Bus", "v_mag_pu_set", snapshots)
-    network.buses_t.v_mag_pu.loc[snapshots, sub_network.slack_bus] = v_mag_pu_set.loc[
+    v_mag_pu_set = get_as_dense(network, "Bus", "v_mag_pu_set", sns)
+    network.buses_t.v_mag_pu.loc[sns, sub_network.slack_bus] = v_mag_pu_set.loc[
         :, sub_network.slack_bus
     ]
-    network.buses_t.v_ang.loc[snapshots, sub_network.slack_bus] = 0.0
+    network.buses_t.v_ang.loc[sns, sub_network.slack_bus] = 0.0
 
     if distribute_slack:
         for bus, group in sub_network.generators().groupby("bus"):
@@ -380,7 +373,7 @@ def sub_network_pf_singlebus(
                 )
             elif slack_weights == "p_set":
                 generators_t_p_choice = get_as_dense(
-                    network, "Generator", slack_weights, snapshots
+                    network, "Generator", slack_weights, sns
                 )
                 if generators_t_p_choice.isna().all().all():
                     msg = (
@@ -396,41 +389,41 @@ def sub_network_pf_singlebus(
                     raise ValueError(msg)
 
                 bus_generator_shares = (
-                    generators_t_p_choice.loc[snapshots, group.index]
+                    generators_t_p_choice.loc[sns, group.index]
                     .apply(normed, axis=1)
                     .fillna(0)
                 )
             else:
                 bus_generator_shares = slack_weights.pipe(normed).fillna(0)
-            network.generators_t.p.loc[snapshots, group.index] += (
+            network.generators_t.p.loc[sns, group.index] += (
                 bus_generator_shares.multiply(
-                    -network.buses_t.p.loc[snapshots, bus], axis=0
+                    -network.buses_t.p.loc[sns, bus], axis=0
                 )
             )  # fmt: skip
     else:
-        network.generators_t.p.loc[snapshots, sub_network.slack_generator] -= (
-            network.buses_t.p.loc[snapshots, sub_network.slack_bus]
+        network.generators_t.p.loc[sns, sub_network.slack_generator] -= (
+            network.buses_t.p.loc[sns, sub_network.slack_bus]
         )  # fmt: skip
 
-    network.generators_t.q.loc[snapshots, sub_network.slack_generator] -= (
-        network.buses_t.q.loc[snapshots, sub_network.slack_bus]
+    network.generators_t.q.loc[sns, sub_network.slack_generator] -= (
+        network.buses_t.q.loc[sns, sub_network.slack_bus]
     )  # fmt: skip
 
-    network.buses_t.p.loc[snapshots, sub_network.slack_bus] = 0.0
-    network.buses_t.q.loc[snapshots, sub_network.slack_bus] = 0.0
+    network.buses_t.p.loc[sns, sub_network.slack_bus] = 0.0
+    network.buses_t.q.loc[sns, sub_network.slack_bus] = 0.0
 
     return 0, 0.0, True  # dummy substitute for newton raphson output
 
 
 def sub_network_pf(
-    sub_network,
-    snapshots=None,
-    skip_pre=False,
-    x_tol=1e-6,
-    use_seed=False,
-    distribute_slack=False,
-    slack_weights="p_set",
-):
+    sub_network: SubNetwork,
+    snapshots: Sequence | None = None,
+    skip_pre: bool = False,
+    x_tol: float = 1e-6,
+    use_seed: bool = False,
+    distribute_slack: bool = False,
+    slack_weights: pd.Series | dict | str = "p_set",
+) -> tuple[pd.Series, pd.Series, pd.Series]:
     """
     Non-linear power flow for connected sub-network.
 
@@ -482,12 +475,12 @@ def sub_network_pf(
             )
             raise ValueError(msg)
 
-    snapshots = _as_snapshots(sub_network.network, snapshots)
+    sns = as_index(sub_network.network, snapshots, "snapshots", "snapshot")
     logger.info(
         "Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(
             sub_network.network.sub_networks.at[sub_network.name, "carrier"],
             sub_network,
-            snapshots,
+            sns,
         )
     )
 
@@ -521,11 +514,13 @@ def sub_network_pf(
     if not skip_pre and len(branches_i) > 0:
         calculate_Y(sub_network, skip_pre=True)
 
-    _calculate_controllable_nodal_power_balance(
-        sub_network, network, snapshots, buses_o
-    )
+    _calculate_controllable_nodal_power_balance(sub_network, network, sns, buses_o)
 
-    def f(guess, distribute_slack=False, slack_weights=None):
+    def f(
+        guess: np.ndarray,
+        distribute_slack: bool = False,
+        slack_weights: np.ndarray | None = None,
+    ) -> np.ndarray:
         last_pq = -1 if distribute_slack else None
         network.buses_t.v_ang.loc[now, sub_network.pvpqs] = guess[
             : len(sub_network.pvpqs)
@@ -551,7 +546,11 @@ def sub_network_pf(
 
         return F
 
-    def dfdx(guess, distribute_slack=False, slack_weights=None):
+    def dfdx(
+        guess: np.ndarray,
+        distribute_slack: bool = False,
+        slack_weights: np.ndarray | None = None,
+    ) -> csr_matrix:
         last_pq = -1 if distribute_slack else None
         network.buses_t.v_ang.loc[now, sub_network.pvpqs] = guess[
             : len(sub_network.pvpqs)
@@ -599,18 +598,18 @@ def sub_network_pf(
         return J
 
     # Set what we know: slack V and v_mag_pu for PV buses
-    v_mag_pu_set = get_as_dense(network, "Bus", "v_mag_pu_set", snapshots)
-    network.buses_t.v_mag_pu.loc[snapshots, sub_network.pvs] = v_mag_pu_set.loc[
+    v_mag_pu_set = get_as_dense(network, "Bus", "v_mag_pu_set", sns)
+    network.buses_t.v_mag_pu.loc[sns, sub_network.pvs] = v_mag_pu_set.loc[
         :, sub_network.pvs
     ]
-    network.buses_t.v_mag_pu.loc[snapshots, sub_network.slack_bus] = v_mag_pu_set.loc[
+    network.buses_t.v_mag_pu.loc[sns, sub_network.slack_bus] = v_mag_pu_set.loc[
         :, sub_network.slack_bus
     ]
-    network.buses_t.v_ang.loc[snapshots, sub_network.slack_bus] = 0.0
+    network.buses_t.v_ang.loc[sns, sub_network.slack_bus] = 0.0
 
     if not use_seed:
-        network.buses_t.v_mag_pu.loc[snapshots, sub_network.pqs] = 1.0
-        network.buses_t.v_ang.loc[snapshots, sub_network.pvpqs] = 0.0
+        network.buses_t.v_mag_pu.loc[sns, sub_network.pqs] = 1.0
+        network.buses_t.v_ang.loc[sns, sub_network.pvpqs] = 0.0
 
     slack_args = {"distribute_slack": distribute_slack}
     slack_variable_b = 1 if distribute_slack else 0
@@ -618,7 +617,7 @@ def sub_network_pf(
     if distribute_slack:
         if isinstance(slack_weights, str) and slack_weights == "p_set":
             generators_t_p_choice = get_as_dense(
-                network, "Generator", slack_weights, snapshots
+                network, "Generator", slack_weights, sns
             )
             bus_generation = generators_t_p_choice.rename(
                 columns=network.generators.bus
@@ -663,17 +662,17 @@ def sub_network_pf(
             # take bus-based slack weights
             slack_weights_calc = slack_weights.reindex(buses_o).pipe(normed).fillna(0)
 
-    ss = np.empty((len(snapshots), len(buses_o)), dtype=complex)
+    ss = np.empty((len(sns), len(buses_o)), dtype=complex)
     roots = np.empty(
         (
-            len(snapshots),
+            len(sns),
             len(sub_network.pvpqs) + len(sub_network.pqs) + slack_variable_b,
         )
     )
-    iters = pd.Series(0, index=snapshots)
-    diffs = pd.Series(index=snapshots, dtype=float)
-    convs = pd.Series(False, index=snapshots)
-    for i, now in enumerate(snapshots):
+    iters = pd.Series(0, index=sns)
+    diffs = pd.Series(index=sns, dtype=float)
+    convs = pd.Series(False, index=sns)
+    for i, now in enumerate(sns):
         p = network.buses_t.p.loc[now, buses_o]
         q = network.buses_t.q.loc[now, buses_o]
         ss[i] = s = p + 1j * q
@@ -695,7 +694,11 @@ def sub_network_pf(
         # Now try and solve
         start = time.time()
         roots[i], n_iter, diff, converged = newton_raphson_sparse(
-            f, guess, dfdx, x_tol=x_tol, **slack_args
+            f,
+            guess,
+            dfdx,
+            x_tol=x_tol,
+            **slack_args,  # type: ignore
         )
         logger.info(
             "Newton-Raphson solved in %d iterations with error of %f in %f seconds",
@@ -712,15 +715,15 @@ def sub_network_pf(
         last_pq = -1
     else:
         last_pq = None
-    network.buses_t.v_ang.loc[snapshots, sub_network.pvpqs] = roots[
+    network.buses_t.v_ang.loc[sns, sub_network.pvpqs] = roots[
         :, : len(sub_network.pvpqs)
     ]
-    network.buses_t.v_mag_pu.loc[snapshots, sub_network.pqs] = roots[
+    network.buses_t.v_mag_pu.loc[sns, sub_network.pqs] = roots[
         :, len(sub_network.pvpqs) : last_pq
     ]
 
-    v_mag_pu = network.buses_t.v_mag_pu.loc[snapshots, buses_o].values
-    v_ang = network.buses_t.v_ang.loc[snapshots, buses_o].values
+    v_mag_pu = network.buses_t.v_mag_pu.loc[sns, buses_o].values
+    v_ang = network.buses_t.v_ang.loc[sns, buses_o].values
 
     V = v_mag_pu * np.exp(1j * v_ang)
 
@@ -734,38 +737,32 @@ def sub_network_pf(
     v0 = V[:, buses_indexer(branch_bus0)]
     v1 = V[:, buses_indexer(branch_bus1)]
 
-    i0 = np.empty((len(snapshots), sub_network.Y0.shape[0]), dtype=complex)
-    i1 = np.empty((len(snapshots), sub_network.Y1.shape[0]), dtype=complex)
-    for i, now in enumerate(snapshots):
+    i0 = np.empty((len(sns), sub_network.Y0.shape[0]), dtype=complex)
+    i1 = np.empty((len(sns), sub_network.Y1.shape[0]), dtype=complex)
+    for i, now in enumerate(sns):
         i0[i] = sub_network.Y0 * V[i]
         i1[i] = sub_network.Y1 * V[i]
 
-    s0 = pd.DataFrame(v0 * np.conj(i0), columns=branches_i, index=snapshots)
-    s1 = pd.DataFrame(v1 * np.conj(i1), columns=branches_i, index=snapshots)
+    s0 = pd.DataFrame(v0 * np.conj(i0), columns=branches_i, index=sns)
+    s1 = pd.DataFrame(v1 * np.conj(i1), columns=branches_i, index=sns)
     for c in sub_network.iterate_components(network.passive_branch_components):
         s0t = s0.loc[:, c.name]
         s1t = s1.loc[:, c.name]
-        network.pnl(c.name).p0.loc[snapshots, s0t.columns] = s0t.values.real
-        network.pnl(c.name).q0.loc[snapshots, s0t.columns] = s0t.values.imag
-        network.pnl(c.name).p1.loc[snapshots, s1t.columns] = s1t.values.real
-        network.pnl(c.name).q1.loc[snapshots, s1t.columns] = s1t.values.imag
+        network.pnl(c.name).p0.loc[sns, s0t.columns] = s0t.values.real
+        network.pnl(c.name).q0.loc[sns, s0t.columns] = s0t.values.imag
+        network.pnl(c.name).p1.loc[sns, s1t.columns] = s1t.values.real
+        network.pnl(c.name).q1.loc[sns, s1t.columns] = s1t.values.imag
 
-    s_calc = np.empty((len(snapshots), len(buses_o)), dtype=complex)
-    for i in np.arange(len(snapshots)):
+    s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
+    for i in np.arange(len(sns)):
         s_calc[i] = V[i] * np.conj(sub_network.Y * V[i])
     slack_index = buses_o.get_loc(sub_network.slack_bus)
     if distribute_slack:
-        network.buses_t.p.loc[snapshots, sn_buses] = s_calc.real[
-            :, buses_indexer(sn_buses)
-        ]
+        network.buses_t.p.loc[sns, sn_buses] = s_calc.real[:, buses_indexer(sn_buses)]
     else:
-        network.buses_t.p.loc[snapshots, sub_network.slack_bus] = s_calc[
-            :, slack_index
-        ].real
-    network.buses_t.q.loc[snapshots, sub_network.slack_bus] = s_calc[
-        :, slack_index
-    ].imag
-    network.buses_t.q.loc[snapshots, sub_network.pvs] = s_calc[
+        network.buses_t.p.loc[sns, sub_network.slack_bus] = s_calc[:, slack_index].real
+    network.buses_t.q.loc[sns, sub_network.slack_bus] = s_calc[:, slack_index].imag
+    network.buses_t.q.loc[sns, sub_network.pvs] = s_calc[
         :, buses_indexer(sub_network.pvs)
     ].imag
 
@@ -776,38 +773,37 @@ def sub_network_pf(
         shunt_impedances_v_mag_pu = v_mag_pu[
             :, buses_indexer(network.shunt_impedances.loc[shunt_impedances_i, "bus"])
         ]
-        network.shunt_impedances_t.p.loc[snapshots, shunt_impedances_i] = (
+        network.shunt_impedances_t.p.loc[sns, shunt_impedances_i] = (
             shunt_impedances_v_mag_pu**2
         ) * network.shunt_impedances.loc[shunt_impedances_i, "g_pu"].values
-        network.shunt_impedances_t.q.loc[snapshots, shunt_impedances_i] = (
+        network.shunt_impedances_t.q.loc[sns, shunt_impedances_i] = (
             shunt_impedances_v_mag_pu**2
         ) * network.shunt_impedances.loc[shunt_impedances_i, "b_pu"].values
 
     # let slack generator take up the slack
     if distribute_slack:
         distributed_slack_power = (
-            network.buses_t.p.loc[snapshots, sn_buses]
-            - ss[:, buses_indexer(sn_buses)].real
+            network.buses_t.p.loc[sns, sn_buses] - ss[:, buses_indexer(sn_buses)].real
         )
         for bus, group in sub_network.generators().groupby("bus"):
             if isinstance(slack_weights, str) and slack_weights == "p_set":
                 generators_t_p_choice = get_as_dense(
-                    network, "Generator", slack_weights, snapshots
+                    network, "Generator", slack_weights, sns
                 )
                 bus_generator_shares = (
-                    generators_t_p_choice.loc[snapshots, group.index]
+                    generators_t_p_choice.loc[sns, group.index]
                     .apply(normed, axis=1)
                     .fillna(0)
                 )
-                network.generators_t.p.loc[snapshots, group.index] += (
+                network.generators_t.p.loc[sns, group.index] += (
                     bus_generator_shares.multiply(
-                        distributed_slack_power.loc[snapshots, bus], axis=0
+                        distributed_slack_power.loc[sns, bus], axis=0
                     )
                 )  # fmt: skip
             else:
                 if generator_slack_weights_b:
                     bus_generator_shares = (
-                        slack_weights.loc[group.index].pipe(normed).fillna(0)
+                        slack_weights.loc[group.index].pipe(normed).fillna(0)  # type: ignore
                     )
                 else:
                     bus_generators_p_nom = network.generators.p_nom.loc[group.index]
@@ -815,34 +811,34 @@ def sub_network_pf(
                     if all(bus_generators_p_nom) == 0:
                         bus_generators_p_nom = 1
                     bus_generator_shares = bus_generators_p_nom.pipe(normed).fillna(0)
-                network.generators_t.p.loc[snapshots, group.index] += (
+                network.generators_t.p.loc[sns, group.index] += (
                     distributed_slack_power.loc[
-                        snapshots, bus
+                        sns, bus
                     ].apply(lambda row: row * bus_generator_shares)
                 )  # fmt: skip
     else:
-        network.generators_t.p.loc[snapshots, sub_network.slack_generator] += (
-            network.buses_t.p.loc[snapshots, sub_network.slack_bus]
-            - ss[:, slack_index].real
+        network.generators_t.p.loc[sns, sub_network.slack_generator] += (
+            network.buses_t.p.loc[sns, sub_network.slack_bus] - ss[:, slack_index].real
         )
 
     # set the Q of the slack and PV generators
-    network.generators_t.q.loc[snapshots, sub_network.slack_generator] += (
-        network.buses_t.q.loc[snapshots, sub_network.slack_bus]
-        - ss[:, slack_index].imag
+    network.generators_t.q.loc[sns, sub_network.slack_generator] += (
+        network.buses_t.q.loc[sns, sub_network.slack_bus] - ss[:, slack_index].imag
     )
 
     network.generators_t.q.loc[
-        snapshots, network.buses.loc[sub_network.pvs, "generator"]
+        sns, network.buses.loc[sub_network.pvs, "generator"]
     ] += np.asarray(
-        network.buses_t.q.loc[snapshots, sub_network.pvs]
+        network.buses_t.q.loc[sns, sub_network.pvs]
         - ss[:, buses_indexer(sub_network.pvs)].imag
     )
 
     return iters, diffs, convs
 
 
-def network_lpf(network, snapshots=None, skip_pre=False):
+def network_lpf(
+    network: Network, snapshots: Sequence | None = None, skip_pre: bool = False
+) -> None:
     """
     Linear power flow for generic network.
 
@@ -859,10 +855,11 @@ def network_lpf(network, snapshots=None, skip_pre=False):
     -------
     None
     """
-    _network_prepare_and_run_pf(network, snapshots, skip_pre, linear=True)
+    sns = as_index(network, snapshots, "snapshots", "snapshot")
+    _network_prepare_and_run_pf(network, sns, skip_pre, linear=True)
 
 
-def apply_line_types(network):
+def apply_line_types(network: Network) -> None:
     """
     Calculate line electrical parameters x, r, b, g from standard types.
     """
@@ -904,7 +901,7 @@ def apply_line_types(network):
         network.lines.loc[lines_with_types_b, attr] = lines[attr]
 
 
-def apply_transformer_types(network):
+def apply_transformer_types(network: Network) -> None:
     """
     Calculate transformer electrical parameters x, r, b, g from standard types.
     """
@@ -956,15 +953,30 @@ def apply_transformer_types(network):
     # TODO: status, rate_A
 
 
-def wye_to_delta(z1, z2, z3):
+def wye_to_delta(
+    z1: int | float,
+    z2: int | float,
+    z3: int | float,
+) -> tuple[float, float, float]:
     """
-    Follows http://home.earthlink.net/~w6rmk/math/wyedelta.htm.
+    Follows http://home.earthlink.net/~w6rmk/math/wyedelta.html.
+
+    Args:
+    ----
+        z1 (int, float, or complex): First impedance value
+        z2 (int, float, or complex): Second impedance value
+        z3 (int, float, or complex): Third impedance value
+
+    Returns:
+    -------
+        tuple[float, float, float]:
+            A tuple containing the three transformed impedance values
     """
     summand = z1 * z2 + z2 * z3 + z3 * z1
     return (summand / z2, summand / z1, summand / z3)
 
 
-def apply_transformer_t_model(network):
+def apply_transformer_t_model(network: Network) -> None:
     """
     Convert given T-model parameters to PI-model parameters using wye-delta
     transformation.
@@ -987,7 +999,7 @@ def apply_transformer_t_model(network):
     network.transformers.loc[ts_b, "b_pu"] = imag(2 / za)
 
 
-def calculate_dependent_values(network):
+def calculate_dependent_values(network: Network) -> None:
     """
     Calculate per unit impedances and append voltages to lines and shunt
     impedances.
@@ -1042,7 +1054,7 @@ def calculate_dependent_values(network):
     update_linkports_component_attrs(network)
 
 
-def find_slack_bus(sub_network):
+def find_slack_bus(sub_network: SubNetwork) -> None:
     """
     Find the slack bus in a connected sub-network.
     """
@@ -1086,7 +1098,7 @@ def find_slack_bus(sub_network):
     )
 
 
-def find_bus_controls(sub_network):
+def find_bus_controls(sub_network: SubNetwork) -> None:
     """
     Find slack and all PV and PQ buses for a sub_network.
 
@@ -1123,7 +1135,7 @@ def find_bus_controls(sub_network):
     sub_network.buses_o = sub_network.pvpqs.insert(0, sub_network.slack_bus)
 
 
-def calculate_B_H(sub_network, skip_pre=False):
+def calculate_B_H(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     """
     Calculate B and H matrices for AC or DC sub-networks.
     """
@@ -1178,7 +1190,7 @@ def calculate_B_H(sub_network, skip_pre=False):
     sub_network.p_bus_shift = sub_network.K * sub_network.p_branch_shift
 
 
-def calculate_PTDF(sub_network, skip_pre=False):
+def calculate_PTDF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     """
     Calculate the Power Transfer Distribution Factor (PTDF) for sub_network.
 
@@ -1216,7 +1228,7 @@ def calculate_PTDF(sub_network, skip_pre=False):
     sub_network.PTDF = sub_network.H * B_inverse
 
 
-def calculate_Y(sub_network, skip_pre=False):
+def calculate_Y(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     """
     Calculate bus admittance matrices for AC sub-networks.
     """
@@ -1306,7 +1318,7 @@ def calculate_Y(sub_network, skip_pre=False):
     )
 
 
-def aggregate_multi_graph(sub_network):
+def aggregate_multi_graph(sub_network: SubNetwork) -> None:
     """
     Aggregate branches between same buses and replace with a single branch with
     aggregated properties (e.g. s_nom is summed, length is averaged).
@@ -1353,7 +1365,7 @@ def aggregate_multi_graph(sub_network):
     )
 
 
-def find_tree(sub_network, weight="x_pu"):
+def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     """
     Get the spanning tree of the graph, choose the node with the highest degree
     as a central "tree slack" and then see for each branch which paths from the
@@ -1384,7 +1396,7 @@ def find_tree(sub_network, weight="x_pu"):
             sub_network.T[branch_i, j] = sign
 
 
-def find_cycles(sub_network, weight="x_pu"):
+def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     """
     Find all cycles in the sub_network and record them in sub_network.C.
 
@@ -1434,7 +1446,11 @@ def find_cycles(sub_network, weight="x_pu"):
                 c += 1
 
 
-def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
+def sub_network_lpf(
+    sub_network: SubNetwork,
+    snapshots: Sequence | None = None,
+    skip_pre: bool = False,
+) -> None:
     """
     Linear power flow for connected sub-network.
 
@@ -1451,7 +1467,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     -------
     None
     """
-    snapshots = _as_snapshots(sub_network.network, snapshots)
+    sns = as_index(sub_network.network, snapshots, "snapshots", "snapshot")
     logger.info(
         "Performing linear load-flow on %s sub-network %s for snapshot(s) %s",
         sub_network.network.sub_networks.at[sub_network.name, "carrier"],
@@ -1472,20 +1488,20 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     # allow all shunt impedances to dispatch as set
     shunt_impedances_i = sub_network.shunt_impedances_i()
-    network.shunt_impedances_t.p.loc[snapshots, shunt_impedances_i] = (
+    network.shunt_impedances_t.p.loc[sns, shunt_impedances_i] = (
         network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
     )
 
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(network.controllable_one_port_components):
-        c_p_set = get_as_dense(network, c.name, "p_set", snapshots, c.ind)
-        network.pnl(c.name).p.loc[snapshots, c.ind] = c_p_set
+        c_p_set = get_as_dense(network, c.name, "p_set", sns, c.ind)
+        network.pnl(c.name).p.loc[sns, c.ind] = c_p_set
 
     # set the power injection at each node
-    network.buses_t.p.loc[snapshots, buses_o] = sum(
+    network.buses_t.p.loc[sns, buses_o] = sum(
         [
             (
-                (c.pnl.p.loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
+                (c.pnl.p.loc[sns, c.ind] * c.df.loc[c.ind, "sign"])
                 .T.groupby(c.df.loc[c.ind, "bus"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
@@ -1494,7 +1510,7 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
         ]
         + [
             -c.pnl[f"p{str(i)}"]
-            .loc[snapshots]
+            .loc[sns]
             .T.groupby(c.df[f"bus{str(i)}"])
             .sum()
             .T.reindex(columns=buses_o, fill_value=0)
@@ -1506,45 +1522,42 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
     if not skip_pre and len(branches_i) > 0:
         calculate_B_H(sub_network, skip_pre=True)
 
-    v_diff = np.zeros((len(snapshots), len(buses_o)))
+    v_diff = np.zeros((len(sns), len(buses_o)))
     if len(branches_i) > 0:
-        p = (
-            network.buses_t["p"].loc[snapshots, buses_o].values
-            - sub_network.p_bus_shift
-        )
+        p = network.buses_t["p"].loc[sns, buses_o].values - sub_network.p_bus_shift
         v_diff[:, 1:] = spsolve(sub_network.B[1:, 1:], p[:, 1:].T).T
         flows = (
-            pd.DataFrame(v_diff * sub_network.H.T, columns=branches_i, index=snapshots)
+            pd.DataFrame(v_diff * sub_network.H.T, columns=branches_i, index=sns)
             + sub_network.p_branch_shift
         )
 
         for c in sub_network.iterate_components(network.passive_branch_components):
             f = flows.loc[:, c.name]
-            network.pnl(c.name).p0.loc[snapshots, f.columns] = f
-            network.pnl(c.name).p1.loc[snapshots, f.columns] = -f
+            network.pnl(c.name).p0.loc[sns, f.columns] = f
+            network.pnl(c.name).p1.loc[sns, f.columns] = -f
 
     if network.sub_networks.at[sub_network.name, "carrier"] == "DC":
-        network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1 + v_diff
-        network.buses_t.v_ang.loc[snapshots, buses_o] = 0.0
+        network.buses_t.v_mag_pu.loc[sns, buses_o] = 1 + v_diff
+        network.buses_t.v_ang.loc[sns, buses_o] = 0.0
     else:
-        network.buses_t.v_ang.loc[snapshots, buses_o] = v_diff
-        network.buses_t.v_mag_pu.loc[snapshots, buses_o] = 1.0
+        network.buses_t.v_ang.loc[sns, buses_o] = v_diff
+        network.buses_t.v_mag_pu.loc[sns, buses_o] = 1.0
 
     # set slack bus power to pick up remained
     slack_adjustment = (
-        -network.buses_t.p.loc[snapshots, buses_o[1:]].sum(axis=1).fillna(0.0)
-        - network.buses_t.p.loc[snapshots, buses_o[0]]
+        -network.buses_t.p.loc[sns, buses_o[1:]].sum(axis=1).fillna(0.0)
+        - network.buses_t.p.loc[sns, buses_o[0]]
     )
-    network.buses_t.p.loc[snapshots, buses_o[0]] += slack_adjustment
+    network.buses_t.p.loc[sns, buses_o[0]] += slack_adjustment
 
     # let slack generator take up the slack
     if sub_network.slack_generator is not None:
-        network.generators_t.p.loc[snapshots, sub_network.slack_generator] += (
+        network.generators_t.p.loc[sns, sub_network.slack_generator] += (
             slack_adjustment
         )  # fmt: skip
 
 
-def network_batch_lpf(network, snapshots=None):
+def network_batch_lpf(network: Network, snapshots: Sequence | None = None) -> None:
     """
     Batched linear power flow with numpy.dot for several snapshots.
     """

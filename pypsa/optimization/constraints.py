@@ -4,6 +4,8 @@ Define optimisation constraints from PyPSA networks with Linopy.
 """
 
 import logging
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import linopy
 import pandas as pd
@@ -22,12 +24,17 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
 
+if TYPE_CHECKING:
+    from xarray import DataArray
+
+    from pypsa import Network
+
 logger = logging.getLogger(__name__)
 
 
 def define_operational_constraints_for_non_extendables(
-    n, sns, c, attr, transmission_losses
-):
+    n: "Network", sns: pd.Index, c: str, attr: str, transmission_losses: int
+) -> None:
     """
     Sets power dispatch constraints for non-extendable and non-commitable
     assets for a given component and a given attribute.
@@ -42,6 +49,9 @@ def define_operational_constraints_for_non_extendables(
     attr : str
         name of the attribute, e.g. 'p'
     """
+    dispatch_lower: DataArray | tuple
+    dispatch_upper: DataArray | tuple
+
     fix_i = n.get_non_extendable_i(c)
     fix_i = fix_i.difference(n.get_committable_i(c)).rename(fix_i.name)
 
@@ -70,8 +80,8 @@ def define_operational_constraints_for_non_extendables(
 
 
 def define_operational_constraints_for_extendables(
-    n, sns, c, attr, transmission_losses
-):
+    n: "Network", sns: pd.Index, c: str, attr: str, transmission_losses: int
+) -> None:
     """
     Sets power dispatch constraints for extendable devices for a given
     component and a given attribute.
@@ -86,6 +96,9 @@ def define_operational_constraints_for_extendables(
     attr : str
         name of the attribute, e.g. 'p'
     """
+    lhs_lower: DataArray | tuple
+    lhs_upper: DataArray | tuple
+
     ext_i = n.get_extendable_i(c)
 
     if ext_i.empty:
@@ -112,7 +125,9 @@ def define_operational_constraints_for_extendables(
     )
 
 
-def define_operational_constraints_for_committables(n, sns, c):
+def define_operational_constraints_for_committables(
+    n: "Network", sns: pd.Index, c: str
+) -> None:
     """
     Sets power dispatch constraints for committable devices for a given
     component and a given attribute. The linearized approximation of the unit
@@ -175,12 +190,12 @@ def define_operational_constraints_for_committables(n, sns, c):
         initially_down = down_time_before_set.astype(bool)
 
     # lower dispatch level limit
-    lhs = (1, p), (-lower_p, status)
-    n.model.add_constraints(lhs, ">=", 0, name=f"{c}-com-p-lower", mask=active)
+    lhs_tuple = (1, p), (-lower_p, status)
+    n.model.add_constraints(lhs_tuple, ">=", 0, name=f"{c}-com-p-lower", mask=active)
 
     # upper dispatch level limit
-    lhs = (1, p), (-upper_p, status)
-    n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-upper", mask=active)
+    lhs_tuple = (1, p), (-upper_p, status)
+    n.model.add_constraints(lhs_tuple, "<=", 0, name=f"{c}-com-p-upper", mask=active)
 
     # state-transition constraint
     rhs = pd.DataFrame(0, sns, com_i)
@@ -296,7 +311,7 @@ def define_operational_constraints_for_committables(n, sns, c):
         )
 
 
-def define_nominal_constraints_for_extendables(n, c, attr):
+def define_nominal_constraints_for_extendables(n: "Network", c: str, attr: str) -> None:
     """
     Sets capacity expansion constraints for extendable assets for a given
     component and a given attribute.
@@ -326,7 +341,9 @@ def define_nominal_constraints_for_extendables(n, c, attr):
     )
 
 
-def define_ramp_limit_constraints(n, sns, c, attr):
+def define_ramp_limit_constraints(
+    n: "Network", sns: pd.Index, c: str, attr: str
+) -> None:
     """
     Defines ramp limits for assets with valid ramplimit.
 
@@ -364,10 +381,10 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         rhs_start = pd.DataFrame(0.0, index=sns, columns=n.df(c).index)
         rhs_start.loc[sns[0]] = p_start
 
-        def p_actual(idx):
+        def p_actual(idx: pd.Index) -> DataArray:
             return reindex(p, c, idx)
 
-        def p_previous(idx):
+        def p_previous(idx: pd.Index) -> DataArray:
             return reindex(p, c, idx).shift(snapshot=1)
 
     else:
@@ -375,10 +392,10 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         rhs_start = pd.DataFrame(0, index=sns[1:], columns=n.df(c).index)
         rhs_start.index.name = "snapshot"
 
-        def p_actual(idx):
+        def p_actual(idx: pd.Index) -> DataArray:
             return reindex(p, c, idx).sel(snapshot=sns[1:])
 
-        def p_previous(idx):
+        def p_previous(idx: pd.Index) -> DataArray:
             return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
     com_i = n.get_committable_i(c)
@@ -460,7 +477,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
-        lhs = (
+        lhs_tuple = (
             (1, p_actual(com_i)),
             (-1, p_previous(com_i)),
             (limit_start - limit_up, status_prev),
@@ -474,7 +491,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
 
         mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
         m.add_constraints(
-            lhs, "<=", rhs, name=f"{c}-com-{attr}-ramp_limit_up", mask=mask
+            lhs_tuple, "<=", rhs, name=f"{c}-com-{attr}-ramp_limit_up", mask=mask
         )
 
     # com down
@@ -485,7 +502,7 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         status = m[f"{c}-status"].sel(snapshot=active.index)
         status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
 
-        lhs = (
+        lhs_tuple = (
             (1, p_actual(com_i)),
             (-1, p_previous(com_i)),
             (limit_down - limit_shut, status),
@@ -500,13 +517,17 @@ def define_ramp_limit_constraints(n, sns, c, attr):
         mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
 
         m.add_constraints(
-            lhs, ">=", rhs, name=f"{c}-com-{attr}-ramp_limit_down", mask=mask
+            lhs_tuple, ">=", rhs, name=f"{c}-com-{attr}-ramp_limit_down", mask=mask
         )
 
 
 def define_nodal_balance_constraints(
-    n, sns, transmission_losses=0, buses=None, suffix=""
-):
+    n: "Network",
+    sns: pd.Index,
+    transmission_losses: int = 0,
+    buses: Sequence | None = None,
+    suffix: str = "",
+) -> None:
     """
     Defines nodal balance constraints.
     """
@@ -595,7 +616,7 @@ def define_nodal_balance_constraints(
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
 
-def define_kirchhoff_voltage_constraints(n, sns):
+def define_kirchhoff_voltage_constraints(n: "Network", sns: pd.Index) -> None:
     """
     Defines Kirchhoff voltage constraints.
     """
@@ -619,7 +640,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
 
         snapshots = sns if period is None else sns[sns.get_loc(period)]
 
-        exprs = []
+        exprs_list = []
         for sub in n.sub_networks.obj:
             branches = sub.branches()
 
@@ -642,10 +663,10 @@ def define_kirchhoff_voltage_constraints(n, sns):
                     coords={"snapshot": snapshots},
                 )
                 ds = Dataset({"coeffs": coeffs, "vars": vars})
-                exprs.append(LinearExpression(ds, m))
+                exprs_list.append(LinearExpression(ds, m))
 
-        if len(exprs):
-            exprs = merge(exprs, dim="cycles")
+        if len(exprs_list):
+            exprs = merge(exprs_list, dim="cycles")
             exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
             lhs.append(exprs)
 
@@ -654,7 +675,7 @@ def define_kirchhoff_voltage_constraints(n, sns):
         m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
 
-def define_fixed_nominal_constraints(n, c, attr):
+def define_fixed_nominal_constraints(n: "Network", c: str, attr: str) -> None:
     """
     Sets constraints for fixing static variables of a given component and
     attribute to the corresponding values in `n.df(c)[attr + '_set']`.
@@ -681,7 +702,7 @@ def define_fixed_nominal_constraints(n, c, attr):
     n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set")
 
 
-def define_modular_constraints(n, c, attr):
+def define_modular_constraints(n: "Network", c: str, attr: str) -> None:
     """
     Sets constraints for fixing modular variables of a given component. It
     allows to define optimal capacity of a component as multiple of the nominal
@@ -709,7 +730,9 @@ def define_modular_constraints(n, c, attr):
     n.model.add_constraints(con, name=f"{c}-{attr}_modularity", mask=None)
 
 
-def define_fixed_operation_constraints(n, sns, c, attr):
+def define_fixed_operation_constraints(
+    n: "Network", sns: pd.Index, c: str, attr: str
+) -> None:
     """
     Sets constraints for fixing time-dependent variables of a given component
     and attribute to the corresponding values in `n.pnl(c)[attr + '_set']`.
@@ -743,7 +766,7 @@ def define_fixed_operation_constraints(n, sns, c, attr):
     n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set", mask=mask)
 
 
-def define_storage_unit_constraints(n, sns):
+def define_storage_unit_constraints(n: "Network", sns: pd.Index) -> None:
     """
     Defines energy balance constraints for storage units. In principal the
     constraints states:
@@ -808,8 +831,10 @@ def define_storage_unit_constraints(n, sns):
         # see https://github.com/pydata/xarray/issues/6836
         ps = sns.unique("period")
         sl = slice(None)
-        previous_soc_pp = [soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
-        previous_soc_pp = concat(previous_soc_pp, dim="snapshot")
+        previous_soc_pp_list = [
+            soc.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps
+        ]
+        previous_soc_pp = concat(previous_soc_pp_list, dim="snapshot")
 
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
@@ -830,7 +855,7 @@ def define_storage_unit_constraints(n, sns):
     m.add_constraints(lhs, "=", rhs, name=f"{c}-energy_balance", mask=active)
 
 
-def define_store_constraints(n, sns):
+def define_store_constraints(n: "Network", sns: pd.Index) -> None:
     """
     Defines energy balance constraints for stores. In principal the constraints
     states:
@@ -882,8 +907,8 @@ def define_store_constraints(n, sns):
         # see https://github.com/pydata/xarray/issues/6836
         ps = sns.unique("period")
         sl = slice(None)
-        previous_e_pp = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
-        previous_e_pp = concat(previous_e_pp, dim="snapshot")
+        previous_e_pp_list = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
+        previous_e_pp = concat(previous_e_pp_list, dim="snapshot")
 
         # We create a mask `include_previous_e_pp` which excludes the first
         # snapshot of each period for non-cyclic assets.
@@ -904,7 +929,9 @@ def define_store_constraints(n, sns):
     m.add_constraints(lhs, "=", rhs, name=f"{c}-energy_balance", mask=active)
 
 
-def define_loss_constraints(n, sns, c, transmission_losses):
+def define_loss_constraints(
+    n: "Network", sns: pd.Index, c: str, transmission_losses: int
+) -> None:
     if n.df(c).empty or c not in n.passive_branch_components:
         return
 

@@ -2,9 +2,16 @@
 Statistics Accessor.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Callable, Collection, Sequence
 from functools import wraps
 from inspect import signature
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pypsa import Network
 
 import pandas as pd
 
@@ -13,7 +20,7 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def get_carrier(n, c, nice_names=True):
+def get_carrier(n: Network, c: str, nice_names: bool = True) -> pd.Series:
     """
     Get the nice carrier names for a component.
     """
@@ -27,7 +34,9 @@ def get_carrier(n, c, nice_names=True):
     return carrier_series
 
 
-def get_bus_carrier(n, c, port="", nice_names=True):
+def get_bus_carrier(
+    n: Network, c: str, port: str = "", nice_names: bool = True
+) -> pd.Series:
     """
     Get the bus carrier for a component.
     """
@@ -36,7 +45,9 @@ def get_bus_carrier(n, c, port="", nice_names=True):
     return n.df(c)[bus].map(buses_carrier).rename("bus_carrier")
 
 
-def get_bus_and_carrier(n, c, port="", nice_names=True):
+def get_bus_and_carrier(
+    n: Network, c: str, port: str = "", nice_names: bool = True
+) -> list[pd.Series]:
     """
     Get the buses and nice carrier names for a component.
     """
@@ -44,7 +55,9 @@ def get_bus_and_carrier(n, c, port="", nice_names=True):
     return [n.df(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
 
 
-def get_bus_unit_and_carrier(n, c, port="", nice_names=True):
+def get_bus_unit_and_carrier(
+    n: Network, c: str, port: str = "", nice_names: bool = True
+) -> list[pd.Series]:
     """
     Get the buses and nice carrier names for a component.
     """
@@ -56,7 +69,9 @@ def get_bus_unit_and_carrier(n, c, port="", nice_names=True):
     ]
 
 
-def get_name_bus_and_carrier(n, c, port="", nice_names=True):
+def get_name_bus_and_carrier(
+    n: Network, c: str, port: str = "", nice_names: bool = True
+) -> list[pd.Series]:
     """
     Get the name, buses and nice carrier names for a component.
     """
@@ -66,17 +81,21 @@ def get_name_bus_and_carrier(n, c, port="", nice_names=True):
     ]
 
 
-def get_country_and_carrier(n, c, port="", nice_names=True):
+def get_country_and_carrier(
+    n: Network, c: str, port: str = "", nice_names: bool = True
+) -> list[pd.Series]:
     """
     Get component country and carrier.
     """
-    bus = f"bus{port}"
+    # bus = f"bus{port}"
     bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
     country = bus.map(n.buses.country).rename("country")
     return [country, carrier]
 
 
-def get_bus_and_carrier_and_bus_carrier(n, c, port="", nice_names=True):
+def get_bus_and_carrier_and_bus_carrier(
+    n: Network, c: str, port: str = "", nice_names: bool = True
+) -> list[pd.Series]:
     """
     Get component's carrier, bus and bus carrier in one combined list.
 
@@ -87,7 +106,9 @@ def get_bus_and_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     return [*bus_and_carrier, bus_carrier]
 
 
-def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
+def get_carrier_and_bus_carrier(
+    n: Network, c: str, port: str = "", nice_names: bool = True
+) -> list[pd.Series]:
     """
     Get component carrier and bus carrier in one combined list.
     """
@@ -96,7 +117,7 @@ def get_carrier_and_bus_carrier(n, c, port="", nice_names=True):
     return [carrier, bus_carrier]
 
 
-def get_operation(n, c):
+def get_operation(n: Network, c: str) -> pd.DataFrame:
     """
     Get the operation time series of a component.
     """
@@ -108,7 +129,7 @@ def get_operation(n, c):
         return n.pnl(c).p
 
 
-def get_weightings(n, c):
+def get_weightings(n: Network, c: str) -> pd.Series:
     """
     Get the relevant snapshot weighting for a component.
     """
@@ -120,7 +141,7 @@ def get_weightings(n, c):
         return n.snapshot_weightings["objective"]
 
 
-def port_efficiency(n, c, port=""):
+def port_efficiency(n: Network, c: str, port: str = "") -> float | int:
     if port == "":
         efficiency = 1
     elif port == "0":
@@ -132,7 +153,9 @@ def port_efficiency(n, c, port=""):
     return efficiency
 
 
-def get_transmission_branches(n, bus_carrier=None):
+def get_transmission_branches(
+    n: Network, bus_carrier: Sequence[str] | str | None = None
+) -> pd.MultiIndex:
     """
     Get the list of assets which transport between buses of the carrier
     `bus_carrier`.
@@ -155,7 +178,9 @@ def get_transmission_branches(n, bus_carrier=None):
     )
 
 
-def get_transmission_carriers(n, bus_carrier=None):
+def get_transmission_carriers(
+    n: Network, bus_carrier: Sequence[str] | str | None = None
+) -> pd.MultiIndex:
     """
     Get the carriers which transport between buses of the carrier
     `bus_carrier`.
@@ -171,7 +196,13 @@ def get_transmission_carriers(n, bus_carrier=None):
     )
 
 
-def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list]:
+def get_grouping(
+    n: Network,
+    c: str,
+    groupby: Callable | Sequence[str] | str | bool,
+    port: str | None = None,
+    nice_names: bool = False,
+) -> pd.Series | list:
     by = None
     level = None
     if callable(groupby):
@@ -190,7 +221,9 @@ def get_grouping(n, c, groupby, port=None, nice_names=False) -> [pd.Series, list
     return dict(by=by, level=level)
 
 
-def aggregate_timeseries(df, weights, agg="sum"):
+def aggregate_timeseries(
+    df: pd.DataFrame, weights: pd.Series, agg: str | bool = "sum"
+) -> pd.Series:
     """
     Calculate the weighted sum or average of a DataFrame or Series.
     """
@@ -212,7 +245,9 @@ def aggregate_timeseries(df, weights, agg="sum"):
     return df.agg(agg)
 
 
-def filter_active_assets(n, c, df: [pd.Series, pd.DataFrame]):
+def filter_active_assets(
+    n: Network, c: str, df: pd.Series | pd.DataFrame
+) -> pd.DataFrame:
     """
     For static values iterate over periods and concat values.
     """
@@ -224,7 +259,13 @@ def filter_active_assets(n, c, df: [pd.Series, pd.DataFrame]):
     return pd.concat(per_period, axis=1)
 
 
-def filter_bus_carrier(n, c, port, bus_carrier, df):
+def filter_bus_carrier(
+    n: Network,
+    c: str,
+    port: str,
+    bus_carrier: Sequence[str] | str | None,
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     """
     Filter the DataFrame for components which are connected to a bus with
     carrier `bus_carrier`.
@@ -247,9 +288,9 @@ def filter_bus_carrier(n, c, port, bus_carrier, df):
         )
 
 
-def pass_empty_series_if_keyerror(func):
+def pass_empty_series_if_keyerror(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> pd.Series:
         try:
             return func(*args, **kwargs)
         except (KeyError, AttributeError):
@@ -279,18 +320,18 @@ class Parameters:
         "round": int,
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.drop_zero = True
         self.nice_names = True
         self.round = 5
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         param_str = ", ".join(
             f"{key}={getattr(self, key)}" for key in self.PARAMETER_TYPES
         )
         return f"Parameters({param_str})"
 
-    def set_parameters(self, **kwargs):
+    def set_parameters(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
             expected_type = self.PARAMETER_TYPES.get(key)
             if expected_type is None:
@@ -327,12 +368,12 @@ class StatisticsAccessor:
     Accessor to calculate different statistical values.
     """
 
-    def __init__(self, network):
+    def __init__(self, network: Network) -> None:
         self._parent = network
         self.groupers = Groupers()  # Create an instance of the Groupers class
         self.parameters = Parameters()  # Create an instance of the Parameters class
 
-    def set_parameters(self, **kwargs):
+    def set_parameters(self, **kwargs: Any) -> None:
         """
         Setting the parameters for the statistics accessor.
 
@@ -342,19 +383,20 @@ class StatisticsAccessor:
 
     def _aggregate_components(
         self,
-        func,
-        agg="sum",
-        comps=None,
-        groupby=None,
-        at_port=None,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        func: Callable,
+        agg: Callable | str | bool = "sum",
+        comps: Collection[str] | str | None = None,
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = True,
+    ) -> pd.DataFrame:
         """
         Apply a function and group the result for a collection of components.
         """
-        n = self._parent
+        df: pd.DataFrame
         d = {}
+        n = self._parent
 
         if is_one_component := isinstance(comps, str):
             comps = [comps]
@@ -405,12 +447,12 @@ class StatisticsAccessor:
 
     def __call__(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=get_carrier,
-        nice_names=True,
-        **kwargs,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable = get_carrier,
+        nice_names: bool = True,
+        **kwargs: Any,
+    ) -> pd.DataFrame:
         """
         Calculate statistical values for a network.
 
@@ -447,7 +489,7 @@ class StatisticsAccessor:
 
         # TODO replace dispatch by energy_balance
 
-        funcs = [
+        funcs: list[Callable] = [
             self.optimal_capacity,
             self.installed_capacity,
             self.supply,
@@ -478,14 +520,14 @@ class StatisticsAccessor:
 
     def capex(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=None,
-        cost_attribute="capital_cost",
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        cost_attribute: str = "capital_cost",
+    ) -> pd.DataFrame:
         """
         Calculate the capital expenditure of the network in given currency.
 
@@ -502,7 +544,7 @@ class StatisticsAccessor:
         """
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             col = n.df(c).eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
             return col
 
@@ -521,14 +563,14 @@ class StatisticsAccessor:
 
     def installed_capex(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=None,
-        cost_attribute="capital_cost",
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        cost_attribute: str = "capital_cost",
+    ) -> pd.DataFrame:
         """
         Calculate the capital expenditure of already built components of the
         network in given currency.
@@ -543,7 +585,7 @@ class StatisticsAccessor:
         """
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             col = n.df(c).eval(f"{nominal_attrs[c]} * {cost_attribute}")
             return col
 
@@ -562,14 +604,14 @@ class StatisticsAccessor:
 
     def expanded_capex(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=None,
-        cost_attribute="capital_cost",
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        cost_attribute: str = "capital_cost",
+    ) -> pd.DataFrame:
         """
         Calculate the capex of expanded capacities of the network components in
         currency.
@@ -608,14 +650,14 @@ class StatisticsAccessor:
 
     def optimal_capacity(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=None,
-        bus_carrier=None,
-        storage=False,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        storage: bool = False,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the optimal capacity of the network components in MW.
         Positive capacity values correspond to production capacities and
@@ -636,7 +678,7 @@ class StatisticsAccessor:
             at_port = True
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
@@ -660,14 +702,14 @@ class StatisticsAccessor:
 
     def installed_capacity(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=None,
-        bus_carrier=None,
-        storage=False,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        storage: bool = False,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the installed capacity of the network components in MW.
         Positive capacity values correspond to production capacities and
@@ -688,7 +730,7 @@ class StatisticsAccessor:
             at_port = True
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
@@ -712,13 +754,13 @@ class StatisticsAccessor:
 
     def expanded_capacity(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=None,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the expanded capacity of the network components in MW.
         Positive capacity values correspond to production capacities and
@@ -753,14 +795,14 @@ class StatisticsAccessor:
 
     def opex(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the operational expenditure in the network in given currency.
 
@@ -779,7 +821,7 @@ class StatisticsAccessor:
         """
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             if c in n.branch_components:
                 p = n.pnl(c).p0
             elif c == "StorageUnit":
@@ -806,14 +848,14 @@ class StatisticsAccessor:
 
     def supply(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the supply of components in the network. Units depend on the
         regarded bus carrier.
@@ -840,14 +882,14 @@ class StatisticsAccessor:
 
     def withdrawal(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the withdrawal of components in the network. Units depend on
         the regarded bus carrier.
@@ -874,14 +916,14 @@ class StatisticsAccessor:
 
     def transmission(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Collection[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the transmission of branch components in the network. Units
         depend on the regarded bus carrier.
@@ -907,7 +949,7 @@ class StatisticsAccessor:
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             p = n.pnl(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -927,15 +969,15 @@ class StatisticsAccessor:
 
     def energy_balance(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=get_carrier_and_bus_carrier,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=None,
-        kind=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = get_carrier_and_bus_carrier,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        kind: str | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the energy balance of components in the network. Positive
         values represent a supply and negative a withdrawal. Units depend on
@@ -965,7 +1007,7 @@ class StatisticsAccessor:
             )
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             p = sign * n.pnl(c)[f"p{port}"]
@@ -995,14 +1037,14 @@ class StatisticsAccessor:
 
     def curtailment(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the curtailment of components in the network in MWh.
 
@@ -1024,7 +1066,7 @@ class StatisticsAccessor:
         """
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             p = (
                 n.get_switchable_as_dense(c, "p_max_pu") * n.df(c).p_nom_opt
                 - n.pnl(c).p
@@ -1047,14 +1089,14 @@ class StatisticsAccessor:
 
     def capacity_factor(
         self,
-        comps=None,
-        aggregate_time="mean",
-        aggregate_groups="sum",
-        at_port=False,
-        groupby=None,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "mean",
+        aggregate_groups: Callable | str | bool = "sum",
+        at_port: Sequence[str] | str | bool = False,
+        groupby: Callable | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the capacity factor of components in the network.
 
@@ -1074,7 +1116,7 @@ class StatisticsAccessor:
 
         # TODO: Why not just take p_max_pu, s_max_pu, etc. directly from the network?
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -1086,8 +1128,8 @@ class StatisticsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)
-        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
+        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
+        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)  # type: ignore
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
@@ -1095,15 +1137,15 @@ class StatisticsAccessor:
 
     def revenue(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=None,
-        kind=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        kind: str | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the revenue of components in the network in given currency.
         The revenue is defined as the net revenue of an asset, i.e cost of input - revenue of output.
@@ -1129,7 +1171,7 @@ class StatisticsAccessor:
         """
 
         @pass_empty_series_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             df = sign * n.pnl(c)[f"p{port}"]
             buses = n.df(c)[f"bus{port}"][df.columns]
@@ -1164,14 +1206,14 @@ class StatisticsAccessor:
 
     def market_value(
         self,
-        comps=None,
-        aggregate_time="mean",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "mean",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the market value of components in the network in given
         currency/MWh or currency/unit_{bus_carrier} where unit_{bus_carrier} is
@@ -1199,7 +1241,7 @@ class StatisticsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)
+        df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df

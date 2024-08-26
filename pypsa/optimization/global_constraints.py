@@ -5,6 +5,8 @@ Define global constraints for optimisation problems with Linopy.
 
 import logging
 import re
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from linopy.expressions import merge
@@ -14,10 +16,12 @@ from xarray import DataArray
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 
+if TYPE_CHECKING:
+    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 
-def define_tech_capacity_expansion_limit(n, sns):
+def define_tech_capacity_expansion_limit(n: "Network", sns: Sequence) -> None:
     """
     Defines per-carrier and potentially per-bus capacity expansion limits.
 
@@ -42,7 +46,7 @@ def define_tech_capacity_expansion_limit(n, sns):
         period = None if isnan(period) else int(period)
         sign = "=" if sense == "==" else sense
         busdim = f"Bus-{carrier}-{period}"
-        lhs_per_bus = []
+        lhs_per_bus_list = []
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
@@ -66,12 +70,12 @@ def define_tech_capacity_expansion_limit(n, sns):
             bus = "bus0" if c in n.branch_components else "bus"
             busmap = df.loc[ext_i, bus].rename(busdim).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum()
-            lhs_per_bus.append(expr)
+            lhs_per_bus_list.append(expr)
 
-        if not lhs_per_bus:
+        if not lhs_per_bus_list:
             continue
 
-        lhs_per_bus = merge(lhs_per_bus)
+        lhs_per_bus = merge(lhs_per_bus_list)
 
         for name, glc in glcs_group.iterrows():
             bus = glc.get("bus")
@@ -85,7 +89,7 @@ def define_tech_capacity_expansion_limit(n, sns):
             )
 
 
-def define_nominal_constraints_per_bus_carrier(n, sns):
+def define_nominal_constraints_per_bus_carrier(n: "Network", sns: pd.Index) -> None:
     """
     Set an capacity expansion limit for assets of the same carrier at the same
     bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
@@ -169,7 +173,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         n.model.add_constraints(lhs, sign, rhs, name=f"Bus-{col}", mask=mask)
 
 
-def define_growth_limit(n, sns):
+def define_growth_limit(n: "Network", sns: pd.Index) -> None:
     """
     Constraint new installed capacity per investment period.
 
@@ -193,7 +197,7 @@ def define_growth_limit(n, sns):
     if carrier_i.empty:
         return
 
-    lhs = []
+    lhs_list = []
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         dim = f"{c}-ext"
@@ -221,18 +225,18 @@ def define_growth_limit(n, sns):
         if (max_relative_growth.loc[carriers.unique()] > 0).any():
             expr = expr - expr.shift(periods=1) * max_relative_growth
 
-        lhs.append(expr)
+        lhs_list.append(expr)
 
-    if not lhs:
+    if not lhs_list:
         return
 
-    lhs = merge(lhs)
+    lhs = merge(lhs_list)
     rhs = max_absolute_growth.reindex_like(lhs.data)
 
     m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit")
 
 
-def define_primary_energy_limit(n, sns):
+def define_primary_energy_limit(n: "Network", sns: pd.Index) -> None:
     """
     Defines primary energy constraints. It limits the byproducts of primary
     energy sources (defined by carriers) such as CO2.
@@ -310,7 +314,7 @@ def define_primary_energy_limit(n, sns):
         m.add_constraints(lhs, sign, rhs, name=f"GlobalConstraint-{name}")
 
 
-def define_operational_limit(n, sns):
+def define_operational_limit(n: "Network", sns: pd.Index) -> None:
     """
     Defines operational limit constraints. It limits the net production of a
     carrier taking into account generator, storage units and stores.
@@ -381,7 +385,7 @@ def define_operational_limit(n, sns):
         m.add_constraints(lhs, sign, rhs, name=f"GlobalConstraint-{name}")
 
 
-def define_transmission_volume_expansion_limit(n, sns):
+def define_transmission_volume_expansion_limit(n: "Network", sns: Sequence) -> None:
     """
     Set a limit for line volume expansion. For the capacity expansion only the
     carriers 'AC' and 'DC' are considered.
@@ -399,7 +403,7 @@ def define_transmission_volume_expansion_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
 
-    def substr(s):
+    def substr(s: str) -> str:
         return re.sub("[\\[\\]\\(\\)]", "", s)
 
     for name, glc in glcs.iterrows():
@@ -443,7 +447,7 @@ def define_transmission_volume_expansion_limit(n, sns):
         m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
 
 
-def define_transmission_expansion_cost_limit(n, sns):
+def define_transmission_expansion_cost_limit(n: "Network", sns: pd.Index) -> None:
     """
     Set a limit for line expansion costs. For the capacity expansion only the
     carriers 'AC' and 'DC' are considered.
@@ -465,7 +469,7 @@ def define_transmission_expansion_cost_limit(n, sns):
         periods = sns.unique("period")
         period_weighting = n.investment_period_weightings.objective[periods]
 
-    def substr(s):
+    def substr(s: str) -> str:
         return re.sub("[\\[\\]\\(\\)]", "", s)
 
     for name, glc in glcs.iterrows():

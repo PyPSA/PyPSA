@@ -2,12 +2,18 @@
 Functions for importing and exporting data.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import math
 import os
+from abc import abstractmethod
+from collections.abc import Collection, Iterable, Sequence
 from glob import glob
 from pathlib import Path
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.request import urlretrieve
 
 import geopandas as gpd
@@ -17,6 +23,14 @@ import validators
 from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
+
+if TYPE_CHECKING:
+    from typing import TracebackType  # type: ignore
+
+    import xarray as xr
+    from pandapower.auxiliary import pandapowerNet
+
+    from pypsa import Network
 
 try:
     import xarray as xr
@@ -29,49 +43,85 @@ logger = logging.getLogger(__name__)
 
 # for the writable data directory follow the XDG guidelines
 # https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-_writable_dir = os.path.join(os.path.expanduser("~"), ".local", "share")
-_data_dir = os.path.join(
-    os.environ.get("XDG_DATA_HOME", os.environ.get("APPDATA", _writable_dir)),
-    "pypsa-networks",
+_writable_dir = Path(os.path.expanduser("~")) / ".local" / "share"
+_data_dir = (
+    Path(os.environ.get("XDG_DATA_HOME", os.environ.get("APPDATA", _writable_dir)))
+    / "pypsa-networks"
 )
-_data_dir = Path(_data_dir)
-try:
-    _data_dir.mkdir(exist_ok=True)
-except FileNotFoundError:
-    os.makedirs(_data_dir)
+
+_data_dir.mkdir(exist_ok=True, parents=True)
 
 
-def _retrieve_from_url(path):
+def _retrieve_from_url(path: str) -> str:
     local_path = _data_dir / os.path.basename(path)
     logger.info(f"Retrieving network data from {path}")
     urlretrieve(path, local_path)
     return str(local_path)
 
 
-class ImpExper:
-    ds = None
+# TODO: Restructure abc inheritance
 
-    def __enter__(self):
+
+TImpExper = TypeVar("TImpExper", bound="ImpExper")
+
+
+class ImpExper:
+    ds: Any = None
+
+    def __enter__(self: TImpExper) -> TImpExper:
         if self.ds is not None:
             self.ds = self.ds.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type,
+        exc_val: BaseException,
+        exc_tb: TracebackType,
+    ) -> None:
         if exc_type is None:
             self.finish()
 
         if self.ds is not None:
             self.ds.__exit__(exc_type, exc_val, exc_tb)
 
-    def finish(self):
+    def finish(self) -> None:
         pass
 
 
 class Exporter(ImpExper):
-    def remove_static(self, list_name):
+    def remove_static(self, list_name: str) -> None:
         pass
 
-    def remove_series(self, list_name, attr):
+    def remove_series(self, list_name: str, attr: str) -> None:
+        pass
+
+    @abstractmethod
+    def save_attributes(self, attrs: dict) -> None:
+        pass
+
+    @abstractmethod
+    def save_meta(self, meta: dict) -> None:
+        pass
+
+    @abstractmethod
+    def save_crs(self, crs: dict) -> None:
+        pass
+
+    @abstractmethod
+    def save_snapshots(self, snapshots: Sequence) -> None:
+        pass
+
+    @abstractmethod
+    def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        pass
+
+    @abstractmethod
+    def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        pass
+
+    @abstractmethod
+    def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         pass
 
 
@@ -80,29 +130,29 @@ class Importer(ImpExper):
 
 
 class ImporterCSV(Importer):
-    def __init__(self, csv_folder_name, encoding):
-        self.csv_folder_name = csv_folder_name
+    def __init__(self, csv_folder_name: str | Path, encoding: str | None) -> None:
+        self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
 
         if not os.path.isdir(csv_folder_name):
             msg = f"Directory {csv_folder_name} does not exist."
             raise FileNotFoundError(msg)
 
-    def get_attributes(self):
+    def get_attributes(self) -> dict | None:
         fn = os.path.join(self.csv_folder_name, "network.csv")
         if not os.path.isfile(fn):
             return None
         return dict(pd.read_csv(fn, encoding=self.encoding).iloc[0])
 
-    def get_meta(self):
+    def get_meta(self) -> dict:
         fn = os.path.join(self.csv_folder_name, "meta.json")
         return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
 
-    def get_crs(self):
+    def get_crs(self) -> dict:
         fn = os.path.join(self.csv_folder_name, "crs.json")
         return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
 
-    def get_snapshots(self):
+    def get_snapshots(self) -> pd.Index:
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         if not os.path.isfile(fn):
             return None
@@ -114,13 +164,13 @@ class ImporterCSV(Importer):
             df["timestep"] = pd.to_datetime(df.timestep)
         return df
 
-    def get_investment_periods(self):
+    def get_investment_periods(self) -> pd.Series:
         fn = os.path.join(self.csv_folder_name, "investment_periods.csv")
         if not os.path.isfile(fn):
             return None
         return pd.read_csv(fn, index_col=0, encoding=self.encoding)
 
-    def get_static(self, list_name):
+    def get_static(self, list_name: str) -> pd.DataFrame:
         fn = os.path.join(self.csv_folder_name, list_name + ".csv")
         return (
             pd.read_csv(fn, index_col=0, encoding=self.encoding)
@@ -128,7 +178,7 @@ class ImporterCSV(Importer):
             else None
         )
 
-    def get_series(self, list_name):
+    def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         for fn in os.listdir(self.csv_folder_name):
             if fn.startswith(list_name + "-") and fn.endswith(".csv"):
                 attr = fn[len(list_name) + 1 : -4]
@@ -142,8 +192,8 @@ class ImporterCSV(Importer):
 
 
 class ExporterCSV(Exporter):
-    def __init__(self, csv_folder_name, encoding):
-        self.csv_folder_name = csv_folder_name
+    def __init__(self, csv_folder_name: Path | str, encoding: str | None) -> None:
+        self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
 
         # make sure directory exists
@@ -151,79 +201,80 @@ class ExporterCSV(Exporter):
             logger.warning(f"Directory {csv_folder_name} does not exist, creating it")
             os.mkdir(csv_folder_name)
 
-    def save_attributes(self, attrs):
+    def save_attributes(self, attrs: dict) -> None:
         name = attrs.pop("name")
         df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
         fn = os.path.join(self.csv_folder_name, "network.csv")
         df.to_csv(fn, encoding=self.encoding)
 
-    def save_meta(self, meta):
+    def save_meta(self, meta: dict) -> None:
         fn = os.path.join(self.csv_folder_name, "meta.json")
         open(fn, "w").write(json.dumps(meta))
 
-    def save_crs(self, crs):
+    def save_crs(self, crs: dict) -> None:
         fn = os.path.join(self.csv_folder_name, "crs.json")
         open(fn, "w").write(json.dumps(crs))
 
-    def save_snapshots(self, snapshots):
+    def save_snapshots(self, snapshots: pd.Index) -> None:
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
         snapshots.to_csv(fn, encoding=self.encoding)
 
-    def save_investment_periods(self, investment_periods):
+    def save_investment_periods(self, investment_periods: pd.Index) -> None:
         fn = os.path.join(self.csv_folder_name, "investment_periods.csv")
         investment_periods.to_csv(fn, encoding=self.encoding)
 
-    def save_static(self, list_name, df):
+    def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         fn = os.path.join(self.csv_folder_name, list_name + ".csv")
         df.to_csv(fn, encoding=self.encoding)
 
-    def save_series(self, list_name, attr, df):
+    def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         fn = os.path.join(self.csv_folder_name, list_name + "-" + attr + ".csv")
         df.to_csv(fn, encoding=self.encoding)
 
-    def remove_static(self, list_name):
+    def remove_static(self, list_name: str) -> None:
         if fns := glob(os.path.join(self.csv_folder_name, list_name) + "*.csv"):
             for fn in fns:
                 os.unlink(fn)
             logger.warning(f'Stale csv file(s) {", ".join(fns)} removed')
 
-    def remove_series(self, list_name, attr):
+    def remove_series(self, list_name: str, attr: str) -> None:
         fn = os.path.join(self.csv_folder_name, list_name + "-" + attr + ".csv")
         if os.path.exists(fn):
             os.unlink(fn)
 
 
 class ImporterHDF5(Importer):
-    def __init__(self, path):
+    def __init__(self, path: str | pd.HDFStore) -> None:
         self.path = path
+        self.ds: pd.HDFStore
         if isinstance(path, (str, Path)):
             if validators.url(str(path)):
-                path = _retrieve_from_url(path)
+                path = _retrieve_from_url(str(path))
             self.ds = pd.HDFStore(path, mode="r")
-        self.index = {}
+        self.index: dict = {}
 
-    def get_attributes(self):
+    def get_attributes(self) -> dict:
         return dict(self.ds["/network"].reset_index().iloc[0])
 
-    def get_meta(self):
+    def get_meta(self) -> dict:
         return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
 
-    def get_crs(self):
+    def get_crs(self) -> dict:
         return json.loads(self.ds["/crs"][0] if "/crs" in self.ds else "{}")
 
-    def get_snapshots(self):
+    def get_snapshots(self) -> pd.Series:
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
 
-    def get_investment_periods(self):
+    def get_investment_periods(self) -> pd.Series:
         return (
             self.ds["/investment_periods"] if "/investment_periods" in self.ds else None
         )
 
-    def get_static(self, list_name):
+    def get_static(self, list_name: str) -> pd.DataFrame:
         if "/" + list_name not in self.ds:
             return None
 
-        if self.pypsa_version is None or self.pypsa_version < [0, 13, 1]:
+        if self.pypsa_version is None or self.pypsa_version < [0, 13, 1]:  # type: ignore
             df = self.ds["/" + list_name]
         else:
             df = self.ds["/" + list_name].set_index("name")
@@ -231,7 +282,7 @@ class ImporterHDF5(Importer):
         self.index[list_name] = df.index
         return df
 
-    def get_series(self, list_name):
+    def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         for tab in self.ds:
             if tab.startswith("/" + list_name + "_t/"):
                 attr = tab[len("/" + list_name + "_t/") :]
@@ -241,11 +292,11 @@ class ImporterHDF5(Importer):
 
 
 class ExporterHDF5(Exporter):
-    def __init__(self, path, **kwargs):
+    def __init__(self, path: str | Path, **kwargs: Any) -> None:
         self.ds = pd.HDFStore(path, mode="w", **kwargs)
-        self.index = {}
+        self.index: dict = {}
 
-    def save_attributes(self, attrs):
+    def save_attributes(self, attrs: dict) -> None:
         name = attrs.pop("name")
         self.ds.put(
             "/network",
@@ -254,16 +305,16 @@ class ExporterHDF5(Exporter):
             index=False,
         )
 
-    def save_meta(self, meta):
+    def save_meta(self, meta: dict) -> None:
         self.ds.put("/meta", pd.Series(json.dumps(meta)))
 
-    def save_crs(self, crs):
+    def save_crs(self, crs: dict) -> None:
         self.ds.put("/crs", pd.Series(json.dumps(crs)))
 
-    def save_snapshots(self, snapshots):
+    def save_snapshots(self, snapshots: Sequence) -> None:
         self.ds.put("/snapshots", snapshots, format="table", index=False)
 
-    def save_investment_periods(self, investment_periods):
+    def save_investment_periods(self, investment_periods: pd.Index) -> None:
         self.ds.put(
             "/investment_periods",
             investment_periods,
@@ -271,13 +322,13 @@ class ExporterHDF5(Exporter):
             index=False,
         )
 
-    def save_static(self, list_name, df):
+    def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
         self.ds.put("/" + list_name, df, format="table", index=False)
 
-    def save_series(self, list_name, attr, df):
+    def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
@@ -285,44 +336,53 @@ class ExporterHDF5(Exporter):
 if has_xarray:
 
     class ImporterNetCDF(Importer):
-        def __init__(self, path):
+        ds: xr.Dataset
+
+        def __init__(self, path: str | Path | xr.Dataset) -> None:
             self.path = path
             if isinstance(path, (str, Path)):
                 if validators.url(str(path)):
-                    path = _retrieve_from_url(path)
+                    path = _retrieve_from_url(str(path))
                 self.ds = xr.open_dataset(path)
             else:
                 self.ds = path
 
-        def __enter__(self):
+        def __enter__(self) -> ImporterNetCDF:
             if isinstance(self.path, (str, Path)):
                 super().__init__()
             return self
 
-        def __exit__(self, exc_type, exc_val, exc_tb):
+        def __exit__(
+            self,
+            exc_type: type,
+            exc_val: BaseException,
+            exc_tb: TracebackType,
+        ) -> None:
             if isinstance(self.path, (str, Path)):
                 super().__exit__(exc_type, exc_val, exc_tb)
 
-        def get_attributes(self):
+        def get_attributes(self) -> dict:
             return {
                 attr[len("network_") :]: val
                 for attr, val in self.ds.attrs.items()
                 if attr.startswith("network_")
             }
 
-        def get_meta(self):
+        def get_meta(self) -> dict:
             return json.loads(self.ds.attrs.get("meta", "{}"))
 
-        def get_crs(self):
+        def get_crs(self) -> dict:
             return json.loads(self.ds.attrs.get("crs", "{}"))
 
-        def get_snapshots(self):
+        def get_snapshots(self) -> pd.DataFrame:
             return self.get_static("snapshots", "snapshots")
 
-        def get_investment_periods(self):
+        def get_investment_periods(self) -> pd.DataFrame:
             return self.get_static("investment_periods", "investment_periods")
 
-        def get_static(self, list_name, index_name=None):
+        def get_static(
+            self, list_name: str, index_name: str | None = None
+        ) -> pd.DataFrame:
             t = list_name + "_"
             i = len(t)
             if index_name is None:
@@ -336,7 +396,7 @@ if has_xarray:
                     df[attr[i:]] = self.ds[attr].to_pandas()
             return df
 
-        def get_series(self, list_name):
+        def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
             t = list_name + "_t_"
             for attr in self.ds.data_vars.keys():
                 if attr.startswith(t):
@@ -347,61 +407,64 @@ if has_xarray:
 
     class ExporterNetCDF(Exporter):
         def __init__(
-            self, path, compression={"zlib": True, "complevel": 4}, float32=False
-        ):
+            self,
+            path: str | None,
+            compression: dict | None = {"zlib": True, "complevel": 4},
+            float32: bool = False,
+        ) -> None:
             self.path = path
             self.compression = compression
             self.float32 = float32
             self.ds = xr.Dataset()
 
-        def save_attributes(self, attrs):
+        def save_attributes(self, attrs: dict) -> None:
             self.ds.attrs.update(
                 ("network_" + attr, val) for attr, val in attrs.items()
             )
 
-        def save_meta(self, meta):
+        def save_meta(self, meta: dict) -> None:
             self.ds.attrs["meta"] = json.dumps(meta)
 
-        def save_crs(self, crs):
+        def save_crs(self, crs: dict) -> None:
             self.ds.attrs["crs"] = json.dumps(crs)
 
-        def save_snapshots(self, snapshots):
+        def save_snapshots(self, snapshots: pd.Index) -> None:
             snapshots = snapshots.rename_axis(index="snapshots")
             for attr in snapshots.columns:
                 self.ds["snapshots_" + attr] = snapshots[attr]
 
-        def save_investment_periods(self, investment_periods):
+        def save_investment_periods(self, investment_periods: pd.Index) -> None:
             investment_periods = investment_periods.rename_axis(
                 index="investment_periods"
             )
             for attr in investment_periods.columns:
                 self.ds["investment_periods_" + attr] = investment_periods[attr]
 
-        def save_static(self, list_name, df):
+        def save_static(self, list_name: str, df: pd.DataFrame) -> None:
             df = df.rename_axis(index=list_name + "_i")
             self.ds[list_name + "_i"] = df.index
             for attr in df.columns:
                 self.ds[list_name + "_" + attr] = df[attr]
 
-        def save_series(self, list_name, attr, df):
+        def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
             df = df.rename_axis(
                 index="snapshots", columns=list_name + "_t_" + attr + "_i"
             )
             self.ds[list_name + "_t_" + attr] = df
 
-        def set_compression_encoding(self):
+        def set_compression_encoding(self) -> None:
             logger.debug(f"Setting compression encodings: {self.compression}")
             for v in self.ds.data_vars:
                 if self.ds[v].dtype.kind not in ["U", "O"]:
                     self.ds[v].encoding.update(self.compression)
 
-        def typecast_float32(self):
+        def typecast_float32(self) -> None:
             logger.debug("Typecasting float64 to float32.")
             for v in self.ds.data_vars:
                 if self.ds[v].dtype == np.float64:
                     self.ds[v] = self.ds[v].astype(np.float32)
 
-        def finish(self):
+        def finish(self) -> None:
             if self.float32:
                 self.typecast_float32()
             if self.compression:
@@ -410,7 +473,12 @@ if has_xarray:
                 self.ds.to_netcdf(self.path)
 
 
-def _export_to_exporter(network, exporter, basename, export_standard_types=False):
+def _export_to_exporter(
+    network: Network,
+    exporter: Exporter,
+    basename: str | None = None,
+    export_standard_types: bool = False,
+) -> None:
     """
     Export to exporter.
 
@@ -427,11 +495,13 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the netowrk).
     """
+    if not basename:
+        basename = "<unnamed>"
     # exportable component types
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties
-    attrs = {
+    _attrs = {
         attr: getattr(network, attr)
         for attr in dir(network)
         if (
@@ -439,7 +509,7 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
             and isinstance(getattr(network, attr), allowed_types)
         )
     }
-    exporter.save_attributes(attrs)
+    exporter.save_attributes(_attrs)
 
     crs = {}
     if network.crs is not None:
@@ -523,12 +593,16 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         exported_components.append(list_name)
 
     logger.info(
-        f"Exported network {str(basename or '<unnamed>')} "
-        f"has {', '.join(exported_components)}"
+        "Exported network '%s' contains: %s", basename, ", ".join(exported_components)
     )
 
 
-def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=False):
+def import_from_csv_folder(
+    network: Network,
+    csv_folder_name: str | Path,
+    encoding: str | None = None,
+    skip_time: bool = False,
+) -> None:
     """
     Import network data from CSVs in a folder.
 
@@ -555,8 +629,11 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
 
 
 def export_to_csv_folder(
-    network, csv_folder_name, encoding=None, export_standard_types=False
-):
+    network: Network,
+    csv_folder_name: str,
+    encoding: str | None = None,
+    export_standard_types: bool = False,
+) -> None:
     """
     Export network and components to a folder of CSVs.
 
@@ -598,7 +675,9 @@ def export_to_csv_folder(
         )
 
 
-def import_from_hdf5(network, path, skip_time=False):
+def import_from_hdf5(
+    network: Network, path: str | Path, skip_time: bool = False
+) -> None:
     """
     Import network data from HDF5 store at `path`.
 
@@ -610,11 +689,17 @@ def import_from_hdf5(network, path, skip_time=False):
         Skip reading in time dependent attributes
     """
     basename = Path(path).name
+
     with ImporterHDF5(path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
 
-def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
+def export_to_hdf5(
+    network: Network,
+    path: Path | str,
+    export_standard_types: bool = False,
+    **kwargs: Any,
+) -> None:
     """
     Export network and components to an HDF store.
 
@@ -650,7 +735,9 @@ def export_to_hdf5(network, path, export_standard_types=False, **kwargs):
         )
 
 
-def import_from_netcdf(network, path, skip_time=False):
+def import_from_netcdf(
+    network: Network, path: str | Path | xr.Dataset, skip_time: bool = False
+) -> None:
     """
     Import network data from netCDF file or xarray Dataset at `path`.
 
@@ -672,12 +759,12 @@ def import_from_netcdf(network, path, skip_time=False):
 
 
 def export_to_netcdf(
-    network,
-    path=None,
-    export_standard_types=False,
-    compression=None,
-    float32=False,
-):
+    network: Network,
+    path: str | None = None,
+    export_standard_types: bool = False,
+    compression: dict | None = None,
+    float32: bool = False,
+) -> xr.Dataset:
     """
     Export network and components to a netCDF file.
 
@@ -732,7 +819,9 @@ def export_to_netcdf(
         return exporter.ds
 
 
-def _import_from_importer(network, importer, basename, skip_time=False):
+def _import_from_importer(
+    network: Network, importer: Any, basename: str, skip_time: bool = False
+) -> None:
     """
     Import network data from importer.
 
@@ -848,7 +937,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     )
 
 
-def import_components_from_dataframe(network, dataframe, cls_name):
+def import_components_from_dataframe(
+    network: Network, dataframe: pd.DataFrame, cls_name: str
+) -> None:
     """
     Import components from a pandas DataFrame.
 
@@ -953,7 +1044,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     setattr(network, network.components[cls_name]["list_name"] + "_t", pnl)
 
 
-def import_series_from_dataframe(network, dataframe, cls_name, attr):
+def import_series_from_dataframe(
+    network: Network, dataframe: pd.DataFrame, cls_name: str, attr: str
+) -> None:
     """
     Import time series from a pandas DataFrame.
 
@@ -1025,7 +1118,13 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     ]
 
 
-def merge(network, other, components_to_skip=None, inplace=False, with_time=True):
+def merge(
+    network: Network,
+    other: Network,
+    components_to_skip: Collection[str] | None = None,
+    inplace: bool = False,
+    with_time: bool = True,
+) -> Network | None:
     """
     Merge the components of two networks.
 
@@ -1061,8 +1160,8 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
         to_skip.update(components_to_skip)
     to_iterate = other.all_components - to_skip
     # ensure buses are merged first
-    to_iterate = ["Bus"] + sorted(to_iterate - {"Bus"})
-    for c in other.iterate_components(to_iterate):
+    to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
+    for c in other.iterate_components(to_iterate_list):
         if not c.df.index.intersection(network.df(c.name).index).empty:
             msg = f"Component {c.name} has overlapping indices, cannot merge networks."
             raise ValueError(msg)
@@ -1082,7 +1181,7 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
             "Spatial Reference System Indentifier of networks do not agree: "
             f"{new.srid}, {other.srid}. Assuming {new.srid}."
         )
-    for c in other.iterate_components(to_iterate):
+    for c in other.iterate_components(to_iterate_list):
         new.import_components_from_dataframe(c.df, c.name)
         if with_time:
             for k, v in c.pnl.items():
@@ -1091,7 +1190,9 @@ def merge(network, other, components_to_skip=None, inplace=False, with_time=True
     return None if inplace else new
 
 
-def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
+def import_from_pypower_ppc(
+    network: Network, ppc: dict, overwrite_zero_s_nom: float | None = None
+) -> None:
     """
     Import network from PYPOWER PPC dictionary format version 2.
 
@@ -1192,10 +1293,10 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         ", "
     )
 
-    index = [f"G{str(i)}" for i in range(len(ppc["gen"]))]
+    index_list = [f"G{str(i)}" for i in range(len(ppc["gen"]))]
 
     pdf["generators"] = pd.DataFrame(
-        index=index, columns=columns, data=ppc["gen"][:, : len(columns)]
+        index=index_list, columns=columns, data=ppc["gen"][:, : len(columns)]
     )
 
     # make sure bus name is an integer
@@ -1301,8 +1402,11 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
 
 def import_from_pandapower_net(
-    network, net, extra_line_data=False, use_pandapower_index=False
-):
+    network: Network,
+    net: pandapowerNet,
+    extra_line_data: bool = False,
+    use_pandapower_index: bool = False,
+) -> None:
     """
     Import PyPSA network from pandapower net.
 
@@ -1494,7 +1598,7 @@ def import_from_pandapower_net(
     )
     d["ShuntImpedance"] = d["ShuntImpedance"].fillna(0)
 
-    for c in [
+    for component_name in [
         "Bus",
         "Load",
         "Generator",
@@ -1502,7 +1606,7 @@ def import_from_pandapower_net(
         "Transformer",
         "ShuntImpedance",
     ]:
-        network.import_components_from_dataframe(d[c], c)
+        network.import_components_from_dataframe(d[component_name], component_name)
 
     # amalgamate buses connected by closed switches
 
@@ -1516,9 +1620,11 @@ def import_from_pandapower_net(
     for i in to_replace.index:
         network.remove("Bus", i)
 
-    for c in network.iterate_components({"Load", "Generator", "ShuntImpedance"}):
-        c.df.replace({"bus": to_replace}, inplace=True)
+    for component in network.iterate_components(
+        {"Load", "Generator", "ShuntImpedance"}
+    ):
+        component.df.replace({"bus": to_replace}, inplace=True)
 
-    for c in network.iterate_components({"Line", "Transformer"}):
-        c.df.replace({"bus0": to_replace}, inplace=True)
-        c.df.replace({"bus1": to_replace}, inplace=True)
+    for component in network.iterate_components({"Line", "Transformer"}):
+        component.df.replace({"bus0": to_replace}, inplace=True)
+        component.df.replace({"bus1": to_replace}, inplace=True)

@@ -19,6 +19,7 @@ classifiers=[
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
+    "Typing :: Typed",
     "Operating System :: OS Independent",
 ]
 
@@ -52,7 +53,8 @@ dev = [
     "pandapower>=2.14.9",
     "scikit-learn",
     "pre-commit", 
-    "ruff"
+    "ruff",
+    "mypy"
 ]
 cartopy = [
     "cartopy>=0.16",
@@ -76,10 +78,13 @@ gurobipy = ["gurobipy"]
 # setuptools_scm settings
  
 [tool.setuptools_scm]
-version_scheme = "post-release"
+version_scheme = "no-guess-dev"
 
 [tool.setuptools.packages.find]
 include = ["pypsa"]
+
+[tool.setuptools.package-data]
+"pypsa" = ["py.typed"]
 
 # Pytest settings
 
@@ -111,6 +116,7 @@ select = [
     'UP',  # pyupgrade
     'TID', # flake8-tidy-imports
     'NPY', # numpy
+    'RUF013', # ruff
 ]
 
 ignore = [
