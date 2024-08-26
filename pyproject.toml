@@ -70,7 +70,6 @@ docs = [
     "docutils==0.20.0", # Just temporarily until nbsphinx-link is updated (see https://github.com/vidartf/nbsphinx-link/issues/22)
     "ipython==8.26.0",
     "ipykernel==6.29.5",
-        "nbmake==1.5.4",
 ]
 gurobipy = ["gurobipy"]
 
