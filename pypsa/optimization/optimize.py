@@ -104,31 +104,27 @@ def define_objective(n, sns):
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
-    # marginal cost
+    # Weightings
     weighting = n.snapshot_weightings.objective
     if n._multi_invest:
         weighting = weighting.mul(period_weighting, level=0).loc[sns]
     else:
         weighting = weighting.loc[sns]
 
-    for c, attr in lookup.query("marginal_cost").index:
-        cost = (
-            get_as_dense(n, c, "marginal_cost", sns)
-            .loc[:, lambda ds: (ds != 0).any()]
-            .mul(weighting, axis=0)
-        )
-        if cost.empty:
-            continue
-        operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
-        objective.append((operation * cost).sum())
+    # marginal costs and spill cost
+    for cost_type in ["marginal_cost", "spill_cost"]:
+        for c, attr in lookup.query(cost_type).index:
+            cost = (
+                get_as_dense(n, c, cost_type, sns)
+                .loc[:, lambda ds: (ds != 0).any()]
+                .mul(weighting, axis=0)
+            )
+            if cost.empty:
+                continue
+            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            objective.append((operation * cost).sum())
 
     # marginal cost quadratic
-    weighting = n.snapshot_weightings.objective
-    if n._multi_invest:
-        weighting = weighting.mul(period_weighting, level=0).loc[sns]
-    else:
-        weighting = weighting.loc[sns]
-
     for c, attr in lookup.query("marginal_cost").index:
         if "marginal_cost_quadratic" in n.df(c):
             cost = (

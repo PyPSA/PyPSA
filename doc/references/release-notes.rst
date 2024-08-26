@@ -13,6 +13,8 @@ Upcoming Release
 
 * new feature or bugfix
 
+* New ``spill_cost`` input parameter for ``storage_unit`` added which penalizes spilling excess energy
+
 v0.29.0 (31st July 2024)
 =============================
 
