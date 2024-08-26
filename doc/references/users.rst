@@ -77,9 +77,15 @@ Universities and Research Institutes
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
 
+* The `International Energy Agency (IEA) <https://www.iea.org/>`_ uses PyPSA within their `Global Energy
+  and Climate Model
+  <https://iea.blob.core.windows.net/assets/ff3a195d-762d-4284-8bb5-bd062d260cc5/GlobalEnergyandClimateModelDocumentation2023.pdf>`_. A 2024 report `Managing the Seasonal Variability of Electricity Demand and Supply <https://www.iea.org/reports/managing-the-seasonal-variability-of-electricity-demand-and-supply>`_ used PyPSA to explore how seasonal variations in both demand and supply affect electricity system operations in various world regions in 2050.
+
 * `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
 
 * `Open Energy Transition <https://openenergytransition.org/>`_, a non-profit software company and environmental think tank: uses, develops and provides commercial support and training for PyPSA. List of projects: `https://openenergytransition.org/projects.html <https://openenergytransition.org/projects.html>`_
+
+* `RAND Europe <https://www.rand.org/randeurope.html>`_ used PyPSA in a 2024 report `The use of AI for improving energy security <https://www.rand.org/pubs/research_reports/RRA2907-2.html>`_ to explore the extent to which different AI applications can improve energy security in Europe.
 
 * `The Energy and Resources Institute <https://www.teriin.org/>`_ (TERI) in New Delhi, India: Used PyPSA for several studies. In 2020 for a government-supported study of the Indian power system in 2030, see `Renewable Power Pathways Report <https://www.teriin.org/sites/default/files/2020-07/Renewable-Power-Pathways-Report.pdf>`_, in 2021 for a study on `A Model-Based Assessment of Variable Renewable Grid Integration Costs in India <https://www.teriin.org/sites/default/files/2021-02/A_Modal-Based_Assessment_Report_0.pdf>`_ and in 2024 for a study on `India’s Electricity Transition Pathways to 2050: Scenarios and Insights <https://teriin.org/sites/default/files/2024-02/Power_Sector_2050_Report.pdf>`_
 
@@ -93,10 +99,6 @@ Companies, Governmental and Non-Governmental Organisations
   founded by `Octupus Energy <https://octupus.energy>`_, used PyPSA in a `report
   <https://www.centrefornetzero.org/work/whole-system-modelling-of-future-energy-scenarios-domestic-gb-demand-flexibility/>`_
   to investigate the role of demand flexibility in future UK energy systems.
-
-* `International Energy Agency (IEA) <https://www.iea.org/>`_ use PyPSA within their `Global Energy
-  and Climate Model
-  <https://iea.blob.core.windows.net/assets/ff3a195d-762d-4284-8bb5-bd062d260cc5/GlobalEnergyandClimateModelDocumentation2023.pdf>`_.
 
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
