@@ -69,18 +69,17 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install "$(ls dist/*.whl)[dev]"
 
-
     - name: Test with pytest
       run: |
         pytest --cov=./ --cov-report=xml
 
     - name: Upload code coverage report
-      if: matrix.os == 'ubuntu-latest'
       uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
-  test-notebooks-and-docs:
-    # Test package build in matrix of OS and Python versions
-    name: Test example notebooks and docs build
+  test-docs-build:
+    name: Test docs build # Also tests example notebooks (similar to nbmake)
     needs: [build]
     runs-on: ubuntu-latest
 
@@ -104,10 +103,6 @@ jobs:
         python -m pip install uv
         uv pip install --system nbmake requests
         uv pip install --system "$(ls dist/*.whl)[dev, cartopy, docs]"
-
-    - name: Test example notebooks
-      run: |
-        pytest --nbmake examples/notebooks
 
     - name: Test docs build
       run: |
