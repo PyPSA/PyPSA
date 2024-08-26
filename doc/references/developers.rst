@@ -1,5 +1,5 @@
 ####################
-Developers of PyPSA
+Developers
 ####################
 
 
@@ -16,3 +16,4 @@ towards the development of PyPSA:
 * 2022-2024 Philipp Glaum (TUB)
 * 2022-2024 Max Parzen (University of Edinburgh)
 * 2016 David Schlachberger (KIT)
+* 2024 Lukas Trippe (TUB)

@@ -37,11 +37,11 @@ Functionality
   <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_
 
 
-Target user group
-=================
+Target users
+============
 
 PyPSA is intended for researchers, planners and utilities who need a
-fast, easy-to-use and transparent tool for power system
+fast, easy-to-use and transparent tool for power and energy system
 analysis. PyPSA is free software and can be arbitrarily extended.
 
 
@@ -81,8 +81,8 @@ Screenshots
 Dependencies
 ============
 
-PyPSA is written and tested to be compatible with Python 3.8 and
-above. The last release supporting Python 3.7 was PyPSA 0.21.3.
+PyPSA is written and tested to be compatible with Python 3.9 and
+above.
 
 
 It leans heavily on the following Python packages:
@@ -105,33 +105,6 @@ solver. You can use e.g. one of the free solvers `HiGHS <https://highs.dev/>`_,
 <http://www.gurobi.com/>`_ or `CPLEX
 <https://www.ibm.com/de-de/analytics/cplex-optimizer>`_ for which free academic
 licenses are available.
-
-
-Other comparable software
-=========================
-
-For a full list see :doc:`/references/comparable-software`.
-
-PyPSA is not as fully featured as other power system simulation tools
-such as the Matlab-based free software `PSAT
-<http://faraday1.ucd.ie/psat.html>`_ or the commercial package
-`DIgSILENT PowerFactory
-<http://www.digsilent.de/index.php/products-powerfactory.html>`_.
-
-However for power flow and optimal power flow over several time
-snapshots with variable renewable energy sources and/or storage and/or
-mixed AC-DC systems, it offers the flexibility of Python and the
-transparency of free software.
-
-Another Python power system tool is `PYPOWER
-<https://github.com/rwl/PYPOWER/>`_, which is based on the
-Matlab-based `MATPOWER <http://www.pserc.cornell.edu//matpower/>`_. In
-contrast to PYPOWER, PyPSA has an easier-to-use data model (pandas
-DataFrames instead of numpy arrays), support for time-varying data
-inputs and support for multiply-connected networks using both AC
-and DC. PyPSA uses some of the sparse-matrix constructs from PYPOWER.
-
-
 
 Licence
 =======

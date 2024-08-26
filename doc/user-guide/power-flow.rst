@@ -4,26 +4,26 @@ Power Flow
 
 
 
-Full non-linear power flow
+Non-linear power flow
 ==========================
 
 
-The non-linear power flow ``network.pf()`` works for AC networks and
-by extension for DC networks too (with a work-around described below).
+The non-linear power flow ``n.pf()`` works for AC networks and
+by extension for DC networks too.
 
-The non-linear power flow ``network.pf()`` can be called for a
-particular ``snapshot`` as ``network.pf(snapshot)`` or on an iterable
-of ``snapshots`` as ``network.pf(snapshots)`` to calculate the
+The non-linear power flow ``n.pf()`` can be called for a
+particular ``snapshot`` as ``n.pf(snapshot)`` or on an iterable
+of ``snapshots`` as ``n.pf(snapshots)`` to calculate the
 non-linear power flow on a selection of snapshots at once (which is
-more performant than calling ``network.pf`` on each snapshot
+more performant than calling ``n.pf`` on each snapshot
 separately). If no argument is passed, it will be called on all
-``network.snapshots``, see :py:meth:`pypsa.Network.pf` for details.
+``n.snapshots``, see :py:meth:`pypsa.Network.pf` for details.
 
 
 
 
-Non-linear power flow for AC networks
--------------------------------------
+AC networks (single slack)
+--------------------------
 
 The power flow ensures for given inputs (load and power plant
 dispatch) that the following equation is satisfied for each bus
@@ -66,8 +66,8 @@ These equations :math:`f(x) = 0` are solved using the `Newton-Raphson method <ht
 
 and the initial "flat" guess of :math:`\theta_i = 0` and :math:`|V_i| = 1` for unknown quantities.
 
-Non-linear power flow for AC networks with distributed slack
-------------------------------------------------------------
+AC networks (distributed slack)
+-------------------------------
 
 If the slack is to be distributed to all generators in proportion
 to their dispatch (``distribute_slack=True``), instead of being
@@ -86,14 +86,33 @@ This adds an additional **row** to the Jacobian for the derivatives
 of the slack bus active power balance and an additional **column**
 for the partial derivatives with respect to :math:`\gamma_i`.
 
+DC networks
+-----------
+
+For meshed DC networks the equations are a special case of those for
+AC networks, with the difference that all quantities are real.
+
+To solve the non-linear equations for a DC network, ensure that the
+series reactance :math:`x` and shunt susceptance :math:`b` are zero
+for all branches, pick a Slack bus (where :math:`V_0 = 1`) and set all
+other buses to be 'PQ' buses. Then execute ``n.pf()``.
+
+The voltage magnitudes then satisfy at each bus :math:`i`:
+
+.. math::
+   P_i  = V_i I_i = V_i \sum_j G_{ij} V_j
+
+where all quantities are real.
+
+:math:`G_{ij}` is based only on the branch resistances and any shunt
+conductances attached to the buses.
 
 .. _line-model:
 
 Line model
 ----------
 
-Lines are modelled with the standard equivalent PI model. In the
-future a model with distributed parameters may be added.
+Lines are modelled with the standard equivalent PI model.
 
 
 
@@ -219,30 +238,6 @@ for which the currents and voltages are related by:
     \right)
 
 
-
-
-
-Non-linear power flow for DC networks
--------------------------------------
-
-For meshed DC networks the equations are a special case of those for
-AC networks, with the difference that all quantities are real.
-
-To solve the non-linear equations for a DC network, ensure that the
-series reactance :math:`x` and shunt susceptance :math:`b` are zero
-for all branches, pick a Slack bus (where :math:`V_0 = 1`) and set all
-other buses to be 'PQ' buses. Then execute ``network.pf()``.
-
-The voltage magnitudes then satisfy at each bus :math:`i`:
-
-.. math::
-   P_i  = V_i I_i = V_i \sum_j G_{ij} V_j
-
-where all quantities are real.
-
-:math:`G_{ij}` is based only on the branch resistances and any shunt
-conductances attached to the buses.
-
 Inputs
 ------
 
@@ -250,17 +245,17 @@ For the non-linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`/user-guide/components`.
 
-- buses.{v_nom, v_mag_pu_set (if PV generators are attached)}
-- loads.{p_set, q_set}
-- generators.{control, p_set, q_set (for control PQ)}
-- storage_units.{control, p_set, q_set (for control PQ)}
-- stores.{p_set, q_set}
-- shunt_impedances.{b, g}
-- lines.{x, r, b, g}
-- transformers.{x, r, b, g}
-- links.{p_set}
+- ``n.buses.{v_nom, v_mag_pu_set}``
+- ``n.loads.{p_set, q_set}``
+- ``n.generators.{control, p_set, q_set}``
+- ``n.storage_units.{control, p_set, q_set}``
+- ``n.stores.{p_set, q_set}``
+- ``n.shunt_impedances.{b, g}``
+- ``n.lines.{x, r, b, g}``
+- ``n.transformers.{x, r, b, g}``
+- ``n.links.{p_set}``
 
-.. note:: Note that the control strategy for active and reactive power PQ/PV/Slack is set on the generators NOT on the buses. Buses then inherit the  control strategy from the generators attached at the bus (defaulting to PQ if there is no generator attached). Any PV generator will make the whole bus a PV bus. For PV buses, the voltage magnitude set point is set on the bus, not the generator, with bus.v_mag_pu_set since it is a bus property.
+.. note:: Note that the control strategy for active and reactive power PQ/PV/Slack is set on the generators not on the buses. Buses then inherit the  control strategy from the generators attached at the bus (defaulting to PQ if there is no generator attached). Any PV generator will make the whole bus a PV bus. For PV buses, the voltage magnitude set point is set on the bus, not the generator, with bus.v_mag_pu_set since it is a bus property.
 
 
 .. note:: Note that for lines and transformers you MUST make sure that :math:`r+jx` is non-zero, otherwise the bus admittance matrix will be singular.
@@ -268,28 +263,30 @@ explicitly set. For the defaults and units, see :doc:`/user-guide/components`.
 Outputs
 -------
 
-- buses.{v_mag_pu, v_ang, p, q}
-- loads.{p, q}
-- generators.{p, q}
-- storage_units.{p, q}
-- stores.{p, q}
-- shunt_impedances.{p, q}
-- lines.{p0, q0, p1, q1}
-- transformers.{p0, q0, p1, q1}
-- links.{p0, p1}
+- ``n.buses.{v_mag_pu, v_ang, p, q}``
+- ``n.loads.{p, q}``
+- ``n.generators.{p, q}``
+- ``n.storage_units.{p, q}``
+- ``n.stores.{p, q}``
+- ``n.shunt_impedances.{p, q}``
+- ``n.lines.{p0, q0, p1, q1}``
+- ``n.transformers.{p0, q0, p1, q1}``
+- ``n.links.{p0, p1}``
 
 
 Linear power flow
 =================
 
-The linear power flow ``network.lpf()`` can be called for a
-particular ``snapshot`` as ``network.lpf(snapshot)`` or on an iterable
-of ``snapshots`` as ``network.lpf(snapshots)`` to calculate the
+The linear power flow ``n.lpf()`` can be called for a
+particular ``snapshot`` as ``n.lpf(snapshot)`` or on an iterable
+of ``snapshots`` as ``n.lpf(snapshots)`` to calculate the
 linear power flow on a selection of snapshots at once (which is
-more performant than calling ``network.lpf`` on each snapshot
+more performant than calling ``n.lpf`` on each snapshot
 separately). If no argument is passed, it will be called on all
-``network.snapshots``, , see :py:meth:`pypsa.Network.lpf` for details.
+``n.snapshots``, , see :py:meth:`pypsa.Network.lpf` for details.
 
+AC networks
+-----------
 
 For AC networks, it is assumed for the linear power flow that reactive
 power decouples, there are no voltage magnitude variations, voltage
@@ -321,7 +318,8 @@ The flows ``p0`` in the network branches at ``bus0`` can then be found by multip
 .. math::
    F_l = \sum_i (BK^T)_{li} \theta_i - b_l \theta_l^{\textrm{shift}}
 
-
+DC networks
+-----------
 
 For DC networks, it is assumed for the linear power flow that voltage
 magnitude differences across branches are all small.
@@ -339,27 +337,27 @@ For the linear power flow, the following data for each component
 are used. For almost all values, defaults are assumed if not
 explicitly set. For the defaults and units, see :doc:`/user-guide/components`.
 
-- buses.{v_nom}
-- loads.{p_set}
-- generators.{p_set}
-- storage_units.{p_set}
-- stores.{p_set}
-- shunt_impedances.{g}
-- lines.{x}
-- transformers.{x}
-- links.{p_set}
+- ``n.buses.{v_nom}``
+- ``n.loads.{p_set}``
+- ``n.generators.{p_set}``
+- ``n.storage_units.{p_set}``
+- ``n.stores.{p_set}``
+- ``n.shunt_impedances.{g}``
+- ``n.lines.{x}``
+- ``n.transformers.{x}``
+- ``n.links.{p_set}``
 
-.. note:: Note that for lines and transformers you MUST make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
+.. note:: Note that for lines and transformers you must make sure that :math:`x` is non-zero, otherwise the bus admittance matrix will be singular.
 
 Outputs
 -------
 
-- buses.{v_mag_pu, v_ang, p}
-- loads.{p}
-- generators.{p}
-- storage_units.{p}
-- stores.{p}
-- shunt_impedances.{p}
-- lines.{p0, p1}
-- transformers.{p0, p1}
-- links.{p0, p1}
+- ``n.buses.{v_mag_pu, v_ang, p}``
+- ``n.loads.{p}``
+- ``n.generators.{p}``
+- ``n.storage_units.{p}``
+- ``n.stores.{p}``
+- ``n.shunt_impedances.{p}``
+- ``n.lines.{p0, p1}``
+- ``n.transformers.{p0, p1}``
+- ``n.links.{p0, p1}``
