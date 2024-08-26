@@ -47,7 +47,7 @@ Source = "https://github.com/PyPSA/PyPSA"
 [project.optional-dependencies]
 dev = [
     "pytest", 
-    "pytest-cov",
+    "coverage",
     "pypower",
     "pandapower>=2.14.9",
     "scikit-learn",
