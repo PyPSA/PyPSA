@@ -1454,7 +1454,7 @@ def explore(
         )
     if len(set(components) - set(components_present)) > 0:
         logger.info(
-            f"Components omitted as they are missing: {', '.join(sorted(set(components_possible) - set(components_present)))}."
+            f"Components omitted as they are missing or not selected: {', '.join(sorted(set(components_possible) - set(components_present)))}."
         )
 
     # Set the default view to the bounds of the elements in the map
