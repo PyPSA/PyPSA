@@ -20,6 +20,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
+import xarray as xr
 from pyproj import CRS
 
 from pypsa.descriptors import update_linkports_component_attrs
@@ -27,17 +28,10 @@ from pypsa.descriptors import update_linkports_component_attrs
 if TYPE_CHECKING:
     from typing import TracebackType  # type: ignore
 
-    import xarray as xr
     from pandapower.auxiliary import pandapowerNet
 
     from pypsa import Network
 
-try:
-    import xarray as xr
-
-    has_xarray = True
-except ImportError:
-    has_xarray = False
 
 logger = logging.getLogger(__name__)
 
@@ -333,144 +327,135 @@ class ExporterHDF5(Exporter):
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
 
-if has_xarray:
+class ImporterNetCDF(Importer):
+    ds: xr.Dataset
 
-    class ImporterNetCDF(Importer):
-        ds: xr.Dataset
+    def __init__(self, path: str | Path | xr.Dataset) -> None:
+        self.path = path
+        if isinstance(path, (str, Path)):
+            if validators.url(str(path)):
+                path = _retrieve_from_url(str(path))
+            self.ds = xr.open_dataset(path)
+        else:
+            self.ds = path
 
-        def __init__(self, path: str | Path | xr.Dataset) -> None:
-            self.path = path
-            if isinstance(path, (str, Path)):
-                if validators.url(str(path)):
-                    path = _retrieve_from_url(str(path))
-                self.ds = xr.open_dataset(path)
-            else:
-                self.ds = path
+    def __enter__(self) -> ImporterNetCDF:
+        if isinstance(self.path, (str, Path)):
+            super().__init__()
+        return self
 
-        def __enter__(self) -> ImporterNetCDF:
-            if isinstance(self.path, (str, Path)):
-                super().__init__()
-            return self
+    def __exit__(
+        self,
+        exc_type: type,
+        exc_val: BaseException,
+        exc_tb: TracebackType,
+    ) -> None:
+        if isinstance(self.path, (str, Path)):
+            super().__exit__(exc_type, exc_val, exc_tb)
 
-        def __exit__(
-            self,
-            exc_type: type,
-            exc_val: BaseException,
-            exc_tb: TracebackType,
-        ) -> None:
-            if isinstance(self.path, (str, Path)):
-                super().__exit__(exc_type, exc_val, exc_tb)
+    def get_attributes(self) -> dict:
+        return {
+            attr[len("network_") :]: val
+            for attr, val in self.ds.attrs.items()
+            if attr.startswith("network_")
+        }
 
-        def get_attributes(self) -> dict:
-            return {
-                attr[len("network_") :]: val
-                for attr, val in self.ds.attrs.items()
-                if attr.startswith("network_")
-            }
+    def get_meta(self) -> dict:
+        return json.loads(self.ds.attrs.get("meta", "{}"))
 
-        def get_meta(self) -> dict:
-            return json.loads(self.ds.attrs.get("meta", "{}"))
+    def get_crs(self) -> dict:
+        return json.loads(self.ds.attrs.get("crs", "{}"))
 
-        def get_crs(self) -> dict:
-            return json.loads(self.ds.attrs.get("crs", "{}"))
+    def get_snapshots(self) -> pd.DataFrame:
+        return self.get_static("snapshots", "snapshots")
 
-        def get_snapshots(self) -> pd.DataFrame:
-            return self.get_static("snapshots", "snapshots")
+    def get_investment_periods(self) -> pd.DataFrame:
+        return self.get_static("investment_periods", "investment_periods")
 
-        def get_investment_periods(self) -> pd.DataFrame:
-            return self.get_static("investment_periods", "investment_periods")
+    def get_static(self, list_name: str, index_name: str | None = None) -> pd.DataFrame:
+        t = list_name + "_"
+        i = len(t)
+        if index_name is None:
+            index_name = list_name + "_i"
+        if index_name not in self.ds.coords:
+            return None
+        index = self.ds.coords[index_name].to_index().rename("name")
+        df = pd.DataFrame(index=index)
+        for attr in self.ds.data_vars.keys():
+            if attr.startswith(t) and attr[i : i + 2] != "t_":
+                df[attr[i:]] = self.ds[attr].to_pandas()
+        return df
 
-        def get_static(
-            self, list_name: str, index_name: str | None = None
-        ) -> pd.DataFrame:
-            t = list_name + "_"
-            i = len(t)
-            if index_name is None:
-                index_name = list_name + "_i"
-            if index_name not in self.ds.coords:
-                return None
-            index = self.ds.coords[index_name].to_index().rename("name")
-            df = pd.DataFrame(index=index)
-            for attr in self.ds.data_vars.keys():
-                if attr.startswith(t) and attr[i : i + 2] != "t_":
-                    df[attr[i:]] = self.ds[attr].to_pandas()
-            return df
+    def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        t = list_name + "_t_"
+        for attr in self.ds.data_vars.keys():
+            if attr.startswith(t):
+                df = self.ds[attr].to_pandas()
+                df.index.name = "name"
+                df.columns.name = "name"
+                yield attr[len(t) :], df
 
-        def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
-            t = list_name + "_t_"
-            for attr in self.ds.data_vars.keys():
-                if attr.startswith(t):
-                    df = self.ds[attr].to_pandas()
-                    df.index.name = "name"
-                    df.columns.name = "name"
-                    yield attr[len(t) :], df
 
-    class ExporterNetCDF(Exporter):
-        def __init__(
-            self,
-            path: str | None,
-            compression: dict | None = {"zlib": True, "complevel": 4},
-            float32: bool = False,
-        ) -> None:
-            self.path = path
-            self.compression = compression
-            self.float32 = float32
-            self.ds = xr.Dataset()
+class ExporterNetCDF(Exporter):
+    def __init__(
+        self,
+        path: str | None,
+        compression: dict | None = {"zlib": True, "complevel": 4},
+        float32: bool = False,
+    ) -> None:
+        self.path = path
+        self.compression = compression
+        self.float32 = float32
+        self.ds = xr.Dataset()
 
-        def save_attributes(self, attrs: dict) -> None:
-            self.ds.attrs.update(
-                ("network_" + attr, val) for attr, val in attrs.items()
-            )
+    def save_attributes(self, attrs: dict) -> None:
+        self.ds.attrs.update(("network_" + attr, val) for attr, val in attrs.items())
 
-        def save_meta(self, meta: dict) -> None:
-            self.ds.attrs["meta"] = json.dumps(meta)
+    def save_meta(self, meta: dict) -> None:
+        self.ds.attrs["meta"] = json.dumps(meta)
 
-        def save_crs(self, crs: dict) -> None:
-            self.ds.attrs["crs"] = json.dumps(crs)
+    def save_crs(self, crs: dict) -> None:
+        self.ds.attrs["crs"] = json.dumps(crs)
 
-        def save_snapshots(self, snapshots: pd.Index) -> None:
-            snapshots = snapshots.rename_axis(index="snapshots")
-            for attr in snapshots.columns:
-                self.ds["snapshots_" + attr] = snapshots[attr]
+    def save_snapshots(self, snapshots: pd.Index) -> None:
+        snapshots = snapshots.rename_axis(index="snapshots")
+        for attr in snapshots.columns:
+            self.ds["snapshots_" + attr] = snapshots[attr]
 
-        def save_investment_periods(self, investment_periods: pd.Index) -> None:
-            investment_periods = investment_periods.rename_axis(
-                index="investment_periods"
-            )
-            for attr in investment_periods.columns:
-                self.ds["investment_periods_" + attr] = investment_periods[attr]
+    def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        investment_periods = investment_periods.rename_axis(index="investment_periods")
+        for attr in investment_periods.columns:
+            self.ds["investment_periods_" + attr] = investment_periods[attr]
 
-        def save_static(self, list_name: str, df: pd.DataFrame) -> None:
-            df = df.rename_axis(index=list_name + "_i")
-            self.ds[list_name + "_i"] = df.index
-            for attr in df.columns:
-                self.ds[list_name + "_" + attr] = df[attr]
+    def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        df = df.rename_axis(index=list_name + "_i")
+        self.ds[list_name + "_i"] = df.index
+        for attr in df.columns:
+            self.ds[list_name + "_" + attr] = df[attr]
 
-        def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
-            df = df.rename_axis(
-                index="snapshots", columns=list_name + "_t_" + attr + "_i"
-            )
-            self.ds[list_name + "_t_" + attr] = df
+    def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        df = df.rename_axis(index="snapshots", columns=list_name + "_t_" + attr + "_i")
+        self.ds[list_name + "_t_" + attr] = df
 
-        def set_compression_encoding(self) -> None:
-            logger.debug(f"Setting compression encodings: {self.compression}")
-            for v in self.ds.data_vars:
-                if self.ds[v].dtype.kind not in ["U", "O"]:
-                    self.ds[v].encoding.update(self.compression)
+    def set_compression_encoding(self) -> None:
+        logger.debug(f"Setting compression encodings: {self.compression}")
+        for v in self.ds.data_vars:
+            if self.ds[v].dtype.kind not in ["U", "O"]:
+                self.ds[v].encoding.update(self.compression)
 
-        def typecast_float32(self) -> None:
-            logger.debug("Typecasting float64 to float32.")
-            for v in self.ds.data_vars:
-                if self.ds[v].dtype == np.float64:
-                    self.ds[v] = self.ds[v].astype(np.float32)
+    def typecast_float32(self) -> None:
+        logger.debug("Typecasting float64 to float32.")
+        for v in self.ds.data_vars:
+            if self.ds[v].dtype == np.float64:
+                self.ds[v] = self.ds[v].astype(np.float32)
 
-        def finish(self) -> None:
-            if self.float32:
-                self.typecast_float32()
-            if self.compression:
-                self.set_compression_encoding()
-            if self.path is not None:
-                self.ds.to_netcdf(self.path)
+    def finish(self) -> None:
+        if self.float32:
+            self.typecast_float32()
+        if self.compression:
+            self.set_compression_encoding()
+        if self.path is not None:
+            self.ds.to_netcdf(self.path)
 
 
 def _export_to_exporter(
@@ -749,10 +734,6 @@ def import_from_netcdf(
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-    if not has_xarray:
-        msg = "xarray must be installed for netCDF support."
-        raise ImportError(msg)
-
     basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
@@ -804,10 +785,6 @@ def export_to_netcdf(
     --------
     >>> network.export_to_netcdf("my_file.nc")
     """
-    if not has_xarray:
-        msg = "xarray must be installed for netCDF support."
-        raise ImportError(msg)
-
     basename = os.path.basename(path) if path is not None else None
     with ExporterNetCDF(path, compression, float32) as exporter:
         _export_to_exporter(

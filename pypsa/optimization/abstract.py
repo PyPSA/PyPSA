@@ -121,11 +121,11 @@ def optimize_transmission_expansion_iteratively(
         )
 
     def discretized_capacity(
-        nom_opt: int | float,
-        unit_size: int | float,
+        nom_opt: float,
+        unit_size: float,
         threshold: float,
         min_units: int = 0,
-    ) -> int | float:
+    ) -> float:
         units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
         return max(min_units, units) * unit_size
 

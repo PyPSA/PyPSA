@@ -148,12 +148,7 @@ def adjacency_matrix(
         elif investment_period is None:
             sel = c.ind
         else:
-            active = get_active_assets(
-                # TODO: get_active_assets takes 3 arguments, no snapshots
-                network,
-                c.name,
-                investment_period,  # network.snapshots
-            )
+            active = get_active_assets(network, c.name, investment_period)
             sel = c.ind & c.df.loc[active].index
 
         no_branches = len(c.df.loc[sel])

@@ -81,6 +81,7 @@ from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     import linopy
+    from scipy.sparese import spmatrix
 
 logger = logging.getLogger(__name__)
 warnings.simplefilter("always", DeprecationWarning)
@@ -1519,11 +1520,11 @@ class SubNetwork(Common):
     pqs: pd.Index
     pvs: pd.Index
     slack_bus: str
-    B: Any
-    K: Any
-    C: Any
-    PTDF: Any
-    BODF: Any
+    B: spmatrix
+    K: spmatrix
+    C: spmatrix
+    PTDF: spmatrix
+    BODF: spmatrix
 
     list_name = "sub_networks"
 

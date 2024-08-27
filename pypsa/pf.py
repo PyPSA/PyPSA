@@ -954,9 +954,9 @@ def apply_transformer_types(network: Network) -> None:
 
 
 def wye_to_delta(
-    z1: int | float,
-    z2: int | float,
-    z3: int | float,
+    z1: float,
+    z2: float,
+    z3: float,
 ) -> tuple[float, float, float]:
     """
     Follows http://home.earthlink.net/~w6rmk/math/wyedelta.html.
