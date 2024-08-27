@@ -25,8 +25,9 @@ repos:
   rev: v1.11.1
   hooks:
   - id: mypy
-    files: ^(pypsa|test)/
     additional_dependencies: [numpy, pandas, xarray]
+    args: [--config-file=./pyproject.toml]
+
 
 # Find common spelling mistakes in comments and docstrings
 - repo: https://github.com/codespell-project/codespell

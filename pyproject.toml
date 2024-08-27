@@ -101,6 +101,23 @@ branch = true
 source = ["pypsa"]
 omit = ["test/*"]
 
+# Static type checker settings
+
+[tool.mypy]
+exclude = ['dev/*', 'examples/*', 'doc/*']
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_unused_ignores = true
+show_error_code_links = true
+# Maybe activate at later stage
+# disallow_any_generics = true 
+# warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = "pypsa.*"
+disallow_untyped_defs = true
+check_untyped_defs = true
+
 # Formatter and linter settings
 
 [tool.ruff]
