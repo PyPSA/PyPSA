@@ -775,7 +775,7 @@ class StatisticsAccessor:
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated
-            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
+            using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
         """
 
         @pass_empty_series_if_keyerror
@@ -1121,7 +1121,7 @@ class StatisticsAccessor:
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to
-            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
+            using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
         kind : str, optional
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
             If 'output' only the revenue of the output is considered. Defaults to None.
