@@ -4,6 +4,7 @@ bus,string,n/a,n/a,Name of bus to which storage unit is attached.,Input (require
 control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
 type,string,n/a,n/a,Placeholder for storage unit type. Not yet implemented.,Input (optional)
 p_nom,float,MW,0,Nominal power for limits in OPF.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the storage unit module.,Input (optional)
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
 p_nom_min,float,MW,0,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
@@ -14,8 +15,9 @@ q_set,static or series,MVar,0,reactive power set point (for PF),Input (optional)
 sign,float,n/a,1,power sign,Input (optional)
 carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in OPF",Input (optional)
 marginal_cost,static or series,currency/MWh,0,Marginal cost of production of 1 MWh.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of production (discharge) of 1 MWh.,Input (optional)
 state_of_charge_marginal_cost,static,currency/(MWh/h),0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
-capital_cost,float,currency/MW,0,Capital cost of extending p_nom by 1 MW.,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending p_nom by 1 MW, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
 build_year,int,year,0,build year,Input (optional)
 lifetime,float,years,inf,lifetime,Input (optional)
 state_of_charge_initial,float,MWh,0,State of charge before the snapshots in the OPF.,Input (optional)
@@ -38,3 +40,4 @@ p_nom_opt,float,MW,0,Optimised nominal power.,Output
 mu_upper,series,currency/MWh,0,Shadow price of upper p_nom limit,Output
 mu_lower,series,currency/MWh,0,Shadow price of lower p_nom limit,Output
 mu_state_of_charge_set,series,currency/MWh,0,Shadow price of fixed state of charge state_of_charge_set,Output
+mu_energy_balance,series,currency/MWh,0,Shadow price of storage consistency equations,Output

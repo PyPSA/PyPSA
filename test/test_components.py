@@ -1,4 +1,6 @@
-# -*- coding: utf-8 -*-
+import copy
+import sys
+
 import numpy as np
 import pytest
 
@@ -22,8 +24,7 @@ def test_mremove(ac_dc_network):
     WHEN    two components of Generator are removed with mremove
 
     THEN    the generator dataframe and the time-dependent generator
-    dataframe
-    should not contain the removed elements.
+    dataframe should not contain the removed elements.
     """
     network = ac_dc_network
 
@@ -42,8 +43,7 @@ def test_mremove_misspelled_component(ac_dc_network, caplog):
     WHEN    a misspelled component is removed with mremove
 
     THEN    the function should not change anything in the Line
-    component
-    dataframe and an error should be logged.
+    component dataframe and an error should be logged.
     """
     network = ac_dc_network
 
@@ -60,12 +60,10 @@ def test_madd_static(empty_network_5_buses):
     GIVEN   an empty PyPSA network with 5 buses.
 
     WHEN    multiple components of Load are added to the network with
-    madd and
-    attribute p_set
+    madd and attribute p_set
 
     THEN    the corresponding load components should be in the index of
-    the
-    static load dataframe. Also the column p_set should contain any
+    the static load dataframe. Also the column p_set should contain any
     value greater than 0.
     """
     buses = empty_network_5_buses.buses.index
@@ -88,12 +86,10 @@ def test_madd_t(empty_network_5_buses):
     GIVEN   an empty PyPSA network with 5 buses and 7 snapshots.
 
     WHEN    multiple components of Load are added to the network with
-    madd and
-    attribute p_set
+    madd and attribute p_set
 
     THEN    the corresponding load components should be in the columns
-    of the
-    time-dependent load_t dataframe. Also, the shape of the
+    of the time-dependent load_t dataframe. Also, the shape of the
     dataframe should resemble 7 snapshots x 5 buses.
     """
     # Set up empty network with 5 buses and 7 snapshots.
@@ -103,11 +99,12 @@ def test_madd_t(empty_network_5_buses):
 
     # Add load component at every bus with time-dependent attribute p_set.
     load_names = "load_" + buses
+    rng = np.random.default_rng()  # Create a random number generator
     empty_network_5_buses.madd(
         "Load",
         load_names,
         bus=buses,
-        p_set=np.random.rand(len(snapshots), len(buses)),
+        p_set=rng.random(size=(len(snapshots), len(buses))),
     )
 
     assert load_names.equals(empty_network_5_buses.loads_t.p_set.columns)
@@ -121,8 +118,7 @@ def test_madd_misspelled_component(empty_network_5_buses, caplog):
     WHEN    multiple components of a misspelled component are added
 
     THEN    the function should not change anything and an error should
-    be
-    logged.
+    be logged.
     """
     misspelled_component = "Generatro"
     empty_network_5_buses.madd(
@@ -181,54 +177,63 @@ def test_madd_defaults(empty_network_5_buses):
         bus=["bus_1", "bus_2"],
     )
 
-    assert empty_network_5_buses.generators.loc[gen_names[0], "control"] == (
-        empty_network_5_buses.component_attrs.Generator.loc["control", "default"]
+    assert (
+        empty_network_5_buses.generators.loc[gen_names[0], "control"]
+        == empty_network_5_buses.component_attrs.Generator.loc["control", "default"]
     )
-    assert empty_network_5_buses.loads.loc[line_names[0], "p_set"] == (
-        empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
+
+    assert (
+        empty_network_5_buses.loads.loc[line_names[0], "p_set"]
+        == empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
     )
 
 
-def test_copy_default_behavior(ac_dc_network):
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
+)
+def test_equality_behavior(all_networks):
+    """
+    GIVEN   the AC DC exemplary pypsa network.
+
+    WHEN    comparing the network to itself
+
+    THEN    the networks should be equal.
+    """
+    for n in all_networks:
+        deep_copy = copy.deepcopy(n)
+        assert n == deep_copy
+        assert n is not deep_copy
+
+        # TODO: Could add more property based tests here (hypothesis)
+        deep_copy.name = "new_name"
+        assert n != deep_copy
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
+)
+def test_copy_default_behavior(all_networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
     WHEN    copying the network with timestamps
 
     THEN    the copied network should have the same generators, loads
-    and
-    timestamps.
+    and timestamps.
     """
-    snapshot = ac_dc_network.snapshots[2]
-    copied_network = ac_dc_network.copy()
-
-    loads = ac_dc_network.loads.index.tolist()
-    generators = ac_dc_network.generators.index.tolist()
-    copied_loads = copied_network.loads.index.tolist()
-    copied_generators = copied_network.generators.index.tolist()
-
-    assert loads == copied_loads
-    assert generators == copied_generators
-    assert not copied_network.snapshots.empty
-    assert snapshot in copied_network.snapshots
+    for network in all_networks:
+        network_copy = network.copy()
+        assert network == network_copy
+        assert network is not network_copy
 
 
-def test_copy_deep_copy_behavior(ac_dc_network):
-    """
-    GIVEN   the AC DC exemplary pypsa network.
-
-    WHEN    copying the network and changing a component
-
-    THEN    the original network should have not changed.
-    """
-    copied_network = ac_dc_network.copy()
-
-    copied_network.loads.rename(index={"London": "Berlin"}, inplace=True)
-
-    assert ac_dc_network.loads.index[0] != copied_network.loads.index[0]
-
-
-def test_copy_no_snapshot(ac_dc_network):
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
+)
+def test_copy_snapshots(all_networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -236,8 +241,61 @@ def test_copy_no_snapshot(ac_dc_network):
 
     THEN    the copied network should only have the current time index.
     """
-    snapshot = ac_dc_network.snapshots[2]
-    copied_network = ac_dc_network.copy(with_time=False, snapshots=snapshot)
+    for network in all_networks:
+        copied_network = network.copy(snapshots=[])
+        assert copied_network.snapshots.size == 1
 
-    assert copied_network.snapshots.size == 1
-    assert snapshot not in copied_network.snapshots
+        copied_network = network.copy(snapshots=network.snapshots[:5])
+        network.set_snapshots(network.snapshots[:5])
+        assert copied_network == network
+
+
+def test_add_network_static(ac_dc_network, empty_network_5_buses):
+    """
+    GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
+    buses.
+
+    WHEN    the second network is added to the first
+
+    THEN    the first network should now contain its original buses and
+    also the buses in the second network
+    """
+
+    n = ac_dc_network.merge(empty_network_5_buses, with_time=False)
+    new_buses = set(n.buses.index)
+    assert new_buses.issuperset(empty_network_5_buses.buses.index)
+
+
+def test_add_network_with_time(ac_dc_network, empty_network_5_buses):
+    """
+    GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
+    buses and the same snapshots.
+
+    WHEN    the second network is added to the first
+
+    THEN    the first network should now contain its original buses and
+    also the buses in the second network
+    """
+    with pytest.raises(ValueError):
+        ac_dc_network.merge(empty_network_5_buses, with_time=True)
+
+    empty_network_5_buses.set_snapshots(ac_dc_network.snapshots)
+    n = ac_dc_network.merge(empty_network_5_buses, with_time=True)
+    new_buses = set(n.buses.index)
+    assert new_buses.issuperset(empty_network_5_buses.buses.index)
+
+
+def test_shape_reprojection(ac_dc_network_shapes):
+    n = ac_dc_network_shapes
+
+    with pytest.warns(UserWarning):
+        area_before = n.shapes.geometry.area.sum()
+    x, y = n.buses.x.values, n.buses.y.values
+
+    n.to_crs("epsg:3035")
+
+    assert n.shapes.crs == "epsg:3035"
+    assert n.crs == "epsg:3035"
+    assert area_before != n.shapes.geometry.area.sum()
+    assert not np.allclose(x, n.buses.x.values)
+    assert not np.allclose(y, n.buses.y.values)

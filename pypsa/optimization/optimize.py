@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Build optimisation problems from PyPSA networks with Linopy.
 """
+
 import logging
 import os
 from functools import wraps
@@ -10,19 +10,23 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 from linopy import Model, merge
+from linopy.solvers import available_solvers
 
-from pypsa.descriptors import additional_linkports
+from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.abstract import (
+    optimize_mga,
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
+    optimize_with_rolling_horizon,
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
+    define_loss_constraints,
+    define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables,
@@ -35,12 +39,15 @@ from pypsa.optimization.constraints import (
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
+    define_operational_limit,
     define_primary_energy_limit,
     define_tech_capacity_expansion_limit,
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.variables import (
+    define_loss_variables,
+    define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
     define_shut_down_variables,
@@ -65,6 +72,7 @@ def define_objective(n, sns):
     """
     m = n.model
     objective = []
+    is_quadratic = False
 
     if n._multi_invest:
         periods = sns.unique("period")
@@ -91,8 +99,8 @@ def define_objective(n, sns):
 
         constant += (cost * n.df(c)[attr][ext_i]).sum()
 
+    n.objective_constant = constant
     if constant != 0:
-        n.objective_constant = constant
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
@@ -113,6 +121,43 @@ def define_objective(n, sns):
             continue
         operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
         objective.append((operation * cost).sum())
+
+    # marginal cost quadratic
+    weighting = n.snapshot_weightings.objective
+    if n._multi_invest:
+        weighting = weighting.mul(period_weighting, level=0).loc[sns]
+    else:
+        weighting = weighting.loc[sns]
+
+    for c, attr in lookup.query("marginal_cost").index:
+        if "marginal_cost_quadratic" in n.df(c):
+            cost = (
+                get_as_dense(n, c, "marginal_cost_quadratic", sns)
+                .loc[:, lambda ds: (ds != 0).any()]
+                .mul(weighting, axis=0)
+            )
+            if cost.empty:
+                continue
+            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            objective.append((operation * operation * cost).sum())
+            is_quadratic = True
+
+    # stand-by cost
+    comps = {"Generator", "Link"}
+    for c in comps:
+        com_i = get_committable_i(n, c)
+
+        if com_i.empty:
+            continue
+
+        stand_by_cost = (
+            get_as_dense(n, c, "stand_by_cost", sns, com_i)
+            .loc[:, lambda ds: (ds != 0).any()]
+            .mul(weighting, axis=0)
+        )
+        stand_by_cost.columns.name = f"{c}-com"
+        status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
+        objective.append((status * stand_by_cost).sum())
 
     # investment
     for c, attr in nominal_attrs.items():
@@ -135,7 +180,7 @@ def define_objective(n, sns):
         objective.append((caps * cost).sum())
 
     # unit commitment
-    keys = ["start_up", "shut_down"]
+    keys = ["start_up", "shut_down"]  # noqa: F841
     for c, attr in lookup.query("variable in @keys").index:
         com_i = n.get_committable_i(c)
         cost = n.df(c)[attr + "_cost"].reindex(com_i)
@@ -162,13 +207,14 @@ def define_objective(n, sns):
             "Please make sure the components have assigned costs."
         )
 
-    m.objective = merge(objective)
+    m.objective = sum(objective) if is_quadratic else merge(objective)
 
 
 def create_model(
     n,
     snapshots=None,
     multi_investment_periods=False,
+    transmission_losses=0,
     linearized_unit_commitment=False,
     **kwargs,
 ):
@@ -186,6 +232,7 @@ def create_model(
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimize in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    transmission_losses : int, default 0
     linearized_unit_commitment : bool, default False
         Whether to optimise using the linearised unit commitment formulation or not.
     **kwargs:
@@ -207,6 +254,7 @@ def create_model(
     # Define variables
     for c, attr in lookup.query("nominal").index:
         define_nominal_variables(n, c, attr)
+        define_modular_variables(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_variables(n, sns, c, attr)
@@ -217,14 +265,23 @@ def create_model(
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")
 
+    if transmission_losses:
+        for c in n.passive_branch_components:
+            define_loss_variables(n, sns, c)
+
     # Define constraints
     for c, attr in lookup.query("nominal").index:
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
+        define_modular_constraints(n, c, attr)
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_operational_constraints_for_non_extendables(n, sns, c, attr)
-        define_operational_constraints_for_extendables(n, sns, c, attr)
+        define_operational_constraints_for_non_extendables(
+            n, sns, c, attr, transmission_losses
+        )
+        define_operational_constraints_for_extendables(
+            n, sns, c, attr, transmission_losses
+        )
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
@@ -234,20 +291,35 @@ def create_model(
     if not meshed_buses.empty and not weakly_meshed_buses.empty:
         # Write constraint for buses many terms and for buses with a few terms
         # separately. This reduces memory usage for large networks.
-        define_nodal_balance_constraints(n, sns, buses=weakly_meshed_buses)
-        define_nodal_balance_constraints(n, sns, buses=meshed_buses, suffix="-meshed")
+        define_nodal_balance_constraints(
+            n, sns, transmission_losses=transmission_losses, buses=weakly_meshed_buses
+        )
+        define_nodal_balance_constraints(
+            n,
+            sns,
+            transmission_losses=transmission_losses,
+            buses=meshed_buses,
+            suffix="-meshed",
+        )
     else:
-        define_nodal_balance_constraints(n, sns)
+        define_nodal_balance_constraints(
+            n, sns, transmission_losses=transmission_losses
+        )
 
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
+
+    if transmission_losses:
+        for c in n.passive_branch_components:
+            define_loss_constraints(n, sns, c, transmission_losses)
 
     # Define global constraints
     define_primary_energy_limit(n, sns)
     define_transmission_expansion_cost_limit(n, sns)
     define_transmission_volume_expansion_limit(n, sns)
     define_tech_capacity_expansion_limit(n, sns)
+    define_operational_limit(n, sns)
     define_nominal_constraints_per_bus_carrier(n, sns)
     define_growth_limit(n, sns)
 
@@ -263,12 +335,16 @@ def assign_solution(n):
     m = n.model
     sns = n.model.parameters.snapshots.to_index()
 
-    for name, sol in m.solution.items():
+    for name, variable in m.variables.items():
+        sol = variable.solution
         if name == "objective_constant":
             continue
 
-        c, attr = name.split("-", 1)
-        df = sol.to_pandas()
+        try:
+            c, attr = name.split("-", 1)
+            df = sol.to_pandas()
+        except ValueError:
+            continue
 
         if "snapshot" in sol.dims:
             if c in n.passive_branch_components and attr == "s":
@@ -284,12 +360,13 @@ def assign_solution(n):
                     set_from_frame(n, c, f"p{i}", -df * eff)
                     n.pnl(c)[f"p{i}"].loc[
                         sns, n.links.index[n.links[f"bus{i}"] == ""]
-                    ] = n.component_attrs["Link"].loc[f"p{i}", "default"]
+                    ] = float(n.components["Link"]["attrs"].loc[f"p{i}", "default"])
 
             else:
                 set_from_frame(n, c, attr, df)
-        else:
-            n.df(c)[attr + "_opt"].update(df)
+        elif attr != "n_mod":
+            idx = df.index.intersection(n.df(c).index)
+            n.df(c).loc[idx, attr + "_opt"] = df.loc[idx]
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
@@ -302,43 +379,55 @@ def assign_solution(n):
         c = "StorageUnit"
         n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
 
-    n.objective = m.objective_value
+    n.objective = m.objective.value
 
 
-def assign_duals(n):
+def assign_duals(n, assign_all_duals=False):
     """
     Map dual values i.e. shadow prices to network components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    assign_all_duals : bool, default False
+        Whether to assign all dual values or only those that already
+        have a designated place in the network.
     """
     m = n.model
     unassigned = []
+    if all("dual" not in constraint for _, constraint in m.constraints.items()):
+        logger.info("No shadow prices were assigned to the network.")
+        return
 
-    for name, dual in m.dual.items():
+    for name, constraint in m.constraints.items():
+        dual = constraint.dual
         try:
             c, attr = name.split("-", 1)
         except ValueError:
+            unassigned.append(name)
             continue
 
         if "snapshot" in dual.dims:
             try:
                 df = dual.transpose("snapshot", ...).to_pandas()
-                spec = attr.rsplit("-", 1)[-1]
-                assign = [
-                    "upper",
-                    "lower",
-                    "ramp_limit_up",
-                    "ramp_limit_down",
-                    "p_set",
-                    "e_set",
-                    "s_set",
-                    "state_of_charge_set",
-                ]
 
-                if spec in assign:
-                    set_from_frame(n, c, "mu_" + spec, df)
-                elif attr.endswith("nodal_balance"):
+                try:
+                    spec = attr.rsplit("-", 1)[-1]
+                except ValueError:
+                    spec = attr
+
+                if attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
-            except:
+                elif assign_all_duals or f"mu_{spec}" in n.df(c):
+                    set_from_frame(n, c, "mu_" + spec, df)
+                else:
+                    unassigned.append(name)
+
+            except:  # noqa: E722 # TODO: specify exception
                 unassigned.append(name)
+
+        elif (c == "GlobalConstraint") and (assign_all_duals or attr in n.df(c).index):
+            n.df(c).loc[attr, "mu"] = dual
 
     if unassigned:
         logger.info(
@@ -349,7 +438,7 @@ def assign_duals(n):
 
 def post_processing(n):
     """
-    Post-process the optimzed network.
+    Post-process the optimized network.
 
     This calculates quantities derived from the optimized values such as
     power injection per bus and snapshot, voltage angle.
@@ -372,6 +461,12 @@ def post_processing(n):
     # load
     if len(n.loads):
         set_from_frame(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
+
+    # line losses
+    if "Line-loss" in n.model.variables:
+        losses = n.model["Line-loss"].solution.to_pandas()
+        n.lines_t.p0 += losses / 2
+        n.lines_t.p1 += losses / 2
 
     # recalculate injection
     ca = [
@@ -396,9 +491,9 @@ def post_processing(n):
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
-        .reindex(columns=n.buses.index, fill_value=0)
+        .T.reindex(columns=n.buses.index, fill_value=0.0)
     )
 
     def v_ang_for_(sub):
@@ -416,18 +511,21 @@ def post_processing(n):
     if "obj" in n.sub_networks:
         n.buses_t.v_ang = pd.concat(
             [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-        ).reindex(columns=n.buses.index, fill_value=0)
+        ).reindex(columns=n.buses.index, fill_value=0.0)
 
 
 def optimize(
     n,
     snapshots=None,
     multi_investment_periods=False,
+    transmission_losses=0,
     linearized_unit_commitment=False,
     model_kwargs={},
     extra_functionality=None,
-    solver_name="glpk",
+    assign_all_duals=False,
+    solver_name="highs",
     solver_options={},
+    compute_infeasibilities=False,
     **kwargs,
 ):
     """
@@ -442,6 +540,11 @@ def optimize(
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimise in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+    transmission_losses : int, default 0
+        Whether an approximation of transmission losses should be included
+        in the linearised power flow formulation. A passed number will denote
+        the number of tangents used for the piecewise linear approximation.
+        Defaults to 0, which ignores losses.
     linearized_unit_commitment : bool, default False
         Whether to optimise using the linearised unit commitment formulation or not.
     model_kwargs: dict
@@ -452,17 +555,29 @@ def optimize(
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
+    assign_all_duals : bool, default False
+        Whether to assign all dual values or only those that already
+        have a designated place in the network.
     solver_name : str
         Name of the solver to use.
     solver_options : dict
-        Keyword arguments used by the solver. Can also be passed via **kwargs.
+        Keyword arguments used by the solver. Can also be passed via `**kwargs`.
+    compute_infeasibilities : bool, default False
+        Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
+        of an infeasible solution. Requires Gurobi.
     **kwargs:
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
         `problem_fn` or solver options directly passed to the solver.
 
     Returns
     -------
-    None.
+    status : str
+        The status of the optimization, either "ok" or one of the codes listed
+        in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+    condition : str
+        The termination condition of the optimization, either
+        "optimal" or one of the codes listed in
+        https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
 
     sns = _as_snapshots(n, snapshots)
@@ -471,7 +586,12 @@ def optimize(
 
     n.consistency_check()
     m = create_model(
-        n, sns, multi_investment_periods, linearized_unit_commitment, **model_kwargs
+        n,
+        sns,
+        multi_investment_periods,
+        transmission_losses,
+        linearized_unit_commitment,
+        **model_kwargs,
     )
     if extra_functionality:
         extra_functionality(n, sns)
@@ -479,8 +599,15 @@ def optimize(
 
     if status == "ok":
         assign_solution(n)
-        assign_duals(n)
+        assign_duals(n, assign_all_duals)
         post_processing(n)
+
+    if (
+        condition == "infeasible"
+        and compute_infeasibilities
+        and "gurobi" in available_solvers
+    ):
+        n.model.print_infeasibilities()
 
     return status, condition
 
@@ -501,7 +628,14 @@ class OptimizationAccessor:
     def create_model(self, *args, **kwargs):
         return create_model(self._parent, *args, **kwargs)
 
-    def solve_model(self, solver_name="glpk", solver_options={}, **kwargs):
+    def solve_model(
+        self,
+        extra_functionality=None,
+        solver_name="highs",
+        solver_options={},
+        assign_all_duals=False,
+        **kwargs,
+    ):
         """
         Solve an already created model and assign its solution to the network.
 
@@ -510,18 +644,34 @@ class OptimizationAccessor:
         solver_name : str
             Name of the solver to use.
         solver_options : dict
-            Keyword arguments used by the solver. Can also be passed via **kwargs.
+            Keyword arguments used by the solver. Can also be passed via `**kwargs`.
+        assign_all_duals : bool, default False
+            Whether to assign all dual values or only those that already
+            have a designated place in the network.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
+
+        Returns
+        -------
+        status : str
+            The status of the optimization, either "ok" or one of the
+            codes listed in
+            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+        condition : str
+            The termination condition of the optimization, either
+            "optimal" or one of the codes listed in
+            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
         """
         n = self._parent
+        if extra_functionality:
+            extra_functionality(n, n.snapshots)
         m = n.model
         status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 
         if status == "ok":
             assign_solution(n)
-            assign_duals(n)
+            assign_duals(n, assign_all_duals)
             post_processing(n)
 
         return status, condition
@@ -540,11 +690,21 @@ class OptimizationAccessor:
 
     @wraps(optimize_transmission_expansion_iteratively)
     def optimize_transmission_expansion_iteratively(self, *args, **kwargs):
-        optimize_transmission_expansion_iteratively(self._parent, *args, **kwargs)
+        return optimize_transmission_expansion_iteratively(
+            self._parent, *args, **kwargs
+        )
 
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args, **kwargs):
-        optimize_security_constrained(self._parent, *args, **kwargs)
+        return optimize_security_constrained(self._parent, *args, **kwargs)
+
+    @wraps(optimize_with_rolling_horizon)
+    def optimize_with_rolling_horizon(self, *args, **kwargs):
+        return optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+
+    @wraps(optimize_mga)
+    def optimize_mga(self, *args, **kwargs):
+        return optimize_mga(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self):
         """

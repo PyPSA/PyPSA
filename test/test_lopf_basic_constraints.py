@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Tue Feb  1 15:20:12 2022.
 
 @author: fabian
 """
+
 import pandas as pd
 import pytest
-from conftest import SUPPORTED_APIS, optimize
 
 import pypsa
-from pypsa.descriptors import expand_series
+from pypsa.descriptors import expand_series, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import nominal_attrs
 
 TOLERANCE = 1e-2
 
@@ -36,8 +34,6 @@ def describe_storage_unit_contraints(n):
     c = "StorageUnit"
     pnl = n.pnl(c)
 
-    description = {}
-
     eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
     stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
     dispatch_eff = get_as_dense(n, c, "efficiency_dispatch", sns)
@@ -45,10 +41,11 @@ def describe_storage_unit_contraints(n):
     inflow = get_as_dense(n, c, "inflow") * eh
     spill = eh[pnl.spill.columns] * pnl.spill
 
-    description["Spillage Limit"] = pd.Series(
-        {"min": (inflow[spill.columns] - spill).min().min()}
-    )
-
+    description = {
+        "Spillage Limit": pd.Series(
+            {"min": (inflow[spill.columns] - spill).min().min()}
+        )
+    }
     if "p_store" in pnl:
         soc = pnl.state_of_charge
 
@@ -84,8 +81,9 @@ def describe_nodal_balance_constraint(n):
             ],
             axis=1,
         )
-        .groupby(level=0, axis=1)
+        .T.groupby(level=0)
         .sum()
+        .T
     )
     return (
         (n.buses_t.p - network_injection)
@@ -184,7 +182,7 @@ def describe_cycle_constraints(n):
 
     return (
         pd.concat([cycle_flow(sub) for sub in n.sub_networks.obj], axis=0)
-        .unstack()
+        .stack()
         .describe()
         .to_frame("Cycle Constr.")
     )
@@ -203,16 +201,15 @@ funcs = (
 
 
 @pytest.fixture
-def solved_network(ac_dc_network, api):
+def solved_network(ac_dc_network):
     n = ac_dc_network
-    optimize(n, api)
+    n.optimize()
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     return n
 
 
 @pytest.mark.parametrize("func", *funcs)
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_tolerance(solved_network, api, func):
+def test_tolerance(solved_network, func):
     n = solved_network
     description = func(n).fillna(0)
     for col in description:

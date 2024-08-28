@@ -1,21 +1,8 @@
-# -*- coding: utf-8 -*-
-
 """
 Power flow functionality.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
-
-logger = logging.getLogger(__name__)
-
 import time
 from operator import itemgetter
 
@@ -25,17 +12,22 @@ import pandas as pd
 from numpy import ones, r_
 from numpy.linalg import norm
 from pandas.api.types import is_list_like
-from scipy.sparse import csc_matrix, csr_matrix, dok_matrix
+from scipy.sparse import csc_matrix, csr_matrix, dok_matrix, issparse
 from scipy.sparse import hstack as shstack
-from scipy.sparse import issparse
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
-from pypsa.descriptors import Dict, allocate_series_dataframes, degree
+from pypsa.descriptors import (
+    Dict,
+    additional_linkports,
+    allocate_series_dataframes,
+    update_linkports_component_attrs,
+    zsum,
+)
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.descriptors import zsum
 
 pd.Series.zsum = zsum
+logger = logging.getLogger(__name__)
 
 
 def normed(s):
@@ -98,34 +90,28 @@ def _calculate_controllable_nodal_power_balance(
 
         # set the power injection at each node from controllable components
         network.buses_t[n].loc[snapshots, buses_o] = sum(
-            [
-                (
-                    (c.pnl[n].loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
-                    .groupby(c.df.loc[c.ind, "bus"], axis=1)
-                    .sum()
-                    .reindex(columns=buses_o, fill_value=0.0)
-                )
-                for c in sub_network.iterate_components(
-                    network.controllable_one_port_components
-                )
-            ]
+            (
+                (c.pnl[n].loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
+                .T.groupby(c.df.loc[c.ind, "bus"])
+                .sum()
+                .T.reindex(columns=buses_o, fill_value=0.0)
+            )
+            for c in sub_network.iterate_components(
+                network.controllable_one_port_components
+            )
         )
 
         if n == "p":
             network.buses_t[n].loc[snapshots, buses_o] += sum(
-                [
-                    (
-                        -c.pnl[n + str(i)]
-                        .loc[snapshots]
-                        .groupby(c.df["bus" + str(i)], axis=1)
-                        .sum()
-                        .reindex(columns=buses_o, fill_value=0)
-                    )
-                    for c in network.iterate_components(
-                        network.controllable_branch_components
-                    )
-                    for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
-                ]
+                -c.pnl[n + str(i)]
+                .loc[snapshots]
+                .T.groupby(c.df[f"bus{str(i)}"])
+                .sum()
+                .T.reindex(columns=buses_o, fill_value=0)
+                for c in network.iterate_components(
+                    network.controllable_branch_components
+                )
+                for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
             )
 
 
@@ -136,7 +122,7 @@ def _network_prepare_and_run_pf(
     linear=False,
     distribute_slack=False,
     slack_weights="p_set",
-    **kwargs
+    **kwargs,
 ):
     if linear:
         sub_network_pf_fun = sub_network_lpf
@@ -156,15 +142,11 @@ def _network_prepare_and_run_pf(
     if not network.links.empty:
         p_set = get_as_dense(network, "Link", "p_set", snapshots)
         network.links_t.p0.loc[snapshots] = p_set.loc[snapshots]
-        for i in [
-            int(col[3:])
-            for col in network.links.columns
-            if col[:3] == "bus" and col != "bus0"
-        ]:
-            eff_name = "efficiency" if i == 1 else "efficiency{}".format(i)
+        for i in ["1"] + additional_linkports(network):
+            eff_name = "efficiency" if i == "1" else f"efficiency{i}"
             efficiency = get_as_dense(network, "Link", eff_name, snapshots)
-            links = network.links.index[network.links["bus{}".format(i)] != ""]
-            network.links_t["p{}".format(i)].loc[snapshots, links] = (
+            links = network.links.index[network.links[f"bus{i}"] != ""]
+            network.links_t[f"p{i}"].loc[snapshots, links] = (
                 -network.links_t.p0.loc[snapshots, links]
                 * efficiency.loc[snapshots, links]
             )
@@ -190,38 +172,36 @@ def _network_prepare_and_run_pf(
         if isinstance(sn_slack_weights, dict):
             sn_slack_weights = pd.Series(sn_slack_weights)
 
-        if not linear:
-            # escape for single-bus sub-network
-            if len(sub_network.buses()) <= 1:
-                (
-                    itdf[sub_network.name],
-                    difdf[sub_network.name],
-                    cnvdf[sub_network.name],
-                ) = sub_network_pf_singlebus(
-                    sub_network,
-                    snapshots=snapshots,
-                    skip_pre=True,
-                    distribute_slack=distribute_slack,
-                    slack_weights=sn_slack_weights,
-                )
-            else:
-                (
-                    itdf[sub_network.name],
-                    difdf[sub_network.name],
-                    cnvdf[sub_network.name],
-                ) = sub_network_pf_fun(
-                    sub_network,
-                    snapshots=snapshots,
-                    skip_pre=True,
-                    distribute_slack=distribute_slack,
-                    slack_weights=sn_slack_weights,
-                    **kwargs
-                )
-        else:
+        if linear:
             sub_network_pf_fun(
                 sub_network, snapshots=snapshots, skip_pre=True, **kwargs
             )
 
+        elif len(sub_network.buses()) <= 1:
+            (
+                itdf[sub_network.name],
+                difdf[sub_network.name],
+                cnvdf[sub_network.name],
+            ) = sub_network_pf_singlebus(
+                sub_network,
+                snapshots=snapshots,
+                skip_pre=True,
+                distribute_slack=distribute_slack,
+                slack_weights=sn_slack_weights,
+            )
+        else:
+            (
+                itdf[sub_network.name],
+                difdf[sub_network.name],
+                cnvdf[sub_network.name],
+            ) = sub_network_pf_fun(
+                sub_network,
+                snapshots=snapshots,
+                skip_pre=True,
+                distribute_slack=distribute_slack,
+                slack_weights=sn_slack_weights,
+                **kwargs,
+            )
     if not linear:
         return Dict({"n_iter": itdf, "error": difdf, "converged": cnvdf})
 
@@ -294,17 +274,18 @@ def newton_raphson_sparse(
     distribute_slack=False,
     slack_weights=None,
 ):
-    """Solve f(x) = 0 with initial guess for x and dfdx(x). dfdx(x) should
-    return a sparse Jacobian.  Terminate if error on norm of f(x) is <
-    x_tol or there were more than lim_iter iterations.
+    """
+    Solve f(x) = 0 with initial guess for x and dfdx(x).
 
+    dfdx(x) should return a sparse Jacobian.  Terminate if error on norm
+    of f(x) is < x_tol or there were more than lim_iter iterations.
     """
 
     slack_args = {"distribute_slack": distribute_slack, "slack_weights": slack_weights}
     converged = False
     n_iter = 0
     F = f(guess, **slack_args)
-    diff = norm(F, np.Inf)
+    diff = norm(F, np.inf)
 
     logger.debug("Error at iteration %d: %f", n_iter, diff)
 
@@ -314,7 +295,7 @@ def newton_raphson_sparse(
         guess = guess - spsolve(dfdx(guess, **slack_args), F)
 
         F = f(guess, **slack_args)
-        diff = norm(F, np.Inf)
+        diff = norm(F, np.inf)
 
         logger.debug("Error at iteration %d: %f", n_iter, diff)
 
@@ -363,9 +344,7 @@ def sub_network_pf_singlebus(
     snapshots = _as_snapshots(sub_network.network, snapshots)
     network = sub_network.network
     logger.info(
-        "Balancing power on single-bus sub-network {} for snapshots {}".format(
-            sub_network, snapshots
-        )
+        f"Balancing power on single-bus sub-network {sub_network} for snapshots {snapshots}"
     )
 
     if not skip_pre:
@@ -390,11 +369,9 @@ def sub_network_pf_singlebus(
     if distribute_slack:
         for bus, group in sub_network.generators().groupby("bus"):
             if slack_weights in ["p_nom", "p_nom_opt"]:
-                assert (
-                    not all(network.generators[slack_weights]) == 0
-                ), "Invalid slack weights! Generator attribute {} is always zero.".format(
-                    slack_weights
-                )
+                if all(network.generators[slack_weights] == 0):
+                    msg = f"Invalid slack weights! Generator attribute {slack_weights} is always zero."
+                    raise ValueError(msg)
                 bus_generator_shares = (
                     network.generators[slack_weights]
                     .loc[group.index]
@@ -405,16 +382,19 @@ def sub_network_pf_singlebus(
                 generators_t_p_choice = get_as_dense(
                     network, "Generator", slack_weights, snapshots
                 )
-                assert (
-                    not generators_t_p_choice.isna().all().all()
-                ), "Invalid slack weights! Generator attribute {} is always NaN.".format(
-                    slack_weights
-                )
-                assert (
-                    not (generators_t_p_choice == 0).all().all()
-                ), "Invalid slack weights! Generator attribute {} is always zero.".format(
-                    slack_weights
-                )
+                if generators_t_p_choice.isna().all().all():
+                    msg = (
+                        f"Invalid slack weights! Generator attribute {slack_weights}"
+                        f" is always NaN."
+                    )
+                    raise ValueError(msg)
+                if (generators_t_p_choice == 0).all().all():
+                    msg = (
+                        f"Invalid slack weights! Generator attribute {slack_weights}"
+                        f" is always zero."
+                    )
+                    raise ValueError(msg)
+
                 bus_generator_shares = (
                     generators_t_p_choice.loc[snapshots, group.index]
                     .apply(normed, axis=1)
@@ -422,19 +402,19 @@ def sub_network_pf_singlebus(
                 )
             else:
                 bus_generator_shares = slack_weights.pipe(normed).fillna(0)
-            network.generators_t.p.loc[
-                snapshots, group.index
-            ] += bus_generator_shares.multiply(
-                -network.buses_t.p.loc[snapshots, bus], axis=0
-            )
+            network.generators_t.p.loc[snapshots, group.index] += (
+                bus_generator_shares.multiply(
+                    -network.buses_t.p.loc[snapshots, bus], axis=0
+                )
+            )  # fmt: skip
     else:
-        network.generators_t.p.loc[
-            snapshots, sub_network.slack_generator
-        ] -= network.buses_t.p.loc[snapshots, sub_network.slack_bus]
+        network.generators_t.p.loc[snapshots, sub_network.slack_generator] -= (
+            network.buses_t.p.loc[snapshots, sub_network.slack_bus]
+        )  # fmt: skip
 
-    network.generators_t.q.loc[
-        snapshots, sub_network.slack_generator
-    ] -= network.buses_t.q.loc[snapshots, sub_network.slack_bus]
+    network.generators_t.q.loc[snapshots, sub_network.slack_generator] -= (
+        network.buses_t.q.loc[snapshots, sub_network.slack_bus]
+    )  # fmt: skip
 
     network.buses_t.p.loc[snapshots, sub_network.slack_bus] = 0.0
     network.buses_t.q.loc[snapshots, sub_network.slack_bus] = 0.0
@@ -484,21 +464,23 @@ def sub_network_pf(
     remaining error, and convergence status for each snapshot
     """
 
-    assert isinstance(
-        slack_weights, (str, pd.Series, dict)
-    ), "Type of 'slack_weights' must be string, pd.Series or dict. Is {}.".format(
-        type(slack_weights)
-    )
+    if not isinstance(slack_weights, (str, pd.Series, dict)):
+        msg = (
+            f"Type of 'slack_weights' must be string, pd.Series or dict. Got "
+            f"{type(slack_weights)}."
+        )
+        raise TypeError(msg)
 
     if isinstance(slack_weights, dict):
         slack_weights = pd.Series(slack_weights)
     elif isinstance(slack_weights, str):
         valid_strings = ["p_nom", "p_nom_opt", "p_set"]
-        assert (
-            slack_weights in valid_strings
-        ), "String value for 'slack_weights' must be one of {}. Is {}.".format(
-            valid_strings, slack_weights
-        )
+        if slack_weights not in valid_strings:
+            msg = (
+                f"String value for 'slack_weights' must be one of {valid_strings}. "
+                f"Is {slack_weights}."
+            )
+            raise ValueError(msg)
 
     snapshots = _as_snapshots(sub_network.network, snapshots)
     logger.info(
@@ -531,7 +513,7 @@ def sub_network_pf(
         elif all(i in sn_buses for i in slack_weights.index):
             bus_slack_weights_b = True
         else:
-            raise AssertionError(
+            raise ValueError(
                 "Custom slack weights pd.Series/dict must only have the",
                 "generators or buses of the subnetwork as index/keys.",
             )
@@ -643,7 +625,7 @@ def sub_network_pf(
             )
             slack_weights_calc = (
                 pd.DataFrame(
-                    bus_generation.groupby(bus_generation.columns, axis=1).sum(),
+                    bus_generation.T.groupby(bus_generation.columns).sum().T,
                     columns=buses_o,
                 )
                 .apply(normed, axis=1)
@@ -651,11 +633,13 @@ def sub_network_pf(
             )
 
         elif isinstance(slack_weights, str) and slack_weights in ["p_nom", "p_nom_opt"]:
-            assert (
-                not all(network.generators[slack_weights]) == 0
-            ), "Invalid slack weights! Generator attribute {} is always zero.".format(
-                slack_weights
-            )
+            if all(network.generators[slack_weights] == 0):
+                msg = (
+                    f"Invalid slack weights! Generator attribute {slack_weights} is "
+                    f"always zero."
+                )
+                raise ValueError(msg)
+
             slack_weights_calc = (
                 network.generators.groupby("bus")[slack_weights]
                 .sum()
@@ -726,7 +710,6 @@ def sub_network_pf(
     # now set everything
     if distribute_slack:
         last_pq = -1
-        slack_power = roots[:, -1]
     else:
         last_pq = None
     network.buses_t.v_ang.loc[snapshots, sub_network.pvpqs] = roots[
@@ -816,11 +799,11 @@ def sub_network_pf(
                     .apply(normed, axis=1)
                     .fillna(0)
                 )
-                network.generators_t.p.loc[
-                    snapshots, group.index
-                ] += bus_generator_shares.multiply(
-                    distributed_slack_power.loc[snapshots, bus], axis=0
-                )
+                network.generators_t.p.loc[snapshots, group.index] += (
+                    bus_generator_shares.multiply(
+                        distributed_slack_power.loc[snapshots, bus], axis=0
+                    )
+                )  # fmt: skip
             else:
                 if generator_slack_weights_b:
                     bus_generator_shares = (
@@ -832,11 +815,11 @@ def sub_network_pf(
                     if all(bus_generators_p_nom) == 0:
                         bus_generators_p_nom = 1
                     bus_generator_shares = bus_generators_p_nom.pipe(normed).fillna(0)
-                network.generators_t.p.loc[
-                    snapshots, group.index
-                ] += distributed_slack_power.loc[snapshots, bus].apply(
-                    lambda row: row * bus_generator_shares
-                )
+                network.generators_t.p.loc[snapshots, group.index] += (
+                    distributed_slack_power.loc[
+                        snapshots, bus
+                    ].apply(lambda row: row * bus_generator_shares)
+                )  # fmt: skip
     else:
         network.generators_t.p.loc[snapshots, sub_network.slack_generator] += (
             network.buses_t.p.loc[snapshots, sub_network.slack_bus]
@@ -848,6 +831,7 @@ def sub_network_pf(
         network.buses_t.q.loc[snapshots, sub_network.slack_bus]
         - ss[:, slack_index].imag
     )
+
     network.generators_t.q.loc[
         snapshots, network.buses.loc[sub_network.pvs, "generator"]
     ] += np.asarray(
@@ -889,32 +873,35 @@ def apply_line_types(network):
     missing_types = pd.Index(
         network.lines.loc[lines_with_types_b, "type"].unique()
     ).difference(network.line_types.index)
-    assert (
-        missing_types.empty
-    ), "The type(s) {} do(es) not exist in network.line_types".format(
-        ", ".join(missing_types)
-    )
+    if not missing_types.empty:
+        msg = (
+            f'The type(s) {", ".join(missing_types)} do(es) not exist in '
+            f"network.line_types"
+        )
+        raise ValueError(msg)
 
     # Get a copy of the lines data
-    l = network.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
-        network.line_types, on="type"
-    )
+    lines = network.lines.loc[
+        lines_with_types_b, ["type", "length", "num_parallel"]
+    ].join(network.line_types, on="type")
 
     for attr in ["r", "x"]:
-        l[attr] = l[attr + "_per_length"] * l["length"] / l["num_parallel"]
-    l["b"] = (
+        lines[attr] = (
+            lines[attr + "_per_length"] * lines["length"] / lines["num_parallel"]
+        )
+    lines["b"] = (
         2
         * np.pi
         * 1e-9
-        * l["f_nom"]
-        * l["c_per_length"]
-        * l["length"]
-        * l["num_parallel"]
+        * lines["f_nom"]
+        * lines["c_per_length"]
+        * lines["length"]
+        * lines["num_parallel"]
     )
 
     # now set calculated values on live lines
     for attr in ["r", "x", "b"]:
-        network.lines.loc[lines_with_types_b, attr] = l[attr]
+        network.lines.loc[lines_with_types_b, attr] = lines[attr]
 
 
 def apply_transformer_types(network):
@@ -928,11 +915,12 @@ def apply_transformer_types(network):
     missing_types = pd.Index(
         network.transformers.loc[trafos_with_types_b, "type"].unique()
     ).difference(network.transformer_types.index)
-    assert (
-        missing_types.empty
-    ), "The type(s) {} do(es) not exist in network.transformer_types".format(
-        ", ".join(missing_types)
-    )
+    if not missing_types.empty:
+        msg = (
+            f'The type(s) {", ".join(missing_types)} do(es) not exist in '
+            f"network.transformer_types"
+        )
+        raise ValueError(msg)
 
     # Get a copy of the transformers data
     # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
@@ -1047,9 +1035,11 @@ def calculate_dependent_values(network):
         network.buses.carrier
     )
 
-    network.stores.loc[
-        network.stores.carrier == "", "carrier"
-    ] = network.stores.bus.map(network.buses.carrier)
+    network.stores.loc[network.stores.carrier == "", "carrier"] = (
+        network.stores.bus.map(network.buses.carrier)
+    )
+
+    update_linkports_component_attrs(network)
 
 
 def find_slack_bus(sub_network):
@@ -1072,9 +1062,7 @@ def find_slack_bus(sub_network):
                 sub_network.slack_generator, "control"
             ] = "Slack"
             logger.debug(
-                "No slack generator found in sub-network {}, using {} as the slack generator".format(
-                    sub_network.name, sub_network.slack_generator
-                )
+                f"No slack generator found in sub-network {sub_network.name}, using {sub_network.slack_generator} as the slack generator"
             )
 
         elif len(slacks) == 1:
@@ -1083,22 +1071,18 @@ def find_slack_bus(sub_network):
             sub_network.slack_generator = slacks[0]
             sub_network.network.generators.loc[slacks[1:], "control"] = "PV"
             logger.debug(
-                "More than one slack generator found in sub-network {}, using {} as the slack generator".format(
-                    sub_network.name, sub_network.slack_generator
-                )
+                f"More than one slack generator found in sub-network {sub_network.name}, using {sub_network.slack_generator} as the slack generator"
             )
 
         sub_network.slack_bus = gens.bus[sub_network.slack_generator]
 
     # also put it into the dataframe
-    sub_network.network.sub_networks.at[
-        sub_network.name, "slack_bus"
-    ] = sub_network.slack_bus
+    sub_network.network.sub_networks.at[sub_network.name, "slack_bus"] = (
+        sub_network.slack_bus
+    )
 
     logger.debug(
-        "Slack bus for sub-network {} is {}".format(
-            sub_network.name, sub_network.slack_bus
-        )
+        f"Slack bus for sub-network {sub_network.name} is {sub_network.slack_bus}"
     )
 
 
@@ -1181,9 +1165,11 @@ def calculate_B_H(sub_network, skip_pre=False):
 
     phase_shift = np.concatenate(
         [
-            (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
-            if c.name == "Transformer"
-            else np.zeros((len(c.ind),))
+            (
+                (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
+                if c.name == "Transformer"
+                else np.zeros((len(c.ind),))
+            )
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
@@ -1213,9 +1199,9 @@ def calculate_PTDF(sub_network, skip_pre=False):
     n_pvpq = len(sub_network.pvpqs)
     index = np.r_[:n_pvpq]
 
-    I = csc_matrix((np.ones(n_pvpq), (index, index)))
+    identity = csc_matrix((np.ones(n_pvpq), (index, index)))
 
-    B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), I)
+    B_inverse = spsolve(csc_matrix(sub_network.B[1:, 1:]), identity)
 
     # exception for two-node networks, where B_inverse is a 1d array
     if issparse(B_inverse):
@@ -1335,16 +1321,12 @@ def aggregate_multi_graph(sub_network):
             continue
         line_objs = list(graph.adj[u][v].keys())
         if len(line_objs) > 1:
-            lines = network.lines.loc[[l[1] for l in line_objs]]
-            aggregated = {}
-
+            lines = network.lines.loc[[line[1] for line in line_objs]]
             attr_inv = ["x", "r"]
             attr_sum = ["s_nom", "b", "g", "s_nom_max", "s_nom_min"]
             attr_mean = ["capital_cost", "length", "terrain_factor"]
 
-            for attr in attr_inv:
-                aggregated[attr] = 1.0 / (1.0 / lines[attr]).sum()
-
+            aggregated = {attr: 1.0 / (1.0 / lines[attr]).sum() for attr in attr_inv}
             for attr in attr_sum:
                 aggregated[attr] = lines[attr].sum()
 
@@ -1385,7 +1367,7 @@ def find_tree(sub_network, weight="x_pu"):
     sub_network.tree = nx.minimum_spanning_tree(graph)
 
     # find bus with highest degree to use as slack
-    tree_slack_bus, slack_degree = max(degree(sub_network.tree), key=itemgetter(1))
+    tree_slack_bus, slack_degree = max(sub_network.tree.degree(), key=itemgetter(1))
     logger.debug("Tree slack bus is %s with degree %d.", tree_slack_bus, slack_degree)
 
     # determine which buses are supplied in tree through branch from slack
@@ -1407,10 +1389,8 @@ def find_cycles(sub_network, weight="x_pu"):
     Find all cycles in the sub_network and record them in sub_network.C.
 
     networkx collects the cycles with more than 2 edges; then the 2-edge
-    cycles
-    from the MultiGraph must be collected separately (for cases where
-    there
-    are multiple lines between the same pairs of buses).
+    cycles from the MultiGraph must be collected separately (for cases
+    where there are multiple lines between the same pairs of buses).
 
     Cycles with infinite impedance are skipped.
     """
@@ -1492,9 +1472,9 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     # allow all shunt impedances to dispatch as set
     shunt_impedances_i = sub_network.shunt_impedances_i()
-    network.shunt_impedances_t.p.loc[
-        snapshots, shunt_impedances_i
-    ] = network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
+    network.shunt_impedances_t.p.loc[snapshots, shunt_impedances_i] = (
+        network.shunt_impedances.g_pu.loc[shunt_impedances_i].values
+    )
 
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(network.controllable_one_port_components):
@@ -1506,20 +1486,18 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
         [
             (
                 (c.pnl.p.loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
-                .groupby(c.df.loc[c.ind, "bus"], axis=1)
+                .T.groupby(c.df.loc[c.ind, "bus"])
                 .sum()
-                .reindex(columns=buses_o, fill_value=0.0)
+                .T.reindex(columns=buses_o, fill_value=0.0)
             )
             for c in sub_network.iterate_components(network.one_port_components)
         ]
         + [
-            (
-                -c.pnl["p" + str(i)]
-                .loc[snapshots]
-                .groupby(c.df["bus" + str(i)], axis=1)
-                .sum()
-                .reindex(columns=buses_o, fill_value=0)
-            )
+            -c.pnl[f"p{str(i)}"]
+            .loc[snapshots]
+            .T.groupby(c.df[f"bus{str(i)}"])
+            .sum()
+            .T.reindex(columns=buses_o, fill_value=0)
             for c in network.iterate_components(network.controllable_branch_components)
             for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
         ]
@@ -1561,9 +1539,9 @@ def sub_network_lpf(sub_network, snapshots=None, skip_pre=False):
 
     # let slack generator take up the slack
     if sub_network.slack_generator is not None:
-        network.generators_t.p.loc[
-            snapshots, sub_network.slack_generator
-        ] += slack_adjustment
+        network.generators_t.p.loc[snapshots, sub_network.slack_generator] += (
+            slack_adjustment
+        )  # fmt: skip
 
 
 def network_batch_lpf(network, snapshots=None):

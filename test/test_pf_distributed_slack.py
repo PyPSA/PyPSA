@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from numpy.testing import assert_array_almost_equal as equal
 
 
@@ -16,7 +14,7 @@ def test_pf_distributed_slack(scipy_network):
     network.lines.loc[["316", "527", "602"], "s_nom"] = 1715
     network.storage_units.state_of_charge_initial = 0.0
 
-    network.lopf(network.snapshots, solver_name="glpk", formulation="kirchhoff")
+    network.optimize(network.snapshots)
 
     # For the PF, set the P to the optimised P
     network.generators_t.p_set = network.generators_t.p
@@ -28,7 +26,6 @@ def test_pf_distributed_slack(scipy_network):
     # Need some PQ buses so that Jacobian doesn't break
     f = network.generators[network.generators.bus == "492"]
     network.generators.loc[f.index, "control"] = "PQ"
-
     # by dispatch
     network.pf(distribute_slack=True, slack_weights="p_set")
 
@@ -45,7 +42,7 @@ def test_pf_distributed_slack(scipy_network):
     ).apply(normed, axis=1)
 
     for index, row in slack_shares_by_capacity.iterrows():
-        equal(network.generators.p_nom.pipe(normed).fillna(0), row)
+        equal(network.generators.p_nom.pipe(normed).fillna(0.0), row)
 
     # by custom weights (mirror 'capacity' via custom slack weights by bus)
     custom_weights = {}
@@ -57,7 +54,7 @@ def test_pf_distributed_slack(scipy_network):
             .sum()
             .reindex(buses_o)
             .pipe(normed)
-            .fillna(0)
+            .fillna(0.0)
         )
 
     network.pf(distribute_slack=True, slack_weights=custom_weights)
@@ -67,13 +64,10 @@ def test_pf_distributed_slack(scipy_network):
         (network.generators_t.p - network.generators_t.p_set).apply(normed, axis=1),
     )
 
-    # by custom weights (mirror 'capacity' via custom slack weights by generators)
-    custom_weights = {}
-    for sub_network in network.sub_networks.obj:
-        custom_weights[
-            sub_network.name
-        ] = sub_network.generators().p_nom  # weights do not sum up to 1
-
+    custom_weights = {
+        sub_network.name: sub_network.generators().p_nom
+        for sub_network in network.sub_networks.obj
+    }
     network.pf(distribute_slack=True, slack_weights=custom_weights)
 
     equal(

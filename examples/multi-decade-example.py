@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Wed Feb 17 15:25:05 2021.
 
@@ -7,6 +6,7 @@ example script to illustrate new features of the multi-decade investment
 
 @author: Lisa
 """
+
 import numpy as np
 import pandas as pd
 
@@ -108,13 +108,13 @@ def get_investment_weighting(energy_weighting, r=0.01):
     """
     Return cost weightings.
 
-    Weightings depend on the the energy_weighting (pd.Series) and the
+    Weightings depend on the energy_weighting (pd.Series) and the
     social discountrate r.
     """
     end = energy_weighting.cumsum()
     start = energy_weighting.cumsum().shift().fillna(0)
     return pd.concat([start, end], axis=1).apply(
-        lambda x: sum([get_social_discount(t, r) for t in range(int(x[0]), int(x[1]))]),
+        lambda x: sum(get_social_discount(t, r) for t in range(int(x[0]), int(x[1]))),
         axis=1,
     )
 
@@ -131,8 +131,8 @@ freq = "24"
 snapshots = pd.DatetimeIndex([])
 for year in years:
     period = pd.date_range(
-        start="{}-01-01 00:00".format(year),
-        freq="{}H".format(freq),
+        start=f"{year}-01-01 00:00",
+        freq=f"{freq}H",
         periods=8760 / float(freq),
     )
     snapshots = snapshots.append(period)
@@ -159,13 +159,13 @@ print(n.investment_period_weightings)
 
 # add three buses
 for i in range(3):
-    n.add("Bus", "bus {}".format(i))
+    n.add("Bus", f"bus {i}")
 
 
 # There are 2 new attribute for the components ("Line", "Link", "Generator", Storage", ...) <br>
 #     (1) "**build_year**" : time when the asset is build (=first year of operation) <br>
 #     (2) "**lifetime**": time of operation (not used to annualise the capital costs) <br>
-# - If build_year and lifetime is not specified, it is assumed that the asset can operate in all investment_periods. - If only the build_year and no lifetime is specified, it is assumed the the asset can operate from build_year until the end of the optimisation time range
+# - If build_year and lifetime is not specified, it is assumed that the asset can operate in all investment_periods. - If only the build_year and no lifetime is specified, it is assumed the asset can operate from build_year until the end of the optimisation time range
 # - If the lifetime and no build_year is specified, it is assumed that the assets operates from the first timestep until end of lifetime
 # - If the investment periods are a pd.DatetimeIndex a build year before the considered time frame is considered. E.g. n.investment_periods = [2020, 2030, 2040] and lifetime of an asset is 15 year, build year is 2010, than the asset can only operate in 2020.
 
@@ -224,10 +224,12 @@ print(n.buses.sub_network)
 
 n.lines.loc["line 2->0", "build_year"] = 2020
 
+# Create a random number generator
+rng = np.random.default_rng()
 
 # add some generators
 p_nom_max = pd.Series(
-    (np.random.uniform() for sn in range(len(n.snapshots))),
+    (rng.uniform() for _ in range(len(n.snapshots))),
     index=n.snapshots,
     name="generator ext 2020",
 )
@@ -389,12 +391,12 @@ n.add(
 
 # add a Load
 load_var = pd.Series(
-    (100 * np.random.uniform() for sn in range(len(n.snapshots))),
+    (100 * rng.uniform() for _ in range(len(n.snapshots))),
     index=n.snapshots,
     name="load",
 )
 load_fix = pd.Series(
-    [250 for sn in range(len(n.snapshots))], index=n.snapshots, name="load"
+    [250 for _ in range(len(n.snapshots))], index=n.snapshots, name="load"
 )
 
 # add a load at bus 2

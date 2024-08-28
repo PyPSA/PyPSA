@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Define optimisation variables from PyPSA networks with Linopy.
 """
+
 import logging
 
 from pypsa.descriptors import get_activity_mask
@@ -97,6 +97,29 @@ def define_nominal_variables(n, c, attr):
     n.model.add_variables(coords=[ext_i], name=f"{c}-{attr}")
 
 
+def define_modular_variables(n, c, attr):
+    """
+    Initializes variables 'attr' for a given component c to allow a modular
+    expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
+    optimal number of installed modules.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : str
+        network component of which the nominal capacity should be defined
+    attr : str
+        name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
+    """
+    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+    mod_i = mod_i.rename(f"{c}-ext")
+
+    if (mod_i).empty:
+        return
+
+    n.model.add_variables(lower=0, coords=[mod_i], name=f"{c}-n_mod", integer=True)
+
+
 def define_spillage_variables(n, sns):
     """
     Defines the spillage variables for storage units.
@@ -106,8 +129,20 @@ def define_spillage_variables(n, sns):
         return
 
     upper = get_as_dense(n, c, "inflow", sns)
-    if (upper.max() > 0).all():
+    if (upper.max() <= 0).all():
         return
 
     active = get_activity_mask(n, c, sns).where(upper > 0, False)
     n.model.add_variables(0, upper, name="StorageUnit-spill", mask=active)
+
+
+def define_loss_variables(n, sns, c):
+    """
+    Initializes variables for transmission losses.
+    """
+    if n.df(c).empty or c not in n.passive_branch_components:
+        return
+
+    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+    coords = [sns, n.df(c).index.rename(c)]
+    n.model.add_variables(0, coords=coords, name=f"{c}-loss", mask=active)

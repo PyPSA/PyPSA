@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - v*.*.*
+
+jobs:
+  build:
+    # Build the Python SDist and wheel, performs metadata and readme linting
+    name: Build and verify package
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: hynek/build-and-inspect-python-package@v2
+
+  release:
+    # Publish a GitHub release from the given git tag
+    name: Create GitHub Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: softprops/action-gh-release@v2
+      with:
+        body: |
+          Revised release notes are available in the [documentation](https://pypsa.readthedocs.io/en/latest/references/release-notes.html).
+        append_body: true
+        generate_release_notes: true
+
+  publish:
+    # Publish the built SDist and wheel from "dist" job to PyPI
+    name: Publish to PyPI
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/pypsa/
+    permissions:
+      id-token: write
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: Packages
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@release/v1
+
+  update-version:
+    name: Update version in CITATION.cff
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Needed for setuptools_scm
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.9
+    - run: pip install toml setuptools_scm
+    - run: |
+        import re
+        from setuptools_scm import get_version
+
+        # Fetch version number
+        version = get_version()
+
+        # Read CITATION.cff file
+        with open('CITATION.cff', 'r') as file:
+            cff_content = file.read()
+
+        # Update the version in the .cff file
+        updated_cff_content = re.sub(r"(?<=version: ).+(?= #)",version,cff_content,flags=re.MULTILINE)
+
+        # Write the updated content back to the CITATION.cff file
+        with open('CITATION.cff', 'w') as file:
+            file.write(updated_cff_content)
+      shell: python
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v6
+      with:
+        commit-message: '[github-actions.ci] auto update version in `CITATION.cff`'
+        title: 'Auto-update CITATION.cff version'
+        body: 'This PR updates the version in CITATION.cff file.'
+        branch: 'auto-update-citation-cff'
+        base: 'master'

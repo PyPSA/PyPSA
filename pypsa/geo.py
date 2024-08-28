@@ -1,17 +1,6 @@
-# -*- coding: utf-8 -*-
-
-
 """
 Functionality to help with georeferencing and calculate distances/areas.
 """
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
 
 import logging
 
@@ -36,7 +25,7 @@ def haversine_pts(a, b):
     c : N - array of dtype float
         Distance in km
 
-    See also
+    See Also
     --------
     haversine : Matrix of distances between all pairs in a and b
     """
@@ -74,7 +63,7 @@ def haversine(a, b):
     >>> haversine([10.1, 52.6], [[10.8, 52.1], [-34, 56.]])
     array([[   73.15416698,  2836.6707696 ]])
 
-    See also
+    See Also
     --------
     haversine_pts : Determine pointwise crow-fly distance
     """

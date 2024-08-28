@@ -14,3 +14,4 @@ Generator,generators,"Power generator.",controllable_one_port
 StorageUnit,storage_units,"Storage unit with fixed nominal-energy-to-nominal-power ratio.",controllable_one_port
 Store,stores,"Generic store, whose capacity may be optimised.",controllable_one_port
 ShuntImpedance,shunt_impedances,"Shunt y = g + jb.",passive_one_port
+Shape,shapes,"Geographical shapes of the network components.",shape

@@ -1,19 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 This module contains functions for retrieving/loading example networks provided
 by the PyPSA project.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2021-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
+from urllib.error import HTTPError
 from urllib.request import urlretrieve
 
 import pandas as pd
@@ -24,13 +16,36 @@ from pypsa.io import _data_dir
 logger = logging.getLogger(__name__)
 
 
+def _decrement_version(version):
+    x, y, z = map(int, version.split("."))
+    if z > 0:
+        z -= 1
+    elif y > 0:
+        y -= 1
+        z = 25  # TODO: This is a hack right now
+    elif x > 0:
+        x -= 1
+        y = z = 25  # TODO: This is a hack right now
+    return f"{x}.{y}.{z}"
+
+
 def _repo_url(master=False):
     url = "https://github.com/PyPSA/PyPSA/raw/"
     if master:
-        return url + "master/"
-    from pypsa import __version__  # avoid cyclic imports
+        return f"{url}master/"
+    from pypsa import release_version  # avoid cyclic imports
 
-    return url + f"v{__version__}/"
+    # If the release version is not found, use the latest version, since this is
+    # because we are in a dev branch which has not been released yet.
+    version_with_data = release_version
+    while True:
+        try:
+            urlretrieve(f"{url}v{version_with_data}/".replace("raw", "releases/tag"))
+            break
+        except HTTPError:
+            version_with_data = _decrement_version(version_with_data)
+
+    return f"{url}v{version_with_data}/"
 
 
 def _retrieve_if_not_local(name, repofile, update=False, from_master=False):

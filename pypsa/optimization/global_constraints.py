@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Define global constraints for optimisation problems with Linopy.
 """
@@ -50,7 +49,7 @@ def define_tech_capacity_expansion_limit(n, sns):
             dim = f"{c}-ext"
             df = n.df(c)
 
-            if c not in n.one_port_components or "carrier" not in df:
+            if "carrier" not in df:
                 continue
 
             ext_i = (
@@ -64,7 +63,8 @@ def define_tech_capacity_expansion_limit(n, sns):
             if ext_i.empty:
                 continue
 
-            busmap = df.loc[ext_i, "bus"].rename(busdim).to_xarray()
+            bus = "bus0" if c in n.branch_components else "bus"
+            busmap = df.loc[ext_i, bus].rename(busdim).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum()
             lhs_per_bus.append(expr)
 
@@ -80,7 +80,9 @@ def define_tech_capacity_expansion_limit(n, sns):
             else:
                 lhs = lhs_per_bus.sel(**{busdim: str(bus)}, drop=True)
 
-            n.model.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+            n.model.add_constraints(
+                lhs, sign, glc.constant, name=f"GlobalConstraint-{name}"
+            )
 
 
 def define_nominal_constraints_per_bus_carrier(n, sns):
@@ -117,7 +119,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         elif col.startswith("nom_max_"):
             sign = "<="
         else:
-            logger.warn(msg)
+            logger.warning(msg)
             continue
         remainder = col[len("nom_max_") :]
         if remainder in n.carriers.index:
@@ -127,10 +129,10 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
             carrier, period = remainder.rsplit("_", 1)
             period = int(period)
             if carrier not in n.carriers.index or period not in sns.unique("period"):
-                logger.warn(msg)
+                logger.warning(msg)
                 continue
         else:
-            logger.warn(msg)
+            logger.warning(msg)
             continue
 
         lhs = []
@@ -164,7 +166,7 @@ def define_nominal_constraints_per_bus_carrier(n, sns):
         lhs = merge(lhs)
         rhs = n.buses.loc[buses, col]
         mask = rhs.notnull()
-        n.model.add_constraints(lhs, sign, rhs, f"Bus-{col}", mask=mask)
+        n.model.add_constraints(lhs, sign, rhs, name=f"Bus-{col}", mask=mask)
 
 
 def define_growth_limit(n, sns):
@@ -227,7 +229,7 @@ def define_growth_limit(n, sns):
     lhs = merge(lhs)
     rhs = max_absolute_growth.reindex_like(lhs.data)
 
-    m.add_constraints(lhs, "<=", rhs, "Carrier-growth_limit")
+    m.add_constraints(lhs, "<=", rhs, name="Carrier-growth_limit")
 
 
 def define_primary_energy_limit(n, sns):
@@ -255,9 +257,11 @@ def define_primary_energy_limit(n, sns):
 
     for name, glc in glcs.iterrows():
         if isnan(glc.investment_period):
-            snapshots = sns
+            sns_sel = slice(None)
+        elif glc.investment_period in sns.unique("period"):
+            sns_sel = sns.get_loc(glc.investment_period)
         else:
-            snapshots = sns[sns.get_loc(glc.investment_period)]
+            continue
 
         lhs = []
         rhs = glc.constant
@@ -269,30 +273,31 @@ def define_primary_energy_limit(n, sns):
         # generators
         gens = n.generators.query("carrier in @emissions.index")
         if not gens.empty:
-            efficiency = get_as_dense(n, "Generator", "efficiency", inds=gens.index)
+            efficiency = get_as_dense(
+                n, "Generator", "efficiency", snapshots=sns[sns_sel], inds=gens.index
+            )
             em_pu = gens.carrier.map(emissions) / efficiency
-            em_pu = em_pu.multiply(weightings.generators, axis=0)
-            p = m["Generator-p"].loc[snapshots, gens.index]
+            em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0)
+            p = m["Generator-p"].loc[sns[sns_sel], gens.index]
             expr = (p * em_pu).sum()
             lhs.append(expr)
 
         # storage units
         cond = "carrier in @emissions.index and not cyclic_state_of_charge"
         sus = n.storage_units.query(cond)
-        sus_i = sus.index
         if not sus.empty:
             em_pu = sus.carrier.map(emissions)
-            soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
+            sus_i = sus.index
+            soc = m["StorageUnit-state_of_charge"].loc[sns[sns_sel], sus_i]
             soc = soc.ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, soc)).sum())
             rhs -= em_pu @ sus.state_of_charge_initial
 
         # stores
-        n.stores["carrier"] = n.stores.bus.map(n.buses.carrier)
         stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
-            e = m["Store-e"].loc[snapshots, stores.index]
+            e = m["Store-e"].loc[sns[sns_sel], stores.index]
             e = e.ffill("snapshot").isel(snapshot=-1)
             lhs.append(m.linexpr((-em_pu, e)).sum())
             rhs -= em_pu @ stores.e_initial
@@ -302,7 +307,78 @@ def define_primary_energy_limit(n, sns):
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, rhs, f"GlobalConstraint-{name}")
+        m.add_constraints(lhs, sign, rhs, name=f"GlobalConstraint-{name}")
+
+
+def define_operational_limit(n, sns):
+    """
+    Defines operational limit constraints. It limits the net production of a
+    carrier taking into account generator, storage units and stores.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    sns : list-like
+        Set of snapshots to which the constraint should be applied.
+
+    Returns
+    -------
+    None.
+    """
+    m = n.model
+    weightings = n.snapshot_weightings.loc[sns]
+    glcs = n.global_constraints.query('type == "operational_limit"')
+
+    if n._multi_invest:
+        period_weighting = n.investment_period_weightings.years[sns.unique("period")]
+        weightings = weightings.mul(period_weighting, level=0, axis=0)
+
+    # storage units
+    cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge"
+    for name, glc in glcs.iterrows():
+        snapshots = (
+            sns
+            if isnan(glc.investment_period)
+            else sns[sns.get_loc(glc.investment_period)]
+        )
+        lhs = []
+        rhs = glc.constant
+
+        # generators
+        gens = n.generators.query("carrier == @glc.carrier_attribute")
+        if not gens.empty:
+            p = m["Generator-p"].loc[snapshots, gens.index]
+            w = DataArray(weightings.generators[snapshots])
+            if "dim_0" in w.dims:
+                w = w.rename({"dim_0": "snapshot"})
+            expr = (p * w).sum()
+            lhs.append(expr)
+
+        sus = n.storage_units.query(cond)
+        if not sus.empty:
+            sus_i = sus.index
+            soc = m["StorageUnit-state_of_charge"].loc[snapshots, sus_i]
+            soc = soc.ffill("snapshot").isel(snapshot=-1)
+            lhs.append(-1 * soc.sum())
+            rhs -= sus.state_of_charge_initial.sum()
+
+        # stores
+        bus_carrier = n.stores.bus.map(n.buses.carrier)  # noqa: F841
+        stores = n.stores.query(
+            "@bus_carrier == @glc.carrier_attribute and not e_cyclic"
+        )
+        if not stores.empty:
+            e = m["Store-e"].loc[snapshots, stores.index]
+            e = e.ffill("snapshot").isel(snapshot=-1)
+            lhs.append(-e.sum())
+            rhs -= stores.e_initial.sum()
+
+        if not lhs:
+            continue
+
+        lhs = merge(lhs)
+        sign = "=" if glc.sense == "==" else glc.sense
+        m.add_constraints(lhs, sign, rhs, name=f"GlobalConstraint-{name}")
 
 
 def define_transmission_volume_expansion_limit(n, sns):
@@ -326,9 +402,12 @@ def define_transmission_volume_expansion_limit(n, sns):
     def substr(s):
         return re.sub("[\\[\\]\\(\\)]", "", s)
 
-    lhs = []
     for name, glc in glcs.iterrows():
-        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
+        lhs = []
+        # fmt: off
+        car = [substr(c.strip()) for c in  # noqa: F841
+               glc.carrier_attribute.split(",")]
+        # fmt: on
         period = glc.investment_period
 
         for c in ["Line", "Link"]:
@@ -342,12 +421,15 @@ def define_transmission_volume_expansion_limit(n, sns):
                 ext_i.name
             )
 
+            if ext_i.empty:
+                continue
+
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
             elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[
+                    n.get_active_assets(c, sns.unique("period"))[ext_i]
+                ].rename(ext_i.name)
 
             length = n.df(c).length.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
@@ -358,7 +440,7 @@ def define_transmission_volume_expansion_limit(n, sns):
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+        m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
 
 
 def define_transmission_expansion_cost_limit(n, sns):
@@ -379,12 +461,19 @@ def define_transmission_expansion_cost_limit(n, sns):
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
 
+    if n._multi_invest:
+        periods = sns.unique("period")
+        period_weighting = n.investment_period_weightings.objective[periods]
+
     def substr(s):
         return re.sub("[\\[\\]\\(\\)]", "", s)
 
-    lhs = []
     for name, glc in glcs.iterrows():
-        car = [substr(c.strip()) for c in glc.carrier_attribute.split(",")]
+        lhs = []
+        # fmt: off
+        car = [substr(c.strip()) for c in  # noqa: F841
+               glc.carrier_attribute.split(",")]
+        # fmt: on
         period = glc.investment_period
 
         for c in ["Line", "Link"]:
@@ -399,13 +488,25 @@ def define_transmission_expansion_cost_limit(n, sns):
             )
 
             if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)].rename(ext_i.name)
-            elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[n.get_active_assets(c, sns.unique("period"))].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
+                weights = 1
 
-            cost = n.df(c).capital_cost.reindex(ext_i)
+            elif isinstance(sns, pd.MultiIndex):
+                ext_i = ext_i[
+                    n.get_active_assets(c, sns.unique("period"))[ext_i]
+                ].rename(ext_i.name)
+                active = pd.concat(
+                    {
+                        period: n.get_active_assets(c, period)[ext_i]
+                        for period in sns.unique("period")
+                    },
+                    axis=1,
+                )
+                weights = active @ period_weighting
+            else:
+                weights = 1
+
+            cost = n.df(c).capital_cost.reindex(ext_i) * weights
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 
@@ -414,4 +515,4 @@ def define_transmission_expansion_cost_limit(n, sns):
 
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, glc.constant, f"GlobalConstraint-{name}")
+        m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")

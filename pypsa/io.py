@@ -1,31 +1,22 @@
-# -*- coding: utf-8 -*-
-
 """
 Functions for importing and exporting data.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
-import logging
-
-logger = logging.getLogger(__name__)
-
 import json
+import logging
 import math
 import os
 from glob import glob
 from pathlib import Path
 from urllib.request import urlretrieve
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
+from pyproj import CRS
+
+from pypsa.descriptors import update_linkports_component_attrs
 
 try:
     import xarray as xr
@@ -34,6 +25,7 @@ try:
 except ImportError:
     has_xarray = False
 
+logger = logging.getLogger(__name__)
 
 # for the writable data directory follow the XDG guidelines
 # https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
@@ -56,7 +48,7 @@ def _retrieve_from_url(path):
     return str(local_path)
 
 
-class ImpExper(object):
+class ImpExper:
     ds = None
 
     def __enter__(self):
@@ -92,9 +84,9 @@ class ImporterCSV(Importer):
         self.csv_folder_name = csv_folder_name
         self.encoding = encoding
 
-        assert os.path.isdir(csv_folder_name), "Directory {} does not exist.".format(
-            csv_folder_name
-        )
+        if not os.path.isdir(csv_folder_name):
+            msg = f"Directory {csv_folder_name} does not exist."
+            raise FileNotFoundError(msg)
 
     def get_attributes(self):
         fn = os.path.join(self.csv_folder_name, "network.csv")
@@ -104,9 +96,11 @@ class ImporterCSV(Importer):
 
     def get_meta(self):
         fn = os.path.join(self.csv_folder_name, "meta.json")
-        if not os.path.isfile(fn):
-            return {}
-        return json.loads(open(fn).read())
+        return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
+
+    def get_crs(self):
+        fn = os.path.join(self.csv_folder_name, "crs.json")
+        return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
 
     def get_snapshots(self):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
@@ -154,9 +148,7 @@ class ExporterCSV(Exporter):
 
         # make sure directory exists
         if not os.path.isdir(csv_folder_name):
-            logger.warning(
-                "Directory {} does not exist, creating it".format(csv_folder_name)
-            )
+            logger.warning(f"Directory {csv_folder_name} does not exist, creating it")
             os.mkdir(csv_folder_name)
 
     def save_attributes(self, attrs):
@@ -168,6 +160,10 @@ class ExporterCSV(Exporter):
     def save_meta(self, meta):
         fn = os.path.join(self.csv_folder_name, "meta.json")
         open(fn, "w").write(json.dumps(meta))
+
+    def save_crs(self, crs):
+        fn = os.path.join(self.csv_folder_name, "crs.json")
+        open(fn, "w").write(json.dumps(crs))
 
     def save_snapshots(self, snapshots):
         fn = os.path.join(self.csv_folder_name, "snapshots.csv")
@@ -186,11 +182,10 @@ class ExporterCSV(Exporter):
         df.to_csv(fn, encoding=self.encoding)
 
     def remove_static(self, list_name):
-        fns = glob(os.path.join(self.csv_folder_name, list_name) + "*.csv")
-        if fns:
+        if fns := glob(os.path.join(self.csv_folder_name, list_name) + "*.csv"):
             for fn in fns:
                 os.unlink(fn)
-            logger.warning("Stale csv file(s) {} removed".format(", ".join(fns)))
+            logger.warning(f'Stale csv file(s) {", ".join(fns)} removed')
 
     def remove_series(self, list_name, attr):
         fn = os.path.join(self.csv_folder_name, list_name + "-" + attr + ".csv")
@@ -212,6 +207,9 @@ class ImporterHDF5(Importer):
 
     def get_meta(self):
         return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
+
+    def get_crs(self):
+        return json.loads(self.ds["/crs"][0] if "/crs" in self.ds else "{}")
 
     def get_snapshots(self):
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
@@ -259,6 +257,9 @@ class ExporterHDF5(Exporter):
     def save_meta(self, meta):
         self.ds.put("/meta", pd.Series(json.dumps(meta)))
 
+    def save_crs(self, crs):
+        self.ds.put("/crs", pd.Series(json.dumps(crs)))
+
     def save_snapshots(self, snapshots):
         self.ds.put("/snapshots", snapshots, format="table", index=False)
 
@@ -295,12 +296,12 @@ if has_xarray:
 
         def __enter__(self):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__init__()
+                super().__init__()
             return self
 
         def __exit__(self, exc_type, exc_val, exc_tb):
             if isinstance(self.path, (str, Path)):
-                super(ImporterNetCDF, self).__exit__(exc_type, exc_val, exc_tb)
+                super().__exit__(exc_type, exc_val, exc_tb)
 
         def get_attributes(self):
             return {
@@ -311,6 +312,9 @@ if has_xarray:
 
         def get_meta(self):
             return json.loads(self.ds.attrs.get("meta", "{}"))
+
+        def get_crs(self):
+            return json.loads(self.ds.attrs.get("crs", "{}"))
 
         def get_snapshots(self):
             return self.get_static("snapshots", "snapshots")
@@ -342,9 +346,12 @@ if has_xarray:
                     yield attr[len(t) :], df
 
     class ExporterNetCDF(Exporter):
-        def __init__(self, path, least_significant_digit=None):
+        def __init__(
+            self, path, compression={"zlib": True, "complevel": 4}, float32=False
+        ):
             self.path = path
-            self.least_significant_digit = least_significant_digit
+            self.compression = compression
+            self.float32 = float32
             self.ds = xr.Dataset()
 
         def save_attributes(self, attrs):
@@ -354,6 +361,9 @@ if has_xarray:
 
         def save_meta(self, meta):
             self.ds.attrs["meta"] = json.dumps(meta)
+
+        def save_crs(self, crs):
+            self.ds.attrs["crs"] = json.dumps(crs)
 
         def save_snapshots(self, snapshots):
             snapshots = snapshots.rename_axis(index="snapshots")
@@ -377,18 +387,25 @@ if has_xarray:
             df = df.rename_axis(
                 index="snapshots", columns=list_name + "_t_" + attr + "_i"
             )
-
             self.ds[list_name + "_t_" + attr] = df
-            if self.least_significant_digit is not None:
-                print(self.least_significant_digit)
-                self.ds.encoding.update(
-                    {
-                        "zlib": True,
-                        "least_significant_digit": self.least_significant_digit,
-                    }
-                )
+
+        def set_compression_encoding(self):
+            logger.debug(f"Setting compression encodings: {self.compression}")
+            for v in self.ds.data_vars:
+                if self.ds[v].dtype.kind not in ["U", "O"]:
+                    self.ds[v].encoding.update(self.compression)
+
+        def typecast_float32(self):
+            logger.debug("Typecasting float64 to float32.")
+            for v in self.ds.data_vars:
+                if self.ds[v].dtype == np.float64:
+                    self.ds[v] = self.ds[v].astype(np.float32)
 
         def finish(self):
+            if self.float32:
+                self.typecast_float32()
+            if self.compression:
+                self.set_compression_encoding()
             if self.path is not None:
                 self.ds.to_netcdf(self.path)
 
@@ -411,19 +428,23 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
         should then set "ignore_standard_types" when initialising the netowrk).
     """
     # exportable component types
-    # what about None???? - nan is float?
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties
-    attrs = dict(
-        (attr, getattr(network, attr))
+    attrs = {
+        attr: getattr(network, attr)
         for attr in dir(network)
         if (
             not attr.startswith("__")
             and isinstance(getattr(network, attr), allowed_types)
         )
-    )
+    }
     exporter.save_attributes(attrs)
+
+    crs = {}
+    if network.crs is not None:
+        crs["_crs"] = network.crs.to_wkt()
+    exporter.save_crs(crs)
 
     exporter.save_meta(network.meta)
 
@@ -446,6 +467,9 @@ def _export_to_exporter(network, exporter, basename, export_standard_types=False
 
         df = network.df(component)
         pnl = network.pnl(component)
+
+        if component == "Shape":
+            df = pd.DataFrame(df).assign(geometry=df["geometry"].to_wkt())
 
         if not export_standard_types and component in network.standard_type_components:
             df = df.drop(network.components[component]["standard_types"].index)
@@ -522,7 +546,7 @@ def import_from_csv_folder(network, csv_folder_name, encoding=None, skip_time=Fa
         Skip reading in time dependent attributes
 
     Examples
-    ----------
+    --------
     >>> network.import_from_csv_folder(csv_folder_name)
     """
     basename = Path(csv_folder_name).name
@@ -638,9 +662,11 @@ def import_from_netcdf(network, path, skip_time=False):
     skip_time : bool, default False
         Skip reading in time dependent attributes
     """
-    assert has_xarray, "xarray must be installed for netCDF support."
+    if not has_xarray:
+        msg = "xarray must be installed for netCDF support."
+        raise ImportError(msg)
 
-    basename = Path(path).name
+    basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
         _import_from_importer(network, importer, basename=basename, skip_time=skip_time)
 
@@ -649,7 +675,8 @@ def export_to_netcdf(
     network,
     path=None,
     export_standard_types=False,
-    least_significant_digit=None,
+    compression=None,
+    float32=False,
 ):
     """
     Export network and components to a netCDF file.
@@ -673,9 +700,14 @@ def export_to_netcdf(
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the network).
-    least_significant_digit
-        This is passed to the netCDF exporter, but currently makes no difference
-        to file size or float accuracy. We're working on improving this...
+    compression : dict|None
+        Compression level to use for all features which are being prepared.
+        The compression is handled via xarray.Dataset.to_netcdf(...). For details see:
+        https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html
+        An example compression directive is ``{'zlib': True, 'complevel': 4}``.
+        The default is None which disables compression.
+    float32 : boolean, default False
+        If True, typecasts values to float32.
 
     Returns
     -------
@@ -685,11 +717,12 @@ def export_to_netcdf(
     --------
     >>> network.export_to_netcdf("my_file.nc")
     """
-
-    assert has_xarray, "xarray must be installed for netCDF support."
+    if not has_xarray:
+        msg = "xarray must be installed for netCDF support."
+        raise ImportError(msg)
 
     basename = os.path.basename(path) if path is not None else None
-    with ExporterNetCDF(path, least_significant_digit) as exporter:
+    with ExporterNetCDF(path, compression, float32) as exporter:
         _export_to_exporter(
             network,
             exporter,
@@ -710,6 +743,11 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     """
     attrs = importer.get_attributes()
     network.meta = importer.get_meta()
+    crs = importer.get_crs()
+    crs = crs.pop("_crs", None)
+    if crs is not None:
+        crs = CRS.from_wkt(crs)
+        network._crs = crs
 
     current_pypsa_version = [int(s) for s in network.pypsa_version.split(".")]
     pypsa_version = None
@@ -725,7 +763,7 @@ def _import_from_importer(network, importer, basename, skip_time=False):
         for attr, val in attrs.items():
             setattr(network, attr, val)
 
-    ##https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
+    ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
     if pypsa_version is None or pypsa_version < current_pypsa_version:
         pypsa_version_str = (
             ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
@@ -749,11 +787,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
     df = importer.get_snapshots()
 
     if df is not None:
-        # check if imported snapshots have MultiIndex
-        snapshot_levels = set(["period", "timestep", "snapshot"]).intersection(
+        if snapshot_levels := {"period", "timestep", "snapshot"}.intersection(
             df.columns
-        )
-        if snapshot_levels:
+        ):
             df.set_index(sorted(snapshot_levels), inplace=True)
         network.set_snapshots(df.index)
 
@@ -791,6 +827,9 @@ def _import_from_importer(network, importer, basename, skip_time=False):
                 logger.error("Error, no buses found")
                 return
             continue
+
+        if component == "Link":
+            update_linkports_component_attrs(network, where=df)
 
         import_components_from_dataframe(network, df, component)
 
@@ -847,6 +886,9 @@ def import_components_from_dataframe(network, dataframe, cls_name):
     static_attrs = attrs[attrs.static].drop("name")
     non_static_attrs = attrs[~attrs.static]
 
+    if cls_name == "Link":
+        update_linkports_component_attrs(network, where=dataframe)
+
     # Clean dataframe and ensure correct types
     dataframe = pd.DataFrame(dataframe)
     dataframe.index = dataframe.index.astype(str)
@@ -857,19 +899,29 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         else:
             if static_attrs.at[k, "type"] == "string":
                 dataframe[k] = dataframe[k].replace({np.nan: ""})
-
-            dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+            if static_attrs.at[k, "type"] == "int":
+                dataframe[k] = dataframe[k].fillna(0)
+            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
+                if static_attrs.at[k, "type"] == "geometry":
+                    geometry = dataframe[k].replace({"": None, np.nan: None})
+                    dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
+                else:
+                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
-    for attr in ["bus", "bus0", "bus1"]:
-        if attr in dataframe.columns:
-            missing = dataframe.index[~dataframe[attr].isin(network.buses.index)]
-            if len(missing) > 0:
-                logger.warning(
-                    "The following %s have buses which are not defined:\n%s",
-                    cls_name,
-                    missing,
-                )
+    for attr in [attr for attr in dataframe if attr.startswith("bus")]:
+        # allow empty buses for multi-ports
+        port = int(attr[-1]) if attr[-1].isdigit() else 0
+        mask = ~dataframe[attr].isin(network.buses.index)
+        if port > 1:
+            mask &= dataframe[attr].ne("")
+        missing = dataframe.index[mask]
+        if len(missing) > 0:
+            logger.warning(
+                "The following %s have buses which are not defined:\n%s",
+                cls_name,
+                missing,
+            )
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
     old_df = network.df(cls_name)
@@ -878,8 +930,11 @@ def import_components_from_dataframe(network, dataframe, cls_name):
         new_df = pd.concat((old_df, new_df), sort=False)
 
     if not new_df.index.is_unique:
-        logger.error("Error, new components for {} are not unique".format(cls_name))
+        logger.error(f"Error, new components for {cls_name} are not unique")
         return
+
+    if cls_name == "Shape":
+        new_df = gpd.GeoDataFrame(new_df, crs=network.crs)
 
     new_df.index.name = cls_name
     setattr(network, network.components[cls_name]["list_name"], new_df)
@@ -970,6 +1025,72 @@ def import_series_from_dataframe(network, dataframe, cls_name, attr):
     ]
 
 
+def merge(network, other, components_to_skip=None, inplace=False, with_time=True):
+    """
+    Merge the components of two networks.
+
+    Requires disjunct sets of component indices and, if time-dependent data is
+    merged, identical snapshots and snapshot weightings.
+
+    If a component in ``other`` does not have values for attributes present in
+    ``network``, default values are set.
+
+    If a component in ``other`` has attributes which are not present in
+    ``network`` these attributes are ignored.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+        Network to add to.
+    other : pypsa.Network
+        Network to add from.
+    components_to_skip : list-like, default None
+        List of names of components which are not to be merged e.g. "Bus"
+    inplace : bool, default False
+        If True, merge into ``network`` in-place, otherwise a copy is made.
+    with_time : bool, default True
+        If False, only static data is merged.
+
+    Returns
+    -------
+    receiving_n : pypsa.Network
+        Merged network, or None if inplace=True
+    """
+    to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
+    if components_to_skip:
+        to_skip.update(components_to_skip)
+    to_iterate = other.all_components - to_skip
+    # ensure buses are merged first
+    to_iterate = ["Bus"] + sorted(to_iterate - {"Bus"})
+    for c in other.iterate_components(to_iterate):
+        if not c.df.index.intersection(network.df(c.name).index).empty:
+            msg = f"Component {c.name} has overlapping indices, cannot merge networks."
+            raise ValueError(msg)
+    if with_time:
+        snapshots_aligned = network.snapshots.equals(other.snapshots)
+        weightings_aligned = network.snapshot_weightings.equals(
+            other.snapshot_weightings
+        )
+        if not (snapshots_aligned and weightings_aligned):
+            msg = (
+                "Snapshots or snapshot weightings do not agree, cannot merge networks."
+            )
+            raise ValueError(msg)
+    new = network if inplace else network.copy()
+    if other.srid != new.srid:
+        logger.warning(
+            "Spatial Reference System Indentifier of networks do not agree: "
+            f"{new.srid}, {other.srid}. Assuming {new.srid}."
+        )
+    for c in other.iterate_components(to_iterate):
+        new.import_components_from_dataframe(c.df, c.name)
+        if with_time:
+            for k, v in c.pnl.items():
+                new.import_series_from_dataframe(v, c.name, k)
+
+    return None if inplace else new
+
+
 def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     """
     Import network from PYPOWER PPC dictionary format version 2.
@@ -1001,9 +1122,6 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
 
     baseMVA = ppc["baseMVA"]
 
-    # dictionary to store pandas DataFrames of PyPower data
-    pdf = {}
-
     # add buses
 
     # integer numbering will be bus names
@@ -1024,10 +1142,13 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         "v_mag_pu_min",
     ]
 
-    pdf["buses"] = pd.DataFrame(
-        index=index, columns=columns, data=ppc["bus"][:, 1 : len(columns) + 1]
-    )
-
+    pdf = {
+        "buses": pd.DataFrame(
+            index=index,
+            columns=columns,
+            data=ppc["bus"][:, 1 : len(columns) + 1],
+        )
+    }
     if (pdf["buses"]["v_nom"] == 0.0).any():
         logger.warning(
             "Warning, some buses have nominal voltage of 0., setting the nominal voltage of these to 1."
@@ -1044,7 +1165,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     ]
     pdf["loads"]["bus"] = pdf["loads"].index
     pdf["loads"].rename(columns={"Qd": "q_set", "Pd": "p_set"}, inplace=True)
-    pdf["loads"].index = ["L" + str(i) for i in range(len(pdf["loads"]))]
+    pdf["loads"].index = [f"L{str(i)}" for i in range(len(pdf["loads"]))]
 
     # add shunt impedances for any buses with Gs or Bs
 
@@ -1058,7 +1179,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
     pdf["shunt_impedances"] = shunt.reindex(columns=["g", "b"])
     pdf["shunt_impedances"]["bus"] = pdf["shunt_impedances"].index
     pdf["shunt_impedances"].index = [
-        "S" + str(i) for i in range(len(pdf["shunt_impedances"]))
+        f"S{str(i)}" for i in range(len(pdf["shunt_impedances"]))
     ]
 
     # add gens
@@ -1071,7 +1192,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         ", "
     )
 
-    index = ["G" + str(i) for i in range(len(ppc["gen"]))]
+    index = [f"G{str(i)}" for i in range(len(ppc["gen"]))]
 
     pdf["generators"] = pd.DataFrame(
         index=index, columns=columns, data=ppc["gen"][:, : len(columns)]
@@ -1104,10 +1225,7 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
             pdf["branches"].loc[zero_s_nom, "s_nom"] = overwrite_zero_s_nom
         else:
             logger.warning(
-                "Warning: there are {} branches with s_nom equal to zero, "
-                "they will probably lead to infeasibilities and should be "
-                "replaced with a high value using the `overwrite_zero_s_nom` "
-                "argument.".format(zero_s_nom.sum())
+                f"Warning: there are {zero_s_nom.sum()} branches with s_nom equal to zero, they will probably lead to infeasibilities and should be replaced with a high value using the `overwrite_zero_s_nom` argument."
             )
 
     # determine bus voltages of branches to detect transformers
@@ -1152,8 +1270,8 @@ def import_from_pypower_ppc(network, ppc, overwrite_zero_s_nom=None):
         ] = 1.0
 
     # name them nicely
-    pdf["transformers"].index = ["T" + str(i) for i in range(len(pdf["transformers"]))]
-    pdf["lines"].index = ["L" + str(i) for i in range(len(pdf["lines"]))]
+    pdf["transformers"].index = [f"T{str(i)}" for i in range(len(pdf["transformers"]))]
+    pdf["lines"].index = [f"L{str(i)}" for i in range(len(pdf["lines"]))]
 
     # TODO
 
@@ -1221,20 +1339,20 @@ def import_from_pandapower_net(
         "Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers."
     )
 
-    d = {}
+    d = {
+        "Bus": pd.DataFrame(
+            {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0},
+            index=net.bus.name,
+        )
+    }
 
-    d["Bus"] = pd.DataFrame(
-        {"v_nom": net.bus.vn_kv.values, "v_mag_pu_set": 1.0},
-        index=net.bus.name,
+    d["Bus"].loc[net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"] = (
+        net.gen.vm_pu.values  # fmt: skip
     )
 
-    d["Bus"].loc[
-        net.bus.name.loc[net.gen.bus].values, "v_mag_pu_set"
-    ] = net.gen.vm_pu.values
-
-    d["Bus"].loc[
-        net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"
-    ] = net.ext_grid.vm_pu.values
+    d["Bus"].loc[net.bus.name.loc[net.ext_grid.bus].values, "v_mag_pu_set"] = (
+        net.ext_grid.vm_pu.values  # fmt: skip
+    )
 
     d["Load"] = pd.DataFrame(
         {
@@ -1329,9 +1447,6 @@ def import_from_pandapower_net(
             },
             index=net.trafo.name,
         )
-        d["Transformer"] = d["Transformer"].fillna(0)
-
-    # if it's not based on a standard-type - get the included values:
     else:
         s_nom = net.trafo.sn_mva.values
 
@@ -1363,7 +1478,7 @@ def import_from_pandapower_net(
             },
             index=net.trafo.name,
         )
-        d["Transformer"] = d["Transformer"].fillna(0)
+    d["Transformer"] = d["Transformer"].fillna(0)
 
     # documented at https://pypsa.readthedocs.io/en/latest/components.html#shunt-impedance
     g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
@@ -1402,8 +1517,8 @@ def import_from_pandapower_net(
         network.remove("Bus", i)
 
     for c in network.iterate_components({"Load", "Generator", "ShuntImpedance"}):
-        c.df.bus.replace(to_replace, inplace=True)
+        c.df.replace({"bus": to_replace}, inplace=True)
 
     for c in network.iterate_components({"Line", "Transformer"}):
-        c.df.bus0.replace(to_replace, inplace=True)
-        c.df.bus1.replace(to_replace, inplace=True)
+        c.df.replace({"bus0": to_replace}, inplace=True)
+        c.df.replace({"bus1": to_replace}, inplace=True)

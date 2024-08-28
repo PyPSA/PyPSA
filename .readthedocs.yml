@@ -1,7 +1,17 @@
 version: 2
 build:
-  os: ubuntu-20.04
+  os: ubuntu-24.04
   tools:
-    python: mambaforge-4.10
-conda:
-  environment: environment_docs.yml
+    python: "3.12"
+  jobs:
+    pre_system_dependencies:
+    - git fetch --unshallow # Needed to get version tags
+python:
+  install:
+  - method: pip
+    path: .
+    extra_requirements:
+    - docs
+    - dev
+    - cartopy
+    - gurobipy

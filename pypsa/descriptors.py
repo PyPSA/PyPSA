@@ -1,21 +1,11 @@
-# -*- coding: utf-8 -*-
-
 """
 Descriptors for component attributes.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
 import re
 from collections import OrderedDict
-from itertools import repeat
+from itertools import product, repeat
 
 import networkx as nx
 import numpy as np
@@ -24,60 +14,9 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-from packaging.version import Version, parse
-
-if parse(nx.__version__) >= Version("1.12"):
-
-    class OrderedGraph(nx.MultiGraph):
-        node_dict_factory = OrderedDict
-        adjlist_dict_factory = OrderedDict
-
-elif parse(nx.__version__) >= Version("1.10"):
-
-    class OrderedGraph(nx.MultiGraph):
-        node_dict_factory = OrderedDict
-        adjlist_dict_factory = OrderedDict
-
-        def __init__(self, data=None, **attr):
-            self.node_dict_factory = ndf = self.node_dict_factory
-            self.adjlist_dict_factory = self.adjlist_dict_factory
-            self.edge_attr_dict_factory = self.edge_attr_dict_factory
-
-            self.graph = {}  # dictionary for graph attributes
-            self.node = ndf()  # empty node attribute dict
-            self.adj = ndf()  # empty adjacency dict
-            # attempt to load graph with data
-            if data is not None:
-                if isinstance(data, OrderedGraph):
-                    try:
-                        nx.convert.from_dict_of_dicts(
-                            data.adj,
-                            create_using=self,
-                            multigraph_input=data.is_multigraph(),
-                        )
-                        self.graph = data.graph.copy()
-                        self.node.update((n, d.copy()) for n, d in data.node.items())
-                    except:
-                        raise nx.NetworkXError("Input is not a correct NetworkX graph.")
-                else:
-                    nx.convert.to_networkx_graph(data, create_using=self)
-
-else:
-    raise ImportError(
-        "NetworkX version {} is too old. At least 1.10 is needed.".format(
-            nx.__version__
-        )
-    )
-
-if parse(nx.__version__) >= Version("2.0"):
-
-    def degree(G):
-        return G.degree()
-
-else:
-
-    def degree(G):
-        return G.degree_iter()
+class OrderedGraph(nx.MultiGraph):
+    node_dict_factory = OrderedDict
+    adjlist_dict_factory = OrderedDict
 
 
 class Dict(dict):
@@ -90,12 +29,10 @@ class Dict(dict):
 
     def __setattr__(self, name, value):
         """
-        setattr is called when the syntax a.b = 2 is used to set a value.
+        Setattr is called when the syntax a.b = 2 is used to set a value.
         """
         if hasattr(Dict, name):
-            raise AttributeError(
-                "'Dict' object attribute " "'{0}' is read-only".format(name)
-            )
+            raise AttributeError("'Dict' object attribute " f"'{name}' is read-only")
         self[name] = value
 
     def __getattr__(self, item):
@@ -124,8 +61,7 @@ class Dict(dict):
         dict_keys = []
         for k in self.keys():
             if isinstance(k, str):
-                m = self._re_pattern.match(k)
-                if m:
+                if m := self._re_pattern.match(k):
                     dict_keys.append(m.string)
 
         obj_attrs = list(dir(Dict))
@@ -178,7 +114,10 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
     varying = pnl[attr].loc[snapshots, varying_i]
 
-    res = pd.concat([static, varying], axis=1, sort=False).reindex(columns=index)
+    res = pd.merge(static, varying, left_index=True, right_index=True, how="inner")
+    del static
+    del varying
+    res = res.reindex(columns=index)
     res.index.name = "snapshot"  # reindex with multiindex does not preserve name
 
     return res
@@ -290,7 +229,7 @@ def free_output_series_dataframes(network, components=None):
 
 def zsum(s, *args, **kwargs):
     """
-    pandas 0.21.0 changes sum() behavior so that the result of applying sum
+    Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
 
     Meant to be set as pd.Series.zsum = zsum.
@@ -363,7 +302,12 @@ def get_active_assets(n, c, investment_period):
     for period in periods:
         if period not in n.investment_periods:
             raise ValueError("Investment period not in `network.investment_periods`")
-        active[period] = n.df(c).eval("build_year <= @period < build_year + lifetime")
+        if not {"build_year", "lifetime"}.issubset(n.df(c)):
+            active[period] = pd.Series(True, index=n.df(c).index)
+        else:
+            active[period] = n.df(c).eval(
+                "build_year <= @period < build_year + lifetime"
+            )
     return pd.DataFrame(active).any(axis=1)
 
 
@@ -432,9 +376,42 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
-def additional_linkports(n):
-    return [
-        i[3:]
-        for i in n.links.columns
-        if i.startswith("bus") and i not in ["bus0", "bus1"]
-    ]
+def update_linkports_doc_changes(s, j, i):
+    if not isinstance(s, str) or len(s) == 1:
+        return s
+    return s.replace(j, str(i)).replace("required", "optional")
+
+
+def update_linkports_component_attrs(n, where=None):
+    ports = additional_linkports(n, where)
+    c = "Link"
+
+    for i, attr in product(ports, ["bus", "efficiency", "p"]):
+        target = f"{attr}{i}"
+        if target in n.components[c]["attrs"].index:
+            continue
+        to_replace = "1"
+        j = "1" if attr != "efficiency" else ""
+        n.components[c]["attrs"].loc[target] = (
+            n.components[c]["attrs"]
+            .loc[attr + j]
+            .apply(update_linkports_doc_changes, args=(to_replace, i))
+        )
+        n.components[c]["attrs"].loc[target] = (
+            n.components[c]["attrs"]
+            .loc[attr + j]
+            .apply(update_linkports_doc_changes, args=(to_replace, i))
+        )
+        if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
+            df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
+            df.index.name = "snapshot"
+            df.columns.name = c
+            n.pnl(c)[target] = df
+        elif attr == "bus" and target not in n.df(c).columns:
+            n.df(c)[target] = n.components[c]["attrs"].loc[target, "default"]
+
+
+def additional_linkports(n, where=None):
+    if where is None:
+        where = n.links.columns
+    return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]

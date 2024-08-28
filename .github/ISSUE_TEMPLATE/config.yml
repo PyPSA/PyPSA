@@ -3,3 +3,7 @@ contact_links:
 - name: PyPSA Mailing List
   url: https://groups.google.com/forum/#!forum/pypsa
   about: Please ask and answer general usage questions here.
+
+- name: Stackoverflow
+  url: https://stackoverflow.com/questions/tagged/pypsa
+  about: Please ask and answer code-related questions here.

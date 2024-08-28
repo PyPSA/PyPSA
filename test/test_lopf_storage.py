@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 import os
 
 import pandas as pd
 import pytest
-from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
@@ -35,9 +33,8 @@ def network():
     return pypsa.Network(csv_folder)
 
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_lopf(network, target_gen_p, api):
-    optimize(network, api)
+def test_optimize(network, target_gen_p):
+    network.optimize()
     equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 

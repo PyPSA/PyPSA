@@ -1,52 +1,34 @@
+ci:
+  autoupdate_schedule: monthly
+
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.4.0
+  rev: v4.6.0
   hooks:
   - id: check-merge-conflict
-  - id: end-of-file-fixer
-  - id: fix-encoding-pragma
-  - id: mixed-line-ending
-  - id: trailing-whitespace
   - id: check-added-large-files
     args: ['--maxkb=2000']
 
-# Sort package imports alphabetically
-- repo: https://github.com/PyCQA/isort
-  rev: 5.12.0
+# Run ruff to lint and format
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  # Ruff version.
+  rev: v0.6.1
   hooks:
-  - id: isort
-    args: ["--profile", "black", "--filter-files"]
-
-# Convert relative imports to absolute imports
-- repo: https://github.com/MarcoGorelli/absolufy-imports
-  rev: v0.3.1
-  hooks:
-  - id: absolufy-imports
+    # Run the linter.
+  - id: ruff
+    args: [--fix]
+    # Run the formatter.
+  - id: ruff-format
 
 # Find common spelling mistakes in comments and docstrings
 - repo: https://github.com/codespell-project/codespell
-  rev: v2.2.4
+  rev: v2.3.0
   hooks:
   - id: codespell
-    args: ['--ignore-regex="(\b[A-Z]+\b)"', '--ignore-words=.codespell.ignore'] # Ignore capital case words, e.g. country codes
+    # Ignore capital case words, e.g. country codes
+    args: ['--ignore-regex="(\b[A-Z]+\b)"', '--ignore-words=.codespell.ignore']
     types_or: [python, rst, markdown]
     files: ^(scripts|doc)/
-
-# Make docstrings PEP 257 compliant
-- repo: https://github.com/PyCQA/docformatter
-  rev: v1.5.1
-  hooks:
-  - id: docformatter
-    args: ['--in-place', '--make-summary-multi-line', '--pre-summary-newline']
-
-# Formatting with "black" coding style
-- repo: https://github.com/psf/black
-  rev: 23.3.0
-  hooks:
-  # Format Python files
-  - id: black
-  # Format Jupyter Python notebooks
-  - id: black-jupyter
 
 # Remove output from Jupyter notebooks
 - repo: https://github.com/aflc/pre-commit-jupyter
@@ -57,7 +39,7 @@ repos:
 
 # Do YAML formatting (before the linter checks it for misses)
 - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-  rev: v2.8.0
+  rev: v2.14.0
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
