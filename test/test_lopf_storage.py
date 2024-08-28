@@ -41,8 +41,7 @@ def test_lopf(network, target_gen_p, api):
     equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 
-@pytest.mark.parametrize("api", ["linopy"])
-def test_storage_energy_marginal_cost(api):
+def test_storage_energy_marginal_cost():
     n = pypsa.Network()
     n.snapshots = range(3)
     n.add("Bus", "bus")
