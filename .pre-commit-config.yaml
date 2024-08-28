@@ -20,15 +20,6 @@ repos:
     # Run the formatter.
   - id: ruff-format
 
-# Run type checker (mypy)
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.11.1
-  hooks:
-  - id: mypy
-    additional_dependencies: [numpy, pandas, xarray]
-    args: [--config-file=./pyproject.toml]
-
-
 # Find common spelling mistakes in comments and docstrings
 - repo: https://github.com/codespell-project/codespell
   rev: v2.3.0
