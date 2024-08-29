@@ -429,8 +429,17 @@ def test_global_constraint_transmission_cost_limit(n):
         carrier_attribute="AC",
     )
 
+    active = pd.concat(
+        {
+            period: n.get_active_assets("Line", period)
+            for period in n.investment_periods
+        },
+        axis=1,
+    )
+    weight = active @ n.investment_period_weightings.objective
+
     status, cond = n.optimize(**kwargs)
-    assert round(n.lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
+    assert round((weight * n.lines.eval("s_nom_opt * capital_cost")).sum(), 2) == 1000
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period

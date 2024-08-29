@@ -2,10 +2,13 @@
 Functions for computing network clusters.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass
 from importlib.util import find_spec
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
@@ -15,6 +18,9 @@ from pandas import Series
 
 from pypsa import io
 from pypsa.geo import haversine_pts
+
+if TYPE_CHECKING:
+    from pypsa import Network
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +83,7 @@ DEFAULT_LINE_STRATEGIES = dict(
 )
 
 
-def normed_or_uniform(x):
+def normed_or_uniform(x: pd.Series) -> pd.Series:
     """
     Normalize a series by dividing it by its sum, unless the sum is zero, in
     which case return a uniform distribution.
@@ -98,7 +104,7 @@ def normed_or_uniform(x):
         return pd.Series(1.0 / len(x), x.index)
 
 
-def make_consense(component: str, attr: str) -> callable:
+def make_consense(component: str, attr: str) -> Callable:
     """
     Returns a function to verify attribute values of a cluster in a component.
     The values should either be the same or all null.
@@ -112,7 +118,7 @@ def make_consense(component: str, attr: str) -> callable:
 
     Returns
     -------
-    callable
+    Callable
         A function that checks whether all values in the Series are the same or all null.
 
     Raises
@@ -132,7 +138,7 @@ def make_consense(component: str, attr: str) -> callable:
     return consense
 
 
-def align_strategies(strategies, keys, component):
+def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
     """
     Aligns the given strategies with the given keys.
 
@@ -154,7 +160,7 @@ def align_strategies(strategies, keys, component):
     return {k: strategies[k] for k in keys}
 
 
-def flatten_multiindex(m, join=" "):
+def flatten_multiindex(m: pd.MultiIndex, join: str = " ") -> pd.Index:
     """
     Flatten a multiindex by joining the levels with the given string.
     """
@@ -162,14 +168,14 @@ def flatten_multiindex(m, join=" "):
 
 
 def aggregateoneport(
-    n,
-    busmap,
-    component,
-    carriers=None,
-    buses=None,
-    with_time=True,
-    custom_strategies=dict(),
-):
+    n: Network,
+    busmap: dict,
+    component: str,
+    carriers: Iterable | None = None,
+    buses: Iterable | None = None,
+    with_time: bool = True,
+    custom_strategies: dict = dict(),
+) -> tuple[pd.DataFrame, dict]:
     """
     Aggregate one port components in the network based on the given busmap.
 
@@ -282,7 +288,9 @@ def aggregateoneport(
     return df, pnl
 
 
-def aggregatebuses(n, busmap, custom_strategies=dict()):
+def aggregatebuses(
+    n: Network, busmap: dict, custom_strategies: dict = dict()
+) -> pd.DataFrame:
     """
     Aggregate buses in the network based on the given busmap.
 
@@ -316,13 +324,14 @@ def aggregatebuses(n, busmap, custom_strategies=dict()):
 
 
 def aggregatelines(
-    n,
-    busmap,
-    line_length_factor=1.0,
-    with_time=True,
-    custom_strategies=None,
-    bus_strategies=None,
-):
+    n: Network,
+    busmap: dict,
+    line_length_factor: float = 1.0,
+    with_time: bool = True,
+    custom_strategies: dict | None = None,
+    bus_strategies: dict | None = None,
+    custom_line_groupers: Iterable = [],
+) -> tuple[pd.DataFrame, dict, pd.Series]:
     """
     Aggregate lines in the network based on the given busmap.
 
@@ -340,6 +349,8 @@ def aggregatelines(
         Custom aggregation strategies (default is empty dict).
     bus_strategies : dict, optional
         Custom aggregation strategies for buses (default is empty dict).
+    custom_line_groupers : list, optional
+        Additional custom groupers for the lines. Specifies that different column values are not aggregated. (default is empty list).
 
     Returns
     -------
@@ -375,7 +386,7 @@ def aggregatelines(
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, "Line")
 
-    grouper = df.groupby(["bus0", "bus1"]).ngroup().astype(str)
+    grouper = df.groupby(["bus0", "bus1", *custom_line_groupers]).ngroup().astype(str)
 
     coords = buses[["x", "y"]]
     length = (
@@ -442,20 +453,21 @@ class Clustering:
 
 
 def get_clustering_from_busmap(
-    n,
-    busmap,
-    with_time=True,
-    line_length_factor=1.0,
-    aggregate_generators_weighted=False,
-    aggregate_one_ports=None,
-    aggregate_generators_carriers=None,
-    scale_link_capital_costs=True,
-    bus_strategies=dict(),
-    one_port_strategies=dict(),
-    generator_strategies=dict(),
-    line_strategies=dict(),
-    aggregate_generators_buses=None,
-):
+    n: Network,
+    busmap: dict,
+    with_time: bool = True,
+    line_length_factor: float = 1.0,
+    aggregate_generators_weighted: bool = False,
+    aggregate_one_ports: dict | None = None,
+    aggregate_generators_carriers: Iterable | None = None,
+    scale_link_capital_costs: bool = True,
+    bus_strategies: dict = dict(),
+    one_port_strategies: dict = dict(),
+    generator_strategies: dict = dict(),
+    line_strategies: dict = dict(),
+    aggregate_generators_buses: Iterable | None = None,
+    custom_line_groupers: list = [],
+) -> Clustering:
     if aggregate_one_ports is None:
         aggregate_one_ports = {}
     from pypsa.components import Network
@@ -468,6 +480,7 @@ def get_clustering_from_busmap(
         with_time=with_time,
         custom_strategies=line_strategies,
         bus_strategies=bus_strategies,
+        custom_line_groupers=custom_line_groupers,
     )
 
     clustered = Network()
@@ -574,7 +587,13 @@ def get_clustering_from_busmap(
 # k-Means clustering based on bus properties
 
 
-def busmap_by_kmeans(n, bus_weightings, n_clusters, buses_i=None, **kwargs):
+def busmap_by_kmeans(
+    n: Network,
+    bus_weightings: pd.Series,
+    n_clusters: int,
+    buses_i: pd.Index | None = None,
+    **kwargs: Any,
+) -> pd.Series:
     """
     Create a bus map from the clustering of buses in space with a weighting.
 
@@ -627,7 +646,13 @@ def busmap_by_kmeans(n, bus_weightings, n_clusters, buses_i=None, **kwargs):
     ).astype(str)
 
 
-def kmeans_clustering(n, bus_weightings, n_clusters, line_length_factor=1.0, **kwargs):
+def kmeans_clustering(
+    n: Network,
+    bus_weightings: pd.Series,
+    n_clusters: int,
+    line_length_factor: float = 1.0,
+    **kwargs: Any,
+) -> Clustering:
     """
     Cluster the network according to k-means clustering of the buses.
 
@@ -663,15 +688,15 @@ def kmeans_clustering(n, bus_weightings, n_clusters, line_length_factor=1.0, **k
 ################
 # Hierarchical Clustering
 def busmap_by_hac(
-    n,
-    n_clusters,
-    buses_i=None,
-    branch_components=None,
-    feature=None,
-    affinity="euclidean",
-    linkage="ward",
-    **kwargs,
-):
+    n: Network,
+    n_clusters: int,
+    buses_i: pd.Index | None = None,
+    branch_components: Collection[str] | None = None,
+    feature: pd.DataFrame | None = None,
+    affinity: str | Callable = "euclidean",
+    linkage: str = "ward",
+    **kwargs: Any,
+) -> pd.Series:
     """
     Create a busmap according to Hierarchical Agglomerative Clustering.
 
@@ -688,7 +713,7 @@ def busmap_by_hac(
         Feature to be considered for the clustering.
         The DataFrame must be indexed with buses_i.
         If None, all buses have the same similarity.
-    affinity: str or callable, default=’euclidean’
+    affinity: str or Callable, default=’euclidean’
         Metric used to compute the linkage.
         Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”, or “precomputed”.
         If linkage is “ward”, only “euclidean” is accepted.
@@ -753,16 +778,16 @@ def busmap_by_hac(
 
 
 def hac_clustering(
-    n,
-    n_clusters,
-    buses_i=None,
-    branch_components=None,
-    feature=None,
-    affinity="euclidean",
-    linkage="ward",
-    line_length_factor=1.0,
-    **kwargs,
-):
+    n: Network,
+    n_clusters: int,
+    buses_i: pd.Index | None = None,
+    branch_components: Collection[str] | None = None,
+    feature: pd.DataFrame | None = None,
+    affinity: str | Callable = "euclidean",
+    linkage: str = "ward",
+    line_length_factor: float = 1.0,
+    **kwargs: Any,
+) -> Clustering:
     """
     Cluster the network using Hierarchical Agglomerative Clustering.
 
@@ -778,7 +803,7 @@ def hac_clustering(
         Feature to be considered for the clustering.
         The DataFrame must be indexed with buses_i.
         If None, all buses have the same similarity.
-    affinity: str or callable, default=’euclidean’
+    affinity: str or Callable, default=’euclidean’
         Metric used to compute the linkage.
         Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”, or “precomputed”.
         If linkage is “ward”, only “euclidean” is accepted.
@@ -819,10 +844,12 @@ def hac_clustering(
 
 ################
 # Cluserting based on Modularity (on electrical parameters of the network)
-def busmap_by_greedy_modularity(n, n_clusters, buses_i=None):
+def busmap_by_greedy_modularity(
+    n: Network, n_clusters: int, buses_i: pd.Index | None = None
+) -> pd.Series:
     """
     Create a busmap according to Clauset-Newman-Moore greedy modularity
-    maximization [1].
+    maximization [CNM2004_1]_.
 
     Parameters
     ----------
@@ -840,7 +867,7 @@ def busmap_by_greedy_modularity(n, n_clusters, buses_i=None):
 
     References
     ----------
-    .. [1] Clauset, A., Newman, M. E., & Moore, C.
+    .. [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
     """
@@ -877,10 +904,15 @@ def busmap_by_greedy_modularity(n, n_clusters, buses_i=None):
     return busmap
 
 
-def greedy_modularity_clustering(n, n_clusters, buses_i=None, line_length_factor=1.0):
+def greedy_modularity_clustering(
+    n: Network,
+    n_clusters: int,
+    buses_i: pd.Index | None = None,
+    line_length_factor: float = 1.0,
+) -> Clustering:
     """
     Create a busmap according to Clauset-Newman-Moore greedy modularity
-    maximization [1].
+    maximization [CNM2004_2]_.
 
     Parameters
     ----------
@@ -899,7 +931,7 @@ def greedy_modularity_clustering(n, n_clusters, buses_i=None, line_length_factor
 
     References
     ----------
-    .. [1] Clauset, A., Newman, M. E., & Moore, C.
+    .. [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
     """
@@ -913,7 +945,9 @@ def greedy_modularity_clustering(n, n_clusters, buses_i=None, line_length_factor
 # Reduce stubs/dead-ends, i.e. nodes with valency 1, iteratively to remove tree-like structures
 
 
-def busmap_by_stubs(n, matching_attrs=None):
+def busmap_by_stubs(
+    n: Network, matching_attrs: Iterable[str] | None = None
+) -> pd.Series:
     """
     Create a busmap by reducing stubs and stubby trees (i.e. sequentially
     reducing dead-ends).
@@ -935,7 +969,7 @@ def busmap_by_stubs(n, matching_attrs=None):
 
     G = n.graph()
 
-    def attrs_match(u, v):
+    def attrs_match(u: str, v: str) -> bool:
         return (
             matching_attrs is None
             or (n.buses.loc[u, matching_attrs] == n.buses.loc[v, matching_attrs]).all()

@@ -30,14 +30,7 @@ Please use the following BibTeX: ::
 
 
 If you want to cite a specific PyPSA version, each release of PyPSA is
-stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI.
-The release-specific DOIs can be found linked from the overall PyPSA
-Zenodo DOI for Version 0.17.1 and onwards:
+stored on `Zenodo <https://zenodo.org/>`_ with a release-specific DOI:
 
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
    :target: https://doi.org/10.5281/zenodo.3946412
-
-or from the overall PyPSA Zenodo DOI for Versions up to and including 0.17.0:
-
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.786605.svg
-   :target: https://doi.org/10.5281/zenodo.786605

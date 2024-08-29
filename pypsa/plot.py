@@ -1,9 +1,14 @@
+# type: ignore #TODO: remove with #912
 """
 Functions for plotting networks.
 """
 
+from __future__ import annotations
+
 import logging
 
+import geopandas as gpd
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -11,6 +16,7 @@ import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
+from shapely import linestrings
 
 cartopy_present = True
 try:
@@ -593,6 +599,33 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
+class WedgeHandler(HandlerPatch):
+    """
+    Legend Handler used to create sermi-circles for legend entries.
+
+    This handler resizes the semi-circles in order to match the same
+    dimensional scaling as in the applied axis.
+    """
+
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        fig = legend.get_figure()
+        ax = legend.axes
+        center = 5 - xdescent, 3 - ydescent
+        unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
+        r = orig_handle.r * (72 / fig.dpi) * unit
+        p = Wedge(
+            center=center,
+            r=r,
+            theta1=orig_handle.theta1,
+            theta2=orig_handle.theta2,
+        )
+        self.update_prop(p, orig_handle, legend)
+        p.set_transform(trans)
+        return [p]
+
+
 def add_legend_lines(ax, sizes, labels, colors=None, patch_kw=None, legend_kw=None):
     """
     Add a legend for lines and links.
@@ -708,6 +741,43 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=No
 
     legend = ax.legend(
         handles, labels, handler_map={Circle: HandlerCircle()}, **legend_kw
+    )
+
+    ax.get_figure().add_artist(legend)
+
+
+def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+    """
+    Add a legend for reference semi-circles.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the reference circle; for example [3, 2, 1]
+    labels : list-like, str
+        Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to matplotlib.patches.Wedges
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+
+    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+
+    if hasattr(ax, "projection"):
+        area_correction = projected_area_factor(ax, srid) ** 2
+        sizes = [s * area_correction for s in sizes]
+
+    radius = [np.sign(s) * np.abs(s) ** 0.5 for s in sizes]
+    handles = [
+        Wedge((0, -r / 2), r=r, theta1=0, theta2=180, **patch_kw) for r in radius
+    ]
+
+    legend = ax.legend(
+        handles, labels, handler_map={Wedge: WedgeHandler()}, **legend_kw
     )
 
     ax.get_figure().add_artist(legend)
@@ -1169,3 +1239,231 @@ def iplot(
             pltly.iplot(fig)
 
     return fig
+
+
+def explore(
+    n,
+    crs=None,
+    tooltip=True,
+    popup=True,
+    tiles="OpenStreetMap",
+    components=None,
+):
+    """
+    Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
+
+    This function generates a Folium map showing buses, lines, links, and transformers from the provided network object.
+
+    Parameters
+    ----------
+    n : PyPSA.Network object
+        containing components `buses`, `links`, `lines`, `transformers`, `generators`, `loads`, and `storage_units`.
+    crs : str, optional. If not specified, it will check whether `n.crs` exists and use it, else it will default to "EPSG:4326".
+        Coordinate Reference System for the GeoDataFrames.
+    tooltip : bool, optional, default=True
+        Whether to include tooltips (on hover) for the features.
+    popup : bool, optional, default=True
+        Whether to include popups (on click) for the features.
+    tiles : str, optional, default="OpenStreetMap"
+        The tileset to use for the map. Options include "OpenStreetMap", "CartoDB Positron", and "CartoDB dark_matter".
+    components : list-like, optional, default=None
+        The components to plot. Default includes "Bus", "Line", "Link", "Transformer".
+
+    Returns
+    -------
+    folium.Map
+        A Folium map object with the PyPSA.Network components plotted.
+    """
+    try:
+        import mapclassify  # noqa: F401
+        from folium import Element, LayerControl, Map, TileLayer
+    except ImportError:
+        logger.warning(
+            "folium and mapclassify need to be installed to use `n.explore()`."
+        )
+        return None
+
+    if n.crs and crs is None:
+        crs = n.crs
+    else:
+        crs = "EPSG:4326"
+
+    if components is None:
+        components = {"Bus", "Line", "Transformer", "Link"}
+
+    # Map related settings
+    bus_colors = mcolors.CSS4_COLORS["cadetblue"]
+    line_colors = mcolors.CSS4_COLORS["rosybrown"]
+    link_colors = mcolors.CSS4_COLORS["darkseagreen"]
+    transformer_colors = mcolors.CSS4_COLORS["orange"]
+    generator_colors = mcolors.CSS4_COLORS["purple"]
+    load_colors = mcolors.CSS4_COLORS["red"]
+    storage_unit_colors = mcolors.CSS4_COLORS["black"]
+
+    # Initialize the map
+    map = Map(tiles=None)
+
+    # Add map title
+    map_title = f"PyPSA Network: {n.name}"
+    map.get_root().html.add_child(
+        Element(
+            f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>"
+        )
+    )
+
+    # Add tile layer legend entries
+    TileLayer(tiles, name=tiles).add_to(map)
+
+    components_possible = [
+        "Bus",
+        "Line",
+        "Link",
+        "Transformer",
+        "Generator",
+        "Load",
+        "StorageUnit",
+    ]
+    components_present = []
+
+    if not n.transformers.empty and "Transformer" in components:
+        x1 = n.transformers.bus0.map(n.buses.x)
+        y1 = n.transformers.bus0.map(n.buses.y)
+        x2 = n.transformers.bus1.map(n.buses.x)
+        y2 = n.transformers.bus1.map(n.buses.y)
+        gdf_transformers = gpd.GeoDataFrame(
+            n.transformers,
+            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            crs=crs,
+        )
+
+        gdf_transformers.explore(
+            m=map,
+            color=transformer_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Transformers",
+        )
+        components_present.append("Transformer")
+
+    if not n.lines.empty and "Line" in components:
+        x1 = n.lines.bus0.map(n.buses.x)
+        y1 = n.lines.bus0.map(n.buses.y)
+        x2 = n.lines.bus1.map(n.buses.x)
+        y2 = n.lines.bus1.map(n.buses.y)
+        gdf_lines = gpd.GeoDataFrame(
+            n.lines,
+            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            crs=crs,
+        )
+
+        gdf_lines.explore(
+            m=map, color=line_colors, tooltip=tooltip, popup=popup, name="Lines"
+        )
+        components_present.append("Line")
+
+    if not n.links.empty and "Link" in components:
+        x1 = n.links.bus0.map(n.buses.x)
+        y1 = n.links.bus0.map(n.buses.y)
+        x2 = n.links.bus1.map(n.buses.x)
+        y2 = n.links.bus1.map(n.buses.y)
+        gdf_links = gpd.GeoDataFrame(
+            n.links,
+            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            crs="EPSG:4326",
+        )
+
+        gdf_links.explore(
+            m=map, color=link_colors, tooltip=tooltip, popup=popup, name="Links"
+        )
+        components_present.append("Link")
+
+    if not n.buses.empty and "Bus" in components:
+        gdf_buses = gpd.GeoDataFrame(
+            n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
+        )
+
+        gdf_buses.explore(
+            m=map,
+            color=bus_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Buses",
+            marker_kwds={"radius": 4},
+        )
+        components_present.append("Bus")
+
+    if not n.generators.empty and "Generator" in components:
+        gdf_generators = gpd.GeoDataFrame(
+            n.generators,
+            geometry=gpd.points_from_xy(
+                n.generators.bus.map(n.buses.x), n.generators.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
+        gdf_generators.explore(
+            m=map,
+            color=generator_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Generators",
+            marker_kwds={"radius": 2.5},
+        )
+        components_present.append("Generator")
+
+    if not n.loads.empty and "Load" in components:
+        loads = n.loads.copy()
+        loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
+        gdf_loads = gpd.GeoDataFrame(
+            loads,
+            geometry=gpd.points_from_xy(
+                loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
+        gdf_loads.explore(
+            m=map,
+            color=load_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Loads",
+            marker_kwds={"radius": 1.5},
+        )
+        components_present.append("Load")
+
+    if not n.storage_units.empty and "StorageUnit" in components:
+        gdf_storage_units = gpd.GeoDataFrame(
+            n.storage_units,
+            geometry=gpd.points_from_xy(
+                n.storage_units.bus.map(n.buses.x), n.storage_units.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
+        gdf_storage_units.explore(
+            m=map,
+            color=storage_unit_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Storage Units",
+            marker_kwds={"radius": 1},
+        )
+        components_present.append("StorageUnit")
+
+    if len(components_present) > 0:
+        logger.info(
+            f"Components rendered on the map: {', '.join(sorted(components_present))}."
+        )
+    if len(set(components) - set(components_present)) > 0:
+        logger.info(
+            f"Components omitted as they are missing or not selected: {', '.join(sorted(set(components_possible) - set(components_present)))}."
+        )
+
+    # Set the default view to the bounds of the elements in the map
+    map.fit_bounds(map.get_bounds())
+
+    # Add a Layer Control to toggle layers on and off
+    LayerControl().add_to(map)
+
+    return map

@@ -21,13 +21,21 @@ PyPSA: Python for Power System Analysis
     :target: https://github.com/PyPSA/PyPSA/actions/workflows/test.yml
     :alt: Tests
 
+.. image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
+    :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
+.. image:: https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg
+    :target: https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master
+    :alt: pre-commit.ci status
+
 .. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
     :target: https://codecov.io/gh/PyPSA/PyPSA
     :alt: Code coverage
 
-.. image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
-    :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
-    :alt: Documentation Status
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+    :alt: Ruff
 
 .. image:: https://img.shields.io/pypi/l/pypsa.svg
     :target: LICENSE.txt
@@ -36,14 +44,6 @@ PyPSA: Python for Power System Analysis
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
     :target: https://doi.org/10.5281/zenodo.3946412
     :alt: Zenodo
-
-.. image:: https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg
-    :target: https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master
-    :alt: pre-commit.ci status
-
-.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
-    :target: https://github.com/astral-sh/ruff
-    :alt: Ruff
 
 .. image:: https://img.shields.io/discord/911692131440148490?logo=discord
     :target: https://discord.gg/AnuJBk23FU
@@ -144,7 +144,6 @@ Documentation
 * :doc:`/contributing/contributing`
 * :doc:`/contributing/support`
 * :doc:`/contributing/troubleshooting`
-* :doc:`/contributing/mailing-list`
 
 .. toctree::
    :hidden:
@@ -154,14 +153,12 @@ Documentation
    contributing/contributing
    contributing/support
    contributing/troubleshooting
-   contributing/mailing-list
 
 
 **References**
 
 * :doc:`/references/api-reference`
 * :doc:`/references/release-notes`
-* :doc:`/references/comparable-software`
 * :doc:`/references/citing`
 * :doc:`/references/users`
 * :doc:`/references/developers`
@@ -173,7 +170,6 @@ Documentation
 
    references/api-reference
    references/release-notes
-   references/comparable-software
    references/citing
    references/users
    references/developers

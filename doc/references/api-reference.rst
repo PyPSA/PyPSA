@@ -11,11 +11,11 @@ API Reference
 
    ../api/networks
    ../api/power-flow
-   ../api/contingency
-   ../api/clustering
    ../api/optimization
+   ../api/contingency
    ../api/statistics
    ../api/plots
+   ../api/clustering
    ../api/examples
    
 

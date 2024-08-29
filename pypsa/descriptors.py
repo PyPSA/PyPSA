@@ -2,14 +2,22 @@
 Descriptors for component attributes.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from collections import OrderedDict
+from collections.abc import Collection, Iterable, Sequence
 from itertools import product, repeat
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
 import pandas as pd
+from numpy.typing import ArrayLike
+
+if TYPE_CHECKING:
+    from pypsa import Network
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +35,7 @@ class Dict(dict):
     Stripped down from addict https://github.com/mewwts/addict/ .
     """
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         """
         Setattr is called when the syntax a.b = 2 is used to set a value.
         """
@@ -35,13 +43,13 @@ class Dict(dict):
             raise AttributeError("'Dict' object attribute " f"'{name}' is read-only")
         self[name] = value
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         try:
             return self.__getitem__(item)
         except KeyError as e:
             raise AttributeError(e.args[0])
 
-    def __delattr__(self, name):
+    def __delattr__(self, name: str) -> None:
         """
         Is invoked when del some_addict.b is called.
         """
@@ -49,7 +57,7 @@ class Dict(dict):
 
     _re_pattern = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
 
-    def __dir__(self):
+    def __dir__(self) -> list[str]:
         """
         Return a list of object attributes.
 
@@ -69,7 +77,13 @@ class Dict(dict):
         return dict_keys + obj_attrs
 
 
-def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None):
+def get_switchable_as_dense(
+    network: Network,
+    component: str,
+    attr: str,
+    snapshots: Sequence | None = None,
+    inds: pd.Index | None = None,
+) -> pd.DataFrame:
     """
     Return a Dataframe for a time-varying component attribute with values for
     all non-time-varying components filled in with the default values for the
@@ -123,7 +137,13 @@ def get_switchable_as_dense(network, component, attr, snapshots=None, inds=None)
     return res
 
 
-def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
+def get_switchable_as_iter(
+    network: Network,
+    component: str,
+    attr: str,
+    snapshots: Sequence,
+    inds: pd.Index | None = None,
+) -> pd.DataFrame:
     """
     Return an iterator over snapshots for a time-varying component attribute
     with values for all non-time-varying components filled in with the default
@@ -166,17 +186,17 @@ def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     if len(varying_i) == 0:
         return repeat(df.loc[fixed_i, attr], len(snapshots))
 
-    def is_same_indices(i1, i2):
+    def is_same_indices(i1: pd.Index, i2: pd.Index) -> bool:
         return len(i1) == len(i2) and (i1 == i2).all()
 
     if is_same_indices(fixed_i.append(varying_i), index):
 
-        def reindex_maybe(s):
+        def reindex_maybe(s: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
             return s
 
     else:
 
-        def reindex_maybe(s):
+        def reindex_maybe(s: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
             return s.reindex(index)
 
     return (
@@ -185,7 +205,7 @@ def get_switchable_as_iter(network, component, attr, snapshots, inds=None):
     )
 
 
-def allocate_series_dataframes(network, series):
+def allocate_series_dataframes(network: Network, series: dict) -> None:
     """
     Populate time-varying outputs with default values.
 
@@ -215,7 +235,9 @@ def allocate_series_dataframes(network, series):
             )
 
 
-def free_output_series_dataframes(network, components=None):
+def free_output_series_dataframes(
+    network: Network, components: Collection[str] | None = None
+) -> None:
     if components is None:
         components = network.all_components
 
@@ -227,7 +249,7 @@ def free_output_series_dataframes(network, components=None):
             pnl[attr] = pd.DataFrame(index=network.snapshots, columns=[])
 
 
-def zsum(s, *args, **kwargs):
+def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
     """
     Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
@@ -248,7 +270,7 @@ nominal_attrs = {
 }
 
 
-def expand_series(ser, columns):
+def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     """
     Helper function to quickly expand a series to a dataframe with according
     column axis and every single column being the equal to the given series.
@@ -256,7 +278,7 @@ def expand_series(ser, columns):
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
 
 
-def get_extendable_i(n, c):
+def get_extendable_i(n: Network, c: str) -> pd.Index:
     """
     Getter function.
 
@@ -266,7 +288,7 @@ def get_extendable_i(n, c):
     return idx.rename(f"{c}-ext")
 
 
-def get_non_extendable_i(n, c):
+def get_non_extendable_i(n: Network, c: str) -> pd.Index:
     """
     Getter function.
 
@@ -276,7 +298,7 @@ def get_non_extendable_i(n, c):
     return idx.rename(f"{c}-fix")
 
 
-def get_committable_i(n, c):
+def get_committable_i(n: Network, c: str) -> pd.Index:
     """
     Getter function.
 
@@ -289,7 +311,7 @@ def get_committable_i(n, c):
     return idx.rename(f"{c}-com")
 
 
-def get_active_assets(n, c, investment_period):
+def get_active_assets(n: Network, c: str, investment_period: ArrayLike) -> pd.Series:
     """
     Getter function.
 
@@ -311,7 +333,12 @@ def get_active_assets(n, c, investment_period):
     return pd.DataFrame(active).any(axis=1)
 
 
-def get_activity_mask(n, c, sns=None, index=None):
+def get_activity_mask(
+    n: Network,
+    c: str,
+    sns: pd.Index | None = None,
+    index: pd.Index | None = None,
+) -> pd.DataFrame:
     """
     Getter function.
 
@@ -334,7 +361,13 @@ def get_activity_mask(n, c, sns=None, index=None):
     return res
 
 
-def get_bounds_pu(n, c, sns, index=None, attr=None):
+def get_bounds_pu(
+    n: Network,
+    c: str,
+    sns: Sequence,
+    index: pd.Index | None = None,
+    attr: str | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Getter function to retrieve the per unit bounds of a given compoent for
     given snapshots and possible subset of elements (e.g. non-extendables).
@@ -376,13 +409,17 @@ def get_bounds_pu(n, c, sns, index=None, attr=None):
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
-def update_linkports_doc_changes(s, j, i):
+def update_linkports_doc_changes(
+    s: str | Collection[str], i: int, j: str
+) -> str | Collection[str]:
     if not isinstance(s, str) or len(s) == 1:
         return s
     return s.replace(j, str(i)).replace("required", "optional")
 
 
-def update_linkports_component_attrs(n, where=None):
+def update_linkports_component_attrs(
+    n: Network, where: Iterable[str] | None = None
+) -> None:
     ports = additional_linkports(n, where)
     c = "Link"
 
@@ -411,7 +448,7 @@ def update_linkports_component_attrs(n, where=None):
             n.df(c)[target] = n.components[c]["attrs"].loc[target, "default"]
 
 
-def additional_linkports(n, where=None):
+def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list[str]:
     if where is None:
         where = n.links.columns
     return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]

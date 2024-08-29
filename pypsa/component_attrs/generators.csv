@@ -18,7 +18,7 @@ marginal_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 
 marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
 build_year,int,year,0,build year,Input (optional)
 lifetime,float,years,inf,lifetime,Input (optional)
-capital_cost,float,currency/MW,0,Capital cost of extending p_nom by 1 MW.,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending p_nom by 1 MW, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
 efficiency,static or series,per unit,1,"Ratio between primary energy and electrical energy, e.g. takes value 0.4 MWh_elec/MWh_thermal for gas. This is required for global constraints on primary energy in optimization.",Input (optional)
 committable,boolean,n/a,False,Use unit commitment (only possible if p_nom is not extendable).,Input (optional)
 start_up_cost,float,currency,0,Cost to start up the generator. Only read if committable is True.,Input (optional)
