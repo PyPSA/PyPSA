@@ -75,7 +75,7 @@ This will check all files in the repository.
 
 One of the tools that is run by pre-commit is `Ruff <https://docs.astral.sh/ruff>`_,
 which is our linter and formatter. It combines common tools like Flake8, Black, etc. 
-Besides pre-commit, you can also run it via your CLI (see `here <https://docs.astral.sh/ruff/installation/>`_) 
+Besides pre-commit, you can also run it via your CLI (see `Ruff installation) <https://docs.astral.sh/ruff/installation/>`_) 
 or IDE (e.g. VSCode `plugin <https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff>`_).
 This will help you to keep your code clean and consistent already during development.
 

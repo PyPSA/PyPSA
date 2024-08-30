@@ -2,8 +2,11 @@
 Functionality for contingency analysis, such as branch outages.
 """
 
+from __future__ import annotations
+
 import logging
-from collections.abc import Iterable
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -12,10 +15,13 @@ from scipy.sparse import csr_matrix
 
 from pypsa.pf import calculate_PTDF
 
+if TYPE_CHECKING:
+    from pypsa import Network, SubNetwork
+
 logger = logging.getLogger(__name__)
 
 
-def calculate_BODF(sub_network, skip_pre=False):
+def calculate_BODF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     """
     Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
 
@@ -59,7 +65,11 @@ def calculate_BODF(sub_network, skip_pre=False):
     np.fill_diagonal(sub_network.BODF, -1)
 
 
-def network_lpf_contingency(network, snapshots=None, branch_outages=None):
+def network_lpf_contingency(
+    network: Network,
+    snapshots: Sequence | str | int | pd.Timestamp | None = None,
+    branch_outages: Sequence | None = None,
+) -> pd.DataFrame:
     """
     Computes linear power flow for a selection of branch outages.
 
@@ -85,7 +95,7 @@ def network_lpf_contingency(network, snapshots=None, branch_outages=None):
     if snapshots is None:
         snapshots = network.snapshots
 
-    if isinstance(snapshots, Iterable):
+    if isinstance(snapshots, Sequence):
         logger.warning(
             "Apologies LPF contingency, this only works for single snapshots at the moment, taking the first snapshot."
         )

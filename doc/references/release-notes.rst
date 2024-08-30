@@ -11,7 +11,9 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* new feature or bugfix
+* Added basic n.explore() function based on folium and geopandas to interactively explore the network.
+
+* New ``spill_cost`` input parameter for ``storage_unit`` added which penalizes spilling excess energy
 
 * PyPSA now supports committability and extendability, on 
   the same components, if modularity is used. The new feature
@@ -20,7 +22,7 @@ Upcoming Release
   min-up and min-down time, up and down time before.
 
 
-PyPSA 0.29.0 (31st July 2024)
+v0.29.0 (31st July 2024)
 =============================
 
 * Removed ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
@@ -65,7 +67,7 @@ PyPSA 0.29.0 (31st July 2024)
     aggregation of lines/links with different ``build_year`` or ``carrier``.
     (https://github.com/PyPSA/PyPSA/pull/982)
 
-* Changes to the ``plot```module:
+* Changes to the ``plot`` module:
 
   - Add option to add semicircle legends by running
     ``pypsa.plot.add_legend_semicircle(ax, sizes=[1000/scaling_factor],
@@ -137,7 +139,7 @@ PyPSA 0.29.0 (31st July 2024)
   <https://github.com/PyPSA/PyPSA/releases/tag/v0.29.0>`__.
 
 
-PyPSA 0.28.0 (8th May 2024)
+v0.28.0 (8th May 2024)
 =================================
 
 * When using iterative optimisation functionality
@@ -192,7 +194,7 @@ PyPSA 0.28.0 (8th May 2024)
   now correctly returns each functions return values. (https://github.com/PyPSA/PyPSA/pull/871)
 
 
-PyPSA 0.27.1 (22nd March 2024)
+v0.27.1 (22nd March 2024)
 =================================
 
 * Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
@@ -207,7 +209,7 @@ PyPSA 0.27.1 (22nd March 2024)
 
 * Fix of the capex description in the attribute CSV files.
 
-PyPSA 0.27.0 (18th February 2024)
+v0.27.0 (18th February 2024)
 =================================
 
 * Bugfix: If plotting a network map with split buses
@@ -238,7 +240,7 @@ PyPSA 0.27.0 (18th February 2024)
 * ``pyomo`` is no longer supported for Python 3.12 or higher.
 
 
-PyPSA 0.26.3 (25th January 2024)
+v0.26.3 (25th January 2024)
 =================================
 
 * Bugfix: With line transmission losses there was a sign error in the
@@ -249,14 +251,14 @@ PyPSA 0.26.3 (25th January 2024)
   appear in the energy balance (e.g. ``n.statistics.energy_balance()``) and when
   calculating losses with ``n.lines_t.p0 + n.lines_t.p1``.
 
-PyPSA 0.26.2 (31st December 2023)
+v0.26.2 (31st December 2023)
 =================================
 
 * Bugfix in the definition of spillage variables for storage units. Previously,
   the spillage variable creation was skipped in some cases due to a wrong
   condition check even though there was a positive inflow.
 
-PyPSA 0.26.1 (29th December 2023)
+v0.26.1 (29th December 2023)
 =================================
 
 * The output attribute ``n_mod`` introduced in the previous version was removed
@@ -270,7 +272,7 @@ PyPSA 0.26.1 (29th December 2023)
 
 * Removed ``numexpr`` version constraint.
 
-PyPSA 0.26.0 (4th December 2023)
+v0.26.0 (4th December 2023)
 ================================
 
 **New Features**
@@ -341,7 +343,7 @@ PyPSA 0.26.0 (4th December 2023)
 * Added Python 3.12 to CI and supported Python versions.
 
 
-PyPSA 0.25.2 (30th September 2023)
+v0.25.2 (30th September 2023)
 ==================================
 
 * Add option to enable or disable nice carrier name in the statistics module,
@@ -370,7 +372,7 @@ PyPSA 0.25.2 (30th September 2023)
 * Bugfix: Handle cases with multi-decade optimisation, activated transmission
   limit and an empty list of lines or DC links.
 
-PyPSA 0.25.1 (27th July 2023)
+v0.25.1 (27th July 2023)
 =============================
 
 **New Features**
@@ -432,7 +434,7 @@ PyPSA 0.25.1 (27th July 2023)
   aggregating in the time dimension. (https://github.com/PyPSA/PyPSA/pull/687)
 
 
-PyPSA 0.25.0 (13th July 2023)
+v0.25.0 (13th July 2023)
 =============================
 
 **New Features**
@@ -512,7 +514,7 @@ PyPSA 0.25.0 (13th July 2023)
   units was corrected. (https://github.com/PyPSA/PyPSA/pull/671)
 
 
-PyPSA 0.24.0 (27th June 2023)
+v0.24.0 (27th June 2023)
 =================================
 
 * PyPSA now supports quadratic marginal cost terms. A new column
@@ -543,7 +545,7 @@ PyPSA 0.24.0 (27th June 2023)
 * Dropped support for Python 3.8. The minimum required version of Python is now 3.9.
 
 
-PyPSA 0.23.0 (10th May 2023)
+v0.23.0 (10th May 2023)
 =================================
 
 * Transmission losses can now be represented during optimisation with
@@ -637,7 +639,7 @@ PyPSA 0.23.0 (10th May 2023)
   <https://github.com/PyPSA/PyPSA/pull/599>`_]
 
 
-PyPSA 0.22.1 (15th February 2023)
+v0.22.1 (15th February 2023)
 =================================
 
 * The model creation for large, sector-coupled models is now much quicker.
@@ -651,12 +653,12 @@ PyPSA 0.22.1 (15th February 2023)
   results in drawing separate half circles for positive and negative values.
 
 
-PyPSA 0.22.0 (3rd February 2023)
+v0.22.0 (3rd February 2023)
 ================================
 
 * Python 3.11 is now tested. The support of Python 3.7 was dropped. The minimum supported python version is now 3.8.
 * The linopy based optimization (``n.optimize()``) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by multiples of what was installed in the preceding investment period.
-* The linopy based optimization now requires ``linopy`` version 0.1.1 or higher. The new version eases the creation of custom constraint through a better display of linear expression and variables.
+* The linopy based optimization now requires ``linopy`` v0.1.1 or higher. The new version eases the creation of custom constraint through a better display of linear expression and variables.
 * Wrapped functions defined by the ``Network.optimize`` accessor are now wrapping meta information of the original functions more coherently. This enables better feedback in interactive sessions.
 * Checking of datatypes in the ``consistency_check`` is now deactivated by default. Set ``n.consistency_check(check_dtypes=True)`` to activate it.
 * The plotting functionality ``n.plot()`` now supports setting alpha values on the branch components individually.
@@ -664,7 +666,7 @@ PyPSA 0.22.0 (3rd February 2023)
 * The documentation shines in a new look using the ``sphinx-book-theme``. Limit ``sphinx`` to versions below 6.
 * Address various deprecation warnings.
 
-PyPSA 0.21.3 (16th December 2022)
+v0.21.3 (16th December 2022)
 =================================
 
 * Bugfix: Time-varying marginal cost of a component were removed if at least one of its value was zero.
@@ -674,12 +676,12 @@ PyPSA 0.21.3 (16th December 2022)
 * New standard line types for DC lines.
 * Included code of conduct.
 
-PyPSA 0.21.2 (30th November 2022)
+v0.21.2 (30th November 2022)
 =================================
 
 * Compatibility with ``pyomo>=6.4.3``.
 
-PyPSA 0.21.1 (10th November 2022)
+v0.21.1 (10th November 2022)
 =================================
 
 * Default of ``n.lopf()`` changed to ``n.lopf(pyomo=False)``.
@@ -688,7 +690,7 @@ PyPSA 0.21.1 (10th November 2022)
 * Bugfix for warning about imports from different PyPSA versions.
 * Add linopy and statistics module to API reference.
 
-PyPSA 0.21.0 (7th November 2022)
+v0.21.0 (7th November 2022)
 ================================
 
 * A new optimization module `optimization` based on `Linopy <https://github.com/PyPSA/linopy>`_ was introduced. It aims at being as fast as the in-house optimization code and as flexible as the optimization with ``Pyomo``. A introduction to the optimization can be found at the `examples section
@@ -699,7 +701,7 @@ PyPSA 0.21.0 (7th November 2022)
 * Restore import of pandapower networks. Issues regarding the transformer component and indexing as well as missing imports for shunts are fixed. [`#332 <https://github.com/PyPSA/PyPSA/pull/332>`_]
 * The import performance of networks was improved. With the changes, the import time for standard netcdf imports decreased by roughly 70%.
 
-PyPSA 0.20.1 (6th October 2022)
+v0.20.1 (6th October 2022)
 ===============================
 
 * The representation of networks was modified to show the number of components and snapshots.
@@ -713,7 +715,7 @@ PyPSA 0.20.1 (6th October 2022)
 * Addressed ``.iteritems()`` deprecations.
 
 
-PyPSA 0.20.0 (26th July 2022)
+v0.20.0 (26th July 2022)
 ==============================
 
 This release contains new features for plotting and storing metadata with Network objects.
@@ -783,7 +785,7 @@ Special thanks for this release to @Cellophil,
 @txelldm and @rockstaedt for improving test coverage and documentation.
 
 
-PyPSA 0.19.3 (22nd April 2022)
+v0.19.3 (22nd April 2022)
 ==============================
 
 * Apply pre-commit formats to support development (incl. black formatting,
@@ -796,18 +798,18 @@ PyPSA 0.19.3 (22nd April 2022)
 * Greedy Modularity Maximisation was introduced as new spatial
   clustering method [`#377 <https://github.com/PyPSA/PyPSA/pull/377>`_].
 
-PyPSA 0.19.2 (7th March 2022)
+v0.19.2 (7th March 2022)
 =============================
 
 * Add standard line type for 750 kV transmission line.
 
-PyPSA 0.19.1 (18th February 2022)
+v0.19.1 (18th February 2022)
 =================================
 
 * When setting ramp limits for links and calling ``Network.lopf`` with ``pyomo=False``, an unexpected KeyError was raised. This was fixed by correctly accessing the data frame referring to the power dispatch of links.
 
 
-PyPSA 0.19.0 (11th February 2022)
+v0.19.0 (11th February 2022)
 =================================
 
 This release contains new features for ramping constraints in link components,
@@ -877,7 +879,7 @@ implementing the ramp limits for Links in PyPSA, Martha Frysztacki (@martacki) f
 implementing the hierarchical network clustering, and Max Parzen (@pz-max) for
 implementing the HiGHS solver interface.
 
-PyPSA 0.18.1 (15th October 2021)
+v0.18.1 (15th October 2021)
 ================================
 
 * Compatibility with ``pyomo>=6.1``.
@@ -904,7 +906,7 @@ PyPSA 0.18.1 (15th October 2021)
 * Various documentation updates.
 
 
-PyPSA 0.18.0 (12th August 2021)
+v0.18.0 (12th August 2021)
 ===============================
 
 This release contains new features for pathway optimisation, improvements of the
@@ -914,8 +916,7 @@ documentation's examples section as well as compatibility and bug fixes.
 
 * With this release, we have changed the licence from the copyleft GPLv3
   to the more liberal MIT licence with the consent of all contributors
-  (for the reasoning why, see the `pull request
-  <https://github.com/PyPSA/PyPSA/pull/274>`_).
+  (for the reasoning why, see `#274 <https://github.com/PyPSA/PyPSA/pull/274>`_).
 
 **New features**
 
@@ -952,7 +953,7 @@ documentation's examples section as well as compatibility and bug fixes.
   with multi-indexed snapshots.
 
 * Many example notebooks are now also integrated in the
-  documentation. See :doc:`/getting-started/examples-basic`, :doc:`/examples-index/lopf`,
+  documentation. See :doc:`/getting-started/quick-start`, :doc:`/examples-index/lopf`,
   :doc:`/examples-index/sector-coupling` and :doc:`/examples-index/other`.
 
 
@@ -1017,7 +1018,7 @@ multi-horizon investment in PyPSA and to Fabian Hofmann (@FabianHofmann) for
 thoroughly reviewing it and adding the example notebooks to the documentation.
 
 
-PyPSA 0.17.1 (15th July 2020)
+v0.17.1 (15th July 2020)
 =============================
 
 This release contains bug fixes and extensions to the features for optimization when not using Pyomo.
@@ -1055,7 +1056,7 @@ This release contains bug fixes and extensions to the features for optimization 
 Thanks to Pietro Belotti from FICO for adding the Xpress support, to Fabian Neumann (KIT) and Fabian Hofmann (FIAS) for all their
 hard work on this release, and to all those who fixed bugs and reported issues.
 
-PyPSA 0.17.0 (23rd March 2020)
+v0.17.0 (23rd March 2020)
 ================================
 
 This release contains some minor breaking changes to plotting, some
@@ -1115,7 +1116,7 @@ Thanks to Fabian Hofmann (FIAS) and Fabian Neumann (KIT) for all their
 hard work on this release, and to all those who reported issues.
 
 
-PyPSA 0.16.1 (10th January 2020)
+v0.16.1 (10th January 2020)
 ================================
 
 This release contains a few minor bux fixes from the introduction of
@@ -1154,7 +1155,7 @@ out shadow prices for non-extendable branches, see the `github issue
 <https://github.com/PyPSA/PyPSA/issues/119>`_.
 
 
-PyPSA 0.16.0 (20th December 2019)
+v0.16.0 (20th December 2019)
 =================================
 
 This release contains major new features. It is also the first release
@@ -1200,7 +1201,7 @@ nomopyomo framework in PyPSA and Fabian Neumann for providing the
 customizable distributed slack.
 
 
-PyPSA 0.15.0 (8th November 2019)
+v0.15.0 (8th November 2019)
 ================================
 
 This release contains new improvements and bug fixes.
@@ -1239,7 +1240,7 @@ commitment code, Clara Büttner for finding the SCLOPF bug, and all
 others who contributed issues and pull requests.
 
 
-PyPSA 0.14.1 (27th May 2019)
+v0.14.1 (27th May 2019)
 ================================
 
 This minor release contains three small bug fixes:
@@ -1251,7 +1252,7 @@ This minor release contains three small bug fixes:
 This will also be the first release to be available directly from
 `conda-forge <https://conda-forge.org/>`_.
 
-PyPSA 0.14.0 (15th May 2019)
+v0.14.0 (15th May 2019)
 ============================
 
 This release contains a new feature and bug fixes.
@@ -1283,7 +1284,7 @@ cartopy interface, Chloe Syranidis for pointing out the problem with
 the Pyomo 5.6.2 update, Hailiang Liu for the consistency check update
 and Christian Brosig for the pandapower updates.
 
-PyPSA 0.13.2 (10th January 2019)
+v0.13.2 (10th January 2019)
 ================================
 
 This minor release contains small new features and fixes.
@@ -1305,7 +1306,7 @@ We thank Soner Candas of TUM for reporting the problem with the most
 recent version of Pyomo and providing the fix.
 
 
-PyPSA 0.13.1 (27th March 2018)
+v0.13.1 (27th March 2018)
 ==============================
 
 This release contains bug fixes for the new features introduced in
@@ -1329,7 +1330,7 @@ For this release we acknowledge funding to Tom Brown from the
 
 
 
-PyPSA 0.13.0 (25th January 2018)
+v0.13.0 (25th January 2018)
 ================================
 
 This release contains new features aimed at coupling power networks to
@@ -1358,7 +1359,7 @@ internal API changes.
   ``network.export_to_netcdf()`` and
   ``network.import_from_netcdf()``. This is faster than using CSV
   files and the files take up less space. Import and export with HDF5
-  files, introduced in PyPSA 0.12.0, is now deprecated.
+  files, introduced in v0.12.0, is now deprecated.
 * The export and import code has been refactored to be more general
   and abstract. This does not affect the API.
 * The internally-used sets such as ``pypsa.components.all_components``
@@ -1388,7 +1389,7 @@ For this release we also acknowledge funding to Tom Brown from the
 
 
 
-PyPSA 0.12.0 (30th November 2017)
+v0.12.0 (30th November 2017)
 =================================
 
 This release contains new features and bug fixes.
@@ -1400,7 +1401,7 @@ This release contains new features and bug fixes.
   ``prepare_solver`` and ``solve`` to allow more fine-grained control of the
   solving steps.  Currently the new Pyomo PersistentSolver interface
   is not in the main Pyomo branch, see
-  the `pull request <https://github.com/Pyomo/pyomo/pull/223>`_; you can obtain it with
+  `#223 <https://github.com/Pyomo/pyomo/pull/223>`_; you can obtain it with
   ``pip install git+https://github.com/Pyomo/pyomo@persistent_interfaces``
 * Lines and transformers (i.e. passive branches) have a new attribute
   ``s_max_pu`` to restrict the flow in the OPF, just like ``p_max_pu``
@@ -1443,7 +1444,7 @@ Matteo De Felice and Florian Kühnlenz for promptly notifying us about
 issues.
 
 
-PyPSA 0.11.0 (21st October 2017)
+v0.11.0 (21st October 2017)
 ================================
 
 This release contains new features but no changes to existing APIs.
@@ -1458,8 +1459,7 @@ This release contains new features but no changes to existing APIs.
   components to the network. This is significantly faster than
   repeatedly calling ``network.add()`` and uses the functions
   ``network.import_components_from_dataframe()`` and
-  ``network.import_series_from_dataframe()`` internally. Documentation
-  and examples can be found at :ref:`madd`.
+  ``network.import_series_from_dataframe()`` internally.
 * There are new functions ``network.export_to_hdf5()`` and
   ``network.import_from_hdf5()`` for exporting and importing networks
   as single files in the `Hierarchical Data Format
@@ -1474,7 +1474,7 @@ We thank Bryn Pickering for introducing us to `plotly
 the first working prototype using PyPSA.
 
 
-PyPSA 0.10.0 (7th August 2017)
+v0.10.0 (7th August 2017)
 ==============================
 
 This release contains some minor new features and a few minor but
@@ -1538,7 +1538,7 @@ improved ``network.consistency_check()``.
 
 
 
-PyPSA 0.9.0 (29th April 2017)
+v0.9.0 (29th April 2017)
 =============================
 
 This release mostly contains new features with a few minor API
@@ -1558,7 +1558,7 @@ changes.
   commitment example
   <https://pypsa.readthedocs.io/en/latest/examples/unit-commitment.html>`_.
 * Different mathematically-equivalent formulations for the Linear
-  Optimal Power Flow (LOPF) are now documented in :ref:`formulations`
+  Optimal Power Flow (LOPF) are now documented
   and the arXiv preprint paper `Linear Optimal Power Flow Using Cycle
   Flows <https://arxiv.org/abs/1704.01881>`_. The new formulations can
   solve up to 20 times faster than the standard angle-based
@@ -1581,7 +1581,7 @@ account of the impedance with a disjunctive relaxation. This will be
 pulled into the main PyPSA code base soon.
 
 
-PyPSA 0.8.0 (25th January 2017)
+v0.8.0 (25th January 2017)
 ===============================
 
 This is a major release which contains important new features and
@@ -1623,7 +1623,7 @@ changes to the internal API.
 
 
 
-PyPSA 0.7.1 (26th November 2016)
+v0.7.1 (26th November 2016)
 ================================
 
 This release contains bug fixes, a minor new feature and more
@@ -1650,7 +1650,7 @@ bug.
 
 
 
-PyPSA 0.7.0 (20th November 2016)
+v0.7.0 (20th November 2016)
 ================================
 
 This is a major release which contains changes to the API,
@@ -1691,7 +1691,7 @@ All `examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_ hav
 accommodate the changes listed below.
 
 
-PyPSA 0.6.2 (4th November 2016)
+v0.6.2 (4th November 2016)
 ===============================
 
 This release fixes a single library dependency issue:
@@ -1703,7 +1703,7 @@ We thank Thorben Meiners for promptly pointing out this issue with the
 new versions of pandas.
 
 
-PyPSA 0.6.1 (25th August 2016)
+v0.6.1 (25th August 2016)
 ==============================
 
 This release fixes a single critical bug:
@@ -1718,7 +1718,7 @@ bug.
 
 
 
-PyPSA 0.6.0 (23rd August 2016)
+v0.6.0 (23rd August 2016)
 ==============================
 
 Like the 0.5.0 release, this release contains API changes, which
@@ -1735,8 +1735,7 @@ may also be removed; see below.
 All `examples <https://pypsa.readthedocs.io/en/latest/examples-basic.html>`_ have been updated to
 accommodate the changes listed below.
 
-Sector coupling
----------------
+**Sector coupling**
 
 * components, opt: A new ``Store`` component has been introduced which
   stores energy, inheriting the energy carrier from the bus to which
@@ -1760,8 +1759,7 @@ Sector coupling
   which were deprecated in 0.5.0, have been now completely
   removed. Please update your old code to use ``Link`` instead.
 
-Downgrading object interface
-----------------------------
+**Downgrading object interface**
 
 The intention is to have only the pandas DataFrame interface for
 accessing component attributes, to make the code simpler. The
@@ -1776,8 +1774,7 @@ may be removed altogether.
 
 * components: ``network.add()`` no longer returns the object.
 
-Other
------
+**Other**
 
 * components, opf: Unlimited upper bounds for
   e.g. ``generator.p_nom_max`` or ``line.s_nom_max`` were previous set
@@ -1790,14 +1787,14 @@ Other
 
 
 
-PyPSA 0.5.0 (21st July 2016)
+v0.5.0 (21st July 2016)
 ============================
 
 This is a relatively major release with some API changes, primarily
 aimed at allowing coupling with other energy carriers (heat, gas,
 etc.). The specification for a change and refactoring to the handling
 of time series has also been prepared (see :ref:`time-varying`), which will
-be implemented in the next major release PyPSA 0.6.0 in the late
+be implemented in the next major release v0.6.0 in the late
 summer of 2016.
 
 An example of the coupling between electric and heating sectors can be
@@ -1835,8 +1832,7 @@ found in the GitHub repository at
   component attributes. Static and series attributes of all components
   are not exported if they are default values.  The functionality to
   selectively export series has been removed from the export function,
-  because it was clumsy and hard to use.  See :ref:`export-csv` for
-  more details.
+  because it was clumsy and hard to use.
 
 
 * plot: Plotting networks is now more performant (using matplotlib
@@ -1847,7 +1843,7 @@ found in the GitHub repository at
   Flow (SCLOPF) has been introduced.
 
 
-PyPSA 0.4.2 (17th June 2016)
+v0.4.2 (17th June 2016)
 ============================
 
 This release improved the non-linear power flow performance and
@@ -1867,7 +1863,7 @@ included other small refactorings:
 * opf: Sub-optimal solutions can also be read out of pyomo.
 
 
-PyPSA 0.4.1 (3rd April 2016)
+v0.4.1 (3rd April 2016)
 ============================
 
 This was mostly a bug-fixing and unit-testing release:
@@ -1887,7 +1883,7 @@ This was mostly a bug-fixing and unit-testing release:
 We thank Joao Gorenstein Dedecca for a bug fix.
 
 
-PyPSA 0.4.0 (21st March 2016)
+v0.4.0 (21st March 2016)
 ================================
 
 Additional features:
@@ -1910,7 +1906,7 @@ We thank Steffen Schroedter, Bjoern Laemmerzahl and Joao Gorenstein
 Dedecca for comments and bug fixes.
 
 
-PyPSA 0.3.3 (29th February 2016)
+v0.3.3 (29th February 2016)
 ================================
 
 Additional features:
@@ -1924,7 +1920,7 @@ Additional features:
 * Better network clustering.
 
 
-PyPSA 0.3.2 (17th February 2016)
+v0.3.2 (17th February 2016)
 ================================
 
 In this release some minor API changes were made:
@@ -1938,7 +1934,7 @@ In this release some minor API changes were made:
   ``network.lopf(keep_files=False)``.
 
 
-PyPSA 0.3.1 (7th February 2016)
+v0.3.1 (7th February 2016)
 ===============================
 
 In this release some minor API changes were made:
@@ -1962,7 +1958,7 @@ In this release some minor API changes were made:
 
 
 
-PyPSA 0.3.0 (27th January 2016)
+v0.3.0 (27th January 2016)
 ===============================
 
 In this release the pandas.Panel interface for time-dependent

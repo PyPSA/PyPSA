@@ -2,16 +2,27 @@
 Graph helper functions, which are attached to network and sub_network.
 """
 
+from __future__ import annotations
 
-# Functions which will be attached to network and sub_network
+from collections.abc import Collection, Iterable
+from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 import scipy as sp
 
 from pypsa.descriptors import OrderedGraph, get_active_assets
 
+if TYPE_CHECKING:
+    from pypsa import Network, SubNetwork
 
-def graph(network, branch_components=None, weight=None, inf_weight=False):
+
+def graph(
+    network: Network | SubNetwork,
+    branch_components: Collection[str] | None = None,
+    weight: str | None = None,
+    inf_weight: bool | float = False,
+) -> OrderedGraph:
     """
     Build NetworkX graph.
 
@@ -42,6 +53,8 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     if isinstance(network, components.Network):
         if branch_components is None:
             branch_components = network.branch_components
+        else:
+            branch_components = set(branch_components)
         buses_i = network.buses.index
     elif isinstance(network, components.SubNetwork):
         if branch_components is None:
@@ -56,7 +69,7 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     graph.add_nodes_from(buses_i)
 
     # Multigraph uses the branch type and name as key
-    def gen_edges():
+    def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
         for c in network.iterate_components(branch_components):
             for branch in c.df.loc[
                 slice(None) if c.ind is None else c.ind
@@ -78,8 +91,12 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
 
 
 def adjacency_matrix(
-    network, branch_components=None, investment_period=None, busorder=None, weights=None
-):
+    network: Network,
+    branch_components: Collection[str] | None = None,
+    investment_period: int | str | None = None,
+    busorder: pd.Index | None = None,
+    weights: pd.Series | None = None,
+) -> sp.sparse.coo_matrix:
     """
     Construct a sparse adjacency matrix (directed)
 
@@ -131,9 +148,7 @@ def adjacency_matrix(
         elif investment_period is None:
             sel = c.ind
         else:
-            active = get_active_assets(
-                network, c.name, investment_period, network.snapshots
-            )
+            active = get_active_assets(network, c.name, investment_period)
             sel = c.ind & c.df.loc[active].index
 
         no_branches = len(c.df.loc[sel])
@@ -155,7 +170,11 @@ def adjacency_matrix(
     )
 
 
-def incidence_matrix(network, branch_components=None, busorder=None):
+def incidence_matrix(
+    network: Network | SubNetwork,
+    branch_components: Collection[str] | None = None,
+    busorder: pd.Index | None = None,
+) -> sp.sparse.csr_matrix:
     """
     Construct a sparse incidence matrix (directed)
 

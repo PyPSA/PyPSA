@@ -3,9 +3,13 @@
 Build optimisation problems from PyPSA networks with Linopy.
 """
 
+from __future__ import annotations
+
 import logging
 import os
+from collections.abc import Callable, Sequence
 from functools import wraps
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -64,8 +68,10 @@ from pypsa.optimization.variables import (
     # define_shut_down_variables,
     define_spillage_variables,
 )
-from pypsa.pf import _as_snapshots
+from pypsa.utils import as_index
 
+if TYPE_CHECKING:
+    from pypsa import Network, SubNetwork
 logger = logging.getLogger(__name__)
 
 
@@ -75,7 +81,7 @@ lookup = pd.read_csv(
 )
 
 
-def define_objective(n, sns):
+def define_objective(n: Network, sns: pd.Index) -> None:
     """
     Defines and writes out the objective function.
     """
@@ -113,31 +119,27 @@ def define_objective(n, sns):
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
-    # marginal cost
+    # Weightings
     weighting = n.snapshot_weightings.objective
     if n._multi_invest:
         weighting = weighting.mul(period_weighting, level=0).loc[sns]
     else:
         weighting = weighting.loc[sns]
 
-    for c, attr in lookup.query("marginal_cost").index:
-        cost = (
-            get_as_dense(n, c, "marginal_cost", sns)
-            .loc[:, lambda ds: (ds != 0).any()]
-            .mul(weighting, axis=0)
-        )
-        if cost.empty:
-            continue
-        operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
-        objective.append((operation * cost).sum())
+    # marginal costs and spill cost
+    for cost_type in ["marginal_cost", "spill_cost"]:
+        for c, attr in lookup.query(cost_type).index:
+            cost = (
+                get_as_dense(n, c, cost_type, sns)
+                .loc[:, lambda ds: (ds != 0).any()]
+                .mul(weighting, axis=0)
+            )
+            if cost.empty:
+                continue
+            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            objective.append((operation * cost).sum())
 
     # marginal cost quadratic
-    weighting = n.snapshot_weightings.objective
-    if n._multi_invest:
-        weighting = weighting.mul(period_weighting, level=0).loc[sns]
-    else:
-        weighting = weighting.loc[sns]
-
     for c, attr in lookup.query("marginal_cost").index:
         if "marginal_cost_quadratic" in n.df(c):
             cost = (
@@ -208,13 +210,13 @@ def define_objective(n, sns):
 
 
 def create_model(
-    n,
-    snapshots=None,
-    multi_investment_periods=False,
-    transmission_losses=0,
-    linearized_unit_commitment=False,
-    **kwargs,
-):
+    n: Network,
+    snapshots: Sequence | None = None,
+    multi_investment_periods: bool = False,
+    transmission_losses: int = 0,
+    linearized_unit_commitment: bool = False,
+    **kwargs: Any,
+) -> Model:
     """
     Create a linopy.Model instance from a pypsa network.
 
@@ -239,7 +241,7 @@ def create_model(
     -------
     linopy.model
     """
-    sns = _as_snapshots(n, snapshots)
+    sns = as_index(n, snapshots, "snapshots", "snapshot")
     n._linearized_uc = int(linearized_unit_commitment)
     n._multi_invest = int(multi_investment_periods)
     n.consistency_check()
@@ -359,7 +361,7 @@ def create_model(
     return n.model
 
 
-def assign_solution(n):
+def assign_solution(n: Network) -> None:
     """
     Map solution to network components.
     """
@@ -413,7 +415,7 @@ def assign_solution(n):
     n.objective = m.objective.value
 
 
-def assign_duals(n, assign_all_duals=False):
+def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
     """
     Map dual values i.e. shadow prices to network components.
 
@@ -467,7 +469,7 @@ def assign_duals(n, assign_all_duals=False):
         )
 
 
-def post_processing(n):
+def post_processing(n: Network) -> None:
     """
     Post-process the optimized network.
 
@@ -511,7 +513,7 @@ def post_processing(n):
     for i in additional_linkports(n):
         ca.append(("Link", f"p{i}", f"bus{i}"))
 
-    def sign(c):
+    def sign(c: str) -> int:
         return n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
 
     n.buses_t.p = (
@@ -527,7 +529,7 @@ def post_processing(n):
         .T.reindex(columns=n.buses.index, fill_value=0.0)
     )
 
-    def v_ang_for_(sub):
+    def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
         buses_i = sub.buses_o
         if len(buses_i) == 1:
             return pd.DataFrame(0, index=sns, columns=buses_i)
@@ -546,19 +548,19 @@ def post_processing(n):
 
 
 def optimize(
-    n,
-    snapshots=None,
-    multi_investment_periods=False,
-    transmission_losses=0,
-    linearized_unit_commitment=False,
-    model_kwargs={},
-    extra_functionality=None,
-    assign_all_duals=False,
-    solver_name="highs",
-    solver_options={},
-    compute_infeasibilities=False,
-    **kwargs,
-):
+    n: Network,
+    snapshots: Sequence | None = None,
+    multi_investment_periods: bool = False,
+    transmission_losses: int = 0,
+    linearized_unit_commitment: bool = False,
+    model_kwargs: dict = {},
+    extra_functionality: Callable | None = None,
+    assign_all_duals: bool = False,
+    solver_name: str = "highs",
+    solver_options: dict = {},
+    compute_infeasibilities: bool = False,
+    **kwargs: Any,
+) -> tuple[str, str]:
     """
     Optimize the pypsa network using linopy.
 
@@ -592,7 +594,7 @@ def optimize(
     solver_name : str
         Name of the solver to use.
     solver_options : dict
-        Keyword arguments used by the solver. Can also be passed via **kwargs.
+        Keyword arguments used by the solver. Can also be passed via `**kwargs`.
     compute_infeasibilities : bool, default False
         Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
         of an infeasible solution. Requires Gurobi.
@@ -611,7 +613,7 @@ def optimize(
         https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
 
-    sns = _as_snapshots(n, snapshots)
+    sns = as_index(n, snapshots, "snapshots", "snapshot")
     n._multi_invest = int(multi_investment_periods)
     n._linearized_uc = linearized_unit_commitment
 
@@ -648,25 +650,25 @@ class OptimizationAccessor:
     Optimization accessor for building and solving models using linopy.
     """
 
-    def __init__(self, network):
+    def __init__(self, network: Network) -> None:
         self._parent = network
 
     @wraps(optimize)
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return optimize(self._parent, *args, **kwargs)
 
     @wraps(create_model)
-    def create_model(self, *args, **kwargs):
+    def create_model(self, *args: Any, **kwargs: Any) -> Any:
         return create_model(self._parent, *args, **kwargs)
 
     def solve_model(
         self,
-        extra_functionality=None,
-        solver_name="highs",
-        solver_options={},
-        assign_all_duals=False,
-        **kwargs,
-    ):
+        extra_functionality: Callable | None = None,
+        solver_name: str = "highs",
+        solver_options: dict = {},
+        assign_all_duals: bool = False,
+        **kwargs: Any,
+    ) -> tuple[str, str]:
         """
         Solve an already created model and assign its solution to the network.
 
@@ -675,7 +677,7 @@ class OptimizationAccessor:
         solver_name : str
             Name of the solver to use.
         solver_options : dict
-            Keyword arguments used by the solver. Can also be passed via **kwargs.
+            Keyword arguments used by the solver. Can also be passed via `**kwargs`.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -708,36 +710,38 @@ class OptimizationAccessor:
         return status, condition
 
     @wraps(assign_solution)
-    def assign_solution(self, **kwargs):
+    def assign_solution(self, *args: Any, **kwargs: Any) -> Any:
         return assign_solution(self._parent, **kwargs)
 
     @wraps(assign_duals)
-    def assign_duals(self, **kwargs):
+    def assign_duals(self, *args: Any, **kwargs: Any) -> Any:
         return assign_duals(self._parent, **kwargs)
 
     @wraps(post_processing)
-    def post_processing(self, **kwargs):
+    def post_processing(self, *args: Any, **kwargs: Any) -> Any:
         return post_processing(self._parent, **kwargs)
 
     @wraps(optimize_transmission_expansion_iteratively)
-    def optimize_transmission_expansion_iteratively(self, *args, **kwargs):
+    def optimize_transmission_expansion_iteratively(
+        self, *args: Any, **kwargs: Any
+    ) -> Any:
         return optimize_transmission_expansion_iteratively(
             self._parent, *args, **kwargs
         )
 
     @wraps(optimize_security_constrained)
-    def optimize_security_constrained(self, *args, **kwargs):
+    def optimize_security_constrained(self, *args: Any, **kwargs: Any) -> Any:
         return optimize_security_constrained(self._parent, *args, **kwargs)
 
     @wraps(optimize_with_rolling_horizon)
-    def optimize_with_rolling_horizon(self, *args, **kwargs):
+    def optimize_with_rolling_horizon(self, *args: Any, **kwargs: Any) -> Any:
         return optimize_with_rolling_horizon(self._parent, *args, **kwargs)
 
     @wraps(optimize_mga)
-    def optimize_mga(self, *args, **kwargs):
+    def optimize_mga(self, *args: Any, **kwargs: Any) -> Any:
         return optimize_mga(self._parent, *args, **kwargs)
 
-    def fix_optimal_capacities(self):
+    def fix_optimal_capacities(self) -> None:
         """
         Fix capacities of extendable assets to optimized capacities.
 
@@ -751,7 +755,7 @@ class OptimizationAccessor:
             n.df(c).loc[ext_i, attr] = n.df(c).loc[ext_i, attr + "_opt"]
             n.df(c)[attr + "_extendable"] = False
 
-    def fix_optimal_dispatch(self):
+    def fix_optimal_dispatch(self) -> None:
         """
         Fix dispatch of all assets to optimized values.
 
@@ -766,12 +770,12 @@ class OptimizationAccessor:
 
     def add_load_shedding(
         self,
-        suffix=" load shedding",
-        buses=None,
-        sign=1e-3,
-        marginal_cost=1e2,
-        p_nom=1e9,
-    ):
+        suffix: str = " load shedding",
+        buses: pd.Index | None = None,
+        sign: float | pd.Series = 1e-3,
+        marginal_cost: float | pd.Series = 1e2,
+        p_nom: float | pd.Series = 1e9,
+    ) -> pd.Index:
         """
         Add load shedding in form of generators to all or a subset of buses.
 

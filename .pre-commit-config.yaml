@@ -1,3 +1,6 @@
+ci:
+  autoupdate_schedule: monthly
+
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.6.0
@@ -40,3 +43,4 @@ repos:
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
+

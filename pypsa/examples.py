@@ -4,7 +4,10 @@ This module contains functions for retrieving/loading example networks provided
 by the PyPSA project.
 """
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 from urllib.error import HTTPError
 from urllib.request import urlretrieve
 
@@ -13,10 +16,12 @@ import pandas as pd
 from pypsa.components import Network
 from pypsa.io import _data_dir
 
+if TYPE_CHECKING:
+    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 
-def _decrement_version(version):
+def _decrement_version(version: str) -> str:
     x, y, z = map(int, version.split("."))
     if z > 0:
         z -= 1
@@ -29,12 +34,13 @@ def _decrement_version(version):
     return f"{x}.{y}.{z}"
 
 
-def _repo_url(master=False):
+def _repo_url(master: bool = False) -> str:
     url = "https://github.com/PyPSA/PyPSA/raw/"
     if master:
         return f"{url}master/"
     from pypsa import release_version  # avoid cyclic imports
 
+    assert release_version is not None, "release_version is None"
     # If the release version is not found, use the latest version, since this is
     # because we are in a dev branch which has not been released yet.
     version_with_data = release_version
@@ -48,7 +54,9 @@ def _repo_url(master=False):
     return f"{url}v{version_with_data}/"
 
 
-def _retrieve_if_not_local(name, repofile, update=False, from_master=False):
+def _retrieve_if_not_local(
+    name: str, repofile: str, update: bool = False, from_master: bool = False
+) -> str:
     path = (_data_dir / name).with_suffix(".nc")
 
     if not path.exists() or update:
@@ -59,7 +67,9 @@ def _retrieve_if_not_local(name, repofile, update=False, from_master=False):
     return str(path)
 
 
-def ac_dc_meshed(update=False, from_master=False, remove_link_p_set=True):
+def ac_dc_meshed(
+    update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
+) -> Network:
     """
     Load the meshed AC-DC network example of pypsa stored in the PyPSA
     repository.
@@ -86,7 +96,7 @@ def ac_dc_meshed(update=False, from_master=False, remove_link_p_set=True):
     return n
 
 
-def storage_hvdc(update=False, from_master=False):
+def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     """
     Load the storage network example of pypsa stored in the PyPSA repository.
 
@@ -107,7 +117,7 @@ def storage_hvdc(update=False, from_master=False):
     return Network(path)
 
 
-def scigrid_de(update=False, from_master=False):
+def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     """
     Load the SciGrid network example of pypsa stored in the PyPSA repository.
 

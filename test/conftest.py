@@ -18,6 +18,19 @@ from shapely.geometry import Polygon
 import pypsa
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--test-docs",
+        action="store_true",
+        default=False,
+        help="run sphinx build test",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "test_docs: mark test as sphinx build")
+
+
 @pytest.fixture(scope="function")
 def scipy_network():
     csv_folder = os.path.join(

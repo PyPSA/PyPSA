@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.plot import (
+from pypsa.plot import (  # type: ignore[attr-defined]
     add_legend_circles,
     add_legend_lines,
     add_legend_patches,
@@ -27,6 +27,15 @@ try:
     cartopy_present = True
 except ImportError:
     cartopy_present = False
+
+
+try:
+    import folium  # noqa: F401
+    import mapclassify  # noqa: F401
+
+    explore_deps_present = True
+except ImportError:
+    explore_deps_present = False
 
 
 @pytest.mark.parametrize("margin", (None, 0.1))
@@ -314,3 +323,13 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
     add_legend_semicircles(ax, [1, 0.5], ["reference A", "reference B"])
 
     plt.close()
+
+
+@pytest.mark.skipif(
+    not explore_deps_present,
+    reason="Dependencies for n.explore() not installed: folium, mapclassify",
+)
+def test_network_explore(ac_dc_network):
+    n = ac_dc_network
+
+    n.explore()
