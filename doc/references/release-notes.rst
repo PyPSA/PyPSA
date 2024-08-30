@@ -2,21 +2,34 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: 
+.. .. warning:: 
   
-  The features listed below are not released yet, but will be part of the next release! 
-  To use the features already you have to install the ``master`` branch, e.g. 
-  ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+..   The features listed below are not released yet, but will be part of the next release! 
+..   To use the features already you have to install the ``master`` branch, e.g. 
+..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Added basic n.explore() function based on folium and geopandas to interactively explore the network.
+v0.30.0 (30th August 2024)
+==========================
 
-* New ``spill_cost`` input parameter for ``storage_unit`` added which penalizes spilling excess energy.
+* Added ``n.explore()`` function based on ``folium`` and ``geopandas`` to
+  interactively explore networks. (https://github.com/PyPSA/PyPSA/pull/1009)
+
+* Added new ``spill_cost`` input parameter for storage units which penalizes
+  spilling excess energy. (https://github.com/PyPSA/PyPSA/pull/1012)
 
 * Added new ``marginal_cost_storage`` input parameter for stores and storage
   units to represent the cost of storing energy in currency/MWh/h.
+  (https://github.com/PyPSA/PyPSA/pull/603)
+
+* Added type annotations to all functions. (https://github.com/PyPSA/PyPSA/pull/1010)
+
+* Updated documentation. (https://github.com/PyPSA/PyPSA/pull/1004)
+
+* See full list of changes `here
+  <https://github.com/PyPSA/PyPSA/releases/tag/v0.30.0>`__.
 
 v0.29.0 (31st July 2024)
 =============================
