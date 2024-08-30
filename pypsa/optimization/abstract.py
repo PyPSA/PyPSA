@@ -4,9 +4,13 @@ Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
 """
 
+from __future__ import annotations
+
 import gc
 import logging
+from collections.abc import Sequence
 from itertools import product
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -15,22 +19,24 @@ from linopy import LinearExpression, QuadraticExpression, merge
 
 from pypsa.descriptors import nominal_attrs
 
+if TYPE_CHECKING:
+    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 
 def optimize_transmission_expansion_iteratively(
-    n,
-    snapshots=None,
-    msq_threshold=0.05,
-    min_iterations=1,
-    max_iterations=100,
-    track_iterations=False,
-    line_unit_size=None,
-    link_unit_size=None,
-    line_threshold=0.3,
-    link_threshold=0.3,
-    **kwargs,
-):
+    n: Network,
+    snapshots: Sequence | None = None,
+    msq_threshold: float = 0.05,
+    min_iterations: int = 1,
+    max_iterations: int = 100,
+    track_iterations: bool = False,
+    line_unit_size: float | None = None,
+    link_unit_size: dict | None = None,
+    line_threshold: float | None = None,
+    link_threshold: dict | None = None,
+    **kwargs: Any,
+) -> tuple[str, str]:
     """
     Iterative linear optimization updating the line parameters for passive AC
     and DC lines. This is helpful when line expansion is enabled. After each
@@ -66,7 +72,7 @@ def optimize_transmission_expansion_iteratively(
         with carrier names as keys. Use None if no discretization is desired.
     line_threshold: float, default 0.3
         The threshold relative to the unit size for discretizing line components.
-    link_threshold: float, default 0.3
+    link_threshold: dict-like, default 0.3 per carrier
         The threshold relative to the unit size for discretizing link components.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
@@ -84,7 +90,7 @@ def optimize_transmission_expansion_iteratively(
     )
     n.lines.loc[ext_typed_i, "num_parallel"] = (n.lines.s_nom / base_s_nom)[ext_typed_i]
 
-    def update_line_params(n, s_nom_prev):
+    def update_line_params(n: Network, s_nom_prev: float | pd.Series) -> None:
         factor = n.lines.s_nom_opt / s_nom_prev
         for attr, carrier in (("x", "AC"), ("r", "DC")):
             ln_i = n.lines.query("carrier == @carrier").index.intersection(
@@ -94,7 +100,7 @@ def optimize_transmission_expansion_iteratively(
         ln_i = ext_i.intersection(typed_i)
         n.lines.loc[ln_i, "num_parallel"] = (n.lines.s_nom_opt / base_s_nom)[ln_i]
 
-    def msq_diff(n, s_nom_prev):
+    def msq_diff(n: Network, s_nom_prev: float | pd.Series) -> float:
         lines_err = (
             np.sqrt((s_nom_prev - n.lines.s_nom_opt).pow(2).mean())
             / n.lines["s_nom_opt"].mean()
@@ -104,7 +110,7 @@ def optimize_transmission_expansion_iteratively(
         )
         return lines_err
 
-    def save_optimal_capacities(n, iteration, status):
+    def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
             n.df(c)[f"{attr}_opt_{iteration}"] = n.df(c)[f"{attr}_opt"]
         setattr(n, f"status_{iteration}", status)
@@ -114,31 +120,49 @@ def optimize_transmission_expansion_iteratively(
             columns={"mu": f"mu_{iteration}"}
         )
 
-    def discretized_capacity(nom_opt, unit_size, threshold, min_units=0):
+    def discretized_capacity(
+        nom_opt: float,
+        unit_size: float,
+        threshold: float,
+        min_units: int = 0,
+    ) -> float:
         units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
         return max(min_units, units) * unit_size
 
     def discretize_branch_components(
-        n, line_unit_size, link_unit_size, line_threshold=0.3, link_threshold=0.3
-    ):
+        n: Network,
+        line_unit_size: float | None,
+        link_unit_size: dict | None,
+        line_threshold: float | None,
+        link_threshold: dict | None,
+    ) -> None:
         """
         Discretizes the branch components of a network based on the specified
         unit sizes and thresholds.
         """
+        # TODO: move default value definition to main function (unnest)
+        line_threshold = line_threshold or 0.3
+        link_threshold = link_threshold or {}
+
         if line_unit_size:
             min_units = 1
-            args = (line_unit_size, line_threshold, min_units)
             n.lines["s_nom"] = n.lines["s_nom_opt"].apply(
-                discretized_capacity, args=args
+                discretized_capacity, args=(line_unit_size, line_threshold, min_units)
             )
 
         if link_unit_size:
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
-                args = (link_unit_size[carrier], link_threshold[carrier])
                 idx = n.links.carrier == carrier
                 n.links.loc[idx, "p_nom"] = n.links.loc[idx, "p_nom_opt"].apply(
-                    discretized_capacity, args=args
+                    discretized_capacity,
+                    args=(
+                        link_unit_size[carrier],
+                        link_threshold.get(carrier, 0.3),
+                    ),
                 )
+
+    if link_threshold is None:
+        link_threshold = {}
 
     if track_iterations:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
@@ -155,7 +179,7 @@ def optimize_transmission_expansion_iteratively(
             break
 
         s_nom_prev = n.lines.s_nom_opt.copy() if iteration else n.lines.s_nom.copy()
-        status, termination_condition = n.optimize(snapshots, **kwargs)
+        status, termination_condition = n.optimize(snapshots, **kwargs)  # type: ignore
         if status != "ok":
             msg = (
                 f"Optimization failed with status {status} and termination "
@@ -201,7 +225,7 @@ def optimize_transmission_expansion_iteratively(
     )
 
     n.calculate_dependent_values()
-    status, condition = n.optimize(snapshots, **kwargs)
+    status, condition = n.optimize(snapshots, **kwargs)  # type: ignore
 
     n.lines.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
     n.lines.loc[ext_i, "s_nom_extendable"] = True
@@ -221,13 +245,13 @@ def optimize_transmission_expansion_iteratively(
 
 
 def optimize_security_constrained(
-    n,
-    snapshots=None,
-    branch_outages=None,
-    multi_investment_periods=False,
-    model_kwargs={},
-    **kwargs,
-):
+    n: Network,
+    snapshots: Sequence | None = None,
+    branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
+    multi_investment_periods: bool = False,
+    model_kwargs: dict = {},
+    **kwargs: Any,
+) -> tuple[str, str]:
     """
     Computes Security-Constrained Linear Optimal Power Flow (SCLOPF).
 
@@ -271,7 +295,7 @@ def optimize_security_constrained(
 
     if not len(all_passive_branches):
         return n.optimize(
-            snapshots,
+            snapshots,  # type: ignore
             multi_investment_periods=multi_investment_periods,
             model_kwargs=model_kwargs,
             **kwargs,
@@ -320,7 +344,13 @@ def optimize_security_constrained(
     return n.optimize.solve_model(**kwargs)
 
 
-def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **kwargs):
+def optimize_with_rolling_horizon(
+    n: Network,
+    snapshots: Sequence | None = None,
+    horizon: int = 100,
+    overlap: int = 0,
+    **kwargs: Any,
+) -> Network:
     """
     Optimizes the network in a rolling horizon fashion.
 
@@ -362,7 +392,7 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **k
                     n.storage_units_t.state_of_charge.loc[snapshots[start - 1]]
                 )
 
-        status, condition = n.optimize(sns, **kwargs)
+        status, condition = n.optimize(sns, **kwargs)  # type: ignore
         if status != "ok":
             logger.warning(
                 f"Optimization failed with status {status} and condition {condition}"
@@ -371,15 +401,15 @@ def optimize_with_rolling_horizon(n, snapshots=None, horizon=100, overlap=0, **k
 
 
 def optimize_mga(
-    n,
-    snapshots=None,
-    multi_investment_periods=False,
-    weights=None,
-    sense="min",
-    slack=0.05,
-    model_kwargs={},
-    **kwargs,
-):
+    n: Network,
+    snapshots: Sequence | None = None,
+    multi_investment_periods: bool = False,
+    weights: dict | None = None,
+    sense: str | int = "min",
+    slack: float = 0.05,
+    model_kwargs: dict = {},
+    **kwargs: Any,
+) -> tuple[str, str]:
     """
     Run modelling-to-generate-alternatives (MGA) on network to find near-
     optimal solutions.
@@ -506,7 +536,7 @@ def optimize_mga(
     n.meta["slack"] = slack
     n.meta["sense"] = sense
 
-    def convert_to_dict(obj):
+    def convert_to_dict(obj: Any) -> Any:
         if isinstance(obj, pd.DataFrame):
             return obj.to_dict(orient="list")
         elif isinstance(obj, pd.Series):

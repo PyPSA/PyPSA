@@ -1,6 +1,9 @@
+# type: ignore #TODO: remove with #912
 """
 Functions for plotting networks.
 """
+
+from __future__ import annotations
 
 import logging
 
@@ -1240,7 +1243,7 @@ def iplot(
 
 def explore(
     n,
-    crs: str = None,
+    crs=None,
     tooltip=True,
     popup=True,
     tiles="OpenStreetMap",

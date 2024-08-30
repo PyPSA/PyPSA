@@ -2,14 +2,17 @@
 Functionality to help with georeferencing and calculate distances/areas.
 """
 
+from __future__ import annotations
+
 import logging
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 logger = logging.getLogger(__name__)
 
 
-def haversine_pts(a, b):
+def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     """
     Determines crow-flies distance between points in a and b.
 
@@ -39,7 +42,7 @@ def haversine_pts(a, b):
     return 6371.000 * 2 * np.arctan2(np.sqrt(c), np.sqrt(1 - c))
 
 
-def haversine(a, b):
+def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     """
     Compute the distance in km between two sets of points in long/lat.
 
@@ -69,7 +72,7 @@ def haversine(a, b):
     """
 
     #
-    def ensure_dimensions(a):
+    def ensure_dimensions(a: ArrayLike) -> np.ndarray:
         a = np.asarray(a)
 
         if a.ndim == 1:
