@@ -117,8 +117,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     else:
         weighting = weighting.loc[sns]
 
-    # marginal costs and spill cost
-    for cost_type in ["marginal_cost", "spill_cost"]:
+    # marginal costs, marginal storage cost, and spill cost
+    for cost_type in ["marginal_cost", "marginal_storage_cost", "spill_cost"]:
         for c, attr in lookup.query(cost_type).index:
             cost = (
                 get_as_dense(n, c, cost_type, sns)
@@ -190,18 +190,6 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if cost.sum():
             var = m[f"{c}-{attr}"]
             objective.append((var * cost).sum())
-
-    # marginal cost on energy storage for Stores
-    if not n.stores.empty:
-        e_marginal_cost = n.stores.e_marginal_cost
-        var = m["Store-e"]
-        objective.append((var * e_marginal_cost).sum())
-
-    # marginal cost on energy storage for StorageUnits
-    if not n.storage_units.empty:
-        state_of_charge_marginal_cost = n.storage_units.state_of_charge_marginal_cost
-        var = m["StorageUnit-state_of_charge"]
-        objective.append((var * state_of_charge_marginal_cost).sum())
 
     if not len(objective):
         raise ValueError(

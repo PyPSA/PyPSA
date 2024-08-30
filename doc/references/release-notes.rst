@@ -13,7 +13,10 @@ Upcoming Release
 
 * Added basic n.explore() function based on folium and geopandas to interactively explore the network.
 
-* New ``spill_cost`` input parameter for ``storage_unit`` added which penalizes spilling excess energy
+* New ``spill_cost`` input parameter for ``storage_unit`` added which penalizes spilling excess energy.
+
+* Added new ``marginal_cost_storage`` input parameter for stores and storage
+  units to represent the cost of storing energy in currency/MWh/h.
 
 v0.29.0 (31st July 2024)
 =============================
