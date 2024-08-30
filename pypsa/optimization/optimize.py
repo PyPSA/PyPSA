@@ -118,7 +118,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         weighting = weighting.loc[sns]
 
     # marginal costs, marginal storage cost, and spill cost
-    for cost_type in ["marginal_cost", "marginal_storage_cost", "spill_cost"]:
+    for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
         for c, attr in lookup.query(cost_type).index:
             cost = (
                 get_as_dense(n, c, cost_type, sns)
