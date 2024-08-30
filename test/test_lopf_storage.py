@@ -55,11 +55,11 @@ def test_storage_energy_marginal_cost():
         "Store",
         "store",
         bus="bus",
-        e_marginal_cost=0.2,
+        marginal_cost_storage=0.2,
         e_initial=1,
         e_nom=10,
     )
-    optimize(n, api)
+    n.optimize()
     assert n.objective == 2.6
 
 
