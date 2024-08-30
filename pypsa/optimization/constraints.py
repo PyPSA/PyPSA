@@ -619,11 +619,15 @@ def define_operational_constraints_for_committables_non_modular_non_extendables(
 
     # lower dispatch level limit
     lhs_tuple = (1, p), (-lower_p, status)
-    n.model.add_constraints(lhs_tuple, ">=", 0, name=f"{c}-com-non-mod-fix-p-lower", mask=active)
+    n.model.add_constraints(
+        lhs_tuple, ">=", 0, name=f"{c}-com-non-mod-fix-p-lower", mask=active
+    )
 
     # upper dispatch level limit
     lhs_tuple = (1, p), (-upper_p, status)
-    n.model.add_constraints(lhs_tuple, "<=", 0, name=f"{c}-com-non-mod-fix-p-upper", mask=active)
+    n.model.add_constraints(
+        lhs_tuple, "<=", 0, name=f"{c}-com-non-mod-fix-p-upper", mask=active
+    )
 
     # state-transition constraint
     rhs = pd.DataFrame(0, sns, com_i)
