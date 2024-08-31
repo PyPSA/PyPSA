@@ -38,6 +38,31 @@ def test_optimize(network, target_gen_p):
     equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 
+def test_storage_energy_marginal_cost():
+    n = pypsa.Network()
+    n.snapshots = range(3)
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "gen",
+        marginal_cost=1,
+        bus="bus",
+        p_nom=3,
+        p_max_pu=[1, 0, 0],
+    )
+    n.add("Load", "load", bus="bus", p_set=1)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        marginal_cost_storage=0.2,
+        e_initial=1,
+        e_nom=10,
+    )
+    n.optimize()
+    assert n.objective == 2.6
+
+
 def test_spill_cost():
     sets_of_snapshots = 2
     p_set = [100, 100, 100, 100, 100]
