@@ -593,7 +593,8 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
     ext_i = n.get_extendable_i(c)
 
-    # ------------------- Fixed and non committable Generators (modular and non modular) ----------------------------- #
+    # ----------------------------- Fixed Generators ----------------------------- #
+
     com_i = n.get_committable_i(c)
     fix_i = n.get_non_extendable_i(c)
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
@@ -611,7 +612,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             active.index, columns=fix_i
         )
         m.add_constraints(
-            lhs, "<=", rhs, name=f"{c}-fix-non-comm-{attr}-ramp_limit_up", mask=mask
+            lhs, "<=", rhs, name=f"{c}-fix-{attr}-ramp_limit_up", mask=mask
         )
 
     # fix down
@@ -624,14 +625,19 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             active.index, columns=fix_i
         )
         m.add_constraints(
-            lhs, ">=", rhs, name=f"{c}-fix-non-comm-{attr}-ramp_limit_down", mask=mask
+            lhs, ">=", rhs, name=f"{c}-fix-{attr}-ramp_limit_down", mask=mask
         )
 
-    # ----------------------- Extendable but non committable Generators ----------------------------- #
+    # ----------------------------- Extendable Generators ----------------------------- #
 
     ext_i = n.get_extendable_i(c)
     com_i = n.get_committable_i(c)
-    ext_i = ext_i.difference(com_i).rename(ext_i.name)
+    mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+    inter_i = ext_i.difference(com_i).rename(ext_i.name)
+    inter_i = inter_i.union(
+        ext_i.intersection(com_i).difference(mod_i).rename(ext_i.name)
+    )
+    ext_i = inter_i
 
     assets = n.df(c).reindex(ext_i)
 
@@ -645,7 +651,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             active.index, columns=ext_i
         )
         m.add_constraints(
-            lhs, "<=", rhs, name=f"{c}-ext-non-comm-{attr}-ramp_limit_up", mask=mask
+            lhs, "<=", rhs, name=f"{c}-ext-{attr}-ramp_limit_up", mask=mask
         )
 
     # ext down
@@ -658,46 +664,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             active.index, columns=ext_i
         )
         m.add_constraints(
-            lhs, ">=", rhs, name=f"{c}-ext-non-comm-{attr}-ramp_limit_down", mask=mask
-        )
-
-    # ----------------------- Extendable, committable but non modular Generators ----------------------------- #
-
-    ext_i = n.get_extendable_i(c)
-    com_i = n.get_committable_i(c)
-    not_mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod==0)").index
-    ext_i = ext_i.intersection(com_i).intersection(not_mod_i).rename(ext_i.name)
-
-    assets = n.df(c).reindex(ext_i)
-
-    # ext up
-    if not ramp_limit_up[ext_i].isnull().all().all():
-        p_nom = m[f"{c}-p_nom"].loc[ext_i]
-        limit_pu = DataArray(ramp_limit_up.reindex(active.index, columns=ext_i))
-        lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
-        rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & ~ramp_limit_up.isnull().reindex(
-            active.index, columns=ext_i
-        )
-        m.add_constraints(
-            lhs, "<=", rhs, name=f"{c}-ext-comm-non-mod-{attr}-ramp_limit_up", mask=mask
-        )
-
-    # ext down
-    if not ramp_limit_down[ext_i].isnull().all().all():
-        p_nom = m[f"{c}-p_nom"].loc[ext_i]
-        limit_pu = DataArray(ramp_limit_down.reindex(active.index, columns=ext_i))
-        lhs = p_actual(ext_i) - p_previous(ext_i) + limit_pu * p_nom
-        rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & ~ramp_limit_down.isnull().reindex(
-            active.index, columns=ext_i
-        )
-        m.add_constraints(
-            lhs,
-            ">=",
-            rhs,
-            name=f"{c}-ext-comm-non-mod-{attr}-ramp_limit_down",
-            mask=mask,
+            lhs, ">=", rhs, name=f"{c}-ext-{attr}-ramp_limit_down", mask=mask
         )
 
     # ---------------- Committable but non extendable and non modular Generators ----------------------------- #
