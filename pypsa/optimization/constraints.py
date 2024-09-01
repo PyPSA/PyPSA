@@ -137,7 +137,9 @@ def define_operational_constraints_for_extendables(
     )
 
 
-def define_committability_variables_constraints_with_fixed_upper_limit(n, sns, c, attr):
+def define_committability_variables_constraints_with_fixed_upper_limit(
+    n: Network, sns: pd.Index, c: str, attr: str
+) -> None:
     """
     This function sets the upper limit of committable variables (status, start-up, shut-down) for
     components with fixed upper limit. Indeed, it can correspond to:
@@ -162,7 +164,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(n, sns, c
     """
 
     ##############################################################
-    # rhs is firstly filled for commmitable components, with modularity declared but non extendable. rhs = p_nom/p_nom_mod
+    # rhs is initially filled for committable components, with modularity declared but not extendable. rhs = p_nom/p_nom_mod
     com_i = n.get_committable_i(c)
     fix_i = n.df(c).query(f"not {attr}_extendable").index
     mod_i = n.df(c).query(f"({attr}_mod>0)").index
@@ -192,7 +194,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(n, sns, c
         rhs.loc[sns, inter_i] = n_mod.loc[inter_i].values
 
     ##############################################################
-    # rhs is complited with element "1" for commmitable components but non modular. rhs = 1
+    # rhs is completed with element "1" for combinable components, but not modular. rhs = 1
 
     com_i = n.get_committable_i(c)
     mod_i = n.df(c).query(f"({attr}_mod>0)").index
@@ -236,8 +238,8 @@ def define_committability_variables_constraints_with_fixed_upper_limit(n, sns, c
 
 
 def define_committability_variables_constraints_with_variable_upper_limit(
-    n, sns, c, attr
-):
+    n: Network, sns: pd.Index, c: str, attr: str
+) -> None:
     """
     This function sets the upper limit of committable variables (status, start-up, shut-down) to the
     variable n_mod for all committable, extendable and modular components.
@@ -288,7 +290,9 @@ def define_committability_variables_constraints_with_variable_upper_limit(
     )
 
 
-def define_operational_constraints_for_committables(n, sns, c):
+def define_operational_constraints_for_committables(
+    n: Network, sns: pd.Index, c: str
+) -> None:
     """
     Sets power dispatch constraints for committable and modular devices for a given
     component and a given attribute, whether they are extendable or not. The linearized
@@ -671,8 +675,8 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
 
     com_i = n.get_committable_i(c)
     fix_i = n.get_non_extendable_i(c)
-    not_mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod==0)").index
-    com_i = com_i.intersection(fix_i).intersection(not_mod_i).rename(com_i.name)
+    mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+    com_i = com_i.intersection(fix_i).difference(mod_i).rename(com_i.name)
 
     assets = n.df(c).reindex(com_i)
 
