@@ -176,10 +176,17 @@ def define_operational_constraints_for_extendables_and_committables_but_non_modu
     )
 
 
-def define_committability_variables_constraints_for_non_modular(n, sns, c, attr):
+def define_committability_variables_constraints_with_fixed_upper_limit(n, sns, c, attr):
     """
-    This function sets the upper limit of committable variables (status, start-up, shut-down) to 1 for all
-    committable components for which modularity is not used, regardless of whether they are extendable or not.
+    This function sets the upper limit of committable variables (status, start-up, shut-down) for
+    components with fixed upper limit. Indeed, it can correspond to:
+    a) the installed number of modules for all committable and non-extendable components. The number
+    of modules is calculated as the nominal power divided by the nominal dimension of the individual
+    module (e.g. p_nom/p_nom_mod);
+    b) to 1 for all committable components for which modularity is not used, regardless of whether
+    they are extendable or not.
+
+    In case a), if the number of modules is not an integer number, the function returns an error message.
     _____
 
     Parameters
@@ -192,100 +199,82 @@ def define_committability_variables_constraints_for_non_modular(n, sns, c, attr)
     attr : str
         name of the attribute, e.g. 'p_nom'
     """
-    com_i = n.get_committable_i(c)
-    not_mod_i = n.df(c).query(f"({attr}_mod==0)").index
-    com_i = com_i.intersection(not_mod_i).rename(com_i.name)
 
-    if com_i.empty:
-        return
-
-    m = n.model
-    ext_i = n.get_extendable_i(c)
-    active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
-
-    status = m.variables[f"{c}-status"].loc[sns, com_i]
-    n.model.add_constraints(
-        status, "<=", 1, name=f"{c}-status-{attr}-upper-nonmod", mask=active
-    )
-    start_up = m.variables[f"{c}-start_up"].loc[sns, com_i]
-    n.model.add_constraints(
-        start_up, "<=", 1, name=f"{c}-start_up-{attr}-upper-nonmod", mask=active
-    )
-
-    shut_down = m.variables[f"{c}-shut_down"].loc[sns, com_i]
-    n.model.add_constraints(
-        shut_down, "<=", 1, name=f"{c}-shut_down-{attr}-upper-nonmod", mask=active
-    )
-
-
-def define_committability_variables_constraints_for_modular_and_non_extendables(
-    n, sns, c, attr
-):
-    """
-    This function sets the upper limit of committable variables (status, start-up, shut-down) to the
-    installed number of modules for all committable and non-extendable components. The number of modules
-    is calculated as the nominal power divided by the nominal dimension of the individual module (e.g. p_nom/p_nom_mod).
-
-    If the number of modules is not an integer number, the function returns an error message.
-    _____
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    sns : pd.Index
-        Snapshots of the constraint.
-    c : str
-        name of the network component
-    attr : str
-        name of the attribute, e.g. 'p_nom'
-    """
+    ##############################################################
+    # rhs is firstly filled for commmitable components, with modularity declared but non extendable. rhs = p_nom/p_nom_mod
     com_i = n.get_committable_i(c)
     fix_i = n.df(c).query(f"not {attr}_extendable").index
     mod_i = n.df(c).query(f"({attr}_mod>0)").index
 
     inter_i = com_i.intersection(mod_i).intersection(fix_i).rename(com_i.name)
 
+    if com_i.empty:
+        return
+
+    if not inter_i.empty:
+        m = n.model
+
+        n_mod = n.df(c)[attr].loc[inter_i] / n.df(c)[attr + "_mod"].loc[inter_i]
+        diff_n_mod = abs(n_mod - round(n_mod))
+        non_integers_n_mod_i = diff_n_mod[diff_n_mod > 10**-6].index
+
+        if not non_integers_n_mod_i.empty:
+            msg = (
+                "For non-extendable but committable assets, if both p_nom and p_nom_mod are declared, p_nom must be a"
+                "must be a multiple of p_nom_mod. Found "
+                f"assets in component {c} do not respect this criterion:"
+                f"\n\n\t{', '.join(non_integers_n_mod_i)}"
+            )
+            raise ValueError(msg)
+
+        rhs = pd.DataFrame(0, sns, inter_i)
+        rhs.loc[sns, inter_i] = n_mod.loc[inter_i].values
+
+    ##############################################################
+    # rhs is complited with element "1" for commmitable components but non modular. rhs = 1
+
+    com_i = n.get_committable_i(c)
+    mod_i = n.df(c).query(f"({attr}_mod>0)").index
+    com_i = com_i.difference(mod_i).rename(com_i.name)
+
+    if not com_i.empty:
+        if not inter_i.empty:
+            rhs = rhs.reindex(columns=rhs.columns.union(com_i))
+            rhs.loc[:, com_i] = 1
+
+            inter_i = inter_i.union(com_i).rename(com_i.name)
+
+        else:
+            rhs = pd.DataFrame(0, sns, com_i)
+            rhs.loc[sns, com_i] = 1
+
+            inter_i = com_i
+
+    #################################################################
+
     if inter_i.empty:
         return
 
+    active = get_activity_mask(n, c, sns, inter_i) if n._multi_invest else None
+
     m = n.model
-
-    ext_i = n.get_extendable_i(c)
-    active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
-
-    n_mod = n.df(c)[attr].loc[inter_i] / n.df(c)[attr + "_mod"].loc[inter_i]
-    diff_n_mod = abs(n_mod - round(n_mod))
-    non_integers_n_mod_i = diff_n_mod[diff_n_mod > 10**-6].index
-
-    if not non_integers_n_mod_i.empty:
-        msg = (
-            "For non-extendable but committable assets, if both p_nom and p_nom_mod are declared, p_nom must be a"
-            "must be a multiple of p_nom_mod. Found "
-            f"assets in component {c} do not respect this criterion:"
-            f"\n\n\t{', '.join(non_integers_n_mod_i)}"
-        )
-        raise ValueError(msg)
-
-    rhs = pd.DataFrame(0, sns, inter_i)
-    rhs.loc[sns, inter_i] = n_mod.loc[inter_i].values
-
     status = m.variables[f"{c}-status"].loc[sns, inter_i]
     n.model.add_constraints(
-        status, "<=", rhs, name=f"{c}-status-{attr}-upper-mod_nonext", mask=active
+        status, "<=", rhs, name=f"{c}-status-{attr}-fixed-upper", mask=active
     )
 
     start_up = m.variables[f"{c}-start_up"].loc[sns, inter_i]
     n.model.add_constraints(
-        start_up, "<=", rhs, name=f"{c}-start_up-{attr}-upper-mod_nonext", mask=active
+        start_up, "<=", rhs, name=f"{c}-start_up-{attr}-fixed-upper", mask=active
     )
 
     shut_down = m.variables[f"{c}-shut_down"].loc[sns, inter_i]
     n.model.add_constraints(
-        shut_down, "<=", rhs, name=f"{c}-shut_down-{attr}-upper-mod_nonext", mask=active
+        shut_down, "<=", rhs, name=f"{c}-shut_down-{attr}-fixed-upper", mask=active
     )
 
 
-def define_committability_variables_constraints_for_modular_and_extendables(
+def define_committability_variables_constraints_with_variable_upper_limit(
     n, sns, c, attr
 ):
     """
@@ -314,29 +303,27 @@ def define_committability_variables_constraints_for_modular_and_extendables(
 
     m = n.model
 
-    active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, inter_i) if n._multi_invest else None
 
     n_mod = n.model[f"{c}-n_mod"].loc[inter_i]
+    n_mod = n_mod.rename({f"{c}-ext": inter_i.name})
 
-    # ALLERT DIMENSIONI DISEQUAZIONE
     status = m.variables[f"{c}-status"].loc[sns, inter_i]
     lhs = ((1, status), (-1, n_mod))
     n.model.add_constraints(
-        lhs, "<=", 0, name=f"{c}-status-{attr}-upper-mod_ext", mask=active
+        lhs, "<=", 0, name=f"{c}-status-{attr}-variable-upper", mask=active
     )
 
-    # ALLERT DIMENSIONI DISEQUAZIONE
     start_up = m.variables[f"{c}-start_up"].loc[sns, inter_i]
     lhs = ((1, start_up), (-1, n_mod))
     n.model.add_constraints(
-        lhs, "<=", 0, name=f"{c}-start_up-{attr}-upper-mod_ext", mask=active
+        lhs, "<=", 0, name=f"{c}-start_up-{attr}-variable-upper", mask=active
     )
 
-    # ALLERT DIMENSIONI DISEQUAZIONE
     shut_down = m.variables[f"{c}-shut_down"].loc[sns, inter_i]
     lhs = ((1, shut_down), (-1, n_mod))
     n.model.add_constraints(
-        lhs, "<=", 0, name=f"{c}-shut_down-{attr}-upper-mod_ext", mask=active
+        lhs, "<=", 0, name=f"{c}-shut_down-{attr}-variable-upper", mask=active
     )
 
 

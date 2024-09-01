@@ -39,23 +39,7 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
 
-# TO BE REMOVED
-def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
-    com_i = n.get_committable_i(c)
-
-    if com_i.empty:
-        return
-
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
-    coords = (sns, com_i)
-    is_binary = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
-    n.model.add_variables(
-        coords=coords, name=f"{c}-status", mask=active, binary=is_binary, **kwargs
-    )
-
-
-def define_integer_committability_variables(n: Network, sns: Sequence, c: str) -> None:
+def define_committability_variables(n: Network, sns: Sequence, c: str) -> None:
     """
     Initializes integer variables  related to committability for all committable components. Initialized variables are:
     - status
@@ -89,38 +73,6 @@ def define_integer_committability_variables(n: Network, sns: Sequence, c: str) -
 
     n.model.add_variables(
         lower=0, coords=coords, name=f"{c}-shut_down", mask=active, integer=is_integer
-    )
-
-
-# TO BE REMOVED
-def define_start_up_variables(n: Network, sns: Sequence, c: str) -> None:
-    com_i = n.get_committable_i(c)
-
-    if com_i.empty:
-        return
-
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
-    coords = (sns, com_i)
-    is_binary = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
-    n.model.add_variables(
-        coords=coords, name=f"{c}-start_up", mask=active, binary=is_binary, **kwargs
-    )
-
-
-# TO BE REMOVED
-def define_shut_down_variables(n: Network, sns: Sequence, c: str) -> None:
-    com_i = n.get_committable_i(c)
-
-    if com_i.empty:
-        return
-
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
-    coords = (sns, com_i)
-    is_binary = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
-    n.model.add_variables(
-        coords=coords, name=f"{c}-shut_down", binary=is_binary, **kwargs, mask=active
     )
 
 
