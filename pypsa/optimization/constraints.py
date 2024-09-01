@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def define_operational_constraints_for_non_extendables_and_non_committables(
+def define_operational_constraints_for_non_extendables(
     n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
     """
@@ -74,14 +74,14 @@ def define_operational_constraints_for_non_extendables_and_non_committables(
         dispatch_lower = (1, dispatch_lower), (-1, loss)
         dispatch_upper = (1, dispatch_upper), (1, loss)
     n.model.add_constraints(
-        dispatch_lower, ">=", lower, name=f"{c}-fix-non-comm-{attr}-lower", mask=active
+        dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
     )
     n.model.add_constraints(
-        dispatch_upper, "<=", upper, name=f"{c}-fix-non-comm-{attr}-upper", mask=active
+        dispatch_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
     )
 
 
-def define_operational_constraints_for_extendables_but_non_committables(
+def define_operational_constraints_for_extendables(
     n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
     """
@@ -116,24 +116,24 @@ def define_operational_constraints_for_extendables_but_non_committables(
     if inter_i.empty:
         return
 
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
-    dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
+    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, inter_i, attr))
+    dispatch = reindex(n.model[f"{c}-{attr}"], c, inter_i)
     capacity = n.model[f"{c}-{nominal_attrs[c]}"]
 
-    active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, inter_i) if n._multi_invest else None
 
     lhs_lower = (1, dispatch), (-min_pu, capacity)
     lhs_upper = (1, dispatch), (-max_pu, capacity)
     if c in n.passive_branch_components and transmission_losses:
-        loss = reindex(n.model[f"{c}-loss"], c, ext_i)
+        loss = reindex(n.model[f"{c}-loss"], c, inter_i)
         lhs_lower += ((-1, loss),)
         lhs_upper += ((1, loss),)
 
     n.model.add_constraints(
-        lhs_lower, ">=", 0, name=f"{c}-ext-non-comm-{attr}-lower", mask=active
+        lhs_lower, ">=", 0, name=f"{c}-ext-{attr}-lower", mask=active
     )
     n.model.add_constraints(
-        lhs_upper, "<=", 0, name=f"{c}-ext-non-comm-{attr}-upper", mask=active
+        lhs_upper, "<=", 0, name=f"{c}-ext-{attr}-upper", mask=active
     )
 
 
@@ -288,7 +288,7 @@ def define_committability_variables_constraints_with_variable_upper_limit(
     )
 
 
-def define_operational_constraints_for_committables_and_modular(n, sns, c):
+def define_operational_constraints_for_committables(n, sns, c):
     """
     Sets power dispatch constraints for committable and modular devices for a given
     component and a given attribute, whether they are extendable or not. The linearized
@@ -303,37 +303,51 @@ def define_operational_constraints_for_committables_and_modular(n, sns, c):
     c : str
         name of the network component
     """
-    name_func = "-committable-modular"
-
     com_i = n.get_committable_i(c)
     mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
-    com_i = com_i.intersection(mod_i).rename(com_i.name)
+    fix_i = n.get_non_extendable_i(c)
 
-    if com_i.empty:
+    inter_i = com_i.intersection(mod_i).rename(com_i.name)
+    inter_i2 = com_i.difference(mod_i).intersection(fix_i).rename(com_i.name)
+
+    if inter_i.empty:
+        inter_i = inter_i2
+        if not inter_i2.empty:
+            nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(inter_i))
+    else:
+        # nominal parameters
+        nominal = DataArray(n.df(c)[nominal_attrs[c] + "_mod"].reindex(inter_i))
+        inter_i = inter_i.union(inter_i2)
+
+        if not inter_i2.empty:
+            nominal2 = DataArray(n.df(c)[nominal_attrs[c]].reindex(inter_i2))
+            nominal = concat([nominal, nominal2], dim=f"{c}-com")
+            nominal.sel({f"{c}-com": inter_i})
+
+    if inter_i.empty:
         return
 
     # variables
-    status = n.model[f"{c}-status"].loc[sns, com_i]
-    start_up = n.model[f"{c}-start_up"].loc[sns, com_i]
-    shut_down = n.model[f"{c}-shut_down"].loc[sns, com_i]
+    status = n.model[f"{c}-status"].loc[sns, inter_i]
+    start_up = n.model[f"{c}-start_up"].loc[sns, inter_i]
+    shut_down = n.model[f"{c}-shut_down"].loc[sns, inter_i]
     status_diff = status - status.shift(snapshot=1)
-    p = reindex(n.model[f"{c}-p"], c, com_i)
+    p = reindex(n.model[f"{c}-p"], c, inter_i)
 
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, inter_i) if n._multi_invest else None
 
     # parameters
-    nominal = DataArray(n.df(c)[nominal_attrs[c] + "_mod"].reindex(com_i))
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, com_i, "p"))
+    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, inter_i, "p"))
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
-    min_up_time_set = n.df(c).min_up_time[com_i]
-    min_down_time_set = n.df(c).min_down_time[com_i]
-    ramp_up_limit = nominal * n.df(c).ramp_limit_up[com_i].fillna(1)
-    ramp_down_limit = nominal * n.df(c).ramp_limit_down[com_i].fillna(1)
-    ramp_start_up = nominal * n.df(c).ramp_limit_start_up[com_i]
-    ramp_shut_down = nominal * n.df(c).ramp_limit_shut_down[com_i]
-    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
-    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
+    min_up_time_set = n.df(c).min_up_time[inter_i]
+    min_down_time_set = n.df(c).min_down_time[inter_i]
+    ramp_up_limit = nominal * n.df(c).ramp_limit_up[inter_i].fillna(1)
+    ramp_down_limit = nominal * n.df(c).ramp_limit_down[inter_i].fillna(1)
+    ramp_start_up = nominal * n.df(c).ramp_limit_start_up[inter_i]
+    ramp_shut_down = nominal * n.df(c).ramp_limit_shut_down[inter_i]
+    up_time_before_set = n.df(c)["up_time_before"].reindex(inter_i)
+    down_time_before_set = n.df(c)["down_time_before"].reindex(inter_i)
     initially_up = up_time_before_set.astype(bool)
     initially_down = down_time_before_set.astype(bool)
 
@@ -341,7 +355,7 @@ def define_operational_constraints_for_committables_and_modular(n, sns, c):
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
         # get generators which are online until the first regarded snapshot
-        until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
+        until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=inter_i)
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
         up_time_before_set = up_time_before.clip(upper=min_up_time_set)
@@ -357,76 +371,72 @@ def define_operational_constraints_for_committables_and_modular(n, sns, c):
 
     # lower dispatch level limit
     lhs = (1, p), (-lower_p, status)
-    n.model.add_constraints(
-        lhs, ">=", 0, name=f"{c}-com-mod-p-lower" + name_func, mask=active
-    )
+    n.model.add_constraints(lhs, ">=", 0, name=f"{c}-com-p-lower", mask=active)
 
     # upper dispatch level limit
     lhs = (1, p), (-upper_p, status)
-    n.model.add_constraints(
-        lhs, "<=", 0, name=f"{c}-com-mod-p-upper" + name_func, mask=active
-    )
+    n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-upper", mask=active)
 
     # state-transition constraint
-    rhs = pd.DataFrame(0, sns, com_i)
+    rhs = pd.DataFrame(0, sns, inter_i)
     rhs.loc[sns[0], initially_up] = -1
     lhs = start_up - status_diff
     n.model.add_constraints(
-        lhs, ">=", rhs, name=f"{c}-com-mod-transition-start-up" + name_func, mask=active
+        lhs, ">=", rhs, name=f"{c}-com-transition-start-up", mask=active
     )
 
-    rhs = pd.DataFrame(0, sns, com_i)
+    rhs = pd.DataFrame(0, sns, inter_i)
     rhs.loc[sns[0], initially_up] = 1
     lhs = shut_down + status_diff
     n.model.add_constraints(
         lhs,
         ">=",
         rhs,
-        name=f"{c}-com-mod-transition-shut-down" + name_func,
+        name=f"{c}-com-transition-shut-down",
         mask=active,
     )
 
     # min up time
-    mask = get_activity_mask(n, c, sns[1:], com_i)
+    mask = get_activity_mask(n, c, sns[1:], inter_i)
     expr = []
-    min_up_time_i = com_i[min_up_time_set.astype(bool)]
+    min_up_time_i = inter_i[min_up_time_set.astype(bool)]
     if not min_up_time_i.empty:
         for g in min_up_time_i:
             su = start_up.loc[:, g]
             expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
-        lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
+        lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=inter_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
             lhs,
             "<=",
             0,
-            name=f"{c}-com-mod-up-time" + name_func,
+            name=f"{c}-com-up-time",
             mask=mask[min_up_time_i],
         )
 
     # min down time
     expr = []
-    min_down_time_i = com_i[min_down_time_set.astype(bool)]
+    min_down_time_i = inter_i[min_down_time_set.astype(bool)]
     if not min_down_time_i.empty:
         for g in min_down_time_i:
             su = shut_down.loc[:, g]
             expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
-        lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
+        lhs = status.loc[:, min_down_time_i] + merge(expr, dim=inter_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
             lhs,
             "<=",
             1,
-            name=f"{c}-com-mod-down-time" + name_func,
+            name=f"{c}-com-down-time",
             mask=mask[min_down_time_i],
         )
 
     # up time before
-    timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
+    timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(inter_i), inter_i, sns).T
     if initially_up.any():
         must_stay_up = (min_up_time_set - up_time_before_set).clip(lower=0)
         mask = (must_stay_up >= timesteps) & initially_up
-        name = f"{c}-com-mod-status-min_up_time_must_stay_up" + name_func
+        name = f"{c}-com-status-min_up_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 1, name=name, mask=mask)
 
@@ -434,13 +444,13 @@ def define_operational_constraints_for_committables_and_modular(n, sns, c):
     if initially_down.any():
         must_stay_down = (min_down_time_set - down_time_before_set).clip(lower=0)
         mask = (must_stay_down >= timesteps) & initially_down
-        name = f"{c}-com-mod-status-min_down_time_must_stay_up" + name_func
+        name = f"{c}-com-status-min_down_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
     cost_equal = all(
-        n.df(c).loc[com_i, "start_up_cost"] == n.df(c).loc[com_i, "shut_down_cost"]
+        n.df(c).loc[inter_i, "start_up_cost"] == n.df(c).loc[inter_i, "shut_down_cost"]
     )
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and not cost_equal:
@@ -459,16 +469,12 @@ def define_operational_constraints_for_committables_and_modular(n, sns, c):
             - (upper_p - ramp_shut_down) * (status - start_up)
         )
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-mod-p-before" + name_func, mask=active
-        )
+        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-before", mask=active)
 
         # dispatch limit for partly start up/shut down for t
         lhs = p - upper_p * status + (upper_p - ramp_start_up) * start_up
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-mod-p-current" + name_func, mask=active
-        )
+        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-current", mask=active)
 
         # ramp up if committable is only partly active and some capacity is starting up
         lhs = (
@@ -480,7 +486,7 @@ def define_operational_constraints_for_committables_and_modular(n, sns, c):
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-mod-partly-start-up" + name_func, mask=active
+            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
@@ -493,211 +499,7 @@ def define_operational_constraints_for_committables_and_modular(n, sns, c):
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-mod-partly-shut-down" + name_func, mask=active
-        )
-
-
-def define_operational_constraints_for_committables_non_modular_non_extendables(
-    n: Network, sns: pd.Index, c: str
-) -> None:
-    """
-    Sets power dispatch constraints for committable but non modular and non extendable devices for a given
-    component and a given attribute. The linearized approximation of the unit
-    commitment problem is inspired by Hua et al. (2017) DOI:
-    10.1109/TPWRS.2017.2735026.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    sns : pd.Index
-        Snapshots of the constraint.
-    c : str
-        name of the network component
-    """
-    com_i = n.get_committable_i(c)
-    not_mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod==0)").index
-    fix_i = n.get_non_extendable_i(c)
-
-    com_i = com_i.intersection(not_mod_i).intersection(fix_i).rename(com_i.name)
-
-    if com_i.empty:
-        return
-
-    # variables
-    status = n.model[f"{c}-status"].loc[sns, com_i]
-    start_up = n.model[f"{c}-start_up"].loc[sns, com_i]
-    shut_down = n.model[f"{c}-shut_down"].loc[sns, com_i]
-    status_diff = status - status.shift(snapshot=1)
-    p = reindex(n.model[f"{c}-p"], c, com_i)
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
-
-    # parameters
-    nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(com_i))
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, com_i, "p"))
-    lower_p = min_pu * nominal
-    upper_p = max_pu * nominal
-    min_up_time_set = n.df(c).min_up_time[com_i]
-    min_down_time_set = n.df(c).min_down_time[com_i]
-    ramp_up_limit = nominal * n.df(c).ramp_limit_up[com_i].fillna(1)
-    ramp_down_limit = nominal * n.df(c).ramp_limit_down[com_i].fillna(1)
-    ramp_start_up = nominal * n.df(c).ramp_limit_start_up[com_i]
-    ramp_shut_down = nominal * n.df(c).ramp_limit_shut_down[com_i]
-    up_time_before_set = n.df(c)["up_time_before"].reindex(com_i)
-    down_time_before_set = n.df(c)["down_time_before"].reindex(com_i)
-    initially_up = up_time_before_set.astype(bool)
-    initially_down = down_time_before_set.astype(bool)
-
-    # check if there are status calculated/fixed before given sns interval
-    if sns[0] != n.snapshots[0]:
-        start_i = n.snapshots.get_loc(sns[0])
-        # get generators which are online until the first regarded snapshot
-        until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
-        ref = range(1, len(until_start_up) + 1)
-        up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
-        up_time_before_set = up_time_before.clip(upper=min_up_time_set)
-        initially_up = up_time_before_set.astype(bool)
-        # get number of snapshots for generators which are offline before the first regarded snapshot
-        until_start_down = ~until_start_up.astype(bool)
-        ref = range(1, len(until_start_down) + 1)
-        down_time_before = until_start_down[
-            until_start_down.cumsum().eq(ref, axis=0)
-        ].sum()
-        down_time_before_set = down_time_before.clip(upper=min_down_time_set)
-        initially_down = down_time_before_set.astype(bool)
-
-    # lower dispatch level limit
-    lhs_tuple = (1, p), (-lower_p, status)
-    n.model.add_constraints(
-        lhs_tuple, ">=", 0, name=f"{c}-com-non-mod-fix-p-lower", mask=active
-    )
-
-    # upper dispatch level limit
-    lhs_tuple = (1, p), (-upper_p, status)
-    n.model.add_constraints(
-        lhs_tuple, "<=", 0, name=f"{c}-com-non-mod-fix-p-upper", mask=active
-    )
-
-    # state-transition constraint
-    rhs = pd.DataFrame(0, sns, com_i)
-    rhs.loc[sns[0], initially_up] = -1
-    lhs = start_up - status_diff
-    n.model.add_constraints(
-        lhs, ">=", rhs, name=f"{c}-com-non-mod-fix-transition-start-up", mask=active
-    )
-
-    rhs = pd.DataFrame(0, sns, com_i)
-    rhs.loc[sns[0], initially_up] = 1
-    lhs = shut_down + status_diff
-    n.model.add_constraints(
-        lhs, ">=", rhs, name=f"{c}-com-non-mod-fix-transition-shut-down", mask=active
-    )
-
-    # min up time
-    mask = get_activity_mask(n, c, sns[1:], com_i)
-    expr = []
-    min_up_time_i = com_i[min_up_time_set.astype(bool)]
-    if not min_up_time_i.empty:
-        for g in min_up_time_i:
-            su = start_up.loc[:, g]
-            expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
-        lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-non-mod-fix-up-time", mask=mask[min_up_time_i]
-        )
-
-    # min down time
-    expr = []
-    min_down_time_i = com_i[min_down_time_set.astype(bool)]
-    if not min_down_time_i.empty:
-        for g in min_down_time_i:
-            su = shut_down.loc[:, g]
-            expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
-        lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs,
-            "<=",
-            1,
-            name=f"{c}-com-non-mod-fix-down-time",
-            mask=mask[min_down_time_i],
-        )
-
-    # ATT: DA RIVEDERE  MODIFICARE
-    # up time before
-    timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
-    if initially_up.any():
-        must_stay_up = (min_up_time_set - up_time_before_set).clip(lower=0)
-        mask = (must_stay_up >= timesteps) & initially_up
-        name = f"{c}-com-non-mod-fix-status-min_up_time_must_stay_up"
-        mask = mask & active if active is not None else mask
-        n.model.add_constraints(status, "=", 1, name=name, mask=mask)
-
-    # ATT: DA RIVEDERE  MODIFICARE
-    # down time before
-    if initially_down.any():
-        must_stay_down = (min_down_time_set - down_time_before_set).clip(lower=0)
-        mask = (must_stay_down >= timesteps) & initially_down
-        name = f"{c}-com-non-mod-fix-status-min_down_time_must_stay_up"
-        mask = mask & active if active is not None else mask
-        n.model.add_constraints(status, "=", 0, name=name, mask=mask)
-
-    # linearized approximation because committable can partly start up and shut down
-    cost_equal = all(
-        n.df(c).loc[com_i, "start_up_cost"] == n.df(c).loc[com_i, "shut_down_cost"]
-    )
-    # only valid additional constraints if start up costs equal to shut down costs
-    if n._linearized_uc and not cost_equal:
-        logger.warning(
-            "The linear relaxation of the unit commitment cannot be "
-            "tightened since the start up costs are not equal to the "
-            "shut down costs. Proceed with the linear relaxation "
-            "without the tightening by additional constraints. "
-            "This might result in a longer solving time."
-        )
-    if n._linearized_uc and cost_equal:
-        # dispatch limit for partly start up/shut down for t-1
-        lhs = (
-            p.shift(snapshot=1)
-            - ramp_shut_down * status.shift(snapshot=1)
-            - (upper_p - ramp_shut_down) * (status - start_up)
-        )
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-non-mod-fix-p-before", mask=active
-        )
-
-        # dispatch limit for partly start up/shut down for t
-        lhs = p - upper_p * status + (upper_p - ramp_start_up) * start_up
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-non-mod-fix-p-current", mask=active
-        )
-
-        # ramp up if committable is only partly active and some capacity is starting up
-        lhs = (
-            p
-            - p.shift(snapshot=1)
-            - (lower_p + ramp_up_limit) * status
-            + lower_p * status.shift(snapshot=1)
-            + (lower_p + ramp_up_limit - ramp_start_up) * start_up
-        )
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-non-mod-fix-partly-start-up", mask=active
-        )
-
-        # ramp down if committable is only partly active and some capacity is shutting up
-        lhs = (
-            p.shift(snapshot=1)
-            - p
-            - ramp_shut_down * status.shift(snapshot=1)
-            + (ramp_shut_down - ramp_down_limit) * status
-            - (lower_p + ramp_down_limit - ramp_shut_down) * start_up
-        )
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-non-mod-fix-partly-shut-down", mask=active
+            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active
         )
 
 

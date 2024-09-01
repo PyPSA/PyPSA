@@ -35,10 +35,9 @@ from pypsa.optimization.constraints import (
     define_modular_constraints,
     define_nodal_balance_constraints,
     define_nominal_constraints_for_extendables,
-    define_operational_constraints_for_committables_and_modular,
-    define_operational_constraints_for_committables_non_modular_non_extendables,
-    define_operational_constraints_for_extendables_but_non_committables,
-    define_operational_constraints_for_non_extendables_and_non_committables,
+    define_operational_constraints_for_committables,
+    define_operational_constraints_for_extendables,
+    define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
@@ -278,24 +277,18 @@ def create_model(
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         # Define operational constraints for non extendable and non committable components (mod/non mod).
         # Function is kept as it was.
-        define_operational_constraints_for_non_extendables_and_non_committables(
+        define_operational_constraints_for_non_extendables(
             n, sns, c, attr, transmission_losses
         )
         # Define operational constraints for extendable but non committable components (mod/non mod).
         # Function is kept as it was, I only added filter for non committable.
         # Function also handles case where committability and extendability are set as on, but modularity is not used.
-        define_operational_constraints_for_extendables_but_non_committables(
+        define_operational_constraints_for_extendables(
             n, sns, c, attr, transmission_losses
         )
-        # Define operational constraints for committable but non modular components and non extendable.
-        # Function is kept as it was, I only: 1)  added filter for non modular and non extendable; 2) changed the name of the function according to 1).
-        define_operational_constraints_for_committables_non_modular_non_extendables(
-            n, sns, c
-        )
-        # Define operational constraints for committable and modular components (ext/non ext).
-        # Function similar to "define_operational_constraints_for_committables_non_modular_non_extendables". The only difference is the
-        # multiplication of committable variables per p_nom_mod.
-        define_operational_constraints_for_committables_and_modular(n, sns, c)
+        # Define operational constraints for components where committability works.
+        # Function handles cases with modularity (ext/non ext) and cases with non-mod+non+ext
+        define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
 
