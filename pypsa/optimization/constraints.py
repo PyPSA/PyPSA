@@ -87,6 +87,8 @@ def define_operational_constraints_for_extendables_but_non_committables(
     """
     Sets power dispatch constraints for extendable but non commitable devices for a given
     component and a given attribute,  whether they are modular or not.
+    Function also handles case where committability and extendability are set as on, but
+    modularity is not used.
 
     Parameters
     ----------
@@ -99,9 +101,19 @@ def define_operational_constraints_for_extendables_but_non_committables(
         name of the attribute, e.g. 'p'
     """
     ext_i = n.get_extendable_i(c)
-    ext_i = ext_i.difference(n.get_committable_i(c)).rename(ext_i.name)
+    com_i = n.get_committable_i(c)
+    mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
 
-    if ext_i.empty:
+    inter_i = ext_i.difference(n.get_committable_i(c)).rename(ext_i.name)
+
+    if inter_i.empty:
+        inter_i = ext_i.intersection(com_i).difference(mod_i).rename(ext_i.name)
+    else:
+        inter_i = inter_i.union(
+            ext_i.intersection(com_i).difference(mod_i).rename(ext_i.name)
+        )
+
+    if inter_i.empty:
         return
 
     min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
@@ -122,57 +134,6 @@ def define_operational_constraints_for_extendables_but_non_committables(
     )
     n.model.add_constraints(
         lhs_upper, "<=", 0, name=f"{c}-ext-non-comm-{attr}-upper", mask=active
-    )
-
-
-def define_operational_constraints_for_extendables_and_committables_but_non_modular(
-    n, sns, c, attr, transmission_losses
-):
-    """
-    Sets power dispatch constraints for extendable, committable, but non modular devices for a given
-    component and a given attribute. Extendability is preferred over committability (committability
-    is simply ignored).
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    sns : pd.Index
-        Snapshots of the constraint.
-    c : str
-        name of the network component
-    attr : str
-        name of the attribute, e.g. 'p'
-    """
-    lhs_lower: DataArray | tuple
-    lhs_upper: DataArray | tuple
-
-    ext_i = n.get_extendable_i(c)
-    com_i = n.get_committable_i(c)
-    not_mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod==0)").index
-
-    ext_i = ext_i.intersection(com_i).intersection(not_mod_i).rename(ext_i.name)
-
-    if ext_i.empty:
-        return
-
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
-    dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
-    capacity = n.model[f"{c}-{nominal_attrs[c]}"]
-
-    active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
-
-    lhs_lower = (1, dispatch), (-min_pu, capacity)
-    lhs_upper = (1, dispatch), (-max_pu, capacity)
-    if c in n.passive_branch_components and transmission_losses:
-        loss = reindex(n.model[f"{c}-loss"], c, ext_i)
-        lhs_lower += ((-1, loss),)
-        lhs_upper += ((1, loss),)
-
-    n.model.add_constraints(
-        lhs_lower, ">=", 0, name=f"{c}-ext-comm-non-mod-{attr}-lower", mask=active
-    )
-    n.model.add_constraints(
-        lhs_upper, "<=", 0, name=f"{c}-ext-comm-non-mod-{attr}-upper", mask=active
     )
 
 

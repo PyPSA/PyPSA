@@ -37,7 +37,6 @@ from pypsa.optimization.constraints import (
     define_nominal_constraints_for_extendables,
     define_operational_constraints_for_committables_and_modular,
     define_operational_constraints_for_committables_non_modular_non_extendables,
-    define_operational_constraints_for_extendables_and_committables_but_non_modular,
     define_operational_constraints_for_extendables_but_non_committables,
     define_operational_constraints_for_non_extendables_and_non_committables,
     define_ramp_limit_constraints,
@@ -284,6 +283,7 @@ def create_model(
         )
         # Define operational constraints for extendable but non committable components (mod/non mod).
         # Function is kept as it was, I only added filter for non committable.
+        # Function also handles case where committability and extendability are set as on, but modularity is not used.
         define_operational_constraints_for_extendables_but_non_committables(
             n, sns, c, attr, transmission_losses
         )
@@ -291,13 +291,6 @@ def create_model(
         # Function is kept as it was, I only: 1)  added filter for non modular and non extendable; 2) changed the name of the function according to 1).
         define_operational_constraints_for_committables_non_modular_non_extendables(
             n, sns, c
-        )
-        # Define operational constraints for committable, extendable but non-modular. This function is identical
-        # to "define_operational_constraints_for_extendables_but_non_committables". The only difference is the
-        # identification of the components on which to apply the function. Extendability is preferred over
-        # committability (committability is simply ignored) to ensure compatibility with previous tests.
-        define_operational_constraints_for_extendables_and_committables_but_non_modular(
-            n, sns, c, attr, transmission_losses
         )
         # Define operational constraints for committable and modular components (ext/non ext).
         # Function similar to "define_operational_constraints_for_committables_non_modular_non_extendables". The only difference is the
