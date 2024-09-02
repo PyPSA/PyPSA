@@ -17,15 +17,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-nominal_attrs = {
-    "Generator": "p_nom",
-    "Line": "s_nom",
-    "Transformer": "s_nom",
-    "Link": "p_nom",
-    "Store": "e_nom",
-    "StorageUnit": "p_nom",
-}
-
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
     return df.columns[df.columns.str.startswith("bus")]
