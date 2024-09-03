@@ -1109,7 +1109,11 @@ def _import_components_from_dataframe(
         pnl[k] = pnl[k].reindex(
             columns=new_df.index, fill_value=non_static_attrs.at[k, "default"]
         )
-        pnl[k].loc[:, dataframe.index] = dataframe.loc[:, k].values
+        if overwrite:
+            pnl[k].loc[:, dataframe.index] = dataframe.loc[:, k].values
+        else:
+            new_components = dataframe.index.difference(duplicated_components)
+            pnl[k].loc[:, new_components] = dataframe.loc[new_components, k].values
 
     setattr(n, n.components[cls_name]["list_name"] + "_t", pnl)
 
@@ -1137,6 +1141,9 @@ def _import_series_from_dataframe(
     df = n.df(cls_name)
     pnl = n.pnl(cls_name)
     list_name = n.components[cls_name]["list_name"]
+
+    if not overwrite:
+        dataframe = dataframe.drop(dataframe.columns.intersection(df.index), axis=1)
 
     dataframe.columns.name = cls_name
     dataframe.index.name = "snapshot"

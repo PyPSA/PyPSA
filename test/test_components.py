@@ -265,7 +265,7 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
         n_5bus_7sn.add("Load", load_names + "_d", p_set=swap_df_index(p_set, axis=1))
 
 
-def test_add_overwrite(n_5bus, caplog):
+def test_add_overwrite_static(n_5bus, caplog):
     n_5bus.add("Bus", [f"bus_{i} " for i in range(6)], x=1)
 
     assert (n_5bus.buses.iloc[:5].x == 0).all()
@@ -274,6 +274,25 @@ def test_add_overwrite(n_5bus, caplog):
 
     n_5bus.add("Bus", [f"bus_{i} " for i in range(5)], x=1, overwrite=True)
     assert (n_5bus.buses.x == 1).all()
+
+
+def test_add_overwrite_varying(n_5bus_7sn, caplog):
+    bus_names = [f"bus_{i} " for i in range(6)]
+
+    n_5bus_7sn.add("Bus", bus_names, p=[1] * 6)
+    assert (n_5bus_7sn.buses_t.p.iloc[:, :5] == 0).all().all()
+    assert (n_5bus_7sn.buses_t.p.iloc[:, 5] == 1).all().all()
+    assert caplog.records[-1].levelname == "WARNING"
+
+    n_5bus_7sn.add("Bus", bus_names[:5], p=[2] * 5, overwrite=True)
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[5]] == 1).all().all()
+
+    p = np.random.rand(7, 5)
+    n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=False)
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
+    n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=True)
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == p).all().all()
 
 
 def test_multiple_add_defaults(n_5bus):
