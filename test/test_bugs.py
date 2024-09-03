@@ -97,7 +97,7 @@ def test_779():
     n2.import_from_netcdf(xarr)
 
 
-def test_multiport_assingment_defaults_single_add():
+def test_multiport_assignment_defaults_single_add():
     """
     Add a single link to a network, then add a second link with additional
     ports.
@@ -112,7 +112,7 @@ def test_multiport_assingment_defaults_single_add():
     assert n.links.loc["link", "bus2"] == ""
 
 
-def test_multiport_assingment_defaults_multiple_add():
+def test_multiport_assignment_defaults_multiple_add():
     """
     Add a single link to a network, then add a second link with additional
     ports.

@@ -79,6 +79,7 @@ from pypsa.pf import (
 )
 from pypsa.plot import explore, iplot, plot  # type: ignore
 from pypsa.statistics import StatisticsAccessor
+from pypsa.types import is_1d_list_like
 from pypsa.utils import as_index
 
 if TYPE_CHECKING:
@@ -636,7 +637,7 @@ class Network(Basic):
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.network.pnl`). NaNs are filled with the default value for that quantity.
+        (:py:meth:`pypsa.Network.pnl`). NaNs are filled with the default value for that quantity.
 
         Parameters
         ----------
@@ -848,10 +849,11 @@ class Network(Basic):
     def add(
         self,
         class_name: str,
-        name: Union[str, int, Sequence[Union[int, str]]],
+        name: str | int | Sequence[int | str],
         suffix: str = "",
-        **kwargs,
-    ):
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
         """
         Add components to the network.
 
@@ -871,15 +873,18 @@ class Network(Basic):
 
         Parameters
         ----------
-        class_name : string
+        class_name : str
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
             "Store", "ShuntImpedance", "Line", "Transformer", "Link").
-        names : string or 1D array-like
+        name : str or int or list of str or list of int
             Component name(s)
-        suffix : string, default ''
-            All components are named after names with this added suffix. It
-            is assumed that all Series and DataFrames are indexed by the original names.
-        kwargs : Any or 1D array-like or 2D array-like
+        suffix : str, default ""
+            All components are named after name with this added suffix.
+        overwrite : bool, default False
+            If True, existing components with the same names as in `name` will be
+            overwritten. Otherwise only new components will be added and others will be
+            ignored.
+        kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
@@ -890,67 +895,99 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.add("Bus", "my_bus_0")
-        >>> network.add("Bus", "my_bus_1", v_nom=380)
-        >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+        Add a single component:
+
+        >>> n.add("Bus", "my_bus_0")
+        >>> n.add("Bus", "my_bus_1", v_nom=380)
+        >>> n.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+
+        Add multiple components with static attributes:
+
+        >>> n.add("Load", ["load 1", "load 2"],
+        ...       bus=["1", "2"],
+        ...       p_set=np.random.rand(len(network.snapshots), 2))
+
+        Add multiple components with time-varying attributes:
+
+        >>> import pandas as pd, numpy as np
+        >>> buses = range(13)
+        >>> snapshots = range(7)
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(snapshots)
+        >>> n.add("Bus", buses)
+        >>> # add load as numpy array
+        >>> n.add("Load",
+        ...       n.buses.index + " load",
+        ...       bus=buses,
+        ...       p_set=np.random.rand(len(snapshots), len(buses)))
+        >>> # add wind availability as pandas DataFrame
+        >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
+        ...        index=n.snapshots,
+        ...        columns=buses)
+        >>> #use a suffix to avoid boilerplate to rename everything
+        >>> n.add("Generator",
+        ...       buses,
+        ...       suffix=' wind',
+        ...       bus=buses,
+        ...       p_nom_extendable=True,
+        ...       capital_cost=1e5,
+        ...       p_max_pu=wind)
+
         """
         if class_name not in self.components:
-            msg = f"Component class {class_name} not found"
+            msg = f"Component class {class_name} not found."
             raise ValueError(msg)
-
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
         names = pd.Index([name]) if single_component else pd.Index(name)
         names = names.astype(str) + suffix
 
+        names_str = "name" if single_component else "names"
         # Read kwargs into static and time-varying attributes
         series = {}
         static = {}
 
+        # Check if names are unique
+        if not names.is_unique:
+            msg = f"Names for {class_name} must be unique."
+            raise ValueError(msg)
+
         for k, v in kwargs.items():
-            # Sanity check if passed index/ columns align (if any)
-            if isinstance(v, pd.Series):
-                if single_component and not v.index.equals(self.snapshots):
-                    msg = (
-                        f"Series {k} has an index which does not align with the "
-                        "network snapshots. "
-                    )
-                    raise ValueError(msg)
-                if not single_component and not v.index.equals(names):
-                    msg = (
-                        f"Series {k} has an index which does not align with the "
-                        "passed names. "
-                    )
-                    raise ValueError(msg)
-            if isinstance(v, pd.DataFrame):
+            # If index/ columnes are passed (pd.DataFrame or pd.Series)
+            # - cast names index to string and add suffix
+            # - check if passed index/ columns align
+            msg = "%s has an index which does not align with the passed %s."
+            if isinstance(v, pd.Series) and single_component:
                 if not v.index.equals(self.snapshots):
-                    msg = (
-                        f"DataFrame {k} has an index which does not align with the "
-                        "network snapshots. "
-                    )
-                    raise ValueError(msg)
+                    raise ValueError(msg.format(f"Series {k}", "network snapshots"))
+            elif isinstance(v, pd.Series):
+                # Cast names index to string + suffix
+                v = v.rename(index=lambda i: str(i).rstrip(suffix) + suffix)
+                if not v.index.equals(names):
+                    raise ValueError(msg.format(f"Series {k}", names_str))
+            if isinstance(v, pd.DataFrame):
+                # Cast names columns to string + suffix
+                v = v.rename(columns=lambda i: str(i).rstrip(suffix) + suffix)
+                if not v.index.equals(self.snapshots):
+                    raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
-                    msg = (
-                        f"DataFrame {k} has columns which do not align with the "
-                        "passed names. "
-                    )
-                    raise ValueError(msg)
+                    raise ValueError(msg.format(f"DataFrame {k}", names_str))
 
             # Convert list-like and 1-dim array to pandas.Series
-            if isinstance(v, (list, tuple)) or (
-                isinstance(v, np.ndarray) and v.ndim == 1
-            ):
+            if is_1d_list_like(v):
                 try:
                     if single_component:
                         v = pd.Series(v, index=self.snapshots)
                     else:
                         v = pd.Series(v, index=names)
                 except ValueError:
-                    msg = (
-                        f"Data {k} has length {len(v)} but expected "
-                        f"{len(self.snapshots)} for each snapshot or "
-                        f"{len(names)} for each component name."
+                    expec_str = (
+                        f"{len(self.snapshots)} for each snapshot."
+                        if single_component
+                        else f"{len(names)} for each component name."
                     )
+                    msg = f"Data for {k} has length {len(v)} but expected {expec_str}"
+                    raise ValueError(msg)
             # Convert 2-dim array to pandas.DataFrame
             if isinstance(v, np.ndarray):
                 if v.shape == (len(self.snapshots), len(names)):
@@ -961,6 +998,13 @@ class Network(Basic):
                         f"({len(self.snapshots)}, {len(names)})."
                     )
                     raise ValueError(msg)
+
+            if isinstance(v, dict):
+                msg = (
+                    "Dictionaries are not supported as attribute values. Please use "
+                    "pandas.Series or pandas.DataFrame instead."
+                )
+                raise NotImplementedError(msg)
 
             # Handle addition of single component
             if single_component:
@@ -990,20 +1034,22 @@ class Network(Basic):
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        self._import_components_from_dataframe(static_df, class_name)
+        self._import_components_from_dataframe(
+            static_df, class_name, overwrite=overwrite
+        )
 
         # Load time-varying attributes as components
         for k, v in series.items():
-            self._import_series_from_dataframe(v, class_name, k)
+            self._import_series_from_dataframe(v, class_name, k, overwrite=overwrite)
 
         return names
 
     def remove(
         self,
         class_name: str,
-        name: Union[str, int, Sequence[Union[int, str]]],
+        name: str | int | Sequence[int | str],
         suffix: str = "",
-    ):
+    ) -> None:
         """
         Removes a single component or a list of components from the network.
 
@@ -1041,9 +1087,9 @@ class Network(Basic):
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
     @deprecated(
-        deprecated_in="0.29",
+        deprecated_in="0.31",
         removed_in="1.0",
-        details="Use `network.add` as a drop-in replacement instead.",
+        details="Use `n.add` as a drop-in replacement instead.",
     )
     def madd(
         self,
@@ -1055,9 +1101,9 @@ class Network(Basic):
         """
         Add multiple components to the network, along with their attributes.
 
-        `network.madd` is deprecated and will be removed in version 1.0. Use
-        `network.add` instead. It can handle both single and multiple addition of
-        components.
+        ``network.madd`` is deprecated and will be removed in version 1.0. Use
+        :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
+        addition of components.
 
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
@@ -1124,16 +1170,16 @@ class Network(Basic):
         return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
     @deprecated(
-        deprecated_in="0.29",
+        deprecated_in="0.31",
         removed_in="1.0",
-        details="Use `network.remove` as a drop-in replacement instead.",
+        details="Use `n.remove` as a drop-in replacement instead.",
     )
     def mremove(self, class_name: str, names: Sequence) -> None:
         """
         Removes multiple components from the network.
 
-        `network.mremove` is deprecated and will be removed in version 1.0. Use
-        `network.remove` instead. It can handle both single and multiple removal of
+        ``network.mremove`` is deprecated and will be removed in version 1.0. Use
+        py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple removal of
         components.
 
         Removes them from component DataFrames.
@@ -1690,3 +1736,6 @@ class SubNetwork(Common):
             c = Component(c.name, c.list_name, c.attrs, c.df.loc[ind], pnl, ind)
             if not (skip_empty and len(ind) == 0):
                 yield c
+
+
+""

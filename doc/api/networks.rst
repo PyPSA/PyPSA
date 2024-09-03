@@ -23,7 +23,9 @@ General methods
     ~pypsa.Network.set_snapshots
     ~pypsa.Network.set_investment_periods
     ~pypsa.Network.add
+    ~pypsa.Network.madd
     ~pypsa.Network.remove
+    ~pypsa.Network.mremove
     ~pypsa.Network.copy
     ~pypsa.Network.branches
     ~pypsa.Network.passive_branches
