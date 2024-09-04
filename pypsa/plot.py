@@ -508,8 +508,8 @@ def compute_bbox_with_margins(margin, x, y):
     Helper function to compute bounding box for the plot.
     """
     # Drop NAs to avoid issues in calculation of bbox
-    x = x.dropna(inplace=True)
-    y = y.dropna(inplace=True)
+    x.dropna(inplace=True)
+    y.dropna(inplace=True)
 
     # set margins
     pos = np.asarray((x, y))
