@@ -7,6 +7,8 @@ import pytest
 
 import pypsa
 
+rng = np.random.default_rng()
+
 
 def swap_df_index(df, axis=0):
     df_swapped = df.copy()
@@ -165,7 +167,6 @@ def test_add_varying_single(n_5bus_7sn):
     buses = n_5bus_7sn.buses.index
 
     # Add load component at every bus with time-dependent attribute p_set.
-    rng = np.random.default_rng()
     p_set = rng.random(size=(len(n_5bus_7sn.snapshots)))
     n_5bus_7sn.add(
         "Load",
@@ -196,7 +197,6 @@ def test_add_varying_multiple(n_5bus_7sn, slicer):
 
     # Add load component at every bus with time-dependent attribute p_set.
     load_names = "load_" + buses
-    rng = np.random.default_rng()
     p_set = rng.random(size=(len(n_5bus_7sn.snapshots), len(buses)))
     n_5bus_7sn.add(
         "Load",
@@ -227,7 +227,6 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
 
     # Add load component at every bus with time-dependent attribute p_set.
     load_names = "load_" + buses
-    rng = np.random.default_rng()
     p_set = pd.DataFrame(
         rng.random(size=(len(n_5bus_7sn.snapshots), len(buses))),
         index=n_5bus_7sn.snapshots,
@@ -288,7 +287,7 @@ def test_add_overwrite_varying(n_5bus_7sn, caplog):
     assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
     assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[5]] == 1).all().all()
 
-    p = np.random.rand(7, 5)
+    p = rng.random(size=(7, 5))
     n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=False)
     assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
     n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=True)

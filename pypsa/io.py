@@ -1143,7 +1143,9 @@ def _import_series_from_dataframe(
     list_name = n.components[cls_name]["list_name"]
 
     if not overwrite:
-        dataframe = dataframe.drop(dataframe.columns.intersection(df.index), axis=1)
+        dataframe = dataframe.drop(
+            dataframe.columns.intersection(pnl[attr].columns), axis=1
+        )
 
     dataframe.columns.name = cls_name
     dataframe.index.name = "snapshot"
@@ -1162,8 +1164,8 @@ def _import_series_from_dataframe(
     # Add all unknown attributes to the dataframe without any checks
     expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
     if attr not in expected_attrs:
-        pnl[attr] = dataframe
-        # TODO handle overwrite
+        if overwrite or attr not in pnl:
+            pnl[attr] = dataframe
         return
 
     # Check if any snapshots are missing
