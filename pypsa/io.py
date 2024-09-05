@@ -417,7 +417,7 @@ class ExporterNetCDF(Exporter):
         compression: dict | None = {"zlib": True, "complevel": 4},
         float32: bool = False,
     ) -> None:
-        self.path = Path(path) if path is not None else None
+        self.path = path
         self.compression = compression
         self.float32 = float32
         self.ds = xr.Dataset()
@@ -469,8 +469,9 @@ class ExporterNetCDF(Exporter):
         if self.compression:
             self.set_compression_encoding()
         if self.path is not None:
-            with self.path.open("w"):
-                self.ds.to_netcdf(self.path)
+            _path = Path(self.path)
+            with _path.open("w"):
+                self.ds.to_netcdf(_path)
 
 
 def _export_to_exporter(
