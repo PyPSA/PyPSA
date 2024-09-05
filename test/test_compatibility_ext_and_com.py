@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
@@ -425,11 +426,10 @@ def test_p_nom_p_nom_mod():
         p_nom_mod=2,
         capital_cost=1,
         marginal_cost=0.5,
-        p_nom_extendable=True,
+        committable=True,
     )
 
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    n.optimize()
-
-    equal(n.generators.p_nom_opt["ffg"], 6000)
+    with pytest.raises(ValueError):
+        n.optimize()
