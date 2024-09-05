@@ -185,7 +185,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
 
         if not non_integers_n_mod_i.empty:
             msg = (
-                "For non-extendable but committable assets, if both p_nom and p_nom_mod are declared, p_nom must be a"
+                "For non-extendable but committable assets, if both p_nom and p_nom_mod are declared, p_nom"
                 "must be a multiple of p_nom_mod. Found "
                 f"assets in component {c} do not respect this criterion:"
                 f"\n\n\t{', '.join(non_integers_n_mod_i)}"
