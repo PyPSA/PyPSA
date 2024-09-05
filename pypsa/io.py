@@ -11,7 +11,12 @@ import os
 from abc import abstractmethod
 from collections.abc import Collection, Iterable, Sequence
 from glob import glob
-from pathlib import Path
+
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
+
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.request import urlretrieve
@@ -287,8 +292,12 @@ class ImporterHDF5(Importer):
 
 class ExporterHDF5(Exporter):
     def __init__(self, path: str | Path, **kwargs: Any) -> None:
+        self._hdf5_handle = path.open("w")
         self.ds = pd.HDFStore(path, mode="w", **kwargs)
         self.index: dict = {}
+
+    def __exit__(self, exc_type: type, exc_val: BaseException, exc_tb: TracebackType) -> None:
+        super().__exit__(exc_type, exc_val, exc_tb)
 
     def save_attributes(self, attrs: dict) -> None:
         name = attrs.pop("name")
@@ -325,6 +334,9 @@ class ExporterHDF5(Exporter):
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
+
+    def finish(self) -> None:
+        self._hdf5_handle.close()
 
 
 class ImporterNetCDF(Importer):
@@ -403,7 +415,7 @@ class ExporterNetCDF(Exporter):
         compression: dict | None = {"zlib": True, "complevel": 4},
         float32: bool = False,
     ) -> None:
-        self.path = path
+        self.path = Path(path) if path is not None else None
         self.compression = compression
         self.float32 = float32
         self.ds = xr.Dataset()
@@ -455,7 +467,8 @@ class ExporterNetCDF(Exporter):
         if self.compression:
             self.set_compression_encoding()
         if self.path is not None:
-            self.ds.to_netcdf(self.path)
+            with self.path.open("w"):
+                self.ds.to_netcdf(self.path)
 
 
 def _export_to_exporter(
@@ -711,7 +724,7 @@ def export_to_hdf5(
     kwargs.setdefault("complevel", 4)
 
     basename = os.path.basename(path)
-    with ExporterHDF5(path, **kwargs) as exporter:
+    with ExporterHDF5(Path(path), **kwargs) as exporter:
         _export_to_exporter(
             network,
             exporter,

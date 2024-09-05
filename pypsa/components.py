@@ -8,9 +8,13 @@ import os
 import warnings
 from collections import namedtuple
 from collections.abc import Collection, Iterator, Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from weakref import ref
+
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
