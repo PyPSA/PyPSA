@@ -297,7 +297,9 @@ class ExporterHDF5(Exporter):
         self.ds = pd.HDFStore(path, mode="w", **kwargs)
         self.index: dict = {}
 
-    def __exit__(self, exc_type: type, exc_val: BaseException, exc_tb: TracebackType) -> None:
+    def __exit__(
+        self, exc_type: type, exc_val: BaseException, exc_tb: TracebackType
+    ) -> None:
         super().__exit__(exc_type, exc_val, exc_tb)
 
     def save_attributes(self, attrs: dict) -> None:
