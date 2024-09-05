@@ -292,6 +292,7 @@ class ImporterHDF5(Importer):
 
 class ExporterHDF5(Exporter):
     def __init__(self, path: str | Path, **kwargs: Any) -> None:
+        path = Path(path)
         self._hdf5_handle = path.open("w")
         self.ds = pd.HDFStore(path, mode="w", **kwargs)
         self.index: dict = {}
@@ -724,7 +725,7 @@ def export_to_hdf5(
     kwargs.setdefault("complevel", 4)
 
     basename = os.path.basename(path)
-    with ExporterHDF5(Path(path), **kwargs) as exporter:
+    with ExporterHDF5(path, **kwargs) as exporter:
         _export_to_exporter(
             network,
             exporter,
