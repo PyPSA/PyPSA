@@ -85,7 +85,7 @@ from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     import linopy
-    from scipy.sparese import spmatrix
+    from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
 warnings.simplefilter("always", DeprecationWarning)
