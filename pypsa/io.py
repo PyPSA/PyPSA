@@ -11,15 +11,14 @@ import os
 from abc import abstractmethod
 from collections.abc import Collection, Iterable, Sequence
 from glob import glob
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, TypeVar
+from urllib.request import urlretrieve
 
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
     from pathlib import Path
-
-from types import TracebackType
-from typing import TYPE_CHECKING, Any, TypeVar
-from urllib.request import urlretrieve
 
 import geopandas as gpd
 import numpy as np
