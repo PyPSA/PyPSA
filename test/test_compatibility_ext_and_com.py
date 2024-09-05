@@ -404,3 +404,32 @@ def test_com_ext_mod_p_nom():
     expected_dispatch = np.array([[0, 0, 0, 0], [4000, 6000, 5000, 800]], dtype=float).T
 
     equal(n.generators_t.p.values, expected_dispatch)
+
+
+def test_p_nom_p_nom_mod():
+    n = pypsa.Network()
+
+    snapshots = range(4)
+
+    n.set_snapshots(snapshots)
+
+    n.add("Bus", "bus")
+
+    n.add(
+        "Generator",
+        "ffg",
+        bus="bus",
+        # p_nom is not a multiple of p_nom_mod
+        # therefore, it is discarded
+        p_nom=6001,
+        p_nom_mod=2,
+        capital_cost=1,
+        marginal_cost=0.5,
+        p_nom_extendable=True,
+    )
+
+    n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
+
+    n.optimize()
+
+    equal(n.generators.p_nom_opt["ffg"], 6000)
