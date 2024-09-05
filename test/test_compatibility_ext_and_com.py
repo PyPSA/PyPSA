@@ -197,7 +197,7 @@ def test_unit_commitment_mod():
 
 # Trivial + non-extendable, non-modular & committable
 # Already tested in test_lopf_unit_commitment.py
-def test_trivial_com():
+def test_com():
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -240,7 +240,7 @@ def test_trivial_com():
 
 
 # Trivial + non-extendable, modular & committable
-def test_trivial_mod_com():
+def test_mod_com():
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -287,7 +287,7 @@ def test_trivial_mod_com():
 
 
 # Trivial + extendable, modular & non-committable
-def test_trivial_ext_mod():
+def test_ext_mod():
     n = pypsa.Network()
 
     snapshots = range(4)
@@ -327,7 +327,7 @@ def test_trivial_ext_mod():
 
 
 # Trivial + extendable, committable & modular
-def test_trivial_ext_com_mod():
+def test_ext_com_mod():
     n = pypsa.Network()
 
     snapshots = range(4)
