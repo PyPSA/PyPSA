@@ -683,7 +683,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
             com_i = com_i.intersection(fix_i).difference(mod_i).rename(com_i.name)
 
-        elif attr_nom == "p_nom_mod":
+        else:
             constraint_name = "-mod"
             com_i = n.get_committable_i(c)
             mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
