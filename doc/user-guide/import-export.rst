@@ -80,7 +80,7 @@ Cloud object storage import and export
 ======================================
 CSV, netCDF and HDF5 files in cloud object storage can be imported and exported by installing the
 `cloudpathlib <https://cloudpathlib.readthedocs.io/en/latest/>`_ package. This is available through
-the `[cloudpath]` optional dependency, installable via `pip install pypsa[cloudpath]`.
+the :code:`[cloudpath]` optional dependency, installable via :code:`pip install pypsa[cloudpath]`.
 
 .. code-block:: python
 
