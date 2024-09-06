@@ -74,4 +74,10 @@ Pandapower import
 .. warning:: Not all pandapower data is supported.
 
 To import a network from `pandapower <http://www.pandapower.org/>`_, run the function :py:meth:`pypsa.Network.import_from_pandapower_net`.
-    
+
+
+cloudpathlib import and export
+==============================
+CSV, netCDF and HDF5 files in cloud object storage can be imported and exported by installing the
+`cloudpathlib` package. This is available through the `[cloudpath]` optional dependency, installable
+via `pip install pypsa[cloudpath]`.
