@@ -671,152 +671,93 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             lhs, ">=", rhs, name=f"{c}-ext-{attr}-ramp_limit_down", mask=mask
         )
 
-    # ---------------- Committable but non extendable and non modular Generators ----------------------------- #
+    # ----------------------------- Committable Generators ----------------------------- #
 
-    com_i = n.get_committable_i(c)
-    fix_i = n.get_non_extendable_i(c)
-    mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
-    com_i = com_i.intersection(fix_i).difference(mod_i).rename(com_i.name)
+    attr_nom_i = ["p_nom", "p_nom_mod"]
 
-    assets = n.df(c).reindex(com_i)
+    for attr_nom in attr_nom_i:
+        if attr_nom == "p_nom":
+            constraint_name = ""
+            com_i = n.get_committable_i(c)
+            fix_i = n.get_non_extendable_i(c)
+            mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+            com_i = com_i.intersection(fix_i).difference(mod_i).rename(com_i.name)
 
-    # com up
-    if not assets.ramp_limit_up.isnull().all():
-        limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
-        limit_up = assets.eval("ramp_limit_up * p_nom").to_xarray()
+        elif attr_nom == "p_nom_mod":
+            constraint_name = "-mod"
+            com_i = n.get_committable_i(c)
+            mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+            com_i = com_i.intersection(mod_i).rename(com_i.name)
 
-        status = m[f"{c}-status"].loc[sns, com_i].sel(snapshot=active.index)
-        status_prev = (
-            m[f"{c}-status"]
-            .loc[sns, com_i]
-            .shift(snapshot=1)
-            .sel(snapshot=active.index)
-        )
+        assets = n.df(c).reindex(com_i)
+        # com up
+        if not assets.ramp_limit_up.isnull().all():
+            limit_start = assets.eval(f"ramp_limit_start_up * {attr_nom}").to_xarray()
+            limit_up = assets.eval(f"ramp_limit_up * {attr_nom}").to_xarray()
 
-        lhs_tuple = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_start - limit_up, status_prev),
-            (-limit_start, status),
-        )
+            status = m[f"{c}-status"].loc[sns, com_i].sel(snapshot=active.index)
+            status_prev = (
+                m[f"{c}-status"]
+                .loc[sns, com_i]
+                .shift(snapshot=1)
+                .sel(snapshot=active.index)
+            )
 
-        rhs = rhs_start.reindex(columns=com_i)
-        if is_rolling_horizon:
-            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
+            lhs_tuple = (
+                (1, p_actual(com_i)),
+                (-1, p_previous(com_i)),
+                (limit_start - limit_up, status_prev),
+                (-limit_start, status),
+            )
 
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
-        m.add_constraints(
-            lhs_tuple,
-            "<=",
-            rhs,
-            name=f"{c}-com-non-ext-non-mod-{attr}-ramp_limit_up",
-            mask=mask,
-        )
+            rhs = rhs_start.reindex(columns=com_i)
+            if is_rolling_horizon:
+                status_start = n.pnl(c)["status"][com_i].iloc[start_i]
+                rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
 
-    # com down
-    if not assets.ramp_limit_down.isnull().all():
-        limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
-        limit_down = assets.eval("ramp_limit_down * p_nom").to_xarray()
+            mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
+            m.add_constraints(
+                lhs_tuple,
+                "<=",
+                rhs,
+                name=f"{c}-com{constraint_name}-{attr}-ramp_limit_up",
+                mask=mask,
+            )
 
-        status = m[f"{c}-status"].loc[sns, com_i].sel(snapshot=active.index)
-        status_prev = (
-            m[f"{c}-status"]
-            .loc[sns, com_i]
-            .shift(snapshot=1)
-            .sel(snapshot=active.index)
-        )
+        # com down
+        if not assets.ramp_limit_down.isnull().all():
+            limit_shut = assets.eval(f"ramp_limit_shut_down * {attr_nom}").to_xarray()
+            limit_down = assets.eval(f"ramp_limit_down * {attr_nom}").to_xarray()
 
-        lhs = (
-            1 * p_actual(com_i)
-            - 1 * p_previous(com_i)
-            + (limit_down - limit_shut) * status
-            + limit_shut * status_prev
-        )
+            status = m[f"{c}-status"].loc[sns, com_i].sel(snapshot=active.index)
+            status_prev = (
+                m[f"{c}-status"]
+                .loc[sns, com_i]
+                .shift(snapshot=1)
+                .sel(snapshot=active.index)
+            )
 
-        rhs = rhs_start.reindex(columns=com_i)
-        if is_rolling_horizon:
-            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += -limit_shut * status_start
+            lhs = (
+                1 * p_actual(com_i)
+                - 1 * p_previous(com_i)
+                + (limit_down - limit_shut) * status
+                + limit_shut * status_prev
+            )
 
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
+            rhs = rhs_start.reindex(columns=com_i)
+            if is_rolling_horizon:
+                status_start = n.pnl(c)["status"][com_i].iloc[start_i]
+                rhs.loc[sns[0]] += -limit_shut * status_start
 
-        m.add_constraints(
-            lhs,
-            ">=",
-            rhs,
-            name=f"{c}-com-non-ext-non-mod-{attr}-ramp_limit_down",
-            mask=mask,
-        )
+            mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
 
-    # ----------------------- Committable and Modular Generators (ext and non ext) ----------------------------- #
-
-    com_i = n.get_committable_i(c)
-    mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
-    com_i = com_i.intersection(mod_i).rename(com_i.name)
-
-    assets = n.df(c).reindex(com_i)
-
-    # com up
-    if not assets.ramp_limit_up.isnull().all():
-        limit_start = assets.eval("ramp_limit_start_up * p_nom_mod").to_xarray()
-        limit_up = assets.eval("ramp_limit_up * p_nom_mod").to_xarray()
-
-        status = m[f"{c}-status"].loc[sns, com_i].sel(snapshot=active.index)
-        status_prev = (
-            m[f"{c}-status"]
-            .loc[sns, com_i]
-            .shift(snapshot=1)
-            .sel(snapshot=active.index)
-        )
-
-        lhs = (
-            1 * p_actual(com_i)
-            - 1 * p_previous(com_i)
-            + (limit_start - limit_up) * status_prev
-            - limit_start * status
-        )
-
-        rhs = rhs_start.reindex(columns=com_i)
-        if is_rolling_horizon:
-            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
-
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
-        m.add_constraints(
-            lhs, "<=", rhs, name=f"{c}-com-mod-{attr}-ramp_limit_up", mask=mask
-        )
-
-    # com down
-    if not assets.ramp_limit_down.isnull().all():
-        limit_shut = assets.eval("ramp_limit_shut_down * p_nom_mod").to_xarray()
-        limit_down = assets.eval("ramp_limit_down * p_nom_mod").to_xarray()
-
-        status = m[f"{c}-status"].loc[sns, com_i].sel(snapshot=active.index)
-        status_prev = (
-            m[f"{c}-status"]
-            .loc[sns, com_i]
-            .shift(snapshot=1)
-            .sel(snapshot=active.index)
-        )
-
-        lhs_tuple = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_down - limit_shut, status),
-            (limit_shut, status_prev),
-        )
-
-        rhs = rhs_start.reindex(columns=com_i)
-        if is_rolling_horizon:
-            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += -limit_shut * status_start
-
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
-
-        m.add_constraints(
-            lhs_tuple, ">=", rhs, name=f"{c}-com-mod-{attr}-ramp_limit_down", mask=mask
-        )
+            m.add_constraints(
+                lhs,
+                ">=",
+                rhs,
+                name=f"{c}-com{constraint_name}-{attr}-ramp_limit_down",
+                mask=mask,
+            )
 
 
 def define_nodal_balance_constraints(
