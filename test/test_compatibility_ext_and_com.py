@@ -19,10 +19,25 @@ def test_compatibility_ext_and_comt():
 
     n.add("Bus", "bus")
 
+    n.add("Bus", "bus2")
+
+    n.add(
+        "Line",
+        "line",
+        bus0="bus",
+        bus1="bus2",
+        x=0.01,
+        r=0.01,
+        capital_cost=1,
+        s_nom_max=7000,
+        s_nom_mod=0.5,
+        s_nom_extendable=True,
+    )
+
     n.add(
         "Generator",
         "coal-com-non_mod-non_ext",
-        bus="bus",
+        bus="bus2",
         committable=True,
         ramp_limit_up=1,
         ramp_limit_down=0.95,
@@ -105,7 +120,7 @@ def test_compatibility_ext_and_comt():
 
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    n.optimize()
+    n.optimize(transmission_losses=1)
 
     f_obj = (n.generators.p_nom_opt * n.generators.capital_cost).sum()
     f_obj += (n.generators_t.p * n.generators.marginal_cost).sum().sum()
