@@ -10,7 +10,6 @@ import math
 import os
 from abc import abstractmethod
 from collections.abc import Collection, Iterable, Sequence
-from glob import glob
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.request import urlretrieve
@@ -132,27 +131,27 @@ class ImporterCSV(Importer):
         self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
 
-        if not os.path.isdir(csv_folder_name):
+        if not self.csv_folder_name.is_dir():
             msg = f"Directory {csv_folder_name} does not exist."
             raise FileNotFoundError(msg)
 
     def get_attributes(self) -> dict | None:
-        fn = os.path.join(self.csv_folder_name, "network.csv")
-        if not os.path.isfile(fn):
+        fn = self.csv_folder_name.joinpath("network.csv")
+        if not fn.is_file():
             return None
         return dict(pd.read_csv(fn, encoding=self.encoding).iloc[0])
 
     def get_meta(self) -> dict:
-        fn = os.path.join(self.csv_folder_name, "meta.json")
-        return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
+        fn = self.csv_folder_name.joinpath("meta.json")
+        return {} if not fn.is_file() else json.loads(fn.open().read())
 
     def get_crs(self) -> dict:
-        fn = os.path.join(self.csv_folder_name, "crs.json")
-        return {} if not os.path.isfile(fn) else json.loads(open(fn).read())
+        fn = self.csv_folder_name.joinpath("crs.json")
+        return {} if not fn.is_file() else json.loads(fn.open().read())
 
     def get_snapshots(self) -> pd.Index:
-        fn = os.path.join(self.csv_folder_name, "snapshots.csv")
-        if not os.path.isfile(fn):
+        fn = self.csv_folder_name.joinpath("snapshots.csv")
+        if not fn.is_file():
             return None
         df = pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
         # backwards-compatibility: level "snapshot" was rename to "timestep"
@@ -163,25 +162,25 @@ class ImporterCSV(Importer):
         return df
 
     def get_investment_periods(self) -> pd.Series:
-        fn = os.path.join(self.csv_folder_name, "investment_periods.csv")
-        if not os.path.isfile(fn):
+        fn = self.csv_folder_name.joinpath("investment_periods.csv")
+        if not fn.is_file():
             return None
         return pd.read_csv(fn, index_col=0, encoding=self.encoding)
 
     def get_static(self, list_name: str) -> pd.DataFrame:
-        fn = os.path.join(self.csv_folder_name, list_name + ".csv")
+        fn = self.csv_folder_name.joinpath(list_name + ".csv")
         return (
             pd.read_csv(fn, index_col=0, encoding=self.encoding)
-            if os.path.isfile(fn)
+            if fn.is_file()
             else None
         )
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
-        for fn in os.listdir(self.csv_folder_name):
-            if fn.startswith(list_name + "-") and fn.endswith(".csv"):
-                attr = fn[len(list_name) + 1 : -4]
+        for fn in self.csv_folder_name.iterdir():
+            if fn.name.startswith(list_name + "-") and fn.name.endswith(".csv"):
+                attr = fn.name[len(list_name) + 1 : -4]
                 df = pd.read_csv(
-                    os.path.join(self.csv_folder_name, fn),
+                    self.csv_folder_name.joinpath(fn.name),
                     index_col=0,
                     encoding=self.encoding,
                     parse_dates=True,
@@ -195,50 +194,55 @@ class ExporterCSV(Exporter):
         self.encoding = encoding
 
         # make sure directory exists
-        if not os.path.isdir(csv_folder_name):
+        if not self.csv_folder_name.is_dir():
             logger.warning(f"Directory {csv_folder_name} does not exist, creating it")
-            os.mkdir(csv_folder_name)
+            self.csv_folder_name.mkdir()
 
     def save_attributes(self, attrs: dict) -> None:
         name = attrs.pop("name")
         df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
-        fn = os.path.join(self.csv_folder_name, "network.csv")
-        df.to_csv(fn, encoding=self.encoding)
+        fn = self.csv_folder_name.joinpath("network.csv")
+        with fn.open("w"):
+            df.to_csv(fn, encoding=self.encoding)
 
     def save_meta(self, meta: dict) -> None:
-        fn = os.path.join(self.csv_folder_name, "meta.json")
-        open(fn, "w").write(json.dumps(meta))
+        fn = self.csv_folder_name.joinpath("meta.json")
+        fn.open("w").write(json.dumps(meta))
 
     def save_crs(self, crs: dict) -> None:
-        fn = os.path.join(self.csv_folder_name, "crs.json")
-        open(fn, "w").write(json.dumps(crs))
+        fn = self.csv_folder_name.joinpath("crs.json")
+        fn.open("w").write(json.dumps(crs))
 
     def save_snapshots(self, snapshots: pd.Index) -> None:
-        fn = os.path.join(self.csv_folder_name, "snapshots.csv")
-        snapshots.to_csv(fn, encoding=self.encoding)
+        fn = self.csv_folder_name.joinpath("snapshots.csv")
+        with fn.open("w"):
+            snapshots.to_csv(fn, encoding=self.encoding)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
-        fn = os.path.join(self.csv_folder_name, "investment_periods.csv")
-        investment_periods.to_csv(fn, encoding=self.encoding)
+        fn = self.csv_folder_name.joinpath("investment_periods.csv")
+        with fn.open("w"):
+            investment_periods.to_csv(fn, encoding=self.encoding)
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
-        fn = os.path.join(self.csv_folder_name, list_name + ".csv")
-        df.to_csv(fn, encoding=self.encoding)
+        fn = self.csv_folder_name.joinpath(list_name + ".csv")
+        with fn.open("w"):
+            df.to_csv(fn, encoding=self.encoding)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
-        fn = os.path.join(self.csv_folder_name, list_name + "-" + attr + ".csv")
-        df.to_csv(fn, encoding=self.encoding)
+        fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
+        with fn.open("w"):
+            df.to_csv(fn, encoding=self.encoding)
 
     def remove_static(self, list_name: str) -> None:
-        if fns := glob(os.path.join(self.csv_folder_name, list_name) + "*.csv"):
+        if fns := list(self.csv_folder_name.joinpath(list_name).glob("*.csv")):
             for fn in fns:
-                os.unlink(fn)
+                fn.unlink()
             logger.warning(f'Stale csv file(s) {", ".join(fns)} removed')
 
     def remove_series(self, list_name: str, attr: str) -> None:
-        fn = os.path.join(self.csv_folder_name, list_name + "-" + attr + ".csv")
-        if os.path.exists(fn):
-            os.unlink(fn)
+        fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
+        if fn.exists():
+            fn.unlink()
 
 
 class ImporterHDF5(Importer):
