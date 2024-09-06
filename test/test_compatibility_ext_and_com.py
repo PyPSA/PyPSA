@@ -94,6 +94,8 @@ def test_compatibility_ext_and_comt():
         "gas-non_com-mod-ext",
         bus="bus",
         p_nom_extendable=True,
+        ramp_limit_up=0.8,
+        ramp_limit_down=0.9,
         marginal_cost=15,
         stand_by_cost=10,
         p_min_pu=0.1,
