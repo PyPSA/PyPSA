@@ -88,10 +88,10 @@ Azure Blob Storage (:code:`az://`) as cloud object storage providers.
 .. code-block:: python
 
    from pypsa import Network
-   n = Network(import_name='examples/ac-dc-meshed/ac-dc-data')
+   n = Network('examples/ac-dc-meshed/ac-dc-data')
    n.export_to_csv_folder('s3://my-s3-bucket/ac-dc-data')
-   n = Network(import_name='s3://my-s3-bucket/ac-dc-data')
+   n = Network('s3://my-s3-bucket/ac-dc-data')
    n.export_to_netcdf('gs://my-gs-bucket/ac-dc-data.nc')
-   n = Network(import_name='gs://my-gs-bucket/ac-dc-data.nc')
+   n = Network('gs://my-gs-bucket/ac-dc-data.nc')
    n.export_to_hdf5('az://my-az-bucket/ac-dc-data.h5')
-   n = Network(import_name='az://my-az-bucket/ac-dc-data.h5')
+   n = Network('az://my-az-bucket/ac-dc-data.h5')
