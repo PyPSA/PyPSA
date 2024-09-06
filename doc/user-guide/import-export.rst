@@ -74,4 +74,24 @@ Pandapower import
 .. warning:: Not all pandapower data is supported.
 
 To import a network from `pandapower <http://www.pandapower.org/>`_, run the function :py:meth:`pypsa.Network.import_from_pandapower_net`.
-    
+
+
+Cloud object storage import and export
+======================================
+CSV, netCDF and HDF5 files in cloud object storage can be imported and exported by installing the
+`cloudpathlib <https://cloudpathlib.drivendata.org/stable/>`_ package. This is available through
+the :code:`[cloudpath]` optional dependency, installable via :code:`pip install 'pypsa[cloudpath]'`.
+
+:code:`cloudpathlib` supports AWS S3 (:code:`s3://`), Google Cloud Storage (:code:`gs://`) and
+Azure Blob Storage (:code:`az://`) as cloud object storage providers.
+
+.. code-block:: python
+
+   from pypsa import Network
+   n = Network('examples/ac-dc-meshed/ac-dc-data')
+   n.export_to_csv_folder('s3://my-s3-bucket/ac-dc-data')
+   n = Network('s3://my-s3-bucket/ac-dc-data')
+   n.export_to_netcdf('gs://my-gs-bucket/ac-dc-data.nc')
+   n = Network('gs://my-gs-bucket/ac-dc-data.nc')
+   n.export_to_hdf5('az://my-az-bucket/ac-dc-data.h5')
+   n = Network('az://my-az-bucket/ac-dc-data.h5')

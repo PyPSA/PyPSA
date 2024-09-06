@@ -11,6 +11,9 @@ Release Notes
 ..   To use the features already you have to install the ``master`` branch, e.g. 
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+.. * Added `pip install pypsa[cloudpath]` to install the `cloudpathlib` package for
+..   importing and exporting CSV, netCDF and HDF5 files in cloud object storage.
+
 v0.30.0 (30th August 2024)
 ==========================
 

@@ -275,3 +275,20 @@ def test_io_time_dependent_efficiencies(tmpdir):
     equal(m.generators_t.efficiency, n.generators_t.efficiency)
     equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
     equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
+
+
+def test_cloudpathlib_uses_pathlib_path_locally(scipy_network, tmpdir):
+    cloudpathlib = pytest.importorskip("cloudpathlib")
+    fn = cloudpathlib.AnyPath(tmpdir).joinpath("netcdf_export.nc")
+    assert isinstance(fn, Path)
+    assert not isinstance(fn, cloudpathlib.CloudPath)
+    scipy_network.export_to_netcdf(fn)
+
+
+def test_cloudpathlib_uri_schemes():
+    cloudpathlib = pytest.importorskip("cloudpathlib")
+    assert isinstance(cloudpathlib.AnyPath("s3://bucket/file"), cloudpathlib.S3Path)
+    assert isinstance(cloudpathlib.AnyPath("gs://bucket/file"), cloudpathlib.GSPath)
+    assert isinstance(
+        cloudpathlib.AnyPath("az://bucket/file"), cloudpathlib.AzureBlobPath
+    )
