@@ -728,10 +728,10 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
         )
 
         lhs = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_down - limit_shut, status),
-            (limit_shut, status_prev),
+            1 * p_actual(com_i)
+            - 1 * p_previous(com_i)
+            + (limit_down - limit_shut) * status
+            + limit_shut * status_prev
         )
 
         rhs = rhs_start.reindex(columns=com_i)
@@ -771,10 +771,10 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
         )
 
         lhs = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_start - limit_up, status_prev),
-            (-limit_start, status),
+            1 * p_actual(com_i)
+            - 1 * p_previous(com_i)
+            + (limit_start - limit_up) * status_prev
+            - limit_start * status
         )
 
         rhs = rhs_start.reindex(columns=com_i)
