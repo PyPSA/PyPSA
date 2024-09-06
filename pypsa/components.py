@@ -150,7 +150,8 @@ class Network(Basic):
     ----------
     import_name : string, Path
         Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
-        import network data. The string could be a URL.
+        import network data. The string could be a URL. If cloudpathlib is installed,
+        the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -176,6 +177,7 @@ class Network(Basic):
     >>> nw1 = pypsa.Network("my_store.h5")
     >>> nw2 = pypsa.Network("/my/folder")
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
+    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc")
 
     """
 

@@ -647,6 +647,8 @@ def export_to_csv_folder(
 
     If ``csv_folder_name`` does not already exist, it is created.
 
+    ``csv_folder_name`` may also be a cloud object storage URI if cloudpathlib is installed.
+
     Static attributes are exported in one CSV file per component,
     e.g. ``generators.csv``.
 
@@ -713,6 +715,8 @@ def export_to_hdf5(
 
     If path does not already exist, it is created.
 
+    ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
+
     Parameters
     ----------
     path : string
@@ -745,6 +749,8 @@ def import_from_netcdf(
 ) -> None:
     """
     Import network data from netCDF file or xarray Dataset at `path`.
+
+    ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
 
     Parameters
     ----------
