@@ -2,17 +2,17 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: 
+.. .. warning:: 
   
-  The features listed below are not released yet, but will be part of the next release! 
-  To use the features already you have to install the ``master`` branch, e.g. 
-  ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+..   The features listed below are not released yet, but will be part of the next release! 
+..   To use the features already you have to install the ``master`` branch, e.g. 
+..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Added `pip install pypsa[cloudpath]` to install the `cloudpathlib` package for
-  importing and exporting CSV, netCDF and HDF5 files in cloud object storage.
+.. * Added `pip install pypsa[cloudpath]` to install the `cloudpathlib` package for
+..   importing and exporting CSV, netCDF and HDF5 files in cloud object storage.
 
 v0.30.0 (30th August 2024)
 ==========================
