@@ -79,8 +79,8 @@ To import a network from `pandapower <http://www.pandapower.org/>`_, run the fun
 Cloud object storage import and export
 ======================================
 CSV, netCDF and HDF5 files in cloud object storage can be imported and exported by installing the
-`cloudpathlib <https://cloudpathlib.readthedocs.io/en/latest/>`_ package. This is available through
-the :code:`[cloudpath]` optional dependency, installable via :code:`pip install pypsa[cloudpath]`.
+`cloudpathlib <https://cloudpathlib.drivendata.org/stable/>`_ package. This is available through
+the :code:`[cloudpath]` optional dependency, installable via :code:`pip install 'pypsa[cloudpath]'`.
 
 .. code-block:: python
 
