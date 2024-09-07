@@ -36,6 +36,46 @@ def test_missing_bus(consistent_network, caplog):
     assert caplog.records[-1].levelname == "WARNING"
 
 
+def test_max_smaller_min(consistent_network, caplog):
+    consistent_network.add(
+        "Generator",
+        "gen_two",
+        bus="one",
+        p_nom_max=10,
+        p_nom_min=20,
+        p_nom_extendable=True,
+    )
+    consistent_network.consistency_check()
+    assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_invalid_generator(consistent_network, caplog):
+    consistent_network.add(
+        "Generator",
+        "gen_two",
+        bus="one",
+        p_max_pu=np.nan,
+        p_min_pu=np.nan,
+        p_nom_extendable=True,
+    )
+    consistent_network.add(
+        "Generator",
+        "gen_three",
+        bus="one",
+        p_max_pu=np.inf,
+        p_min_pu=np.inf,
+        p_nom_extendable=True,
+    )
+    consistent_network.consistency_check()
+    assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_bad_transformer(consistent_network, caplog):
+    consistent_network.add("Transformer", "tranf_one", bus="one", s_nom=0)
+    consistent_network.consistency_check()
+    assert caplog.records[-1].levelname == "WARNING"
+
+
 def test_infeasible_capacity_limits(consistent_network, caplog):
     consistent_network.generators.loc[
         "gen_one", ["p_nom_extendable", "committable"]
