@@ -509,7 +509,7 @@ def compute_bbox_with_margins(margin, x, y):
     """
     # set margins
     pos = np.asarray((x, y))
-    minxy, maxxy = pos.min(axis=1), pos.max(axis=1)
+    minxy, maxxy = np.nanmin(pos, axis=1), np.nanmax(pos, axis=1)
     xy1 = minxy - margin * (maxxy - minxy)
     xy2 = maxxy + margin * (maxxy - minxy)
     return tuple(xy1), tuple(xy2)
