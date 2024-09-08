@@ -58,4 +58,4 @@ def get_strongly_meshed_buses(n, threshold=45):
     )
     all_buses = all_buses[all_buses != ""]
     counts = all_buses.value_counts()
-    return counts.index[counts > 20].rename("Bus-meshed")
+    return counts.index[counts > threshold].rename("Bus-meshed")
