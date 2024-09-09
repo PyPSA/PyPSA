@@ -41,9 +41,8 @@ def check_for_unknown_buses(network: Network, component: Component) -> None:
             missing &= component.df[attr] != ""
         if missing.any():
             logger.warning(
-                "The following %s have %s which are not defined:\n%s",
+                "The following %s have buses which are not defined:\n%s",
                 component.list_name,
-                attr,
                 component.df.index[missing],
             )
 

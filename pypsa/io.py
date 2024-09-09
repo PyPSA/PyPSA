@@ -915,6 +915,35 @@ def _import_from_importer(
     )
 
 
+def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFrame:
+    """
+    Sort axis of DataFrame according to the order of attrs_list.
+
+    Attributes not in attrs_list are appended at the end. Attributes in the list but
+    not in the DataFrame are ignored.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame to sort
+    attrs_list : list
+        List of attributes to sort by
+    axis : int
+        Axis to sort (0 for index, 1 for columns)
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
+
+    df_cols_set = set(df.columns if axis == 1 else df.index)
+
+    existing_cols = [col for col in attrs_list if col in df_cols_set]
+    remaining_cols = list(df_cols_set - set(attrs_list))
+
+    return df.reindex(existing_cols + remaining_cols, axis=axis)
+
+
 @deprecated(
     deprecated_in="0.29",
     removed_in="1.0",
@@ -1058,6 +1087,7 @@ def _import_components_from_dataframe(
                     dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
+    # TODO use func from consistency checks
     for attr in [attr for attr in dataframe if attr.startswith("bus")]:
         # allow empty buses for multi-ports
         port = int(attr[-1]) if attr[-1].isdigit() else 0
@@ -1096,6 +1126,9 @@ def _import_components_from_dataframe(
 
     if cls_name == "Shape":
         new_df = gpd.GeoDataFrame(new_df, crs=n.crs)
+
+    # Align index (component names) and columns (attributes)
+    new_df = _sort_attrs(new_df, attrs.index, axis=1)
 
     new_df.index.name = cls_name
     setattr(n, n.components[cls_name]["list_name"], new_df)
