@@ -11,8 +11,17 @@ Release Notes
 ..   To use the features already you have to install the ``master`` branch, e.g. 
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-.. * Added `pip install pypsa[cloudpath]` to install the `cloudpathlib` package for
-..   importing and exporting CSV, netCDF and HDF5 files in cloud object storage.
+v0.30.1 (9th September 2024)
+============================
+
+* Added option for importing and exporting CSV, netCDF and HDF5 files in cloud
+  object storage. This requires the installation of the optional dependency
+  ``cloudpathlib``, e.g. via ``pip install pypsa[cloudpath]``.
+
+* Bugfix of ``n.plot()`` when single buses have no coordinates.
+
+* See full list of changes `here
+  <https://github.com/PyPSA/PyPSA/releases/tag/v0.30.1>`__.
 
 v0.30.0 (30th August 2024)
 ==========================
