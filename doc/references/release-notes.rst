@@ -12,7 +12,7 @@ Release Notes
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 v0.30.2 (11th September 2024)
-============================
+=============================
 
 * Bugfix in operational limit global constraints, which now directly uses the
   carrier of the ``Store`` rather than the carrier of the bus it is attached to.
