@@ -1245,3 +1245,52 @@ class StatisticsAccessor:
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
+
+    def prices(
+        self,
+        price_weighting: str = "load",
+        bus_carrier: Sequence[str] | str | None = None,
+    ) -> pd.DataFrame:
+        """
+        Calculates the prices at each in the network in currency/unit_{bus_carrier}.
+
+        Parameters
+        ----------
+        price_weighting : str, optional
+            Type of price weighting to use. If 'load' the prices are weighted by the load of the buses and if time they are weighted by snapshot weightings. Defaults to 'load'.
+        bus_carrier :  Sequence[str] | str, optional
+            Carrier of the buses for which the prices should be calculated. If None, all buses are considered. Defaults to None.
+        """
+
+        def get_price_weightings(price_weighting: str) -> pd.DataFrame:
+            if price_weighting == "load":
+                weights = (
+                    self.withdrawal(
+                        groupby=get_bus_and_carrier_and_bus_carrier,
+                        nice_names=False,
+                        aggregate_time=False,
+                    )
+                    .groupby("bus")
+                    .sum()
+                    .T
+                )
+            else:
+                weights = self._parent.snapshot_weightings.objective
+            return weights
+
+        prices = self._parent.pnl("Bus").marginal_price
+        weights = get_price_weightings(price_weighting)
+
+        if isinstance(weights, pd.DataFrame):
+            weights = weights.reindex(prices.columns, axis=1, fill_value=1)
+            prices = (prices * weights).sum() / weights.sum()
+        elif isinstance(weights, pd.Series):
+            prices = weights @ prices / weights.sum()
+
+        if bus_carrier is not None:
+            if isinstance(bus_carrier, str):
+                bus_carrier = [bus_carrier]
+            mask = self._parent.buses.carrier.isin(bus_carrier)
+            prices = prices.loc[mask]
+
+        return prices.dropna()
