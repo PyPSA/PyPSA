@@ -1304,7 +1304,7 @@ def explore(
     map = Map(tiles=None)
 
     # Add map title
-    map_title = f"PyPSA Network: {n.name}"
+    map_title = "PyPSA Network" + (f": {n.name}" if n.name else "")
     map.get_root().html.add_child(
         Element(
             f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>"
