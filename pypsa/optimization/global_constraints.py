@@ -369,10 +369,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             rhs -= sus.state_of_charge_initial.sum()
 
         # stores
-        bus_carrier = n.stores.bus.map(n.buses.carrier)  # noqa: F841
-        stores = n.stores.query(
-            "@bus_carrier == @glc.carrier_attribute and not e_cyclic"
-        )
+        stores = n.stores.query("carrier == @glc.carrier_attribute and not e_cyclic")
         if not stores.empty:
             e = m["Store-e"].loc[snapshots, stores.index]
             e = e.ffill("snapshot").isel(snapshot=-1)
