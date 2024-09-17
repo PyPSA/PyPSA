@@ -137,6 +137,41 @@ def get_switchable_as_dense(
     return res
 
 
+def get_switchable_as_dense_by_scenario(
+    network: Network,
+    component: str,
+    attr: str,
+    scenarios: Sequence | None = None,
+) -> pd.DataFrame:
+    """
+    Return a DataFrame for a scenario-dependent static component attribute.
+
+    Parameters
+    ----------
+    network : pypsa.Network
+    component : str
+        Component object name, e.g. 'Generator' or 'Link'
+    attr : str
+        Attribute name
+    scenarios : list | None
+        List of scenarios to include. If None, use all scenarios.
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
+    component_name = f"{component.lower()}s_s"
+    if not hasattr(network, component_name):
+        raise AttributeError(f"No scenario-dependent data for {component}")
+
+    if scenarios is None:
+        scenarios = network.scenarios.keys()
+
+    data = {s: getattr(network, component_name)[s][attr] for s in scenarios}
+
+    return pd.DataFrame(data)
+
+
 def get_switchable_as_iter(
     network: Network,
     component: str,
