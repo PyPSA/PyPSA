@@ -216,6 +216,15 @@ class Network(Basic):
     shunt_impedances: pd.DataFrame
     shapes: pd.DataFrame
 
+    # Components (scenario dependent static components)
+    generators_s: Dict
+    loads_s: Dict
+    lines_s: Dict
+    links_s: Dict
+    transformers_s: Dict
+    storage_units_s: Dict
+    stores_s: Dict
+
     # Components (time-dependent data)
     buses_t: Dict
     generators_t: Dict
@@ -1671,6 +1680,7 @@ class StochasticNetwork(Network):
 
         self._reindex_snapshots()
         self._reindex_time_dependent_data()
+        self._create_scenario_dependent_static_components()
 
     def _reindex_snapshots(self):
         """Reindex snapshots to include scenarios."""
@@ -1697,6 +1707,27 @@ class StochasticNetwork(Network):
                     pnl[key] = pd.concat(
                         {s: df for s in self.scenarios}, names=["scenario", "snapshot"]
                     )
+
+    def _create_scenario_dependent_static_components(self):
+        """Create scenario-dependent static components and populate with original data."""
+        static_components = [
+            "generators",
+            "loads",
+            "lines",
+            "links",
+            "transformers",
+            "storage_units",
+            "stores",
+        ]
+
+        for component in static_components:
+            original_df = getattr(self, component)
+            scenario_dict = Dict()
+
+            for scenario in self.scenarios:
+                scenario_dict[scenario] = original_df.copy()
+
+            setattr(self, f"{component}_s", scenario_dict)
 
     @property
     def scenarios(self):
