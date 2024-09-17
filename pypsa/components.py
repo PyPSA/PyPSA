@@ -1670,6 +1670,7 @@ class StochasticNetwork(Network):
             setattr(self, attr, value)
 
         self._reindex_snapshots()
+        self._reindex_time_dependent_data()
 
     def _reindex_snapshots(self):
         """Reindex snapshots to include scenarios."""
@@ -1683,6 +1684,19 @@ class StochasticNetwork(Network):
             {s: self._snapshot_weightings * p for s, p in self.scenarios.items()},
             names=["scenario", "snapshot"],
         )
+
+    def _reindex_time_dependent_data(self):
+        """Reindex all time-dependent data to include scenarios."""
+        for component in self.all_components:
+            pnl_name = f"{component.lower()}s_t"  # to generalise in pypsa.descriptors?
+            if hasattr(self, pnl_name):
+                pnl = getattr(
+                    self, pnl_name
+                )  # we broadcast here all time-dependent data
+                for key, df in pnl.items():
+                    pnl[key] = pd.concat(
+                        {s: df for s in self.scenarios}, names=["scenario", "snapshot"]
+                    )
 
     @property
     def scenarios(self):
@@ -1704,3 +1718,4 @@ class StochasticNetwork(Network):
         """Override set_snapshots to maintain stochastic structure."""
         super().set_snapshots(snapshots)
         self._reindex_snapshots()
+        self._reindex_time_dependent_data()
