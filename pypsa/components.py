@@ -1655,8 +1655,8 @@ class StochasticNetwork(Network):
         """
         Initialize a StochasticNetwork.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         n : Network
             The original PyPSA Network object.
         scenarios : dict
@@ -1671,7 +1671,6 @@ class StochasticNetwork(Network):
 
         self._reindex_snapshots()
 
-
     def _reindex_snapshots(self):
         """Reindex snapshots to include scenarios."""
         scenario_index = pd.Index(self.scenarios.keys(), name="scenario")
@@ -1684,7 +1683,6 @@ class StochasticNetwork(Network):
             {s: self._snapshot_weightings * p for s, p in self.scenarios.items()},
             names=["scenario", "snapshot"],
         )
-
 
     @property
     def scenarios(self):
