@@ -1648,3 +1648,61 @@ class SubNetwork(Common):
             c = Component(c.name, c.list_name, c.attrs, c.df.loc[ind], pnl, ind)
             if not (skip_empty and len(ind) == 0):
                 yield c
+
+
+class StochasticNetwork(Network):
+    def __init__(self, n, scenarios):
+        """
+        Initialize a StochasticNetwork.
+
+        Parameters:
+        -----------
+        n : Network
+            The original PyPSA Network object.
+        scenarios : dict
+            A dictionary with scenario names as keys and their probabilities as values.
+        """
+        super().__init__()
+
+        self.scenarios = scenarios
+
+        for attr, value in n.__dict__.items():
+            setattr(self, attr, value)
+
+        self._reindex_snapshots()
+
+
+    def _reindex_snapshots(self):
+        """Reindex snapshots to include scenarios."""
+        scenario_index = pd.Index(self.scenarios.keys(), name="scenario")
+        self._snapshots = pd.MultiIndex.from_product(
+            [scenario_index, self.snapshots], names=["scenario", "snapshot"]
+        )
+
+        # Update snapshot weightings considering scenario probabilities
+        self._snapshot_weightings = pd.concat(
+            {s: self._snapshot_weightings * p for s, p in self.scenarios.items()},
+            names=["scenario", "snapshot"],
+        )
+
+
+    @property
+    def scenarios(self):
+        """Get the scenarios dictionary."""
+        return self._scenarios
+
+    @scenarios.setter
+    def scenarios(self, value):
+        """Set the scenarios dictionary and validate probabilities."""
+        if not isinstance(value, dict):
+            raise TypeError("Scenarios must be a dictionary.")
+        if not all(isinstance(v, (int, float)) for v in value.values()):
+            raise ValueError("Scenario probabilities must be numbers.")
+        if abs(sum(value.values()) - 1) > 1e-10:
+            raise ValueError("Scenario probabilities must sum to 1.")
+        self._scenarios = value
+
+    def set_snapshots(self, snapshots):
+        """Override set_snapshots to maintain stochastic structure."""
+        super().set_snapshots(snapshots)
+        self._reindex_snapshots()
