@@ -35,6 +35,7 @@ def optimize_transmission_expansion_iteratively(
     link_unit_size: dict | None = None,
     line_threshold: float | None = None,
     link_threshold: dict | None = None,
+    fractional_last_unit_size: bool = False,
     **kwargs: Any,
 ) -> tuple[str, str]:
     """
@@ -122,12 +123,27 @@ def optimize_transmission_expansion_iteratively(
 
     def discretized_capacity(
         nom_opt: float,
+        nom_max: float,
         unit_size: float,
         threshold: float,
+        fractional_last_unit_size: bool,
         min_units: int = 0,
     ) -> float:
         units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-        return max(min_units, units) * unit_size
+        block_capacity = max(min_units, units) * unit_size
+
+        if unit_size < nom_max:
+            return block_capacity
+        if (unit_size > nom_max) or (block_capacity > nom_max):
+            # cut down the capacity to the last full unit_size
+            if not fractional_last_unit_size:
+                return max(block_capacity - unit_size, 0)
+            # allow for a fractional last unit_size
+            else:
+                if nom_max == 0:
+                    return 0
+                else:
+                    return nom_max if nom_opt / nom_max > threshold else 0
 
     def discretize_branch_components(
         n: Network,
@@ -135,6 +151,7 @@ def optimize_transmission_expansion_iteratively(
         link_unit_size: dict | None,
         line_threshold: float | None,
         link_threshold: dict | None,
+        fractional_last_unit_size: bool | False,
     ) -> None:
         """
         Discretizes the branch components of a network based on the specified
@@ -146,20 +163,31 @@ def optimize_transmission_expansion_iteratively(
 
         if line_unit_size:
             min_units = 1
-            n.lines["s_nom"] = n.lines["s_nom_opt"].apply(
-                discretized_capacity, args=(line_unit_size, line_threshold, min_units)
+            n.lines["s_nom"] = n.lines.apply(
+                lambda row: discretized_capacity(
+                    nom_opt = row["s_nom_opt"],
+                    nom_max = row["s_nom_max"],
+                    unit_size = line_unit_size,
+                    threshold = line_threshold,
+                    min_units = min_units,
+                    fractional_last_unit_size=fractional_last_unit_size,
+                ),
+                axis=1
             )
 
         if link_unit_size:
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
                 idx = n.links.carrier == carrier
-                n.links.loc[idx, "p_nom"] = n.links.loc[idx, "p_nom_opt"].apply(
-                    discretized_capacity,
-                    args=(
-                        link_unit_size[carrier],
-                        link_threshold.get(carrier, 0.3),
+                n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
+                    lambda row: discretized_capacity(
+                        nom_opt = row["p_nom_opt"],
+                        nom_max = row["p_nom_max"],
+                        unit_size = link_unit_size[carrier],
+                        threshold = link_threshold.get(carrier, 0.3),
+                        fractional_last_unit_size=fractional_last_unit_size,
                     ),
-                )
+                    axis=1
+                )             
 
     if link_threshold is None:
         link_threshold = {}
@@ -222,6 +250,7 @@ def optimize_transmission_expansion_iteratively(
         link_unit_size,
         line_threshold,
         link_threshold,
+        fractional_last_unit_size,
     )
 
     n.calculate_dependent_values()
