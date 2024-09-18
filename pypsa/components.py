@@ -8,9 +8,13 @@ import os
 import warnings
 from collections import namedtuple
 from collections.abc import Collection, Iterator, Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from weakref import ref
+
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -84,7 +88,7 @@ from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     import linopy
-    from scipy.sparese import spmatrix
+    from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
 warnings.simplefilter("always", DeprecationWarning)
@@ -149,7 +153,8 @@ class Network(Basic):
     ----------
     import_name : string, Path
         Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
-        import network data. The string could be a URL.
+        import network data. The string could be a URL. If cloudpathlib is installed,
+        the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -175,6 +180,7 @@ class Network(Basic):
     >>> nw1 = pypsa.Network("my_store.h5")
     >>> nw2 = pypsa.Network("/my/folder")
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
+    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc")
 
     """
 

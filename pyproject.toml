@@ -74,6 +74,7 @@ docs = [
     "ipykernel==6.29.5",
 ]
 gurobipy = ["gurobipy"]
+cloudpath = ["cloudpathlib[all]"]
 
 # setuptools_scm settings
  

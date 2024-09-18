@@ -192,7 +192,7 @@ def get_transmission_carriers(
         carriers[c] = n.df(c).carrier[idx].unique()
     return pd.MultiIndex.from_tuples(
         [(c, i) for c, idx in carriers.items() for i in idx],
-        names=["component", "name"],
+        names=["component", "carrier"],
     )
 
 

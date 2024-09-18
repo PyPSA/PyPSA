@@ -509,7 +509,7 @@ def compute_bbox_with_margins(margin, x, y):
     """
     # set margins
     pos = np.asarray((x, y))
-    minxy, maxxy = pos.min(axis=1), pos.max(axis=1)
+    minxy, maxxy = np.nanmin(pos, axis=1), np.nanmax(pos, axis=1)
     xy1 = minxy - margin * (maxxy - minxy)
     xy2 = maxxy + margin * (maxxy - minxy)
     return tuple(xy1), tuple(xy2)
@@ -1304,7 +1304,7 @@ def explore(
     map = Map(tiles=None)
 
     # Add map title
-    map_title = f"PyPSA Network: {n.name}"
+    map_title = "PyPSA Network" + (f": {n.name}" if n.name else "")
     map.get_root().html.add_child(
         Element(
             f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>"
@@ -1330,13 +1330,28 @@ def explore(
         y1 = n.transformers.bus0.map(n.buses.y)
         x2 = n.transformers.bus1.map(n.buses.x)
         y2 = n.transformers.bus1.map(n.buses.y)
+        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
+
+        if num_invalid := sum(~valid_rows):
+            logger.info(
+                f"Omitting {num_invalid} transformers due to missing coordinates"
+            )
+
         gdf_transformers = gpd.GeoDataFrame(
-            n.transformers,
-            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            n.transformers[valid_rows],
+            geometry=linestrings(
+                np.stack(
+                    [
+                        (x1[valid_rows], y1[valid_rows]),
+                        (x2[valid_rows], y2[valid_rows]),
+                    ],
+                    axis=1,
+                ).T
+            ),
             crs=crs,
         )
 
-        gdf_transformers.explore(
+        gdf_transformers[gdf_transformers.is_valid].explore(
             m=map,
             color=transformer_colors,
             tooltip=tooltip,
@@ -1350,13 +1365,26 @@ def explore(
         y1 = n.lines.bus0.map(n.buses.y)
         x2 = n.lines.bus1.map(n.buses.x)
         y2 = n.lines.bus1.map(n.buses.y)
+        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
+
+        if num_invalid := sum(~valid_rows):
+            logger.info(f"Omitting {num_invalid} lines due to missing coordinates.")
+
         gdf_lines = gpd.GeoDataFrame(
-            n.lines,
-            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            n.lines[valid_rows],
+            geometry=linestrings(
+                np.stack(
+                    [
+                        (x1[valid_rows], y1[valid_rows]),
+                        (x2[valid_rows], y2[valid_rows]),
+                    ],
+                    axis=1,
+                ).T
+            ),
             crs=crs,
         )
 
-        gdf_lines.explore(
+        gdf_lines[gdf_lines.is_valid].explore(
             m=map, color=line_colors, tooltip=tooltip, popup=popup, name="Lines"
         )
         components_present.append("Line")
@@ -1366,13 +1394,26 @@ def explore(
         y1 = n.links.bus0.map(n.buses.y)
         x2 = n.links.bus1.map(n.buses.x)
         y2 = n.links.bus1.map(n.buses.y)
+        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
+
+        if num_invalid := sum(~valid_rows):
+            logger.info(f"Omitting {num_invalid} links due to missing coordinates.")
+
         gdf_links = gpd.GeoDataFrame(
-            n.links,
-            geometry=linestrings(np.stack([(x1, y1), (x2, y2)], axis=1).T),
+            n.links[valid_rows],
+            geometry=linestrings(
+                np.stack(
+                    [
+                        (x1[valid_rows], y1[valid_rows]),
+                        (x2[valid_rows], y2[valid_rows]),
+                    ],
+                    axis=1,
+                ).T
+            ),
             crs="EPSG:4326",
         )
 
-        gdf_links.explore(
+        gdf_links[gdf_links.is_valid].explore(
             m=map, color=link_colors, tooltip=tooltip, popup=popup, name="Links"
         )
         components_present.append("Link")
@@ -1382,7 +1423,7 @@ def explore(
             n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
         )
 
-        gdf_buses.explore(
+        gdf_buses[gdf_buses.is_valid].explore(
             m=map,
             color=bus_colors,
             tooltip=tooltip,
@@ -1401,7 +1442,7 @@ def explore(
             crs=crs,
         )
 
-        gdf_generators.explore(
+        gdf_generators[gdf_generators.is_valid].explore(
             m=map,
             color=generator_colors,
             tooltip=tooltip,
@@ -1422,7 +1463,7 @@ def explore(
             crs=crs,
         )
 
-        gdf_loads.explore(
+        gdf_loads[gdf_loads.is_valid].explore(
             m=map,
             color=load_colors,
             tooltip=tooltip,
@@ -1441,7 +1482,7 @@ def explore(
             crs=crs,
         )
 
-        gdf_storage_units.explore(
+        gdf_storage_units[gdf_storage_units.is_valid].explore(
             m=map,
             color=storage_unit_colors,
             tooltip=tooltip,
