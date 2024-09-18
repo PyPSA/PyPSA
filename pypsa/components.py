@@ -1651,7 +1651,7 @@ class SubNetwork:
             self.network.transformers.sub_network == self.name
         ]
 
-    def branches_i(self, active_only=False) -> pd.MultiIndex:
+    def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):

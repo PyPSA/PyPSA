@@ -1231,7 +1231,7 @@ def calculate_PTDF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
 
 
 def calculate_Y(
-    sub_network: SubNetwork, skip_pre: bool = False, exclude_inactive_branches=True
+    sub_network: SubNetwork, skip_pre: bool = False, active_branches_only: bool = True
 ) -> None:
     """
     Calculate bus admittance matrices for AC sub-networks.
@@ -1246,7 +1246,7 @@ def calculate_Y(
     branches = sub_network.branches()
     buses_o = sub_network.buses_o
 
-    if exclude_inactive_branches:
+    if active_branches_only:
         branches = branches[branches.active]
 
     network = sub_network.network

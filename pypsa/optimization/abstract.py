@@ -596,7 +596,6 @@ def optimize_and_run_non_linear_powerflow(
         snapshots = n.snapshots
 
     # Step 1: Optimize the network
-    logger.info("Optimizing network...")
     status, condition = n.optimize(snapshots, **kwargs)
 
     if status != "ok":
@@ -621,7 +620,7 @@ def optimize_and_run_non_linear_powerflow(
             n.generators.loc[other_generators[0], "control"] = "PQ"
 
     # Step 2: Perform non-linear power flow for all snapshots
-    logger.info("Running non-linear power flow for all snapshots...")
+    logger.info("Running non-linear power flow iteratively...")
 
     # Run non-linear power flow
     res = n.pf(
