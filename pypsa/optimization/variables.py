@@ -9,6 +9,8 @@ import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
@@ -34,9 +36,25 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     if n.df(c).empty:
         return
 
-    active = get_activity_mask(n, c, sns) if n._multi_invest else None
-    coords = [sns, n.df(c).index.rename(c)]
-    n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
+    if n._multi_invest:
+        active = get_activity_mask(n, c, sns)
+    else:
+        active = None
+
+    if n._stochastic:
+        # active = pd.concat({s: active for s in n.scenarios}, names=["scenario"]) # TODO: update the mask to include scenarios
+
+        # Structure: [scenario, snapshot, component]
+        coords = [
+            pd.Index(n._scenarios.keys(), name="scenario"),  # can be done w/o pd.Index?
+            sns,
+            n.df(c).index.rename(c),
+        ]
+
+        n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
+    else:
+        coords = [sns, n.df(c).index.rename(c)]
+        n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
 
 def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
