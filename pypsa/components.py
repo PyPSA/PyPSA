@@ -1651,12 +1651,13 @@ class SubNetwork:
             self.network.transformers.sub_network == self.name
         ]
 
-    def branches_i(self) -> pd.MultiIndex:
+    def branches_i(self, active_only=False) -> pd.MultiIndex:
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            types += len(c.df.index) * [c.name]
-            names += list(c.df.index)
+            idx = c.df.query("active").index if active_only else c.df.index
+            types += len(idx) * [c.name]
+            names += list(idx)
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
 
     def branches(self) -> pd.DataFrame:

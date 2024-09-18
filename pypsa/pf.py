@@ -159,7 +159,7 @@ def _network_prepare_and_run_pf(
         if not skip_pre:
             find_bus_controls(sub_network)
 
-            branches_i = sub_network.branches_i()
+            branches_i = sub_network.branches_i(active_only=True)
             if len(branches_i) > 0:
                 sub_network_prepare_fun(sub_network, skip_pre=True)
 
@@ -497,7 +497,7 @@ def sub_network_pf(
         _allocate_pf_outputs(network, linear=False)
 
     # get indices for the components on this subnetwork
-    branches_i = sub_network.branches_i()
+    branches_i = sub_network.branches_i(active_only=True)
     buses_o = sub_network.buses_o
     sn_buses = sub_network.buses().index
     sn_generators = sub_network.generators().index
@@ -732,8 +732,8 @@ def sub_network_pf(
     branch_bus0 = []
     branch_bus1 = []
     for c in sub_network.iterate_components(network.passive_branch_components):
-        branch_bus0 += list(c.df.loc[c.df.query("active").index, "bus0"])
-        branch_bus1 += list(c.df.loc[c.df.query("active").index, "bus1"])
+        branch_bus0 += list(c.df.query("active").bus0)
+        branch_bus1 += list(c.df.query("active").bus1)
     v0 = V[:, buses_indexer(branch_bus0)]
     v1 = V[:, buses_indexer(branch_bus1)]
 
@@ -1491,7 +1491,7 @@ def sub_network_lpf(
 
     # get indices for the components on this subnetwork
     buses_o = sub_network.buses_o
-    branches_i = sub_network.branches_i()
+    branches_i = sub_network.branches_i(active_only=True)
 
     # allow all shunt impedances to dispatch as set
     shunt_impedances_i = sub_network.shunt_impedances_i()
