@@ -409,9 +409,29 @@ def get_bounds_pu(
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
-def update_linkports_doc_changes(
-    s: str | Collection[str], i: int, j: str
-) -> str | Collection[str]:
+def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
+    """
+    Update components documentation for link ports.
+
+    Multi-linkports require the following changes:
+    1. Replaces every occurrence of the substring `j` with `i`.
+    2. Make attribute required
+
+    Parameters
+    ----------
+    s : An
+        String to update.
+    i : int
+        Integer to replace `j` with.
+    j : string
+        Substring to replace.
+
+    Returns
+    -------
+    Any : Updated string or original value if not a string.
+
+    """
+
     if not isinstance(s, str) or len(s) == 1:
         return s
     return s.replace(j, str(i)).replace("required", "optional")
@@ -420,25 +440,38 @@ def update_linkports_doc_changes(
 def update_linkports_component_attrs(
     n: Network, where: Iterable[str] | None = None
 ) -> None:
+    """
+    Update the Link components attributes to add the additional ports.
+
+    Parameters
+    ----------
+    n : Network
+        Network instance to which additional ports will be added.
+    where : Iterable[str] or None, optional
+
+        Filters for specific subsets of data by providing an iterable of tags
+        or identifiers. If None, no filtering is applied and additional link
+        ports are considered for all connectors.
+    """
+
     ports = additional_linkports(n, where)
+    ports.sort(reverse=True)
     c = "Link"
 
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
         target = f"{attr}{i}"
         if target in n.components[c]["attrs"].index:
             continue
-        to_replace = "1"
         j = "1" if attr != "efficiency" else ""
+        base_attr = attr + j
+        base_attr_index = n.components[c]["attrs"].index.get_loc(base_attr)
+        n.components[c]["attrs"].index.insert(base_attr_index + 1, target)
         n.components[c]["attrs"].loc[target] = (
             n.components[c]["attrs"]
             .loc[attr + j]
-            .apply(update_linkports_doc_changes, args=(to_replace, i))
+            .apply(update_linkports_doc_changes, args=("1", i))
         )
-        n.components[c]["attrs"].loc[target] = (
-            n.components[c]["attrs"]
-            .loc[attr + j]
-            .apply(update_linkports_doc_changes, args=(to_replace, i))
-        )
+        # Also update container for varying attributes
         if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
@@ -449,6 +482,20 @@ def update_linkports_component_attrs(
 
 
 def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list[str]:
+    """
+    Identify additional link ports (bus connections) beyond predefined ones.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    where : iterable of strings, default None
+        Subset of columns to consider. Takes link columns by default.
+
+    Returns
+    -------
+    list of strings
+        List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
+    """
     if where is None:
         where = n.links.columns
     return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
