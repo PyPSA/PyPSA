@@ -141,15 +141,11 @@ class Component:
     list_name: str
     attrs: pd.DataFrame
     df: pd.DataFrame
-    pnl: Dict | dict
+    pnl: Dict
     ind: None  # deprecated
 
     # raise a deprecation warning if ind attribute is not None
     def __post_init__(self) -> None:
-        # convert dict to Dict
-        if not isinstance(self.pnl, Dict):
-            self.pnl = Dict(self.pnl)
-
         if self.ind is not None:
             raise DeprecationWarning(
                 "The 'ind' attribute is deprecated and will be removed in future versions."
