@@ -20,6 +20,7 @@ tap_ratio,float,per unit,1,Ratio of per unit voltages at each bus for tap change
 tap_side,int,n/a,0,"Defines if tap changer is modelled at the primary 0 side (usually high-voltage) or the secondary 1 side (usually low voltage) (must be 0 or 1, defaults to 0). Ignored if type defined.",Input (optional)
 tap_position,int,n/a,0,"If the transformer has a type, determines position relative to the neutral tap position.",Input (optional)
 phase_shift,float,Degrees,0,Voltage phase angle shift.  Ignored if type defined.,Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in the optimization or not",Input (optional)
 build_year,int,year,0,build year,Input (optional)
 lifetime,float,years,inf,lifetime,Input (optional)
 v_ang_min,float,Degrees,-inf,Minimum voltage angle difference across the transformer. This is a placeholder attribute and is not currently used by any PyPSA functions.,Input (optional)

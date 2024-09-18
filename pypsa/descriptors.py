@@ -18,6 +18,7 @@ from numpy.typing import ArrayLike
 
 if TYPE_CHECKING:
     from pypsa import Network
+    from pypsa.components import SubNetwork
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +312,9 @@ def get_committable_i(n: Network, c: str) -> pd.Index:
     return idx.rename(f"{c}-com")
 
 
-def get_active_assets(n: Network, c: str, investment_period: ArrayLike) -> pd.Series:
+def get_active_assets(
+    n: Network | SubNetwork, c: str, investment_period: ArrayLike | None = None
+) -> pd.Series:
     """
     Getter function.
 
@@ -319,6 +322,8 @@ def get_active_assets(n: Network, c: str, investment_period: ArrayLike) -> pd.Se
     given investment period. These are calculated from lifetime and the
     build year.
     """
+    if investment_period is None:
+        return n.df(c).active
     periods = np.atleast_1d(investment_period)
     active = {}
     for period in periods:
@@ -350,11 +355,17 @@ def get_activity_mask(
     """
     if sns is None:
         sns = n.snapshots
+    is_active = n.df(c).active
     if getattr(n, "_multi_invest", False):
         _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
-        res = pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
+        is_active_in_period = (
+            pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
+        )
+        res = is_active_in_period & is_active
     else:
-        res = pd.DataFrame(True, sns, n.df(c).index)
+        res = pd.DataFrame(
+            np.tile(is_active, (len(sns), 1)), index=sns, columns=is_active.index
+        )
     if index is not None:
         res = res.reindex(columns=index)
     res.index.name = "snapshot"

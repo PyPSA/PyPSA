@@ -19,6 +19,7 @@ from linopy.solvers import available_solvers
 from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import (
+    optimize_and_run_non_linear_powerflow,
     optimize_mga,
     optimize_security_constrained,
     optimize_transmission_expansion_iteratively,
@@ -102,6 +103,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 axis=1,
             )
             cost = active @ period_weighting * cost
+        else:
+            active = n.get_active_assets(c)[ext_i]
+            cost = cost[active]
 
         constant += (cost * n.df(c)[attr][ext_i]).sum()
 
@@ -177,6 +181,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 axis=1,
             )
             cost = active @ period_weighting * cost
+        else:
+            active = n.get_active_assets(c)[ext_i]
+            cost = cost[active]
 
         caps = m[f"{c}-{attr}"]
         objective.append((caps * cost).sum())
@@ -697,6 +704,10 @@ class OptimizationAccessor:
     @wraps(optimize_mga)
     def optimize_mga(self, *args: Any, **kwargs: Any) -> Any:
         return optimize_mga(self._parent, *args, **kwargs)
+
+    @wraps(optimize_and_run_non_linear_powerflow)
+    def optimize_and_run_non_linear_powerflow(self, *args: Any, **kwargs: Any) -> Any:
+        return optimize_and_run_non_linear_powerflow(self._parent, *args, **kwargs)
 
     def fix_optimal_capacities(self) -> None:
         """

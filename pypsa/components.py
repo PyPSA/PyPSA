@@ -6,8 +6,8 @@ import copy
 import logging
 import os
 import warnings
-from collections import namedtuple
 from collections.abc import Collection, Iterator, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -115,34 +115,76 @@ for component in components.index:
 del component
 
 
-class Basic:
-    """Common to every object."""
+@dataclass
+class Component:
+    """
+    Container class of energy system related assets, such as generators or transmission lines.
 
-    name = ""
+    Parameters
+    ----------
+    name : str
+        The singular name of the component (e.g., 'Generator').
+    list_name : str
+        The plural name used for lists of components (e.g., 'generators').
+    attrs : Dict[str, Any]
+        A dictionary of attributes and their metadata.
+    df : pd.DataFrame
+        A DataFrame containing data for each component instance.
+    pnl : Dict[str, pd.DataFrame]
+        A dictionary of time series data (panel data) for the component.
+    ind : pd.Index
+        An index of component identifiers.
+    """
 
-    def __init__(self, name: str = ""):
-        self.name = name
+    name: str
+    network: Network  # in future we probably avoid this kind of circular dependency
+    list_name: str
+    attrs: pd.DataFrame
+    df: pd.DataFrame
+    pnl: Dict | dict
+    ind: None  # deprecated
+
+    # raise a deprecation warning if ind attribute is not None
+    def __post_init__(self) -> None:
+        # convert dict to Dict
+        if not isinstance(self.pnl, Dict):
+            self.pnl = Dict(self.pnl)
+
+        if self.ind is not None:
+            raise DeprecationWarning(
+                "The 'ind' attribute is deprecated and will be removed in future versions."
+            )
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__} {self.name}"
+        return (
+            f"Component(name={self.name!r}, list_name={self.list_name!r}, "
+            f"attrs=Keys({list(self.attrs.keys())}), df=DataFrame(shape={self.df.shape}), "
+            f"pnl=Keys({list(self.pnl.keys())}))"
+        )
+
+    def get_active_assets(
+        self, investment_period: int | str | None = None
+    ) -> pd.Series:
+        """
+        Get a boolean of all active assets in the component for a given investment period.
+
+        Parameters
+        ----------
+            investment_period : int or None, optional
+                The investment period to filter by. If None, all active assets are returned.
+
+        Returns
+        -------
+            pd.Series
+                A series containing the identifiers of active assets.
+
+        """
+        if investment_period is None:
+            return self.df.active
+        return get_active_assets(self.network, self.name, investment_period)
 
 
-class Common(Basic):
-    """Common to all objects inside Network object."""
-
-    def __init__(self, network: Network, name: str = ""):
-        Basic.__init__(self, name)
-        self._network = ref(network)
-
-    @property
-    def network(self) -> Network:
-        return self._network()  # type: ignore
-
-
-Component = namedtuple("Component", ["name", "list_name", "attrs", "df", "pnl", "ind"])
-
-
-class Network(Basic):
+class Network:
     """
     Network container for all buses, one-ports and branches.
 
@@ -185,6 +227,7 @@ class Network(Basic):
     # ----------------
 
     # Core attributes
+    name: str
     snapshots: pd.Index | pd.MultiIndex
     components: Dict
     component_attrs: Dict
@@ -292,7 +335,7 @@ class Network(Basic):
 
         from pypsa import release_version as pypsa_version
 
-        Basic.__init__(self, name)
+        self.name: str = name
 
         # this will be saved on export
         self.pypsa_version: str = pypsa_version
@@ -1447,6 +1490,17 @@ class Network(Basic):
             find_cycles(sub)
             sub.find_bus_controls()
 
+    def component(self, c_name: str) -> Component:
+        return Component(
+            name=c_name,
+            network=self,
+            list_name=self.components[c_name]["list_name"],
+            attrs=self.components[c_name]["attrs"],
+            df=self.df(c_name),
+            pnl=self.pnl(c_name),
+            ind=None,
+        )
+
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
@@ -1454,16 +1508,9 @@ class Network(Basic):
             components = self.all_components
 
         return (
-            Component(
-                name=c,
-                list_name=self.components[c]["list_name"],
-                attrs=self.components[c]["attrs"],
-                df=self.df(c),
-                pnl=self.pnl(c),
-                ind=None,
-            )
-            for c in components
-            if not (skip_empty and self.df(c).empty)
+            self.component(c_name)
+            for c_name in components
+            if not (skip_empty and self.df(c_name).empty)
         )
 
     def consistency_check(self, check_dtypes: bool = False) -> None:
@@ -1510,7 +1557,7 @@ class Network(Basic):
         check_shapes(self)
 
 
-class SubNetwork(Common):
+class SubNetwork:
     """
     Connected network of electric buses (AC or DC) with passive flows or
     isolated non-electric buses.
@@ -1554,6 +1601,49 @@ class SubNetwork(Common):
     incidence_matrix = incidence_matrix
     adjacency_matrix = adjacency_matrix
 
+    def __init__(self, network: Network, name: str) -> None:
+        self._network = ref(network)
+        self.name = name
+
+    @property
+    def network(self) -> Network:
+        return self._network()  # type: ignore
+
+    @property
+    def snapshots(self) -> pd.Index | pd.MultiIndex:
+        return self.network.snapshots
+
+    @property
+    def snapshot_weightings(self) -> pd.DataFrame:
+        return self.network.snapshot_weightings
+
+    @property
+    def investment_periods(self) -> pd.Index:
+        return self.network.investment_periods
+
+    @property
+    def investment_period_weightings(self) -> pd.DataFrame:
+        return self.network.investment_period_weightings
+
+    def df(self, c_name: str) -> pd.DataFrame:
+        n = self.network
+        df = n.df(c_name)
+        if c_name in {"Bus"} | n.passive_branch_components:
+            return df[df.sub_network == self.name]
+        elif c_name in n.one_port_components:
+            buses = self.buses_i()
+            return df[df.bus.isin(buses)]
+        else:
+            raise ValueError(f"Component {c_name} not supported for subnetworks")
+
+    def pnl(self, c_name: str) -> Dict:
+        pnl = Dict()
+        n = self.network
+        index = self.df(c_name).index
+        for k, v in n.pnl(c_name).items():
+            pnl[k] = v[index.intersection(v.columns)]
+        return pnl
+
     def buses_i(self) -> pd.Index:
         return self.network.buses.index[self.network.buses.sub_network == self.name]
 
@@ -1569,8 +1659,8 @@ class SubNetwork(Common):
         types = []
         names = []
         for c in self.iterate_components(self.network.passive_branch_components):
-            types += len(c.ind) * [c.name]
-            names += list(c.ind)
+            types += len(c.df.index) * [c.name]
+            names += list(c.df.index)
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
 
     def branches(self) -> pd.DataFrame:
@@ -1616,6 +1706,20 @@ class SubNetwork(Common):
     def storage_units(self) -> pd.DataFrame:
         return self.network.storage_units.loc[self.storage_units_i()]
 
+    def stores(self) -> pd.DataFrame:
+        return self.network.stores.loc[self.stores_i()]
+
+    def component(self, c_name: str) -> Component:
+        return Component(
+            name=c_name,
+            network=self.network,
+            list_name=self.network.components[c_name]["list_name"],
+            attrs=self.network.components[c_name]["attrs"],
+            df=self.df(c_name),
+            pnl=self.pnl(c_name),
+            ind=None,
+        )
+
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
@@ -1638,13 +1742,11 @@ class SubNetwork(Common):
             Container for component data. See Component class for details.
 
         """
-        for c in self.network.iterate_components(
-            components=components, skip_empty=False
-        ):
-            ind = getattr(self, c.list_name + "_i")()
-            pnl = Dict()
-            for k, v in c.pnl.items():
-                pnl[k] = v[ind.intersection(v.columns)]
-            c = Component(c.name, c.list_name, c.attrs, c.df.loc[ind], pnl, ind)
-            if not (skip_empty and len(ind) == 0):
-                yield c
+        if components is None:
+            components = self.network.all_components
+
+        return (
+            self.component(c_name)
+            for c_name in components
+            if not (skip_empty and self.df(c_name).empty)
+        )

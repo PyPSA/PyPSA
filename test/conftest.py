@@ -41,7 +41,11 @@ def scipy_network():
         "scigrid-with-load-gen-trafos",
     )
     n = pypsa.Network(csv_folder)
+    n.generators.control = "PV"
+    g = n.generators[n.generators.bus == "492"]
+    n.generators.loc[g.index, "control"] = "PQ"
     n.calculate_dependent_values()
+    n.determine_network_topology()
     return n
 
 

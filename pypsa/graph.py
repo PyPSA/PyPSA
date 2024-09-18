@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 
-from pypsa.descriptors import OrderedGraph, get_active_assets
+from pypsa.descriptors import OrderedGraph
 
 if TYPE_CHECKING:
     from pypsa import Network, SubNetwork
@@ -22,6 +22,7 @@ def graph(
     branch_components: Collection[str] | None = None,
     weight: str | None = None,
     inf_weight: bool | float = False,
+    include_inactive: bool = True,
 ) -> OrderedGraph:
     """
     Build NetworkX graph.
@@ -72,7 +73,7 @@ def graph(
     def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
         for c in network.iterate_components(branch_components):
             for branch in c.df.loc[
-                slice(None) if c.ind is None else c.ind
+                slice(None) if include_inactive else c.df.query("active").index
             ].itertuples():
                 if weight is None:
                     data = {}
@@ -91,7 +92,7 @@ def graph(
 
 
 def adjacency_matrix(
-    network: Network,
+    network: Network | SubNetwork,
     branch_components: Collection[str] | None = None,
     investment_period: int | str | None = None,
     busorder: pd.Index | None = None,
@@ -139,17 +140,8 @@ def adjacency_matrix(
     bus1_inds = []
     weight_vals = []
     for c in network.iterate_components(branch_components):
-        if c.ind is None:
-            if investment_period is None:
-                sel = slice(None)
-            else:
-                active = get_active_assets(network, c.name, investment_period)
-                sel = c.df.loc[active].index
-        elif investment_period is None:
-            sel = c.ind
-        else:
-            active = get_active_assets(network, c.name, investment_period)
-            sel = c.ind & c.df.loc[active].index
+        active = c.get_active_assets(investment_period)
+        sel = c.df[active].index
 
         no_branches = len(c.df.loc[sel])
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
@@ -205,19 +197,17 @@ def incidence_matrix(
         if busorder is None:
             busorder = network.buses_i()
     else:
-        raise TypeError(" must be called with a Network or a SubNetwork")
+        raise ValueError(
+            "The 'network' parameter must be an instance of 'Network' or 'SubNetwork'."
+        )
 
     no_buses = len(busorder)
     no_branches = 0
     bus0_inds = []
     bus1_inds = []
     for c in network.iterate_components(branch_components):
-        if c.ind is None:
-            sel = slice(None)
-            no_branches += len(c.df)
-        else:
-            sel = c.ind
-            no_branches += len(c.ind)
+        sel = c.df.query("active").index
+        no_branches += len(c.df.loc[sel])
         bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
         bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
     bus0_inds = np.concatenate(bus0_inds)

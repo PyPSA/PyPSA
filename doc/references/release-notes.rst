@@ -11,6 +11,10 @@ Release Notes
 ..   To use the features already you have to install the ``master`` branch, e.g. 
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+
+* A new attribute for one-port and branch components `active` was added. If set to true (default), the asset is considered active all functionality, including optimization and power flow calculation. If set to false, the asset is considered inactive and is excluded from the optimization, the power flow calculation and the statistics module.  
+
+
 v0.30.2 (11th September 2024)
 =============================
 

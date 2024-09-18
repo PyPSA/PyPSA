@@ -5,7 +5,6 @@ Power flow functionality.
 from __future__ import annotations
 
 import logging
-import time
 from collections.abc import Callable, Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
@@ -83,14 +82,19 @@ def _calculate_controllable_nodal_power_balance(
         for c in sub_network.iterate_components(
             network.controllable_one_port_components
         ):
-            c_n_set = get_as_dense(network, c.name, n + "_set", snapshots, c.ind)
-            network.pnl(c.name)[n].loc[snapshots, c.ind] = c_n_set
+            c_n_set = get_as_dense(
+                network, c.name, n + "_set", snapshots, c.df.query("active").index
+            )
+            network.pnl(c.name)[n].loc[snapshots, c.df.query("active").index] = c_n_set
 
         # set the power injection at each node from controllable components
         network.buses_t[n].loc[snapshots, buses_o] = sum(
             (
-                (c.pnl[n].loc[snapshots, c.ind] * c.df.loc[c.ind, "sign"])
-                .T.groupby(c.df.loc[c.ind, "bus"])
+                (
+                    c.pnl[n].loc[snapshots, c.df.query("active").index]
+                    * c.df.loc[c.df.query("active").index, "sign"]
+                )
+                .T.groupby(c.df.loc[c.df.query("active").index, "bus"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
             )
@@ -692,7 +696,6 @@ def sub_network_pf(
                 slack_args["slack_weights"] = slack_weights_calc
 
         # Now try and solve
-        start = time.time()
         roots[i], n_iter, diff, converged = newton_raphson_sparse(
             f,
             guess,
@@ -700,15 +703,12 @@ def sub_network_pf(
             x_tol=x_tol,
             **slack_args,  # type: ignore
         )
-        logger.info(
-            "Newton-Raphson solved in %d iterations with error of %f in %f seconds",
-            n_iter,
-            diff,
-            time.time() - start,
-        )
         iters[now] = n_iter
         diffs[now] = diff
         convs[now] = converged
+    if not convs.all():
+        not_converged = sns[~convs]
+        logger.warning(f"Power flow did not converge for {list(not_converged)}.")
 
     # now set everything
     if distribute_slack:
@@ -732,8 +732,8 @@ def sub_network_pf(
     branch_bus0 = []
     branch_bus1 = []
     for c in sub_network.iterate_components(network.passive_branch_components):
-        branch_bus0 += list(c.df.loc[c.ind, "bus0"])
-        branch_bus1 += list(c.df.loc[c.ind, "bus1"])
+        branch_bus0 += list(c.df.loc[c.df.query("active").index, "bus0"])
+        branch_bus1 += list(c.df.loc[c.df.query("active").index, "bus1"])
     v0 = V[:, buses_indexer(branch_bus0)]
     v1 = V[:, buses_indexer(branch_bus1)]
 
@@ -1154,7 +1154,7 @@ def calculate_B_H(sub_network: SubNetwork, skip_pre: bool = False) -> None:
 
     z = np.concatenate(
         [
-            (c.df.loc[c.ind, attribute]).values
+            (c.df.loc[c.df.query("active").index, attribute]).values
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
     )
@@ -1178,9 +1178,11 @@ def calculate_B_H(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     phase_shift = np.concatenate(
         [
             (
-                (c.df.loc[c.ind, "phase_shift"]).values * np.pi / 180.0
+                (c.df.loc[c.df.query("active").index, "phase_shift"]).values
+                * np.pi
+                / 180.0
                 if c.name == "Transformer"
-                else np.zeros((len(c.ind),))
+                else np.zeros((len(c.df.query("active").index),))
             )
             for c in sub_network.iterate_components(network.passive_branch_components)
         ]
@@ -1228,7 +1230,9 @@ def calculate_PTDF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     sub_network.PTDF = sub_network.H * B_inverse
 
 
-def calculate_Y(sub_network: SubNetwork, skip_pre: bool = False) -> None:
+def calculate_Y(
+    sub_network: SubNetwork, skip_pre: bool = False, exclude_inactive_branches=True
+) -> None:
     """
     Calculate bus admittance matrices for AC sub-networks.
     """
@@ -1241,6 +1245,9 @@ def calculate_Y(sub_network: SubNetwork, skip_pre: bool = False) -> None:
 
     branches = sub_network.branches()
     buses_o = sub_network.buses_o
+
+    if exclude_inactive_branches:
+        branches = branches[branches.active]
 
     network = sub_network.network
 
@@ -1494,15 +1501,20 @@ def sub_network_lpf(
 
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(network.controllable_one_port_components):
-        c_p_set = get_as_dense(network, c.name, "p_set", sns, c.ind)
-        network.pnl(c.name).p.loc[sns, c.ind] = c_p_set
+        c_p_set = get_as_dense(
+            network, c.name, "p_set", sns, c.df.query("active").index
+        )
+        network.pnl(c.name).p.loc[sns, c.df.query("active").index] = c_p_set
 
     # set the power injection at each node
     network.buses_t.p.loc[sns, buses_o] = sum(
         [
             (
-                (c.pnl.p.loc[sns, c.ind] * c.df.loc[c.ind, "sign"])
-                .T.groupby(c.df.loc[c.ind, "bus"])
+                (
+                    c.pnl.p.loc[sns, c.df.query("active").index]
+                    * c.df.loc[c.df.query("active").index, "sign"]
+                )
+                .T.groupby(c.df.loc[c.df.query("active").index, "bus"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
             )
