@@ -165,14 +165,14 @@ def optimize_transmission_expansion_iteratively(
             min_units = 1
             n.lines["s_nom"] = n.lines.apply(
                 lambda row: discretized_capacity(
-                    nom_opt = row["s_nom_opt"],
-                    nom_max = row["s_nom_max"],
-                    unit_size = line_unit_size,
-                    threshold = line_threshold,
-                    min_units = min_units,
+                    nom_opt=row["s_nom_opt"],
+                    nom_max=row["s_nom_max"],
+                    unit_size=line_unit_size,
+                    threshold=line_threshold,
+                    min_units=min_units,
                     fractional_last_unit_size=fractional_last_unit_size,
                 ),
-                axis=1
+                axis=1,
             )
 
         if link_unit_size:
@@ -180,14 +180,14 @@ def optimize_transmission_expansion_iteratively(
                 idx = n.links.carrier == carrier
                 n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
                     lambda row: discretized_capacity(
-                        nom_opt = row["p_nom_opt"],
-                        nom_max = row["p_nom_max"],
-                        unit_size = link_unit_size[carrier],
-                        threshold = link_threshold.get(carrier, 0.3),
+                        nom_opt=row["p_nom_opt"],
+                        nom_max=row["p_nom_max"],
+                        unit_size=link_unit_size[carrier],
+                        threshold=link_threshold.get(carrier, 0.3),
                         fractional_last_unit_size=fractional_last_unit_size,
                     ),
-                    axis=1
-                )             
+                    axis=1,
+                )
 
     if link_threshold is None:
         link_threshold = {}
