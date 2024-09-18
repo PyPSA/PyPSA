@@ -17,7 +17,7 @@ import pandas as pd
 from numpy.typing import ArrayLike
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa.components import Network
     from pypsa.components import SubNetwork
 
 logger = logging.getLogger(__name__)
