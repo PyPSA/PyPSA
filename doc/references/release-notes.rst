@@ -11,6 +11,10 @@ Release Notes
 ..   To use the features already you have to install the ``master`` branch, e.g. 
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
+* Bugfix in the post discretization for ``Links`` with a maximum capacity.
+  Furthermore, giving the option to build out only multiples of the specified unit_size
+  or allowing to use the full maximum capacity.
+
 v0.30.2 (11th September 2024)
 =============================
 
