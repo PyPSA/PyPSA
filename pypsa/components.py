@@ -1741,3 +1741,71 @@ class StochasticNetwork(Network):
         super().set_snapshots(snapshots)
         self._reindex_snapshots()
         self._reindex_time_dependent_data()
+
+    def df(self, component_name: str) -> Dict[str, pd.DataFrame] | pd.DataFrame:
+        """
+        Return the dictionary of DataFrames or a single DataFrame of static components for component_name.
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        Dict[str, pandas.DataFrame] or pandas.DataFrame
+        """
+        try:
+            return getattr(self, self.components[component_name]["list_name"])
+        except AttributeError:
+            # If the attribute doesn't exist, return an empty DataFrame
+            return pd.DataFrame()
+
+    # Here we handle the StochasticNetwork case (dict of DataFrames) and add printout of scenarios
+    def __repr__(self) -> str:
+        header = "PyPSA StochasticNetwork" + (f" '{self.name}'" if self.name else "")
+        comps = {}
+        for c in self.iterate_components():
+            if "Type" not in c.name:
+                df_or_dict = self.df(c.name)
+                if isinstance(df_or_dict, dict):
+                    count = sum(len(df) for df in df_or_dict.values())
+                else:
+                    count = len(df_or_dict)
+                if count > 0:
+                    comps[c.name] = f" - {c.name}: {count}"
+
+        content = "\nComponents:"
+        if comps:
+            content += "\n" + "\n".join(comps[c] for c in sorted(comps))
+        else:
+            header = "Empty " + header
+            content += " none"
+        content += "\n"
+        content += f"Snapshots: {len(self.snapshots)}"
+        content += f"\nScenarios: [{', '.join(self.scenarios.keys())}]"
+
+        return header + content
+
+    # Again handle the StochasticNetwork case (dict of DataFrames)
+    def iterate_components(
+        self, components: Collection[str] | None = None, skip_empty: bool = True
+    ) -> Iterator[Component]:
+        if components is None:
+            components = self.all_components
+
+        for c in components:
+            df_or_dict = self.df(c)
+            if skip_empty:
+                if isinstance(df_or_dict, dict):
+                    if not df_or_dict or all(df.empty for df in df_or_dict.values()):
+                        continue
+                elif df_or_dict.empty:
+                    continue
+            yield Component(
+                name=c,
+                list_name=self.components[c]["list_name"],
+                attrs=self.components[c]["attrs"],
+                df=df_or_dict,
+                pnl=self.pnl(c),
+                ind=None,
+            )
