@@ -962,7 +962,7 @@ class Network(Basic):
             # If index/ columnes are passed (pd.DataFrame or pd.Series)
             # - cast names index to string and add suffix
             # - check if passed index/ columns align
-            msg = "%s has an index which does not align with the passed %s."
+            msg = "{} has an index which does not align with the passed {}."
             if isinstance(v, pd.Series) and single_component:
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
