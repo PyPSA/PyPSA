@@ -1762,7 +1762,9 @@ class StochasticNetwork(Network):
 
     # Here we handle the StochasticNetwork case (dict of DataFrames) and add printout of scenarios
     def __repr__(self) -> str:
-        header = "PyPSA StochasticNetwork" + (f" '{self.name}'" if self.name else "")
+        header = "PyPSA StochasticNetwork \U0001f500" + (
+            f" '{self.name}'" if self.name else ""
+        )
         comps = {}
         for c in self.iterate_components():
             if "Type" not in c.name:
