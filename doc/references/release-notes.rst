@@ -12,7 +12,11 @@ Release Notes
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 
-* A new attribute for one-port and branch components `active` was added. If set to true (default), the asset is considered active all functionality, including optimization and power flow calculation. If set to false, the asset is considered inactive and is excluded from the optimization, the power flow calculation and the statistics module.  
+* A new attribute for one-port and branch components `active` was added. If set to true (default), the asset is considered active for all functionality, including optimization and power flow calculation. If set to false, the asset is considered inactive and is excluded from the optimization, power flow and statistics modules. The active attribute can be thought of as a global filter on the components. When running a multi-horizon optimization, the active attribute is considered a global condition for each horizon. Then assets are considered active only if `active` is true and the investment period falls within the lifetime of the asset.
+* A new function `optimize_and_run_non_linear_powerflow` was added to the set of abstract optimize functions. This function optimizes the network and runs a non-linear power flow calculation afterwards. Use it with `n.optimize.optimize_and_run_non_linear_powerflow()`.
+* The `Component` object was refactored as a stand-alone class.
+* The `Network` class has a new method `component` to access component objects. Use it with e.g. `n.component("Generator")`. 
+* The `Subnetwork` class has new methods `df`, `pnl`, `component` to ease the access of component data for a subnetwork. Use it with e.g. `subnetwork.df("Generator")` and alike.  
 
 
 v0.30.2 (11th September 2024)
