@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
+
 def discretized_capacity(
     nom_opt: float,
     nom_max: float,
@@ -34,16 +35,20 @@ def discretized_capacity(
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
     block_capacity = max(min_units, units) * unit_size
     if nom_max % unit_size == 0:
-        return block_capacity        
+        return block_capacity
 
     else:
         if (nom_max - nom_opt) < unit_size:
-            if fractional_last_unit_size and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold:
+            if (
+                fractional_last_unit_size
+                and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
+            ):
                 return nom_max
             else:
                 return (nom_opt // unit_size) * unit_size
         else:
             return block_capacity
+
 
 def optimize_transmission_expansion_iteratively(
     n: Network,
