@@ -33,8 +33,12 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if n.df(c).empty:
-        return
+    if n._stochastic:
+        if all(df.empty for df in n.df(c).values()):
+            return
+    else:
+        if n.df(c).empty:
+            return
 
     if n._multi_invest:
         active = get_activity_mask(n, c, sns)
@@ -42,19 +46,22 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
         active = None
 
     if n._stochastic:
-        # active = pd.concat({s: active for s in n.scenarios}, names=["scenario"]) # TODO: update the mask to include scenarios
+        if not isinstance(sns, pd.MultiIndex):
+            sns = n.snapshots
 
-        # Structure: [scenario, snapshot, component]
-        coords = [
-            pd.Index(n._scenarios.keys(), name="scenario"),  # can be done w/o pd.Index?
-            sns,
-            n.df(c).index.rename(c),
-        ]
+        sns_index = pd.MultiIndex.from_arrays(
+            [sns.get_level_values(0), sns.get_level_values(1)],
+            names=["scenario", "timestep"],
+        )
 
-        n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
+        # Scenarios have the same index as the original data
+        component_index = next(iter(n.df(c).values())).index.rename(c)
+
+        coords = [("snapshot", sns_index), component_index]
     else:
         coords = [sns, n.df(c).index.rename(c)]
-        n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
+
+    n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
 
 def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
