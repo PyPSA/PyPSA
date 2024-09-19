@@ -968,12 +968,12 @@ class Network(Basic):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
                 # Cast names index to string + suffix
-                v = v.rename(index=lambda i: str(i).rstrip(suffix) + suffix)
+                v = v.rename(index=lambda i: str(i).replace(suffix, "") + suffix)
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 # Cast names columns to string + suffix
-                v = v.rename(columns=lambda i: str(i).rstrip(suffix) + suffix)
+                v = v.rename(columns=lambda i: str(i).replace(suffix, "") + suffix)
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
@@ -985,6 +985,13 @@ class Network(Basic):
                     if single_component:
                         v = pd.Series(v, index=self.snapshots)
                     else:
+                        if len(v) == 1:
+                            v = pd.Series(v[0], index=names)
+                            logger.warning(
+                                f"Single value sequence for {k} is treated as a scalar "
+                                f"and broadcasted to all components. It is recommended "
+                                f"to explicitly pass a scalar instead."
+                            )
                         v = pd.Series(v, index=names)
                 except ValueError:
                     expec_str = (
