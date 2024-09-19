@@ -23,6 +23,27 @@ if TYPE_CHECKING:
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
+def discretized_capacity(
+    nom_opt: float,
+    nom_max: float,
+    unit_size: float,
+    threshold: float,
+    fractional_last_unit_size: bool,
+    min_units: int = 0,
+) -> float:
+    units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
+    block_capacity = max(min_units, units) * unit_size
+    if nom_max % unit_size == 0:
+        return block_capacity        
+
+    else:
+        if (nom_max - nom_opt) < unit_size:
+            if fractional_last_unit_size and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold:
+                return nom_max
+            else:
+                return (nom_opt // unit_size) * unit_size
+        else:
+            return block_capacity
 
 def optimize_transmission_expansion_iteratively(
     n: Network,
@@ -120,30 +141,6 @@ def optimize_transmission_expansion_iteratively(
         n.global_constraints = n.global_constraints.rename(
             columns={"mu": f"mu_{iteration}"}
         )
-
-    def discretized_capacity(
-        nom_opt: float,
-        nom_max: float,
-        unit_size: float,
-        threshold: float,
-        fractional_last_unit_size: bool,
-        min_units: int = 0,
-    ) -> float:
-        units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-        block_capacity = max(min_units, units) * unit_size
-
-        if unit_size < nom_max:
-            return block_capacity
-        if (unit_size > nom_max) or (block_capacity > nom_max):
-            # cut down the capacity to the last full unit_size
-            if not fractional_last_unit_size:
-                return max(block_capacity - unit_size, 0)
-            # allow for a fractional last unit_size
-            else:
-                if nom_max == 0:
-                    return 0
-                else:
-                    return nom_max if nom_opt / nom_max > threshold else 0
 
     def discretize_branch_components(
         n: Network,
