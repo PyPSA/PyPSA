@@ -274,7 +274,7 @@ class Network:
     iteration: int
 
     # Geospatial
-    _crs = CRS.from_epsg(4326)
+    _crs = CRS.from_epsg("4326")
 
     # Methods
     # -------

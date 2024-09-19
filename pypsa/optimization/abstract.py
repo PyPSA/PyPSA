@@ -596,7 +596,7 @@ def optimize_and_run_non_linear_powerflow(
         snapshots = n.snapshots
 
     # Step 1: Optimize the network
-    status, condition = n.optimize(snapshots, **kwargs)
+    status, condition = n.optimize(snapshots, **kwargs)  # type: ignore
 
     if status != "ok":
         logger.warning(
