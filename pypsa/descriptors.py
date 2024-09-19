@@ -160,7 +160,7 @@ def get_switchable_as_dense_by_scenario(
     -------
     pandas.DataFrame
     """
-    component_name = f"{component.lower()}s_s"
+    component_name = f"{component.lower()}s"
     if not hasattr(network, component_name):
         raise AttributeError(f"No scenario-dependent data for {component}")
 

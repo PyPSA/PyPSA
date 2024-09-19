@@ -216,15 +216,6 @@ class Network(Basic):
     shunt_impedances: pd.DataFrame
     shapes: pd.DataFrame
 
-    # Components (scenario dependent static components)
-    generators_s: Dict
-    loads_s: Dict
-    lines_s: Dict
-    links_s: Dict
-    transformers_s: Dict
-    storage_units_s: Dict
-    stores_s: Dict
-
     # Components (time-dependent data)
     buses_t: Dict
     generators_t: Dict
@@ -1727,7 +1718,7 @@ class StochasticNetwork(Network):
             for scenario in self.scenarios:
                 scenario_dict[scenario] = original_df.copy()
 
-            setattr(self, f"{component}_s", scenario_dict)
+            setattr(self, f"{component}", scenario_dict)
 
     @property
     def scenarios(self):
