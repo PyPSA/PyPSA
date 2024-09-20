@@ -1202,9 +1202,12 @@ def _import_series_from_dataframe(
     list_name = n.components[cls_name]["list_name"]
 
     if not overwrite:
-        dataframe = dataframe.drop(
-            dataframe.columns.intersection(pnl[attr].columns), axis=1
-        )
+        try:
+            dataframe = dataframe.drop(
+                dataframe.columns.intersection(pnl[attr].columns), axis=1
+            )
+        except KeyError:
+            pass  # Don't drop any columns if the data doesn't exist yet
 
     dataframe.columns.name = cls_name
     dataframe.index.name = "snapshot"

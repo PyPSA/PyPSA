@@ -968,12 +968,16 @@ class Network(Basic):
                     raise ValueError(msg.format(f"Series {k}", "network snapshots"))
             elif isinstance(v, pd.Series):
                 # Cast names index to string + suffix
-                v = v.rename(index=lambda i: str(i).replace(suffix, "") + suffix)
+                v = v.rename(
+                    index=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
+                )
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 # Cast names columns to string + suffix
-                v = v.rename(columns=lambda i: str(i).replace(suffix, "") + suffix)
+                v = v.rename(
+                    columns=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
+                )
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
                 if not v.columns.equals(names):
@@ -985,14 +989,16 @@ class Network(Basic):
                     if single_component:
                         v = pd.Series(v, index=self.snapshots)
                     else:
+                        v = pd.Series(v)
                         if len(v) == 1:
-                            v = pd.Series(v[0], index=names)
+                            v = v.iloc[0]
                             logger.warning(
                                 f"Single value sequence for {k} is treated as a scalar "
                                 f"and broadcasted to all components. It is recommended "
                                 f"to explicitly pass a scalar instead."
                             )
-                        v = pd.Series(v, index=names)
+                        else:
+                            v.index = names
                 except ValueError:
                     expec_str = (
                         f"{len(self.snapshots)} for each snapshot."
@@ -1034,11 +1040,11 @@ class Network(Basic):
             elif not single_component:
                 # Read 2-dim data as time-varying attribute
                 if isinstance(v, pd.DataFrame):
-                    series[k] = v.rename(columns=lambda i: str(i) + suffix)
+                    series[k] = v
                 # Read 1-dim data as static attribute
                 elif isinstance(v, pd.Series):
                     static[k] = v.values
-                # Read 0-dim data as static attribute
+                # Read scalar data as static attribute
                 else:
                     static[k] = v
 
