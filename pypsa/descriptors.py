@@ -137,7 +137,7 @@ def get_switchable_as_dense(
     return res
 
 
-def get_switchable_as_dense_by_scenario(
+def get_switchable_by_scenario(
     network: Network,
     component: str,
     attr: str,
@@ -169,7 +169,8 @@ def get_switchable_as_dense_by_scenario(
 
     data = {s: getattr(network, component_name)[s][attr] for s in scenarios}
 
-    return pd.DataFrame(data)
+    return pd.DataFrame(data).transpose()  # Scenarios as rows, components as columns
+
 
 
 def get_switchable_as_iter(
