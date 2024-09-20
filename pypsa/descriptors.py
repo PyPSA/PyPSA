@@ -534,6 +534,59 @@ def get_bounds_pu(
         return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
+def get_bounds_pu_by_scenario(
+    n: Network,
+    c: str,
+    sns: Sequence,
+    index: pd.Index | None = None,
+    attr: str | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Getter function to retrieve the per unit bounds of a given component for
+    given snapshots and possible subset of elements (e.g. non-extendables).
+    Adapted to work with both stochastic and non-stochastic networks.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    c : string
+        Component name, e.g. "Generator", "Line".
+    sns : pandas.Index/pandas.DateTimeIndex
+        set of snapshots for the bounds
+    index : pd.Index, default None
+        Subset of the component elements. If None (default) bounds of all
+        elements are returned.
+    attr : string, default None
+        attribute name for the bounds, e.g. "p", "s", "p_store"
+
+    Returns
+    -------
+    min_pu, max_pu : tuple(pd.DataFrame, pd.DataFrame)
+        Minimum and maximum per unit bounds
+    """
+    min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
+    max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
+
+    max_pu = get_switchable_as_dense_by_scenario(n, c, max_pu_str, sns, inds=index)
+
+    if c in n.passive_branch_components:
+        min_pu = -max_pu
+    elif c == "StorageUnit":
+        min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
+        if attr == "p_store":
+            max_pu = -get_switchable_as_dense_by_scenario(
+                n, c, min_pu_str, sns, inds=index
+            )
+        if attr == "state_of_charge":
+            max_hours = pd.concat({s: df.max_hours for s, df in n.df(c).items()})
+            max_pu = expand_series(max_hours.droplevel(0).drop_duplicates(), sns).T
+            min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
+    else:
+        min_pu = get_switchable_as_dense_by_scenario(n, c, min_pu_str, sns, inds=index)
+
+    return min_pu, max_pu
+
+
 def update_linkports_doc_changes(
     s: str | Collection[str], i: int, j: str
 ) -> str | Collection[str]:
