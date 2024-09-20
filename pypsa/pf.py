@@ -19,8 +19,8 @@ from scipy.sparse import hstack as shstack
 from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
+from pypsa.definitions.structures import Dict
 from pypsa.descriptors import (
-    Dict,
     additional_linkports,
     allocate_series_dataframes,
     update_linkports_component_attrs,

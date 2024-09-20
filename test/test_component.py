@@ -22,8 +22,8 @@ def sample_component(sample_network):
 
     component = Component(
         name="Generator",
-        network=sample_network,
         list_name="generators",
+        investment_periods=sample_network.investment_periods,
         attrs=attrs,
         df=df,
         pnl=pnl,

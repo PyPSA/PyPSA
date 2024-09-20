@@ -5,7 +5,6 @@ Descriptors for component attributes.
 from __future__ import annotations
 
 import logging
-import re
 from collections import OrderedDict
 from collections.abc import Collection, Iterable, Sequence
 from itertools import product, repeat
@@ -14,7 +13,8 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
-from numpy.typing import ArrayLike
+
+from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     from pypsa.components import Network, SubNetwork
@@ -25,56 +25,6 @@ logger = logging.getLogger(__name__)
 class OrderedGraph(nx.MultiGraph):
     node_dict_factory = OrderedDict
     adjlist_dict_factory = OrderedDict
-
-
-class Dict(dict):
-    """
-    Dict is a subclass of dict, which allows you to get AND SET items in the
-    dict using the attribute syntax!
-
-    Stripped down from addict https://github.com/mewwts/addict/ .
-    """
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """
-        Setattr is called when the syntax a.b = 2 is used to set a value.
-        """
-        if hasattr(Dict, name):
-            raise AttributeError("'Dict' object attribute " f"'{name}' is read-only")
-        self[name] = value
-
-    def __getattr__(self, item: str) -> Any:
-        try:
-            return self.__getitem__(item)
-        except KeyError as e:
-            raise AttributeError(e.args[0])
-
-    def __delattr__(self, name: str) -> None:
-        """
-        Is invoked when del some_addict.b is called.
-        """
-        del self[name]
-
-    _re_pattern = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
-
-    def __dir__(self) -> list[str]:
-        """
-        Return a list of object attributes.
-
-        This includes key names of any dict entries, filtered to the
-        subset of valid attribute names (e.g. alphanumeric strings
-        beginning with a letter or underscore).  Also includes
-        attributes of parent dict class.
-        """
-        dict_keys = []
-        for k in self.keys():
-            if isinstance(k, str):
-                if m := self._re_pattern.match(k):
-                    dict_keys.append(m.string)
-
-        obj_attrs = list(dir(Dict))
-
-        return dict_keys + obj_attrs
 
 
 def get_switchable_as_dense(
@@ -312,63 +262,81 @@ def get_committable_i(n: Network, c: str) -> pd.Index:
 
 
 def get_active_assets(
-    n: Network | SubNetwork, c: str, investment_period: ArrayLike | None = None
+    n: Network | SubNetwork,
+    c: str,
+    investment_period: int | str | Sequence | None = None,
 ) -> pd.Series:
     """
-    Getter function.
+    Get active components mask of component type in investment period(s).
 
-    Get True values for elements of component c which are active at a
-    given investment period. These are calculated from lifetime and the
-    build year.
+    See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+    c : string
+        Component name
+    investment_period : int, str, Sequence
+        Investment period(s) to check
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask for active components
     """
-    if investment_period is None:
-        return n.df(c).active
-    periods = np.atleast_1d(investment_period)
-    active = {}
-    for period in periods:
-        if period not in n.investment_periods:
-            raise ValueError("Investment period not in `network.investment_periods`")
-        if not {"build_year", "lifetime"}.issubset(n.df(c)):
-            active[period] = pd.Series(True, index=n.df(c).index)
-        else:
-            active[period] = n.df(c).eval(
-                "build_year <= @period < build_year + lifetime"
-            )
-    return pd.DataFrame(active).any(axis=1)
+    return n.component(c).get_active_assets(investment_period=investment_period)
 
 
 def get_activity_mask(
     n: Network,
     c: str,
-    sns: pd.Index | None = None,
+    sns: Sequence | None = None,
     index: pd.Index | None = None,
 ) -> pd.DataFrame:
     """
-    Getter function.
+    Get active components mask indexed by snapshots.
 
-    Get a boolean array with True values for elements of component c
-    which are active at a specific snapshot. If the network is in
-    multi_investment_period mode (given by n._multi_invest), these are
-    calculated from lifetime and the build year. Otherwise all values
-    are set to True.
+    Wrapper around the
+    `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
+    Get's the boolean mask for active components, but indexed by snapshots and
+    components instead of just components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+    c : string
+        Component name
+    sns : pandas.Index, default None
+        Set of snapshots for the mask. If None (default) all snapshots are returned.
+    index : pd.Index, default None
+        Subset of the component elements. If None (default) all components are returned.
     """
-    if sns is None:
-        sns = n.snapshots
-    is_active = n.df(c).active
+
+    sns_ = as_index(n, sns, "snapshots", "snapshot")
+
     if getattr(n, "_multi_invest", False):
-        _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
-        is_active_in_period = (
-            pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
+        active_assets_per_period = {
+            period: get_active_assets(n, c, period) for period in n.investment_periods
+        }
+        mask = (
+            pd.concat(active_assets_per_period, axis=1)
+            .T.reindex(n.snapshots, level=0)
+            .loc[sns_]
         )
-        res = is_active_in_period & is_active
     else:
-        res = pd.DataFrame(
-            np.tile(is_active, (len(sns), 1)), index=sns, columns=is_active.index
+        active_assets = get_active_assets(n, c)
+        mask = pd.DataFrame(
+            np.tile(active_assets, (len(sns_), 1)),
+            index=sns_,
+            columns=active_assets.index,
         )
+
     if index is not None:
-        res = res.reindex(columns=index)
-    res.index.name = "snapshot"
-    return res
+        mask = mask.reindex(columns=index)
+
+    return mask
 
 
 def get_bounds_pu(

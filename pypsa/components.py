@@ -7,7 +7,6 @@ import logging
 import os
 import warnings
 from collections.abc import Collection, Iterator, Sequence
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -42,8 +41,9 @@ from pypsa.consistency import (
     check_time_series_power_attributes,
 )
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
+from pypsa.definitions.components import Component
+from pypsa.definitions.structures import Dict
 from pypsa.descriptors import (
-    Dict,
     get_active_assets,
     get_committable_i,
     get_extendable_i,
@@ -113,71 +113,6 @@ for component in components.index:
     component_attrs[component] = pd.read_csv(file_name, index_col=0, na_values="n/a")
 
 del component
-
-
-@dataclass
-class Component:
-    """
-    Container class of energy system related assets, such as generators or transmission lines.
-
-    Parameters
-    ----------
-    name : str
-        The singular name of the component (e.g., 'Generator').
-    list_name : str
-        The plural name used for lists of components (e.g., 'generators').
-    attrs : Dict[str, Any]
-        A dictionary of attributes and their metadata.
-    df : pd.DataFrame
-        A DataFrame containing data for each component instance.
-    pnl : Dict[str, pd.DataFrame]
-        A dictionary of time series data (panel data) for the component.
-    ind : pd.Index
-        An index of component identifiers.
-    """
-
-    name: str
-    network: Network  # in future we probably avoid this kind of circular dependency
-    list_name: str
-    attrs: pd.DataFrame
-    df: pd.DataFrame
-    pnl: Dict
-    ind: None  # deprecated
-
-    # raise a deprecation warning if ind attribute is not None
-    def __post_init__(self) -> None:
-        if self.ind is not None:
-            raise DeprecationWarning(
-                "The 'ind' attribute is deprecated and will be removed in future versions."
-            )
-
-    def __repr__(self) -> str:
-        return (
-            f"Component(name={self.name!r}, list_name={self.list_name!r}, "
-            f"attrs=Keys({list(self.attrs.keys())}), df=DataFrame(shape={self.df.shape}), "
-            f"pnl=Keys({list(self.pnl.keys())}))"
-        )
-
-    def get_active_assets(
-        self, investment_period: int | str | None = None
-    ) -> pd.Series:
-        """
-        Get a boolean of all active assets in the component for a given investment period.
-
-        Parameters
-        ----------
-            investment_period : int or None, optional
-                The investment period to filter by. If None, all active assets are returned.
-
-        Returns
-        -------
-            pd.Series
-                A series containing the identifiers of active assets.
-
-        """
-        if investment_period is None:
-            return self.df.active
-        return get_active_assets(self.network, self.name, investment_period)
 
 
 class Network:
@@ -1489,9 +1424,9 @@ class Network:
     def component(self, c_name: str) -> Component:
         return Component(
             name=c_name,
-            network=self,
             list_name=self.components[c_name]["list_name"],
             attrs=self.components[c_name]["attrs"],
+            investment_periods=self.investment_periods,
             df=self.df(c_name),
             pnl=self.pnl(c_name),
             ind=None,
@@ -1709,9 +1644,9 @@ class SubNetwork:
     def component(self, c_name: str) -> Component:
         return Component(
             name=c_name,
-            network=self.network,
             list_name=self.network.components[c_name]["list_name"],
             attrs=self.network.components[c_name]["attrs"],
+            investment_periods=self.investment_periods,
             df=self.df(c_name),
             pnl=self.pnl(c_name),
             ind=None,
