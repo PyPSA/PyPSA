@@ -172,6 +172,95 @@ def get_switchable_by_scenario(
     return pd.DataFrame(data).transpose()  # Scenarios as rows, components as columns
 
 
+def get_switchable_as_dense_by_scenario(
+    n: Network,
+    component: str,
+    attr: str,
+    snapshots: Sequence | None = None,
+    scenarios: Sequence | None = None,
+    inds: pd.Index | None = None,
+) -> pd.DataFrame:
+    """
+    Return a DataFrame for a time-varying component attribute with values for
+    all non-time-varying components filled in with the default values for the
+    attribute, for each scenario.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    component : str
+        Component object name, e.g. 'Generator' or 'Link'
+    attr : str
+        Attribute name
+    snapshots : pandas.Index, optional
+        Restrict to these snapshots rather than network.snapshots.
+    scenarios : list, optional
+        List of scenarios to include. If None, use all scenarios.
+    inds : pandas.Index, optional
+        Restrict to these components rather than network.components.index
+
+    Returns
+    -------
+    pandas.DataFrame
+        MultiIndex DataFrame with levels (scenario, snapshot) and columns for each component
+
+    Examples
+    --------
+    >>> get_switchable_as_dense_by_scenario(network, 'Generator', 'p_max_pu')
+    >>> get_switchable_as_dense_by_scenario(network, 'Load', 'p_set')
+    """
+    if not n._stochastic:
+        df = get_switchable_as_dense(n, component, attr, snapshots, inds)
+        return (
+            df.assign(scenario="default").set_index("scenario", append=True).swaplevel()
+        )
+
+    if scenarios is None:
+        scenarios = list(n.scenarios.keys())
+
+    if snapshots is None:
+        snapshots = n.snapshots
+
+    scenario_dfs = []
+
+    for scenario in scenarios:
+        df = n.df(component)[f"{scenario}"]
+        pnl = n.pnl(component)
+
+        index = df.index
+
+        varying_i = pnl[attr].columns
+        fixed_i = df.index.difference(varying_i)
+
+        if inds is not None:
+            index = index.intersection(inds)
+            varying_i = varying_i.intersection(inds)
+            fixed_i = fixed_i.intersection(inds)
+        if snapshots is None:
+            snapshots = n.snapshots
+
+        vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
+        static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
+        if not varying_i.empty:
+            varying = pnl[attr].loc[:, varying_i]
+        else:
+            varying = pd.DataFrame(index=snapshots)
+
+        res = pd.merge(
+            static, varying, left_index=True, right_index=True, how="inner"
+        ).xs(
+            f"{scenario}", level="scenario"
+        )  # TODO: this yields correct results, but is inefficient since we cut and merge again dataframes
+        del static
+        del varying
+        res = res.reindex(columns=index)
+        res.index.name = "snapshot"  # reindex with multiindex does not preserve name
+
+        scenario_dfs.append(res)
+
+    res = pd.concat(scenario_dfs, keys=scenarios, names=["scenario"])
+    return res
+
 
 def get_switchable_as_iter(
     network: Network,
