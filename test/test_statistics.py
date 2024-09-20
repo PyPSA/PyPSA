@@ -136,6 +136,24 @@ def test_multiindexed(ac_dc_network_multiindexed):
     assert df.columns.unique(1)[0] == 2013
 
 
+def test_inactive_exclusion_in_static(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics()
+    assert "Line" in df.index.unique(0)
+
+    df = n.statistics(aggregate_time=False)
+    assert "Line" in df.index.unique(0)
+
+    n.lines["active"] = False
+    df = n.statistics()
+    assert "Line" not in df.index.unique(0)
+
+    df = n.statistics(aggregate_time=False)
+    assert "Line" not in df.index.unique(0)
+
+    n.lines["active"] = True
+
+
 def test_transmission_carriers(ac_dc_network_r):
     n = ac_dc_network_r
     n.lines["carrier"] = "AC"

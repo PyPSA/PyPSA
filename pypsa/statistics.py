@@ -247,12 +247,15 @@ def aggregate_timeseries(
 
 def filter_active_assets(
     n: Network, c: str, df: pd.Series | pd.DataFrame
-) -> pd.DataFrame:
+) -> pd.Series | pd.DataFrame:
     """
     For static values iterate over periods and concat values.
     """
-    if not isinstance(n.snapshots, pd.MultiIndex) or isinstance(df, pd.DataFrame):
+
+    if isinstance(df, pd.DataFrame):
         return df
+    if not isinstance(n.snapshots, pd.MultiIndex):
+        return df[n.get_active_assets(c).loc[df.index]]
     per_period = {}
     for p in n.snapshots.unique(0):
         per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]

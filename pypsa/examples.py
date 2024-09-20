@@ -135,4 +135,14 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     path = _retrieve_if_not_local(
         name, repofile, update=update, from_master=from_master
     )
-    return Network(path)
+    n = Network(path)
+    carriers = list(
+        {
+            carrier
+            for c in n.iterate_components()
+            if "carrier" in c.df
+            for carrier in c.df.carrier.unique()
+        }
+    )
+    n.madd("Carrier", carriers)
+    return n

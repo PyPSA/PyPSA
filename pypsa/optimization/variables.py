@@ -34,7 +34,7 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     if n.df(c).empty:
         return
 
-    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns)
     coords = [sns, n.df(c).index.rename(c)]
     n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
@@ -45,7 +45,7 @@ def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
     if com_i.empty:
         return
 
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
@@ -60,7 +60,7 @@ def define_start_up_variables(n: Network, sns: Sequence, c: str) -> None:
     if com_i.empty:
         return
 
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
@@ -75,7 +75,7 @@ def define_shut_down_variables(n: Network, sns: Sequence, c: str) -> None:
     if com_i.empty:
         return
 
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
@@ -150,6 +150,6 @@ def define_loss_variables(n: Network, sns: Sequence, c: str) -> None:
     if n.df(c).empty or c not in n.passive_branch_components:
         return
 
-    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns)
     coords = [sns, n.df(c).index.rename(c)]
     n.model.add_variables(0, coords=coords, name=f"{c}-loss", mask=active)

@@ -549,3 +549,87 @@ def optimize_mga(
     n.meta["weights"] = convert_to_dict(weights)
 
     return status, condition
+
+
+def optimize_and_run_non_linear_powerflow(
+    n: Network,
+    snapshots: Sequence | None = None,
+    skip_pre: bool = False,
+    x_tol: float = 1e-06,
+    use_seed: bool = False,
+    distribute_slack: bool = False,
+    slack_weights: str = "p_set",
+    **kwargs: Any,
+) -> dict:
+    """
+    Optimizes the network and then performs a non-linear power flow for all snapshots.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The PyPSA Network object to optimize and analyze.
+    snapshots : Sequence | None, optional
+        Set of snapshots to consider in the optimization and power flow.
+        If None, uses all snapshots in the network.
+    skip_pre : bool, optional
+        Skip the preliminary steps of the power flow, by default False.
+    x_tol : float, optional
+        Power flow convergence tolerance, by default 1e-06.
+    use_seed : bool, optional
+        Use the last solution as initial guess, by default False.
+    distribute_slack : bool, optional
+        Distribute slack power across generators, by default False.
+    slack_weights : str, optional
+        How to distribute slack power, by default 'p_set'.
+    **kwargs : Any
+        Keyword arguments passed to the optimize function.
+
+    Returns
+    -------
+    Tuple[str, str, Dict]
+        A tuple containing:
+        - optimization status
+        - optimization condition
+        - dictionary of power flow results for all snapshots
+    """
+    if snapshots is None:
+        snapshots = n.snapshots
+
+    # Step 1: Optimize the network
+    status, condition = n.optimize(snapshots, **kwargs)  # type: ignore
+
+    if status != "ok":
+        logger.warning(
+            f"Optimization failed with status {status} and condition {condition}"
+        )
+        return dict(status=status, terminantion_condition=condition)
+
+    for c in n.one_port_components:
+        n.pnl(c)["p_set"] = n.pnl(c)["p"]
+    for c in {"Link"}:
+        n.pnl(c)["p_set"] = n.pnl(c)["p0"]
+
+    n.generators.control = "PV"
+    for subnetwork in n.sub_networks.obj:
+        n.generators.loc[subnetwork.slack_generator, "control"] = "Slack"
+    # Need some PQ buses so that Jacobian doesn't break
+    for subnetwork in n.sub_networks.obj:
+        generators = subnetwork.generators_i()
+        other_generators = generators.difference([subnetwork.slack_generator])
+        if not other_generators.empty:
+            n.generators.loc[other_generators[0], "control"] = "PQ"
+
+    # Step 2: Perform non-linear power flow for all snapshots
+    logger.info("Running non-linear power flow iteratively...")
+
+    # Run non-linear power flow
+    res = n.pf(
+        snapshots=snapshots,
+        skip_pre=skip_pre,
+        x_tol=x_tol,
+        use_seed=use_seed,
+        distribute_slack=distribute_slack,
+        slack_weights=slack_weights,
+    )
+
+    return dict(status=status, terminantion_condition=condition, **res)
