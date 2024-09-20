@@ -181,7 +181,11 @@ def optimize_transmission_expansion_iteratively(
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
                 idx = n.links.carrier == carrier
                 logger.warning("Debugging: changing p_nom to p_nom_max")
-                logger.info(n.links[(n.links.carrier == carrier) & (n.links.p_nom_opt > 0)][["p_nom", "p_nom_opt", "p_nom_max"]])
+                logger.info(
+                    n.links[(n.links.carrier == carrier) & (n.links.p_nom_opt > 0)][
+                        ["p_nom", "p_nom_opt", "p_nom_max"]
+                    ]
+                )
                 n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
                     lambda row: discretized_capacity(
                         nom_opt=row["p_nom_opt"],
