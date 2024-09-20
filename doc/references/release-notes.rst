@@ -5,11 +5,19 @@ Release Notes
 .. Upcoming Release
 .. ================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+* :meth:`n.add <pypsa.Network.add>` now handles the addition of a single or multiple
+  components, has more robust index alignment checks allows to overwrite existing
+  components using the new argument ``overwrite``. (https://github.com/PyPSA/PyPSA/pull/896)
+
+* Deprecate :meth:`n.madd <pypsa.Network.madd>` and :meth:`n.mremove <pypsa.Network.mremove>`. 
+  :meth:`n.add <pypsa.Network.add>` and :meth:`n.remove <pypsa.Network.remove>` are now used for 
+  adding/ removing multiple as well as single components. (https://github.com/PyPSA/PyPSA/pull/896)
 
 v0.30.2 (11th September 2024)
 =============================
