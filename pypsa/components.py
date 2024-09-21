@@ -1724,15 +1724,20 @@ class StochasticNetwork(Network):
 
         for component in static_components:
             original_df = getattr(self, component)
-            scenario_dict = Dict()
+            scenario_dict = {
+                scenario: original_df.copy() for scenario in self.scenarios
+            }
+            multi_index_df = pd.concat(
+                scenario_dict, axis=1, names=["scenario", "attr"]
+            )
 
-            for scenario in self.scenarios:
-                scenario_dict[scenario] = original_df.copy()
+            multi_index_df.columns = (
+                multi_index_df.columns.swaplevel()
+            )  # attr - first level, scenario - second level
 
-            setattr(self, f"{component}", scenario_dict)
+            setattr(self, component, multi_index_df)
 
     # Redefine descriptors to handle scenario-dependent data
-
     def get_switchable_as_dense(
         self,
         component: str,
@@ -1756,7 +1761,7 @@ class StochasticNetwork(Network):
             Restrict to these snapshots rather than network.snapshots.
         scenarios : list, optional
             List of scenarios to include. If None, use all scenarios.
-        inds : pandas.Index, optional
+        inds : pd.Index, optional
             Restrict to these components rather than network.components.index
 
         Returns
@@ -1764,46 +1769,37 @@ class StochasticNetwork(Network):
         pandas.DataFrame
             MultiIndex DataFrame with levels (scenario, snapshot) and columns for each component
         """
-        if scenarios is None:
-            scenarios = list(self.scenarios.keys())
+        scenarios = list(self.scenarios.keys())
 
         if snapshots is None:
             snapshots = self.snapshots
 
-        scenario_dfs = []
+        df = self.df(component)
+        pnl = self.pnl(component)
+
+        index = df.index
+
+        if inds is not None:
+            index = index.intersection(inds)
+
+        varying_i = pnl[attr].columns
+        fixed_i = index.difference(varying_i)
+
+        multi_index = snapshots
+
+        res = pd.DataFrame(index=multi_index, columns=index)
 
         for scenario in scenarios:
-            df = self.df(component)[f"{scenario}"]
-            pnl = self.pnl(component)
+            static_values = df.loc[fixed_i, (attr, scenario)].values
+            res.loc[(scenario, slice(None)), fixed_i] = np.repeat(
+                [static_values],
+                int(len(snapshots) / len(scenarios)),
+                axis=0,
+            )  # there must be a more pythonic way for this line
 
-            index = df.index
+        if not varying_i.empty:
+            res = pnl[attr].loc[snapshots, varying_i]
 
-            varying_i = pnl[attr].columns
-            fixed_i = df.index.difference(varying_i)
-
-            if inds is not None:
-                index = index.intersection(inds)
-                varying_i = varying_i.intersection(inds)
-                fixed_i = fixed_i.intersection(inds)
-
-            vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
-            static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
-            if not varying_i.empty:
-                varying = pnl[attr].loc[:, varying_i]
-            else:
-                varying = pd.DataFrame(index=snapshots)
-
-            res = pd.merge(
-                static, varying, left_index=True, right_index=True, how="inner"
-            ).xs(f"{scenario}", level="scenario")
-            del static
-            del varying
-            res = res.reindex(columns=index)
-            res.index.name = "snapshot"
-
-            scenario_dfs.append(res)
-
-        res = pd.concat(scenario_dfs, keys=scenarios, names=["scenario"])
         return res
 
     def get_bounds_pu(
@@ -1837,7 +1833,7 @@ class StochasticNetwork(Network):
         min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
         max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
 
-        max_pu = self.get_switchable_as_dense(c, max_pu_str, sns, inds=index)
+        max_pu = self.get_switchable_as_dense(c, max_pu_str, sns)
 
         if c in self.passive_branch_components:
             min_pu = -max_pu
@@ -1846,9 +1842,10 @@ class StochasticNetwork(Network):
             if attr == "p_store":
                 max_pu = -self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
             if attr == "state_of_charge":
-                max_hours = pd.concat({s: df.max_hours for s, df in self.df(c).items()})
-                max_pu = expand_series(max_hours.droplevel(0).drop_duplicates(), sns).T
-                min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
+                max_pu = expand_series(
+                    self.df(c).max_hours, self.snapshots
+                ).T  # expand_series is not compatible # TODO: make state_of_charge to work
+                min_pu = pd.DataFrame(0, *max_pu.axes)
         else:
             min_pu = self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
 
@@ -1894,7 +1891,6 @@ class StochasticNetwork(Network):
             # If the attribute doesn't exist, return an empty DataFrame
             return pd.DataFrame()
 
-    # Here we handle the StochasticNetwork case (dict of DataFrames) and add printout of scenarios
     def __repr__(self) -> str:
         header = "PyPSA StochasticNetwork \U0001f500" + (
             f" '{self.name}'" if self.name else ""
@@ -1902,11 +1898,8 @@ class StochasticNetwork(Network):
         comps = {}
         for c in self.iterate_components():
             if "Type" not in c.name:
-                df_or_dict = self.df(c.name)
-                if isinstance(df_or_dict, dict):
-                    count = sum(len(df) for df in df_or_dict.values())
-                else:
-                    count = len(df_or_dict)
+                df = self.df(c.name)
+                count = len(df)
                 if count > 0:
                     comps[c.name] = f" - {c.name}: {count}"
 
@@ -1921,27 +1914,3 @@ class StochasticNetwork(Network):
         content += f"\nScenarios: [{', '.join(self.scenarios.keys())}]"
 
         return header + content
-
-    # Again handle the StochasticNetwork case (dict of DataFrames)
-    def iterate_components(
-        self, components: Collection[str] | None = None, skip_empty: bool = True
-    ) -> Iterator[Component]:
-        if components is None:
-            components = self.all_components
-
-        for c in components:
-            df_or_dict = self.df(c)
-            if skip_empty:
-                if isinstance(df_or_dict, dict):
-                    if not df_or_dict or all(df.empty for df in df_or_dict.values()):
-                        continue
-                elif df_or_dict.empty:
-                    continue
-            yield Component(
-                name=c,
-                list_name=self.components[c]["list_name"],
-                attrs=self.components[c]["attrs"],
-                df=df_or_dict,
-                pnl=self.pnl(c),
-                ind=None,
-            )
