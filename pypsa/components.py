@@ -44,6 +44,7 @@ from pypsa.consistency import (
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
+    expand_series,
     get_active_assets,
     get_committable_i,
     get_extendable_i,
@@ -99,6 +100,15 @@ standard_types_dir_name = "standard_types"
 
 inf = float("inf")
 
+# a copy from pypsa.descriptors. TODO: refactor
+nominal_attrs = {
+    "Generator": "p_nom",
+    "Line": "s_nom",
+    "Transformer": "s_nom",
+    "Link": "p_nom",
+    "Store": "e_nom",
+    "StorageUnit": "p_nom",
+}
 
 components = pd.read_csv(os.path.join(dir_name, "components.csv"), index_col=0)
 
@@ -272,6 +282,7 @@ class Network(Basic):
     adjacency_matrix = adjacency_matrix
 
     # from pypsa.descriptors
+    expand_series = expand_series
     get_committable_i = get_committable_i
     get_extendable_i = get_extendable_i
     get_switchable_as_dense = get_switchable_as_dense
@@ -1719,6 +1730,129 @@ class StochasticNetwork(Network):
                 scenario_dict[scenario] = original_df.copy()
 
             setattr(self, f"{component}", scenario_dict)
+
+    # Redefine descriptors to handle scenario-dependent data
+
+    def get_switchable_as_dense(
+        self,
+        component: str,
+        attr: str,
+        snapshots: Sequence | None = None,
+        scenarios: Sequence | None = None,
+        inds: pd.Index | None = None,
+    ) -> pd.DataFrame:
+        """
+        Return a DataFrame for a time-varying component attribute with values for
+        all non-time-varying components filled in with the default values for the
+        attribute, for each scenario.
+
+        Parameters
+        ----------
+        component : str
+            Component object name, e.g. 'Generator' or 'Link'
+        attr : str
+            Attribute name
+        snapshots : pandas.Index, optional
+            Restrict to these snapshots rather than network.snapshots.
+        scenarios : list, optional
+            List of scenarios to include. If None, use all scenarios.
+        inds : pandas.Index, optional
+            Restrict to these components rather than network.components.index
+
+        Returns
+        -------
+        pandas.DataFrame
+            MultiIndex DataFrame with levels (scenario, snapshot) and columns for each component
+        """
+        if scenarios is None:
+            scenarios = list(self.scenarios.keys())
+
+        if snapshots is None:
+            snapshots = self.snapshots
+
+        scenario_dfs = []
+
+        for scenario in scenarios:
+            df = self.df(component)[f"{scenario}"]
+            pnl = self.pnl(component)
+
+            index = df.index
+
+            varying_i = pnl[attr].columns
+            fixed_i = df.index.difference(varying_i)
+
+            if inds is not None:
+                index = index.intersection(inds)
+                varying_i = varying_i.intersection(inds)
+                fixed_i = fixed_i.intersection(inds)
+
+            vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
+            static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
+            if not varying_i.empty:
+                varying = pnl[attr].loc[:, varying_i]
+            else:
+                varying = pd.DataFrame(index=snapshots)
+
+            res = pd.merge(
+                static, varying, left_index=True, right_index=True, how="inner"
+            ).xs(f"{scenario}", level="scenario")
+            del static
+            del varying
+            res = res.reindex(columns=index)
+            res.index.name = "snapshot"
+
+            scenario_dfs.append(res)
+
+        res = pd.concat(scenario_dfs, keys=scenarios, names=["scenario"])
+        return res
+
+    def get_bounds_pu(
+        self,
+        c: str,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Getter function to retrieve the per unit bounds of a given component for
+        given snapshots and possible subset of elements (e.g. non-extendables).
+
+        Parameters
+        ----------
+        c : string
+            Component name, e.g. "Generator", "Line".
+        sns : pandas.Index/pandas.DateTimeIndex
+            set of snapshots for the bounds
+        index : pd.Index, default None
+            Subset of the component elements. If None (default) bounds of all
+            elements are returned.
+        attr : string, default None
+            attribute name for the bounds, e.g. "p", "s", "p_store"
+
+        Returns
+        -------
+        min_pu, max_pu : tuple(pd.DataFrame, pd.DataFrame)
+            Minimum and maximum per unit bounds
+        """
+        min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
+        max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
+
+        max_pu = self.get_switchable_as_dense(c, max_pu_str, sns, inds=index)
+
+        if c in self.passive_branch_components:
+            min_pu = -max_pu
+        elif c == "StorageUnit":
+            min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
+            if attr == "p_store":
+                max_pu = -self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
+            if attr == "state_of_charge":
+                max_hours = pd.concat({s: df.max_hours for s, df in self.df(c).items()})
+                max_pu = expand_series(max_hours.droplevel(0).drop_duplicates(), sns).T
+                min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
+        else:
+            min_pu = self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
+
+        return min_pu, max_pu
 
     @property
     def scenarios(self):
