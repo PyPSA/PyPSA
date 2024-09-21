@@ -1858,6 +1858,18 @@ class StochasticNetwork(Network):
 
         return min_pu, max_pu
 
+    def get_switchable_by_scenario(
+        self,
+        component: str,
+        attr: str,
+    ) -> pd.DataFrame:
+        if isinstance(self.df(component).loc[:, attr], pd.Series):
+            raise AttributeError(f"No scenario-dependent data for {component}")
+
+        data = self.df(component).loc[:, attr].transpose()
+
+        return pd.DataFrame(data)  # scenarios as index, components as columns
+
     @property
     def scenarios(self):
         """Get the scenarios dictionary."""
