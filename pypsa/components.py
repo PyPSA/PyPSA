@@ -1841,10 +1841,17 @@ class StochasticNetwork(Network):
             min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
             if attr == "p_store":
                 max_pu = -self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
-            if attr == "state_of_charge":
-                max_pu = expand_series(
-                    self.df(c).max_hours, self.snapshots
-                ).T  # expand_series is not compatible # TODO: make state_of_charge to work
+            if (
+                attr == "state_of_charge"
+            ):  # this is a special case. If it can be done simpler, please do it
+                max_hours = self.df(c).max_hours.T
+                _sns = self.snapshots.get_level_values("snapshot").unique()
+                new_index = pd.MultiIndex.from_product(
+                    [max_hours.index, _sns], names=["scenario", "snapshot"]
+                )
+                max_pu = max_hours.loc[max_hours.index.repeat(len(_sns))].set_index(
+                    new_index
+                )
                 min_pu = pd.DataFrame(0, *max_pu.axes)
         else:
             min_pu = self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
