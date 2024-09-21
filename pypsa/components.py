@@ -1858,6 +1858,24 @@ class StochasticNetwork(Network):
 
         return min_pu, max_pu
 
+    def get_committable_i(n: Network, c: str) -> pd.Index:
+        """
+        Getter function.
+
+        Get the index of committable elements of a given component. Adapted for StochasticNetwork.
+        """
+        if "committable" not in n.df(c):
+            idx = pd.Index([])
+        else:
+            idx = (
+                n.df(c)
+                .pipe(lambda ds: ds["committable"])
+                .any(axis=1)
+                .loc[lambda x: x]
+                .index
+            )
+        return idx.rename(f"{c}-com")
+
     def get_switchable_by_scenario(
         self,
         component: str,
