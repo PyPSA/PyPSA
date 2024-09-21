@@ -33,12 +33,9 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if n._stochastic:
-        if all(df.empty for df in n.df(c).values()):
-            return
-    else:
-        if n.df(c).empty:
-            return
+
+    if n.df(c).empty:
+        return
 
     if n._multi_invest:
         active = get_activity_mask(n, c, sns)
@@ -46,18 +43,13 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
         active = None
 
     if n._stochastic:
-        if not isinstance(sns, pd.MultiIndex):
-            sns = n.snapshots
-
-        sns_index = pd.MultiIndex.from_arrays(
-            [sns.get_level_values(0), sns.get_level_values(1)],
-            names=["scenario", "timestep"],
-        )
-
-        # Scenarios have the same index as the original data
-        component_index = next(iter(n.df(c).values())).index.rename(c)
-
-        coords = [("snapshot", sns_index), component_index]
+        coords = [
+            pd.Index(n._scenarios.keys(), name="scenario"),
+            sns.get_level_values(
+                1
+            ).unique(),  # sns are multi-index as (scenario, snapshot)
+            n.df(c).index.rename(c),
+        ]
     else:
         coords = [sns, n.df(c).index.rename(c)]
 
