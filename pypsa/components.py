@@ -48,6 +48,7 @@ from pypsa.descriptors import (
     Dict,
     expand_series,
     get_active_assets,
+    get_bounds_pu,
     get_committable_i,
     get_extendable_i,
     get_non_extendable_i,
@@ -285,6 +286,7 @@ class Network(Basic):
 
     # from pypsa.descriptors
     expand_series = expand_series
+    get_bounds_pu = get_bounds_pu
     get_committable_i = get_committable_i
     get_extendable_i = get_extendable_i
     get_switchable_as_dense = get_switchable_as_dense
@@ -1710,7 +1712,72 @@ class StochasticNetwork(Network):
             setattr(self, c.list_name, df)
             setattr(self, c.list_name + "_t", pnl)
 
-    # Redefine descriptors to handle scenario-dependent data
+    # New methods for StochasticNetwork
+    # ---------------------------------
+    def get_switchable_by_scenario(
+        self,
+        component: str,
+        attr: str,
+    ) -> pd.DataFrame:
+        if isinstance(self.df(component).loc[:, attr], pd.Series):
+            raise AttributeError(f"No scenario-dependent data for {component}")
+
+        data = self.df(component).loc[:, attr].transpose()
+
+        return pd.DataFrame(data)  # scenarios as index, components as columns
+
+    @staticmethod
+    def df_to_xr(df: pd.DataFrame) -> xr.DataArray:
+        scenarios = df.index.get_level_values("scenario").unique()
+        snapshots = df.index.get_level_values("snapshot").unique()
+        columns = df.columns
+
+        data_3d = np.zeros((len(scenarios), len(snapshots), len(columns)))
+
+        for i, scenario in enumerate(scenarios):
+            for j, snapshot in enumerate(snapshots):
+                try:
+                    data_3d[i, j, :] = df.loc[(scenario, snapshot), :].values
+                except KeyError:
+                    # pass or break?
+                    pass
+
+        result = xr.DataArray(
+            data=data_3d,
+            dims=["scenario", "snapshot", f"{columns.name}"],
+            coords={
+                "scenario": scenarios,
+                "snapshot": snapshots,
+                f"{columns.name}": columns,
+            },
+        )
+
+        return result
+
+    @staticmethod
+    def multiply_xr_with_df(
+        xarray_data: xr.DataArray, df: pd.DataFrame
+    ) -> xr.DataArray:
+        # Thanks to xarray's broadcasting, we can multiply xarray with dataframe directly
+        # For that we need to align dimensions
+
+        df_xr = df.to_xarray()
+
+        # convert to DataArray -> For linear expressions to work out-of-the-box
+        if isinstance(df_xr, xr.Dataset):
+            df_xr = df_xr[
+                list(df_xr.data_vars)[0]
+            ]  # TODO: check with FH if there is more elegant way
+
+        aligned_df_xr = df_xr.transpose(
+            *[dim for dim in xarray_data.dims if dim in df_xr.dims]
+        )
+        result = xarray_data * aligned_df_xr
+
+        return result
+
+    # Adapt descriptors to handle scenario-dependent data
+    # ---------------------------------------------------
     def get_switchable_as_dense(
         self,
         component: str,
@@ -1722,6 +1789,7 @@ class StochasticNetwork(Network):
         Return a DataFrame for a time-varying component attribute with values for
         all non-time-varying components filled in with the default values for the
         attribute, for each scenario.
+        Adapted for StochasticNetwork.
 
         Parameters
         ----------
@@ -1768,6 +1836,7 @@ class StochasticNetwork(Network):
         """
         Getter function to retrieve the per unit bounds of a given component for
         given snapshots and possible subset of elements (e.g. non-extendables).
+        Adapted for StochasticNetwork.
 
         Parameters
         ----------
@@ -1802,7 +1871,14 @@ class StochasticNetwork(Network):
         else:
             min_pu = self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
 
-        return min_pu, max_pu
+        if index is None:
+            return StochasticNetwork.df_to_xr(min_pu), StochasticNetwork.df_to_xr(
+                max_pu
+            )
+        else:
+            return StochasticNetwork.df_to_xr(
+                min_pu.reindex(columns=index)
+            ), StochasticNetwork.df_to_xr(max_pu.reindex(columns=index))
 
     def get_committable_i(n: Network, c: str) -> pd.Index:
         """
@@ -1822,17 +1898,33 @@ class StochasticNetwork(Network):
             )
         return idx.rename(f"{c}-com")
 
-    def get_switchable_by_scenario(
-        self,
-        component: str,
-        attr: str,
-    ) -> pd.DataFrame:
-        if isinstance(self.df(component).loc[:, attr], pd.Series):
-            raise AttributeError(f"No scenario-dependent data for {component}")
+    def get_extendable_i(n: Network, c: str) -> pd.Index:
+        """
+        Getter function.
+        Get the index of extendable elements of a given component. Adapted for StochasticNetwork.
+        """
+        idx = (
+            n.df(c)
+            .pipe(lambda ds: ds[nominal_attrs[c] + "_extendable"])
+            .any(axis=1)
+            .loc[lambda x: x]
+            .index
+        )
+        return idx.rename(f"{c}-ext")
 
-        data = self.df(component).loc[:, attr].transpose()
-
-        return pd.DataFrame(data)  # scenarios as index, components as columns
+    def get_non_extendable_i(n: Network, c: str) -> pd.Index:
+        """
+        Getter function.
+        Get the index of non-extendable elements of a given component. Adapted for StochasticNetwork.
+        """
+        idx = (
+            n.df(c)
+            .pipe(lambda ds: ~ds[nominal_attrs[c] + "_extendable"])
+            .all(axis=1)
+            .loc[lambda x: x]
+            .index
+        )
+        return idx.rename(f"{c}-fix")
 
     @property
     def scenarios(self):
