@@ -8,7 +8,7 @@ import os
 import warnings
 from collections import namedtuple
 from collections.abc import Collection, Iterator, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, overload
 from weakref import ref
 
 import xarray as xr
@@ -243,6 +243,7 @@ class Network(Basic):
     model: linopy.Model
     _multi_invest: int
     _linearized_uc: int
+    _stochastic: int
     objective: float
     objective_constant: float
     iteration: int
@@ -406,6 +407,9 @@ class Network(Basic):
             self.components[component]["attrs"] = attrs
 
         self._build_dataframes()
+
+        self._multi_invest = 0
+        self._stochastic = 0
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -682,7 +686,7 @@ class Network(Basic):
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
-            if snapshots.names == ["scenario", "snapshot"]:
+            if snapshots.names == ["scenario", "timestep"]:
                 sns = snapshots
             else:
                 sns = snapshots.rename(["period", "timestep"])
@@ -1681,8 +1685,8 @@ class StochasticNetwork(Network):
             A dictionary with scenario names as keys and their probabilities as values.
         """
         super().__init__()
-
         self.scenarios = scenarios
+        self._stochastic = True
 
         if isinstance(networks, Network):
             self.initialize_from_network(networks)
@@ -1707,7 +1711,8 @@ class StochasticNetwork(Network):
             pnl = Dict()
             for k, v in c.pnl.items():
                 scenario_pnl = {s: v for s in scenarios}
-                pnl[k] = pd.concat(scenario_pnl, names=["scenario", "snapshot"])
+                pnl[k] = pd.concat(scenario_pnl, names=["scenario", "timestep"])
+                pnl[k].index.name = "snapshot"
 
             setattr(self, c.list_name, df)
             setattr(self, c.list_name + "_t", pnl)
@@ -1744,10 +1749,10 @@ class StochasticNetwork(Network):
 
         result = xr.DataArray(
             data=data_3d,
-            dims=["scenario", "snapshot", f"{columns.name}"],
+            dims=["scenario", "timestep", f"{columns.name}"],
             coords={
                 "scenario": scenarios,
-                "snapshot": snapshots,
+                "timestep": snapshots,
                 f"{columns.name}": columns,
             },
         )
@@ -1823,7 +1828,28 @@ class StochasticNetwork(Network):
         diff = index.difference(dynamic.columns)
         static_to_dynamic = static.T[diff].reindex(snapshots, level="scenario")
         res = pd.concat([dynamic, static_to_dynamic], axis=1)[index]
+        res.index.name = "snapshot"
         return res
+
+    @overload
+    def get_bounds_pu(
+        self,
+        c: str,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        explicit_scenario_dim: Literal[True] = True,
+    ) -> tuple[xr.DataArray, xr.DataArray]: ...
+
+    @overload
+    def get_bounds_pu(
+        self,
+        c: str,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        explicit_scenario_dim: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
 
     def get_bounds_pu(
         self,
@@ -1831,8 +1857,8 @@ class StochasticNetwork(Network):
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
-        explicit_scenario_dim: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame] | tuple[xr.DataArray, xr.DataArray]:
+        explicit_scenario_dim: bool = True,
+    ):
         """
         Getter function to retrieve the per unit bounds of a given component for
         given snapshots and possible subset of elements (e.g. non-extendables).
@@ -1849,10 +1875,13 @@ class StochasticNetwork(Network):
             elements are returned.
         attr : string, default None
             attribute name for the bounds, e.g. "p", "s", "p_store"
+        explicit_scenario_dim : bool, default False
+            Whether to return the bounds as a DataFrame or as a DataArray with
+            scenario dimension
 
         Returns
         -------
-        min_pu, max_pu : tuple(pd.DataFrame, pd.DataFrame)
+        min_pu, max_pu : tuple(pd.DataFrame, pd.DataFrame) or tuple(xr.DataArray, xr.DataArray)
             Minimum and maximum per unit bounds
         """
         min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
@@ -1871,14 +1900,14 @@ class StochasticNetwork(Network):
         else:
             min_pu = self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
 
-        if index is None:
-            return StochasticNetwork.df_to_xr(min_pu), StochasticNetwork.df_to_xr(
-                max_pu
-            )
-        else:
-            return StochasticNetwork.df_to_xr(
-                min_pu.reindex(columns=index)
-            ), StochasticNetwork.df_to_xr(max_pu.reindex(columns=index))
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if explicit_scenario_dim:
+            min_pu = xr.DataArray(min_pu).unstack("snapshot")
+            max_pu = xr.DataArray(max_pu).unstack("snapshot")
+        return min_pu, max_pu
 
     def get_committable_i(n: Network, c: str) -> pd.Index:
         """
@@ -1946,8 +1975,9 @@ class StochasticNetwork(Network):
     def set_snapshots(self, snapshots):
         """Override set_snapshots to maintain stochastic structure."""
         snapshots = pd.MultiIndex.from_product(
-            [list(self.scenarios), snapshots], names=["scenario", "snapshot"]
+            [list(self.scenarios), snapshots], names=["scenario", "timestep"]
         )
+        snapshots.name = "snapshot"
         super().set_snapshots(snapshots)
 
     def __repr__(self) -> str:

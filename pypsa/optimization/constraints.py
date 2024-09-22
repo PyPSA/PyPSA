@@ -63,12 +63,8 @@ def define_operational_constraints_for_non_extendables(
     nominal_fix = n.df(c)[nominal_attrs[c]].reindex(fix_i)
     min_pu, max_pu = n.get_bounds_pu(c, sns, fix_i, attr)
 
-    if n._stochastic:
-        lower = n.multiply_xr_with_df(max_pu, nominal_fix)  # returns a DataArray here
-        upper = n.multiply_xr_with_df(min_pu, nominal_fix)
-    else:
-        lower = min_pu.mul(nominal_fix)
-        upper = max_pu.mul(nominal_fix)
+    lower = min_pu * nominal_fix
+    upper = max_pu * nominal_fix
 
     active = get_activity_mask(n, c, sns, fix_i)
 
@@ -111,7 +107,7 @@ def define_operational_constraints_for_extendables(
     if ext_i.empty:
         return
 
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
+    min_pu, max_pu = map(DataArray, n.get_bounds_pu(c, sns, ext_i, attr))
     dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
     capacity = n.model[f"{c}-{nominal_attrs[c]}"]
 
