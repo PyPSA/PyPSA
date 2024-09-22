@@ -11,6 +11,8 @@ from collections.abc import Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
+import xarray as xr
+
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
@@ -678,7 +680,10 @@ class Network(Basic):
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
-            sns = snapshots.rename(["period", "timestep"])
+            if snapshots.names == ["scenario", "snapshot"]:
+                sns = snapshots
+            else:
+                sns = snapshots.rename(["period", "timestep"])
             sns.name = "snapshot"
             self._snapshots = sns
         else:
@@ -1662,7 +1667,7 @@ class SubNetwork(Common):
 
 
 class StochasticNetwork(Network):
-    def __init__(self, n, scenarios):
+    def __init__(self, networks: Network | list[Network], scenarios: dict):
         """
         Initialize a StochasticNetwork.
 
@@ -1677,65 +1682,33 @@ class StochasticNetwork(Network):
 
         self.scenarios = scenarios
 
-        for attr, value in n.__dict__.items():
-            setattr(self, attr, value)
-
-        self._reindex_snapshots()
-        self._reindex_time_dependent_data()
-        self._create_scenario_dependent_static_components()
-
-    def _reindex_snapshots(self):
-        """Reindex snapshots to include scenarios."""
-        scenario_index = pd.Index(self.scenarios.keys(), name="scenario")
-        self._snapshots = pd.MultiIndex.from_product(
-            [scenario_index, self.snapshots], names=["scenario", "snapshot"]
-        )
-
-        # Update snapshot weightings considering scenario probabilities
-        self._snapshot_weightings = pd.concat(
-            {s: self._snapshot_weightings * p for s, p in self.scenarios.items()},
-            names=["scenario", "snapshot"],
-        )
-
-    def _reindex_time_dependent_data(self):
-        """Reindex all time-dependent data to include scenarios."""
-        for component in self.all_components:
-            pnl_name = f"{component.lower()}s_t"  # to generalise in pypsa.descriptors?
-            if hasattr(self, pnl_name):
-                pnl = getattr(
-                    self, pnl_name
-                )  # we broadcast here all time-dependent data
-                for key, df in pnl.items():
-                    pnl[key] = pd.concat(
-                        {s: df for s in self.scenarios}, names=["scenario", "snapshot"]
-                    )
-
-    def _create_scenario_dependent_static_components(self):
-        """Create scenario-dependent static components and populate with original data."""
-        static_components = [
-            "generators",
-            "loads",
-            "lines",
-            "links",
-            "transformers",
-            "storage_units",
-            "stores",
-        ]
-
-        for component in static_components:
-            original_df = getattr(self, component)
-            scenario_dict = {
-                scenario: original_df.copy() for scenario in self.scenarios
-            }
-            multi_index_df = pd.concat(
-                scenario_dict, axis=1, names=["scenario", "attr"]
+        if isinstance(networks, Network):
+            self.initialize_from_network(networks)
+        elif isinstance(networks, list):
+            raise NotImplementedError("Only a single network is supported for now.")
+        else:
+            raise ValueError(
+                "Invalid input for networks. Expected single network or list of networks."
             )
 
-            multi_index_df.columns = (
-                multi_index_df.columns.swaplevel()
-            )  # attr - first level, scenario - second level
+    def initialize_from_network(self, n):
+        """Add all components from the reference network to the StochasticNetwork."""
+        self.set_snapshots(n.snapshots)
 
-            setattr(self, component, multi_index_df)
+        scenarios = self.scenarios
+
+        for c in n.iterate_components():
+            scenario_df = {s: c.df for s in scenarios}
+            df = pd.concat(scenario_df, names=["scenario", "attr"], axis=1)
+            df = df.swaplevel(axis=1)
+
+            pnl = Dict()
+            for k, v in c.pnl.items():
+                scenario_pnl = {s: v for s in scenarios}
+                pnl[k] = pd.concat(scenario_pnl, names=["scenario", "snapshot"])
+
+            setattr(self, c.list_name, df)
+            setattr(self, c.list_name + "_t", pnl)
 
     # Redefine descriptors to handle scenario-dependent data
     def get_switchable_as_dense(
@@ -1743,7 +1716,6 @@ class StochasticNetwork(Network):
         component: str,
         attr: str,
         snapshots: Sequence | None = None,
-        scenarios: Sequence | None = None,
         inds: pd.Index | None = None,
     ) -> pd.DataFrame:
         """
@@ -1769,37 +1741,20 @@ class StochasticNetwork(Network):
         pandas.DataFrame
             MultiIndex DataFrame with levels (scenario, snapshot) and columns for each component
         """
-        scenarios = list(self.scenarios.keys())
 
         if snapshots is None:
             snapshots = self.snapshots
 
-        df = self.df(component)
-        pnl = self.pnl(component)
+        static = self.df(component)[attr]
+        dynamic = self.pnl(component)[attr]
 
-        index = df.index
-
+        index = static.index
         if inds is not None:
-            index = index.intersection(inds)
+            index = index.intersection(static.index)
 
-        varying_i = pnl[attr].columns
-        fixed_i = index.difference(varying_i)
-
-        multi_index = snapshots
-
-        res = pd.DataFrame(index=multi_index, columns=index)
-
-        for scenario in scenarios:
-            static_values = df.loc[fixed_i, (attr, scenario)].values
-            res.loc[(scenario, slice(None)), fixed_i] = np.repeat(
-                [static_values],
-                int(len(snapshots) / len(scenarios)),
-                axis=0,
-            )  # there must be a more pythonic way for this line
-
-        if not varying_i.empty:
-            res = pnl[attr].loc[snapshots, varying_i]
-
+        diff = index.difference(dynamic.columns)
+        static_to_dynamic = static.T[diff].reindex(snapshots, level="scenario")
+        res = pd.concat([dynamic, static_to_dynamic], axis=1)[index]
         return res
 
     def get_bounds_pu(
@@ -1808,7 +1763,8 @@ class StochasticNetwork(Network):
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        explicit_scenario_dim: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame] | tuple[xr.DataArray, xr.DataArray]:
         """
         Getter function to retrieve the per unit bounds of a given component for
         given snapshots and possible subset of elements (e.g. non-extendables).
@@ -1841,18 +1797,8 @@ class StochasticNetwork(Network):
             min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
             if attr == "p_store":
                 max_pu = -self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
-            if (
-                attr == "state_of_charge"
-            ):  # this is a special case. If it can be done simpler, please do it
-                max_hours = self.df(c).max_hours.T
-                _sns = self.snapshots.get_level_values("snapshot").unique()
-                new_index = pd.MultiIndex.from_product(
-                    [max_hours.index, _sns], names=["scenario", "snapshot"]
-                )
-                max_pu = max_hours.loc[max_hours.index.repeat(len(_sns))].set_index(
-                    new_index
-                )
-                min_pu = pd.DataFrame(0, *max_pu.axes)
+            if attr == "state_of_charge":
+                max_pu = self.get_switchable_as_dense(c, "max_hours", sns, inds=index)
         else:
             min_pu = self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
 
@@ -1894,39 +1840,23 @@ class StochasticNetwork(Network):
         return self._scenarios
 
     @scenarios.setter
-    def scenarios(self, value):
+    def scenarios(self, value: dict):
         """Set the scenarios dictionary and validate probabilities."""
         if not isinstance(value, dict):
             raise TypeError("Scenarios must be a dictionary.")
         if not all(isinstance(v, (int, float)) for v in value.values()):
             raise ValueError("Scenario probabilities must be numbers.")
-        if abs(sum(value.values()) - 1) > 1e-10:
-            raise ValueError("Scenario probabilities must sum to 1.")
+        if abs((total := sum(value.values())) - 1) > 1e-10:
+            logger.warning("Normalizing scenario probabilities.")
+            value = {k: v / total for k, v in value.items()}
         self._scenarios = value
 
     def set_snapshots(self, snapshots):
         """Override set_snapshots to maintain stochastic structure."""
+        snapshots = pd.MultiIndex.from_product(
+            [list(self.scenarios), snapshots], names=["scenario", "snapshot"]
+        )
         super().set_snapshots(snapshots)
-        self._reindex_snapshots()
-        self._reindex_time_dependent_data()
-
-    def df(self, component_name: str) -> Dict[str, pd.DataFrame] | pd.DataFrame:
-        """
-        Return the dictionary of DataFrames or a single DataFrame of static components for component_name.
-
-        Parameters
-        ----------
-        component_name : string
-
-        Returns
-        -------
-        Dict[str, pandas.DataFrame] or pandas.DataFrame
-        """
-        try:
-            return getattr(self, self.components[component_name]["list_name"])
-        except AttributeError:
-            # If the attribute doesn't exist, return an empty DataFrame
-            return pd.DataFrame()
 
     def __repr__(self) -> str:
         header = "PyPSA StochasticNetwork \U0001f500" + (

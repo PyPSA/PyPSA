@@ -28,7 +28,7 @@ from pypsa import (
     plot,
     statistics,
 )
-from pypsa.components import Network, SubNetwork
+from pypsa.components import Network, StochasticNetwork, SubNetwork
 
 # e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
 __version__ = version("pypsa")
@@ -52,4 +52,5 @@ __all__ = [
     "statistics",
     "Network",
     "SubNetwork",
+    "StochasticNetwork",
 ]
