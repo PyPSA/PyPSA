@@ -61,60 +61,29 @@ def define_operational_constraints_for_non_extendables(
         return
 
     nominal_fix = n.df(c)[nominal_attrs[c]].reindex(fix_i)
-    min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
-
-    if n._multi_invest:
-        active = get_activity_mask(n, c, sns, fix_i)
-    else:
-        active = None
+    min_pu, max_pu = n.get_bounds_pu(c, sns, fix_i, attr)
 
     if n._stochastic:
-        # Expand the constraints for each scenario
-        scenarios = n._scenarios.keys()
-
-        for scenario in scenarios:
-            lower = min_pu.mul(nominal_fix).xs(f"{scenario}", level="scenario")
-            upper = max_pu.mul(nominal_fix).xs(f"{scenario}", level="scenario")
-
-            dispatch_lower = reindex(
-                n.model[f"{c}-{attr}"].sel(scenario=scenario), c, fix_i
-            )
-            dispatch_upper = reindex(
-                n.model[f"{c}-{attr}"].sel(scenario=scenario), c, fix_i
-            )
-
-            if c in n.passive_branch_components and transmission_losses:
-                loss = reindex(n.model[f"{c}-loss"].sel(scenario=scenario), c, fix_i)
-                dispatch_lower = (1, dispatch_lower), (-1, loss)
-                dispatch_upper = (1, dispatch_upper), (1, loss)
-
-            n.model.add_constraints(
-                dispatch_lower,
-                ">=",
-                lower,
-                name=f"{c}-fix-{attr}-lower-{scenario}",
-                mask=active,
-            )
-            n.model.add_constraints(
-                dispatch_upper,
-                "<=",
-                upper,
-                name=f"{c}-fix-{attr}-upper-{scenario}",
-                mask=active,
-            )
+        lower = n.multiply_xr_with_df(max_pu, nominal_fix)  # returns a DataArray here
+        upper = n.multiply_xr_with_df(min_pu, nominal_fix)
     else:
-        dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-        dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-        if c in n.passive_branch_components and transmission_losses:
-            loss = reindex(n.model[f"{c}-loss"], c, fix_i)
-            dispatch_lower = (1, dispatch_lower), (-1, loss)
-            dispatch_upper = (1, dispatch_upper), (1, loss)
-        n.model.add_constraints(
-            dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
-        )
-        n.model.add_constraints(
-            dispatch_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
-        )
+        lower = min_pu.mul(nominal_fix)
+        upper = max_pu.mul(nominal_fix)
+
+    active = get_activity_mask(n, c, sns, fix_i)
+
+    dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    if c in n.passive_branch_components and transmission_losses:
+        loss = reindex(n.model[f"{c}-loss"], c, fix_i)
+        dispatch_lower = (1, dispatch_lower), (-1, loss)
+        dispatch_upper = (1, dispatch_upper), (1, loss)
+    n.model.add_constraints(
+        dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
+    )
+    n.model.add_constraints(
+        dispatch_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
+    )
 
 
 def define_operational_constraints_for_extendables(
