@@ -1856,7 +1856,10 @@ class StochasticNetwork(Network):
         else:
             min_pu = self.get_switchable_as_dense(c, min_pu_str, sns, inds=index)
 
-        return min_pu, max_pu
+        if index is None:
+            return min_pu, max_pu
+        else:
+            return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
     def get_committable_i(n: Network, c: str) -> pd.Index:
         """
