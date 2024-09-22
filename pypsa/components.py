@@ -1879,6 +1879,34 @@ class StochasticNetwork(Network):
             )
         return idx.rename(f"{c}-com")
 
+    def get_extendable_i(n: Network, c: str) -> pd.Index:
+        """
+        Getter function.
+        Get the index of extendable elements of a given component. Adapted for StochasticNetwork.
+        """
+        idx = (
+            n.df(c)
+            .pipe(lambda ds: ds[nominal_attrs[c] + "_extendable"])
+            .any(axis=1)
+            .loc[lambda x: x]
+            .index
+        )
+        return idx.rename(f"{c}-ext")
+
+    def get_non_extendable_i(n: Network, c: str) -> pd.Index:
+        """
+        Getter function.
+        Get the index of non-extendable elements of a given component. Adapted for StochasticNetwork.
+        """
+        idx = (
+            n.df(c)
+            .pipe(lambda ds: ~ds[nominal_attrs[c] + "_extendable"])
+            .all(axis=1)
+            .loc[lambda x: x]
+            .index
+        )
+        return idx.rename(f"{c}-fix")
+
     def get_switchable_by_scenario(
         self,
         component: str,
