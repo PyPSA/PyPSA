@@ -27,6 +27,10 @@ Release Notes
 * The `Subnetwork` class has new methods `df`, `pnl`, `component` to ease the access of component data for a subnetwork. Use it with e.g. `subnetwork.df("Generator")` and alike.  
 
 
+* Bugfix in the post discretization for ``Links`` with a maximum capacity.
+  Furthermore, giving the option to build out only multiples of the specified unit_size
+  or allowing to use the full maximum capacity.
+
 v0.30.2 (11th September 2024)
 =============================
 

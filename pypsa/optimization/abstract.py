@@ -24,6 +24,87 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def discretized_capacity(
+    nom_opt: float,
+    nom_max: float,
+    unit_size: float,
+    threshold: float,
+    fractional_last_unit_size: bool,
+    min_units: int = 0,
+) -> float:
+    """
+    Discretize a optimal capacity to a capacity that is either a multiple of a unit size
+    or the maximum capacity, depending on the variable `fractional_last_unit_size`.
+
+    This function checks if the optimal capacity is within the threshold of the unit size.
+    If so, it returns the next multiple of the unit size - if not it returns the last multiple
+    of the unit size.
+    In the special case that the maximum capacity is not a multiple of the unit size, the variable
+    `fractional_last_unit_size` determines if the returned capacity is the maximum capacity (True)
+    or the last multiple of the unit size (False).
+
+    Parameters
+    ----------
+    nom_opt : float
+        The optimal capacity as returned by the optimization.
+    nom_max : float
+        The maximum capacity as defined in the network.
+    unit_size : float
+        The unit size for the capacity as defined in the config[solving][post_discretization].
+    threshold : float
+        The threshold relative to the unit size for discretizing the capacity as defined in the config[solving][post_discretization].
+    fractional_last_unit_size : bool
+        Whether only multiples of the unit size or the maximum capacity is allowed as defined in the config[solving][post_discretization].
+    min_units : int, default 0
+        The minimum number of units that should be installed.
+
+    Returns
+    -------
+    float
+        The discretized capacity.
+
+    Examples
+    --------
+    >>> discretized_capacity(
+    nom_opt = 7,
+    nom_max = 25,
+    unit_size = 5,
+    threshold = 0.1,
+    fractional_last_unit_size = False)
+    10
+    >>> discretized_capacity(
+    nom_opt = 7,
+    nom_max = 8,
+    unit_size = 5,
+    threshold = 0.1,
+    fractional_last_unit_size = False)
+    5
+    >>> discretized_capacity(
+    nom_opt = 7,
+    nom_max = 8,
+    unit_size = 5,
+    threshold = 0.1,
+    fractional_last_unit_size = True)
+    8
+    """
+    units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
+    block_capacity = max(min_units, units) * unit_size
+    if nom_max % unit_size == 0:
+        return block_capacity
+
+    else:
+        if (nom_max - nom_opt) < unit_size:
+            if (
+                fractional_last_unit_size
+                and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
+            ):
+                return nom_max
+            else:
+                return (nom_opt // unit_size) * unit_size
+        else:
+            return block_capacity
+
+
 def optimize_transmission_expansion_iteratively(
     n: Network,
     snapshots: Sequence | None = None,
@@ -35,6 +116,7 @@ def optimize_transmission_expansion_iteratively(
     link_unit_size: dict | None = None,
     line_threshold: float | None = None,
     link_threshold: dict | None = None,
+    fractional_last_unit_size: bool = False,
     **kwargs: Any,
 ) -> tuple[str, str]:
     """
@@ -74,6 +156,8 @@ def optimize_transmission_expansion_iteratively(
         The threshold relative to the unit size for discretizing line components.
     link_threshold: dict-like, default 0.3 per carrier
         The threshold relative to the unit size for discretizing link components.
+    fractional_last_unit_size: bool, default False
+        Whether only multiples of the unit size or in case of a maximum capacity fractions of unit size is allowed.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
@@ -120,21 +204,13 @@ def optimize_transmission_expansion_iteratively(
             columns={"mu": f"mu_{iteration}"}
         )
 
-    def discretized_capacity(
-        nom_opt: float,
-        unit_size: float,
-        threshold: float,
-        min_units: int = 0,
-    ) -> float:
-        units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-        return max(min_units, units) * unit_size
-
     def discretize_branch_components(
         n: Network,
         line_unit_size: float | None,
         link_unit_size: dict | None,
         line_threshold: float | None,
         link_threshold: dict | None,
+        fractional_last_unit_size: bool = False,
     ) -> None:
         """
         Discretizes the branch components of a network based on the specified
@@ -146,19 +222,30 @@ def optimize_transmission_expansion_iteratively(
 
         if line_unit_size:
             min_units = 1
-            n.lines["s_nom"] = n.lines["s_nom_opt"].apply(
-                discretized_capacity, args=(line_unit_size, line_threshold, min_units)
+            n.lines["s_nom"] = n.lines.apply(
+                lambda row: discretized_capacity(
+                    nom_opt=row["s_nom_opt"],
+                    nom_max=row["s_nom_max"],
+                    unit_size=line_unit_size,
+                    threshold=line_threshold,
+                    min_units=min_units,
+                    fractional_last_unit_size=fractional_last_unit_size,
+                ),
+                axis=1,
             )
 
         if link_unit_size:
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
                 idx = n.links.carrier == carrier
-                n.links.loc[idx, "p_nom"] = n.links.loc[idx, "p_nom_opt"].apply(
-                    discretized_capacity,
-                    args=(
-                        link_unit_size[carrier],
-                        link_threshold.get(carrier, 0.3),
+                n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
+                    lambda row: discretized_capacity(
+                        nom_opt=row["p_nom_opt"],
+                        nom_max=row["p_nom_max"],
+                        unit_size=link_unit_size[carrier],
+                        threshold=link_threshold.get(carrier, 0.3),
+                        fractional_last_unit_size=fractional_last_unit_size,
                     ),
+                    axis=1,
                 )
 
     if link_threshold is None:
@@ -222,6 +309,7 @@ def optimize_transmission_expansion_iteratively(
         link_unit_size,
         line_threshold,
         link_threshold,
+        fractional_last_unit_size,
     )
 
     n.calculate_dependent_values()
