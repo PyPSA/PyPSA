@@ -8,3 +8,4 @@ q_set,static or series,MVar,0,Reactive power consumption (positive if the load i
 sign,float,n/a,-1,power sign (opposite sign to generator),Input (optional)
 p,series,MW,0,active power at bus (positive if net load),Output
 q,series,MVar,0,reactive power (positive if net load),Output
+active,boolean,n/a,True,"Whether to consider the component in common functionalities or not",Input (optional)

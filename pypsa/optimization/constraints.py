@@ -65,7 +65,7 @@ def define_operational_constraints_for_non_extendables(
     lower = min_pu.mul(nominal_fix)
     upper = max_pu.mul(nominal_fix)
 
-    active = get_activity_mask(n, c, sns, fix_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, fix_i)
 
     dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
     dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
@@ -110,7 +110,7 @@ def define_operational_constraints_for_extendables(
     dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
     capacity = n.model[f"{c}-{nominal_attrs[c]}"]
 
-    active = get_activity_mask(n, c, sns, ext_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, ext_i)
 
     lhs_lower = (1, dispatch), (-min_pu, capacity)
     lhs_upper = (1, dispatch), (-max_pu, capacity)
@@ -155,7 +155,7 @@ def define_operational_constraints_for_committables(
     shut_down = n.model[f"{c}-shut_down"]
     status_diff = status - status.shift(snapshot=1)
     p = reindex(n.model[f"{c}-p"], c, com_i)
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i)
 
     # parameters
     nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(com_i))
@@ -588,9 +588,10 @@ def define_nodal_balance_constraints(
             exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(Bus=buses)
+    active = n.loads.query("active").index
     rhs = (
-        (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .T.groupby(n.loads.bus)
+        (-get_as_dense(n, "Load", "p_set", sns, active) * n.loads.sign[active])
+        .T.groupby(n.loads.bus[active])
         .sum()
         .T.reindex(columns=buses, fill_value=0)
     )
@@ -755,12 +756,8 @@ def define_fixed_operation_constraints(
     if fix.empty:
         return
 
-    if n._multi_invest:
-        active = get_activity_mask(n, c, sns, index=fix.columns)
-        mask = fix.notna() & active
-    else:
-        active = None
-        mask = fix.notna()
+    active = get_activity_mask(n, c, sns, index=fix.columns)
+    mask = fix.notna() & active
 
     var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
     n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set", mask=mask)
@@ -936,7 +933,7 @@ def define_loss_constraints(
         return
 
     tangents = transmission_losses
-    active = get_activity_mask(n, c, sns) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns)
 
     s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
 

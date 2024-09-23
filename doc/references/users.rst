@@ -43,7 +43,7 @@ Universities and Research Institutes
 
 * `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_ and a `dataset publication <https://doi.org/10.1038/s41597-023-01992-9>`_ for the Brazilian power system.
 
-* `University of Oxford <https://www.ox.ac.uk/>`_ in a `study <https://iopscience.iop.org/article/10.1088/2753-3751/ad785d>`_ on green ammonia imports as a supplement to long-duration energy storage in the UK and with the `University of Sevilla <https://www.us.es/>`_ in a `study <https://doi.org/10.1016/j.apenergy.2023.122331>`_ on the role of regionally resolved heat pump demand in power system design.
+* `University of Oxford <https://www.ox.ac.uk/>`_ in `study on green ammonia imports <https://iopscience.iop.org/article/10.1088/2753-3751/ad785d>`_ as a supplement to long-duration energy storage in the UK and with the `University of Sevilla <https://www.us.es/>`_ in a `study on the role of regionally resolved heat pump demand <https://doi.org/10.1016/j.apenergy.2023.122331>`_ in power system design.
 
 * `Council for Scientific and Industrial Research <https://www.csir.co.za/>`_ (CSIR) in South Africa: research publication `arXiv:1710.11199 <https://arxiv.org/abs/1710.11199>`_
 
@@ -102,7 +102,7 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
-* `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example a study on `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_ and a a `study on the Philippines <https://climateanalytics.org/publications/a-15c-future-is-possible-getting-fossil-fuels-out-of-the-philippine-power-sector>`_.
+* `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example a study on `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_ and a `study on the Philippines <https://climateanalytics.org/publications/a-15c-future-is-possible-getting-fossil-fuels-out-of-the-philippine-power-sector>`_.
 
 * `Instrat <https://instrat.pl/en/>`_, a think-tank focused on public policy in Poland, built PyPSA-PL and published reports in 2021 including `What's next after coal? RES potential in Poland <http://instrat.pl/wp-content/uploads/2021/06/Instrat-What-next-after-coal-v.1.2.pdf>`_ and `Achieving the goal: Coal phase-out in the Polish power sector <https://instrat.pl/en/coal-phase-out/>`_
 
