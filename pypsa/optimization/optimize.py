@@ -770,7 +770,7 @@ class OptimizationAccessor:
         if buses is None:
             buses = n.buses.index
 
-        return n.madd(
+        return n.add(
             "Generator",
             buses,
             suffix,

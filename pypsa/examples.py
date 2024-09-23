@@ -144,5 +144,5 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
             for carrier in c.df.carrier.unique()
         }
     )
-    n.madd("Carrier", carriers)
+    n.add("Carrier", carriers)
     return n

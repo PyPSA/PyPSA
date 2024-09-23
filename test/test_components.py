@@ -2,26 +2,55 @@ import copy
 import sys
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
 
+rng = np.random.default_rng()
+
+
+def swap_df_index(df, axis=0):
+    df_swapped = df.copy()
+
+    if axis == 0:
+        # Swap rows: swap row 0 with row 1
+        df_swapped.iloc[[0, 1]] = df_swapped.iloc[[1, 0]].values
+    elif axis == 1:
+        # Swap columns: swap column 0 with column 1
+        df_swapped.iloc[:, [0, 1]] = df_swapped.iloc[:, [1, 0]].values
+    else:
+        raise ValueError(
+            f"Invalid axis {axis}. Allowed values are 0 (rows) and 1 (columns)."
+        )
+
+    return df_swapped
+
 
 @pytest.fixture
-def empty_network_5_buses():
+def n_5bus():
     # Set up empty network with 5 buses.
     network = pypsa.Network()
-    n_buses = 5
-    for i in range(n_buses):
-        network.add("Bus", f"bus_{i}")
+    network.add("Bus", [f"bus_{i} " for i in range(5)])
     return network
 
 
-def test_mremove(ac_dc_network):
+@pytest.fixture
+def n_5bus_7sn():
+    # Set up empty network with 5 buses and 7 snapshots.
+    network = pypsa.Network()
+    n_buses = 5
+    n_snapshots = 7
+    network.add("Bus", [f"bus_{i} " for i in range(n_buses)])
+    network.set_snapshots(range(n_snapshots))
+    return network
+
+
+def test_remove(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
-    WHEN    two components of Generator are removed with mremove
+    WHEN    two components of Generator are removed with remove
 
     THEN    the generator dataframe and the time-dependent generator
     dataframe should not contain the removed elements.
@@ -30,88 +59,28 @@ def test_mremove(ac_dc_network):
 
     generators = {"Manchester Wind", "Frankfurt Wind"}
 
-    network.mremove("Generator", generators)
+    network.remove("Generator", generators)
 
     assert not generators.issubset(network.generators.index)
     assert not generators.issubset(network.generators_t.p_max_pu.columns)
 
 
-def test_mremove_misspelled_component(ac_dc_network, caplog):
+def test_remove_misspelled_component(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
-    WHEN    a misspelled component is removed with mremove
+    WHEN    a misspelled component is removed with remove
 
     THEN    the function should not change anything in the Line
     component dataframe and an error should be logged.
     """
     network = ac_dc_network
 
-    len_lines = len(network.lines.index)
-
-    network.mremove("Liness", ["0", "1"])
-
-    assert len_lines == len(network.lines.index)
-    assert caplog.records[-1].levelname == "ERROR"
+    with pytest.raises(ValueError):
+        network.remove("Liness", ["0", "1"])
 
 
-def test_madd_static(empty_network_5_buses):
-    """
-    GIVEN   an empty PyPSA network with 5 buses.
-
-    WHEN    multiple components of Load are added to the network with
-    madd and attribute p_set
-
-    THEN    the corresponding load components should be in the index of
-    the static load dataframe. Also the column p_set should contain any
-    value greater than 0.
-    """
-    buses = empty_network_5_buses.buses.index
-
-    # Add load components at every bus with attribute p_set.
-    load_names = "load_" + buses
-    empty_network_5_buses.madd(
-        "Load",
-        load_names,
-        bus=buses,
-        p_set=3,
-    )
-
-    assert load_names.equals(empty_network_5_buses.loads.index)
-    assert (empty_network_5_buses.loads.p_set == 3).all()
-
-
-def test_madd_t(empty_network_5_buses):
-    """
-    GIVEN   an empty PyPSA network with 5 buses and 7 snapshots.
-
-    WHEN    multiple components of Load are added to the network with
-    madd and attribute p_set
-
-    THEN    the corresponding load components should be in the columns
-    of the time-dependent load_t dataframe. Also, the shape of the
-    dataframe should resemble 7 snapshots x 5 buses.
-    """
-    # Set up empty network with 5 buses and 7 snapshots.
-    snapshots = range(7)
-    empty_network_5_buses.set_snapshots(snapshots)
-    buses = empty_network_5_buses.buses.index
-
-    # Add load component at every bus with time-dependent attribute p_set.
-    load_names = "load_" + buses
-    rng = np.random.default_rng()  # Create a random number generator
-    empty_network_5_buses.madd(
-        "Load",
-        load_names,
-        bus=buses,
-        p_set=rng.random(size=(len(snapshots), len(buses))),
-    )
-
-    assert load_names.equals(empty_network_5_buses.loads_t.p_set.columns)
-    assert empty_network_5_buses.loads_t.p_set.shape == (len(snapshots), len(buses))
-
-
-def test_madd_misspelled_component(empty_network_5_buses, caplog):
+def test_add_misspelled_component(n_5bus):
     """
     GIVEN   an empty PyPSA network with 5 buses.
 
@@ -121,20 +90,15 @@ def test_madd_misspelled_component(empty_network_5_buses, caplog):
     be logged.
     """
     misspelled_component = "Generatro"
-    empty_network_5_buses.madd(
-        misspelled_component,
-        ["g_1", "g_2"],
-        bus=["bus_1", "bus_2"],
-    )
-
-    assert empty_network_5_buses.generators.empty
-    assert caplog.records[-1].levelname == "ERROR"
-    assert caplog.records[-1].message == (
-        f"Component class {misspelled_component} not found"
-    )
+    with pytest.raises(ValueError, match="not found"):
+        n_5bus.add(
+            misspelled_component,
+            ["g_1", "g_2"],
+            bus=["bus_1", "bus_2"],
+        )
 
 
-def test_madd_duplicated_index(empty_network_5_buses, caplog):
+def test_add_duplicated_names(n_5bus):
     """
     GIVEN   an empty PyPSA network with 5 buses.
 
@@ -142,49 +106,225 @@ def test_madd_duplicated_index(empty_network_5_buses, caplog):
 
     THEN    the function should fail and an error should be logged.
     """
-    empty_network_5_buses.madd(
-        "Generator",
-        ["g_1", "g_1"],
-        bus=["bus_1", "bus_2"],
+    with pytest.raises(ValueError, match="must be unique"):
+        n_5bus.add(
+            "Generator",
+            ["g_1", "g_1"],
+            bus=["bus_1", "bus_2"],
+        )
+
+
+@pytest.mark.parametrize("slicer", [0, slice(0, 1), slice(None, None)])
+def test_add_static(n_5bus, slicer):
+    buses = n_5bus.buses.index[slicer]
+
+    load_names = "load_" + buses
+
+    n_5bus.add("Load", load_names, bus=buses, p_set=3)
+
+    if slicer == 0:
+        load_names = pd.Index([load_names])
+
+    assert len(n_5bus.loads) == len(load_names)
+    assert n_5bus.loads.index.name == "Load"
+    assert n_5bus.loads.index.equals(load_names)
+    assert (n_5bus.loads.bus == buses).all()
+    assert (n_5bus.loads.p_set == 3).all()
+
+    if slicer == slice(None, None):
+        # Test different names shape
+        with pytest.raises(ValueError, match="for each component name."):
+            n_5bus.add("Load", load_names[1:] + "_a", bus=buses)
+
+
+@pytest.mark.parametrize("slicer", [slice(0, 1), slice(None, None)])
+def test_add_static_with_index(n_5bus, slicer):
+    buses = n_5bus.buses.index[slicer]
+
+    load_names = "load_" + buses
+    buses = pd.Series(buses, index=load_names)
+
+    n_5bus.add(
+        "Load",
+        load_names,
+        bus=buses,
+        p_set=3,
     )
 
-    assert caplog.records[-1].levelname == "ERROR"
-    assert caplog.records[-1].message == (
-        "Error, new components for Generator are not unique"
+    assert len(n_5bus.loads) == len(load_names)
+    assert n_5bus.loads.index.name == "Load"
+    assert n_5bus.loads.index.equals(load_names)
+    assert (n_5bus.loads.bus == buses).all()
+    assert (n_5bus.loads.p_set == 3).all()
+
+    if len(buses) > 1:
+        # Test unaligned names index
+        with pytest.raises(ValueError, match="index which does not align"):
+            n_5bus.add("Load", load_names + "_a", bus=swap_df_index(buses))
+
+
+def test_add_varying_single(n_5bus_7sn):
+    buses = n_5bus_7sn.buses.index
+
+    # Add load component at every bus with time-dependent attribute p_set.
+    p_set = rng.random(size=(len(n_5bus_7sn.snapshots)))
+    n_5bus_7sn.add(
+        "Load",
+        "load_1",
+        bus=buses[0],
+        p_set=p_set,
     )
 
+    assert len(n_5bus_7sn.loads) == 1
+    assert n_5bus_7sn.loads.index.name == "Load"
+    assert (n_5bus_7sn.loads.index == "load_1").all()
+    assert (n_5bus_7sn.loads.bus == buses[0]).all()
+    assert (n_5bus_7sn.loads_t.p_set.T == p_set).all().all()
+    assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
 
-def test_madd_defaults(empty_network_5_buses):
+    # Test different snapshots shape
+    with pytest.raises(ValueError, match="for each snapshot"):
+        n_5bus_7sn.add(
+            "Load",
+            "load_1_a",
+            p_set=p_set[1:],
+        )
+
+
+@pytest.mark.parametrize("slicer", [slice(0, 1), slice(None, None)])
+def test_add_varying_multiple(n_5bus_7sn, slicer):
+    buses = n_5bus_7sn.buses.index[slicer]
+
+    # Add load component at every bus with time-dependent attribute p_set.
+    load_names = "load_" + buses
+    p_set = rng.random(size=(len(n_5bus_7sn.snapshots), len(buses)))
+    n_5bus_7sn.add(
+        "Load",
+        load_names,
+        bus=buses,
+        p_set=p_set,
+    )
+
+    assert len(n_5bus_7sn.loads) == len(load_names)
+    assert n_5bus_7sn.loads.index.name == "Load"
+    assert n_5bus_7sn.loads.index.equals(load_names)
+    assert (n_5bus_7sn.loads.bus == buses).all()
+    assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
+    assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
+
+    if len(buses) > 1:
+        # Test different names shape
+        with pytest.raises(ValueError, match="but expected"):
+            n_5bus_7sn.add("Load", load_names[1:] + "_a", p_set=p_set)
+
+    # Test different snapshots shape
+    with pytest.raises(ValueError, match="but expected"):
+        n_5bus_7sn.add("Load", load_names + "_c", p_set=p_set[1:])
+
+
+def test_add_varying_multiple_with_index(n_5bus_7sn):
+    buses = n_5bus_7sn.buses.index
+
+    # Add load component at every bus with time-dependent attribute p_set.
+    load_names = "load_" + buses
+    p_set = pd.DataFrame(
+        rng.random(size=(len(n_5bus_7sn.snapshots), len(buses))),
+        index=n_5bus_7sn.snapshots,
+        columns=load_names,
+    )
+
+    n_5bus_7sn.add(
+        "Load",
+        load_names,
+        bus=buses,
+        p_set=p_set,
+    )
+
+    assert len(n_5bus_7sn.loads) == len(load_names)
+    assert n_5bus_7sn.loads.index.name == "Load"
+    assert n_5bus_7sn.loads.index.equals(load_names)
+    assert (n_5bus_7sn.loads.bus == buses).all()
+    assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
+    assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
+
+    # Test different names shape
+    with pytest.raises(ValueError, match="index which does not align"):
+        n_5bus_7sn.add("Load", load_names[1:] + "_a", p_set=p_set)
+
+    # Test unaligned names index
+    with pytest.raises(ValueError, match="index which does not align"):
+        n_5bus_7sn.add("Load", load_names + "_b", p_set=swap_df_index(p_set))
+
+    # Test different snapshots shape
+    with pytest.raises(ValueError, match="index which does not align"):
+        n_5bus_7sn.add("Load", load_names + "_c", p_set=p_set[1:])
+
+    # Test different snapshots index
+    with pytest.raises(ValueError, match="index which does not align"):
+        n_5bus_7sn.add("Load", load_names + "_d", p_set=swap_df_index(p_set, axis=1))
+
+
+def test_add_overwrite_static(n_5bus, caplog):
+    n_5bus.add("Bus", [f"bus_{i} " for i in range(6)], x=1)
+
+    assert (n_5bus.buses.iloc[:5].x == 0).all()
+    assert (n_5bus.buses.iloc[5].x == 1).all()
+    assert caplog.records[-1].levelname == "WARNING"
+
+    n_5bus.add("Bus", [f"bus_{i} " for i in range(5)], x=1, overwrite=True)
+    assert (n_5bus.buses.x == 1).all()
+
+
+def test_add_overwrite_varying(n_5bus_7sn, caplog):
+    bus_names = [f"bus_{i} " for i in range(6)]
+
+    n_5bus_7sn.add("Bus", bus_names, p=[1] * 6)
+    assert (n_5bus_7sn.buses_t.p.iloc[:, :5] == 0).all().all()
+    assert (n_5bus_7sn.buses_t.p.iloc[:, 5] == 1).all().all()
+    assert caplog.records[-1].levelname == "WARNING"
+
+    n_5bus_7sn.add("Bus", bus_names[:5], p=[2] * 5, overwrite=True)
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[5]] == 1).all().all()
+
+    p = rng.random(size=(7, 5))
+    n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=False)
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
+    n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=True)
+    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == p).all().all()
+
+
+def test_multiple_add_defaults(n_5bus):
     """
     GIVEN   an empty PyPSA network with 5 buses.
 
-    WHEN    adding multiple components of Generator and Load with madd
+    WHEN    adding multiple components of Generator and Load with add
 
     THEN    the defaults should be set correctly according to
     n.component_attrs.
     """
     gen_names = ["g_1", "g_2"]
-    empty_network_5_buses.madd(
+    n_5bus.add(
         "Generator",
         gen_names,
         bus=["bus_1", "bus_2"],
     )
 
     line_names = ["l_1", "l_2"]
-    empty_network_5_buses.madd(
+    n_5bus.add(
         "Load",
         line_names,
         bus=["bus_1", "bus_2"],
     )
 
     assert (
-        empty_network_5_buses.generators.loc[gen_names[0], "control"]
-        == empty_network_5_buses.component_attrs.Generator.loc["control", "default"]
+        n_5bus.generators.loc[gen_names[0], "control"]
+        == n_5bus.component_attrs.Generator.loc["control", "default"]
     )
 
     assert (
-        empty_network_5_buses.loads.loc[line_names[0], "p_set"]
-        == empty_network_5_buses.component_attrs.Load.loc["p_set", "default"]
+        n_5bus.loads.loc[line_names[0], "p_set"]
+        == n_5bus.component_attrs.Load.loc["p_set", "default"]
     )
 
 
@@ -250,7 +390,7 @@ def test_copy_snapshots(all_networks):
         assert copied_network == network
 
 
-def test_add_network_static(ac_dc_network, empty_network_5_buses):
+def test_single_add_network_static(ac_dc_network, n_5bus):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
     buses.
@@ -261,12 +401,12 @@ def test_add_network_static(ac_dc_network, empty_network_5_buses):
     also the buses in the second network
     """
 
-    n = ac_dc_network.merge(empty_network_5_buses, with_time=False)
+    n = ac_dc_network.merge(n_5bus, with_time=False)
     new_buses = set(n.buses.index)
-    assert new_buses.issuperset(empty_network_5_buses.buses.index)
+    assert new_buses.issuperset(n_5bus.buses.index)
 
 
-def test_add_network_with_time(ac_dc_network, empty_network_5_buses):
+def test_single_add_network_with_time(ac_dc_network, n_5bus):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
     buses and the same snapshots.
@@ -277,12 +417,12 @@ def test_add_network_with_time(ac_dc_network, empty_network_5_buses):
     also the buses in the second network
     """
     with pytest.raises(ValueError):
-        ac_dc_network.merge(empty_network_5_buses, with_time=True)
+        ac_dc_network.merge(n_5bus, with_time=True)
 
-    empty_network_5_buses.set_snapshots(ac_dc_network.snapshots)
-    n = ac_dc_network.merge(empty_network_5_buses, with_time=True)
+    n_5bus.set_snapshots(ac_dc_network.snapshots)
+    n = ac_dc_network.merge(n_5bus, with_time=True)
     new_buses = set(n.buses.index)
-    assert new_buses.issuperset(empty_network_5_buses.buses.index)
+    assert new_buses.issuperset(n_5bus.buses.index)
 
 
 def test_shape_reprojection(ac_dc_network_shapes):

@@ -107,9 +107,9 @@ def ac_dc_network_shapes(ac_dc_network):
     # Convert to GeoSeries
     geo_series = gpd.GeoSeries(bboxes, crs="epsg:4326")
 
-    n.madd(
+    n.add(
         "Shape",
-        names=geo_series.index,
+        name=geo_series.index,
         geometry=geo_series,
         idx=geo_series.index,
         component="Bus",

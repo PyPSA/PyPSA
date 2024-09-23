@@ -5,11 +5,19 @@ Release Notes
 .. Upcoming Release
 .. ================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+* :meth:`n.add <pypsa.Network.add>` now handles the addition of a single or multiple
+  components, has more robust index alignment checks allows to overwrite existing
+  components using the new argument ``overwrite``. (https://github.com/PyPSA/PyPSA/pull/896)
+
+* Deprecate :meth:`n.madd <pypsa.Network.madd>` and :meth:`n.mremove <pypsa.Network.mremove>`. 
+  :meth:`n.add <pypsa.Network.add>` and :meth:`n.remove <pypsa.Network.remove>` are now used for 
+  adding/ removing multiple as well as single components. (https://github.com/PyPSA/PyPSA/pull/896)
 
 
 * A new attribute for one-port and branch components `active` was added. If set to true (default), the asset is considered active for all functionality, including optimization and power flow calculation. If set to false, the asset is considered inactive and is excluded from the optimization, power flow and statistics modules. The active attribute can be thought of as a global filter on the components. When running a multi-horizon optimization, the active attribute is considered a global condition for each horizon. Then assets are considered active only if `active` is true and the investment period falls within the lifetime of the asset.
