@@ -9,9 +9,8 @@ There is limited functionality to import from Pypower and Pandapower.
 Adding components
 =================
 
-Networks can also be built step-by-step for each component by calling :py:meth:`pypsa.Network.add`. 
-
-Multiple components can be added by calling :py:meth:`pypsa.Network.madd`.
+Networks can also be built step-by-step for each component by calling 
+:py:meth:`pypsa.Network.add` to add a single or multiple components.
 
 To add multiple components whose static attributes are given in a
 pandas DataFrame, use :py:meth:`pypsa.Network.import_components_from_dataframe`

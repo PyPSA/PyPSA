@@ -50,7 +50,7 @@ def test_remove(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
-    WHEN    two components of Generator are removed with mremove
+    WHEN    two components of Generator are removed with remove
 
     THEN    the generator dataframe and the time-dependent generator
     dataframe should not contain the removed elements.
@@ -65,11 +65,11 @@ def test_remove(ac_dc_network):
     assert not generators.issubset(network.generators_t.p_max_pu.columns)
 
 
-def test_mremove_misspelled_component(ac_dc_network):
+def test_remove_misspelled_component(ac_dc_network):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
-    WHEN    a misspelled component is removed with mremove
+    WHEN    a misspelled component is removed with remove
 
     THEN    the function should not change anything in the Line
     component dataframe and an error should be logged.
