@@ -30,20 +30,20 @@ def swap_df_index(df, axis=0):
 @pytest.fixture
 def n_5bus():
     # Set up empty network with 5 buses.
-    network = pypsa.Network()
-    network.add("Bus", [f"bus_{i} " for i in range(5)])
-    return network
+    n = pypsa.Network()
+    n.add("Bus", [f"bus_{i} " for i in range(5)])
+    return n
 
 
 @pytest.fixture
 def n_5bus_7sn():
     # Set up empty network with 5 buses and 7 snapshots.
-    network = pypsa.Network()
+    n = pypsa.Network()
     n_buses = 5
     n_snapshots = 7
-    network.add("Bus", [f"bus_{i} " for i in range(n_buses)])
-    network.set_snapshots(range(n_snapshots))
-    return network
+    n.add("Bus", [f"bus_{i} " for i in range(n_buses)])
+    n.set_snapshots(range(n_snapshots))
+    return n
 
 
 def test_remove(ac_dc_network):
@@ -55,14 +55,14 @@ def test_remove(ac_dc_network):
     THEN    the generator dataframe and the time-dependent generator
     dataframe should not contain the removed elements.
     """
-    network = ac_dc_network
+    n = ac_dc_network
 
     generators = {"Manchester Wind", "Frankfurt Wind"}
 
-    network.remove("Generator", generators)
+    n.remove("Generator", generators)
 
-    assert not generators.issubset(network.generators.index)
-    assert not generators.issubset(network.generators_t.p_max_pu.columns)
+    assert not generators.issubset(n.generators.index)
+    assert not generators.issubset(n.generators_t.p_max_pu.columns)
 
 
 def test_remove_misspelled_component(ac_dc_network):
@@ -74,10 +74,10 @@ def test_remove_misspelled_component(ac_dc_network):
     THEN    the function should not change anything in the Line
     component dataframe and an error should be logged.
     """
-    network = ac_dc_network
+    n = ac_dc_network
 
     with pytest.raises(ValueError):
-        network.remove("Liness", ["0", "1"])
+        n.remove("Liness", ["0", "1"])
 
 
 def test_add_misspelled_component(n_5bus):
@@ -363,10 +363,10 @@ def test_copy_default_behavior(all_networks):
     THEN    the copied network should have the same generators, loads
     and timestamps.
     """
-    for network in all_networks:
-        network_copy = network.copy()
-        assert network == network_copy
-        assert network is not network_copy
+    for n in all_networks:
+        network_copy = n.copy()
+        assert n == network_copy
+        assert n is not network_copy
 
 
 @pytest.mark.skipif(
@@ -381,13 +381,13 @@ def test_copy_snapshots(all_networks):
 
     THEN    the copied network should only have the current time index.
     """
-    for network in all_networks:
-        copied_network = network.copy(snapshots=[])
-        assert copied_network.snapshots.size == 1
+    for n in all_networks:
+        copied_n = n.copy(snapshots=[])
+        assert copied_n.snapshots.size == 1
 
-        copied_network = network.copy(snapshots=network.snapshots[:5])
-        network.set_snapshots(network.snapshots[:5])
-        assert copied_network == network
+        copied_n = n.copy(snapshots=n.snapshots[:5])
+        n.set_snapshots(n.snapshots[:5])
+        assert copied_n == n
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):

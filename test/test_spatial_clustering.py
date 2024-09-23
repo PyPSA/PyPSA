@@ -145,7 +145,7 @@ def test_default_clustering_k_means(scipy_network):
     weighting = pd.Series(1, n.buses.index)
     busmap = busmap_by_kmeans(n, bus_weightings=weighting, n_clusters=50)
     C = get_clustering_from_busmap(n, busmap)
-    nc = C.network
+    nc = C.n
     assert len(nc.buses) == 50
 
 
@@ -154,7 +154,7 @@ def test_default_clustering_hac(scipy_network):
     prepare_network_for_aggregation(n)
     busmap = busmap_by_hac(n, n_clusters=50)
     C = get_clustering_from_busmap(n, busmap)
-    nc = C.network
+    nc = C.n
     assert len(nc.buses) == 50
 
 
@@ -184,6 +184,6 @@ def test_custom_line_groupers(scipy_network):
     busmap = busmap_by_kmeans(n, bus_weightings=weighting, n_clusters=20)
     C = get_clustering_from_busmap(n, busmap, custom_line_groupers=["build_year"])
     linemap = C.linemap
-    nc = C.network
+    nc = C.n
     assert len(nc.buses) == 20
     assert (n.lines.groupby(linemap).build_year.nunique() == 1).all()

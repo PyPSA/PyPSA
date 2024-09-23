@@ -895,8 +895,8 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
 
     Examples
     --------
-    >>> autogenerate_coordinates(network)
-    >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
+    >>> autogenerate_coordinates(n)
+    >>> autogenerate_coordinates(n, assign=True, layouter=nx.circle_layout)
 
     """
     G = n.graph()

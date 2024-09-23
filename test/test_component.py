@@ -8,8 +8,8 @@ from pypsa.components import Component
 @pytest.fixture
 def sample_network():
     # Create a sample network object
-    network = Network()
-    return network
+    n = Network()
+    return n
 
 
 @pytest.fixture

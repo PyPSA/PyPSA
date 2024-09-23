@@ -225,7 +225,7 @@ def create_model(
     n : pypsa.Network
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
-        network.snapshots, defaults to network.snapshots
+        n.snapshots, defaults to n.snapshots
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimize in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
@@ -548,7 +548,7 @@ def optimize(
         Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
     extra_functionality : callable
         This function must take two arguments
-        `extra_functionality(network, snapshots)` and is called after
+        `extra_functionality(n, snapshots)` and is called after
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
@@ -614,16 +614,16 @@ class OptimizationAccessor:
     Optimization accessor for building and solving models using linopy.
     """
 
-    def __init__(self, network: Network) -> None:
-        self._parent = network
+    def __init__(self, n: Network) -> None:
+        self.n = n
 
     @wraps(optimize)
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize(self._parent, *args, **kwargs)
+        return optimize(self.n, *args, **kwargs)
 
     @wraps(create_model)
     def create_model(self, *args: Any, **kwargs: Any) -> Any:
-        return create_model(self._parent, *args, **kwargs)
+        return create_model(self.n, *args, **kwargs)
 
     def solve_model(
         self,
@@ -660,7 +660,7 @@ class OptimizationAccessor:
             "optimal" or one of the codes listed in
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
         """
-        n = self._parent
+        n = self.n
         if extra_functionality:
             extra_functionality(n, n.snapshots)
         m = n.model
@@ -675,39 +675,37 @@ class OptimizationAccessor:
 
     @wraps(assign_solution)
     def assign_solution(self, *args: Any, **kwargs: Any) -> Any:
-        return assign_solution(self._parent, **kwargs)
+        return assign_solution(self.n, **kwargs)
 
     @wraps(assign_duals)
     def assign_duals(self, *args: Any, **kwargs: Any) -> Any:
-        return assign_duals(self._parent, **kwargs)
+        return assign_duals(self.n, **kwargs)
 
     @wraps(post_processing)
     def post_processing(self, *args: Any, **kwargs: Any) -> Any:
-        return post_processing(self._parent, **kwargs)
+        return post_processing(self.n, **kwargs)
 
     @wraps(optimize_transmission_expansion_iteratively)
     def optimize_transmission_expansion_iteratively(
         self, *args: Any, **kwargs: Any
     ) -> Any:
-        return optimize_transmission_expansion_iteratively(
-            self._parent, *args, **kwargs
-        )
+        return optimize_transmission_expansion_iteratively(self.n, *args, **kwargs)
 
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_security_constrained(self._parent, *args, **kwargs)
+        return optimize_security_constrained(self.n, *args, **kwargs)
 
     @wraps(optimize_with_rolling_horizon)
     def optimize_with_rolling_horizon(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+        return optimize_with_rolling_horizon(self.n, *args, **kwargs)
 
     @wraps(optimize_mga)
     def optimize_mga(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_mga(self._parent, *args, **kwargs)
+        return optimize_mga(self.n, *args, **kwargs)
 
     @wraps(optimize_and_run_non_linear_powerflow)
     def optimize_and_run_non_linear_powerflow(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_and_run_non_linear_powerflow(self._parent, *args, **kwargs)
+        return optimize_and_run_non_linear_powerflow(self.n, *args, **kwargs)
 
     def fix_optimal_capacities(self) -> None:
         """
@@ -717,7 +715,7 @@ class OptimizationAccessor:
         already performed and a operational optimization should be done
         afterwards.
         """
-        n = self._parent
+        n = self.n
         for c, attr in nominal_attrs.items():
             ext_i = n.get_extendable_i(c)
             n.df(c).loc[ext_i, attr] = n.df(c).loc[ext_i, attr + "_opt"]
@@ -730,7 +728,7 @@ class OptimizationAccessor:
         Use this function when the optimal dispatch should be used as an
         starting point for power flow calculation (`Network.pf`).
         """
-        n = self._parent
+        n = self.n
         for c in n.one_port_components:
             n.pnl(c).p_set = n.pnl(c).p
         for c in n.controllable_branch_components:
@@ -764,7 +762,7 @@ class OptimizationAccessor:
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
         """
-        n = self._parent
+        n = self.n
         if "Load" not in n.carriers.index:
             n.add("Carrier", "Load")
         if buses is None:

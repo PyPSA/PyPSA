@@ -181,7 +181,7 @@ def aggregateoneport(
 
     Parameters
     ----------
-    network : Network
+    n : Network
         The network containing the generators.
     busmap : dict
         A dictionary mapping old bus IDs to new bus IDs.
@@ -447,7 +447,7 @@ def aggregatelines(
 
 @dataclass
 class Clustering:
-    network: Any
+    n: Any
     busmap: pd.Series
     linemap: pd.Series
 
@@ -613,7 +613,7 @@ def busmap_by_kmeans(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to k-means clusters (indexed by
+        Mapping of n.buses to k-means clusters (indexed by
         non-negative integers).
     """
     if find_spec("sklearn") is None:
@@ -732,7 +732,7 @@ def busmap_by_hac(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to clusters (indexed by
+        Mapping of n.buses to clusters (indexed by
         non-negative integers).
     """
 
@@ -862,7 +862,7 @@ def busmap_by_greedy_modularity(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to clusters (indexed by
+        Mapping of n.buses to clusters (indexed by
         non-negative integers).
 
     References
@@ -962,7 +962,7 @@ def busmap_by_stubs(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to k-means clusters (indexed by
+        Mapping of n.buses to k-means clusters (indexed by
         non-negative integers).
     """
     busmap = pd.Series(n.buses.index, n.buses.index)

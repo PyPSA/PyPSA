@@ -14,7 +14,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from pypsa.utils import as_index
+from pypsa.utils import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa.components import Network, SubNetwork
@@ -28,7 +28,7 @@ class OrderedGraph(nx.MultiGraph):
 
 
 def get_switchable_as_dense(
-    network: Network,
+    n: Network,
     component: str,
     attr: str,
     snapshots: Sequence | None = None,
@@ -41,15 +41,15 @@ def get_switchable_as_dense(
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     component : string
         Component object name, e.g. 'Generator' or 'Link'
     attr : string
         Attribute name
     snapshots : pandas.Index
-        Restrict to these snapshots rather than network.snapshots.
+        Restrict to these snapshots rather than n.snapshots.
     inds : pandas.Index
-        Restrict to these components rather than network.components.index
+        Restrict to these components rather than n.components.index
 
     Returns
     -------
@@ -57,10 +57,10 @@ def get_switchable_as_dense(
 
     Examples
     --------
-    >>> get_switchable_as_dense(network, 'Generator', 'p_max_pu')
+    >>> get_switchable_as_dense(n, 'Generator', 'p_max_pu')
     """
-    df = network.df(component)
-    pnl = network.pnl(component)
+    df = n.df(component)
+    pnl = n.pnl(component)
 
     index = df.index
 
@@ -72,7 +72,7 @@ def get_switchable_as_dense(
         varying_i = varying_i.intersection(inds)
         fixed_i = fixed_i.intersection(inds)
     if snapshots is None:
-        snapshots = network.snapshots
+        snapshots = n.snapshots
 
     vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
     static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
@@ -87,8 +87,9 @@ def get_switchable_as_dense(
     return res
 
 
+@deprecated_common_kwargs
 def get_switchable_as_iter(
-    network: Network,
+    n: Network,
     component: str,
     attr: str,
     snapshots: Sequence,
@@ -101,15 +102,15 @@ def get_switchable_as_iter(
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     component : string
         Component object name, e.g. 'Generator' or 'Link'
     attr : string
         Attribute name
     snapshots : pandas.Index
-        Restrict to these snapshots rather than network.snapshots.
+        Restrict to these snapshots rather than n.snapshots.
     inds : pandas.Index
-        Restrict to these items rather than all of network.{generators, ..}.index
+        Restrict to these items rather than all of n.{generators, ..}.index
 
     Returns
     -------
@@ -117,10 +118,10 @@ def get_switchable_as_iter(
 
     Examples
     --------
-    >>> get_switchable_as_iter(network, 'Generator', 'p_max_pu', snapshots)
+    >>> get_switchable_as_iter(n, 'Generator', 'p_max_pu', snapshots)
     """
-    df = network.df(component)
-    pnl = network.pnl(component)
+    df = n.df(component)
+    pnl = n.pnl(component)
 
     index = df.index
     varying_i = pnl[attr].columns
@@ -155,13 +156,14 @@ def get_switchable_as_iter(
     )
 
 
-def allocate_series_dataframes(network: Network, series: dict) -> None:
+@deprecated_common_kwargs
+def allocate_series_dataframes(n: Network, series: dict) -> None:
     """
     Populate time-varying outputs with default values.
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     series : dict
         Dictionary of components and their attributes to populate (see example)
 
@@ -171,32 +173,33 @@ def allocate_series_dataframes(network: Network, series: dict) -> None:
 
     Examples
     --------
-    >>> allocate_series_dataframes(network, {'Generator': ['p'],
+    >>> allocate_series_dataframes(n, {'Generator': ['p'],
                                              'Load': ['p']})
     """
     for component, attributes in series.items():
-        df = network.df(component)
-        pnl = network.pnl(component)
+        df = n.df(component)
+        pnl = n.pnl(component)
 
         for attr in attributes:
             pnl[attr] = pnl[attr].reindex(
                 columns=df.index,
-                fill_value=network.components[component]["attrs"].at[attr, "default"],
+                fill_value=n.components[component]["attrs"].at[attr, "default"],
             )
 
 
+@deprecated_common_kwargs
 def free_output_series_dataframes(
-    network: Network, components: Collection[str] | None = None
+    n: Network, components: Collection[str] | None = None
 ) -> None:
     if components is None:
-        components = network.all_components
+        components = n.all_components
 
     for component in components:
-        attrs = network.components[component]["attrs"]
-        pnl = network.pnl(component)
+        attrs = n.components[component]["attrs"]
+        pnl = n.pnl(component)
 
         for attr in attrs.index[attrs["varying"] & (attrs["status"] == "Output")]:
-            pnl[attr] = pd.DataFrame(index=network.snapshots, columns=[])
+            pnl[attr] = pd.DataFrame(index=n.snapshots, columns=[])
 
 
 def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
@@ -288,6 +291,7 @@ def get_active_assets(
     return n.component(c).get_active_assets(investment_period=investment_period)
 
 
+@deprecated_common_kwargs
 def get_activity_mask(
     n: Network,
     c: str,
@@ -339,6 +343,7 @@ def get_activity_mask(
     return mask
 
 
+@deprecated_common_kwargs
 def get_bounds_pu(
     n: Network,
     c: str,
@@ -415,6 +420,7 @@ def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
     return s.replace(j, str(i)).replace("required", "optional")
 
 
+@deprecated_common_kwargs
 def update_linkports_component_attrs(
     n: Network, where: Iterable[str] | None = None
 ) -> None:
@@ -459,6 +465,7 @@ def update_linkports_component_attrs(
             n.df(c)[target] = n.components[c]["attrs"].loc[target, "default"]
 
 
+@deprecated_common_kwargs
 def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list[str]:
     """
     Identify additional link ports (bus connections) beyond predefined ones.

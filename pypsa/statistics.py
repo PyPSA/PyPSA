@@ -371,8 +371,8 @@ class StatisticsAccessor:
     Accessor to calculate different statistical values.
     """
 
-    def __init__(self, network: Network) -> None:
-        self._parent = network
+    def __init__(self, n: Network) -> None:
+        self.n = n
         self.groupers = Groupers()  # Create an instance of the Groupers class
         self.parameters = Parameters()  # Create an instance of the Parameters class
 
@@ -380,7 +380,7 @@ class StatisticsAccessor:
         """
         Setting the parameters for the statistics accessor.
 
-        To see the list of parameters, one can simply call `network.statistics.parameters`.
+        To see the list of parameters, one can simply call `n.statistics.parameters`.
         """
         self.parameters.set_parameters(**kwargs)
 
@@ -399,7 +399,7 @@ class StatisticsAccessor:
         """
         df: pd.DataFrame
         d = {}
-        n = self._parent
+        n = self.n
 
         if is_one_component := isinstance(comps, str):
             comps = [comps]
@@ -944,7 +944,7 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        n = self._parent
+        n = self.n
 
         if comps is None:
             comps = n.branch_components
@@ -998,7 +998,7 @@ class StatisticsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        n = self._parent
+        n = self.n
 
         if (
             n.buses.carrier.unique().size > 1

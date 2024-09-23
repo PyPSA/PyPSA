@@ -201,7 +201,7 @@ funcs = (
 
 
 @pytest.fixture
-def solved_network(ac_dc_network):
+def solved_n(ac_dc_network):
     n = ac_dc_network
     n.optimize()
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
@@ -209,8 +209,8 @@ def solved_network(ac_dc_network):
 
 
 @pytest.mark.parametrize("func", *funcs)
-def test_tolerance(solved_network, func):
-    n = solved_network
+def test_tolerance(solved_n, func):
+    n = solved_n
     description = func(n).fillna(0)
     for col in description:
         assert abs(description[col]["min"]) < TOLERANCE

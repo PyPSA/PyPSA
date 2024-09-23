@@ -130,7 +130,7 @@ def optimize_transmission_expansion_iteratively(
     ----------
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
-        network.snapshots, defaults to network.snapshots
+        n.snapshots, defaults to n.snapshots
     msq_threshold: float, default 0.05
         Maximal mean square difference between optimized line capacity of
         the current and the previous iteration. As soon as this threshold is

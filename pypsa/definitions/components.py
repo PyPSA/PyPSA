@@ -95,9 +95,7 @@ class Component:
         active = {}
         for period in np.atleast_1d(investment_period):
             if period not in self.investment_periods:
-                raise ValueError(
-                    "Investment period not in `network.investment_periods`"
-                )
+                raise ValueError("Investment period not in `n.investment_periods`")
             active[period] = self.df.eval(
                 "build_year <= @period < build_year + lifetime"
             )
