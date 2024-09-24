@@ -2,18 +2,12 @@
 Statistics Expression Accessor.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-4 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
+from __future__ import annotations
 
 import logging
 from collections.abc import Collection, Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Callable
 
 import linopy as ln
 import pandas as pd
@@ -47,7 +41,7 @@ def get_operational_attr(c: str) -> str | None:
 
 
 def get_grouping(
-    n: "Network",
+    n: Network,
     c: str,
     groupby: Callable | Sequence[str] | str | bool,
     port: str | None = None,
@@ -95,8 +89,8 @@ def aggregate_timeseries(
 
 
 def filter_active_assets(
-    n: "Network", c: str, expr: Union[ln.Variable, ln.LinearExpression]
-) -> Union[ln.Variable, ln.LinearExpression]:
+    n: Network, c: str, expr: ln.Variable | ln.LinearExpression
+) -> ln.Variable | ln.LinearExpression:
     """
     For static values iterate over periods and concat values.
     """
@@ -110,12 +104,12 @@ def filter_active_assets(
 
 
 def filter_bus_carrier(
-    n: "Network",
+    n: Network,
     c: str,
     port: str,
     bus_carrier: Sequence[str] | str | None,
-    expr: Union[ln.Variable, ln.LinearExpression],
-) -> Union[ln.Variable, ln.LinearExpression]:
+    expr: ln.Variable | ln.LinearExpression,
+) -> ln.Variable | ln.LinearExpression:
     """
     Filter the DataFrame for components which are connected to a bus with
     carrier `bus_carrier`.
@@ -159,7 +153,7 @@ class StatisticExpressionsAccessor:
     The results are aggregated by the given groupby function.
     """
 
-    def __init__(self, network: "Network") -> None:
+    def __init__(self, network: Network) -> None:
         self._parent = network
         self.groupers = Groupers()  # Create an instance of the Groupers class
         self.parameters = Parameters()  # Create an instance of the Parameters class
@@ -259,7 +253,7 @@ class StatisticExpressionsAccessor:
         """
 
         @pass_none_if_keyerror
-        def func(n: "Network", c: str, port: str) -> pd.Series | None:
+        def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             capacity = capacity.rename({f"{c}-ext": c})
@@ -309,7 +303,7 @@ class StatisticExpressionsAccessor:
             at_port = True
 
         @pass_none_if_keyerror
-        def func(n: "Network", c: str, port: str) -> pd.Series | None:
+        def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             capacity = capacity.rename({f"{c}-ext": c})
@@ -361,7 +355,7 @@ class StatisticExpressionsAccessor:
         from pypsa.optimization.optimize import lookup
 
         @pass_none_if_keyerror
-        def func(n: "Network", c: str, port: str) -> pd.Series | None:
+        def func(n: Network, c: str, port: str) -> pd.Series | None:
             attr = lookup.query("not nominal and marginal_cost").loc[c].index.item()
             if attr is None:
                 return None
@@ -415,7 +409,7 @@ class StatisticExpressionsAccessor:
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
         @pass_none_if_keyerror
-        def func(n: "Network", c: str, port: str) -> pd.Series:
+        def func(n: Network, c: str, port: str) -> pd.Series:
             attr = get_operational_attr(c)
             idx = transmission_branches.get_loc_level(c)[1].rename(c)
             var = n.model.variables[f"{c}-{attr}"]
@@ -473,7 +467,7 @@ class StatisticExpressionsAccessor:
             )
 
         @pass_none_if_keyerror
-        def func(n: "Network", c: str, port: str) -> pd.Series:
+        def func(n: Network, c: str, port: str) -> pd.Series:
             attr = get_operational_attr(c)
             var = n.model.variables[f"{c}-{attr}"]
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
@@ -523,7 +517,7 @@ class StatisticExpressionsAccessor:
         """
 
         @pass_none_if_keyerror
-        def func(n: "Network", c: str, port: str) -> pd.Series:
+        def func(n: Network, c: str, port: str) -> pd.Series:
             attr = nominal_attrs[c]
             capacity = (
                 n.model.variables[f"{c}-{attr}"].rename({f"{c}-ext": c})
@@ -576,7 +570,7 @@ class StatisticExpressionsAccessor:
         """
 
         @pass_none_if_keyerror
-        def func(n: "Network", c: str, port: str) -> pd.Series:
+        def func(n: Network, c: str, port: str) -> pd.Series:
             attr = get_operational_attr(c)
             operation = 1 * n.model.variables[f"{c}-{attr}"]
             weights = get_weightings(n, c)
