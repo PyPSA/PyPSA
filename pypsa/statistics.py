@@ -141,15 +141,16 @@ def get_weightings(n: Network, c: str) -> pd.Series:
         return n.snapshot_weightings["objective"]
 
 
-def port_efficiency(n: Network, c: str, port: str = "") -> float:
+def port_efficiency(n: Network, c: str, port: str = "") -> pd.Series:
+    ones = pd.Series(1, index=n.df(c).index)
     if port == "":
-        efficiency = 1
+        efficiency = ones
     elif port == "0":
-        efficiency = -1
+        efficiency = -ones
     elif port == "1":
-        efficiency = n.static(c).get("efficiency", 1)
+        efficiency = n.static(c).get("efficiency", ones)
     else:
-        efficiency = n.static(c).get(f"efficiency{port}", 1)
+        efficiency = n.static(c).get(f"efficiency{port}", ones)
     return efficiency
 
 

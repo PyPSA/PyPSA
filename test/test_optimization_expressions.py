@@ -22,38 +22,32 @@ groupers = [
 
 @pytest.fixture
 def prepared_network(ac_dc_network):
-    n = ac_dc_network
+    n = ac_dc_network.copy()
     n.optimize.create_model()
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
+    n.generators.loc[n.generators.index[0], "p_nom_extendable"] = False
     return n
 
 
 @pytest.mark.parametrize("groupby", groupers)
-def test_statistics_capex_by_carrier(prepared_network, groupby):
+@pytest.mark.parametrize("include_non_extendable", [True, False])
+def test_statistics_capex(prepared_network, groupby, include_non_extendable):
     n = prepared_network
-    df = n.optimize.statistic_expressions.capex(groupby=groupby)
-    print(df)
+    n.optimize.statistic_expressions.capex(
+        groupby=groupby, include_non_extendable=include_non_extendable
+    )
 
 
-# n = pypsa.examples.ac_dc_meshed()
-# n.optimize.create_model()
-# s = n.optimize.statistic_expressions
-# g = s.groupers
-
-# s.capex(groupby=None)
-# s.capex(groupby=False)
-# s.capex(groupby=False, comps="Link")
-# s.capex(groupby=g.get_bus_and_carrier)
-# s.capex(bus_carrier="AC")
-# # still broken
-# # s.capex(groupby=g.get_name_bus_and_carrier)
+@pytest.mark.parametrize("groupby", groupers)
+@pytest.mark.parametrize("include_non_extendable", [True, False])
+def test_statistics_capacity(prepared_network, groupby, include_non_extendable):
+    n = prepared_network
+    n.optimize.statistic_expressions.capacity(
+        groupby=groupby, include_non_extendable=include_non_extendable
+    )
 
 
-# from linopy import merge
-
-
-# data = {k: d[k].indexes[d[k].dims[0]] for k in d.keys()}
-# tuples = [(key, value) for key, idx in data.items() for value in idx]
-# multi_index = pd.MultiIndex.from_tuples(tuples, names=["Type", "Carrier"])
-
-# merge(list(d.values()), dim="carrier")
+# @pytest.mark.parametrize("groupby", groupers)
+# def test_statistics_opex(prepared_network, groupby):
+#     n = prepared_network
+#     n.optimize.statistic_expressions.opex(groupby=groupby)
