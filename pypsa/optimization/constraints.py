@@ -63,10 +63,12 @@ def define_operational_constraints_for_non_extendables(
     nominal_fix = n.df(c)[nominal_attrs[c]].reindex(fix_i)
     min_pu, max_pu = n.get_bounds_pu(c, sns, fix_i, attr)
 
-    lower = min_pu * nominal_fix
-    upper = max_pu * nominal_fix
+    lower = min_pu * DataArray(nominal_fix)
+    upper = max_pu * DataArray(nominal_fix)
 
     active = get_activity_mask(n, c, sns, fix_i)
+    if n._stochastic:
+        active = DataArray(active).unstack("snapshot")
 
     dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
     dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
