@@ -2,14 +2,17 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
 .. .. warning:: 
   
 ..   The features listed below are not released yet, but will be part of the next release! 
 ..   To use the features already you have to install the ``master`` branch, e.g. 
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+
+* A new module `pypsa.optimize.expressions` was added. It contains functions to quickly create expressions for the optimization model. The behavior of the functions is mirroring the behavior of the `statistics` module and allows for similar complexity in grouping and filtering. Use it with e.g. `n.optimize.expressions.energy_balance()`.
+
 
 v0.31.0 (1st October 2024)
 ==========================
