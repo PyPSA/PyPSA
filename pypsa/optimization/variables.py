@@ -9,8 +9,6 @@ import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-import pandas as pd
-
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
@@ -43,13 +41,7 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
         active = None
 
     if n._stochastic:
-        coords = [
-            pd.Index(n._scenarios.keys(), name="scenario"),
-            sns.get_level_values(
-                1
-            ).unique(),  # sns are multi-index as (scenario, snapshot)
-            n.df(c).index.rename(c),
-        ]
+        coords = [*sns.levels, n.df(c).index.rename(c)]
     else:
         coords = [sns, n.df(c).index.rename(c)]
 
