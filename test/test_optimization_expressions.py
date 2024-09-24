@@ -47,7 +47,10 @@ def test_statistics_capacity(prepared_network, groupby, include_non_extendable):
     )
 
 
-# @pytest.mark.parametrize("groupby", groupers)
-# def test_statistics_opex(prepared_network, groupby):
-#     n = prepared_network
-#     n.optimize.statistic_expressions.opex(groupby=groupby)
+@pytest.mark.parametrize("aggregate_time", ["sum", "mean", None])
+@pytest.mark.parametrize("groupby", groupers)
+def test_statistics_opex(prepared_network, groupby, aggregate_time):
+    n = prepared_network
+    n.optimize.statistic_expressions.opex(
+        groupby=groupby, aggregate_time=aggregate_time
+    )

@@ -21,7 +21,6 @@ import pandas as pd
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     Groupers,
-    aggregate_timeseries,
     get_carrier,
     get_carrier_and_bus_carrier,
     get_operation,
@@ -56,6 +55,32 @@ def get_grouping(
         grouper = by
 
     return grouper.rename_axis("name")
+
+
+def aggregate_timeseries(
+    expr: ln.LinearExpression, weights: pd.Series, agg: str | bool = "sum"
+) -> pd.Series:
+    """
+    Calculate the weighted sum or average of a DataFrame or Series.
+    """
+    if isinstance(expr.indexes["snapshot"], pd.MultiIndex):
+        if agg == "mean":
+            weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
+            return (expr * weights).groupby(level=0).sum().T
+        elif agg == "sum":
+            return (expr * weights).groupby(level=0).sum().T
+        elif not agg:
+            return expr
+    else:
+        if agg == "mean":
+            return expr @ (weights / weights.sum())
+        elif agg == "sum":
+            return expr @ weights
+        elif not agg:
+            return expr
+    raise ValueError(
+        f"Aggregation '{agg}' not supported. Use 'mean', 'sum' or False/None."
+    )
 
 
 def filter_active_assets(n, c, expr: Union[ln.Variable, ln.LinearExpression]):
@@ -317,10 +342,9 @@ class StatisticExpressionsAccessor:
 
         @pass_none_if_keyerror
         def func(n: "Network", c: str, port: str) -> pd.Series | None:
-            attr = lookup.query("not nominal and marginal_cost")[c]
+            attr = lookup.query("not nominal and marginal_cost").loc[c].index.item()
             if attr is None:
                 return None
-
             var = n.model.variables[f"{c}-{attr}"]
             opex = var * n.get_switchable_as_dense(c, "marginal_cost")
             weights = get_weightings(n, c)
