@@ -60,31 +60,22 @@ def get_switchable_as_dense(
     --------
     >>> get_switchable_as_dense(n, 'Generator', 'p_max_pu')
     """
-    static = n.static(component)
-    dynamic = n.dynamic(component)
-
-    index = static.index
-
-    varying_i = dynamic[attr].columns
-    fixed_i = static.index.difference(varying_i)
-
-    if inds is not None:
-        index = index.intersection(inds)
-        varying_i = varying_i.intersection(inds)
-        fixed_i = fixed_i.intersection(inds)
     if snapshots is None:
         snapshots = n.snapshots
 
-    vals = np.repeat([static.loc[fixed_i, attr].values], len(snapshots), axis=0)
-    static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
-    varying = dynamic[attr].loc[snapshots, varying_i]
+    static = n.static(component)[attr]
+    empty = pd.DataFrame(index=snapshots)
+    dynamic = n.dynamic(component).get(attr, empty).loc[snapshots]
 
-    res = pd.merge(static, varying, left_index=True, right_index=True, how="inner")
-    del static
-    del varying
-    res = res.reindex(columns=index)
-    res.index.name = "snapshot"  # reindex with multiindex does not preserve name
+    index = static.index
+    if inds is not None:
+        index = index.intersection(inds)
 
+    diff = index.difference(dynamic.columns)
+    static_to_dynamic = pd.DataFrame({**static[diff]}, index=snapshots)
+    res = pd.concat([dynamic, static_to_dynamic], axis=1)[index]
+    res.index.name = "snapshot"
+    res.columns.name = component
     return res
 
 

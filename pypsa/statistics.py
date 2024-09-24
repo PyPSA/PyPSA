@@ -141,16 +141,20 @@ def get_weightings(n: Network, c: str) -> pd.Series:
         return n.snapshot_weightings["objective"]
 
 
-def port_efficiency(n: Network, c: str, port: str = "") -> pd.Series:
-    ones = pd.Series(1, index=n.df(c).index)
+def port_efficiency(
+    n: Network, c_name: str, port: str = "", dynamic=False
+) -> pd.Series | pd.DataFrame:
+    ones = pd.Series(1, index=n.df(c_name).index)
     if port == "":
         efficiency = ones
     elif port == "0":
         efficiency = -ones
-    elif port == "1":
-        efficiency = n.static(c).get("efficiency", ones)
     else:
-        efficiency = n.static(c).get(f"efficiency{port}", ones)
+        key = "efficiency" if port == "1" else f"efficiency{port}"
+        if dynamic and key in n.static(c_name):
+            efficiency = n.get_switchable_as_dense(c_name, key)
+        else:
+            efficiency = n.static(c_name).get(key, ones)
     return efficiency
 
 
