@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Statistics Accessor.
 """
-
 
 __author__ = (
     "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
@@ -13,9 +11,9 @@ __copyright__ = (
 )
 
 import logging
+from collections.abc import Collection, Sequence
 from functools import wraps
-from inspect import signature
-from typing import Union
+from typing import TYPE_CHECKING, Callable, Union
 
 import linopy as ln
 import pandas as pd
@@ -36,28 +34,29 @@ from pypsa.statistics import (
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from pypsa import Network
 
-def get_grouping(n, c, groupby, port=None, nice_names=False) -> Union[pd.Series, list]:
-    # This version should ensure a return type of pandas DataFrame which is
-    # nicely processed by linopy
-    if callable(groupby):
-        if "port" in signature(groupby).parameters:
-            grouper = groupby(n, c, port=port, nice_names=nice_names)
-        else:
-            grouper = groupby(n, c, nice_names=nice_names)
-    elif isinstance(groupby, list):
-        grouper = [n.df(c)[key] for key in groupby]
-    elif isinstance(groupby, str):
-        grouper = n.df(c)[[groupby]]
+
+def get_grouping(
+    n: "Network",
+    c: str,
+    groupby: Callable | Sequence[str] | str | bool,
+    port: str | None = None,
+    nice_names: bool = False,
+) -> pd.DataFrame:
+    from pypsa.statistics import get_grouping
+
+    result = get_grouping(n, c, groupby, port, nice_names)
+    by = result["by"]
+
+    if isinstance(by, list):
+        grouper = pd.concat(by, axis=1)
+    elif isinstance(by, pd.Series):
+        grouper = by.to_frame()
     else:
-        raise ValueError(
-            "Argument `groupby` must be a function, list, "
-            "string, got {type(groupby)}"
-        )
-    if isinstance(grouper, list):
-        grouper = pd.concat(grouper, axis=1)
-    elif isinstance(grouper, pd.Series):
-        grouper = grouper.to_frame()
+        grouper = by
+
     return grouper.rename_axis("name")
 
 
@@ -69,7 +68,7 @@ def filter_active_assets(n, c, expr: Union[ln.Variable, ln.LinearExpression]):
         return expr
     per_period = {}
     for p in n.investment_periods:
-        idx = n.get_active_assets(c, p)[lambda x: x].index.intersection(expr.index)
+        idx = n.get_active_assets(c, p)[lambda x: x].index.intersection(expr.indexes[c])
         per_period[p] = expr.loc[idx]
     return ln.merge(per_period.values(), keys=per_period.keys(), dim=c)
 
@@ -78,7 +77,7 @@ def filter_bus_carrier(
     n,
     c: str,
     port: str,
-    bus_carrier: str,
+    bus_carrier: str | list[str],
     expr: Union[ln.Variable, ln.LinearExpression],
 ):
     """
@@ -88,7 +87,7 @@ def filter_bus_carrier(
     if bus_carrier is None:
         return expr
 
-    ports = n.df(c).loc[expr.index, f"bus{port}"]
+    ports = n.df(c).loc[expr.indexes[c], f"bus{port}"]
     port_carriers = ports.map(n.buses.carrier)
     if isinstance(bus_carrier, str):
         if bus_carrier in n.buses.carrier.unique():
@@ -102,72 +101,6 @@ def filter_bus_carrier(
             f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
         )
     return expr.loc[idx]
-
-
-def aggregate_components(
-    n,
-    func,
-    agg="sum",
-    comps=None,
-    groupby=None,
-    at_port=None,
-    bus_carrier=None,
-    nice_names=True,
-):
-    """
-    Apply a function and group the result for a collection of components.
-    """
-    res = []
-    if not getattr(n, "model"):
-        raise ValueError("Model not created. Run `n.optimize.create_model()` first.")
-
-    if agg != "sum":
-        raise ValueError("Only 'sum' aggregation of components is supported.")
-
-    if is_one_component := isinstance(comps, str):
-        comps = [comps]
-    if comps is None:
-        comps = n.branch_components | n.one_port_components
-    if groupby is None:
-        groupby = get_carrier
-    for c in comps:
-        if n.df(c).empty:
-            continue
-
-        ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
-        if not at_port:
-            ports = [ports[0]]
-
-        exprs = []
-        for port in ports:
-            vals = func(n, c, port)
-            if vals is None or vals.empty():
-                continue
-            vals = filter_active_assets(n, c, vals)  # for multiinvest
-            vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
-            vals = vals.rename({c: "name"})
-
-            if groupby is not False:
-                grouping = get_grouping(n, c, groupby, port=port, nice_names=nice_names)
-                grouping.insert(0, "component", c)  # for tracking the component
-                vals = vals.groupby(grouping).sum()
-            elif not is_one_component:
-                vals = vals.expand_dims({"component": [c]}).stack(
-                    group=["component", "name"]
-                )
-            exprs.append(vals)
-
-        if not len(exprs):
-            continue
-
-        expr = ln.merge(exprs)
-        res.append(expr)
-
-    if res == {}:
-        return ln.LinearExpression(None, n.model)
-    if is_one_component:
-        return res[0]
-    return ln.merge(res, dim="group")
 
 
 def pass_none_if_keyerror(func):
@@ -190,78 +123,76 @@ class StatisticExpressionsAccessor:
         self._parent = network
         self.groupers = Groupers()  # Create an instance of the Groupers class
 
-    def __call__(
+    def _aggregate_components(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=get_carrier,
-        nice_names=True,
-        **kwargs,
+        func: Callable,
+        agg: Callable | str | bool = "sum",
+        comps: Collection[str] | str | None = None,
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = True,
     ):
         """
-        Calculate statistical values for a network.
-
-        This function calls multiple function in the background in order to
-        derive a full table of relevant network information. It groups the
-        values to components according to the groupby argument.
-
-        Parameters
-        ----------
-        comps: list-like
-            Set of components to consider. Defaults to one-port and branch
-            components.
-        aggregate_groups : str, optional
-            Type of aggregation when component groups. The default is 'sum'.
-        groupby : callable, list, str, optional
-            Specification how to group assets within one component class.
-            If a function is passed, it should have the arguments network and
-            component name. If a list is passed it should contain
-            column names of the static DataFrame, same for a single string.
-            Defaults to `get_carrier`.
-        nice_names : bool, optional
-            Whether to use the nice names of the carrier. Defaults to True.
-
-        Returns
-        -------
-        df :
-            pandas.DataFrame with columns given the different quantities.
+        Apply a function and group the result for a collection of components.
         """
-        if "aggregate_time" in kwargs:
-            logger.warning(
-                "Argument 'aggregate_time' ignored in overview table. Falling back to individual function defaults."
+        n = self._parent
+
+        res = []
+        if not getattr(n, "model"):
+            raise ValueError(
+                "Model not created. Run `n.optimize.create_model()` first."
             )
-            kwargs.pop("aggregate_time")
 
-        # TODO replace dispatch by energy_balance
+        if agg != "sum":
+            raise ValueError("Only 'sum' aggregation of components is supported.")
 
-        funcs = [
-            self.optimal_capacity,
-            self.installed_capacity,
-            self.supply,
-            self.withdrawal,
-            self.dispatch,
-            self.transmission,
-            self.capacity_factor,
-            self.curtailment,
-            self.capex,
-            self.opex,
-            self.revenue,
-            self.market_value,
-        ]
+        if is_one_component := isinstance(comps, str):
+            comps = [comps]
+        if comps is None:
+            comps = n.branch_components | n.one_port_components
+        if groupby is None:
+            groupby = get_carrier
+        for c in comps:
+            if n.df(c).empty:
+                continue
 
-        res = {}
-        for func in funcs:
-            df = func(
-                comps=comps,
-                aggregate_groups=aggregate_groups,
-                groupby=groupby,
-                nice_names=nice_names,
-                **kwargs,
-            )
-            res[df.attrs["name"]] = df
-        index = pd.Index(set.union(*[set(df.index) for df in res.values()]))
-        res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
-        return pd.concat(res, axis=1).sort_index(axis=0)
+            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            if not at_port:
+                ports = [ports[0]]
+
+            exprs = []
+            for port in ports:
+                vals = func(n, c, port)
+                if vals is None or vals.empty():
+                    continue
+                vals = filter_active_assets(n, c, vals)  # for multiinvest
+                vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
+                vals = vals.rename({c: "name"})
+
+                if groupby is not False:
+                    grouping = get_grouping(
+                        n, c, groupby, port=port, nice_names=nice_names
+                    )
+                    grouping.insert(0, "component", c)  # for tracking the component
+                    vals = vals.groupby(grouping).sum()
+                elif not is_one_component:
+                    vals = vals.expand_dims({"component": [c]}).stack(
+                        group=["component", "name"]
+                    )
+                exprs.append(vals)
+
+            if not len(exprs):
+                continue
+
+            expr = ln.merge(exprs)
+            res.append(expr)
+
+        if res == {}:
+            return ln.LinearExpression(None, n.model)
+        if is_one_component:
+            return res[0]
+        return ln.merge(res, dim="group")
 
     def capex(
         self,
@@ -281,7 +212,6 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         @pass_none_if_keyerror
         def func(n, c, port):
@@ -291,8 +221,7 @@ class StatisticExpressionsAccessor:
             capacity = capacity.rename({f"{c}-ext": c})
             return capacity * costs[capacity.indexes[c]]
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -301,8 +230,6 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        # df.attrs["name"] = "Capital Expenditure"
-        # df.attrs["unit"] = "currency"
         return df
 
     def installed_capex(
@@ -321,15 +248,13 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         @pass_none_if_keyerror
         def func(n, c, port):
             col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -402,7 +327,6 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         if storage:
             comps = ("Store", "StorageUnit")
@@ -415,8 +339,7 @@ class StatisticExpressionsAccessor:
                 col = col * n.df(c).max_hours
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -451,7 +374,6 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        n = self._parent
 
         if storage:
             comps = ("Store", "StorageUnit")
@@ -464,8 +386,7 @@ class StatisticExpressionsAccessor:
                 col = col * n.df(c).max_hours
             return col
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -544,7 +465,6 @@ class StatisticExpressionsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated
             using snapshot weightings. With False the time series is given. Defaults to 'sum'.
         """
-        n = self._parent
 
         @pass_none_if_keyerror
         def func(n, c, port):
@@ -559,8 +479,7 @@ class StatisticExpressionsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(opex, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -729,8 +648,7 @@ class StatisticExpressionsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -813,8 +731,7 @@ class StatisticExpressionsAccessor:
                 )
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -859,7 +776,6 @@ class StatisticExpressionsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        n = self._parent
 
         @pass_none_if_keyerror
         def func(n, c, port):
@@ -867,8 +783,7 @@ class StatisticExpressionsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -907,7 +822,6 @@ class StatisticExpressionsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
         """
-        n = self._parent
 
         @pass_none_if_keyerror
         def func(n, c, port):
@@ -922,7 +836,7 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = aggregate_components(n, func, agg=aggregate_groups, **kwargs)
+        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
@@ -962,7 +876,6 @@ class StatisticExpressionsAccessor:
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
             If 'output' only the revenue of the output is considered. Defaults to None.
         """
-        n = self._parent
 
         @pass_none_if_keyerror
         def func(n, c, port):
@@ -985,8 +898,7 @@ class StatisticExpressionsAccessor:
             weights = get_weightings(n, c)
             return aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
-        df = aggregate_components(
-            n,
+        df = self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,

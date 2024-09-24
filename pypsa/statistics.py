@@ -202,7 +202,7 @@ def get_grouping(
     groupby: Callable | Sequence[str] | str | bool,
     port: str | None = None,
     nice_names: bool = False,
-) -> pd.Series | list:
+) -> dict:
     by = None
     level = None
     if callable(groupby):
