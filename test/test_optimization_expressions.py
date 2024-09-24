@@ -33,7 +33,7 @@ def prepared_network(ac_dc_network):
 @pytest.mark.parametrize("include_non_extendable", [True, False])
 def test_statistics_capex(prepared_network, groupby, include_non_extendable):
     n = prepared_network
-    n.optimize.statistic_expressions.capex(
+    n.optimize.expressions.capex(
         groupby=groupby, include_non_extendable=include_non_extendable
     )
 
@@ -42,7 +42,7 @@ def test_statistics_capex(prepared_network, groupby, include_non_extendable):
 @pytest.mark.parametrize("include_non_extendable", [True, False])
 def test_statistics_capacity(prepared_network, groupby, include_non_extendable):
     n = prepared_network
-    n.optimize.statistic_expressions.capacity(
+    n.optimize.expressions.capacity(
         groupby=groupby, include_non_extendable=include_non_extendable
     )
 
@@ -51,6 +51,41 @@ def test_statistics_capacity(prepared_network, groupby, include_non_extendable):
 @pytest.mark.parametrize("groupby", groupers)
 def test_statistics_opex(prepared_network, groupby, aggregate_time):
     n = prepared_network
-    n.optimize.statistic_expressions.opex(
+    n.optimize.expressions.opex(groupby=groupby, aggregate_time=aggregate_time)
+
+
+@pytest.mark.parametrize("aggregate_time", ["sum", "mean", None])
+@pytest.mark.parametrize("groupby", groupers)
+def test_statistics_supply(prepared_network, groupby, aggregate_time):
+    n = prepared_network
+    n.optimize.expressions.opex(groupby=groupby, aggregate_time=aggregate_time)
+
+
+@pytest.mark.parametrize("aggregate_time", ["sum", "mean", None])
+@pytest.mark.parametrize("groupby", groupers)
+def test_statistics_transmission(prepared_network, groupby, aggregate_time):
+    n = prepared_network
+    n.optimize.expressions.transmission(groupby=groupby, aggregate_time=aggregate_time)
+
+
+@pytest.mark.parametrize("aggregate_time", ["sum", "mean", None])
+@pytest.mark.parametrize("groupby", groupers)
+def test_statistics_energy_balance(prepared_network, groupby, aggregate_time):
+    n = prepared_network
+    n.optimize.expressions.energy_balance(
         groupby=groupby, aggregate_time=aggregate_time
     )
+
+
+@pytest.mark.parametrize("aggregate_time", ["sum", "mean", None])
+@pytest.mark.parametrize("groupby", groupers)
+def test_statistics_curtailment(prepared_network, groupby, aggregate_time):
+    n = prepared_network
+    n.optimize.expressions.curtailment(groupby=groupby, aggregate_time=aggregate_time)
+
+
+@pytest.mark.parametrize("aggregate_time", ["sum", "mean", None])
+@pytest.mark.parametrize("groupby", groupers)
+def test_statistics_operation(prepared_network, groupby, aggregate_time):
+    n = prepared_network
+    n.optimize.expressions.operation(groupby=groupby, aggregate_time=aggregate_time)
