@@ -17,13 +17,11 @@ from typing import TYPE_CHECKING, Callable, Union
 
 import linopy as ln
 import pandas as pd
-from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     Groupers,
     aggregate_timeseries,
-    get_bus_and_carrier_and_bus_carrier,
     get_carrier,
     get_carrier_and_bus_carrier,
     get_operation,
@@ -196,13 +194,15 @@ class StatisticExpressionsAccessor:
 
     def capex(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        cost_attribute: str = "capital_cost",
+        include_non_extendable: bool = True,
+    ) -> ln.LinearExpression:
         """
         Calculate the capital expenditure of the network in given currency.
 
@@ -216,12 +216,15 @@ class StatisticExpressionsAccessor:
         @pass_none_if_keyerror
         def func(n, c, port):
             m = n.model
-            costs = n.df(c)["capital_cost"]
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             capacity = capacity.rename({f"{c}-ext": c})
-            return capacity * costs[capacity.indexes[c]]
+            if include_non_extendable:
+                query = f"~{nominal_attrs[c]}_extendable"
+                capacity = capacity + n.df(c).query(query)["p_nom"]
+            costs = n.df(c)[cost_attribute][capacity.indexes[c]]
+            return capacity * costs
 
-        df = self._aggregate_components(
+        return self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -230,91 +233,18 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        return df
 
-    def installed_capex(
+    def capacity(
         self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=True,
-    ):
-        """
-        Calculate the capital expenditure of already built components of the
-        network in given currency.
-
-        For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
-        """
-
-        @pass_none_if_keyerror
-        def func(n, c, port):
-            col = n.df(c).eval(f"{nominal_attrs[c]} * capital_cost")
-            return col
-
-        df = self._aggregate_components(
-            func,
-            comps=comps,
-            agg=aggregate_groups,
-            groupby=groupby,
-            at_port=at_port,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-        )
-        df.attrs["name"] = "Capital Expenditure Fixed"
-        df.attrs["unit"] = "currency"
-        return df
-
-    def expanded_capex(
-        self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=True,
-    ):
-        """
-        Calculate the capex of expanded capacities of the network components in
-        currency.
-
-        For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
-        """
-        df = self.capex(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
-            groupby=groupby,
-            at_port=at_port,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-        ).sub(
-            self.installed_capex(
-                comps=comps,
-                aggregate_groups=aggregate_groups,
-                groupby=groupby,
-                at_port=at_port,
-                bus_carrier=bus_carrier,
-                nice_names=nice_names,
-            ),
-            fill_value=0,
-        )
-        df.attrs["name"] = "Capital Expenditure Expanded"
-        df.attrs["unit"] = "currency"
-        return df
-
-    def optimal_capacity(
-        self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        storage=False,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        storage: bool = False,
+        nice_names: bool | None = None,
+        include_non_extendable: bool = True,
+    ) -> ln.LinearExpression:
         """
         Calculate the optimal capacity of the network components in MW.
 
@@ -330,16 +260,24 @@ class StatisticExpressionsAccessor:
 
         if storage:
             comps = ("Store", "StorageUnit")
+        if bus_carrier and at_port is None:
+            at_port = True
 
         @pass_none_if_keyerror
         def func(n, c, port):
-            efficiency = abs(port_efficiency(n, c, port=port))
-            col = n.df(c)[f"{nominal_attrs[c]}_opt"] * efficiency
+            m = n.model
+            capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
+            capacity = capacity.rename({f"{c}-ext": c})
+            if include_non_extendable:
+                query = f"~{nominal_attrs[c]}_extendable"
+                capacity = capacity + n.df(c).query(query)["p_nom"]
+            efficiency = port_efficiency(n, c, port=port)[capacity.indexes[c]]
+            res = capacity * efficiency
             if storage and (c == "StorageUnit"):
-                col = col * n.df(c).max_hours
-            return col
+                res = res * n.df(c).max_hours
+            return res
 
-        df = self._aggregate_components(
+        return self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -348,107 +286,17 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df.attrs["name"] = "Optimal Capacity"
-        df.attrs["unit"] = "MW"
-        return df
-
-    def installed_capacity(
-        self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        storage=False,
-        nice_names=True,
-    ):
-        """
-        Calculate the installed capacity of the network components in MW.
-
-        If `at_port` is True, the capacity is weighed by the output efficiency
-        of components at buses with carrier `bus_carrier`.
-
-        If storage is set to True, only storage capacities of the component
-        `Store` and `StorageUnit` are taken into account.
-
-        For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
-        """
-
-        if storage:
-            comps = ("Store", "StorageUnit")
-
-        @pass_none_if_keyerror
-        def func(n, c, port):
-            efficiency = abs(port_efficiency(n, c, port=port))
-            col = n.df(c)[f"{nominal_attrs[c]}"] * efficiency
-            if storage and (c == "StorageUnit"):
-                col = col * n.df(c).max_hours
-            return col
-
-        df = self._aggregate_components(
-            func,
-            comps=comps,
-            agg=aggregate_groups,
-            groupby=groupby,
-            at_port=at_port,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-        )
-        df.attrs["name"] = "Installed Capacity"
-        df.attrs["unit"] = "MW"
-        return df
-
-    def expanded_capacity(
-        self,
-        comps=None,
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=True,
-    ):
-        """
-        Calculate the expanded capacity of the network components in MW.
-
-        If `bus_carrier` is given, the capacity is weighed by the output efficiency
-        of components at buses with carrier `bus_carrier`.
-
-        For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
-        """
-        df = self.optimal_capacity(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
-            groupby=groupby,
-            at_port=at_port,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-        ).sub(
-            self.installed_capacity(
-                comps=comps,
-                aggregate_groups=aggregate_groups,
-                groupby=groupby,
-                at_port=at_port,
-                bus_carrier=bus_carrier,
-                nice_names=nice_names,
-            ),
-            fill_value=0,
-        )
-        df.attrs["name"] = "Expanded Capacity"
-        df.attrs["unit"] = "MW"
-        return df
 
     def opex(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the operational expenditure in the network in given currency.
 
@@ -463,23 +311,22 @@ class StatisticExpressionsAccessor:
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated
-            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
+            using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
         """
+        from pypsa.optimization.optimize import lookup
 
         @pass_none_if_keyerror
-        def func(n, c, port):
-            if c in n.branch_components:
-                p = n.pnl(c).p0
-            elif c == "StorageUnit":
-                p = n.pnl(c).p_dispatch
-            else:
-                p = n.pnl(c).p
+        def func(n: "Network", c: str, port: str) -> pd.Series | None:
+            attr = lookup.query("not nominal and marginal_cost")[c]
+            if attr is None:
+                return None
 
-            opex = p * n.get_switchable_as_dense(c, "marginal_cost")
+            var = n.model.variables[f"{c}-{attr}"]
+            opex = var * n.get_switchable_as_dense(c, "marginal_cost")
             weights = get_weightings(n, c)
             return aggregate_timeseries(opex, weights, agg=aggregate_time)
 
-        df = self._aggregate_components(
+        return self._aggregate_components(
             func,
             comps=comps,
             agg=aggregate_groups,
@@ -488,20 +335,17 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df.attrs["name"] = "Operational Expenditure"
-        df.attrs["unit"] = "currency"
-        return df
 
     def supply(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the supply of components in the network. Units depend on the
         regarded bus carrier.
@@ -512,7 +356,6 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-
         df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -529,14 +372,14 @@ class StatisticExpressionsAccessor:
 
     def withdrawal(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the withdrawal of components in the network. Units depend on
         the regarded bus carrier.
@@ -547,7 +390,6 @@ class StatisticExpressionsAccessor:
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-
         df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -562,63 +404,16 @@ class StatisticExpressionsAccessor:
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    # TODO: remove in 0.29
-    @deprecated(
-        deprecated_in="0.28", removed_in="0.29", details="Use 'energy_balance' instead."
-    )
-    def dispatch(
-        self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=True,
-        kind=None,
-    ):
-        """
-        Calculate the dispatch of components in the network. Units depend on
-        the regarded bus carrier.
-
-        If `bus_carrier` is given, only the dispatch to and from buses with
-        carrier `bus_carrier` is calculated.
-
-        For information on the list of arguments, see the docs in
-        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
-
-        Parameters
-        ----------
-        aggregate_time : str, bool, optional
-            Type of aggregation when aggregating time series.
-            Note that for {'mean', 'sum'} the time series are aggregated to MWh
-            using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
-        """
-
-        df = self.energy_balance(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
-            groupby=groupby,
-            at_port=at_port,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            kind=kind,
-        )
-        df.attrs["name"] = "Dispatch"
-        df.attrs["unit"] = "carrier dependent"
-        return df
-
     def transmission(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Collection[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the transmission of branch components in the network. Units
         depend on the regarded bus carrier.
@@ -637,13 +432,14 @@ class StatisticExpressionsAccessor:
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         n = self._parent
+
         if comps is None:
             comps = n.branch_components
 
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
         @pass_none_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             p = n.pnl(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -663,16 +459,15 @@ class StatisticExpressionsAccessor:
 
     def energy_balance(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        aggregate_bus=True,
-        groupby=get_carrier_and_bus_carrier,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=True,
-        kind=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = get_carrier_and_bus_carrier,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        kind: str | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the energy balance of components in the network. Positive
         values represent a supply and negative a withdrawal. Units depend on
@@ -682,7 +477,7 @@ class StatisticExpressionsAccessor:
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
         Additional parameter
-        ----------
+        --------------------
         aggregate_bus: bool, optional
             Whether to obtain the nodal or carrier-wise energy balance. Default is True, corresponding to the carrier-wise balance.
         aggregate_time : str, bool, optional
@@ -690,7 +485,6 @@ class StatisticExpressionsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-
         n = self._parent
 
         if (
@@ -702,22 +496,8 @@ class StatisticExpressionsAccessor:
                 "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
             )
 
-        # TODO remove aggregate_bus in 0.29
-        if not aggregate_bus:
-            if groupby != get_carrier_and_bus_carrier:
-                logger.warning(
-                    "Argument 'groupby' is ignored when 'aggregate_bus' is set to True. Falling back to default."
-                )
-            logger.warning(
-                "Argument 'aggregate_bus' is deprecated in 0.28 and will be removed in 0.29. Use grouper `get_bus_and_carrier_and_bus_carrier` instead."
-            )
-            switch = True
-            groupby = get_bus_and_carrier_and_bus_carrier
-        else:
-            switch = False
-
         @pass_none_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             p = sign * n.pnl(c)[f"p{port}"]
@@ -741,22 +521,20 @@ class StatisticExpressionsAccessor:
             nice_names=nice_names,
         )
 
-        if switch:
-            df = df.reorder_levels(["component", "carrier", "bus_carrier", "bus"])
         df.attrs["name"] = "Energy Balance"
         df.attrs["unit"] = "carrier dependent"
         return df
 
     def curtailment(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=False,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = False,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the curtailment of components in the network in MWh.
 
@@ -778,8 +556,11 @@ class StatisticExpressionsAccessor:
         """
 
         @pass_none_if_keyerror
-        def func(n, c, port):
-            p = (n.pnl(c).p_max_pu * n.df(c).p_nom_opt - n.pnl(c).p).clip(lower=0)
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            p = (
+                n.get_switchable_as_dense(c, "p_max_pu") * n.df(c).p_nom_opt
+                - n.pnl(c).p
+            ).clip(lower=0)
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -798,14 +579,14 @@ class StatisticExpressionsAccessor:
 
     def capacity_factor(
         self,
-        comps=None,
-        aggregate_time="mean",
-        aggregate_groups="sum",
-        at_port=False,
-        groupby=None,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "mean",
+        aggregate_groups: Callable | str | bool = "sum",
+        at_port: Sequence[str] | str | bool = False,
+        groupby: Callable | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the capacity factor of components in the network.
 
@@ -823,8 +604,9 @@ class StatisticExpressionsAccessor:
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
         """
 
+        # TODO: Why not just take p_max_pu, s_max_pu, etc. directly from the network?
         @pass_none_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -836,8 +618,8 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)
-        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
+        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
+        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)  # type: ignore
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
@@ -845,15 +627,15 @@ class StatisticExpressionsAccessor:
 
     def revenue(
         self,
-        comps=None,
-        aggregate_time="sum",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=True,
-        kind=None,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+        kind: str | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the revenue of components in the network in given currency.
         The revenue is defined as the net revenue of an asset, i.e cost of input - revenue of output.
@@ -871,14 +653,15 @@ class StatisticExpressionsAccessor:
         aggregate_time : str, bool, optional
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to
-            using snapshot weightings. With False the time series is given. Defaults to 'sum'.
+            using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
         kind : str, optional
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
             If 'output' only the revenue of the output is considered. Defaults to None.
+
         """
 
         @pass_none_if_keyerror
-        def func(n, c, port):
+        def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             df = sign * n.pnl(c)[f"p{port}"]
             buses = n.df(c)[f"bus{port}"][df.columns]
@@ -913,14 +696,14 @@ class StatisticExpressionsAccessor:
 
     def market_value(
         self,
-        comps=None,
-        aggregate_time="mean",
-        aggregate_groups="sum",
-        groupby=None,
-        at_port=True,
-        bus_carrier=None,
-        nice_names=True,
-    ):
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "mean",
+        aggregate_groups: Callable | str | bool = "sum",
+        groupby: Callable | None = None,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
         """
         Calculate the market value of components in the network in given
         currency/MWh or currency/unit_{bus_carrier} where unit_{bus_carrier} is
@@ -948,7 +731,7 @@ class StatisticExpressionsAccessor:
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)
+        df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
