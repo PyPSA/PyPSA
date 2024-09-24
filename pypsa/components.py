@@ -1819,7 +1819,7 @@ class StochasticNetwork(Network):
             snapshots = self.snapshots
 
         static = self.df(component)[attr]
-        dynamic = self.pnl(component)[attr]
+        dynamic = self.pnl(component).get(attr, pd.DataFrame(index=snapshots))
 
         index = static.index
         if inds is not None:

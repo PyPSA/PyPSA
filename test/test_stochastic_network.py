@@ -8,6 +8,8 @@ import pypsa
 @pytest.fixture
 def stochastic_network(ac_dc_network):
     scenarios = {"scenario_1": 0.5, "scenario_2": 0.5}
+    if ac_dc_network.storage_units.empty:
+        ac_dc_network.add("StorageUnit", "storage", bus="Frankfurt", p_nom=1)
     return pypsa.StochasticNetwork(ac_dc_network, scenarios)
 
 
