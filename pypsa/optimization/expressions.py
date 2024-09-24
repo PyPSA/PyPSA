@@ -13,7 +13,7 @@ __copyright__ = (
 import logging
 from collections.abc import Collection, Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Any, Callable, Union
 
 import linopy as ln
 import pandas as pd
@@ -22,6 +22,7 @@ from xarray import DataArray
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     Groupers,
+    Parameters,
     get_carrier,
     get_carrier_and_bus_carrier,
     get_transmission_branches,
@@ -93,7 +94,9 @@ def aggregate_timeseries(
     )
 
 
-def filter_active_assets(n, c, expr: Union[ln.Variable, ln.LinearExpression]):
+def filter_active_assets(
+    n: "Network", c: str, expr: Union[ln.Variable, ln.LinearExpression]
+) -> Union[ln.Variable, ln.LinearExpression]:
     """
     For static values iterate over periods and concat values.
     """
@@ -107,12 +110,12 @@ def filter_active_assets(n, c, expr: Union[ln.Variable, ln.LinearExpression]):
 
 
 def filter_bus_carrier(
-    n,
+    n: "Network",
     c: str,
     port: str,
-    bus_carrier: str | list[str],
+    bus_carrier: Sequence[str] | str | None,
     expr: Union[ln.Variable, ln.LinearExpression],
-):
+) -> Union[ln.Variable, ln.LinearExpression]:
     """
     Filter the DataFrame for components which are connected to a bus with
     carrier `bus_carrier`.
@@ -126,7 +129,7 @@ def filter_bus_carrier(
         if bus_carrier in n.buses.carrier.unique():
             idx = (port_carriers == bus_carrier)[lambda x: x].index
         else:
-            idx = (bus_carrier in port_carriers)[lambda x: x].index
+            idx = port_carriers.str.contains(bus_carrier)[lambda x: x].index
     elif isinstance(bus_carrier, list):
         idx = port_carriers.isin(bus_carrier)[lambda x: x].index
     else:
@@ -136,9 +139,9 @@ def filter_bus_carrier(
     return expr.loc[idx]
 
 
-def pass_none_if_keyerror(func):
+def pass_none_if_keyerror(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except (KeyError, AttributeError):
@@ -156,9 +159,10 @@ class StatisticExpressionsAccessor:
     The results are aggregated by the given groupby function.
     """
 
-    def __init__(self, network):
+    def __init__(self, network: "Network") -> None:
         self._parent = network
         self.groupers = Groupers()  # Create an instance of the Groupers class
+        self.parameters = Parameters()  # Create an instance of the Parameters class
 
     def _aggregate_components(
         self,
@@ -169,7 +173,7 @@ class StatisticExpressionsAccessor:
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = True,
-    ):
+    ) -> ln.LinearExpression:
         """
         Apply a function and group the result for a collection of components.
         """
@@ -190,6 +194,8 @@ class StatisticExpressionsAccessor:
             comps = n.branch_components | n.one_port_components
         if groupby is None:
             groupby = get_carrier
+        if nice_names is None:
+            nice_names = self.parameters.nice_names
         for c in comps:
             if n.df(c).empty:
                 continue
@@ -253,7 +259,7 @@ class StatisticExpressionsAccessor:
         """
 
         @pass_none_if_keyerror
-        def func(n, c, port):
+        def func(n: "Network", c: str, port: str) -> pd.Series | None:
             m = n.model
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             capacity = capacity.rename({f"{c}-ext": c})
@@ -303,7 +309,7 @@ class StatisticExpressionsAccessor:
             at_port = True
 
         @pass_none_if_keyerror
-        def func(n, c, port):
+        def func(n: "Network", c: str, port: str) -> pd.Series | None:
             m = n.model
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             capacity = capacity.rename({f"{c}-ext": c})

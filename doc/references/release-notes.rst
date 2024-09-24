@@ -24,6 +24,8 @@ Upcoming Release
 * The `Component` object was refactored as a stand-alone class.
 * The `Network` class has a new method `component` to access component objects. Use it with e.g. `n.component("Generator")`. 
 * The `Subnetwork` class has new methods `df`, `pnl`, `component` to ease the access of component data for a subnetwork. Use it with e.g. `subnetwork.df("Generator")` and alike.  
+* A new module `pypsa.optimize.expressions` was added. It contains functions to quickly create expressions for the optimization model. The behavior of the functions is mirroring the behavior of the `statistics` module and allows for similar complexity in grouping and filtering. Use it with e.g. `n.optimize.expressions.energy_balance()`.
+
 
 v0.30.3 (24th September 2024)
 =============================

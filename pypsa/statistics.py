@@ -142,7 +142,7 @@ def get_weightings(n: Network, c: str) -> pd.Series:
 
 
 def port_efficiency(
-    n: Network, c: str, port: str = "", dynamic=False
+    n: Network, c: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
     ones = pd.Series(1, index=n.df(c).index)
     if port == "":
