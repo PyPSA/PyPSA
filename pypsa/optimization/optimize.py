@@ -40,6 +40,7 @@ from pypsa.optimization.constraints import (
     define_ramp_limit_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_generators_constraints,
 )
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
@@ -306,6 +307,7 @@ def create_model(
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
+    define_generators_constraints(n, sns)
 
     if transmission_losses:
         for c in n.passive_branch_components:

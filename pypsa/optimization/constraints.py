@@ -969,3 +969,23 @@ def define_loss_constraints(
             n.model.add_constraints(
                 lhs >= offset_k, name=f"{c}-loss_tangents-{k}-{sign}", mask=active
             )
+
+
+def define_generators_constraints(n, sns) -> None:
+    m = n.model
+    c = "Generator"
+    assets = n.df(c)
+
+    if assets.empty:
+        return
+
+    # gens where p_sum is greater than zero
+    constrained = assets[assets.p_sum > 0].index
+
+    p = m[f"{c}-p"].loc[sns, constrained].sum(dim="snapshot")
+    p_sum = n.df(c).loc[constrained, "p_sum"]
+
+    # I want to constraint the sum of all generation timesteps to be greater or equal equal to the p_sum of the components
+    lhs = p
+    rhs = p_sum
+    m.add_constraints(lhs, ">=", rhs, name=f"{c}-p_sum")
