@@ -141,6 +141,9 @@ jobs:
         python -m pip install uv
         uv pip install --system nbmake requests
         uv pip install --system "$(ls dist/*.whl)[dev]"
+        
+        # TODO: Remove once types in linopy are resolved
+        uv pip install --system linopy==0.3.14 --reinstall
 
     - name: Run type checker (mypy)
       run: |
