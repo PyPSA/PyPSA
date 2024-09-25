@@ -29,6 +29,7 @@ from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
+    define_generators_constraints,
     define_kirchhoff_voltage_constraints,
     define_loss_constraints,
     define_modular_constraints,
@@ -40,7 +41,6 @@ from pypsa.optimization.constraints import (
     define_ramp_limit_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
-    define_generators_constraints,
 )
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
