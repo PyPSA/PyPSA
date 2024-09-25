@@ -540,14 +540,14 @@ def get_clustering_from_busmap(
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
-        new_df, new_dynamic = aggregateoneport(
+        new_static, new_dynamic = aggregateoneport(
             n,
             busmap,
             component=one_port,
             with_time=with_time,
             custom_strategies=one_port_strategies.get(one_port, {}),
         )
-        io._import_components_from_df(clustered, new_df, one_port)
+        io._import_components_from_df(clustered, new_static, one_port)
         for attr, df in new_dynamic.items():
             io._import_series_from_df(clustered, df, one_port, attr)
 
