@@ -1823,7 +1823,7 @@ class StochasticNetwork(Network):
 
         index = static.index
         if inds is not None:
-            index = index.intersection(static.index)
+            index = index.intersection(inds)
 
         diff = index.difference(dynamic.columns)
         static_to_dynamic = static.T[diff].reindex(snapshots, level="scenario")
