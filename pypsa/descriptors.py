@@ -28,8 +28,8 @@ class OrderedGraph(nx.MultiGraph):
 
 
 def get_switchable_as_dense(
-    network: Network,
-    component: str,
+    n: Network,
+    c_name: str,
     attr: str,
     snapshots: Sequence | None = None,
     inds: pd.Index | None = None,
@@ -41,7 +41,7 @@ def get_switchable_as_dense(
 
     Parameters
     ----------
-    network : pypsa.Network
+    n : pypsa.Network
     component : string
         Component object name, e.g. 'Generator' or 'Link'
     attr : string
@@ -59,31 +59,22 @@ def get_switchable_as_dense(
     --------
     >>> get_switchable_as_dense(network, 'Generator', 'p_max_pu')
     """
-    df = network.df(component)
-    pnl = network.pnl(component)
+    if snapshots is None:
+        snapshots = n.snapshots
 
-    index = df.index
+    static = n.df(c_name)[attr]
+    empty = pd.DataFrame(index=snapshots)
+    dynamic = n.pnl(c_name).get(attr, empty).loc[snapshots]
 
-    varying_i = pnl[attr].columns
-    fixed_i = df.index.difference(varying_i)
-
+    index = static.index
     if inds is not None:
         index = index.intersection(inds)
-        varying_i = varying_i.intersection(inds)
-        fixed_i = fixed_i.intersection(inds)
-    if snapshots is None:
-        snapshots = network.snapshots
 
-    vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
-    static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
-    varying = pnl[attr].loc[snapshots, varying_i]
-
-    res = pd.merge(static, varying, left_index=True, right_index=True, how="inner")
-    del static
-    del varying
-    res = res.reindex(columns=index)
-    res.index.name = "snapshot"  # reindex with multiindex does not preserve name
-
+    diff = index.difference(dynamic.columns)
+    static_to_dynamic = pd.DataFrame({**static[diff]}, index=snapshots)
+    res = pd.concat([dynamic, static_to_dynamic], axis=1)[index]
+    res.index.name = "snapshot"
+    res.columns.name = c_name
     return res
 
 
