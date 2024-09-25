@@ -57,6 +57,24 @@ class Component:
             f"dynamic=Keys({list(self.dynamic.keys())}))"
         )
 
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `c.static` instead.",
+    # )
+    @property
+    def df(self) -> pd.DataFrame:
+        return self.static
+
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `c.dynamic` instead.",
+    # )
+    @property
+    def pnl(self) -> Dict:
+        return self.dynamic
+
     def get_active_assets(
         self,
         investment_period: int | str | Sequence | None = None,

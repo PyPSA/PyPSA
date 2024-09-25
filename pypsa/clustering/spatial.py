@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
 
@@ -455,6 +456,15 @@ class Clustering:
     n: Any
     busmap: pd.Series
     linemap: pd.Series
+
+    @property
+    @deprecated(
+        deprecated_in="0.32",
+        removed_in="1.0",
+        details="Use `clustering.n` instead.",
+    )
+    def network(self) -> Network:
+        return self.n
 
 
 def get_clustering_from_busmap(
