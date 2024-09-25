@@ -1705,7 +1705,7 @@ class StochasticNetwork(Network):
 
         for c in n.iterate_components():
             scenario_df = {s: c.df for s in scenarios}
-            df = pd.concat(scenario_df, names=["scenario", "attr"], axis=1)
+            df = pd.concat(scenario_df, names=["scenario", "attribute"], axis=1)
             df = df.swaplevel(axis=1)
 
             pnl = Dict()
@@ -1915,16 +1915,18 @@ class StochasticNetwork(Network):
 
         Get the index of committable elements of a given component. Adapted for StochasticNetwork.
         """
-        if "committable" not in n.df(c):
-            idx = pd.Index([])
+
+        df = n.df(c)
+
+        if "committable" not in df.columns.get_level_values("attribute"):
+            return pd.Index([]).rename(f"{c}-com")
+
+        if "scenario" in df.columns.names:
+            committable_df = df.xs("committable", axis=1, level="attribute")
+            idx = committable_df.any(axis=1)[lambda x: x].index
         else:
-            idx = (
-                n.df(c)
-                .pipe(lambda ds: ds["committable"])
-                .any(axis=1)
-                .loc[lambda x: x]
-                .index
-            )
+            idx = df[lambda ds: ds["committable"]].index
+
         return idx.rename(f"{c}-com")
 
     def get_extendable_i(n: Network, c: str) -> pd.Index:
@@ -1932,13 +1934,18 @@ class StochasticNetwork(Network):
         Getter function.
         Get the index of extendable elements of a given component. Adapted for StochasticNetwork.
         """
-        idx = (
-            n.df(c)
-            .pipe(lambda ds: ds[nominal_attrs[c] + "_extendable"])
-            .any(axis=1)
-            .loc[lambda x: x]
-            .index
-        )
+        df = n.df(c)
+        if "scenario" in df.columns:
+            idx = (
+                n.df(c)
+                .pipe(lambda ds: ds[nominal_attrs[c] + "_extendable"])
+                .any(axis=1)
+                .loc[lambda x: x]
+                .index
+            )
+        else:
+            idx = n.df(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
+
         return idx.rename(f"{c}-ext")
 
     def get_non_extendable_i(n: Network, c: str) -> pd.Index:
@@ -1946,13 +1953,17 @@ class StochasticNetwork(Network):
         Getter function.
         Get the index of non-extendable elements of a given component. Adapted for StochasticNetwork.
         """
-        idx = (
-            n.df(c)
-            .pipe(lambda ds: ~ds[nominal_attrs[c] + "_extendable"])
-            .all(axis=1)
-            .loc[lambda x: x]
-            .index
-        )
+        df = n.df(c)
+        if "scenario" in df.columns:
+            idx = (
+                df.pipe(lambda ds: ~ds[nominal_attrs[c] + "_extendable"])
+                .all(axis=1)
+                .loc[lambda x: x]
+                .index
+            )
+        else:
+            idx = df[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
+
         return idx.rename(f"{c}-fix")
 
     @property
