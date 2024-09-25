@@ -53,8 +53,8 @@ from pypsa.descriptors import (
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
-    _import_components_from_dataframe,
-    _import_series_from_dataframe,
+    _import_components_from_df,
+    _import_series_from_df,
     export_to_csv_folder,
     export_to_hdf5,
     export_to_netcdf,
@@ -227,9 +227,9 @@ class Network:
     import_from_pypower_ppc = import_from_pypower_ppc
     import_from_pandapower_net = import_from_pandapower_net
     merge = merge
-    _import_components_from_dataframe = _import_components_from_dataframe
+    _import_components_from_df = _import_components_from_df
     import_components_from_dataframe = import_components_from_dataframe  # Deprecated
-    _import_series_from_dataframe = _import_series_from_dataframe
+    _import_series_from_df = _import_series_from_df
     import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
     # from pypsa.pf
@@ -369,7 +369,7 @@ class Network:
             self.component_attrs[component] = attrs
             self.components[component]["attrs"] = attrs
 
-        self._build_dataframes()
+        self._build_dfs()
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -464,7 +464,7 @@ class Network:
             return False
         return True
 
-    def _build_dataframes(self) -> None:
+    def _build_dfs(self) -> None:
         """
         Function called when network is created to build component
         pandas.DataFrames.
@@ -512,7 +512,7 @@ class Network:
                 file_name, index_col=0
             )
 
-            self._import_components_from_dataframe(
+            self._import_components_from_df(
                 self.components[std_type]["standard_types"], std_type
             )
 
@@ -1048,13 +1048,11 @@ class Network:
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        self._import_components_from_dataframe(
-            static_df, class_name, overwrite=overwrite
-        )
+        self._import_components_from_df(static_df, class_name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
-            self._import_series_from_dataframe(v, class_name, k, overwrite=overwrite)
+            self._import_series_from_df(v, class_name, k, overwrite=overwrite)
 
         return names
 
@@ -1322,7 +1320,7 @@ class Network:
             else:
                 static = component.static
 
-            _import_components_from_dataframe(n, static, component.name)
+            _import_components_from_df(n, static, component.name)
 
         # Copy time-varying data, if given
 
@@ -1403,7 +1401,7 @@ class Network:
             override_components=override_components,
             override_component_attrs=override_component_attrs,
         )
-        n._import_components_from_dataframe(
+        n._import_components_from_df(
             pd.DataFrame(self.buses.loc[key]).assign(sub_network=""), "Bus"
         )
         buses_i = n.buses.index
@@ -1415,21 +1413,21 @@ class Network:
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n._import_components_from_dataframe(pd.DataFrame(self.static(c)), c)
+            n._import_components_from_df(pd.DataFrame(self.static(c)), c)
 
         for c in self.standard_type_components:
             static = self.static(c).drop(self.components[c]["standard_types"].index)
-            n._import_components_from_dataframe(pd.DataFrame(static), c)
+            n._import_components_from_df(pd.DataFrame(static), c)
 
         for c in self.one_port_components:
             static = self.static(c).loc[lambda df: df.bus.isin(buses_i)]
-            n._import_components_from_dataframe(pd.DataFrame(static), c)
+            n._import_components_from_df(pd.DataFrame(static), c)
 
         for c in self.branch_components:
             static = self.static(c).loc[
                 lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
             ]
-            n._import_components_from_dataframe(pd.DataFrame(static), c)
+            n._import_components_from_df(pd.DataFrame(static), c)
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:

@@ -915,12 +915,12 @@ def _import_from_importer(
         if component == "Link":
             update_linkports_component_attrs(n, where=df)
 
-        _import_components_from_dataframe(n, df, component)
+        _import_components_from_df(n, df, component)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
                 df.set_index(n.snapshots, inplace=True)
-                _import_series_from_dataframe(n, df, component, attr)
+                _import_series_from_df(n, df, component, attr)
 
         logger.debug(getattr(n, list_name))
 
@@ -1004,7 +1004,7 @@ def import_components_from_dataframe(
     --------
     pypsa.Network.madd
     """
-    _import_components_from_dataframe(n, dataframe, cls_name)
+    _import_components_from_df(n, dataframe, cls_name)
 
 
 @deprecated(
@@ -1047,11 +1047,11 @@ def import_series_from_dataframe(
 
     --------
     """
-    _import_series_from_dataframe(n, dataframe, cls_name, attr)
+    _import_series_from_df(n, dataframe, cls_name, attr)
 
 
-def _import_components_from_dataframe(
-    n: Network, dataframe: pd.DataFrame, cls_name: str, overwrite: bool = False
+def _import_components_from_df(
+    n: Network, df: pd.DataFrame, cls_name: str, overwrite: bool = False
 ) -> None:
     """
     Import components from a pandas DataFrame.
@@ -1062,7 +1062,7 @@ def _import_components_from_dataframe(
 
     Parameters
     ----------
-    dataframe : pandas.DataFrame
+    df : pandas.DataFrame
         A DataFrame whose index is the names of the components and
         whose columns are the non-default attributes.
     cls_name : string
@@ -1074,44 +1074,44 @@ def _import_components_from_dataframe(
     non_static_attrs = attrs[~attrs.static]
 
     if cls_name == "Link":
-        update_linkports_component_attrs(n, where=dataframe)
+        update_linkports_component_attrs(n, where=df)
 
     # Clean dataframe and ensure correct types
-    dataframe = pd.DataFrame(dataframe)
-    dataframe.index = dataframe.index.astype(str)
+    df = pd.DataFrame(df)
+    df.index = df.index.astype(str)
 
     # Fill nan values with default values
-    dataframe = dataframe.fillna(attrs["default"].to_dict())
+    df = df.fillna(attrs["default"].to_dict())
 
     for k in static_attrs.index:
-        if k not in dataframe.columns:
-            dataframe[k] = static_attrs.at[k, "default"]
+        if k not in df.columns:
+            df[k] = static_attrs.at[k, "default"]
         else:
             if static_attrs.at[k, "type"] == "string":
-                dataframe[k] = dataframe[k].replace({np.nan: ""})
+                df[k] = df[k].replace({np.nan: ""})
             if static_attrs.at[k, "type"] == "int":
-                dataframe[k] = dataframe[k].fillna(0)
-            if dataframe[k].dtype != static_attrs.at[k, "typ"]:
+                df[k] = df[k].fillna(0)
+            if df[k].dtype != static_attrs.at[k, "typ"]:
                 if static_attrs.at[k, "type"] == "geometry":
-                    geometry = dataframe[k].replace({"": None, np.nan: None})
+                    geometry = df[k].replace({"": None, np.nan: None})
                     from shapely.geometry.base import BaseGeometry
 
                     if geometry.apply(lambda x: isinstance(x, BaseGeometry)).all():
-                        dataframe[k] = gpd.GeoSeries(geometry)
+                        df[k] = gpd.GeoSeries(geometry)
                     else:
-                        dataframe[k] = gpd.GeoSeries.from_wkt(geometry)
+                        df[k] = gpd.GeoSeries.from_wkt(geometry)
                 else:
-                    dataframe[k] = dataframe[k].astype(static_attrs.at[k, "typ"])
+                    df[k] = df[k].astype(static_attrs.at[k, "typ"])
 
     # check all the buses are well-defined
     # TODO use func from consistency checks
-    for attr in [attr for attr in dataframe if attr.startswith("bus")]:
+    for attr in [attr for attr in df if attr.startswith("bus")]:
         # allow empty buses for multi-ports
         port = int(attr[-1]) if attr[-1].isdigit() else 0
-        mask = ~dataframe[attr].isin(n.buses.index)
+        mask = ~df[attr].isin(n.buses.index)
         if port > 1:
-            mask &= dataframe[attr].ne("")
-        missing = dataframe.index[mask]
+            mask &= df[attr].ne("")
+        missing = df.index[mask]
         if len(missing) > 0:
             logger.warning(
                 "The following %s have buses which are not defined:\n%s",
@@ -1119,9 +1119,9 @@ def _import_components_from_dataframe(
                 missing,
             )
 
-    non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
+    non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
     old_static = n.static(cls_name)
-    new_static = dataframe.drop(non_static_attrs_in_df, axis=1)
+    new_static = df.drop(non_static_attrs_in_df, axis=1)
 
     # Handle duplicates
     duplicated_components = old_static.index.intersection(new_static.index)
@@ -1160,17 +1160,17 @@ def _import_components_from_dataframe(
             columns=new_static.index, fill_value=non_static_attrs.at[k, "default"]
         )
         if overwrite:
-            pnl[k].loc[:, dataframe.index] = dataframe.loc[:, k].values
+            pnl[k].loc[:, df.index] = df.loc[:, k].values
         else:
-            new_components = dataframe.index.difference(duplicated_components)
-            pnl[k].loc[:, new_components] = dataframe.loc[new_components, k].values
+            new_components = df.index.difference(duplicated_components)
+            pnl[k].loc[:, new_components] = df.loc[new_components, k].values
 
     setattr(n, n.components[cls_name]["list_name"] + "_t", pnl)
 
 
-def _import_series_from_dataframe(
+def _import_series_from_df(
     n: Network,
-    dataframe: pd.DataFrame,
+    df: pd.DataFrame,
     cls_name: str,
     attr: str,
     overwrite: bool = False,
@@ -1180,7 +1180,7 @@ def _import_series_from_dataframe(
 
     Parameters
     ----------
-    dataframe : pandas.DataFrame
+    df : pandas.DataFrame
         A DataFrame whose index is ``n.snapshots`` and
         whose columns are a subset of the relevant components.
     cls_name : string
@@ -1194,17 +1194,15 @@ def _import_series_from_dataframe(
 
     if not overwrite:
         try:
-            dataframe = dataframe.drop(
-                dataframe.columns.intersection(pnl[attr].columns), axis=1
-            )
+            df = df.drop(df.columns.intersection(pnl[attr].columns), axis=1)
         except KeyError:
             pass  # Don't drop any columns if the data doesn't exist yet
 
-    dataframe.columns.name = cls_name
-    dataframe.index.name = "snapshot"
+    df.columns.name = cls_name
+    df.index.name = "snapshot"
 
-    # Check if components exist in static dataframe
-    diff = dataframe.columns.difference(static.index)
+    # Check if components exist in static df
+    diff = df.columns.difference(static.index)
     if len(diff) > 0:
         logger.warning(
             f"Components {diff} for attribute {attr} of {cls_name} "
@@ -1218,31 +1216,27 @@ def _import_series_from_dataframe(
     expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
     if attr not in expected_attrs:
         if overwrite or attr not in pnl:
-            pnl[attr] = dataframe
+            pnl[attr] = df
         return
 
     # Check if any snapshots are missing
-    diff = n.snapshots.difference(dataframe.index)
+    diff = n.snapshots.difference(df.index)
     if len(diff):
         logger.warning(
             f"Snapshots {diff} are missing from {attr} of {cls_name}."
             f" Filling with default value '{attrs.loc[attr].default}'"
         )
-        dataframe = dataframe.reindex(n.snapshots, fill_value=attrs.loc[attr].default)
+        df = df.reindex(n.snapshots, fill_value=attrs.loc[attr].default)
 
     if not attrs.loc[attr].static:
         pnl[attr] = pnl[attr].reindex(
-            columns=dataframe.columns.union(static.index),
+            columns=df.columns.union(static.index),
             fill_value=attrs.loc[attr].default,
         )
     else:
-        pnl[attr] = pnl[attr].reindex(
-            columns=(dataframe.columns.union(pnl[attr].columns))
-        )
+        pnl[attr] = pnl[attr].reindex(columns=(df.columns.union(pnl[attr].columns)))
 
-    pnl[attr].loc[n.snapshots, dataframe.columns] = dataframe.loc[
-        n.snapshots, dataframe.columns
-    ]
+    pnl[attr].loc[n.snapshots, df.columns] = df.loc[n.snapshots, df.columns]
 
 
 def merge(
@@ -1307,10 +1301,10 @@ def merge(
             f"{new.srid}, {other.srid}. Assuming {new.srid}."
         )
     for c in other.iterate_components(to_iterate_list):
-        new._import_components_from_dataframe(c.static, c.name)
+        new._import_components_from_df(c.static, c.name)
         if with_time:
             for k, v in c.pnl.items():
-                new._import_series_from_dataframe(v, c.name, k)
+                new._import_series_from_df(v, c.name, k)
 
     return None if inplace else new
 
@@ -1514,7 +1508,7 @@ def import_from_pypower_ppc(
         "Transformer",
         "ShuntImpedance",
     ]:
-        _import_components_from_dataframe(
+        _import_components_from_df(
             n, pdf[n.components[component]["list_name"]], component
         )
 
@@ -1729,7 +1723,7 @@ def import_from_pandapower_net(
         "Transformer",
         "ShuntImpedance",
     ]:
-        n._import_components_from_dataframe(d[component_name], component_name)
+        n._import_components_from_df(d[component_name], component_name)
 
     # amalgamate buses connected by closed switches
 

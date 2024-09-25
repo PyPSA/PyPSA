@@ -490,8 +490,8 @@ def get_clustering_from_busmap(
 
     clustered = Network()
 
-    io._import_components_from_dataframe(clustered, buses, "Bus")
-    io._import_components_from_dataframe(clustered, lines, "Line")
+    io._import_components_from_df(clustered, buses, "Bus")
+    io._import_components_from_df(clustered, lines, "Line")
 
     # Carry forward global constraints to clustered n.
     clustered.global_constraints = n.global_constraints
@@ -506,7 +506,7 @@ def get_clustering_from_busmap(
             )
         for attr, df in lines_t.items():
             if not df.empty:
-                io._import_series_from_dataframe(clustered, df, "Line", attr)
+                io._import_series_from_df(clustered, df, "Line", attr)
 
     one_port_components = n.one_port_components.copy()
 
@@ -522,11 +522,11 @@ def get_clustering_from_busmap(
             with_time=with_time,
             custom_strategies=generator_strategies,
         )
-        io._import_components_from_dataframe(clustered, generators, "Generator")
+        io._import_components_from_df(clustered, generators, "Generator")
         if with_time:
             for attr, df in generators_pnl.items():
                 if not df.empty:
-                    io._import_series_from_dataframe(clustered, df, "Generator", attr)
+                    io._import_series_from_df(clustered, df, "Generator", attr)
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
@@ -537,14 +537,14 @@ def get_clustering_from_busmap(
             with_time=with_time,
             custom_strategies=one_port_strategies.get(one_port, {}),
         )
-        io._import_components_from_dataframe(clustered, new_df, one_port)
+        io._import_components_from_df(clustered, new_df, one_port)
         for attr, df in new_pnl.items():
-            io._import_series_from_dataframe(clustered, df, one_port, attr)
+            io._import_series_from_df(clustered, df, one_port, attr)
 
     # Collect remaining one ports
 
     for c in n.iterate_components(one_port_components):
-        io._import_components_from_dataframe(
+        io._import_components_from_df(
             clustered,
             c.static.assign(bus=c.static.bus.map(busmap)).dropna(subset=["bus"]),
             c.name,
@@ -554,7 +554,7 @@ def get_clustering_from_busmap(
         for c in n.iterate_components(one_port_components):
             for attr, df in c.pnl.items():
                 if not df.empty:
-                    io._import_series_from_dataframe(clustered, df, c.name, attr)
+                    io._import_series_from_df(clustered, df, c.name, attr)
 
     new_links = (
         n.links.assign(bus0=n.links.bus0.map(busmap), bus1=n.links.bus1.map(busmap))
@@ -574,14 +574,14 @@ def get_clustering_from_busmap(
     if scale_link_capital_costs:
         new_links["capital_cost"] *= (new_links.length / n.links.length).fillna(1)
 
-    io._import_components_from_dataframe(clustered, new_links, "Link")
+    io._import_components_from_df(clustered, new_links, "Link")
 
     if with_time:
         for attr, df in n.links_t.items():
             if not df.empty:
-                io._import_series_from_dataframe(clustered, df, "Link", attr)
+                io._import_series_from_df(clustered, df, "Link", attr)
 
-    io._import_components_from_dataframe(clustered, n.carriers, "Carrier")
+    io._import_components_from_df(clustered, n.carriers, "Carrier")
 
     clustered.determine_network_topology()
 
