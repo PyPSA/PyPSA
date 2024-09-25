@@ -538,42 +538,42 @@ def _export_to_exporter(
         list_name = n.components[component]["list_name"]
         attrs = n.components[component]["attrs"]
 
-        df = n.df(component)
+        static = n.static(component)
         pnl = n.pnl(component)
 
         if component == "Shape":
-            df = pd.DataFrame(df).assign(geometry=df["geometry"].to_wkt())
+            static = pd.DataFrame(static).assign(geometry=static["geometry"].to_wkt())
 
         if not export_standard_types and component in n.standard_type_components:
-            df = df.drop(n.components[component]["standard_types"].index)
+            static = static.drop(n.components[component]["standard_types"].index)
 
         # first do static attributes
-        df = df.rename_axis(index="name")
-        if df.empty:
+        static = static.rename_axis(index="name")
+        if static.empty:
             exporter.remove_static(list_name)
             continue
 
         col_export = []
-        for col in df.columns:
+        for col in static.columns:
             # do not export derived attributes
             if col in ["sub_network", "r_pu", "x_pu", "g_pu", "b_pu"]:
                 continue
             if (
                 col in attrs.index
                 and pd.isnull(attrs.at[col, "default"])
-                and pd.isnull(df[col]).all()
+                and pd.isnull(static[col]).all()
             ):
                 continue
             if (
                 col in attrs.index
-                and df[col].dtype == attrs.at[col, "dtype"]
-                and (df[col] == attrs.at[col, "default"]).all()
+                and static[col].dtype == attrs.at[col, "dtype"]
+                and (static[col] == attrs.at[col, "default"]).all()
             ):
                 continue
 
             col_export.append(col)
 
-        exporter.save_static(list_name, df[col_export])
+        exporter.save_static(list_name, static[col_export])
 
         # now do varying attributes
         for attr in pnl:
@@ -588,8 +588,8 @@ def _export_to_exporter(
                     col_export = pnl[attr].columns[(pnl[attr] != default).any()]
 
             if len(col_export) > 0:
-                df = pnl[attr].reset_index()[col_export]
-                exporter.save_series(list_name, attr, df)
+                static = pnl[attr].reset_index()[col_export]
+                exporter.save_series(list_name, attr, static)
             else:
                 exporter.remove_series(list_name, attr)
 
@@ -1120,11 +1120,11 @@ def _import_components_from_dataframe(
             )
 
     non_static_attrs_in_df = non_static_attrs.index.intersection(dataframe.columns)
-    old_df = n.df(cls_name)
-    new_df = dataframe.drop(non_static_attrs_in_df, axis=1)
+    old_static = n.static(cls_name)
+    new_static = dataframe.drop(non_static_attrs_in_df, axis=1)
 
     # Handle duplicates
-    duplicated_components = old_df.index.intersection(new_df.index)
+    duplicated_components = old_static.index.intersection(new_static.index)
     if len(duplicated_components) > 0:
         if not overwrite:
             logger.warning(
@@ -1133,22 +1133,22 @@ def _import_components_from_dataframe(
                 n.components[cls_name]["list_name"],
                 ", ".join(duplicated_components),
             )
-            new_df = new_df.drop(duplicated_components)
+            new_static = new_static.drop(duplicated_components)
         else:
-            old_df = old_df.drop(duplicated_components)
+            old_static = old_static.drop(duplicated_components)
 
     # Concatenate to new dataframe
-    if not old_df.empty:
-        new_df = pd.concat((old_df, new_df), sort=False)
+    if not old_static.empty:
+        new_static = pd.concat((old_static, new_static), sort=False)
 
     if cls_name == "Shape":
-        new_df = gpd.GeoDataFrame(new_df, crs=n.crs)
+        new_static = gpd.GeoDataFrame(new_static, crs=n.crs)
 
     # Align index (component names) and columns (attributes)
-    new_df = _sort_attrs(new_df, attrs.index, axis=1)
+    new_static = _sort_attrs(new_static, attrs.index, axis=1)
 
-    new_df.index.name = cls_name
-    setattr(n, n.components[cls_name]["list_name"], new_df)
+    new_static.index.name = cls_name
+    setattr(n, n.components[cls_name]["list_name"], new_static)
 
     # Now deal with time-dependent properties
 
@@ -1157,7 +1157,7 @@ def _import_components_from_dataframe(
     for k in non_static_attrs_in_df:
         # If reading in outputs, fill the outputs
         pnl[k] = pnl[k].reindex(
-            columns=new_df.index, fill_value=non_static_attrs.at[k, "default"]
+            columns=new_static.index, fill_value=non_static_attrs.at[k, "default"]
         )
         if overwrite:
             pnl[k].loc[:, dataframe.index] = dataframe.loc[:, k].values
@@ -1188,7 +1188,7 @@ def _import_series_from_dataframe(
     attr : string
         Name of time-varying series attribute
     """
-    df = n.df(cls_name)
+    static = n.static(cls_name)
     pnl = n.pnl(cls_name)
     list_name = n.components[cls_name]["list_name"]
 
@@ -1204,7 +1204,7 @@ def _import_series_from_dataframe(
     dataframe.index.name = "snapshot"
 
     # Check if components exist in static dataframe
-    diff = dataframe.columns.difference(df.index)
+    diff = dataframe.columns.difference(static.index)
     if len(diff) > 0:
         logger.warning(
             f"Components {diff} for attribute {attr} of {cls_name} "
@@ -1232,7 +1232,7 @@ def _import_series_from_dataframe(
 
     if not attrs.loc[attr].static:
         pnl[attr] = pnl[attr].reindex(
-            columns=dataframe.columns.union(df.index),
+            columns=dataframe.columns.union(static.index),
             fill_value=attrs.loc[attr].default,
         )
     else:
@@ -1289,7 +1289,7 @@ def merge(
     # ensure buses are merged first
     to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
     for c in other.iterate_components(to_iterate_list):
-        if not c.df.index.intersection(n.df(c.name).index).empty:
+        if not c.static.index.intersection(n.static(c.name).index).empty:
             msg = f"Component {c.name} has overlapping indices, cannot merge networks."
             raise ValueError(msg)
     if with_time:
@@ -1307,7 +1307,7 @@ def merge(
             f"{new.srid}, {other.srid}. Assuming {new.srid}."
         )
     for c in other.iterate_components(to_iterate_list):
-        new._import_components_from_dataframe(c.df, c.name)
+        new._import_components_from_dataframe(c.static, c.name)
         if with_time:
             for k, v in c.pnl.items():
                 new._import_series_from_dataframe(v, c.name, k)
@@ -1744,8 +1744,8 @@ def import_from_pandapower_net(
         n.remove("Bus", i)
 
     for component in n.iterate_components({"Load", "Generator", "ShuntImpedance"}):
-        component.df.replace({"bus": to_replace}, inplace=True)
+        component.static.replace({"bus": to_replace}, inplace=True)
 
     for component in n.iterate_components({"Line", "Transformer"}):
-        component.df.replace({"bus0": to_replace}, inplace=True)
-        component.df.replace({"bus1": to_replace}, inplace=True)
+        component.static.replace({"bus0": to_replace}, inplace=True)
+        component.static.replace({"bus1": to_replace}, inplace=True)

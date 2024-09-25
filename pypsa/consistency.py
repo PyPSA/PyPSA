@@ -37,16 +37,16 @@ def check_for_unknown_buses(n: Network, component: Component) -> None:
         The component to check.
 
     """
-    for attr in _bus_columns(component.df):
-        missing = ~component.df[attr].isin(n.buses.index)
+    for attr in _bus_columns(component.static):
+        missing = ~component.static[attr].isin(n.buses.index)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
-            missing &= component.df[attr] != ""
+            missing &= component.static[attr] != ""
         if missing.any():
             logger.warning(
                 "The following %s have buses which are not defined:\n%s",
                 component.list_name,
-                component.df.index[missing],
+                component.static.index[missing],
             )
 
 
@@ -63,8 +63,8 @@ def check_for_disconnected_buses(n: Network) -> None:
     """
     connected_buses = set()
     for component in n.iterate_components():
-        for attr in _bus_columns(component.df):
-            connected_buses.update(component.df[attr])
+        for attr in _bus_columns(component.static):
+            connected_buses.update(component.static[attr])
 
     disconnected_buses = set(n.buses.index) - connected_buses
     if disconnected_buses:
@@ -88,17 +88,17 @@ def check_for_unknown_carriers(n: Network, component: Component) -> None:
         The component to check.
 
     """
-    if "carrier" in component.df.columns:
+    if "carrier" in component.static.columns:
         missing = (
-            ~component.df["carrier"].isin(n.carriers.index)
-            & component.df["carrier"].notna()
-            & (component.df["carrier"] != "")
+            ~component.static["carrier"].isin(n.carriers.index)
+            & component.static["carrier"].notna()
+            & (component.static["carrier"] != "")
         )
         if missing.any():
             logger.warning(
                 "The following %s have carriers which are not defined:\n%s",
                 component.list_name,
-                component.df.index[missing],
+                component.static.index[missing],
             )
 
 
@@ -117,14 +117,14 @@ def check_for_zero_impedances(n: Network, component: Component) -> None:
     """
     if component.name in n.passive_branch_components:
         for attr in ["x", "r"]:
-            bad = component.df[attr] == 0
+            bad = component.static[attr] == 0
             if bad.any():
                 logger.warning(
                     "The following %s have zero %s, which "
                     "could break the linear load flow:\n%s",
                     component.list_name,
                     attr,
-                    component.df.index[bad],
+                    component.static.index[bad],
                 )
 
 
@@ -140,14 +140,14 @@ def check_for_zero_s_nom(component: Component) -> None:
 
     """
     if component.name in {"Transformer"}:
-        bad = component.df["s_nom"] == 0
+        bad = component.static["s_nom"] == 0
         if bad.any():
             logger.warning(
                 "The following %s have zero s_nom, which is used "
                 "to define the impedance and will thus break "
                 "the load flow:\n%s",
                 component.list_name,
-                component.df.index[bad],
+                component.static.index[bad],
             )
 
 
@@ -167,7 +167,7 @@ def check_time_series(n: Network, component: Component) -> None:
     for attr in component.attrs.index[component.attrs.varying & component.attrs.static]:
         attr_df = component.pnl[attr]
 
-        diff = attr_df.columns.difference(component.df.index)
+        diff = attr_df.columns.difference(component.static.index)
         if len(diff):
             logger.warning(
                 "The following %s have time series defined "
@@ -207,19 +207,23 @@ def check_static_power_attributes(n: Network, component: Component) -> None:
         static_attr = component.attrs.query("static").index.intersection(static_attrs)
         if len(static_attr):
             attr = static_attr[0]
-            bad = component.df[attr + "_max"] < component.df[attr + "_min"]
+            bad = component.static[attr + "_max"] < component.static[attr + "_min"]
             if bad.any():
                 logger.warning(
                     "The following %s have smaller maximum than "
                     "minimum expansion limit which can lead to "
                     "infeasibilty:\n%s",
                     component.list_name,
-                    component.df.index[bad],
+                    component.static.index[bad],
                 )
 
             attr = static_attr[0]
             for col in [attr + "_min", attr + "_max"]:
-                if component.df[col][component.df[attr + "_extendable"]].isna().any():
+                if (
+                    component.static[col][component.static[attr + "_extendable"]]
+                    .isna()
+                    .any()
+                ):
                     logger.warning(
                         "Encountered nan's in column %s of component '%s'.",
                         col,
@@ -332,14 +336,15 @@ def check_assets(n: Network, component: Component) -> None:
                 f"\n\n\t{', '.join(intersection)}"
             )
 
+
 @deprecated_common_kwargs
 def check_generators(component: Component) -> None:
     """Check static attrs p_now, s_nom, e_nom in generator components."""
     if component.name in {"Generator"}:
-        bad_uc_gens = component.df.index[
-            component.df.committable
-            & (component.df.up_time_before > 0)
-            & (component.df.down_time_before > 0)
+        bad_uc_gens = component.static.index[
+            component.static.committable
+            & (component.static.up_time_before > 0)
+            & (component.static.down_time_before > 0)
         ]
         if not bad_uc_gens.empty:
             logger.warning(
@@ -363,7 +368,7 @@ def check_dtypes_(component: Component) -> None:
 
     """
     dtypes_soll = component.attrs.loc[component.attrs["static"], "dtype"].drop("name")
-    unmatched = component.df.dtypes[dtypes_soll.index] != dtypes_soll
+    unmatched = component.static.dtypes[dtypes_soll.index] != dtypes_soll
 
     if unmatched.any():
         logger.warning(
@@ -372,7 +377,7 @@ def check_dtypes_(component: Component) -> None:
             "They are:\n%s\nbut should be:\n%s",
             component.list_name,
             unmatched.index[unmatched],
-            component.df.dtypes[dtypes_soll.index[unmatched]],
+            component.static.dtypes[dtypes_soll.index[unmatched]],
             dtypes_soll[unmatched],
         )
 
@@ -397,6 +402,7 @@ def check_dtypes_(component: Component) -> None:
                 component.pnl[attr].dtypes[unmatched],
                 typ,
             )
+
 
 @deprecated_common_kwargs
 def check_investment_periods(n: Network) -> None:
@@ -425,6 +431,7 @@ def check_investment_periods(n: Network) -> None:
             )
             raise ValueError(msg)
 
+
 @deprecated_common_kwargs
 def check_shapes(n: Network) -> None:
     """
@@ -441,7 +448,7 @@ def check_shapes(n: Network) -> None:
     shape_components = n.shapes.component.unique()
     for c in set(shape_components) & set(n.all_components):
         geos = n.shapes.query("component == @c")
-        not_included = geos.index[~geos.idx.isin(n.df(c).index)]
+        not_included = geos.index[~geos.idx.isin(n.static(c).index)]
 
         if not not_included.empty:
             logger.warning(
@@ -449,6 +456,7 @@ def check_shapes(n: Network) -> None:
                 f" idx values that are not included in the component's index:\n"
                 f"{not_included}"
             )
+
 
 @deprecated_common_kwargs
 def check_nans_for_component_default_attrs(n: Network, component: Component) -> None:
@@ -473,8 +481,8 @@ def check_nans_for_component_default_attrs(n: Network, component: Component) -> 
     ].index
 
     # Remove attributes that are not in the component's static data
-    relevant_static_df = component.df[
-        list(set(component.df.columns).intersection(not_null_component_attrs))
+    relevant_static_df = component.static[
+        list(set(component.static.columns).intersection(not_null_component_attrs))
     ]
 
     # Run the check for nan values on relevant static data

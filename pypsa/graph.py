@@ -74,8 +74,8 @@ def graph(
     # Multigraph uses the branch type and name as key
     def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
         for c in n.iterate_components(branch_components):
-            for branch in c.df.loc[
-                slice(None) if include_inactive else c.df.query("active").index
+            for branch in c.static.loc[
+                slice(None) if include_inactive else c.static.query("active").index
             ].itertuples():
                 if weight is None:
                     data = {}
@@ -144,11 +144,11 @@ def adjacency_matrix(
     weight_vals = []
     for c in n.iterate_components(branch_components):
         active = c.get_active_assets(investment_period)
-        sel = c.df[active].index
+        sel = c.static[active].index
 
-        no_branches = len(c.df.loc[sel])
-        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
+        no_branches = len(c.static.loc[sel])
+        bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
         weight_vals.append(
             np.ones(no_branches) if weights is None else weights[c.name][sel].values
         )
@@ -210,10 +210,10 @@ def incidence_matrix(
     bus0_inds = []
     bus1_inds = []
     for c in n.iterate_components(branch_components):
-        sel = c.df.query("active").index
-        no_branches += len(c.df.loc[sel])
-        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
+        sel = c.static.query("active").index
+        no_branches += len(c.static.loc[sel])
+        bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
     bus0_inds = np.concatenate(bus0_inds)
     bus1_inds = np.concatenate(bus1_inds)
 

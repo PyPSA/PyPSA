@@ -90,7 +90,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     constant = 0
     for c, attr in nom_attr:
         ext_i = n.get_extendable_i(c)
-        cost = n.df(c)["capital_cost"][ext_i]
+        cost = n.static(c)["capital_cost"][ext_i]
         if cost.empty:
             continue
 
@@ -107,7 +107,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             active = n.get_active_assets(c)[ext_i]
             cost = cost[active]
 
-        constant += (cost * n.df(c)[attr][ext_i]).sum()
+        constant += (cost * n.static(c)[attr][ext_i]).sum()
 
     n.objective_constant = constant
     if constant != 0:
@@ -136,7 +136,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # marginal cost quadratic
     for c, attr in lookup.query("marginal_cost").index:
-        if "marginal_cost_quadratic" in n.df(c):
+        if "marginal_cost_quadratic" in n.static(c):
             cost = (
                 get_as_dense(n, c, "marginal_cost_quadratic", sns)
                 .loc[:, lambda ds: (ds != 0).any()]
@@ -168,7 +168,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # investment
     for c, attr in nominal_attrs.items():
         ext_i = n.get_extendable_i(c)
-        cost = n.df(c)["capital_cost"][ext_i]
+        cost = n.static(c)["capital_cost"][ext_i]
         if cost.empty:
             continue
 
@@ -192,7 +192,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c, attr in lookup.query("variable in @keys").index:
         com_i = n.get_committable_i(c)
-        cost = n.df(c)[attr + "_cost"].reindex(com_i)
+        cost = n.static(c)[attr + "_cost"].reindex(com_i)
 
         if cost.sum():
             var = m[f"{c}-{attr}"]
@@ -362,17 +362,17 @@ def assign_solution(n: Network) -> None:
             else:
                 set_from_frame(n, c, attr, df)
         elif attr != "n_mod":
-            idx = df.index.intersection(n.df(c).index)
-            n.df(c).loc[idx, attr + "_opt"] = df.loc[idx]
+            idx = df.index.intersection(n.static(c).index)
+            n.static(c).loc[idx, attr + "_opt"] = df.loc[idx]
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
         fix_i = n.get_non_extendable_i(c)
         if not fix_i.empty:
-            n.df(c).loc[fix_i, f"{attr}_opt"] = n.df(c).loc[fix_i, attr]
+            n.static(c).loc[fix_i, f"{attr}_opt"] = n.static(c).loc[fix_i, attr]
 
     # recalculate storageunit net dispatch
-    if not n.df("StorageUnit").empty:
+    if not n.static("StorageUnit").empty:
         c = "StorageUnit"
         n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
 
@@ -415,7 +415,7 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
 
                 if attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
-                elif assign_all_duals or f"mu_{spec}" in n.df(c):
+                elif assign_all_duals or f"mu_{spec}" in n.static(c):
                     set_from_frame(n, c, "mu_" + spec, df)
                 else:
                     unassigned.append(name)
@@ -423,8 +423,10 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
             except:  # noqa: E722 # TODO: specify exception
                 unassigned.append(name)
 
-        elif (c == "GlobalConstraint") and (assign_all_duals or attr in n.df(c).index):
-            n.df(c).loc[attr, "mu"] = dual
+        elif (c == "GlobalConstraint") and (
+            assign_all_duals or attr in n.static(c).index
+        ):
+            n.static(c).loc[attr, "mu"] = dual
 
     if unassigned:
         logger.info(
@@ -478,12 +480,12 @@ def post_processing(n: Network) -> None:
         ca.append(("Link", f"p{i}", f"bus{i}"))
 
     def sign(c: str) -> int:
-        return n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+        return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
 
     n.buses_t.p = (
         pd.concat(
             [
-                n.pnl(c)[attr].mul(sign(c)).rename(columns=n.df(c)[group])
+                n.pnl(c)[attr].mul(sign(c)).rename(columns=n.static(c)[group])
                 for c, attr, group in ca
             ],
             axis=1,
@@ -718,8 +720,8 @@ class OptimizationAccessor:
         n = self.n
         for c, attr in nominal_attrs.items():
             ext_i = n.get_extendable_i(c)
-            n.df(c).loc[ext_i, attr] = n.df(c).loc[ext_i, attr + "_opt"]
-            n.df(c)[attr + "_extendable"] = False
+            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
+            n.static(c)[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """

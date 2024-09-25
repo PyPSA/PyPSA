@@ -83,20 +83,24 @@ def _calculate_controllable_nodal_power_balance(
             network.controllable_one_port_components
         ):
             c_n_set = get_as_dense(
-                network, c.name, power + "_set", snapshots, c.df.query("active").index
+                network,
+                c.name,
+                power + "_set",
+                snapshots,
+                c.static.query("active").index,
             )
-            network.pnl(c.name)[power].loc[snapshots, c.df.query("active").index] = (
-                c_n_set
-            )
+            network.pnl(c.name)[power].loc[
+                snapshots, c.static.query("active").index
+            ] = c_n_set
 
         # set the power injection at each node from controllable components
         network.buses_t[power].loc[snapshots, buses_o] = sum(
             (
                 (
-                    c.pnl[power].loc[snapshots, c.df.query("active").index]
-                    * c.df.loc[c.df.query("active").index, "sign"]
+                    c.pnl[power].loc[snapshots, c.static.query("active").index]
+                    * c.static.loc[c.static.query("active").index, "sign"]
                 )
-                .T.groupby(c.df.loc[c.df.query("active").index, "bus"])
+                .T.groupby(c.static.loc[c.static.query("active").index, "bus"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
             )
@@ -109,13 +113,13 @@ def _calculate_controllable_nodal_power_balance(
             network.buses_t[power].loc[snapshots, buses_o] += sum(
                 -c.pnl[power + str(i)]
                 .loc[snapshots]
-                .T.groupby(c.df[f"bus{str(i)}"])
+                .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0)
                 for c in network.iterate_components(
                     network.controllable_branch_components
                 )
-                for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
+                for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
             )
 
 
@@ -717,8 +721,8 @@ def sub_network_pf(
     branch_bus0 = []
     branch_bus1 = []
     for c in sub_network.iterate_components(n.passive_branch_components):
-        branch_bus0 += list(c.df.query("active").bus0)
-        branch_bus1 += list(c.df.query("active").bus1)
+        branch_bus0 += list(c.static.query("active").bus0)
+        branch_bus1 += list(c.static.query("active").bus1)
     v0 = V[:, buses_indexer(branch_bus0)]
     v1 = V[:, buses_indexer(branch_bus1)]
 
@@ -1117,7 +1121,7 @@ def calculate_B_H(sub_network: SubNetwork, skip_pre: bool = False) -> None:
 
     z = np.concatenate(
         [
-            (c.df.loc[c.df.query("active").index, attribute]).values
+            (c.static.loc[c.static.query("active").index, attribute]).values
             for c in sub_network.iterate_components(n.passive_branch_components)
         ]
     )
@@ -1141,11 +1145,11 @@ def calculate_B_H(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     phase_shift = np.concatenate(
         [
             (
-                (c.df.loc[c.df.query("active").index, "phase_shift"]).values
+                (c.static.loc[c.static.query("active").index, "phase_shift"]).values
                 * np.pi
                 / 180.0
                 if c.name == "Transformer"
-                else np.zeros((len(c.df.query("active").index),))
+                else np.zeros((len(c.static.query("active").index),))
             )
             for c in sub_network.iterate_components(n.passive_branch_components)
         ]
@@ -1464,18 +1468,18 @@ def sub_network_lpf(
 
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(n.controllable_one_port_components):
-        c_p_set = get_as_dense(n, c.name, "p_set", sns, c.df.query("active").index)
-        n.pnl(c.name).p.loc[sns, c.df.query("active").index] = c_p_set
+        c_p_set = get_as_dense(n, c.name, "p_set", sns, c.static.query("active").index)
+        n.pnl(c.name).p.loc[sns, c.static.query("active").index] = c_p_set
 
     # set the power injection at each node
     n.buses_t.p.loc[sns, buses_o] = sum(
         [
             (
                 (
-                    c.pnl.p.loc[sns, c.df.query("active").index]
-                    * c.df.loc[c.df.query("active").index, "sign"]
+                    c.pnl.p.loc[sns, c.static.query("active").index]
+                    * c.static.loc[c.static.query("active").index, "sign"]
                 )
-                .T.groupby(c.df.loc[c.df.query("active").index, "bus"])
+                .T.groupby(c.static.loc[c.static.query("active").index, "bus"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
             )
@@ -1484,11 +1488,11 @@ def sub_network_lpf(
         + [
             -c.pnl[f"p{str(i)}"]
             .loc[sns]
-            .T.groupby(c.df[f"bus{str(i)}"])
+            .T.groupby(c.static[f"bus{str(i)}"])
             .sum()
             .T.reindex(columns=buses_o, fill_value=0)
             for c in n.iterate_components(n.controllable_branch_components)
-            for i in [int(col[3:]) for col in c.df.columns if col[:3] == "bus"]
+            for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
         ]
     )
 

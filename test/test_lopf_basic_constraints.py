@@ -75,7 +75,7 @@ def describe_nodal_balance_constraint(n):
     network_injection = (
         pd.concat(
             [
-                n.pnl(c)[f"p{inout}"].rename(columns=n.df(c)[f"bus{inout}"])
+                n.pnl(c)[f"p{inout}"].rename(columns=n.static(c)[f"bus{inout}"])
                 for inout in (0, 1)
                 for c in ("Line", "Transformer")
             ],
@@ -105,7 +105,7 @@ def describe_upper_dispatch_constraints(n):
         description[c + key] = pd.Series(
             {
                 "min": (
-                    n.df(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
+                    n.static(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
                     - n.pnl(c)[dispatch_attr]
                 )
                 .min()
@@ -124,7 +124,8 @@ def describe_lower_dispatch_constraints(n):
             description[c] = pd.Series(
                 {
                     "min": (
-                        n.df(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
+                        n.static(c)[attr + "_opt"]
+                        * get_as_dense(n, c, attr[0] + "_max_pu")
                         + n.pnl(c)[dispatch_attr]
                     )
                     .min()
@@ -136,7 +137,7 @@ def describe_lower_dispatch_constraints(n):
             description[c + key] = pd.Series(
                 {
                     "min": (
-                        -n.df(c)[attr + "_opt"]
+                        -n.static(c)[attr + "_opt"]
                         * get_as_dense(n, c, attr[0] + "_min_pu")
                         + n.pnl(c)[dispatch_attr]
                     )

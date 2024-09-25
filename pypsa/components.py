@@ -394,9 +394,9 @@ class Network:
     def __repr__(self) -> str:
         header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
         comps = {
-            c.name: f" - {c.name}: {len(c.df)}"
+            c.name: f" - {c.name}: {len(c.static)}"
             for c in self.iterate_components()
-            if "Type" not in c.name and len(c.df)
+            if "Type" not in c.name and len(c.static)
         }
         content = "\nComponents:"
         if comps:
@@ -516,7 +516,28 @@ class Network:
                 self.components[std_type]["standard_types"], std_type
             )
 
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `n.static` instead.",
+    # )
     def df(self, component_name: str) -> pd.DataFrame:
+        """
+        Return the DataFrame of static components for component_name, i.e.
+        n.component_names.
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        pandas.DataFrame
+
+        """
+        return getattr(self, self.components[component_name]["list_name"])
+
+    def static(self, component_name: str) -> pd.DataFrame:
         """
         Return the DataFrame of static components for component_name, i.e.
         n.component_names.
@@ -1071,8 +1092,8 @@ class Network:
         names = names.astype(str) + suffix
 
         # Drop from static components
-        cls_df = self.df(class_name)
-        cls_df.drop(names, inplace=True)
+        cls_static = self.static(class_name)
+        cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
         pnl = self.pnl(class_name)
@@ -1295,13 +1316,13 @@ class Network:
                 not ignore_standard_types
                 and component.name in self.standard_type_components
             ):
-                df = component.df.drop(
+                static = component.static.drop(
                     n.components[component.name]["standard_types"].index
                 )
             else:
-                df = component.df
+                static = component.static
 
-            _import_components_from_dataframe(n, df, component.name)
+            _import_components_from_dataframe(n, static, component.name)
 
         # Copy time-varying data, if given
 
@@ -1394,25 +1415,25 @@ class Network:
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n._import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
+            n._import_components_from_dataframe(pd.DataFrame(self.static(c)), c)
 
         for c in self.standard_type_components:
-            df = self.df(c).drop(self.components[c]["standard_types"].index)
-            n._import_components_from_dataframe(pd.DataFrame(df), c)
+            static = self.static(c).drop(self.components[c]["standard_types"].index)
+            n._import_components_from_dataframe(pd.DataFrame(static), c)
 
         for c in self.one_port_components:
-            df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
-            n._import_components_from_dataframe(pd.DataFrame(df), c)
+            static = self.static(c).loc[lambda df: df.bus.isin(buses_i)]
+            n._import_components_from_dataframe(pd.DataFrame(static), c)
 
         for c in self.branch_components:
-            df = self.df(c).loc[
+            static = self.static(c).loc[
                 lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
             ]
-            n._import_components_from_dataframe(pd.DataFrame(df), c)
+            n._import_components_from_dataframe(pd.DataFrame(static), c)
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:
-            i = n.df(c).index
+            i = n.static(c).index
             try:
                 npnl = n.pnl(c)
                 pnl = self.pnl(c)
@@ -1434,7 +1455,7 @@ class Network:
     # presence of links without s_nom_extendable
     def branches(self) -> pd.DataFrame:
         return pd.concat(
-            (self.df(c) for c in self.branch_components),
+            (self.static(c) for c in self.branch_components),
             keys=self.branch_components,
             sort=True,
             names=["component", "name"],
@@ -1442,14 +1463,14 @@ class Network:
 
     def passive_branches(self) -> pd.DataFrame:
         return pd.concat(
-            (self.df(c) for c in self.passive_branch_components),
+            (self.static(c) for c in self.passive_branch_components),
             keys=self.passive_branch_components,
             sort=True,
         )
 
     def controllable_branches(self) -> pd.DataFrame:
         return pd.concat(
-            (self.df(c) for c in self.controllable_branch_components),
+            (self.static(c) for c in self.controllable_branch_components),
             keys=self.controllable_branch_components,
             sort=True,
         )
@@ -1515,12 +1536,12 @@ class Network:
         self.buses.loc[:, "sub_network"] = labels.astype(str)
 
         for c in self.iterate_components(self.passive_branch_components):
-            c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
+            c.static["sub_network"] = c.static.bus0.map(self.buses["sub_network"])
 
             if investment_period is not None:
                 active = get_active_assets(self, c.name, investment_period)
                 # set non active assets to NaN
-                c.df.loc[~active, "sub_network"] = np.nan
+                c.static.loc[~active, "sub_network"] = np.nan
 
         for sub in self.sub_networks.obj:
             find_cycles(sub)
@@ -1532,7 +1553,7 @@ class Network:
             list_name=self.components[c_name]["list_name"],
             attrs=self.components[c_name]["attrs"],
             investment_periods=self.investment_periods,
-            df=self.df(c_name),
+            static=self.static(c_name),
             pnl=self.pnl(c_name),
             ind=None,
         )
@@ -1546,7 +1567,7 @@ class Network:
         return (
             self.component(c_name)
             for c_name in components
-            if not (skip_empty and self.df(c_name).empty)
+            if not (skip_empty and self.static(c_name).empty)
         )
 
     def consistency_check(self, check_dtypes: bool = False) -> None:
@@ -1671,21 +1692,37 @@ class SubNetwork:
     def investment_period_weightings(self) -> pd.DataFrame:
         return self.n.investment_period_weightings
 
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `n.static` instead.",
+    # )
     def df(self, c_name: str) -> pd.DataFrame:
         n = self.n
-        df = n.df(c_name)
+        static = n.static(c_name)
         if c_name in {"Bus"} | n.passive_branch_components:
-            return df[df.sub_network == self.name]
+            return static[static.sub_network == self.name]
         elif c_name in n.one_port_components:
             buses = self.buses_i()
-            return df[df.bus.isin(buses)]
+            return static[static.bus.isin(buses)]
+        else:
+            raise ValueError(f"Component {c_name} not supported for sub-networks")
+
+    def static(self, c_name: str) -> pd.DataFrame:
+        n = self.n
+        static = n.static(c_name)
+        if c_name in {"Bus"} | n.passive_branch_components:
+            return static[static.sub_network == self.name]
+        elif c_name in n.one_port_components:
+            buses = self.buses_i()
+            return static[static.bus.isin(buses)]
         else:
             raise ValueError(f"Component {c_name} not supported for sub-networks")
 
     def pnl(self, c_name: str) -> Dict:
         pnl = Dict()
         n = self.n
-        index = self.df(c_name).index
+        index = self.static(c_name).index
         for k, v in n.pnl(c_name).items():
             pnl[k] = v[index.intersection(v.columns)]
         return pnl
@@ -1703,7 +1740,7 @@ class SubNetwork:
         types = []
         names = []
         for c in self.iterate_components(self.n.passive_branch_components):
-            idx = c.df.query("active").index if active_only else c.df.index
+            idx = c.static.query("active").index if active_only else c.static.index
             types += len(idx) * [c.name]
             names += list(idx)
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
@@ -1756,7 +1793,7 @@ class SubNetwork:
             list_name=self.n.components[c_name]["list_name"],
             attrs=self.n.components[c_name]["attrs"],
             investment_periods=self.investment_periods,
-            df=self.df(c_name),
+            static=self.static(c_name),
             pnl=self.pnl(c_name),
             ind=None,
         )
@@ -1789,5 +1826,5 @@ class SubNetwork:
         return (
             self.component(c_name)
             for c_name in components
-            if not (skip_empty and self.df(c_name).empty)
+            if not (skip_empty and self.static(c_name).empty)
         )

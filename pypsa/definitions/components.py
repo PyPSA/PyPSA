@@ -27,7 +27,7 @@ class Component:
         The plural name used for lists of components (e.g., 'generators').
     attrs : Dict[str, Any]
         A dictionary of attributes and their metadata.
-    df : pd.DataFrame
+    static : pd.DataFrame
         A DataFrame containing data for each component instance.
     pnl : Dict[str, pd.DataFrame]
         A dictionary of time series data (panel data) for the component.
@@ -39,7 +39,7 @@ class Component:
     list_name: str
     attrs: pd.DataFrame
     investment_periods: pd.Index  # TODO: Needs better general approach
-    df: pd.DataFrame
+    static: pd.DataFrame
     pnl: Dict
     ind: None  # deprecated
 
@@ -53,7 +53,7 @@ class Component:
     def __repr__(self) -> str:
         return (
             f"Component(name={self.name!r}, list_name={self.list_name!r}, "
-            f"attrs=Keys({list(self.attrs.keys())}), df=DataFrame(shape={self.df.shape}), "
+            f"attrs=Keys({list(self.attrs.keys())}), static=DataFrame(shape={self.static.shape}), "
             f"pnl=Keys({list(self.pnl.keys())}))"
         )
 
@@ -86,9 +86,9 @@ class Component:
             Boolean mask for active components
         """
         if investment_period is None:
-            return self.df.active
-        if not {"build_year", "lifetime"}.issubset(self.df):
-            return self.df.active
+            return self.static.active
+        if not {"build_year", "lifetime"}.issubset(self.static):
+            return self.static.active
 
         # Logical OR of active assets in all investment periods and
         # logical AND with active attribute
@@ -96,7 +96,7 @@ class Component:
         for period in np.atleast_1d(investment_period):
             if period not in self.investment_periods:
                 raise ValueError("Investment period not in `n.investment_periods`")
-            active[period] = self.df.eval(
+            active[period] = self.static.eval(
                 "build_year <= @period < build_year + lifetime"
             )
-        return pd.DataFrame(active).any(axis=1) & self.df.active
+        return pd.DataFrame(active).any(axis=1) & self.static.active

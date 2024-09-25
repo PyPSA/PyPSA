@@ -196,7 +196,7 @@ def optimize_transmission_expansion_iteratively(
 
     def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-            n.df(c)[f"{attr}_opt_{iteration}"] = n.df(c)[f"{attr}_opt"]
+            n.static(c)[f"{attr}_opt_{iteration}"] = n.static(c)[f"{attr}_opt"]
         setattr(n, f"status_{iteration}", status)
         setattr(n, f"objective_{iteration}", n.objective)
         n.iteration = iteration
@@ -253,7 +253,7 @@ def optimize_transmission_expansion_iteratively(
 
     if track_iterations:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-            n.df(c)[f"{attr}_opt_0"] = n.df(c)[f"{attr}"]
+            n.static(c)[f"{attr}_opt_0"] = n.static(c)[f"{attr}"]
 
     iteration = 1
     diff = msq_threshold
@@ -403,7 +403,9 @@ def optimize_security_constrained(
             continue
 
         sub_network.calculate_BODF()
-        BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[outages]
+        BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[
+            outages
+        ]
 
         for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
             c_outage_ = c_outage + "-outage"
@@ -611,9 +613,9 @@ def optimize_mga(
                 coeffs = coeffs.reindex(n.get_extendable_i(c))
                 coeffs.index.name = ""
             elif isinstance(coeffs, pd.Series):
-                coeffs = coeffs.reindex(columns=n.df(c).index)
+                coeffs = coeffs.reindex(columns=n.static(c).index)
             elif isinstance(coeffs, pd.DataFrame):
-                coeffs = coeffs.reindex(columns=n.df(c).index, index=snapshots)
+                coeffs = coeffs.reindex(columns=n.static(c).index, index=snapshots)
             objective.append(m[f"{c}-{attr}"] * coeffs * sense)
 
     m.objective = merge(objective)

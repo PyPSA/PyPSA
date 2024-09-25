@@ -80,7 +80,7 @@ def test_pypower_case():
     for c in n.iterate_components(n.passive_branch_components):
         for si in ["p0", "p1", "q0", "q1"]:
             si_pypsa = getattr(c.pnl, si).loc["now"].values
-            si_pypower = results_df["branch"][si][c.df.original_index].values
+            si_pypower = results_df["branch"][si][c.static.original_index].values
             equal(si_pypsa, si_pypower)
 
     # compare generator dispatch

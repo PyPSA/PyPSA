@@ -59,13 +59,13 @@ def get_switchable_as_dense(
     --------
     >>> get_switchable_as_dense(n, 'Generator', 'p_max_pu')
     """
-    df = n.df(component)
+    static = n.static(component)
     pnl = n.pnl(component)
 
-    index = df.index
+    index = static.index
 
     varying_i = pnl[attr].columns
-    fixed_i = df.index.difference(varying_i)
+    fixed_i = static.index.difference(varying_i)
 
     if inds is not None:
         index = index.intersection(inds)
@@ -74,7 +74,7 @@ def get_switchable_as_dense(
     if snapshots is None:
         snapshots = n.snapshots
 
-    vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
+    vals = np.repeat([static.loc[fixed_i, attr].values], len(snapshots), axis=0)
     static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
     varying = pnl[attr].loc[snapshots, varying_i]
 
@@ -120,12 +120,12 @@ def get_switchable_as_iter(
     --------
     >>> get_switchable_as_iter(n, 'Generator', 'p_max_pu', snapshots)
     """
-    df = n.df(component)
+    static = n.static(component)
     pnl = n.pnl(component)
 
-    index = df.index
+    index = static.index
     varying_i = pnl[attr].columns
-    fixed_i = df.index.difference(varying_i)
+    fixed_i = static.index.difference(varying_i)
 
     if inds is not None:
         inds = pd.Index(inds)
@@ -135,7 +135,7 @@ def get_switchable_as_iter(
 
     # Short-circuit only fixed
     if len(varying_i) == 0:
-        return repeat(df.loc[fixed_i, attr], len(snapshots))
+        return repeat(static.loc[fixed_i, attr], len(snapshots))
 
     def is_same_indices(i1: pd.Index, i2: pd.Index) -> bool:
         return len(i1) == len(i2) and (i1 == i2).all()
@@ -151,7 +151,7 @@ def get_switchable_as_iter(
             return s.reindex(index)
 
     return (
-        reindex_maybe(df.loc[fixed_i, attr].append(pnl[attr].loc[sn, varying_i]))
+        reindex_maybe(static.loc[fixed_i, attr].append(pnl[attr].loc[sn, varying_i]))
         for sn in snapshots
     )
 
@@ -177,12 +177,12 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
                                              'Load': ['p']})
     """
     for component, attributes in series.items():
-        df = n.df(component)
+        static = n.static(component)
         pnl = n.pnl(component)
 
         for attr in attributes:
             pnl[attr] = pnl[attr].reindex(
-                columns=df.index,
+                columns=static.index,
                 fill_value=n.components[component]["attrs"].at[attr, "default"],
             )
 
@@ -237,7 +237,7 @@ def get_extendable_i(n: Network, c: str) -> pd.Index:
 
     Get the index of extendable elements of a given component.
     """
-    idx = n.df(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
+    idx = n.static(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
     return idx.rename(f"{c}-ext")
 
 
@@ -247,7 +247,7 @@ def get_non_extendable_i(n: Network, c: str) -> pd.Index:
 
     Get the index of non-extendable elements of a given component.
     """
-    idx = n.df(c)[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
+    idx = n.static(c)[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
     return idx.rename(f"{c}-fix")
 
 
@@ -257,10 +257,10 @@ def get_committable_i(n: Network, c: str) -> pd.Index:
 
     Get the index of commitable elements of a given component.
     """
-    if "committable" not in n.df(c):
+    if "committable" not in n.static(c):
         idx = pd.Index([])
     else:
-        idx = n.df(c)[lambda ds: ds["committable"]].index
+        idx = n.static(c)[lambda ds: ds["committable"]].index
     return idx.rename(f"{c}-com")
 
 
@@ -381,7 +381,7 @@ def get_bounds_pu(
         if attr == "p_store":
             max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
         if attr == "state_of_charge":
-            max_pu = expand_series(n.df(c).max_hours, sns).T
+            max_pu = expand_series(n.static(c).max_hours, sns).T
             min_pu = pd.DataFrame(0, *max_pu.axes)
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
@@ -461,8 +461,8 @@ def update_linkports_component_attrs(
             df.index.name = "snapshot"
             df.columns.name = c
             n.pnl(c)[target] = df
-        elif attr == "bus" and target not in n.df(c).columns:
-            n.df(c)[target] = n.components[c]["attrs"].loc[target, "default"]
+        elif attr == "bus" and target not in n.static(c).columns:
+            n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
 
 
 @deprecated_common_kwargs

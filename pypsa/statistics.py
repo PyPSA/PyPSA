@@ -24,9 +24,9 @@ def get_carrier(n: Network, c: str, nice_names: bool = True) -> pd.Series:
     """
     Get the nice carrier names for a component.
     """
-    df = n.df(c)
-    fall_back = pd.Series("", index=df.index)
-    carrier_series = df.get("carrier", fall_back).rename("carrier")
+    static = n.static(c)
+    fall_back = pd.Series("", index=static.index)
+    carrier_series = static.get("carrier", fall_back).rename("carrier")
     if nice_names:
         carrier_series = carrier_series.replace(
             n.carriers.nice_name[lambda ds: ds != ""]
@@ -42,7 +42,7 @@ def get_bus_carrier(
     """
     bus = f"bus{port}"
     buses_carrier = get_carrier(n, "Bus", nice_names=nice_names)
-    return n.df(c)[bus].map(buses_carrier).rename("bus_carrier")
+    return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
 
 
 def get_bus_and_carrier(
@@ -52,7 +52,7 @@ def get_bus_and_carrier(
     Get the buses and nice carrier names for a component.
     """
     bus = f"bus{port}"
-    return [n.df(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
+    return [n.static(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
 
 
 def get_bus_unit_and_carrier(
@@ -63,8 +63,8 @@ def get_bus_unit_and_carrier(
     """
     bus = f"bus{port}"
     return [
-        n.df(c)[bus].rename("bus"),
-        n.df(c)[bus].map(n.buses.unit).rename("unit"),
+        n.static(c)[bus].rename("bus"),
+        n.static(c)[bus].map(n.buses.unit).rename("unit"),
         get_carrier(n, c, nice_names=nice_names),
     ]
 
@@ -76,7 +76,7 @@ def get_name_bus_and_carrier(
     Get the name, buses and nice carrier names for a component.
     """
     return [
-        n.df(c).index.to_series().rename("name"),
+        n.static(c).index.to_series().rename("name"),
         *get_bus_and_carrier(n, c, port, nice_names=nice_names),
     ]
 
@@ -147,9 +147,9 @@ def port_efficiency(n: Network, c: str, port: str = "") -> float:
     elif port == "0":
         efficiency = -1
     elif port == "1":
-        efficiency = n.df(c).get("efficiency", 1)
+        efficiency = n.static(c).get("efficiency", 1)
     else:
-        efficiency = n.df(c).get(f"efficiency{port}", 1)
+        efficiency = n.static(c).get(f"efficiency{port}", 1)
     return efficiency
 
 
@@ -162,7 +162,9 @@ def get_transmission_branches(
     """
     index = {}
     for c in n.branch_components:
-        bus_map = n.df(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
+        bus_map = (
+            n.static(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
+        )
         if isinstance(bus_carrier, str):
             bus_carrier = [bus_carrier]
         elif bus_carrier is None:
@@ -189,7 +191,7 @@ def get_transmission_carriers(
     carriers = {}
     for c in branches.unique(0):
         idx = branches[branches.get_loc(c)].get_level_values(1)
-        carriers[c] = n.df(c).carrier[idx].unique()
+        carriers[c] = n.static(c).carrier[idx].unique()
     return pd.MultiIndex.from_tuples(
         [(c, i) for c, idx in carriers.items() for i in idx],
         names=["component", "carrier"],
@@ -211,9 +213,9 @@ def get_grouping(
         else:
             by = groupby(n, c, nice_names=nice_names)
     elif isinstance(groupby, list):
-        by = [n.df(c)[key] for key in groupby]
+        by = [n.static(c)[key] for key in groupby]
     elif isinstance(groupby, str):
-        by = n.df(c)[groupby]
+        by = n.static(c)[groupby]
     elif groupby is not False:
         raise ValueError(
             f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
@@ -276,7 +278,7 @@ def filter_bus_carrier(
     if bus_carrier is None:
         return df
 
-    ports = n.df(c).loc[df.index, f"bus{port}"]
+    ports = n.static(c).loc[df.index, f"bus{port}"]
     port_carriers = ports.map(n.buses.carrier)
     if isinstance(bus_carrier, str):
         if bus_carrier in n.buses.carrier.unique():
@@ -410,10 +412,10 @@ class StatisticsAccessor:
         if nice_names is None:
             nice_names = self.parameters.nice_names
         for c in comps:
-            if n.df(c).empty:
+            if n.static(c).empty:
                 continue
 
-            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
+            ports = [col[3:] for col in n.static(c) if col.startswith("bus")]
             if not at_port:
                 ports = [ports[0]]
 
@@ -548,7 +550,7 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.df(c).eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
+            col = n.static(c).eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
             return col
 
         df = self._aggregate_components(
@@ -589,7 +591,7 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.df(c).eval(f"{nominal_attrs[c]} * {cost_attribute}")
+            col = n.static(c).eval(f"{nominal_attrs[c]} * {cost_attribute}")
             return col
 
         df = self._aggregate_components(
@@ -685,9 +687,9 @@ class StatisticsAccessor:
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
-            col = n.df(c)[f"{nominal_attrs[c]}_opt"] * efficiency
+            col = n.static(c)[f"{nominal_attrs[c]}_opt"] * efficiency
             if storage and (c == "StorageUnit"):
-                col = col * n.df(c).max_hours
+                col = col * n.static(c).max_hours
             return col
 
         df = self._aggregate_components(
@@ -737,9 +739,9 @@ class StatisticsAccessor:
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
-            col = n.df(c)[f"{nominal_attrs[c]}"] * efficiency
+            col = n.static(c)[f"{nominal_attrs[c]}"] * efficiency
             if storage and (c == "StorageUnit"):
-                col = col * n.df(c).max_hours
+                col = col * n.static(c).max_hours
             return col
 
         df = self._aggregate_components(
@@ -1011,7 +1013,7 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             p = sign * n.pnl(c)[f"p{port}"]
             if kind == "supply":
@@ -1071,7 +1073,7 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = (
-                n.get_switchable_as_dense(c, "p_max_pu") * n.df(c).p_nom_opt
+                n.get_switchable_as_dense(c, "p_max_pu") * n.static(c).p_nom_opt
                 - n.pnl(c).p
             ).clip(lower=0)
             weights = get_weightings(n, c)
@@ -1175,9 +1177,9 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
             df = sign * n.pnl(c)[f"p{port}"]
-            buses = n.df(c)[f"bus{port}"][df.columns]
+            buses = n.static(c)[f"bus{port}"][df.columns]
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values
