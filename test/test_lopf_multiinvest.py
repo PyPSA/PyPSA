@@ -370,7 +370,7 @@ def test_global_constraint_primary_energy_storage(n_sus):
     status, cond = n_sus.optimize(**kwargs)
 
     active = get_activity_mask(n_sus, c)
-    soc_end = n_sus.pnl(c).state_of_charge.where(active).ffill().iloc[-1]
+    soc_end = n_sus.dynamic(c).state_of_charge.where(active).ffill().iloc[-1]
     soc_diff = n_sus.static(c).state_of_charge_initial - soc_end
     emissions = n_sus.static(c).carrier.map(n_sus.carriers.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
@@ -390,7 +390,7 @@ def test_global_constraint_primary_energy_store(n_sts):
     status, cond = n_sts.optimize(**kwargs)
 
     active = get_activity_mask(n_sts, c)
-    soc_end = n_sts.pnl(c).e.where(active).ffill().iloc[-1]
+    soc_end = n_sts.dynamic(c).e.where(active).ffill().iloc[-1]
     soc_diff = n_sts.static(c).e_initial - soc_end
     emissions = n_sts.static(c).carrier.map(n_sts.carriers.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000

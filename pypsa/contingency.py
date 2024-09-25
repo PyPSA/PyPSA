@@ -115,7 +115,7 @@ def network_lpf_contingency(
         branch_outages = passive_branches.index
 
     p0_base = pd.concat(
-        {c: n.pnl(c).p0.loc[snapshot] for c in n.passive_branch_components}
+        {c: n.dynamic(c).p0.loc[snapshot] for c in n.passive_branch_components}
     )
     p0 = p0_base.to_frame("base")
 

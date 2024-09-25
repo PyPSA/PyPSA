@@ -491,14 +491,14 @@ class Network:
 
             # it's currently hard to imagine non-float series,
             # but this could be generalised
-            pnl = Dict()
+            dynamic = Dict()
             for k in attrs.index[attrs.varying]:
                 df = pd.DataFrame(index=self.snapshots, columns=[], dtype=float)
                 df.index.name = "snapshot"
                 df.columns.name = component
-                pnl[k] = df
+                dynamic[k] = df
 
-            setattr(self, self.components[component]["list_name"] + "_t", pnl)
+            setattr(self, self.components[component]["list_name"] + "_t", dynamic)
 
     def read_in_default_standard_types(self) -> None:
         for std_type in self.standard_type_components:
@@ -516,6 +516,7 @@ class Network:
                 self.components[std_type]["standard_types"], std_type
             )
 
+    # Deprecate not yet
     # @deprecated(
     #     deprecated_in="0.32",
     #     removed_in="1.0",
@@ -523,8 +524,7 @@ class Network:
     # )
     def df(self, component_name: str) -> pd.DataFrame:
         """
-        Return the DataFrame of static components for component_name, i.e.
-        n.component_names.
+        Alias for :py:meth:`pypsa.Network.static`.
 
         Parameters
         ----------
@@ -535,7 +535,7 @@ class Network:
         pandas.DataFrame
 
         """
-        return getattr(self, self.components[component_name]["list_name"])
+        return self.static(component_name)
 
     def static(self, component_name: str) -> pd.DataFrame:
         """
@@ -553,7 +553,28 @@ class Network:
         """
         return getattr(self, self.components[component_name]["list_name"])
 
+    # Deprecate not yet
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `n.dynamic` instead.",
+    # )
     def pnl(self, component_name: str) -> Dict:
+        """
+        Alias for :py:meth:`pypsa.Network.static`.
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        dict of pandas.DataFrame
+
+        """
+        return self.dynamic(component_name)
+
+    def dynamic(self, component_name: str) -> Dict:
         """
         Return the dictionary of DataFrames of varying components for
         component_name, i.e. n.component_names_t.
@@ -638,7 +659,7 @@ class Network:
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.Network.pnl`). NaNs are filled with the default value for that quantity.
+        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for that quantity.
 
         Parameters
         ----------
@@ -697,20 +718,20 @@ class Network:
             )
 
         for component in self.all_components:
-            pnl = self.pnl(component)
+            dynamic = self.dynamic(component)
             attrs = self.components[component]["attrs"]
 
-            for k in pnl.keys():
-                if pnl[k].empty:  # avoid expensive reindex operation
-                    pnl[k].index = self._snapshots
+            for k in dynamic.keys():
+                if dynamic[k].empty:  # avoid expensive reindex operation
+                    dynamic[k].index = self._snapshots
                 elif k in attrs.default[attrs.varying]:
-                    pnl[k] = pnl[k].reindex(
+                    dynamic[k] = dynamic[k].reindex(
                         self._snapshots, fill_value=attrs.default[attrs.varying][k]
                     )
                 else:
-                    pnl[k] = pnl[k].reindex(self._snapshots)
+                    dynamic[k] = dynamic[k].reindex(self._snapshots)
 
-        # NB: No need to rebind pnl to self, since haven't changed it
+        # NB: No need to rebind dynamic to self, since haven't changed it
 
     snapshots = property(
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
@@ -792,11 +813,13 @@ class Network:
             )
             names = ["period", "timestep"]
             for component in self.all_components:
-                pnl = self.pnl(component)
+                dynamic = self.dynamic(component)
 
-                for k in pnl.keys():
-                    pnl[k] = pd.concat({p: pnl[k] for p in periods_}, names=names)
-                    pnl[k].index.name = "snapshot"
+                for k in dynamic.keys():
+                    dynamic[k] = pd.concat(
+                        {p: dynamic[k] for p in periods_}, names=names
+                    )
+                    dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
                 [periods_, self.snapshots], names=names
@@ -1094,8 +1117,8 @@ class Network:
         cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
-        pnl = self.pnl(class_name)
-        for df in pnl.values():
+        dynamic = self.dynamic(class_name)
+        for df in dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
     @deprecated(
@@ -1328,12 +1351,12 @@ class Network:
             n.set_snapshots(snapshots_)
             # Apply time-varying data
             for component in self.iterate_components():
-                pnl = getattr(n, component.list_name + "_t")
-                for k in component.pnl.keys():
+                dynamic = getattr(n, component.list_name + "_t")
+                for k in component.dynamic.keys():
                     try:
-                        pnl[k] = component.pnl[k].loc[snapshots_].copy()
+                        dynamic[k] = component.dynamic[k].loc[snapshots_].copy()
                     except KeyError:
-                        pnl[k] = component.pnl[k].reindex(snapshots_).copy()
+                        dynamic[k] = component.dynamic[k].reindex(snapshots_).copy()
 
             # Apply investment periods
             if not investment_periods_.empty:
@@ -1433,11 +1456,13 @@ class Network:
         for c in self.all_components:
             i = n.static(c).index
             try:
-                npnl = n.pnl(c)
-                pnl = self.pnl(c)
+                ndynamic = n.dynamic(c)
+                dynamic = self.dynamic(c)
 
-                for k in pnl:
-                    npnl[k] = pnl[k].loc[time_i, i.intersection(pnl[k].columns)]
+                for k in dynamic:
+                    ndynamic[k] = dynamic[k].loc[
+                        time_i, i.intersection(dynamic[k].columns)
+                    ]
             except AttributeError:
                 pass
 
@@ -1552,7 +1577,7 @@ class Network:
             attrs=self.components[c_name]["attrs"],
             investment_periods=self.investment_periods,
             static=self.static(c_name),
-            pnl=self.pnl(c_name),
+            dynamic=self.dynamic(c_name),
             ind=None,
         )
 
@@ -1693,18 +1718,10 @@ class SubNetwork:
     # @deprecated(
     #     deprecated_in="0.32",
     #     removed_in="1.0",
-    #     details="Use `n.static` instead.",
+    #     details="Use `sub_network.static` instead.",
     # )
     def df(self, c_name: str) -> pd.DataFrame:
-        n = self.n
-        static = n.static(c_name)
-        if c_name in {"Bus"} | n.passive_branch_components:
-            return static[static.sub_network == self.name]
-        elif c_name in n.one_port_components:
-            buses = self.buses_i()
-            return static[static.bus.isin(buses)]
-        else:
-            raise ValueError(f"Component {c_name} not supported for sub-networks")
+        return self.static(c_name)
 
     def static(self, c_name: str) -> pd.DataFrame:
         n = self.n
@@ -1717,13 +1734,21 @@ class SubNetwork:
         else:
             raise ValueError(f"Component {c_name} not supported for sub-networks")
 
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `sub_network.dynamic` instead.",
+    # )
     def pnl(self, c_name: str) -> Dict:
-        pnl = Dict()
+        return self.dynamic(c_name)
+
+    def dynamic(self, c_name: str) -> Dict:
+        dynamic = Dict()
         n = self.n
         index = self.static(c_name).index
-        for k, v in n.pnl(c_name).items():
-            pnl[k] = v[index.intersection(v.columns)]
-        return pnl
+        for k, v in n.dynamic(c_name).items():
+            dynamic[k] = v[index.intersection(v.columns)]
+        return dynamic
 
     def buses_i(self) -> pd.Index:
         return self.n.buses.index[self.n.buses.sub_network == self.name]
@@ -1792,7 +1817,7 @@ class SubNetwork:
             attrs=self.n.components[c_name]["attrs"],
             investment_periods=self.investment_periods,
             static=self.static(c_name),
-            pnl=self.pnl(c_name),
+            dynamic=self.dynamic(c_name),
             ind=None,
         )
 

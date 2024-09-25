@@ -795,15 +795,15 @@ def _flow_ds_from_arg(flow, n, branch_components):
     if flow in n.snapshots:
         return pd.concat(
             {
-                c: n.pnl(c).p0.loc[flow]
+                c: n.dynamic(c).p0.loc[flow]
                 for c in branch_components
-                if not n.pnl(c).p0.empty
+                if not n.dynamic(c).p0.empty
             },
             sort=True,
         )
     if isinstance(flow, str) or callable(flow):
         return pd.concat(
-            [n.pnl(c).p0 for c in branch_components],
+            [n.dynamic(c).p0 for c in branch_components],
             axis=1,
             keys=branch_components,
             sort=True,

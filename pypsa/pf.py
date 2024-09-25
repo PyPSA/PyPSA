@@ -89,7 +89,7 @@ def _calculate_controllable_nodal_power_balance(
                 snapshots,
                 c.static.query("active").index,
             )
-            network.pnl(c.name)[power].loc[
+            network.dynamic(c.name)[power].loc[
                 snapshots, c.static.query("active").index
             ] = c_n_set
 
@@ -97,7 +97,7 @@ def _calculate_controllable_nodal_power_balance(
         network.buses_t[power].loc[snapshots, buses_o] = sum(
             (
                 (
-                    c.pnl[power].loc[snapshots, c.static.query("active").index]
+                    c.dynamic[power].loc[snapshots, c.static.query("active").index]
                     * c.static.loc[c.static.query("active").index, "sign"]
                 )
                 .T.groupby(c.static.loc[c.static.query("active").index, "bus"])
@@ -111,7 +111,7 @@ def _calculate_controllable_nodal_power_balance(
 
         if power == "p":
             network.buses_t[power].loc[snapshots, buses_o] += sum(
-                -c.pnl[power + str(i)]
+                -c.dynamic[power + str(i)]
                 .loc[snapshots]
                 .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
@@ -737,10 +737,10 @@ def sub_network_pf(
     for c in sub_network.iterate_components(n.passive_branch_components):
         s0t = s0.loc[:, c.name]
         s1t = s1.loc[:, c.name]
-        n.pnl(c.name).p0.loc[sns, s0t.columns] = s0t.values.real
-        n.pnl(c.name).q0.loc[sns, s0t.columns] = s0t.values.imag
-        n.pnl(c.name).p1.loc[sns, s1t.columns] = s1t.values.real
-        n.pnl(c.name).q1.loc[sns, s1t.columns] = s1t.values.imag
+        n.dynamic(c.name).p0.loc[sns, s0t.columns] = s0t.values.real
+        n.dynamic(c.name).q0.loc[sns, s0t.columns] = s0t.values.imag
+        n.dynamic(c.name).p1.loc[sns, s1t.columns] = s1t.values.real
+        n.dynamic(c.name).q1.loc[sns, s1t.columns] = s1t.values.imag
 
     s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
     for i in np.arange(len(sns)):
@@ -1469,14 +1469,14 @@ def sub_network_lpf(
     # allow all one ports to dispatch as set
     for c in sub_network.iterate_components(n.controllable_one_port_components):
         c_p_set = get_as_dense(n, c.name, "p_set", sns, c.static.query("active").index)
-        n.pnl(c.name).p.loc[sns, c.static.query("active").index] = c_p_set
+        n.dynamic(c.name).p.loc[sns, c.static.query("active").index] = c_p_set
 
     # set the power injection at each node
     n.buses_t.p.loc[sns, buses_o] = sum(
         [
             (
                 (
-                    c.pnl.p.loc[sns, c.static.query("active").index]
+                    c.dynamic.p.loc[sns, c.static.query("active").index]
                     * c.static.loc[c.static.query("active").index, "sign"]
                 )
                 .T.groupby(c.static.loc[c.static.query("active").index, "bus"])
@@ -1486,7 +1486,7 @@ def sub_network_lpf(
             for c in sub_network.iterate_components(n.one_port_components)
         ]
         + [
-            -c.pnl[f"p{str(i)}"]
+            -c.dynamic[f"p{str(i)}"]
             .loc[sns]
             .T.groupby(c.static[f"bus{str(i)}"])
             .sum()
@@ -1510,8 +1510,8 @@ def sub_network_lpf(
 
         for c in sub_network.iterate_components(n.passive_branch_components):
             f = flows.loc[:, c.name]
-            n.pnl(c.name).p0.loc[sns, f.columns] = f
-            n.pnl(c.name).p1.loc[sns, f.columns] = -f
+            n.dynamic(c.name).p0.loc[sns, f.columns] = f
+            n.dynamic(c.name).p1.loc[sns, f.columns] = -f
 
     if n.sub_networks.at[sub_network.name, "carrier"] == "DC":
         n.buses_t.v_mag_pu.loc[sns, buses_o] = 1 + v_diff

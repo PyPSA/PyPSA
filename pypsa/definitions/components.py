@@ -29,7 +29,7 @@ class Component:
         A dictionary of attributes and their metadata.
     static : pd.DataFrame
         A DataFrame containing data for each component instance.
-    pnl : Dict[str, pd.DataFrame]
+    dynamic : Dict[str, pd.DataFrame]
         A dictionary of time series data (panel data) for the component.
     ind : pd.Index
         An index of component identifiers.
@@ -40,7 +40,7 @@ class Component:
     attrs: pd.DataFrame
     investment_periods: pd.Index  # TODO: Needs better general approach
     static: pd.DataFrame
-    pnl: Dict
+    dynamic: Dict
     ind: None  # deprecated
 
     # raise a deprecation warning if ind attribute is not None
@@ -54,7 +54,7 @@ class Component:
         return (
             f"Component(name={self.name!r}, list_name={self.list_name!r}, "
             f"attrs=Keys({list(self.attrs.keys())}), static=DataFrame(shape={self.static.shape}), "
-            f"pnl=Keys({list(self.pnl.keys())}))"
+            f"dynamic=Keys({list(self.dynamic.keys())}))"
         )
 
     def get_active_assets(

@@ -60,11 +60,11 @@ def get_switchable_as_dense(
     >>> get_switchable_as_dense(n, 'Generator', 'p_max_pu')
     """
     static = n.static(component)
-    pnl = n.pnl(component)
+    dynamic = n.dynamic(component)
 
     index = static.index
 
-    varying_i = pnl[attr].columns
+    varying_i = dynamic[attr].columns
     fixed_i = static.index.difference(varying_i)
 
     if inds is not None:
@@ -76,7 +76,7 @@ def get_switchable_as_dense(
 
     vals = np.repeat([static.loc[fixed_i, attr].values], len(snapshots), axis=0)
     static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
-    varying = pnl[attr].loc[snapshots, varying_i]
+    varying = dynamic[attr].loc[snapshots, varying_i]
 
     res = pd.merge(static, varying, left_index=True, right_index=True, how="inner")
     del static
@@ -121,10 +121,10 @@ def get_switchable_as_iter(
     >>> get_switchable_as_iter(n, 'Generator', 'p_max_pu', snapshots)
     """
     static = n.static(component)
-    pnl = n.pnl(component)
+    dynamic = n.dynamic(component)
 
     index = static.index
-    varying_i = pnl[attr].columns
+    varying_i = dynamic[attr].columns
     fixed_i = static.index.difference(varying_i)
 
     if inds is not None:
@@ -151,7 +151,9 @@ def get_switchable_as_iter(
             return s.reindex(index)
 
     return (
-        reindex_maybe(static.loc[fixed_i, attr].append(pnl[attr].loc[sn, varying_i]))
+        reindex_maybe(
+            static.loc[fixed_i, attr].append(dynamic[attr].loc[sn, varying_i])
+        )
         for sn in snapshots
     )
 
@@ -178,10 +180,10 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
     """
     for component, attributes in series.items():
         static = n.static(component)
-        pnl = n.pnl(component)
+        dynamic = n.dynamic(component)
 
         for attr in attributes:
-            pnl[attr] = pnl[attr].reindex(
+            dynamic[attr] = dynamic[attr].reindex(
                 columns=static.index,
                 fill_value=n.components[component]["attrs"].at[attr, "default"],
             )
@@ -196,10 +198,10 @@ def free_output_series_dataframes(
 
     for component in components:
         attrs = n.components[component]["attrs"]
-        pnl = n.pnl(component)
+        dynamic = n.dynamic(component)
 
         for attr in attrs.index[attrs["varying"] & (attrs["status"] == "Output")]:
-            pnl[attr] = pd.DataFrame(index=n.snapshots, columns=[])
+            dynamic[attr] = pd.DataFrame(index=n.snapshots, columns=[])
 
 
 def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
@@ -456,11 +458,11 @@ def update_linkports_component_attrs(
             .apply(update_linkports_doc_changes, args=("1", i))
         )
         # Also update container for varying attributes
-        if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
+        if attr in ["efficiency", "p"] and target not in n.dynamic(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
             df.columns.name = c
-            n.pnl(c)[target] = df
+            n.dynamic(c)[target] = df
         elif attr == "bus" and target not in n.static(c).columns:
             n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
 

@@ -198,8 +198,8 @@ def aggregateoneport(
     -------
     static : DataFrame
         DataFrame of the aggregated generators.
-    pnl : dict
-        Dictionary of the aggregated pnl data.
+    dynamic : dict
+        Dictionary of the aggregated dynamic data.
     """
     c = component
     static = n.static(c)
@@ -254,12 +254,12 @@ def aggregateoneport(
     static = pd.concat([aggregated, non_aggregated], sort=False)
     static.fillna(attrs.default, inplace=True)
 
-    pnl = dict()
+    dynamic = dict()
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.pnl(c), c)
-        for attr, data in n.pnl(c).items():
+        dynamic_strategies = align_strategies(strategies, n.dynamic(c), c)
+        for attr, data in n.dynamic(c).items():
             if data.empty:
-                pnl[attr] = data
+                dynamic[attr] = data
                 continue
             strategy = dynamic_strategies[attr]
             data = n.get_switchable_as_dense(c, attr)
@@ -280,14 +280,14 @@ def aggregateoneport(
 
             non_aggregated = data.loc[:, ~to_aggregate]
 
-            pnl[attr] = pd.concat([aggregated, non_aggregated], axis=1, sort=False)
+            dynamic[attr] = pd.concat([aggregated, non_aggregated], axis=1, sort=False)
 
             # filter out static values
             if attr in static:
-                is_static = (pnl[attr] == static[attr]).all()
-                pnl[attr] = pnl[attr].loc[:, ~is_static]
+                is_static = (dynamic[attr] == static[attr]).all()
+                dynamic[attr] = dynamic[attr].loc[:, ~is_static]
 
-    return static, pnl
+    return static, dynamic
 
 
 def aggregatebuses(
@@ -358,7 +358,7 @@ def aggregatelines(
     -------
     static : DataFrame
         DataFrame of the aggregated lines.
-    pnl : dict
+    dynamic : dict
         Dictionary of DataFrames of the aggregated dynamic data (if with_time is True).
     """
     if custom_strategies is None:
@@ -422,13 +422,13 @@ def aggregatelines(
 
     static = static.groupby(grouper).agg(static_strategies)
 
-    pnl = {}
+    dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.pnl("Line"), "Line")
+        dynamic_strategies = align_strategies(strategies, n.dynamic("Line"), "Line")
 
         for attr, data in n.lines_t.items():
             if data.empty:
-                pnl[attr] = data
+                dynamic[attr] = data
                 continue
 
             strategy = dynamic_strategies[attr]
@@ -440,14 +440,14 @@ def aggregatelines(
             else:
                 data = data.T.groupby(grouper).agg(strategy).T
 
-            pnl[attr] = data
+            dynamic[attr] = data
 
             # filter out static values
             if attr in static:
-                is_static = (pnl[attr] == static[attr]).all()
-                pnl[attr] = pnl[attr].loc[:, ~is_static]
+                is_static = (dynamic[attr] == static[attr]).all()
+                dynamic[attr] = dynamic[attr].loc[:, ~is_static]
 
-    return static, pnl, grouper
+    return static, dynamic, grouper
 
 
 @dataclass
@@ -513,7 +513,7 @@ def get_clustering_from_busmap(
     if aggregate_generators_weighted:
         # TODO: Remove this in favour of the more general approach below.
         one_port_components.remove("Generator")
-        generators, generators_pnl = aggregateoneport(
+        generators, generators_dynamic = aggregateoneport(
             n,
             busmap,
             "Generator",
@@ -524,13 +524,13 @@ def get_clustering_from_busmap(
         )
         io._import_components_from_df(clustered, generators, "Generator")
         if with_time:
-            for attr, df in generators_pnl.items():
+            for attr, df in generators_dynamic.items():
                 if not df.empty:
                     io._import_series_from_df(clustered, df, "Generator", attr)
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
-        new_df, new_pnl = aggregateoneport(
+        new_df, new_dynamic = aggregateoneport(
             n,
             busmap,
             component=one_port,
@@ -538,7 +538,7 @@ def get_clustering_from_busmap(
             custom_strategies=one_port_strategies.get(one_port, {}),
         )
         io._import_components_from_df(clustered, new_df, one_port)
-        for attr, df in new_pnl.items():
+        for attr, df in new_dynamic.items():
             io._import_series_from_df(clustered, df, one_port, attr)
 
     # Collect remaining one ports
@@ -552,7 +552,7 @@ def get_clustering_from_busmap(
 
     if with_time:
         for c in n.iterate_components(one_port_components):
-            for attr, df in c.pnl.items():
+            for attr, df in c.dynamic.items():
                 if not df.empty:
                     io._import_series_from_df(clustered, df, c.name, attr)
 

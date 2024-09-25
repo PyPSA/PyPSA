@@ -122,11 +122,11 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     Get the operation time series of a component.
     """
     if c in n.branch_components:
-        return n.pnl(c).p0
+        return n.dynamic(c).p0
     elif c == "Store":
-        return n.pnl(c).e
+        return n.dynamic(c).e
     else:
-        return n.pnl(c).p
+        return n.dynamic(c).p
 
 
 def get_weightings(n: Network, c: str) -> pd.Series:
@@ -828,11 +828,11 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             if c in n.branch_components:
-                p = n.pnl(c).p0
+                p = n.dynamic(c).p0
             elif c == "StorageUnit":
-                p = n.pnl(c).p_dispatch
+                p = n.dynamic(c).p_dispatch
             else:
-                p = n.pnl(c).p
+                p = n.dynamic(c).p
 
             opex = p * n.get_switchable_as_dense(c, "marginal_cost")
             weights = get_weightings(n, c)
@@ -955,7 +955,7 @@ class StatisticsAccessor:
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            p = n.pnl(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
+            p = n.dynamic(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -1015,7 +1015,7 @@ class StatisticsAccessor:
         def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
             weights = get_weightings(n, c)
-            p = sign * n.pnl(c)[f"p{port}"]
+            p = sign * n.dynamic(c)[f"p{port}"]
             if kind == "supply":
                 p = p.clip(lower=0)
             elif kind == "withdrawal":
@@ -1074,7 +1074,7 @@ class StatisticsAccessor:
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = (
                 n.get_switchable_as_dense(c, "p_max_pu") * n.static(c).p_nom_opt
-                - n.pnl(c).p
+                - n.dynamic(c).p
             ).clip(lower=0)
             weights = get_weightings(n, c)
             return aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -1178,7 +1178,7 @@ class StatisticsAccessor:
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
-            df = sign * n.pnl(c)[f"p{port}"]
+            df = sign * n.dynamic(c)[f"p{port}"]
             buses = n.static(c)[f"bus{port}"][df.columns]
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0

@@ -539,7 +539,7 @@ def _export_to_exporter(
         attrs = n.components[component]["attrs"]
 
         static = n.static(component)
-        pnl = n.pnl(component)
+        dynamic = n.dynamic(component)
 
         if component == "Shape":
             static = pd.DataFrame(static).assign(geometry=static["geometry"].to_wkt())
@@ -576,19 +576,21 @@ def _export_to_exporter(
         exporter.save_static(list_name, static[col_export])
 
         # now do varying attributes
-        for attr in pnl:
+        for attr in dynamic:
             if attr not in attrs.index:
-                col_export = pnl[attr].columns
+                col_export = dynamic[attr].columns
             else:
                 default = attrs.at[attr, "default"]
 
                 if pd.isnull(default):
-                    col_export = pnl[attr].columns[(~pd.isnull(pnl[attr])).any()]
+                    col_export = dynamic[attr].columns[
+                        (~pd.isnull(dynamic[attr])).any()
+                    ]
                 else:
-                    col_export = pnl[attr].columns[(pnl[attr] != default).any()]
+                    col_export = dynamic[attr].columns[(dynamic[attr] != default).any()]
 
             if len(col_export) > 0:
-                static = pnl[attr].reset_index()[col_export]
+                static = dynamic[attr].reset_index()[col_export]
                 exporter.save_series(list_name, attr, static)
             else:
                 exporter.remove_series(list_name, attr)
@@ -1020,7 +1022,7 @@ def import_series_from_dataframe(
 
     This function is deprecated. Use :py:meth:`pypsa.Network.add` instead, but it will
     not work with the same data structure. To get a similar behavior, use
-    `n.pnl(class_name)[attr] = df` but make sure that the index is aligned. Also note
+    `n.dynamic(class_name)[attr] = df` but make sure that the index is aligned. Also note
     that this is overwriting the attribute dataframe, not adding to it as before.
     It is better to use :py:meth:`pypsa.Network.add` to import time series data.
 
@@ -1152,20 +1154,20 @@ def _import_components_from_df(
 
     # Now deal with time-dependent properties
 
-    pnl = n.pnl(cls_name)
+    dynamic = n.dynamic(cls_name)
 
     for k in non_static_attrs_in_df:
         # If reading in outputs, fill the outputs
-        pnl[k] = pnl[k].reindex(
+        dynamic[k] = dynamic[k].reindex(
             columns=new_static.index, fill_value=non_static_attrs.at[k, "default"]
         )
         if overwrite:
-            pnl[k].loc[:, df.index] = df.loc[:, k].values
+            dynamic[k].loc[:, df.index] = df.loc[:, k].values
         else:
             new_components = df.index.difference(duplicated_components)
-            pnl[k].loc[:, new_components] = df.loc[new_components, k].values
+            dynamic[k].loc[:, new_components] = df.loc[new_components, k].values
 
-    setattr(n, n.components[cls_name]["list_name"] + "_t", pnl)
+    setattr(n, n.components[cls_name]["list_name"] + "_t", dynamic)
 
 
 def _import_series_from_df(
@@ -1189,12 +1191,12 @@ def _import_series_from_df(
         Name of time-varying series attribute
     """
     static = n.static(cls_name)
-    pnl = n.pnl(cls_name)
+    dynamic = n.dynamic(cls_name)
     list_name = n.components[cls_name]["list_name"]
 
     if not overwrite:
         try:
-            df = df.drop(df.columns.intersection(pnl[attr].columns), axis=1)
+            df = df.drop(df.columns.intersection(dynamic[attr].columns), axis=1)
         except KeyError:
             pass  # Don't drop any columns if the data doesn't exist yet
 
@@ -1215,8 +1217,8 @@ def _import_series_from_df(
     # Add all unknown attributes to the dataframe without any checks
     expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
     if attr not in expected_attrs:
-        if overwrite or attr not in pnl:
-            pnl[attr] = df
+        if overwrite or attr not in dynamic:
+            dynamic[attr] = df
         return
 
     # Check if any snapshots are missing
@@ -1229,14 +1231,16 @@ def _import_series_from_df(
         df = df.reindex(n.snapshots, fill_value=attrs.loc[attr].default)
 
     if not attrs.loc[attr].static:
-        pnl[attr] = pnl[attr].reindex(
+        dynamic[attr] = dynamic[attr].reindex(
             columns=df.columns.union(static.index),
             fill_value=attrs.loc[attr].default,
         )
     else:
-        pnl[attr] = pnl[attr].reindex(columns=(df.columns.union(pnl[attr].columns)))
+        dynamic[attr] = dynamic[attr].reindex(
+            columns=(df.columns.union(dynamic[attr].columns))
+        )
 
-    pnl[attr].loc[n.snapshots, df.columns] = df.loc[n.snapshots, df.columns]
+    dynamic[attr].loc[n.snapshots, df.columns] = df.loc[n.snapshots, df.columns]
 
 
 def merge(
@@ -1303,7 +1307,7 @@ def merge(
     for c in other.iterate_components(to_iterate_list):
         new._import_components_from_df(c.static, c.name)
         if with_time:
-            for k, v in c.pnl.items():
+            for k, v in c.dynamic.items():
                 new._import_series_from_df(v, c.name, k)
 
     return None if inplace else new

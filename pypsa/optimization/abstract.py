@@ -695,9 +695,9 @@ def optimize_and_run_non_linear_powerflow(
         return dict(status=status, terminantion_condition=condition)
 
     for c in n.one_port_components:
-        n.pnl(c)["p_set"] = n.pnl(c)["p"]
+        n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
     for c in {"Link"}:
-        n.pnl(c)["p_set"] = n.pnl(c)["p0"]
+        n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
 
     n.generators.control = "PV"
     for sub_network in n.sub_networks.obj:

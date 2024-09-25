@@ -39,12 +39,12 @@ def set_from_frame(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
     """
     Update values in time-dependent attribute from new dataframe.
     """
-    pnl = n.pnl(c)
-    if (attr not in pnl) or (pnl[attr].empty):
-        pnl[attr] = df.reindex(n.snapshots).fillna(0.0)
+    dynamic = n.dynamic(c)
+    if (attr not in dynamic) or (dynamic[attr].empty):
+        dynamic[attr] = df.reindex(n.snapshots).fillna(0.0)
     else:
-        pnl[attr].loc[df.index, df.columns] = df
-        pnl[attr] = pnl[attr].fillna(0.0)
+        dynamic[attr].loc[df.index, df.columns] = df
+        dynamic[attr] = dynamic[attr].fillna(0.0)
 
 
 def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:

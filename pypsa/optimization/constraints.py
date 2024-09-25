@@ -177,7 +177,7 @@ def define_operational_constraints_for_committables(
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
         # get generators which are online until the first regarded snapshot
-        until_start_up = n.pnl(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
+        until_start_up = n.dynamic(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
         up_time_before_set = up_time_before.clip(upper=min_up_time_set)
@@ -369,10 +369,12 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
 
-    pnl = n.pnl(c)
-    attr = {"p", "p0"}.intersection(pnl).pop()  # dispatch for either one or two ports
+    dynamic = n.dynamic(c)
+    attr = {"p", "p0"}.intersection(
+        dynamic
+    ).pop()  # dispatch for either one or two ports
     start_i = n.snapshots.get_loc(sns[0]) - 1
-    p_start = pnl[attr].iloc[start_i]
+    p_start = dynamic[attr].iloc[start_i]
 
     is_rolling_horizon = (sns[0] != n.snapshots[0]) and not p_start.empty
     p = m[f"{c}-p"]
@@ -487,7 +489,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
 
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
-            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
+            status_start = n.dynamic(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
 
         mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
@@ -512,7 +514,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
 
         rhs = rhs_start.reindex(columns=com_i)
         if is_rolling_horizon:
-            status_start = n.pnl(c)["status"][com_i].iloc[start_i]
+            status_start = n.dynamic(c)["status"][com_i].iloc[start_i]
             rhs.loc[sns[0]] += -limit_shut * status_start
 
         mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
@@ -737,7 +739,7 @@ def define_fixed_operation_constraints(
 ) -> None:
     """
     Sets constraints for fixing time-dependent variables of a given component
-    and attribute to the corresponding values in `n.pnl(c)[attr + '_set']`.
+    and attribute to the corresponding values in `n.dynamic(c)[attr + '_set']`.
 
     Parameters
     ----------
@@ -747,11 +749,11 @@ def define_fixed_operation_constraints(
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if attr + "_set" not in n.pnl(c):
+    if attr + "_set" not in n.dynamic(c):
         return
 
     dim = f"{c}-{attr}_set_i"
-    fix = n.pnl(c)[attr + "_set"].reindex(index=sns).rename_axis(columns=dim)
+    fix = n.dynamic(c)[attr + "_set"].reindex(index=sns).rename_axis(columns=dim)
     fix.index.name = "snapshot"  # still necessary: reindex loses the index name
 
     if fix.empty:

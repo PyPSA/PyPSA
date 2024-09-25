@@ -355,7 +355,7 @@ def assign_solution(n: Network) -> None:
                     i_eff = "" if i == "1" else i
                     eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                     set_from_frame(n, c, f"p{i}", -df * eff)
-                    n.pnl(c)[f"p{i}"].loc[
+                    n.dynamic(c)[f"p{i}"].loc[
                         sns, n.links.index[n.links[f"bus{i}"] == ""]
                     ] = float(n.components["Link"]["attrs"].loc[f"p{i}", "default"])
 
@@ -374,7 +374,7 @@ def assign_solution(n: Network) -> None:
     # recalculate storageunit net dispatch
     if not n.static("StorageUnit").empty:
         c = "StorageUnit"
-        n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
+        n.dynamic(c)["p"] = n.dynamic(c)["p_dispatch"] - n.dynamic(c)["p_store"]
 
     n.objective = m.objective.value
 
@@ -485,7 +485,7 @@ def post_processing(n: Network) -> None:
     n.buses_t.p = (
         pd.concat(
             [
-                n.pnl(c)[attr].mul(sign(c)).rename(columns=n.static(c)[group])
+                n.dynamic(c)[attr].mul(sign(c)).rename(columns=n.static(c)[group])
                 for c, attr, group in ca
             ],
             axis=1,
@@ -732,9 +732,9 @@ class OptimizationAccessor:
         """
         n = self.n
         for c in n.one_port_components:
-            n.pnl(c).p_set = n.pnl(c).p
+            n.dynamic(c).p_set = n.dynamic(c).p
         for c in n.controllable_branch_components:
-            n.pnl(c).p_set = n.pnl(c).p0
+            n.dynamic(c).p_set = n.dynamic(c).p0
 
     def add_load_shedding(
         self,

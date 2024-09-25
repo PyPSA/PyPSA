@@ -165,7 +165,7 @@ def check_time_series(n: Network, component: Component) -> None:
 
     """
     for attr in component.attrs.index[component.attrs.varying & component.attrs.static]:
-        attr_df = component.pnl[attr]
+        attr_df = component.dynamic[attr]
 
         diff = attr_df.columns.difference(component.static.index)
         if len(diff):
@@ -386,10 +386,10 @@ def check_dtypes_(component: Component) -> None:
     types_soll = component.attrs.loc[component.attrs["varying"], ["typ", "dtype"]]
 
     for attr, typ, dtype in types_soll.itertuples():
-        if component.pnl[attr].empty:
+        if component.dynamic[attr].empty:
             continue
 
-        unmatched = component.pnl[attr].dtypes != dtype
+        unmatched = component.dynamic[attr].dtypes != dtype
 
         if unmatched.any():
             logger.warning(
@@ -399,7 +399,7 @@ def check_dtypes_(component: Component) -> None:
                 attr,
                 component.list_name,
                 unmatched.index[unmatched],
-                component.pnl[attr].dtypes[unmatched],
+                component.dynamic[attr].dtypes[unmatched],
                 typ,
             )
 
@@ -498,7 +498,7 @@ def check_nans_for_component_default_attrs(n: Network, component: Component) -> 
     # there is any)
     relevant_series_dfs = {
         key: value
-        for key, value in component.pnl.items()
+        for key, value in component.dynamic.items()
         if key in not_null_component_attrs and not value.empty
     }
 

@@ -17,7 +17,7 @@ def sample_component(sample_network):
     # Create a sample component object
     data = {"active": [True, False, True], "other_attr": [1, 2, 3]}
     static = pd.DataFrame(data, index=["asset1", "asset2", "asset3"])
-    pnl = {"time_series": pd.DataFrame({"value": [0.1, 0.2, 0.3]})}
+    dynamic = {"time_series": pd.DataFrame({"value": [0.1, 0.2, 0.3]})}
     attrs = pd.DataFrame({"attr1": ["metadata1"], "attr2": ["metadata2"]})
 
     component = Component(
@@ -26,7 +26,7 @@ def sample_component(sample_network):
         investment_periods=sample_network.investment_periods,
         attrs=attrs,
         static=static,
-        pnl=pnl,
+        dynamic=dynamic,
         ind=None,
     )
     return component
@@ -38,7 +38,7 @@ def test_component_initialization(sample_component):
     assert component.list_name == "generators"
     assert "attr1" in component.attrs
     assert component.static.shape == (3, 2)
-    assert "time_series" in component.pnl
+    assert "time_series" in component.dynamic
 
 
 def test_component_repr(sample_component):
