@@ -119,20 +119,20 @@ def network_lpf_contingency(
     )
     p0 = p0_base.to_frame("base")
 
-    for sn in n.sub_networks.obj:
-        sn._branches = sn.branches()
-        sn.calculate_BODF()
+    for sub_network in n.sub_networks.obj:
+        sub_network._branches = sub_network.branches()
+        sub_network.calculate_BODF()
 
     for branch in branch_outages:
         if not isinstance(branch, tuple):
             logger.warning(f"No type given for {branch}, assuming it is a line")
             branch = ("Line", branch)
 
-        sn = n.sub_networks.obj[passive_branches.sub_network[branch]]
+        sub_network = n.sub_networks.obj[passive_branches.sub_network[branch]]
 
-        branch_i = sn._branches.index.get_loc(branch)
+        branch_i = sub_network._branches.index.get_loc(branch)
         p0_new = p0_base + pd.Series(
-            sn.BODF[:, branch_i] * p0_base[branch], sn._branches.index
+            sub_network.BODF[:, branch_i] * p0_base[branch], sub_network._branches.index
         )
         p0_new.name = branch
 

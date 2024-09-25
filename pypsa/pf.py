@@ -236,13 +236,13 @@ def network_pf(
         If ``False`` only the slack generator takes up the slack.
     slack_weights : dict|str, default 'p_set'
         Distribution scheme describing how to determine the fraction of the total slack power
-        (of each sub network individually) a bus of the subnetwork takes up.
+        (of each sub network individually) a bus of the sub-network takes up.
         Default is to distribute proportional to generator dispatch ('p_set').
         Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be specified via a dictionary that has a key for each
-        subnetwork index (``n.sub_networks.index``) and a
+        sub-network index (``n.sub_networks.index``) and a
         pandas.Series/dict with buses or generators of the
-        corresponding subnetwork as index/keys.
+        corresponding sub-network as index/keys.
         When specifying custom weights with buses as index/keys the slack power of a bus is distributed
         among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
 
@@ -336,7 +336,7 @@ def sub_network_pf_singlebus(
         If ``False`` only the slack generator takes up the slack.
     slack_weights : pandas.Series|str, default 'p_set'
         Distribution scheme describing how to determine the fraction of the total slack power
-        a bus of the subnetwork takes up. Default is to distribute proportional to generator dispatch
+        a bus of the sub-network takes up. Default is to distribute proportional to generator dispatch
         ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be provided via a pandas.Series/dict
         that has the generators of the single bus as index/keys.
@@ -445,10 +445,10 @@ def sub_network_pf(
         If ``False`` only the slack generator takes up the slack.
     slack_weights : pandas.Series|str, default 'p_set'
         Distribution scheme describing how to determine the fraction of the total slack power
-        a bus of the subnetwork takes up. Default is to distribute proportional to generator dispatch
+        a bus of the sub-network takes up. Default is to distribute proportional to generator dispatch
         ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be provided via a pandas.Series/dict
-        that has the buses or the generators of the subnetwork as index/keys.
+        that has the buses or the generators of the sub-network as index/keys.
         When using custom weights with buses as index/keys the slack power of a bus is distributed
         among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
 
@@ -493,7 +493,7 @@ def sub_network_pf(
         find_bus_controls(sub_network)
         _allocate_pf_outputs(n, linear=False)
 
-    # get indices for the components on this subnetwork
+    # get indices for the components on this sub-network
     branches_i = sub_network.branches_i(active_only=True)
     buses_o = sub_network.buses_o
     sn_buses = sub_network.buses().index
@@ -509,7 +509,7 @@ def sub_network_pf(
         else:
             raise ValueError(
                 "Custom slack weights pd.Series/dict must only have the",
-                "generators or buses of the subnetwork as index/keys.",
+                "generators or buses of the sub-network as index/keys.",
             )
 
     if not skip_pre and len(branches_i) > 0:
@@ -1452,7 +1452,7 @@ def sub_network_lpf(
         find_bus_controls(sub_network)
         _allocate_pf_outputs(n, linear=True)
 
-    # get indices for the components on this subnetwork
+    # get indices for the components on this sub-network
     buses_o = sub_network.buses_o
     branches_i = sub_network.branches_i(active_only=True)
 

@@ -395,15 +395,15 @@ def optimize_security_constrained(
         **model_kwargs,
     )
 
-    for sn in n.sub_networks.obj:
-        branches_i = sn.branches_i()
+    for sub_network in n.sub_networks.obj:
+        branches_i = sub_network.branches_i()
         outages = branches_i.intersection(branch_outages)
 
         if outages.empty:
             continue
 
-        sn.calculate_BODF()
-        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)[outages]
+        sub_network.calculate_BODF()
+        BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[outages]
 
         for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
             c_outage_ = c_outage + "-outage"
@@ -422,11 +422,11 @@ def optimize_security_constrained(
                 rename = {c_affected: coord}
                 added_flow = additional_flow.rename(rename)
                 con = m.constraints[constraint]  # use this as a template
-                # idx now contains fixed/extendable for the subnetwork
+                # idx now contains fixed/extendable for the sub-network
                 idx = con.lhs.indexes[coord].intersection(added_flow.indexes[coord])
                 sel = {coord: idx}
                 lhs = con.lhs.sel(sel) + added_flow.sel(sel)
-                name = constraint + f"-security-for-{c_outage_}-in-{sn}"
+                name = constraint + f"-security-for-{c_outage_}-in-{sub_network}"
                 m.add_constraints(lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name)
 
     return n.optimize.solve_model(**kwargs)
@@ -698,12 +698,12 @@ def optimize_and_run_non_linear_powerflow(
         n.pnl(c)["p_set"] = n.pnl(c)["p0"]
 
     n.generators.control = "PV"
-    for subnetwork in n.sub_networks.obj:
-        n.generators.loc[subnetwork.slack_generator, "control"] = "Slack"
+    for sub_network in n.sub_networks.obj:
+        n.generators.loc[sub_network.slack_generator, "control"] = "Slack"
     # Need some PQ buses so that Jacobian doesn't break
-    for subnetwork in n.sub_networks.obj:
-        generators = subnetwork.generators_i()
-        other_generators = generators.difference([subnetwork.slack_generator])
+    for sub_network in n.sub_networks.obj:
+        generators = sub_network.generators_i()
+        other_generators = generators.difference([sub_network.slack_generator])
         if not other_generators.empty:
             n.generators.loc[other_generators[0], "control"] = "PQ"
 

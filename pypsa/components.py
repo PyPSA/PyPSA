@@ -1680,7 +1680,7 @@ class SubNetwork:
             buses = self.buses_i()
             return df[df.bus.isin(buses)]
         else:
-            raise ValueError(f"Component {c_name} not supported for subnetworks")
+            raise ValueError(f"Component {c_name} not supported for sub-networks")
 
     def pnl(self, c_name: str) -> Dict:
         pnl = Dict()
@@ -1765,7 +1765,7 @@ class SubNetwork:
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
         """
-        Iterate over components of the subnetwork and extract corresponding
+        Iterate over components of the sub-network and extract corresponding
         data.
 
         Parameters

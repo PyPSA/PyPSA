@@ -642,15 +642,15 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         snapshots = sns if period is None else sns[sns.get_loc(period)]
 
         exprs_list = []
-        for sub in n.sub_networks.obj:
-            branches = sub.branches()
+        for sub_network in n.sub_networks.obj:
+            branches = sub_network.branches()
 
-            if not sub.C.size:
+            if not sub_network.C.size:
                 continue
 
-            carrier = n.sub_networks.carrier[sub.name]
+            carrier = n.sub_networks.carrier[sub_network.name]
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            C = 1e5 * sparse.diags(weightings.values) * sub.C
+            C = 1e5 * sparse.diags(weightings.values) * sub_network.C
             ssub = s.loc[snapshots, branches.index].values
 
             ncycles = C.shape[1]
