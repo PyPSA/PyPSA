@@ -25,6 +25,11 @@ Upcoming Release
 * The `Network` class has a new method `component` to access component objects. Use it with e.g. `n.component("Generator")`. 
 * The `Subnetwork` class has new methods `df`, `pnl`, `component` to ease the access of component data for a subnetwork. Use it with e.g. `subnetwork.df("Generator")` and alike.  
 
+* Refactored API: :meth:`n.df <pypsa.Network.df>` and `n.pnl <pypsa.Network.pnl>` have 
+  been renamed to `n.static <pypsa.Network.static>` and 
+  `n.dynamic <pypsa.Network.dynamic>`. But `n.df` and `n.pnl` are still available and
+  can be used as aliases without any deprecation warning.
+
 v0.30.3 (24th September 2024)
 =============================
 
