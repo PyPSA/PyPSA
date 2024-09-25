@@ -46,6 +46,7 @@ from pypsa.consistency import (
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.descriptors import (
     Dict,
+    additional_linkports,
     expand_series,
     get_active_assets,
     get_bounds_pu,
@@ -286,6 +287,7 @@ class Network(Basic):
     adjacency_matrix = adjacency_matrix
 
     # from pypsa.descriptors
+    additional_linkports = additional_linkports
     expand_series = expand_series
     get_bounds_pu = get_bounds_pu
     get_committable_i = get_committable_i

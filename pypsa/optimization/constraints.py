@@ -17,7 +17,6 @@ from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
 from pypsa.descriptors import (
-    additional_linkports,
     expand_series,
     get_activity_mask,
     get_bounds_pu,
@@ -548,12 +547,12 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus0", -1],
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
-        ["Link", "p", "bus1", get_as_dense(n, "Link", "efficiency", sns)],
+        ["Link", "p", "bus1", n.get_switchable_as_dense("Link", "efficiency", sns)],
     ]
 
     if not n.links.empty:
-        for i in additional_linkports(n):
-            eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
+        for i in n.additional_linkports(n):
+            eff = n.get_switchable_as_dense("Link", f"efficiency{i}", sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
     if transmission_losses:
@@ -579,10 +578,13 @@ def define_nodal_balance_constraints(
             sign = sign * n.df(c).sign
 
         expr = DataArray(sign) * m[f"{c}-{attr}"]
-        cbuses = n.df(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
+        if n._stochastic:
+            cbuses = n.df(c)[column].iloc[:, 0][lambda ds: ds.isin(buses)].rename("Bus")
+        else:
+            cbuses = n.df(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
 
         #  drop non-existent multiport buses which are ''
-        if column in ["bus" + i for i in additional_linkports(n)]:
+        if column in ["bus" + i for i in n.additional_linkports()]:
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel({c: cbuses.index})
@@ -591,18 +593,31 @@ def define_nodal_balance_constraints(
             exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(Bus=buses)
-    rhs = (
-        (-get_as_dense(n, "Load", "p_set", sns) * n.loads.sign)
-        .T.groupby(n.loads.bus)
-        .sum()
-        .T.reindex(columns=buses, fill_value=0)
-    )
+
+    if n._stochastic:
+        rhs = (
+            (-n.get_switchable_as_dense("Load", "p_set", sns) * n.loads.sign.T)
+            .T.groupby(n.loads.bus.iloc[:, 0])
+            .sum()
+            .T.reindex(columns=buses, fill_value=0)
+        )
+    else:
+        rhs = (
+            (-n.get_switchable_as_dense("Load", "p_set", sns) * n.loads.sign)
+            .T.groupby(n.loads.bus)
+            .sum()
+            .T.reindex(columns=buses, fill_value=0)
+        )
+
     # the name for multi-index is getting lost by groupby before pandas 1.4.0
     # TODO remove once we bump the required pandas version to >= 1.4.0
     rhs.index.name = "snapshot"
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
     rhs = DataArray(rhs)
+    if n._stochastic:
+        rhs = rhs.unstack("snapshot")
+
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
@@ -616,6 +631,7 @@ def define_nodal_balance_constraints(
         rhs = rhs.rename(Bus=f"Bus{suffix}")
         if mask is not None:
             mask = mask.rename(Bus=f"Bus{suffix}")
+
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
 
