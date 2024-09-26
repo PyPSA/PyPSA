@@ -270,7 +270,7 @@ def network_pf(
         use_seed=use_seed,
         distribute_slack=distribute_slack,
         slack_weights=slack_weights,
-    )  # type: ignore
+    )
 
 
 def newton_raphson_sparse(
