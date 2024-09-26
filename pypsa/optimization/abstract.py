@@ -130,7 +130,7 @@ def optimize_transmission_expansion_iteratively(
     ----------
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
-        network.snapshots, defaults to network.snapshots
+        n.snapshots, defaults to n.snapshots
     msq_threshold: float, default 0.05
         Maximal mean square difference between optimized line capacity of
         the current and the previous iteration. As soon as this threshold is
@@ -196,7 +196,7 @@ def optimize_transmission_expansion_iteratively(
 
     def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-            n.df(c)[f"{attr}_opt_{iteration}"] = n.df(c)[f"{attr}_opt"]
+            n.static(c)[f"{attr}_opt_{iteration}"] = n.static(c)[f"{attr}_opt"]
         setattr(n, f"status_{iteration}", status)
         setattr(n, f"objective_{iteration}", n.objective)
         n.iteration = iteration
@@ -253,7 +253,7 @@ def optimize_transmission_expansion_iteratively(
 
     if track_iterations:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-            n.df(c)[f"{attr}_opt_0"] = n.df(c)[f"{attr}"]
+            n.static(c)[f"{attr}_opt_0"] = n.static(c)[f"{attr}"]
 
     iteration = 1
     diff = msq_threshold
@@ -395,15 +395,17 @@ def optimize_security_constrained(
         **model_kwargs,
     )
 
-    for sn in n.sub_networks.obj:
-        branches_i = sn.branches_i()
+    for sub_network in n.sub_networks.obj:
+        branches_i = sub_network.branches_i()
         outages = branches_i.intersection(branch_outages)
 
         if outages.empty:
             continue
 
-        sn.calculate_BODF()
-        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)[outages]
+        sub_network.calculate_BODF()
+        BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[
+            outages
+        ]
 
         for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
             c_outage_ = c_outage + "-outage"
@@ -422,11 +424,11 @@ def optimize_security_constrained(
                 rename = {c_affected: coord}
                 added_flow = additional_flow.rename(rename)
                 con = m.constraints[constraint]  # use this as a template
-                # idx now contains fixed/extendable for the subnetwork
+                # idx now contains fixed/extendable for the sub-network
                 idx = con.lhs.indexes[coord].intersection(added_flow.indexes[coord])
                 sel = {coord: idx}
                 lhs = con.lhs.sel(sel) + added_flow.sel(sel)
-                name = constraint + f"-security-for-{c_outage_}-in-{sn}"
+                name = constraint + f"-security-for-{c_outage_}-in-{sub_network}"
                 m.add_constraints(lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name)
 
     return n.optimize.solve_model(**kwargs)
@@ -611,9 +613,9 @@ def optimize_mga(
                 coeffs = coeffs.reindex(n.get_extendable_i(c))
                 coeffs.index.name = ""
             elif isinstance(coeffs, pd.Series):
-                coeffs = coeffs.reindex(columns=n.df(c).index)
+                coeffs = coeffs.reindex(columns=n.static(c).index)
             elif isinstance(coeffs, pd.DataFrame):
-                coeffs = coeffs.reindex(columns=n.df(c).index, index=snapshots)
+                coeffs = coeffs.reindex(columns=n.static(c).index, index=snapshots)
             objective.append(m[f"{c}-{attr}"] * coeffs * sense)
 
     m.objective = merge(objective)
@@ -693,17 +695,17 @@ def optimize_and_run_non_linear_powerflow(
         return dict(status=status, terminantion_condition=condition)
 
     for c in n.one_port_components:
-        n.pnl(c)["p_set"] = n.pnl(c)["p"]
+        n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
     for c in {"Link"}:
-        n.pnl(c)["p_set"] = n.pnl(c)["p0"]
+        n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
 
     n.generators.control = "PV"
-    for subnetwork in n.sub_networks.obj:
-        n.generators.loc[subnetwork.slack_generator, "control"] = "Slack"
+    for sub_network in n.sub_networks.obj:
+        n.generators.loc[sub_network.slack_generator, "control"] = "Slack"
     # Need some PQ buses so that Jacobian doesn't break
-    for subnetwork in n.sub_networks.obj:
-        generators = subnetwork.generators_i()
-        other_generators = generators.difference([subnetwork.slack_generator])
+    for sub_network in n.sub_networks.obj:
+        generators = sub_network.generators_i()
+        other_generators = generators.difference([sub_network.slack_generator])
         if not other_generators.empty:
             n.generators.loc[other_generators[0], "control"] = "PQ"
 

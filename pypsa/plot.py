@@ -379,7 +379,7 @@ def plot(
     arrow_collections = []
 
     if flow is not None:
-        rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
+        rough_scale = sum(len(n.static(c)) for c in branch_components) + 100
         flow = _flow_ds_from_arg(flow, n, branch_components) / rough_scale
 
     for c in n.iterate_components(branch_components):
@@ -394,7 +394,7 @@ def plot(
         if any([isinstance(v, pd.Series) for _, v in d.items()]):
             df = pd.DataFrame(d)
         else:
-            df = pd.DataFrame(d, index=c.df.index)
+            df = pd.DataFrame(d, index=c.static.index)
 
         if df.empty:
             continue
@@ -414,15 +414,15 @@ def plot(
         if not geometry:
             segments = np.asarray(
                 (
-                    (c.df.bus0[df.index].map(x), c.df.bus0[df.index].map(y)),
-                    (c.df.bus1[df.index].map(x), c.df.bus1[df.index].map(y)),
+                    (c.static.bus0[df.index].map(x), c.static.bus0[df.index].map(y)),
+                    (c.static.bus1[df.index].map(x), c.static.bus1[df.index].map(y)),
                 )
             ).transpose(2, 0, 1)
         else:
             from shapely.geometry import LineString
             from shapely.wkt import loads
 
-            linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
+            linestrings = c.static.geometry[lambda ds: ds != ""].map(loads)
             if not all(isinstance(ls, LineString) for ls in linestrings):
                 msg = "The WKT-encoded geometry in the 'geometry' column must be "
                 "composed of LineStrings"
@@ -432,10 +432,10 @@ def plot(
         if b_flow is not None:
             coords = pd.DataFrame(
                 {
-                    "x1": c.df.bus0.map(x),
-                    "y1": c.df.bus0.map(y),
-                    "x2": c.df.bus1.map(x),
-                    "y2": c.df.bus1.map(y),
+                    "x1": c.static.bus0.map(x),
+                    "y1": c.static.bus0.map(y),
+                    "x2": c.static.bus1.map(x),
+                    "y2": c.static.bus1.map(y),
                 }
             )
             b_flow = b_flow.mul(b_widths.abs(), fill_value=0)
@@ -475,7 +475,7 @@ def plot(
 
 
 def as_branch_series(ser, arg, c, n):
-    ser = pd.Series(ser, index=n.df(c).index)
+    ser = pd.Series(ser, index=n.static(c).index)
     if ser.isnull().any():
         msg = f"{c}_{arg}s does not specify all "
         f"entries. Missing values for {c}: {list(ser[ser.isnull()].index)}"
@@ -795,15 +795,15 @@ def _flow_ds_from_arg(flow, n, branch_components):
     if flow in n.snapshots:
         return pd.concat(
             {
-                c: n.pnl(c).p0.loc[flow]
+                c: n.dynamic(c).p0.loc[flow]
                 for c in branch_components
-                if not n.pnl(c).p0.empty
+                if not n.dynamic(c).p0.empty
             },
             sort=True,
         )
     if isinstance(flow, str) or callable(flow):
         return pd.concat(
-            [n.pnl(c).p0 for c in branch_components],
+            [n.dynamic(c).p0 for c in branch_components],
             axis=1,
             keys=branch_components,
             sort=True,
@@ -895,8 +895,8 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
 
     Examples
     --------
-    >>> autogenerate_coordinates(network)
-    >>> autogenerate_coordinates(network, assign=True, layouter=nx.circle_layout)
+    >>> autogenerate_coordinates(n)
+    >>> autogenerate_coordinates(n, assign=True, layouter=nx.circle_layout)
 
     """
     G = n.graph()
@@ -1142,14 +1142,14 @@ def iplot(
         b_text = branch_text[c.name]
 
         if b_text is None:
-            b_text = c.name + " " + c.df.index
+            b_text = c.name + " " + c.static.index
 
-        x0 = c.df.bus0.map(x)
-        x1 = c.df.bus1.map(x)
-        y0 = c.df.bus0.map(y)
-        y1 = c.df.bus1.map(y)
+        x0 = c.static.bus0.map(x)
+        x1 = c.static.bus1.map(x)
+        y0 = c.static.bus0.map(y)
+        y1 = c.static.bus1.map(y)
 
-        for b in c.df.index:
+        for b in c.static.index:
             shapes.append(
                 dict(
                     type="line",

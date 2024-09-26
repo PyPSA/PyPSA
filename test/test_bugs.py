@@ -24,7 +24,7 @@ def test_890():
     nc = n.cluster.cluster_by_busmap(busmap)
 
     C = n.cluster.get_clustering_from_busmap(busmap)
-    nc = C.network
+    nc = C.n
 
     almost_equal(n.investment_periods, nc.investment_periods)
     almost_equal(n.investment_period_weightings, nc.investment_period_weightings)

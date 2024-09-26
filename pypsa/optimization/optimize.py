@@ -91,7 +91,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     constant = 0
     for c, attr in nom_attr:
         ext_i = n.get_extendable_i(c)
-        cost = n.df(c)["capital_cost"][ext_i]
+        cost = n.static(c)["capital_cost"][ext_i]
         if cost.empty:
             continue
 
@@ -108,7 +108,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             active = n.get_active_assets(c)[ext_i]
             cost = cost[active]
 
-        constant += (cost * n.df(c)[attr][ext_i]).sum()
+        constant += (cost * n.static(c)[attr][ext_i]).sum()
 
     n.objective_constant = constant
     if constant != 0:
@@ -137,7 +137,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # marginal cost quadratic
     for c, attr in lookup.query("marginal_cost").index:
-        if "marginal_cost_quadratic" in n.df(c):
+        if "marginal_cost_quadratic" in n.static(c):
             cost = (
                 get_as_dense(n, c, "marginal_cost_quadratic", sns)
                 .loc[:, lambda ds: (ds != 0).any()]
@@ -169,7 +169,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # investment
     for c, attr in nominal_attrs.items():
         ext_i = n.get_extendable_i(c)
-        cost = n.df(c)["capital_cost"][ext_i]
+        cost = n.static(c)["capital_cost"][ext_i]
         if cost.empty:
             continue
 
@@ -193,7 +193,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c, attr in lookup.query("variable in @keys").index:
         com_i = n.get_committable_i(c)
-        cost = n.df(c)[attr + "_cost"].reindex(com_i)
+        cost = n.static(c)[attr + "_cost"].reindex(com_i)
 
         if cost.sum():
             var = m[f"{c}-{attr}"]
@@ -226,7 +226,7 @@ def create_model(
     n : pypsa.Network
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
-        network.snapshots, defaults to network.snapshots
+        n.snapshots, defaults to n.snapshots
     multi_investment_periods : bool, default False
         Whether to optimise as a single investment period or to optimize in multiple
         investment periods. Then, snapshots should be a ``pd.MultiIndex``.
@@ -357,26 +357,26 @@ def assign_solution(n: Network) -> None:
                     i_eff = "" if i == "1" else i
                     eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                     set_from_frame(n, c, f"p{i}", -df * eff)
-                    n.pnl(c)[f"p{i}"].loc[
+                    n.dynamic(c)[f"p{i}"].loc[
                         sns, n.links.index[n.links[f"bus{i}"] == ""]
                     ] = float(n.components["Link"]["attrs"].loc[f"p{i}", "default"])
 
             else:
                 set_from_frame(n, c, attr, df)
         elif attr != "n_mod":
-            idx = df.index.intersection(n.df(c).index)
-            n.df(c).loc[idx, attr + "_opt"] = df.loc[idx]
+            idx = df.index.intersection(n.static(c).index)
+            n.static(c).loc[idx, attr + "_opt"] = df.loc[idx]
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
         fix_i = n.get_non_extendable_i(c)
         if not fix_i.empty:
-            n.df(c).loc[fix_i, f"{attr}_opt"] = n.df(c).loc[fix_i, attr]
+            n.static(c).loc[fix_i, f"{attr}_opt"] = n.static(c).loc[fix_i, attr]
 
     # recalculate storageunit net dispatch
-    if not n.df("StorageUnit").empty:
+    if not n.static("StorageUnit").empty:
         c = "StorageUnit"
-        n.pnl(c)["p"] = n.pnl(c)["p_dispatch"] - n.pnl(c)["p_store"]
+        n.dynamic(c)["p"] = n.dynamic(c)["p_dispatch"] - n.dynamic(c)["p_store"]
 
     n.objective = m.objective.value
 
@@ -417,7 +417,7 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
 
                 if attr.endswith("nodal_balance"):
                     set_from_frame(n, c, "marginal_price", df)
-                elif assign_all_duals or f"mu_{spec}" in n.df(c):
+                elif assign_all_duals or f"mu_{spec}" in n.static(c):
                     set_from_frame(n, c, "mu_" + spec, df)
                 else:
                     unassigned.append(name)
@@ -425,8 +425,10 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
             except:  # noqa: E722 # TODO: specify exception
                 unassigned.append(name)
 
-        elif (c == "GlobalConstraint") and (assign_all_duals or attr in n.df(c).index):
-            n.df(c).loc[attr, "mu"] = dual
+        elif (c == "GlobalConstraint") and (
+            assign_all_duals or attr in n.static(c).index
+        ):
+            n.static(c).loc[attr, "mu"] = dual
 
     if unassigned:
         logger.info(
@@ -480,12 +482,12 @@ def post_processing(n: Network) -> None:
         ca.append(("Link", f"p{i}", f"bus{i}"))
 
     def sign(c: str) -> int:
-        return n.df(c).sign if "sign" in n.df(c) else -1  # sign for 'Link'
+        return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
 
     n.buses_t.p = (
         pd.concat(
             [
-                n.pnl(c)[attr].mul(sign(c)).rename(columns=n.df(c)[group])
+                n.dynamic(c)[attr].mul(sign(c)).rename(columns=n.static(c)[group])
                 for c, attr, group in ca
             ],
             axis=1,
@@ -550,7 +552,7 @@ def optimize(
         Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
     extra_functionality : callable
         This function must take two arguments
-        `extra_functionality(network, snapshots)` and is called after
+        `extra_functionality(n, snapshots)` and is called after
         the model building is complete, but before it is sent to the
         solver. It allows the user to
         add/change constraints and add/change the objective function.
@@ -616,16 +618,16 @@ class OptimizationAccessor:
     Optimization accessor for building and solving models using linopy.
     """
 
-    def __init__(self, network: Network) -> None:
-        self._parent = network
+    def __init__(self, n: Network) -> None:
+        self.n = n
 
     @wraps(optimize)
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize(self._parent, *args, **kwargs)
+        return optimize(self.n, *args, **kwargs)
 
     @wraps(create_model)
     def create_model(self, *args: Any, **kwargs: Any) -> Any:
-        return create_model(self._parent, *args, **kwargs)
+        return create_model(self.n, *args, **kwargs)
 
     def solve_model(
         self,
@@ -662,7 +664,7 @@ class OptimizationAccessor:
             "optimal" or one of the codes listed in
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
         """
-        n = self._parent
+        n = self.n
         if extra_functionality:
             extra_functionality(n, n.snapshots)
         m = n.model
@@ -677,39 +679,37 @@ class OptimizationAccessor:
 
     @wraps(assign_solution)
     def assign_solution(self, *args: Any, **kwargs: Any) -> Any:
-        return assign_solution(self._parent, **kwargs)
+        return assign_solution(self.n, **kwargs)
 
     @wraps(assign_duals)
     def assign_duals(self, *args: Any, **kwargs: Any) -> Any:
-        return assign_duals(self._parent, **kwargs)
+        return assign_duals(self.n, **kwargs)
 
     @wraps(post_processing)
     def post_processing(self, *args: Any, **kwargs: Any) -> Any:
-        return post_processing(self._parent, **kwargs)
+        return post_processing(self.n, **kwargs)
 
     @wraps(optimize_transmission_expansion_iteratively)
     def optimize_transmission_expansion_iteratively(
         self, *args: Any, **kwargs: Any
     ) -> Any:
-        return optimize_transmission_expansion_iteratively(
-            self._parent, *args, **kwargs
-        )
+        return optimize_transmission_expansion_iteratively(self.n, *args, **kwargs)
 
     @wraps(optimize_security_constrained)
     def optimize_security_constrained(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_security_constrained(self._parent, *args, **kwargs)
+        return optimize_security_constrained(self.n, *args, **kwargs)
 
     @wraps(optimize_with_rolling_horizon)
     def optimize_with_rolling_horizon(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_with_rolling_horizon(self._parent, *args, **kwargs)
+        return optimize_with_rolling_horizon(self.n, *args, **kwargs)
 
     @wraps(optimize_mga)
     def optimize_mga(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_mga(self._parent, *args, **kwargs)
+        return optimize_mga(self.n, *args, **kwargs)
 
     @wraps(optimize_and_run_non_linear_powerflow)
     def optimize_and_run_non_linear_powerflow(self, *args: Any, **kwargs: Any) -> Any:
-        return optimize_and_run_non_linear_powerflow(self._parent, *args, **kwargs)
+        return optimize_and_run_non_linear_powerflow(self.n, *args, **kwargs)
 
     def fix_optimal_capacities(self) -> None:
         """
@@ -719,11 +719,11 @@ class OptimizationAccessor:
         already performed and a operational optimization should be done
         afterwards.
         """
-        n = self._parent
+        n = self.n
         for c, attr in nominal_attrs.items():
             ext_i = n.get_extendable_i(c)
-            n.df(c).loc[ext_i, attr] = n.df(c).loc[ext_i, attr + "_opt"]
-            n.df(c)[attr + "_extendable"] = False
+            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
+            n.static(c)[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """
@@ -732,11 +732,11 @@ class OptimizationAccessor:
         Use this function when the optimal dispatch should be used as an
         starting point for power flow calculation (`Network.pf`).
         """
-        n = self._parent
+        n = self.n
         for c in n.one_port_components:
-            n.pnl(c).p_set = n.pnl(c).p
+            n.dynamic(c).p_set = n.dynamic(c).p
         for c in n.controllable_branch_components:
-            n.pnl(c).p_set = n.pnl(c).p0
+            n.dynamic(c).p_set = n.dynamic(c).p0
 
     def add_load_shedding(
         self,
@@ -766,7 +766,7 @@ class OptimizationAccessor:
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
         """
-        n = self._parent
+        n = self.n
         if "Load" not in n.carriers.index:
             n.add("Carrier", "Load")
         if buses is None:

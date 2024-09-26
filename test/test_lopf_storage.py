@@ -22,7 +22,7 @@ def target_gen_p():
 
 
 @pytest.fixture
-def network():
+def n():
     csv_folder = os.path.join(
         os.path.dirname(__file__),
         "..",
@@ -33,9 +33,9 @@ def network():
     return pypsa.Network(csv_folder)
 
 
-def test_optimize(network, target_gen_p):
-    network.optimize()
-    equal(network.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
+def test_optimize(n, target_gen_p):
+    n.optimize()
+    equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 
 def test_storage_energy_marginal_cost():
@@ -68,18 +68,18 @@ def test_spill_cost():
     p_set = [100, 100, 100, 100, 100]
 
     for has_spill_cost in [False, True]:
-        network = pypsa.Network(snapshots=range(len(p_set) * sets_of_snapshots))
+        n = pypsa.Network(snapshots=range(len(p_set) * sets_of_snapshots))
 
-        network.add("Bus", "bus")
+        n.add("Bus", "bus")
 
         # Add high capacity generator to help
-        network.add(
+        n.add(
             "Generator", "help", bus="bus", p_nom=1000, control="PQ", marginal_cost=100
         )
 
         # Add hydro unit
         if has_spill_cost:
-            network.add(
+            n.add(
                 "StorageUnit",
                 "hydro",
                 bus="bus",
@@ -89,7 +89,7 @@ def test_spill_cost():
                 spill_cost=1,
             )
         else:
-            network.add(
+            n.add(
                 "StorageUnit",
                 "hydro",
                 bus="bus",
@@ -99,19 +99,19 @@ def test_spill_cost():
             )
 
         # Add Load
-        network.add("Load", "load", bus="bus", p_set=p_set * sets_of_snapshots)
+        n.add("Load", "load", bus="bus", p_set=p_set * sets_of_snapshots)
 
         overlap = 2
         for i in range(sets_of_snapshots):
             if i == 1:
-                network.storage_units.state_of_charge_initial = (
-                    network.storage_units_t.state_of_charge.loc[network.snapshots[4]]
+                n.storage_units.state_of_charge_initial = (
+                    n.storage_units_t.state_of_charge.loc[n.snapshots[4]]
                 )
-            network.optimize(
-                network.snapshots[i * len(p_set) : (i + 1) * len(p_set) + overlap],
+            n.optimize(
+                n.snapshots[i * len(p_set) : (i + 1) * len(p_set) + overlap],
             )
 
-        spill = network.storage_units_t["spill"].loc[:, "hydro"]
+        spill = n.storage_units_t["spill"].loc[:, "hydro"]
         total_spill = spill.sum()
 
         if has_spill_cost:

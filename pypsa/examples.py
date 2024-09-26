@@ -140,8 +140,8 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
         {
             carrier
             for c in n.iterate_components()
-            if "carrier" in c.df
-            for carrier in c.df.carrier.unique()
+            if "carrier" in c.static
+            for carrier in c.static.carrier.unique()
         }
     )
     n.add("Carrier", carriers)
