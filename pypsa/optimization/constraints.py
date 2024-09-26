@@ -979,13 +979,18 @@ def define_generators_constraints(n, sns) -> None:
     if assets.empty:
         return
 
-    # gens where p_sum is greater than zero
-    constrained = assets[assets.p_sum > 0].index
+    p_sum_min_set = assets[assets.p_sum_min >= 0].index
+    p = m[f"{c}-p"].loc[sns, p_sum_min_set].sum(dim="snapshot")
+    p_sum_min = n.df(c).loc[p_sum_min_set, "p_sum_min"]
 
-    p = m[f"{c}-p"].loc[sns, constrained].sum(dim="snapshot")
-    p_sum = n.df(c).loc[constrained, "p_sum"]
-
-    # I want to constraint the sum of all generation timesteps to be greater or equal equal to the p_sum of the components
     lhs = p
-    rhs = p_sum
-    m.add_constraints(lhs, ">=", rhs, name=f"{c}-p_sum")
+    rhs = p_sum_min
+    m.add_constraints(lhs, ">=", rhs, name=f"{c}-p_sum_min")
+
+    p_sum_max_set = assets[assets.p_sum_max >= 0].index
+    p = m[f"{c}-p"].loc[sns, p_sum_min_set].sum(dim="snapshot")
+    p_sum_max = n.df(c).loc[p_sum_max_set, "p_sum_max"]
+
+    lhs = p
+    rhs = p_sum_max
+    m.add_constraints(lhs, "<=", rhs, name=f"{c}-p_sum_max")
