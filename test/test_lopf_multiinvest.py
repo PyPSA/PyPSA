@@ -360,28 +360,28 @@ def test_simple_network_store_cyclic_per_period(n_sts):
 def test_global_constraint_primary_energy_storage(n_sus):
     c = "StorageUnit"
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sus.df(c)["state_of_charge_initial"] = 200
-    n_sus.df(c)["cyclic_state_of_charge"] = False
-    n_sus.df(c)["state_of_charge_initial_per_period"] = False
-    n_sus.df(c)["carrier"] = "emitting_carrier"
+    n_sus.static(c)["state_of_charge_initial"] = 200
+    n_sus.static(c)["cyclic_state_of_charge"] = False
+    n_sus.static(c)["state_of_charge_initial_per_period"] = False
+    n_sus.static(c)["carrier"] = "emitting_carrier"
 
     n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = n_sus.optimize(**kwargs)
 
     active = get_activity_mask(n_sus, c)
-    soc_end = n_sus.pnl(c).state_of_charge.where(active).ffill().iloc[-1]
-    soc_diff = n_sus.df(c).state_of_charge_initial - soc_end
-    emissions = n_sus.df(c).carrier.map(n_sus.carriers.co2_emissions)
+    soc_end = n_sus.dynamic(c).state_of_charge.where(active).ffill().iloc[-1]
+    soc_diff = n_sus.static(c).state_of_charge_initial - soc_end
+    emissions = n_sus.static(c).carrier.map(n_sus.carriers.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 
 def test_global_constraint_primary_energy_store(n_sts):
     c = "Store"
     n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sts.df(c)["e_initial"] = 200
-    n_sts.df(c)["e_cyclic"] = False
-    n_sts.df(c)["e_initial_per_period"] = False
+    n_sts.static(c)["e_initial"] = 200
+    n_sts.static(c)["e_cyclic"] = False
+    n_sts.static(c)["e_initial_per_period"] = False
 
     n_sts.buses.loc["1 battery", "carrier"] = "emitting_carrier"
 
@@ -390,9 +390,9 @@ def test_global_constraint_primary_energy_store(n_sts):
     status, cond = n_sts.optimize(**kwargs)
 
     active = get_activity_mask(n_sts, c)
-    soc_end = n_sts.pnl(c).e.where(active).ffill().iloc[-1]
-    soc_diff = n_sts.df(c).e_initial - soc_end
-    emissions = n_sts.df(c).carrier.map(n_sts.carriers.co2_emissions)
+    soc_end = n_sts.dynamic(c).e.where(active).ffill().iloc[-1]
+    soc_diff = n_sts.static(c).e_initial - soc_end
+    emissions = n_sts.static(c).carrier.map(n_sts.carriers.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 

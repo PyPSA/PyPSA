@@ -32,25 +32,25 @@ def describe_storage_unit_contraints(n):
         return
     sns = n.snapshots
     c = "StorageUnit"
-    pnl = n.pnl(c)
+    dynamic = n.dynamic(c)
 
     eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
     stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
     dispatch_eff = get_as_dense(n, c, "efficiency_dispatch", sns)
     store_eff = get_as_dense(n, c, "efficiency_store", sns)
     inflow = get_as_dense(n, c, "inflow") * eh
-    spill = eh[pnl.spill.columns] * pnl.spill
+    spill = eh[dynamic.spill.columns] * dynamic.spill
 
     description = {
         "Spillage Limit": pd.Series(
             {"min": (inflow[spill.columns] - spill).min().min()}
         )
     }
-    if "p_store" in pnl:
-        soc = pnl.state_of_charge
+    if "p_store" in dynamic:
+        soc = dynamic.state_of_charge
 
-        store = store_eff * eh * pnl.p_store  # .clip(upper=0)
-        dispatch = 1 / dispatch_eff * eh * pnl.p_dispatch  # (lower=0)
+        store = store_eff * eh * dynamic.p_store  # .clip(upper=0)
+        dispatch = 1 / dispatch_eff * eh * dynamic.p_dispatch  # (lower=0)
         start = soc.iloc[-1].where(
             sus.cyclic_state_of_charge, sus.state_of_charge_initial
         )
@@ -75,7 +75,7 @@ def describe_nodal_balance_constraint(n):
     network_injection = (
         pd.concat(
             [
-                n.pnl(c)[f"p{inout}"].rename(columns=n.df(c)[f"bus{inout}"])
+                n.dynamic(c)[f"p{inout}"].rename(columns=n.static(c)[f"bus{inout}"])
                 for inout in (0, 1)
                 for c in ("Line", "Transformer")
             ],
@@ -105,8 +105,8 @@ def describe_upper_dispatch_constraints(n):
         description[c + key] = pd.Series(
             {
                 "min": (
-                    n.df(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
-                    - n.pnl(c)[dispatch_attr]
+                    n.static(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
+                    - n.dynamic(c)[dispatch_attr]
                 )
                 .min()
                 .min()
@@ -124,8 +124,9 @@ def describe_lower_dispatch_constraints(n):
             description[c] = pd.Series(
                 {
                     "min": (
-                        n.df(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
-                        + n.pnl(c)[dispatch_attr]
+                        n.static(c)[attr + "_opt"]
+                        * get_as_dense(n, c, attr[0] + "_max_pu")
+                        + n.dynamic(c)[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -136,9 +137,9 @@ def describe_lower_dispatch_constraints(n):
             description[c + key] = pd.Series(
                 {
                     "min": (
-                        -n.df(c)[attr + "_opt"]
+                        -n.static(c)[attr + "_opt"]
                         * get_as_dense(n, c, attr[0] + "_min_pu")
-                        + n.pnl(c)[dispatch_attr]
+                        + n.dynamic(c)[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -157,16 +158,19 @@ def describe_store_contraints(n):
         return
     sns = n.snapshots
     c = "Store"
-    pnl = n.pnl(c)
+    dynamic = n.dynamic(c)
 
     eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)
     stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
 
-    start = pnl.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
-    previous_e = stand_eff * pnl.e.shift().fillna(start)
+    start = dynamic.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
+    previous_e = stand_eff * dynamic.e.shift().fillna(start)
 
     return (
-        (previous_e - pnl.p - pnl.e).unstack().describe().to_frame("SOC Balance Store")
+        (previous_e - dynamic.p - dynamic.e)
+        .unstack()
+        .describe()
+        .to_frame("SOC Balance Store")
     )
 
 
@@ -201,7 +205,7 @@ funcs = (
 
 
 @pytest.fixture
-def solved_network(ac_dc_network):
+def solved_n(ac_dc_network):
     n = ac_dc_network
     n.optimize()
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
@@ -209,8 +213,8 @@ def solved_network(ac_dc_network):
 
 
 @pytest.mark.parametrize("func", *funcs)
-def test_tolerance(solved_network, func):
-    n = solved_network
+def test_tolerance(solved_n, func):
+    n = solved_n
     description = func(n).fillna(0)
     for col in description:
         assert abs(description[col]["min"]) < TOLERANCE

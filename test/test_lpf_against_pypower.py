@@ -67,22 +67,22 @@ def test_pypower_case():
     results_df["gen"] = pd.DataFrame(data=results["gen"], columns=columns)
 
     # now compute in PyPSA
-    network = pypsa.Network()
-    network.import_from_pypower_ppc(ppc)
-    network.lpf()
+    n = pypsa.Network()
+    n.import_from_pypower_ppc(ppc)
+    n.lpf()
 
     # compare generator dispatch
-    p_pypsa = network.generators_t.p.loc["now"].values
+    p_pypsa = n.generators_t.p.loc["now"].values
     p_pypower = results_df["gen"]["p"].values
 
     equal(p_pypsa, p_pypower)
 
     # compare branch flows
     for item in ["lines", "transformers"]:
-        df = getattr(network, item)
-        pnl = getattr(network, item + "_t")
+        df = getattr(n, item)
+        dynamic = getattr(n, item + "_t")
 
         for si in ["p0", "p1"]:
-            si_pypsa = getattr(pnl, si).loc["now"].values
+            si_pypsa = getattr(dynamic, si).loc["now"].values
             si_pypower = results_df["branch"][si][df.original_index].values
             equal(si_pypsa, si_pypower)

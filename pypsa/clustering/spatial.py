@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
 
@@ -181,7 +182,7 @@ def aggregateoneport(
 
     Parameters
     ----------
-    network : Network
+    n : Network
         The network containing the generators.
     busmap : dict
         A dictionary mapping old bus IDs to new bus IDs.
@@ -196,68 +197,70 @@ def aggregateoneport(
 
     Returns
     -------
-    df : DataFrame
+    static : DataFrame
         DataFrame of the aggregated generators.
-    pnl : dict
-        Dictionary of the aggregated pnl data.
+    dynamic : dict
+        Dictionary of the aggregated dynamic data.
     """
     c = component
-    df = n.df(c)
+    static = n.static(c)
     attrs = n.components[c]["attrs"]
-    if "carrier" in df.columns:
+    if "carrier" in static.columns:
         if carriers is None:
-            carriers = df.carrier.unique()
-        to_aggregate = df.carrier.isin(carriers)
+            carriers = static.carrier.unique()
+        to_aggregate = static.carrier.isin(carriers)
     else:
-        to_aggregate = pd.Series(True, df.index)
+        to_aggregate = pd.Series(True, static.index)
 
     if buses is not None:
-        to_aggregate |= df.bus.isin(buses)
+        to_aggregate |= static.bus.isin(buses)
 
-    df = df[to_aggregate]
-    df = df.assign(bus=df.bus.map(busmap))
+    static = static[to_aggregate]
+    static = static.assign(bus=static.bus.map(busmap))
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    columns = [c for c in df.columns if c not in output_columns]
+    columns = [c for c in static.columns if c not in output_columns]
 
     strategies = {**DEFAULT_ONE_PORT_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, c)
 
-    grouper = [df.bus, df.carrier] if "carrier" in df.columns else df.bus
-    capacity = df.columns.intersection({"p_nom", "e_nom"})
+    grouper = (
+        [static.bus, static.carrier] if "carrier" in static.columns else static.bus
+    )
+    capacity = static.columns.intersection({"p_nom", "e_nom"})
     if len(capacity):
         capacity_weights = (
-            df[capacity[0]].groupby(grouper, axis=0).transform(normed_or_uniform)
+            static[capacity[0]].groupby(grouper, axis=0).transform(normed_or_uniform)
         )
-    if "weight" in df.columns:
-        weights = df.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
+    if "weight" in static.columns:
+        weights = static.weight.groupby(grouper, axis=0).transform(normed_or_uniform)
 
     for k, v in static_strategies.items():
         if v == "weighted_average":
-            df[k] = df[k] * weights
+            static[k] = static[k] * weights
             static_strategies[k] = "sum"
         elif v == "capacity_weighted_average":
-            df[k] = df[k] * capacity_weights
+            static[k] = static[k] * capacity_weights
             static_strategies[k] = "sum"
         elif v == "weighted_min":
-            df["p_nom_max"] /= weights
+            static["p_nom_max"] /= weights
             static_strategies[k] = "min"
 
-    aggregated = df.groupby(grouper).agg(static_strategies)
+    aggregated = static.groupby(grouper).agg(static_strategies)
     aggregated.index = flatten_multiindex(aggregated.index).rename(c)
 
-    non_aggregated = n.df(c)[~to_aggregate]
+    non_aggregated = n.static(c)[~to_aggregate]
     non_aggregated = non_aggregated.assign(bus=non_aggregated.bus.map(busmap))
 
-    df = pd.concat([aggregated, non_aggregated], sort=False)
-    df.fillna(attrs.default, inplace=True)
+    static = pd.concat([aggregated, non_aggregated], sort=False)
+    static.fillna(attrs.default, inplace=True)
 
-    pnl = dict()
+    dynamic = dict()
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.pnl(c), c)
-        for attr, data in n.pnl(c).items():
+        dynamic_strategies = align_strategies(strategies, n.dynamic(c), c)
+        for attr, data in n.dynamic(c).items():
             if data.empty:
-                pnl[attr] = data
+                dynamic[attr] = data
                 continue
             strategy = dynamic_strategies[attr]
             data = n.get_switchable_as_dense(c, attr)
@@ -278,14 +281,14 @@ def aggregateoneport(
 
             non_aggregated = data.loc[:, ~to_aggregate]
 
-            pnl[attr] = pd.concat([aggregated, non_aggregated], axis=1, sort=False)
+            dynamic[attr] = pd.concat([aggregated, non_aggregated], axis=1, sort=False)
 
             # filter out static values
-            if attr in df:
-                is_static = (pnl[attr] == df[attr]).all()
-                pnl[attr] = pnl[attr].loc[:, ~is_static]
+            if attr in static:
+                is_static = (dynamic[attr] == static[attr]).all()
+                dynamic[attr] = dynamic[attr].loc[:, ~is_static]
 
-    return df, pnl
+    return static, dynamic
 
 
 def aggregatebuses(
@@ -305,7 +308,7 @@ def aggregatebuses(
 
     Returns
     -------
-    df : DataFrame
+    static : DataFrame
         DataFrame of the aggregated buses.
     """
     c = "Bus"
@@ -354,9 +357,9 @@ def aggregatelines(
 
     Returns
     -------
-    df : DataFrame
+    static : DataFrame
         DataFrame of the aggregated lines.
-    pnl : dict
+    dynamic : dict
         Dictionary of DataFrames of the aggregated dynamic data (if with_time is True).
     """
     if custom_strategies is None:
@@ -364,66 +367,69 @@ def aggregatelines(
     if bus_strategies is None:
         bus_strategies = {}
     attrs = n.components["Line"]["attrs"]
-    df = n.df("Line")
-    idx = df.index[df.bus0.map(busmap) != df.bus1.map(busmap)]
-    df = df.loc[idx]
+    static = n.static("Line")
+    idx = static.index[static.bus0.map(busmap) != static.bus1.map(busmap)]
+    static = static.loc[idx]
 
-    orig_length = df.length
-    orig_v_nom = df.bus0.map(n.buses.v_nom)
+    orig_length = static.length
+    orig_v_nom = static.bus0.map(n.buses.v_nom)
 
     bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
     cols = ["x", "y", "v_nom"]
     buses = n.buses[cols].groupby(busmap).agg({c: bus_strategies[c] for c in cols})
 
-    df = df.assign(bus0=df.bus0.map(busmap), bus1=df.bus1.map(busmap))
-    reverse_order = df.bus0 > df.bus1
-    reverse_values = df.loc[reverse_order, ["bus1", "bus0"]].values
-    df.loc[reverse_order, ["bus0", "bus1"]] = reverse_values
+    static = static.assign(bus0=static.bus0.map(busmap), bus1=static.bus1.map(busmap))
+    reverse_order = static.bus0 > static.bus1
+    reverse_values = static.loc[reverse_order, ["bus1", "bus0"]].values
+    static.loc[reverse_order, ["bus0", "bus1"]] = reverse_values
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    columns = [c for c in df.columns if c not in output_columns]
+    columns = [c for c in static.columns if c not in output_columns]
 
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
     static_strategies = align_strategies(strategies, columns, "Line")
 
-    grouper = df.groupby(["bus0", "bus1", *custom_line_groupers]).ngroup().astype(str)
+    grouper = (
+        static.groupby(["bus0", "bus1", *custom_line_groupers]).ngroup().astype(str)
+    )
 
     coords = buses[["x", "y"]]
     length = (
-        haversine_pts(coords.loc[df.bus0], coords.loc[df.bus1]) * line_length_factor
+        haversine_pts(coords.loc[static.bus0], coords.loc[static.bus1])
+        * line_length_factor
     )
-    df = df.assign(length=length)
+    static = static.assign(length=length)
 
-    length_factor = (df.length / orig_length).where(orig_length > 0, df.length)
-    v_nom = pd.concat([df.bus0.map(buses.v_nom), df.bus1.map(buses.v_nom)], axis=1).max(
-        1
-    )
+    length_factor = (static.length / orig_length).where(orig_length > 0, static.length)
+    v_nom = pd.concat(
+        [static.bus0.map(buses.v_nom), static.bus1.map(buses.v_nom)], axis=1
+    ).max(1)
     voltage_factor = (orig_v_nom / v_nom) ** 2
-    capacity_weights = df.groupby(grouper).s_nom.transform(normed_or_uniform)
+    capacity_weights = static.groupby(grouper).s_nom.transform(normed_or_uniform)
 
     for col, strategy in static_strategies.items():
         if strategy == "capacity_weighted_average":
-            df[col] = df[col] * capacity_weights
+            static[col] = static[col] * capacity_weights
             static_strategies[col] = "sum"
         elif strategy == "reciprocal_voltage_weighted_average":
-            df[col] = voltage_factor / (length_factor * df[col])
+            static[col] = voltage_factor / (length_factor * static[col])
             static_strategies[col] = lambda x: 1.0 / x.sum()
         elif strategy == "voltage_weighted_average":
-            df[col] = voltage_factor * length_factor * df[col]
+            static[col] = voltage_factor * length_factor * static[col]
             static_strategies[col] = "sum"
         elif strategy == "length_capacity_weighted_average":
-            df[col] = df[col] * length_factor * capacity_weights
+            static[col] = static[col] * length_factor * capacity_weights
             static_strategies[col] = "sum"
 
-    df = df.groupby(grouper).agg(static_strategies)
+    static = static.groupby(grouper).agg(static_strategies)
 
-    pnl = {}
+    dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.pnl("Line"), "Line")
+        dynamic_strategies = align_strategies(strategies, n.dynamic("Line"), "Line")
 
         for attr, data in n.lines_t.items():
             if data.empty:
-                pnl[attr] = data
+                dynamic[attr] = data
                 continue
 
             strategy = dynamic_strategies[attr]
@@ -435,21 +441,30 @@ def aggregatelines(
             else:
                 data = data.T.groupby(grouper).agg(strategy).T
 
-            pnl[attr] = data
+            dynamic[attr] = data
 
             # filter out static values
-            if attr in df:
-                is_static = (pnl[attr] == df[attr]).all()
-                pnl[attr] = pnl[attr].loc[:, ~is_static]
+            if attr in static:
+                is_static = (dynamic[attr] == static[attr]).all()
+                dynamic[attr] = dynamic[attr].loc[:, ~is_static]
 
-    return df, pnl, grouper
+    return static, dynamic, grouper
 
 
 @dataclass
 class Clustering:
-    network: Any
+    n: Any
     busmap: pd.Series
     linemap: pd.Series
+
+    @property
+    @deprecated(
+        deprecated_in="0.32",
+        removed_in="1.0",
+        details="Use `clustering.n` instead.",
+    )
+    def network(self) -> Network:
+        return self.n
 
 
 def get_clustering_from_busmap(
@@ -485,8 +500,8 @@ def get_clustering_from_busmap(
 
     clustered = Network()
 
-    io._import_components_from_dataframe(clustered, buses, "Bus")
-    io._import_components_from_dataframe(clustered, lines, "Line")
+    io._import_components_from_df(clustered, buses, "Bus")
+    io._import_components_from_df(clustered, lines, "Line")
 
     # Carry forward global constraints to clustered n.
     clustered.global_constraints = n.global_constraints
@@ -501,14 +516,14 @@ def get_clustering_from_busmap(
             )
         for attr, df in lines_t.items():
             if not df.empty:
-                io._import_series_from_dataframe(clustered, df, "Line", attr)
+                io._import_series_from_df(clustered, df, "Line", attr)
 
     one_port_components = n.one_port_components.copy()
 
     if aggregate_generators_weighted:
         # TODO: Remove this in favour of the more general approach below.
         one_port_components.remove("Generator")
-        generators, generators_pnl = aggregateoneport(
+        generators, generators_dynamic = aggregateoneport(
             n,
             busmap,
             "Generator",
@@ -517,39 +532,39 @@ def get_clustering_from_busmap(
             with_time=with_time,
             custom_strategies=generator_strategies,
         )
-        io._import_components_from_dataframe(clustered, generators, "Generator")
+        io._import_components_from_df(clustered, generators, "Generator")
         if with_time:
-            for attr, df in generators_pnl.items():
+            for attr, df in generators_dynamic.items():
                 if not df.empty:
-                    io._import_series_from_dataframe(clustered, df, "Generator", attr)
+                    io._import_series_from_df(clustered, df, "Generator", attr)
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
-        new_df, new_pnl = aggregateoneport(
+        new_static, new_dynamic = aggregateoneport(
             n,
             busmap,
             component=one_port,
             with_time=with_time,
             custom_strategies=one_port_strategies.get(one_port, {}),
         )
-        io._import_components_from_dataframe(clustered, new_df, one_port)
-        for attr, df in new_pnl.items():
-            io._import_series_from_dataframe(clustered, df, one_port, attr)
+        io._import_components_from_df(clustered, new_static, one_port)
+        for attr, df in new_dynamic.items():
+            io._import_series_from_df(clustered, df, one_port, attr)
 
     # Collect remaining one ports
 
     for c in n.iterate_components(one_port_components):
-        io._import_components_from_dataframe(
+        io._import_components_from_df(
             clustered,
-            c.df.assign(bus=c.df.bus.map(busmap)).dropna(subset=["bus"]),
+            c.static.assign(bus=c.static.bus.map(busmap)).dropna(subset=["bus"]),
             c.name,
         )
 
     if with_time:
         for c in n.iterate_components(one_port_components):
-            for attr, df in c.pnl.items():
+            for attr, df in c.dynamic.items():
                 if not df.empty:
-                    io._import_series_from_dataframe(clustered, df, c.name, attr)
+                    io._import_series_from_df(clustered, df, c.name, attr)
 
     new_links = (
         n.links.assign(bus0=n.links.bus0.map(busmap), bus1=n.links.bus1.map(busmap))
@@ -569,14 +584,14 @@ def get_clustering_from_busmap(
     if scale_link_capital_costs:
         new_links["capital_cost"] *= (new_links.length / n.links.length).fillna(1)
 
-    io._import_components_from_dataframe(clustered, new_links, "Link")
+    io._import_components_from_df(clustered, new_links, "Link")
 
     if with_time:
         for attr, df in n.links_t.items():
             if not df.empty:
-                io._import_series_from_dataframe(clustered, df, "Link", attr)
+                io._import_series_from_df(clustered, df, "Link", attr)
 
-    io._import_components_from_dataframe(clustered, n.carriers, "Carrier")
+    io._import_components_from_df(clustered, n.carriers, "Carrier")
 
     clustered.determine_network_topology()
 
@@ -613,7 +628,7 @@ def busmap_by_kmeans(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to k-means clusters (indexed by
+        Mapping of n.buses to k-means clusters (indexed by
         non-negative integers).
     """
     if find_spec("sklearn") is None:
@@ -732,7 +747,7 @@ def busmap_by_hac(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to clusters (indexed by
+        Mapping of n.buses to clusters (indexed by
         non-negative integers).
     """
 
@@ -862,7 +877,7 @@ def busmap_by_greedy_modularity(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to clusters (indexed by
+        Mapping of n.buses to clusters (indexed by
         non-negative integers).
 
     References
@@ -962,7 +977,7 @@ def busmap_by_stubs(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of network.buses to k-means clusters (indexed by
+        Mapping of n.buses to k-means clusters (indexed by
         non-negative integers).
     """
     busmap = pd.Series(n.buses.index, n.buses.index)

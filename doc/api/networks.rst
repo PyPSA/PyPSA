@@ -17,7 +17,9 @@ General methods
     :toctree: _source/
 
     ~pypsa.Network.read_in_default_standard_types
+    ~pypsa.Network.static
     ~pypsa.Network.df
+    ~pypsa.Network.dynamic
     ~pypsa.Network.pnl
     ~pypsa.Network.to_crs
     ~pypsa.Network.set_snapshots

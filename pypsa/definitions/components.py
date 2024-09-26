@@ -27,9 +27,9 @@ class Component:
         The plural name used for lists of components (e.g., 'generators').
     attrs : Dict[str, Any]
         A dictionary of attributes and their metadata.
-    df : pd.DataFrame
+    static : pd.DataFrame
         A DataFrame containing data for each component instance.
-    pnl : Dict[str, pd.DataFrame]
+    dynamic : Dict[str, pd.DataFrame]
         A dictionary of time series data (panel data) for the component.
     ind : pd.Index
         An index of component identifiers.
@@ -39,8 +39,8 @@ class Component:
     list_name: str
     attrs: pd.DataFrame
     investment_periods: pd.Index  # TODO: Needs better general approach
-    df: pd.DataFrame
-    pnl: Dict
+    static: pd.DataFrame
+    dynamic: Dict
     ind: None  # deprecated
 
     # raise a deprecation warning if ind attribute is not None
@@ -53,9 +53,27 @@ class Component:
     def __repr__(self) -> str:
         return (
             f"Component(name={self.name!r}, list_name={self.list_name!r}, "
-            f"attrs=Keys({list(self.attrs.keys())}), df=DataFrame(shape={self.df.shape}), "
-            f"pnl=Keys({list(self.pnl.keys())}))"
+            f"attrs=Keys({list(self.attrs.keys())}), static=DataFrame(shape={self.static.shape}), "
+            f"dynamic=Keys({list(self.dynamic.keys())}))"
         )
+
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `c.static` instead.",
+    # )
+    @property
+    def df(self) -> pd.DataFrame:
+        return self.static
+
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `c.dynamic` instead.",
+    # )
+    @property
+    def pnl(self) -> Dict:
+        return self.dynamic
 
     def get_active_assets(
         self,
@@ -86,19 +104,17 @@ class Component:
             Boolean mask for active components
         """
         if investment_period is None:
-            return self.df.active
-        if not {"build_year", "lifetime"}.issubset(self.df):
-            return self.df.active
+            return self.static.active
+        if not {"build_year", "lifetime"}.issubset(self.static):
+            return self.static.active
 
         # Logical OR of active assets in all investment periods and
         # logical AND with active attribute
         active = {}
         for period in np.atleast_1d(investment_period):
             if period not in self.investment_periods:
-                raise ValueError(
-                    "Investment period not in `network.investment_periods`"
-                )
-            active[period] = self.df.eval(
+                raise ValueError("Investment period not in `n.investment_periods`")
+            active[period] = self.static.eval(
                 "build_year <= @period < build_year + lifetime"
             )
-        return pd.DataFrame(active).any(axis=1) & self.df.active
+        return pd.DataFrame(active).any(axis=1) & self.static.active
