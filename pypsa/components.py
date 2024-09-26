@@ -561,7 +561,7 @@ class Network:
     # )
     def pnl(self, component_name: str) -> Dict:
         """
-        Alias for :py:meth:`pypsa.Network.static`.
+        Alias for :py:meth:`pypsa.Network.dynamic`.
 
         Parameters
         ----------
