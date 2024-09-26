@@ -14,6 +14,8 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.request import urlretrieve
 
+from pypsa.utils import deprecated_common_kwargs
+
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
@@ -479,6 +481,7 @@ class ExporterNetCDF(Exporter):
                 self.ds.to_netcdf(_path)
 
 
+@deprecated_common_kwargs
 def _export_to_exporter(
     n: Network,
     exporter: Exporter,
@@ -602,6 +605,7 @@ def _export_to_exporter(
     )
 
 
+@deprecated_common_kwargs
 def import_from_csv_folder(
     n: Network,
     csv_folder_name: str | Path,
@@ -633,6 +637,7 @@ def import_from_csv_folder(
         _import_from_importer(n, importer, basename=basename, skip_time=skip_time)
 
 
+@deprecated_common_kwargs
 def export_to_csv_folder(
     n: Network,
     csv_folder_name: str,
@@ -682,6 +687,7 @@ def export_to_csv_folder(
         )
 
 
+@deprecated_common_kwargs
 def import_from_hdf5(n: Network, path: str | Path, skip_time: bool = False) -> None:
     """
     Import network data from HDF5 store at `path`.
@@ -699,6 +705,7 @@ def import_from_hdf5(n: Network, path: str | Path, skip_time: bool = False) -> N
         _import_from_importer(n, importer, basename=basename, skip_time=skip_time)
 
 
+@deprecated_common_kwargs
 def export_to_hdf5(
     n: Network,
     path: Path | str,
@@ -742,6 +749,7 @@ def export_to_hdf5(
         )
 
 
+@deprecated_common_kwargs
 def import_from_netcdf(
     n: Network, path: str | Path | xr.Dataset, skip_time: bool = False
 ) -> None:
@@ -763,6 +771,7 @@ def import_from_netcdf(
         _import_from_importer(n, importer, basename=basename, skip_time=skip_time)
 
 
+@deprecated_common_kwargs
 def export_to_netcdf(
     n: Network,
     path: str | None = None,
@@ -820,6 +829,7 @@ def export_to_netcdf(
         return exporter.ds
 
 
+@deprecated_common_kwargs
 def _import_from_importer(
     n: Network, importer: Any, basename: str, skip_time: bool = False
 ) -> None:
@@ -1243,6 +1253,7 @@ def _import_series_from_df(
     dynamic[attr].loc[n.snapshots, df.columns] = df.loc[n.snapshots, df.columns]
 
 
+@deprecated_common_kwargs
 def merge(
     n: Network,
     other: Network,
@@ -1313,6 +1324,7 @@ def merge(
     return None if inplace else new
 
 
+@deprecated_common_kwargs
 def import_from_pypower_ppc(
     n: Network, ppc: dict, overwrite_zero_s_nom: float | None = None
 ) -> None:
@@ -1522,6 +1534,7 @@ def import_from_pypower_ppc(
     n.buses.loc[n.generators.bus, "v_mag_pu_set"] = np.asarray(n.generators["v_set_pu"])
 
 
+@deprecated_common_kwargs
 def import_from_pandapower_net(
     n: Network,
     net: pandapowerNet,

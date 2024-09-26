@@ -27,7 +27,7 @@ from pypsa.descriptors import (
     zsum,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
-from pypsa.utils import as_index
+from pypsa.utils import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from components import Network, SubNetwork
@@ -48,6 +48,7 @@ def imag(X: pd.Series) -> pd.Series:
     return np.imag(X.to_numpy())
 
 
+@deprecated_common_kwargs
 def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
     to_allocate = {
         "Generator": ["p"],
@@ -123,6 +124,7 @@ def _calculate_controllable_nodal_power_balance(
             )
 
 
+@deprecated_common_kwargs
 def _network_prepare_and_run_pf(
     n: Network,
     snapshots: Sequence | None,
@@ -211,6 +213,7 @@ def _network_prepare_and_run_pf(
         return None
 
 
+@deprecated_common_kwargs
 def network_pf(
     n: Network,
     snapshots: Sequence | None = None,
@@ -821,6 +824,7 @@ def sub_network_pf(
     return iters, diffs, convs
 
 
+@deprecated_common_kwargs
 def network_lpf(
     n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
 ) -> None:
@@ -844,6 +848,7 @@ def network_lpf(
     _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
 
 
+@deprecated_common_kwargs
 def apply_line_types(n: Network) -> None:
     """
     Calculate line electrical parameters x, r, b, g from standard types.
@@ -886,6 +891,7 @@ def apply_line_types(n: Network) -> None:
         n.lines.loc[lines_with_types_b, attr] = lines[attr]
 
 
+@deprecated_common_kwargs
 def apply_transformer_types(n: Network) -> None:
     """
     Calculate transformer electrical parameters x, r, b, g from standard types.
@@ -961,6 +967,7 @@ def wye_to_delta(
     return (summand / z2, summand / z1, summand / z3)
 
 
+@deprecated_common_kwargs
 def apply_transformer_t_model(n: Network) -> None:
     """
     Convert given T-model parameters to PI-model parameters using wye-delta
@@ -984,6 +991,7 @@ def apply_transformer_t_model(n: Network) -> None:
     n.transformers.loc[ts_b, "b_pu"] = imag(2 / za)
 
 
+@deprecated_common_kwargs
 def calculate_dependent_values(n: Network) -> None:
     """
     Calculate per unit impedances and append voltages to lines and shunt
@@ -1534,6 +1542,7 @@ def sub_network_lpf(
         )  # fmt: skip
 
 
+@deprecated_common_kwargs
 def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
     """
     Batched linear power flow with numpy.dot for several snapshots.

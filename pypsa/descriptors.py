@@ -27,6 +27,7 @@ class OrderedGraph(nx.MultiGraph):
     adjlist_dict_factory = OrderedDict
 
 
+@deprecated_common_kwargs
 def get_switchable_as_dense(
     n: Network,
     component: str,
@@ -467,7 +468,6 @@ def update_linkports_component_attrs(
             n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
 
 
-@deprecated_common_kwargs
 def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list[str]:
     """
     Identify additional link ports (bus connections) beyond predefined ones.
