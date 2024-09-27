@@ -348,20 +348,13 @@ def check_generators(component: Component) -> None:
 
     Parameters
     ----------
-    n (Network): The network object containing the components.
-    component (Component): The generator component to be checked.
+    component : Component
+        The generator component to be checked.
 
     Returns
     -------
     None
 
-    Logs warnings if any inconsistencies are found:
-    - If committable generators are both up and down before the simulation.
-    - If e_sum_min is greater than e_sum_max for any generator.
-
-    Example:
-    >>> check_generators(network, generator_component)
-    This will check the specified generator component in the network for the described inconsistencies.
     """
     if component.name in {"Generator"}:
         bad_uc_gens = component.static.index[

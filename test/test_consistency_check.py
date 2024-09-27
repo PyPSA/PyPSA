@@ -72,7 +72,7 @@ def test_unknown_carriers(consistent_n, caplog):
     assert caplog.records[-1].levelname == "WARNING"
 
 
-def test_unconsistent_e_sum_values(consistent_n, caplog):
+def test_inconsistent_e_sum_values(consistent_n, caplog):
     """
     Test that the consistency check raises a warning if the e_sum_min is greater than e_sum_max.
     """
