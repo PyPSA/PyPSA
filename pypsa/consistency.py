@@ -346,13 +346,13 @@ def check_generators(component: Component) -> None:
     1. Ensures that committable generators are not both up and down before the simulation.
     2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater than the maximum total energy to be produced (e_sum_max).
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     n (Network): The network object containing the components.
     component (Component): The generator component to be checked.
 
-    Returns:
-    --------
+    Returns
+    -------
     None
 
     Logs warnings if any inconsistencies are found:
