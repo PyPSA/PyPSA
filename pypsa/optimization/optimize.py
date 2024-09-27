@@ -29,7 +29,7 @@ from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
-    define_generators_constraints,
+    define_generator_constraints,
     define_kirchhoff_voltage_constraints,
     define_loss_constraints,
     define_modular_constraints,
@@ -307,7 +307,7 @@ def create_model(
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
-    define_generators_constraints(n, sns)
+    define_generator_constraints(n, sns)
 
     if transmission_losses:
         for c in n.passive_branch_components:
