@@ -254,16 +254,54 @@ def test_define_generator_constraints():
     """
     # Setup: Create a network and add components
     n = pypsa.Network()
-    n.add("Bus", "bus0")
-    n.add("Load", "load0", bus="bus0", p_set=10)
-    n.add("Generator", "gen0", bus="bus0", p_nom=10, marginal_cost=5)
-    n.add("Generator", "gen1", bus="bus0", p_nom=10, marginal_cost=0, e_sum_max=0)
-    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=10, e_sum_min=10)
 
+    # Define snapshots and snapshots weightings
+    eh = 10
+    snapshots = pd.date_range("2023-01-01", periods=3, freq=f"{eh}h")
+    n.set_snapshots(snapshots, eh)
+
+    n.add("Carrier", "carrier")
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", carrier="carrier", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", carrier="carrier", bus="bus0", p_nom=10, marginal_cost=5)
+    n.add(
+        "Generator",
+        "gen1",
+        carrier="carrier",
+        bus="bus0",
+        p_nom=10,
+        marginal_cost=0,
+        e_sum_max=0,
+    )
+
+    e_sum_min = 10 * (len(n.snapshots) - 2) * eh
+    n.add(
+        "Generator",
+        "gen2",
+        carrier="carrier",
+        bus="bus0",
+        p_nom=10,
+        marginal_cost=10,
+        e_sum_min=e_sum_min,
+    )
+
+    e_sum_max = 10 * eh
+    n.add(
+        "Generator",
+        "gen3",
+        carrier="carrier",
+        bus="bus0",
+        p_nom=10,
+        marginal_cost=0,
+        e_sum_max=e_sum_max,
+    )
+
+    n.consistency_check()
     # Optimize the network
     n.optimize()
 
     # Test: Check that the constraints are correctly defined
-    assert n.generators_t.p["gen0"].eq(0).all()
+    assert n.snapshot_weightings.generators @ n.generators_t.p["gen0"] == 10 * eh
     assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.generators_t.p["gen2"].eq(10).all()
+    assert n.snapshot_weightings.generators @ n.generators_t.p["gen2"] == e_sum_min
+    assert n.snapshot_weightings.generators @ n.generators_t.p["gen3"] == e_sum_max
