@@ -974,7 +974,7 @@ def define_loss_constraints(
             )
 
 
-def define_generators_constraints(n, sns) -> None:
+def define_generator_constraints(n, sns) -> None:
     """
     Defines energy sum constraints for generators in the network model.
 

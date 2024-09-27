@@ -246,3 +246,24 @@ def test_optimization_with_strongly_meshed_bus():
 
     assert n.buses_t.marginal_price.shape == (2, 2)
     assert n.buses_t.marginal_price.eq(10).all().all()
+
+
+def test_define_generator_constraints():
+    """
+    Test that the define_generator_constraints function works correctly.
+    """
+    # Setup: Create a network and add components
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=10, marginal_cost=5)
+    n.add("Generator", "gen1", bus="bus0", p_nom=10, marginal_cost=0, e_sum_max=0)
+    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=10, e_sum_min=10)
+
+    # Optimize the network
+    n.optimize()
+
+    # Test: Check that the constraints are correctly defined
+    assert n.generators_t.p["gen0"].eq(0).all()
+    assert n.generators_t.p["gen1"].eq(0).all()
+    assert n.generators_t.p["gen2"].eq(10).all()
