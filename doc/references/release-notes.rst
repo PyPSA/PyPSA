@@ -31,6 +31,11 @@ Upcoming Release
   :meth:`n.dynamic <pypsa.Network.dynamic>`. But `n.df` and `n.pnl` are still available 
   and can be used as aliases without any deprecation warning for now.
 
+* Refactored API: :meth:`n.df <pypsa.Network.df>` and :meth:`n.pnl <pypsa.Network.pnl>` 
+  have been renamed to :meth:`n.static <pypsa.Network.static>` and 
+  :meth:`n.dynamic <pypsa.Network.dynamic>`. But `n.df` and `n.pnl` are still available 
+  and can be used as aliases without any deprecation warning for now.
+
 v0.30.3 (24th September 2024)
 =============================
 
