@@ -339,7 +339,30 @@ def check_assets(n: Network, component: Component) -> None:
 
 @deprecated_common_kwargs
 def check_generators(component: Component) -> None:
-    """Check static attrs p_now, s_nom, e_nom in generator components."""
+    """
+    Check the consistency of generator attributes before the simulation.
+
+    This function performs the following checks on generator components:
+    1. Ensures that committable generators are not both up and down before the simulation.
+    2. Verifies that the minimum total energy to be produced (e_sum_min) is not greater than the maximum total energy to be produced (e_sum_max).
+
+    Parameters:
+    -----------
+    n (Network): The network object containing the components.
+    component (Component): The generator component to be checked.
+
+    Returns:
+    --------
+    None
+
+    Logs warnings if any inconsistencies are found:
+    - If committable generators are both up and down before the simulation.
+    - If e_sum_min is greater than e_sum_max for any generator.
+
+    Example:
+    >>> check_generators(network, generator_component)
+    This will check the specified generator component in the network for the described inconsistencies.
+    """
     if component.name in {"Generator"}:
         bad_uc_gens = component.static.index[
             component.static.committable
@@ -351,6 +374,16 @@ def check_generators(component: Component) -> None:
                 "The following committable generators were both up and down"
                 f" before the simulation: {bad_uc_gens}."
                 " This could cause an infeasibility."
+            )
+
+        bad_e_sum_gens = component.static.index[
+            component.static.e_sum_min > component.static.e_sum_max
+        ]
+        if not bad_e_sum_gens.empty:
+            logger.warning(
+                "The following generators have e_sum_min > e_sum_max, "
+                "which can lead to infeasibility:\n"
+                f"{bad_e_sum_gens}.",
             )
 
 
