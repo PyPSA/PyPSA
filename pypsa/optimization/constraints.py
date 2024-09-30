@@ -25,6 +25,7 @@ from pypsa.descriptors import (
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
+from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     from xarray import DataArray
@@ -974,7 +975,7 @@ def define_loss_constraints(
             )
 
 
-def define_generator_constraints(n, sns) -> None:
+def define_generator_constraints(n: Network, sns: Sequence) -> None:
     """
     Defines energy sum constraints for generators in the network model.
 
@@ -992,14 +993,19 @@ def define_generator_constraints(n, sns) -> None:
 
     Parameters
     ----------
-    n (Network): The network object containing the model and generator data.
-    sns (list): A list of snapshots (time steps) over which the constraints are applied.
+    n : pypsa.Network
+        The network object containing the model and generator data.
+    sns : Sequence
+        A list of snapshots (time steps) over which the constraints are applied.
 
     Returns
     -------
     None
 
     """
+
+    sns_ = as_index(n, sns, "snapshots", "snapshot")
+
     m = n.model
     c = "Generator"
     static = n.static(c)
@@ -1008,10 +1014,10 @@ def define_generator_constraints(n, sns) -> None:
         return
 
     # elapsed hours
-    eh = expand_series(n.snapshot_weightings.generators[sns], static.index)
+    eh = expand_series(n.snapshot_weightings.generators[sns_], static.index)
 
     e_sum_min_set = static[static.e_sum_min >= 0].index
-    e = m[f"{c}-p"].loc[sns, e_sum_min_set].mul(eh).sum(dim="snapshot")
+    e = m[f"{c}-p"].loc[sns_, e_sum_min_set].mul(eh).sum(dim="snapshot")
     e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
 
     lhs = e
@@ -1019,7 +1025,7 @@ def define_generator_constraints(n, sns) -> None:
     m.add_constraints(lhs, ">=", rhs, name=f"{c}-e_sum_min")
 
     e_sum_max_set = static[static.e_sum_max >= 0].index
-    e = m[f"{c}-p"].loc[sns, e_sum_max_set].mul(eh).sum(dim="snapshot")
+    e = m[f"{c}-p"].loc[sns_, e_sum_max_set].mul(eh).sum(dim="snapshot")
     e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
 
     lhs = e
