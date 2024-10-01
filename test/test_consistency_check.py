@@ -70,3 +70,14 @@ def test_unknown_carriers(consistent_n, caplog):
     consistent_n.add("Generator", "wind", bus="hub", carrier="wind")
     consistent_n.consistency_check()
     assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_inconsistent_e_sum_values(consistent_n, caplog):
+    """
+    Test that the consistency check raises a warning if the e_sum_min is greater than e_sum_max.
+    """
+    consistent_n.add(
+        "Generator", "gen_two", bus="one", p_nom_max=10, e_sum_min=10, e_sum_max=5
+    )
+    consistent_n.consistency_check()
+    assert caplog.records[-1].levelname == "WARNING"
