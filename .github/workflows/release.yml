@@ -15,7 +15,7 @@ jobs:
     outputs:
       prepared: ${{ steps.validate.outputs.prepared }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Validate commit message
       id: validate
