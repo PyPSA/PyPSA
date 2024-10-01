@@ -136,6 +136,8 @@ Global constraints are added to the optimization problems created by
    :file: ../../pypsa/component_attrs/global_constraints.csv
 
 
+.. _component-generator:
+
 Generator
 =========
 
