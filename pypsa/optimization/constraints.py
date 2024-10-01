@@ -1020,14 +1020,10 @@ def define_generator_constraints(n: Network, sns: Sequence) -> None:
     e = m[f"{c}-p"].loc[sns_, e_sum_min_set].mul(eh).sum(dim="snapshot")
     e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
 
-    lhs = e
-    rhs = e_sum_min
-    m.add_constraints(lhs, ">=", rhs, name=f"{c}-e_sum_min")
+    m.add_constraints(e, ">=", e_sum_min, name=f"{c}-e_sum_min")
 
     e_sum_max_set = static[static.e_sum_max >= 0].index
     e = m[f"{c}-p"].loc[sns_, e_sum_max_set].mul(eh).sum(dim="snapshot")
     e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
 
-    lhs = e
-    rhs = e_sum_max
-    m.add_constraints(lhs, "<=", rhs, name=f"{c}-e_sum_max")
+    m.add_constraints(e, "<=", e_sum_max, name=f"{c}-e_sum_max")
