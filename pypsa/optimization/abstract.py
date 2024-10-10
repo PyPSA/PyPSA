@@ -233,6 +233,8 @@ def optimize_transmission_expansion_iteratively(
                 ),
                 axis=1,
             )
+            # take care of the edge case of s_nom > s_nom_max
+            n.lines["s_nom_max"] = n.lines[["s_nom", "s_nom_max"]].max(axis=1)
 
         if link_unit_size:
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
