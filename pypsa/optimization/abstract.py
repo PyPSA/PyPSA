@@ -29,8 +29,7 @@ def discretized_capacity(
     nom_max: float,
     unit_size: float,
     threshold: float,
-    fractional_last_unit_size: bool,
-    min_units: int = 0,
+    fractional_last_unit_size: bool
 ) -> float:
     """
     Discretize a optimal capacity to a capacity that is either a multiple of a unit size
@@ -42,6 +41,7 @@ def discretized_capacity(
     In the special case that the maximum capacity is not a multiple of the unit size, the variable
     `fractional_last_unit_size` determines if the returned capacity is the maximum capacity (True)
     or the last multiple of the unit size (False).
+    In case the maximum capacity is lower than the unit size, the function returns the maximum capacity.
 
     Parameters
     ----------
@@ -55,8 +55,6 @@ def discretized_capacity(
         The threshold relative to the unit size for discretizing the capacity as defined in the config[solving][post_discretization].
     fractional_last_unit_size : bool
         Whether only multiples of the unit size or the maximum capacity is allowed as defined in the config[solving][post_discretization].
-    min_units : int, default 0
-        The minimum number of units that should be installed.
 
     Returns
     -------
@@ -86,9 +84,16 @@ def discretized_capacity(
     threshold = 0.1,
     fractional_last_unit_size = True)
     8
+    >>> discretized_capacity(
+    nom_opt = 3,
+    nom_max = 4,
+    unit_size = 5,
+    threshold = 0.1,
+    fractional_last_unit_size = False)
+    4
     """
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-    block_capacity = max(min_units, units) * unit_size
+    block_capacity = units * unit_size
     if nom_max % unit_size == 0:
         return block_capacity
 
@@ -98,6 +103,8 @@ def discretized_capacity(
                 fractional_last_unit_size
                 and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
             ):
+                return nom_max
+            elif nom_max < unit_size:
                 return nom_max
             else:
                 return (nom_opt // unit_size) * unit_size
@@ -221,20 +228,16 @@ def optimize_transmission_expansion_iteratively(
         link_threshold = link_threshold or {}
 
         if line_unit_size:
-            min_units = 1
             n.lines["s_nom"] = n.lines.apply(
                 lambda row: discretized_capacity(
                     nom_opt=row["s_nom_opt"],
                     nom_max=row["s_nom_max"],
                     unit_size=line_unit_size,
                     threshold=line_threshold,
-                    min_units=min_units,
                     fractional_last_unit_size=fractional_last_unit_size,
                 ),
                 axis=1,
             )
-            # take care of the edge case of s_nom > s_nom_max
-            n.lines["s_nom_max"] = n.lines[["s_nom", "s_nom_max"]].max(axis=1)
 
         if link_unit_size:
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
