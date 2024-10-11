@@ -29,7 +29,7 @@ def discretized_capacity(
     nom_max: float,
     unit_size: float,
     threshold: float,
-    fractional_last_unit_size: bool
+    fractional_last_unit_size: bool,
 ) -> float:
     """
     Discretize a optimal capacity to a capacity that is either a multiple of a unit size
