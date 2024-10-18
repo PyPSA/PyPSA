@@ -927,7 +927,7 @@ def _import_from_importer(
         if component == "Link":
             update_linkports_component_attrs(n, where=df)
 
-        _import_components_from_df(n, df, component)
+        n.add(component, df.index, **df)
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
@@ -1016,7 +1016,7 @@ def import_components_from_dataframe(
     --------
     pypsa.Network.madd
     """
-    _import_components_from_df(n, dataframe, cls_name)
+    n.add(cls_name, dataframe.index, **dataframe)
 
 
 @deprecated(
@@ -1316,7 +1316,7 @@ def merge(
             f"{new.srid}, {other.srid}. Assuming {new.srid}."
         )
     for c in other.iterate_components(to_iterate_list):
-        new._import_components_from_df(c.static, c.name)
+        new.add(c.name, c.static.index, **c.static)
         if with_time:
             for k, v in c.dynamic.items():
                 new._import_series_from_df(v, c.name, k)
@@ -1524,8 +1524,10 @@ def import_from_pypower_ppc(
         "Transformer",
         "ShuntImpedance",
     ]:
-        _import_components_from_df(
-            n, pdf[n.components[component]["list_name"]], component
+        n.add(
+            component,
+            pdf[n.components[component]["list_name"]].index,
+            **pdf[n.components[component]["list_name"]],
         )
 
     n.generators["control"] = n.generators.bus.map(n.buses["control"])
@@ -1740,7 +1742,7 @@ def import_from_pandapower_net(
         "Transformer",
         "ShuntImpedance",
     ]:
-        n._import_components_from_df(d[component_name], component_name)
+        n.add(component_name, d[component_name].index, **d[component_name])
 
     # amalgamate buses connected by closed switches
 
