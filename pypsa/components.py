@@ -227,7 +227,6 @@ class Network:
     import_from_pypower_ppc = import_from_pypower_ppc
     import_from_pandapower_net = import_from_pandapower_net
     merge = merge
-    _import_components_from_df = _import_components_from_df
     import_components_from_dataframe = import_components_from_dataframe  # Deprecated
     _import_series_from_df = _import_series_from_df
     import_series_from_dataframe = import_series_from_dataframe  # Deprecated
@@ -511,9 +510,10 @@ class Network:
             self.components[std_type]["standard_types"] = pd.read_csv(
                 file_name, index_col=0
             )
-
-            self._import_components_from_df(
-                self.components[std_type]["standard_types"], std_type
+            self.add(
+                std_type,
+                self.components[std_type]["standard_types"].index,
+                **self.components[std_type]["standard_types"],
             )
 
     # Deprecate not yet
@@ -1071,7 +1071,7 @@ class Network:
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        self._import_components_from_df(static_df, class_name, overwrite=overwrite)
+        _import_components_from_df(self, static_df, class_name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
@@ -1342,8 +1342,7 @@ class Network:
                 )
             else:
                 static = component.static
-
-            _import_components_from_df(n, static, component.name)
+            n.add(component.name, static.index, **static)
 
         # Copy time-varying data, if given
 
@@ -1424,8 +1423,10 @@ class Network:
             override_components=override_components,
             override_component_attrs=override_component_attrs,
         )
-        n._import_components_from_df(
-            pd.DataFrame(self.buses.loc[key]).assign(sub_network=""), "Bus"
+        n.add(
+            "Bus",
+            pd.DataFrame(self.buses.loc[key]).assign(sub_network="").index,
+            **pd.DataFrame(self.buses.loc[key]).assign(sub_network=""),
         )
         buses_i = n.buses.index
 
@@ -1436,21 +1437,27 @@ class Network:
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n._import_components_from_df(pd.DataFrame(self.static(c)), c)
+            n.add(
+                c, pd.DataFrame(self.static(c)).static, **pd.DataFrame(self.static(c))
+            )
 
         for c in self.standard_type_components:
-            static = self.static(c).drop(self.components[c]["standard_types"].index)
-            n._import_components_from_df(pd.DataFrame(static), c)
+            static = pd.DataFrame(
+                self.static(c).drop(self.components[c]["standard_types"].index)
+            )
+            n.add(c, static.index, **static)
 
         for c in self.one_port_components:
-            static = self.static(c).loc[lambda df: df.bus.isin(buses_i)]
-            n._import_components_from_df(pd.DataFrame(static), c)
+            static = pd.DataFrame(self.static(c).loc[lambda df: df.bus.isin(buses_i)])
+            n.add(c, static.index, **static)
 
         for c in self.branch_components:
-            static = self.static(c).loc[
-                lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
-            ]
-            n._import_components_from_df(pd.DataFrame(static), c)
+            static = pd.DataFrame(
+                self.static(c).loc[
+                    lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
+                ]
+            )
+            n.add(c, static.index, **static)
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:
