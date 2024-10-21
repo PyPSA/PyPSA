@@ -213,7 +213,7 @@ def optimize_transmission_expansion_iteratively(
             / n.lines["s_nom_opt"].mean()
         )
         logger.info(
-            f"Mean square difference after iteration {iteration} is " f"{lines_err}"
+            f"Mean square difference after iteration {iteration} is " f"{lines_err}"  # type: ignore
         )
         return lines_err
 

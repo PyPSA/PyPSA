@@ -478,17 +478,17 @@ Custom Components
 
 If you want to define your own components and override the standard
 functionality of PyPSA, you can override the standard
-components by passing ``pypsa.Network()`` the arguments
-``override_components`` and ``override_component_attrs``.
+components by passing the arguments ``override_components`` and 
+``override_component_attrs`` when initialising a network via 
+:meth:`pypsa.Network() <pypsa.Network>`.
 
-For this network, these will replace the standard definitions in
-``pypsa.components.components`` and
-``pypsa.components.component_attrs``, which correspond to the
-repository CSV files ``pypsa/components.csv`` and
-``pypsa/component_attrs/*.csv``.
+For this network, these will replace the standard definitions in 
+:meth:`n.default_components <pypsa.Network.default_components>`
+and :meth:`n.default_component_attrs <pypsa.Network.default_component_attrs>`, which 
+correspond to the repository CSV files ``pypsa/components.csv`` and
+``pypsa/component_attrs/*.csv`` and are just slightly formatted when read in.
 
-``components`` is a pandas.DataFrame with the component ``name``,
-``list_name`` and ``description``. ``component_attrs`` is a
-pypsa.descriptors.Dict of pandas.DataFrame with the attribute
-properties for each component.  Just follow the formatting for the
-standard components.
+``default_components`` is a pandas.DataFrame with the component ``name``,
+``list_name``, ``description`` and ``type``. ``default_component_attrs`` is a special
+:meth:`Dict <pypsa.definitions.structures.Dict>` of pandas.DataFrame with the attribute
+properties for each component.  Just follow the formatting for the standard components.

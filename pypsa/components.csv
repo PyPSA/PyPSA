@@ -1,4 +1,4 @@
-component,list_name,description,type
+component,list_name,description,category
 Network,networks,"Container for all components and functions which act upon the whole network."
 SubNetwork,sub_networks,"Subsets of buses and passive branches (i.e. lines and transformers) that are connected (i.e. synchronous areas)."
 Bus,buses,"Electrically fundamental node where x-port objects attach."

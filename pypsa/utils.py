@@ -4,8 +4,12 @@ import functools
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
+import numpy as np
 import pandas as pd
+from deprecation import deprecated
 from pandas.api.types import is_list_like
+
+from pypsa.definitions.structures import Dict
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -55,6 +59,39 @@ def as_index(
     assert isinstance(values_, pd.Index)
 
     return values_
+
+
+def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
+    assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
+
+    if ignored_classes is not None:
+        if isinstance(a, tuple(ignored_classes)):
+            return True
+
+    # Classes with equality methods
+    if isinstance(a, np.ndarray):
+        if not np.array_equal(a, b):
+            return False
+    elif isinstance(a, (pd.DataFrame, pd.Series, pd.Index)):
+        if not a.equals(b):
+            return False
+    # Iterators
+    elif isinstance(a, (dict, Dict)):
+        for k, v in a.items():
+            if not equals(v, b[k]):
+                return False
+    elif isinstance(a, (list, tuple)):
+        for i, v in enumerate(a):
+            if not equals(v, b[i]):
+                return False
+    # Nans
+    elif pd.isna(a) and pd.isna(b):
+        pass
+    else:
+        if a != b:
+            return False
+
+    return True
 
 
 def deprecated_kwargs(**aliases: str) -> Callable:
@@ -142,3 +179,26 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
         A decorated function that renames 'a' to 'b'.
     """
     return deprecated_kwargs(network="n")(f)
+
+
+def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Callable:
+    """
+    Decorator factory which conditionally applies a deprecation warning.
+
+    This way future deprecations can be marked without already raising the warning.
+    """
+
+    def custom_decorator(func: Callable) -> Callable:
+        if activate:
+            # Apply the deprecated decorator conditionally
+            decorated_func = deprecated(*args, **kwargs)(func)
+        else:
+            decorated_func = func
+
+        @functools.wraps(decorated_func)
+        def wrapper(*func_args: Any, **func_kwargs: Any) -> Any:
+            return decorated_func(*func_args, **func_kwargs)
+
+        return wrapper
+
+    return custom_decorator
