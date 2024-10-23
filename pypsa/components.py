@@ -1437,9 +1437,7 @@ class Network:
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n.add(
-                c, pd.DataFrame(self.static(c)).static, **pd.DataFrame(self.static(c))
-            )
+            n.add(c, pd.DataFrame(self.static(c)).index, **pd.DataFrame(self.static(c)))
 
         for c in self.standard_type_components:
             static = pd.DataFrame(
