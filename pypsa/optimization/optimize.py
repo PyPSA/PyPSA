@@ -620,8 +620,8 @@ class OptimizationAccessor:
     """
 
     def __init__(self, n: Network) -> None:
-        self._parent = n
-        self.expressions = StatisticExpressionsAccessor(self._parent)
+        self.n = n
+        self.expressions = StatisticExpressionsAccessor(self.n)
 
     @wraps(optimize)
     def __call__(self, *args: Any, **kwargs: Any) -> Any:

@@ -5,15 +5,19 @@ Statistics Accessor.
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
 from functools import wraps
 from inspect import signature
 from typing import TYPE_CHECKING, Any
 
+from numpy import prod
+
 if TYPE_CHECKING:
     from pypsa import Network
 
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
 
@@ -142,9 +146,9 @@ def get_weightings(n: Network, c: str) -> pd.Series:
 
 
 def port_efficiency(
-    n: Network, c_name: str, port: str = "", dynamic=False
+    n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
-    ones = pd.Series(1, index=n.df(c_name).index)
+    ones = pd.Series(1, index=n.static(c_name).index)
     if port == "":
         efficiency = ones
     elif port == "0":
@@ -203,6 +207,7 @@ def get_transmission_carriers(
     )
 
 
+@deprecated("Use StatisticsAccessor.get_grouping instead.")
 def get_grouping(
     n: Network,
     c: str,
@@ -210,65 +215,24 @@ def get_grouping(
     port: str | None = None,
     nice_names: bool = False,
 ) -> dict:
-    by = None
-    level = None
-    if callable(groupby):
-        if "port" in signature(groupby).parameters:
-            by = groupby(n, c, port=port, nice_names=nice_names)
-        else:
-            by = groupby(n, c, nice_names=nice_names)
-    elif isinstance(groupby, list):
-        by = [n.static(c)[key] for key in groupby]
-    elif isinstance(groupby, str):
-        by = n.static(c)[groupby]
-    elif groupby is not False:
-        raise ValueError(
-            f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
-        )
-    return dict(by=by, level=level)
+    return StatisticsAccessor._get_grouping(n, c, groupby, port, nice_names)
 
 
+@deprecated("Use StatisticsAccessor.aggregate_timeseries instead.")
 def aggregate_timeseries(
-    df: pd.DataFrame, weights: pd.Series, agg: str | bool = "sum"
+    df: pd.DataFrame, weights: pd.Series, agg: str = "sum"
 ) -> pd.Series:
-    """
-    Calculate the weighted sum or average of a DataFrame or Series.
-    """
-    if isinstance(df.index, pd.MultiIndex):
-        if agg == "mean":
-            weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
-            return df.multiply(weights, axis=0).groupby(level=0).sum().T
-        elif agg == "sum":
-            return df.multiply(weights, axis=0).groupby(level=0).sum().T
-        elif not agg:
-            return df.T
-    else:
-        if agg == "mean":
-            return (weights / weights.sum()) @ df
-        elif agg == "sum":
-            return weights @ df
-        elif not agg:
-            return df.T
-    return df.agg(agg)
+    return StatisticsAccessor._aggregate_timeseries(df, weights, agg)
 
 
+@deprecated("Use StatisticsAccessor.filter_active_assets instead.")
 def filter_active_assets(
     n: Network, c: str, df: pd.Series | pd.DataFrame
 ) -> pd.Series | pd.DataFrame:
-    """
-    For static values iterate over periods and concat values.
-    """
-
-    if isinstance(df, pd.DataFrame):
-        return df
-    if not isinstance(n.snapshots, pd.MultiIndex):
-        return df[n.get_active_assets(c).loc[df.index]]
-    per_period = {}
-    for p in n.snapshots.unique(0):
-        per_period[p] = df[n.get_active_assets(c, p).loc[df.index]]
-    return pd.concat(per_period, axis=1)
+    return n.statistics._filter_active_assets(n, c, df)
 
 
+@deprecated("Use StatisticsAccessor.filter_bus_carrier instead.")
 def filter_bus_carrier(
     n: Network,
     c: str,
@@ -276,26 +240,7 @@ def filter_bus_carrier(
     bus_carrier: Sequence[str] | str | None,
     df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """
-    Filter the DataFrame for components which are connected to a bus with
-    carrier `bus_carrier`.
-    """
-    if bus_carrier is None:
-        return df
-
-    ports = n.static(c).loc[df.index, f"bus{port}"]
-    port_carriers = ports.map(n.buses.carrier)
-    if isinstance(bus_carrier, str):
-        if bus_carrier in n.buses.carrier.unique():
-            return df[port_carriers == bus_carrier]
-        else:
-            return df[port_carriers.str.contains(bus_carrier).fillna(False)]
-    elif isinstance(bus_carrier, list):
-        return df[port_carriers.isin(bus_carrier)]
-    else:
-        raise ValueError(
-            f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
-        )
+    return n.statistics._filter_bus_carrier(n, c, port, bus_carrier, df)
 
 
 def pass_empty_series_if_keyerror(func: Callable) -> Callable:
@@ -373,9 +318,9 @@ class Groupers:
     get_bus_unit_and_carrier = staticmethod(get_bus_unit_and_carrier)
 
 
-class StatisticsAccessor:
+class AbstractStatisticsAccessor(ABC):
     """
-    Accessor to calculate different statistical values.
+    Abstract accessor to calculate different statistical values.
     """
 
     def __init__(self, n: Network) -> None:
@@ -391,20 +336,91 @@ class StatisticsAccessor:
         """
         self.parameters.set_parameters(**kwargs)
 
+    @classmethod
+    def _get_grouping(
+        cls,
+        n: Network,
+        c: str,
+        groupby: Callable | Sequence[str] | str | bool,
+        port: str | None = None,
+        nice_names: bool = False,
+    ) -> dict:
+        by = None
+        level = None
+        if callable(groupby):
+            if "port" in signature(groupby).parameters:
+                by = groupby(n, c, port=port, nice_names=nice_names)
+            else:
+                by = groupby(n, c, nice_names=nice_names)
+        elif isinstance(groupby, list):
+            by = [n.static(c)[key] for key in groupby]
+        elif isinstance(groupby, str):
+            by = n.static(c)[groupby]
+        elif groupby is not False:
+            raise ValueError(
+                f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
+            )
+        return dict(by=by, level=level)
+
+    @property
+    def is_multi_indexed(self) -> bool:
+        return isinstance(self.n.snapshots, pd.MultiIndex)
+
+    @classmethod
+    def _aggregate_timeseries(
+        cls, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
+    ) -> Any:
+        """
+        Calculate the weighted sum or average of a DataFrame or Series.
+        """
+        if not agg:
+            return obj
+
+        if agg == "mean":
+            if isinstance(weights.index, pd.MultiIndex):
+                weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
+            else:
+                weights = weights / weights.sum()
+            agg = "sum"
+
+        return cls._aggregate_with_weights(obj, weights, agg)
+
+    # The following methods are implemented in the concrete classes
+    @abstractmethod
+    def _aggregate_with_weights(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _aggregate_components_groupby(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _aggregate_components_concat_values(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _aggregate_components_concat_data(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    def _get_component_index(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+    def _concat_periods(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
     def _aggregate_components(
         self,
         func: Callable,
-        agg: Callable | str | bool = "sum",
+        agg: Callable | str = "sum",
         comps: Collection[str] | str | None = None,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = True,
-    ) -> pd.DataFrame:
+    ) -> pd.Series | pd.DataFrame:
         """
         Apply a function and group the result for a collection of components.
         """
-        df: pd.DataFrame
         d = {}
         n = self.n
 
@@ -420,34 +436,143 @@ class StatisticsAccessor:
             if n.static(c).empty:
                 continue
 
-            ports = [col[3:] for col in n.static(c) if col.startswith("bus")]
+            ports = [str(col)[3:] for col in n.static(c) if str(col).startswith("bus")]
             if not at_port:
                 ports = [ports[0]]
 
-            df = []
+            values = []
             for port in ports:
                 vals = func(n, c, port)
-                vals = filter_active_assets(n, c, vals)  # for multiinvest
-                vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
+                if vals is None or not prod(vals.shape):
+                    continue
 
-                # unit tracker
+                vals = self._filter_active_assets(n, c, vals)  # for multiinvest
+                vals = self._filter_bus_carrier(n, c, port, bus_carrier, vals)
+
+                if vals is None or not prod(vals.shape):
+                    continue
+
                 if groupby is not False:
-                    grouping = get_grouping(
+                    grouping = self._get_grouping(
                         n, c, groupby, port=port, nice_names=nice_names
                     )
-                    vals = vals.groupby(**grouping).agg(agg)
-                df.append(vals)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg)
+                values.append(vals)
 
-            df = pd.concat(df, copy=False) if len(df) > 1 else df[0]
-            if not df.index.is_unique:
-                df = df.groupby(level=df.index.names).agg(agg)
+            if not values:
+                continue
+
+            df = self._aggregate_components_concat_values(values, agg)
+
             d[c] = df
 
+        return self._aggregate_components_concat_data(d, is_one_component)
+
+    def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
+        """
+        For static values iterate over periods and concat values.
+        """
+        if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
+            return obj
+        idx = self._get_component_index(obj, c)
+        if not self.is_multi_indexed:
+            mask = n.get_active_assets(c)
+            idx = mask.index[mask].intersection(idx)
+            return obj.loc[idx]
+
+        per_period = {}
+        for p in n.investment_periods:
+            mask = n.get_active_assets(c, p)
+            idx = mask.index[mask].intersection(idx)
+            per_period[p] = obj.loc[idx]
+
+        return self._concat_periods(per_period, c)
+
+    def _filter_bus_carrier(
+        self,
+        n: Network,
+        c: str,
+        port: str,
+        bus_carrier: Sequence[str] | str | None,
+        obj: Any,
+    ) -> Any:
+        """
+        Filter the DataFrame for components which are connected to a bus with
+        carrier `bus_carrier`.
+        """
+        if bus_carrier is None:
+            return obj
+
+        idx = self._get_component_index(obj, c)
+        ports = n.static(c).loc[idx, f"bus{port}"]
+        port_carriers = ports.map(n.buses.carrier)
+        if isinstance(bus_carrier, str):
+            if bus_carrier in n.buses.carrier.unique():
+                mask = port_carriers == bus_carrier
+            else:
+                mask = port_carriers.str.contains(bus_carrier)
+        elif isinstance(bus_carrier, list):
+            mask = port_carriers.isin(bus_carrier)
+        else:
+            raise ValueError(
+                f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
+            )
+        return obj.loc[ports.index[mask]]
+
+
+class StatisticsAccessor(AbstractStatisticsAccessor):
+    """
+    Accessor to calculate different statistical values.
+    """
+
+    def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
+        return df.index
+
+    def _concat_periods(
+        self, dfs: list[pd.DataFrame] | dict[str, pd.DataFrame], c: str
+    ) -> pd.DataFrame:
+        return pd.concat(dfs, axis=1)
+
+    @staticmethod
+    def _aggregate_with_weights(
+        df: pd.DataFrame,
+        weights: pd.Series,
+        agg: str | Callable,
+    ) -> pd.Series | pd.DataFrame:
+        if agg == "sum":
+            if isinstance(weights.index, pd.MultiIndex):
+                return df.multiply(weights, axis=0).groupby(level=0).sum().T
+            return weights @ df
+        else:
+            # Todo: here we leave out the weights, is that correct?
+            return df.agg(agg)
+
+    def _aggregate_components_groupby(
+        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str
+    ) -> pd.DataFrame:
+        return vals.groupby(**grouping).agg(agg)
+
+    def _aggregate_components_concat_values(
+        self, values: list[pd.DataFrame], agg: Callable | str
+    ) -> pd.DataFrame:
+        """
+        Concatenate a list of DataFrames.
+        """
+        df = pd.concat(values, copy=False) if len(values) > 1 else values[0]
+        if not df.index.is_unique:
+            df = df.groupby(level=df.index.names).agg(agg)
+        return df
+
+    def _aggregate_components_concat_data(
+        self, d: dict[str, pd.DataFrame], is_one_component: bool
+    ) -> pd.DataFrame | pd.Series:
         if d == {}:
-            return pd.Series([])
+            idx = pd.MultiIndex.from_tuples([], names=["component", "name"])
+            return pd.Series([], index=idx)
+        first_key = next(iter(d))
         if is_one_component:
-            return d[c]
-        index_names = ["component"] + df.index.names
+            return d[first_key]
+        index_names = ["component"] + d[first_key].index.names
         df = pd.concat(d, names=index_names)
         if self.parameters.round:
             df = df.round(self.parameters.round)
@@ -458,7 +583,7 @@ class StatisticsAccessor:
     def __call__(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable = get_carrier,
         nice_names: bool = True,
         **kwargs: Any,
@@ -531,7 +656,7 @@ class StatisticsAccessor:
     def capex(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -574,7 +699,7 @@ class StatisticsAccessor:
     def installed_capex(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -615,7 +740,7 @@ class StatisticsAccessor:
     def expanded_capex(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -661,7 +786,7 @@ class StatisticsAccessor:
     def optimal_capacity(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -713,7 +838,7 @@ class StatisticsAccessor:
     def installed_capacity(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -765,7 +890,7 @@ class StatisticsAccessor:
     def expanded_capacity(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -807,7 +932,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -841,7 +966,7 @@ class StatisticsAccessor:
 
             opex = p * n.get_switchable_as_dense(c, "marginal_cost")
             weights = get_weightings(n, c)
-            return aggregate_timeseries(opex, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
             func,
@@ -860,7 +985,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -894,7 +1019,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -928,7 +1053,7 @@ class StatisticsAccessor:
         self,
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -962,7 +1087,7 @@ class StatisticsAccessor:
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = n.dynamic(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
             weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
             func,
@@ -981,7 +1106,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = get_carrier_and_bus_carrier,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1029,7 +1154,7 @@ class StatisticsAccessor:
                 logger.warning(
                     "Argument 'kind' is not recognized. Falling back to energy balance."
                 )
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
             func,
@@ -1049,7 +1174,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1082,7 +1207,7 @@ class StatisticsAccessor:
                 - n.dynamic(c).p
             ).clip(lower=0)
             weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
             func,
@@ -1101,7 +1226,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "mean",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         at_port: Sequence[str] | str | bool = False,
         groupby: Callable | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1129,7 +1254,7 @@ class StatisticsAccessor:
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
             weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         kwargs = dict(
             comps=comps,
@@ -1149,7 +1274,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1199,7 +1324,7 @@ class StatisticsAccessor:
                     )
             revenue = df * prices
             weights = get_weightings(n, c)
-            return aggregate_timeseries(revenue, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
             func,
@@ -1218,7 +1343,7 @@ class StatisticsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "mean",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,

@@ -11,13 +11,12 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import linopy as ln
 import pandas as pd
+from linopy.expressions import LinearExpression
 from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
-    Groupers,
-    Parameters,
-    get_carrier,
+    AbstractStatisticsAccessor,
     get_carrier_and_bus_carrier,
     get_transmission_branches,
     get_weightings,
@@ -40,99 +39,6 @@ def get_operational_attr(c: str) -> str | None:
     return attr
 
 
-def get_grouping(
-    n: Network,
-    c: str,
-    groupby: Callable | Sequence[str] | str | bool,
-    port: str | None = None,
-    nice_names: bool = False,
-) -> pd.DataFrame:
-    from pypsa.statistics import get_grouping
-
-    result = get_grouping(n, c, groupby, port, nice_names)
-    by = result["by"]
-
-    if isinstance(by, list):
-        grouper = pd.concat(by, axis=1)
-    elif isinstance(by, pd.Series):
-        grouper = by.to_frame()
-    else:
-        grouper = by
-
-    return grouper.rename_axis("name")
-
-
-def aggregate_timeseries(
-    expr: ln.LinearExpression, weights: pd.Series, agg: str | bool = "sum"
-) -> pd.Series:
-    """
-    Calculate the weighted sum or average of a DataFrame or Series.
-    """
-    if isinstance(expr.indexes["snapshot"], pd.MultiIndex):
-        if agg == "mean":
-            weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
-            return (expr * weights).groupby(level=0).sum().T
-        elif agg == "sum":
-            return (expr * weights).groupby(level=0).sum().T
-        elif not agg:
-            return expr
-    else:
-        if agg == "mean":
-            return expr @ (weights / weights.sum())
-        elif agg == "sum":
-            return expr @ weights
-        elif not agg:
-            return expr
-    raise ValueError(
-        f"Aggregation '{agg}' not supported. Use 'mean', 'sum' or False/None."
-    )
-
-
-def filter_active_assets(
-    n: Network, c: str, expr: ln.Variable | ln.LinearExpression
-) -> ln.Variable | ln.LinearExpression:
-    """
-    For static values iterate over periods and concat values.
-    """
-    if not isinstance(n.snapshots, pd.MultiIndex) or "snapshot" in expr.dims:
-        return expr
-    per_period = {}
-    for p in n.investment_periods:
-        idx = n.get_active_assets(c, p)[lambda x: x].index.intersection(expr.indexes[c])
-        per_period[p] = expr.loc[idx]
-    return ln.merge(per_period.values(), keys=per_period.keys(), dim=c)
-
-
-def filter_bus_carrier(
-    n: Network,
-    c: str,
-    port: str,
-    bus_carrier: Sequence[str] | str | None,
-    expr: ln.Variable | ln.LinearExpression,
-) -> ln.Variable | ln.LinearExpression:
-    """
-    Filter the DataFrame for components which are connected to a bus with
-    carrier `bus_carrier`.
-    """
-    if bus_carrier is None:
-        return expr
-
-    ports = n.df(c).loc[expr.indexes[c], f"bus{port}"]
-    port_carriers = ports.map(n.buses.carrier)
-    if isinstance(bus_carrier, str):
-        if bus_carrier in n.buses.carrier.unique():
-            idx = (port_carriers == bus_carrier)[lambda x: x].index
-        else:
-            idx = port_carriers.str.contains(bus_carrier)[lambda x: x].index
-    elif isinstance(bus_carrier, list):
-        idx = port_carriers.isin(bus_carrier)[lambda x: x].index
-    else:
-        raise ValueError(
-            f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
-        )
-    return expr.loc[idx]
-
-
 def pass_none_if_keyerror(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -144,7 +50,7 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
     return wrapper
 
 
-class StatisticExpressionsAccessor:
+class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     """
     Accessor to calculate different statistical expressions.
 
@@ -153,95 +59,89 @@ class StatisticExpressionsAccessor:
     The results are aggregated by the given groupby function.
     """
 
-    def __init__(self, network: Network) -> None:
-        self._parent = network
-        self.groupers = Groupers()  # Create an instance of the Groupers class
-        self.parameters = Parameters()  # Create an instance of the Parameters class
+    @classmethod
+    def _get_grouping(
+        cls,
+        n: Network,
+        c: str,
+        groupby: Callable | Sequence[str] | str | bool,
+        port: str | None = None,
+        nice_names: bool = False,
+    ) -> pd.DataFrame:
+        result = super()._get_grouping(n, c, groupby, port, nice_names)
+        by = result["by"]
 
-    def _aggregate_components(
-        self,
-        func: Callable,
-        agg: Callable | str | bool = "sum",
-        comps: Collection[str] | str | None = None,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
-        nice_names: bool | None = True,
-    ) -> ln.LinearExpression:
+        if isinstance(by, list):
+            grouper = pd.concat(by, axis=1)
+        elif isinstance(by, pd.Series):
+            grouper = by.to_frame()
+        elif groupby is False:
+            grouper = pd.DataFrame(index=n.df(c).index)
+        else:
+            grouper = by
+
+        grouper.insert(0, "component", c)  # for tracking the component
+        return grouper.rename_axis(c)
+
+    def _get_component_index(self, obj: LinearExpression, c: str) -> pd.Index:
+        return obj.indexes[c]
+
+    def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
+        return ln.merge(list(exprs.values()), dim=c)
+
+    @staticmethod
+    def _aggregate_with_weights(
+        expr: LinearExpression,
+        weights: pd.Series,
+        agg: str | Callable,
+    ) -> LinearExpression:
         """
-        Apply a function and group the result for a collection of components.
+        Apply weights to a time series.
         """
-        n = self._parent
+        if agg == "sum":
+            if isinstance(weights.index, pd.MultiIndex):
+                return expr.multiply(weights, axis=0).groupby(level=0).sum().T
+            return expr @ weights
+        else:
+            raise ValueError(f"Aggregation method {agg} not supported.")
 
-        res = []
-        if not getattr(n, "model"):
-            raise ValueError(
-                "Model not created. Run `n.optimize.create_model()` first."
-            )
+    def _aggregate_components_groupby(
+        self, vals: LinearExpression, grouping: pd.DataFrame, agg: Callable | str
+    ) -> pd.DataFrame:
+        return vals.groupby(grouping).sum()
 
-        if agg != "sum":
-            raise ValueError("Only 'sum' aggregation of components is supported.")
+    def _aggregate_components_concat_values(
+        self, exprs: list[LinearExpression], agg: Callable | str
+    ) -> LinearExpression:
+        res = ln.merge(exprs)
+        if not (index := res.indexes[res.dims[0]]).is_unique:
+            if agg != "sum":
+                raise ValueError(f"Aggregation method {agg} not supported.")
+            non_unique_groups = pd.DataFrame(list(index), columns=index.names)
+            res = res.groupby(non_unique_groups).sum()
+        return res
 
-        if is_one_component := isinstance(comps, str):
-            comps = [comps]
-        if comps is None:
-            comps = n.branch_components | n.one_port_components
-        if groupby is None:
-            groupby = get_carrier
-        if nice_names is None:
-            nice_names = self.parameters.nice_names
-        for c in comps:
-            if n.df(c).empty:
-                continue
-
-            ports = [col[3:] for col in n.df(c) if col.startswith("bus")]
-            if not at_port:
-                ports = [ports[0]]
-
-            exprs = []
-            for port in ports:
-                vals = func(n, c, port)
-                if vals is None or vals.empty():
-                    continue
-                vals = filter_active_assets(n, c, vals)  # for multiinvest
-                vals = filter_bus_carrier(n, c, port, bus_carrier, vals)
-                vals = vals.rename({c: "name"})
-
-                if groupby is not False:
-                    grouping = get_grouping(
-                        n, c, groupby, port=port, nice_names=nice_names
-                    )
-                    grouping.insert(0, "component", c)  # for tracking the component
-                    vals = vals.groupby(grouping).sum()
-                elif not is_one_component:
-                    vals = vals.expand_dims({"component": [c]}).stack(
-                        group=["component", "name"]
-                    )
-                exprs.append(vals)
-
-            if not len(exprs):
-                continue
-
-            expr = ln.merge(exprs)
-            res.append(expr)
-
+    def _aggregate_components_concat_data(
+        self, res: dict[str, LinearExpression], is_one_component: bool
+    ) -> LinearExpression:
         if res == {}:
-            return ln.LinearExpression(None, n.model)
+            return LinearExpression(None, self.n.model)
         if is_one_component:
-            return res[0]
-        return ln.merge(res, dim="group")
+            first_key = next(iter(res))
+            return res[first_key].loc[first_key]
+        return ln.merge(list(res.values()), dim="group")
 
     def capex(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
         include_non_extendable: bool = True,
-    ) -> ln.LinearExpression:
+    ) -> LinearExpression:
         """
         Calculate the capital expenditure of the network in given currency.
 
@@ -276,14 +176,14 @@ class StatisticExpressionsAccessor:
     def capacity(
         self,
         comps: Sequence[str] | str | None = None,
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
         include_non_extendable: bool = True,
-    ) -> ln.LinearExpression:
+    ) -> LinearExpression:
         """
         Calculate the optimal capacity of the network components in MW.
 
@@ -330,12 +230,12 @@ class StatisticExpressionsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
-    ) -> pd.DataFrame:
+    ) -> LinearExpression:
         """
         Calculate the operational expenditure in the network in given currency.
 
@@ -362,7 +262,7 @@ class StatisticExpressionsAccessor:
             var = n.model.variables[f"{c}-{attr}"]
             opex = var * n.get_switchable_as_dense(c, "marginal_cost")
             weights = get_weightings(n, c)
-            return aggregate_timeseries(opex, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
 
         return self._aggregate_components(
             func,
@@ -378,12 +278,12 @@ class StatisticExpressionsAccessor:
         self,
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
-    ) -> pd.DataFrame:
+    ) -> LinearExpression:
         """
         Calculate the transmission of branch components in the network. Units
         depend on the regarded bus carrier.
@@ -401,12 +301,11 @@ class StatisticExpressionsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        n = self._parent
 
         if comps is None:
-            comps = n.branch_components
+            comps = self.n.branch_components
 
-        transmission_branches = get_transmission_branches(n, bus_carrier)
+        transmission_branches = get_transmission_branches(self.n, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
@@ -416,7 +315,7 @@ class StatisticExpressionsAccessor:
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
             p = var.loc[:, idx] * efficiency[idx]
             weights = get_weightings(n, c)
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         return self._aggregate_components(
             func,
@@ -432,12 +331,12 @@ class StatisticExpressionsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: str = "sum",
         groupby: Callable | None = get_carrier_and_bus_carrier,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
-    ) -> pd.DataFrame:
+    ) -> LinearExpression:
         """
         Calculate the energy balance of components in the network. Positive
         values represent a supply and negative a withdrawal. Units depend on
@@ -455,10 +354,9 @@ class StatisticExpressionsAccessor:
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-        n = self._parent
 
         if (
-            n.buses.carrier.unique().size > 1
+            self.n.buses.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
         ):
@@ -474,7 +372,7 @@ class StatisticExpressionsAccessor:
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             p = var * efficiency * sign
-            return aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         return self._aggregate_components(
             func,
@@ -490,12 +388,12 @@ class StatisticExpressionsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: str = "sum",
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
-    ) -> pd.DataFrame:
+    ) -> LinearExpression:
         """
         Calculate the curtailment of components in the network in MWh.
 
@@ -530,7 +428,7 @@ class StatisticExpressionsAccessor:
             # curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
             weights = get_weightings(n, c)
-            return aggregate_timeseries(curtailment, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(curtailment, weights, agg=aggregate_time)
 
         return self._aggregate_components(
             func,
@@ -546,12 +444,12 @@ class StatisticExpressionsAccessor:
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "mean",
-        aggregate_groups: Callable | str | bool = "sum",
+        aggregate_groups: str = "sum",
         at_port: Sequence[str] | str | bool = False,
         groupby: Callable | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
-    ) -> pd.DataFrame:
+    ) -> LinearExpression:
         """
         Calculate the operation of components in the network.
 
@@ -574,7 +472,7 @@ class StatisticExpressionsAccessor:
             attr = get_operational_attr(c)
             operation = 1 * n.model.variables[f"{c}-{attr}"]
             weights = get_weightings(n, c)
-            return aggregate_timeseries(operation, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(operation, weights, agg=aggregate_time)
 
         return self._aggregate_components(
             func,
