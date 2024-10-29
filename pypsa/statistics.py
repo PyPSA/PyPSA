@@ -402,9 +402,11 @@ class AbstractStatisticsAccessor(ABC):
     def _aggregate_components_concat_data(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
+    @abstractmethod
     def _get_component_index(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
+    @abstractmethod
     def _concat_periods(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
