@@ -73,6 +73,8 @@ Universities and Research Institutes
 
 * `The University of Edinburgh <https://www.eng.ed.ac.uk/research/institutes/ies>`_: introduced PyPSA-GB: An open-source model of Great Britain's power system for simulating future energy scenarios (Energy Strategy Reviews, May 2024) `doi.org/10.1016/j.esr.2024.101375 <https://doi.org/10.1016/j.esr.2024.101375>`_
 
+* `Energy Innovation Lab <https://energyinnovation.korea.ac.kr/>`_ at `Korea University <https://www.korea.ac.kr/sites/ko/index.do>`_ uses PyPSA-Earth to support development of long-term energy strategy
+
 
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
