@@ -38,7 +38,7 @@ def prepared_network(ac_dc_network):
 
 # Test one static function for each groupby option and other options
 @pytest.mark.parametrize("groupby", GROUPER_PARAMETERS)
-def test_statistics_capacity(prepared_network, groupby):
+def test_expressions_capacity(prepared_network, groupby):
     n = prepared_network
     expr = n.optimize.expressions.capacity(groupby=groupby)
     assert isinstance(expr, LinearExpression)
@@ -48,14 +48,14 @@ def test_statistics_capacity(prepared_network, groupby):
 @pytest.mark.parametrize(
     "kwargs", KWARGS_PARAMETERS + [{"include_non_extendable": True}]
 )
-def test_statistics_capacity_other_options(prepared_network, kwargs):
+def test_expressions_capacity_other_options(prepared_network, kwargs):
     n = prepared_network
     expr = n.optimize.expressions.capacity(**kwargs)
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
 
-def test_statistics_capex(prepared_network):
+def test_expressions_capex(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.capex()
     assert isinstance(expr, LinearExpression)
@@ -65,7 +65,7 @@ def test_statistics_capex(prepared_network):
 # Test one dynamic function for each groupby option and other options
 @pytest.mark.parametrize("aggregate_time", AGGREGRATE_TIME_PARAMETERS)
 @pytest.mark.parametrize("groupby", GROUPER_PARAMETERS)
-def test_statistics_energy_balance(prepared_network, groupby, aggregate_time):
+def test_expressions_energy_balance(prepared_network, groupby, aggregate_time):
     n = prepared_network
     expr = n.optimize.expressions.energy_balance(
         groupby=groupby, aggregate_time=aggregate_time
@@ -75,49 +75,49 @@ def test_statistics_energy_balance(prepared_network, groupby, aggregate_time):
 
 
 @pytest.mark.parametrize("kwargs", KWARGS_PARAMETERS)
-def test_statistics_energy_balance_other_options(prepared_network, kwargs):
+def test_expressions_energy_balance_other_options(prepared_network, kwargs):
     n = prepared_network
     expr = n.optimize.expressions.energy_balance(**kwargs)
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
 
-def test_statistics_supply(prepared_network):
+def test_expressions_supply(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.supply()
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
 
-def test_statistics_withdrawal(prepared_network):
+def test_expressions_withdrawal(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.withdrawal()
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
 
-def test_statistics_transmission(prepared_network):
+def test_expressions_transmission(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.transmission()
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
 
-def test_statistics_opex(prepared_network):
+def test_expressions_opex(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.opex()
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
 
-def test_statistics_curtailment(prepared_network):
+def test_expressions_curtailment(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.curtailment()
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
 
 
-def test_statistics_operation(prepared_network):
+def test_expressions_operation(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.operation()
     assert isinstance(expr, LinearExpression)
