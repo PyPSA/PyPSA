@@ -6,8 +6,8 @@ import pandas as pd
 from pypsa.definitions.components import ComponentType
 
 # TODO better path handeling, integrate custom components
-_components_path = Path(__file__).parent.parent / "components.csv"
-_attrs_path = Path(__file__).parent.parent / "component_attrs"
+_components_path = Path(__file__).parent.parent / "data" / "components.csv"
+_attrs_path = Path(__file__).parent.parent / "data" / "component_attrs"
 
 component_types_df = pd.read_csv(_components_path, index_col=0)
 

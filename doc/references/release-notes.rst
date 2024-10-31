@@ -1719,7 +1719,7 @@ changes to the internal API.
   interface for components is gone. You can only access component
   attributes through the dataframes, e.g. ``network.lines``.
 * Component attributes are now defined in CSV files in
-  ``pypsa/component_attrs/``. You can access these CSVs in the code
+  ``pypsa/data/component_attrs/``. You can access these CSVs in the code
   via the dictionary ``network.components``,
   e.g. ``network.components["Line"]["attrs"]`` will show a pandas
   DataFrame with all attributes and their types, defaults, units and
