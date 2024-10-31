@@ -16,7 +16,7 @@ from pypsa.utils import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa.components.components import Components
-    from pypsa.core import Network
+    from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
 

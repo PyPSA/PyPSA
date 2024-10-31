@@ -13,7 +13,7 @@ from numpy import hstack, ravel
 if TYPE_CHECKING:
     import xarray as xr
 
-    from pypsa.core import Network
+    from pypsa.networks import Network
 
 
 def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:

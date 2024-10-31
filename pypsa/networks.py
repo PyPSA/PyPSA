@@ -99,7 +99,7 @@ warnings.simplefilter("always", DeprecationWarning)
 
 dir_name = os.path.dirname(__file__)
 
-standard_types_dir_name = "standard_types"
+standard_types_dir_name = "data/standard_types"
 
 
 inf = float("inf")
