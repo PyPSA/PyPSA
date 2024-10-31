@@ -388,27 +388,27 @@ class AbstractStatisticsAccessor(ABC):
     # The following methods are implemented in the concrete classes
     @abstractmethod
     def _aggregate_with_weights(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _aggregate_components_groupby(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _aggregate_components_concat_values(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _aggregate_components_concat_data(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _get_component_index(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def _concat_periods(self, *args: Any, **kwargs: Any) -> Any:
-        raise NotImplementedError
+        pass
 
     def _aggregate_components(
         self,

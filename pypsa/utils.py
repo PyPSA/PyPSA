@@ -142,3 +142,14 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
         A decorated function that renames 'a' to 'b'.
     """
     return deprecated_kwargs(network="n")(f)
+
+
+def pass_none_if_keyerror(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except (KeyError, AttributeError):
+            return None
+
+    return wrapper

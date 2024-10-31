@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Collection, Sequence
-from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable
 
 import linopy as ln
@@ -22,6 +21,7 @@ from pypsa.statistics import (
     get_weightings,
     port_efficiency,
 )
+from pypsa.utils import pass_none_if_keyerror
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
 
 def get_operational_attr(c: str) -> str | None:
+    # TODO: move function to better place to avoid circular imports
     from pypsa.optimization.optimize import lookup
 
     if c not in lookup.index:
@@ -37,17 +38,6 @@ def get_operational_attr(c: str) -> str | None:
 
     attr = lookup.query("not nominal and not handle_separately").loc[c].index.item()
     return attr
-
-
-def pass_none_if_keyerror(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return func(*args, **kwargs)
-        except (KeyError, AttributeError):
-            return None
-
-    return wrapper
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
