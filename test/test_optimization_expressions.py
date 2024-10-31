@@ -82,6 +82,20 @@ def test_statistics_energy_balance_other_options(prepared_network, kwargs):
     assert expr.size > 0
 
 
+def test_statistics_supply(prepared_network):
+    n = prepared_network
+    expr = n.optimize.expressions.supply()
+    assert isinstance(expr, LinearExpression)
+    assert expr.size > 0
+
+
+def test_statistics_withdrawal(prepared_network):
+    n = prepared_network
+    expr = n.optimize.expressions.withdrawal()
+    assert isinstance(expr, LinearExpression)
+    assert expr.size > 0
+
+
 def test_statistics_transmission(prepared_network):
     n = prepared_network
     expr = n.optimize.expressions.transmission()

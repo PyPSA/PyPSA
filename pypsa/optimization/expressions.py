@@ -326,6 +326,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
+        kind: str | None = None,
     ) -> LinearExpression:
         """
         Calculate the energy balance of components in the network. Positive
@@ -361,7 +362,16 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
-            p = var * efficiency * sign
+            coeffs = DataArray(efficiency * sign)
+            if kind == "supply":
+                coeffs = coeffs.clip(min=0)
+            elif kind == "withdrawal":
+                coeffs = coeffs.clip(max=0)
+            elif kind is not None:
+                raise ValueError(
+                    f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
+                )
+            p = var.where(coeffs != 0) * coeffs
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -372,6 +382,68 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+        )
+
+    def supply(
+        self,
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: str = "sum",
+        groupby: Callable | None = get_carrier_and_bus_carrier,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> LinearExpression:
+        """
+        Calculate the supply of components in the network. Units depend on the
+        regarded bus carrier.
+
+        If `bus_carrier` is given, only the supply to buses with carrier
+        `bus_carrier` is calculated.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        """
+        return self.energy_balance(
+            comps=comps,
+            aggregate_time=aggregate_time,
+            aggregate_groups=aggregate_groups,
+            groupby=groupby,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            kind="supply",
+        )
+
+    def withdrawal(
+        self,
+        comps: Sequence[str] | str | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: str = "sum",
+        groupby: Callable | None = get_carrier_and_bus_carrier,
+        at_port: Sequence[str] | str | bool = True,
+        bus_carrier: Sequence[str] | str | None = None,
+        nice_names: bool | None = None,
+    ) -> LinearExpression:
+        """
+        Calculate the withdrawal of components in the network. Units depend on
+        the regarded bus carrier.
+
+        If `bus_carrier` is given, only the withdrawal from buses with
+        carrier `bus_carrier` is calculated.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
+        """
+        return self.energy_balance(
+            comps=comps,
+            aggregate_time=aggregate_time,
+            aggregate_groups=aggregate_groups,
+            groupby=groupby,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            kind="withdrawal",
         )
 
     def curtailment(
