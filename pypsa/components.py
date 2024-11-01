@@ -886,11 +886,14 @@ class Network:
         to add a single component.
 
         When a single component is added, all non-scalar attributes are assumed to be
-        time-varying and indexed by snapshots. When multiple components are added, all
-        non-scalar attributes are assumed to be static and indexed by names. If you want
-        to add time-varying attributes to multiple components, you can pass a 2D array/
-        DataFrame where the first dimension is snapshots and the second dimension is
-        names.
+        time-varying and indexed by snapshots.
+        When multiple components are added, all non-scalar attributes are assumed to be
+        static and indexed by names. A single value sequence is treated as scalar and
+        broadcasted to all components. It is recommended to explicitly pass a scalar
+        instead.
+        If you want to add time-varying attributes to multiple components, you can pass
+        a 2D array/ DataFrame where the first dimension is snapshots and the second
+        dimension is names.
 
         Any attributes which are not specified will be given the default
         value from :doc:`/user-guide/components`.
@@ -1010,7 +1013,7 @@ class Network:
                         v = pd.Series(v)
                         if len(v) == 1:
                             v = v.iloc[0]
-                            logger.warning(
+                            logger.debug(
                                 f"Single value sequence for {k} is treated as a scalar "
                                 f"and broadcasted to all components. It is recommended "
                                 f"to explicitly pass a scalar instead."
