@@ -11,7 +11,18 @@ Release Notes
 ..   To use the features already you have to install the ``master`` branch, e.g. 
 ..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
-* Abolishing ``min_units`` in the post discretization. If the maximum capacity of a component is smaller than the specified unit size, the maximum capacity is built as soon as the threshold is passed (https://github.com/PyPSA/PyPSA/pull/1052)
+v0.31.1 (1st November 2024)
+===========================
+
+Bug fixes
+---------
+
+* Abolishing ``min_units`` in the post discretization. If the maximum capacity of a 
+  component is smaller than the specified unit size, the maximum capacity is built as 
+  soon as the threshold is passed (https://github.com/PyPSA/PyPSA/pull/1052)
+
+* Less verbose logging when using :meth:`n.add <pypsa.Network.add>` 
+  (https://github.com/PyPSA/PyPSA/pull/1067)
 
 v0.31.0 (1st October 2024)
 ==========================
