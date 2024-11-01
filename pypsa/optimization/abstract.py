@@ -30,18 +30,20 @@ def discretized_capacity(
     unit_size: float,
     threshold: float,
     fractional_last_unit_size: bool,
-    min_units: int = 0,
+    min_units: int | None = None,
 ) -> float:
     """
     Discretize a optimal capacity to a capacity that is either a multiple of a unit size
     or the maximum capacity, depending on the variable `fractional_last_unit_size`.
 
-    This function checks if the optimal capacity is within the threshold of the unit size.
-    If so, it returns the next multiple of the unit size - if not it returns the last multiple
-    of the unit size.
-    In the special case that the maximum capacity is not a multiple of the unit size, the variable
-    `fractional_last_unit_size` determines if the returned capacity is the maximum capacity (True)
-    or the last multiple of the unit size (False).
+    This function checks if the optimal capacity is within the threshold of the unit
+    size. If so, it returns the next multiple of the unit size - if not it returns the
+    last multiple of the unit size.
+    In the special case that the maximum capacity is not a multiple of the unit size,
+    the variable `fractional_last_unit_size` determines if the returned capacity is the
+    maximum capacity (True) or the last multiple of the unit size (False).
+    In case the maximum capacity is lower than the unit size, the function returns the
+    maximum capacity.
 
     Parameters
     ----------
@@ -50,13 +52,16 @@ def discretized_capacity(
     nom_max : float
         The maximum capacity as defined in the network.
     unit_size : float
-        The unit size for the capacity as defined in the config[solving][post_discretization].
+        The unit size for the capacity.
     threshold : float
-        The threshold relative to the unit size for discretizing the capacity as defined in the config[solving][post_discretization].
+        The threshold relative to the unit size for discretizing the capacity.
     fractional_last_unit_size : bool
-        Whether only multiples of the unit size or the maximum capacity is allowed as defined in the config[solving][post_discretization].
-    min_units : int, default 0
+        Whether only multiples of the unit size or the maximum capacity.
+    min_units: int, default None
         The minimum number of units that should be installed.
+
+        .. deprecated:: 0.31
+            The `min_units` parameter is deprecated and will be removed in future versions.
 
     Returns
     -------
@@ -86,9 +91,25 @@ def discretized_capacity(
     threshold = 0.1,
     fractional_last_unit_size = True)
     8
+    >>> discretized_capacity(
+    nom_opt = 3,
+    nom_max = 4,
+    unit_size = 5,
+    threshold = 0.1,
+    fractional_last_unit_size = False)
+    4
     """
+    if min_units is not None:
+        raise DeprecationWarning(
+            "The `min_units` parameter is deprecated and will be removed in future "
+            "versions."
+        )
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-    block_capacity = max(min_units, units) * unit_size
+
+    if min_units is not None:
+        block_capacity = max(min_units, units) * unit_size
+    else:
+        block_capacity = units * unit_size
     if nom_max % unit_size == 0:
         return block_capacity
 
@@ -98,6 +119,8 @@ def discretized_capacity(
                 fractional_last_unit_size
                 and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
             ):
+                return nom_max
+            elif nom_max < unit_size:
                 return nom_max
             else:
                 return (nom_opt // unit_size) * unit_size
@@ -221,14 +244,12 @@ def optimize_transmission_expansion_iteratively(
         link_threshold = link_threshold or {}
 
         if line_unit_size:
-            min_units = 1
             n.lines["s_nom"] = n.lines.apply(
                 lambda row: discretized_capacity(
                     nom_opt=row["s_nom_opt"],
                     nom_max=row["s_nom_max"],
                     unit_size=line_unit_size,
                     threshold=line_threshold,
-                    min_units=min_units,
                     fractional_last_unit_size=fractional_last_unit_size,
                 ),
                 axis=1,

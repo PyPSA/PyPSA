@@ -1284,8 +1284,8 @@ class Network:
             Copy snapshots and time-varying n.component_names_t data too.
 
             .. deprecated:: 0.29.0
-              Will be removed in a future version. Pass an empty list to 'snapshots'
-              instead.
+              The 'with_time' argument is deprecated in 0.29 and will be removed in a
+              future version. Pass an empty list to 'snapshots' instead.
 
         Returns
         -------

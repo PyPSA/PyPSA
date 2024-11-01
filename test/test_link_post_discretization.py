@@ -138,7 +138,7 @@ def test_post_discretization():
     # 15          | 20        | 20        | 10
     assert n.links.loc["Link1"].p_nom == 2 * unit_size
     # 5           | 8         | 0         | 10
-    assert n.links.loc["Link2"].p_nom == 0
+    assert n.links.loc["Link2"].p_nom == 8
     # 13          | 15        | 10        | 10
     assert n.links.loc["Link3"].p_nom == unit_size
     # 11          | 15        | 10        | 10
