@@ -30,18 +30,20 @@ def discretized_capacity(
     unit_size: float,
     threshold: float,
     fractional_last_unit_size: bool,
+    min_units: int | None = None,
 ) -> float:
     """
     Discretize a optimal capacity to a capacity that is either a multiple of a unit size
     or the maximum capacity, depending on the variable `fractional_last_unit_size`.
 
-    This function checks if the optimal capacity is within the threshold of the unit size.
-    If so, it returns the next multiple of the unit size - if not it returns the last multiple
-    of the unit size.
-    In the special case that the maximum capacity is not a multiple of the unit size, the variable
-    `fractional_last_unit_size` determines if the returned capacity is the maximum capacity (True)
-    or the last multiple of the unit size (False).
-    In case the maximum capacity is lower than the unit size, the function returns the maximum capacity.
+    This function checks if the optimal capacity is within the threshold of the unit
+    size. If so, it returns the next multiple of the unit size - if not it returns the
+    last multiple of the unit size.
+    In the special case that the maximum capacity is not a multiple of the unit size,
+    the variable `fractional_last_unit_size` determines if the returned capacity is the
+    maximum capacity (True) or the last multiple of the unit size (False).
+    In case the maximum capacity is lower than the unit size, the function returns the
+    maximum capacity.
 
     Parameters
     ----------
@@ -50,11 +52,16 @@ def discretized_capacity(
     nom_max : float
         The maximum capacity as defined in the network.
     unit_size : float
-        The unit size for the capacity as defined in the config[solving][post_discretization].
+        The unit size for the capacity.
     threshold : float
-        The threshold relative to the unit size for discretizing the capacity as defined in the config[solving][post_discretization].
+        The threshold relative to the unit size for discretizing the capacity.
     fractional_last_unit_size : bool
-        Whether only multiples of the unit size or the maximum capacity is allowed as defined in the config[solving][post_discretization].
+        Whether only multiples of the unit size or the maximum capacity.
+    min_units: int, default None
+        The minimum number of units that should be installed.
+
+        .. deprecated:: 0.31
+            The `min_units` parameter is deprecated and will be removed in future versions.
 
     Returns
     -------
@@ -92,8 +99,17 @@ def discretized_capacity(
     fractional_last_unit_size = False)
     4
     """
+    if min_units is not None:
+        raise DeprecationWarning(
+            "The `min_units` parameter is deprecated and will be removed in future "
+            "versions."
+        )
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-    block_capacity = units * unit_size
+
+    if min_units is not None:
+        block_capacity = max(min_units, units) * unit_size
+    else:
+        block_capacity = units * unit_size
     if nom_max % unit_size == 0:
         return block_capacity
 
