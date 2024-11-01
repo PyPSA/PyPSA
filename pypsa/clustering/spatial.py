@@ -499,9 +499,8 @@ def get_clustering_from_busmap(
     )
 
     clustered = Network()
-
-    io._import_components_from_df(clustered, buses, "Bus")
-    io._import_components_from_df(clustered, lines, "Line")
+    clustered.add("Bus", buses.index, **buses)
+    clustered.add("Line", lines.index, **lines)
 
     # Carry forward global constraints to clustered n.
     clustered.global_constraints = n.global_constraints
@@ -532,7 +531,7 @@ def get_clustering_from_busmap(
             with_time=with_time,
             custom_strategies=generator_strategies,
         )
-        io._import_components_from_df(clustered, generators, "Generator")
+        clustered.add("Generator", generators.index, **generators)
         if with_time:
             for attr, df in generators_dynamic.items():
                 if not df.empty:
@@ -547,18 +546,17 @@ def get_clustering_from_busmap(
             with_time=with_time,
             custom_strategies=one_port_strategies.get(one_port, {}),
         )
-        io._import_components_from_df(clustered, new_static, one_port)
+        clustered.add(one_port, new_static.index, **new_static)
         for attr, df in new_dynamic.items():
             io._import_series_from_df(clustered, df, one_port, attr)
 
     # Collect remaining one ports
 
     for c in n.iterate_components(one_port_components):
-        io._import_components_from_df(
-            clustered,
-            c.static.assign(bus=c.static.bus.map(busmap)).dropna(subset=["bus"]),
-            c.name,
+        remaining_one_port_data = c.static.assign(bus=c.static.bus.map(busmap)).dropna(
+            subset=["bus"]
         )
+        clustered.add(c.name, remaining_one_port_data.index, **remaining_one_port_data)
 
     if with_time:
         for c in n.iterate_components(one_port_components):
@@ -584,14 +582,14 @@ def get_clustering_from_busmap(
     if scale_link_capital_costs:
         new_links["capital_cost"] *= (new_links.length / n.links.length).fillna(1)
 
-    io._import_components_from_df(clustered, new_links, "Link")
+    clustered.add("Link", new_links.index, **new_links)
 
     if with_time:
         for attr, df in n.links_t.items():
             if not df.empty:
                 io._import_series_from_df(clustered, df, "Link", attr)
 
-    io._import_components_from_df(clustered, n.carriers, "Carrier")
+    clustered.add("Carrier", n.carriers.index, **n.carriers)
 
     clustered.determine_network_topology()
 
