@@ -207,7 +207,7 @@ def get_transmission_carriers(
     )
 
 
-@deprecated("Use StatisticsAccessor.get_grouping instead.")
+@deprecated("Use n.statistics._get_grouping instead.")
 def get_grouping(
     n: Network,
     c: str,
@@ -218,21 +218,21 @@ def get_grouping(
     return StatisticsAccessor._get_grouping(n, c, groupby, port, nice_names)
 
 
-@deprecated("Use StatisticsAccessor.aggregate_timeseries instead.")
+@deprecated("Use n.statistics._aggregate_timeseries instead.")
 def aggregate_timeseries(
     df: pd.DataFrame, weights: pd.Series, agg: str = "sum"
 ) -> pd.Series:
     return StatisticsAccessor._aggregate_timeseries(df, weights, agg)
 
 
-@deprecated("Use StatisticsAccessor.filter_active_assets instead.")
+@deprecated("Use n.statistics._filter_active_assets instead.")
 def filter_active_assets(
     n: Network, c: str, df: pd.Series | pd.DataFrame
 ) -> pd.Series | pd.DataFrame:
     return n.statistics._filter_active_assets(n, c, df)
 
 
-@deprecated("Use StatisticsAccessor.filter_bus_carrier instead.")
+@deprecated("Use n.statistics._filter_bus_carrier instead.")
 def filter_bus_carrier(
     n: Network,
     c: str,
