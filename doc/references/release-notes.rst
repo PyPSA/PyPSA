@@ -14,6 +14,19 @@ Upcoming Release
 * A new module `pypsa.optimize.expressions` was added. It contains functions to quickly create expressions for the optimization model. The behavior of the functions is mirroring the behavior of the `statistics` module and allows for similar complexity in grouping and filtering. Use it with e.g. `n.optimize.expressions.energy_balance()`.
 
 
+v0.31.1 (1st November 2024)
+===========================
+
+Bug fixes
+---------
+
+* Abolishing ``min_units`` in the post discretization. If the maximum capacity of a 
+  component is smaller than the specified unit size, the maximum capacity is built as 
+  soon as the threshold is passed (https://github.com/PyPSA/PyPSA/pull/1052)
+
+* Less verbose logging when using :meth:`n.add <pypsa.Network.add>` 
+  (https://github.com/PyPSA/PyPSA/pull/1067)
+
 v0.31.0 (1st October 2024)
 ==========================
 
