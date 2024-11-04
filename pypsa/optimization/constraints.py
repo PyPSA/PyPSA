@@ -371,9 +371,9 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
 
     dynamic = n.dynamic(c)
-    attr = (
-        {"p", "p0"}.intersection(dynamic).pop()
-    )  # dispatch for either one or two ports
+    attr = {"p", "p0"}.intersection(
+        dynamic
+    ).pop()  # dispatch for either one or two ports
     start_i = n.snapshots.get_loc(sns[0]) - 1
     p_start = dynamic[attr].iloc[start_i]
 
