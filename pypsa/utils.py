@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import warnings
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
 import numpy as np
@@ -202,3 +203,52 @@ def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Cal
         return wrapper
 
     return custom_decorator
+
+
+def list_as_string(
+    list_: Sequence | dict, prefix: str = "", style: str = "comma-seperated"
+) -> str:
+    """
+    Convert a list to a formatted string.
+
+    Parameters
+    ----------
+    list_ : Sequence
+        The input sequence to be converted.
+    prefix : str, optional
+        String to prepend to each line, by default "".
+    style : {'same-line', 'bullet-list'}, optional
+        Output format style, by default "same-line".
+
+    Returns
+    -------
+    str
+        Formatted string representation of the input sequence.
+
+    Raises
+    ------
+    ValueError
+        If an invalid style is provided.
+
+    Examples
+    --------
+    >>> list_as_string(['a', 'b', 'c'])
+    'a, b, c'
+    >>> list_as_string(['x', 'y', 'z'], prefix="  ", style="bullet-list")
+    '  - x'
+    '  - y'
+    '  - z'
+    """
+    if isinstance(list_, dict):
+        list_ = list(list_.keys())
+    if len(list_) == 0:
+        return ""
+
+    if style == "comma-seperated":
+        return prefix + ", ".join(list_)
+    elif style == "bullet-list":
+        return prefix + "- " + f"\n{prefix}- ".join(list_)
+    else:
+        raise ValueError(
+            f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
+        )
