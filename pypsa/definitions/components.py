@@ -6,15 +6,16 @@ from deprecation import deprecated
 
 
 @dataclass(frozen=True)
-class ComponentType:
+class ComponentTypeInfo:
     name: str
     list_name: str
     description: str
     category: str
     defaults: pd.DataFrame
+    standard_types: pd.DataFrame | None = None
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, ComponentType):
+        if not isinstance(other, ComponentTypeInfo):
             return NotImplemented
 
         return (
@@ -24,6 +25,9 @@ class ComponentType:
             and str(self.category) == str(other.category)
             and self.defaults.equals(other.defaults)
         )
+
+    def __repr__(self) -> str:
+        return self.name + " Component Type"
 
     @property
     @deprecated(

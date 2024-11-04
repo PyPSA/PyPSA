@@ -408,19 +408,10 @@ class Network:
 
     def read_in_default_standard_types(self) -> None:
         for std_type in self.standard_type_components:
-            list_name = self.components[std_type]["list_name"]
-
-            file_name = os.path.join(
-                dir_name, standard_types_dir_name, list_name + ".csv"
-            )
-
-            self.components[std_type]["standard_types"] = pd.read_csv(
-                file_name, index_col=0
-            )
             self.add(
                 std_type,
-                self.components[std_type]["standard_types"].index,
-                **self.components[std_type]["standard_types"],
+                self.components[std_type].ct.standard_types.index,
+                **self.components[std_type].ct.standard_types,
             )
 
     @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")

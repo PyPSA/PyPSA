@@ -3,18 +3,18 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pypsa.definitions.components import ComponentType
+from pypsa.definitions.components import ComponentTypeInfo
+from pypsa.utils import list_as_string
 
 # TODO better path handeling, integrate custom components
 _components_path = Path(__file__).parent.parent / "data" / "components.csv"
 _attrs_path = Path(__file__).parent.parent / "data" / "component_attrs"
+_standard_types_path = Path(__file__).parent.parent / "data" / "standard_types"
 
 component_types_df = pd.read_csv(_components_path, index_col=0)
 
 
-def load_component_types(
-    component_df: pd.DataFrame, attrs_path: Path
-) -> dict[str, ComponentType]:
+def load_component_types(component_df: pd.DataFrame, attrs_path: Path) -> dict:
     """
     #TODO Update docstring
     Get the default components and default component attributes.
@@ -84,14 +84,24 @@ def load_component_types(
                 typ_b = attrs.typ == typ
                 attrs.loc[typ_b, "default"] = attrs.loc[typ_b, "default"].astype(typ)
 
+        # Read in standard types
+        standard_types_path = _standard_types_path / f"{row.list_name}.csv"
+        if standard_types_path.exists():
+            standard_types = pd.read_csv(standard_types_path, index_col=0)
+        else:
+            standard_types = None
+
         # Initialize Component
-        component_dict[c_name] = ComponentType(
+        component_dict[c_name] = ComponentTypeInfo(
             name=c_name,
             list_name=row.list_name,
             description=row.description,
             category=row.category,
             defaults=attrs,  # TODO: rename all
+            standard_types=standard_types,
         )
+        # Make accessible by list_name and name
+        component_dict[row.list_name] = component_dict[c_name]
     return component_dict
 
 
@@ -100,11 +110,9 @@ _all_types = load_component_types(
 )
 
 
-def get_component_type(name: str) -> ComponentType:
-    return _all_types[name]
-
-
-# Add generated objects to the module globals
-globals().update(_all_types)
-
-__all__ = list(_all_types.keys())
+def get_component_type(name: str) -> (str, ComponentTypeInfo):
+    try:
+        return _all_types[name]
+    except KeyError:
+        msg = f"Component type '{name}' not found. Available types are: {list_as_string(_all_types)}"
+        raise KeyError(msg)
