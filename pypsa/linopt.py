@@ -1072,8 +1072,8 @@ def run_and_read_gurobi(
         )
     import gurobipy
 
-    # disable logging for this part, as gurobi output is doubled otherwise
-    logging.disable(50)
+    # disable logging aside from warnings and errors for this part, as gurobi output is doubled otherwise
+    logging.disable(20)
 
     m = gurobipy.read(problem_fn)
     if solver_options is not None:
