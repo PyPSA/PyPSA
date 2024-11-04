@@ -371,9 +371,9 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
 
     dynamic = n.dynamic(c)
-    attr = {"p", "p0"}.intersection(
-        dynamic
-    ).pop()  # dispatch for either one or two ports
+    attr = (
+        {"p", "p0"}.intersection(dynamic).pop()
+    )  # dispatch for either one or two ports
     start_i = n.snapshots.get_loc(sns[0]) - 1
     p_start = dynamic[attr].iloc[start_i]
 
@@ -1016,13 +1016,13 @@ def define_generator_constraints(n: Network, sns: Sequence) -> None:
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.generators[sns_], static.index)
 
-    e_sum_min_set = static[static.e_sum_min >= 0].index
+    e_sum_min_set = static[static.e_sum_min > -inf].index
     e = m[f"{c}-p"].loc[sns_, e_sum_min_set].mul(eh).sum(dim="snapshot")
     e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
 
     m.add_constraints(e, ">=", e_sum_min, name=f"{c}-e_sum_min")
 
-    e_sum_max_set = static[static.e_sum_max >= 0].index
+    e_sum_max_set = static[static.e_sum_max < inf].index
     e = m[f"{c}-p"].loc[sns_, e_sum_max_set].mul(eh).sum(dim="snapshot")
     e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
 
