@@ -5,6 +5,8 @@ Contains classes and logic relevant to specific component types in PyPSA.
 Generic functionality is implemented in the abstract module.
 """
 
+from __future__ import annotations
+
 import logging
 import warnings
 from typing import Any
