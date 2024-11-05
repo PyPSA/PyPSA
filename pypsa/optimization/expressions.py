@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import linopy as ln
 import pandas as pd
-from linopy.expressions import LinearExpression
+from linopy import LinearExpression, Variable
 from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
@@ -27,17 +27,6 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pypsa import Network
-
-
-def get_operational_attr(c: str) -> str | None:
-    # TODO: move function to better place to avoid circular imports
-    from pypsa.optimization.optimize import lookup
-
-    if c not in lookup.index:
-        return None
-
-    attr = lookup.query("not nominal and not handle_separately").loc[c].index.item()
-    return attr
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -121,10 +110,32 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return res[first_key].loc[first_key]
         return ln.merge(list(res.values()), dim="group")
 
+    def _aggregate_across_components(
+        self, expr: LinearExpression, agg: Callable | str
+    ) -> LinearExpression:
+        if agg != "sum":
+            raise ValueError(f"Aggregation method {agg} not supported.")
+        group = expr.indexes["group"].to_frame().drop(columns="component")
+        return expr.groupby(group).sum()
+
+    def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
+        # TODO: move function to better place to avoid circular imports
+        from pypsa.optimization.optimize import lookup
+
+        m = self.n.model
+
+        attr = lookup.query("not nominal and not handle_separately").loc[c].index
+        if c == "StorageUnit":
+            assert set(["p_store", "p_dispatch"]) <= set(attr)
+            return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
+        attr = attr.item()
+        return m.variables[f"{c}-{attr}"]
+
     def capex(
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -157,6 +168,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -167,6 +179,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -210,6 +223,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -221,6 +235,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -258,6 +273,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -269,6 +285,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -299,9 +316,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            attr = get_operational_attr(c)
+            var = self._get_operational_variable(c)
             idx = transmission_branches.get_loc_level(c)[1].rename(c)
-            var = n.model.variables[f"{c}-{attr}"]
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
             p = var.loc[:, idx] * efficiency[idx]
             weights = get_weightings(n, c)
@@ -311,6 +327,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -322,6 +339,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = get_carrier_and_bus_carrier,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -357,8 +375,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            attr = get_operational_attr(c)
-            var = n.model.variables[f"{c}-{attr}"]
+            var = self._get_operational_variable(c)
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
             sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
@@ -378,6 +395,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -389,6 +407,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = get_carrier_and_bus_carrier,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -408,6 +427,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -420,6 +440,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = get_carrier_and_bus_carrier,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -439,6 +460,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -451,6 +473,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -485,7 +508,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             )
             idx = capacity.indexes[c]
             p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx])
-            operation = n.model.variables[f"{c}-{get_operational_attr(c)}"].loc[:, idx]
+            operation = self._get_operational_variable(c).loc[:, idx]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
@@ -496,6 +519,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -507,6 +531,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "mean",
         aggregate_groups: str = "sum",
+        aggregate_across_components: bool = False,
         at_port: Sequence[str] | str | bool = False,
         groupby: Callable | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -531,8 +556,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            attr = get_operational_attr(c)
-            operation = 1 * n.model.variables[f"{c}-{attr}"]
+            operation = self._get_operational_variable(c)
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(operation, weights, agg=aggregate_time)
 
@@ -541,6 +565,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             agg=aggregate_groups,
             comps=comps,
             groupby=groupby,
+            aggregate_across_components=aggregate_across_components,
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,

@@ -374,7 +374,7 @@ class AbstractStatisticsAccessor(ABC):
         Calculate the weighted sum or average of a DataFrame or Series.
         """
         if not agg:
-            return obj
+            return obj.T if isinstance(obj, pd.DataFrame) else obj
 
         if agg == "mean":
             if isinstance(weights.index, pd.MultiIndex):
@@ -403,6 +403,10 @@ class AbstractStatisticsAccessor(ABC):
         pass
 
     @abstractmethod
+    def _aggregate_across_components(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+    @abstractmethod
     def _get_component_index(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
@@ -416,6 +420,7 @@ class AbstractStatisticsAccessor(ABC):
         agg: Callable | str = "sum",
         comps: Collection[str] | str | None = None,
         groupby: Callable | None = None,
+        aggregate_across_components: bool = False,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = True,
@@ -468,7 +473,12 @@ class AbstractStatisticsAccessor(ABC):
 
             d[c] = df
 
-        return self._aggregate_components_concat_data(d, is_one_component)
+        df = self._aggregate_components_concat_data(d, is_one_component)
+
+        if aggregate_across_components:
+            df = self._aggregate_across_components(df, agg)
+
+        return df
 
     def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
         """
@@ -582,6 +592,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             df = df[df != 0]
         return df
 
+    def _aggregate_across_components(
+        self, df: pd.Series | pd.DataFrame, agg: Callable | str
+    ) -> pd.Series | pd.DataFrame:
+        index_wo_component = df.index.droplevel("component")
+        return df.groupby(index_wo_component).agg(agg)
+
     def __call__(
         self,
         comps: Sequence[str] | str | None = None,
@@ -659,6 +675,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -689,6 +706,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -702,6 +720,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -730,6 +749,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -743,6 +763,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -764,6 +785,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df = self.capex(
             comps=comps,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -789,6 +811,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -828,6 +851,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -841,6 +865,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -880,6 +905,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -893,6 +919,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self,
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -911,6 +938,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         optimal = self.optimal_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -919,6 +947,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         installed = self.installed_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -935,6 +964,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -974,6 +1004,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -988,6 +1019,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1007,6 +1039,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -1022,6 +1055,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1041,6 +1075,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -1056,6 +1091,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1109,6 +1145,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = get_carrier_and_bus_carrier,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1162,6 +1199,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -1177,6 +1215,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1215,6 +1254,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -1229,6 +1269,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "mean",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         at_port: Sequence[str] | str | bool = False,
         groupby: Callable | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1261,6 +1302,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         kwargs = dict(
             comps=comps,
             groupby=groupby,
+            aggregate_across_components=aggregate_across_components,
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
@@ -1277,6 +1319,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1332,6 +1375,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -1346,6 +1390,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_time: str | bool = "mean",
         aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
         groupby: Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
@@ -1373,6 +1418,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
