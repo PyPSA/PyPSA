@@ -12,6 +12,7 @@ from weakref import ref
 
 from deprecation import deprecated
 
+from pypsa.components.abstract import Components
 from pypsa.utils import equals, future_deprecation
 
 try:
@@ -27,7 +28,8 @@ from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
-from pypsa.components.components import Components, SubNetworkComponents
+from pypsa.components.abstract import SubNetworkComponents
+from pypsa.components.components import Component
 from pypsa.components.types import component_types_df, get_component_type
 from pypsa.consistency import (
     check_assets,
@@ -46,7 +48,8 @@ from pypsa.consistency import (
     check_time_series_power_attributes,
 )
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
-from pypsa.definitions.structures import ComponentsStore, Dict
+from pypsa.definitions.components import ComponentsStore
+from pypsa.definitions.structures import Dict
 from pypsa.descriptors import (
     get_active_assets,
     get_committable_i,
@@ -86,7 +89,7 @@ from pypsa.pf import (
 )
 from pypsa.plot import explore, iplot, plot  # type: ignore
 from pypsa.statistics import StatisticsAccessor
-from pypsa.types import is_1d_list_like
+from pypsa.typing import is_1d_list_like
 from pypsa.utils import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
@@ -316,6 +319,7 @@ class Network:
 
     def __repr__(self) -> str:
         header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
+        header += "\n" + "-" * len(header)
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
             for c in self.iterate_components()
@@ -389,7 +393,7 @@ class Network:
         for c_name in component_types_df.index:
             ct = get_component_type(c_name)
 
-            self.components[ct.list_name] = Components(ct=ct, n=self)
+            self.components[ct.list_name] = Component(ct=ct, n=self)
             # Handle list_name and name as alias
             # e.g. components.Bus references components.buses
             self.components[ct.name] = self.components[ct.list_name]
@@ -1486,13 +1490,13 @@ class Network:
             sub.find_bus_controls()
 
     @future_deprecation(details="Use `self.components.<component>` instead.")
-    def component(self, c_name: str) -> Components:
+    def component(self, c_name: str) -> Component:
         return self.components[c_name]
 
     @future_deprecation(details="Use `self.components` instead.")
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
-    ) -> Iterator[Components]:
+    ) -> Iterator[Component]:
         if components is None:
             components = self.all_components
 
@@ -1633,8 +1637,6 @@ class SubNetwork:
                 for key, value in self.n.components.items()
             }
         )
-
-        return
 
     @property
     def c(self) -> ComponentsStore:

@@ -51,7 +51,7 @@ def graph(
     graph : OrderedGraph
         NetworkX graph
     """
-    from pypsa.networks import Network, SubNetwork
+    from pypsa import Network, SubNetwork
 
     if isinstance(n, Network):
         if branch_components is None:
@@ -122,7 +122,7 @@ def adjacency_matrix(
        Directed adjacency matrix
     """
 
-    from pypsa.networks import Network, SubNetwork
+    from pypsa import Network, SubNetwork
 
     if isinstance(n, Network):
         if branch_components is None:
@@ -188,7 +188,7 @@ def incidence_matrix(
     incidence_matrix : sp.sparse.csr_matrix
        Directed incidence matrix
     """
-    from pypsa.networks import Network, SubNetwork
+    from pypsa import Network, SubNetwork
 
     if isinstance(n, Network):
         if branch_components is None:

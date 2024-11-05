@@ -1,3 +1,10 @@
+"""
+Components types module.
+
+Contains module wide component types. Default types are loaded from the package data.
+Additional types can be added by the user.
+"""
+
 from pathlib import Path
 
 import numpy as np
@@ -110,7 +117,7 @@ _all_types = load_component_types(
 )
 
 
-def get_component_type(name: str) -> (str, ComponentTypeInfo):
+def get_component_type(name: str) -> ComponentTypeInfo:
     try:
         return _all_types[name]
     except KeyError:

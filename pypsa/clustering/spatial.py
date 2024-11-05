@@ -485,7 +485,7 @@ def get_clustering_from_busmap(
 ) -> Clustering:
     if aggregate_one_ports is None:
         aggregate_one_ports = {}
-    from pypsa.networks import Network
+    from pypsa import Network
 
     buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
     lines, lines_t, linemap = aggregatelines(

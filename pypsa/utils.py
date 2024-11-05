@@ -1,3 +1,7 @@
+"""
+General utility functions for PyPSA.
+"""
+
 from __future__ import annotations
 
 import functools

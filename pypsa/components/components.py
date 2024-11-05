@@ -1,249 +1,124 @@
-from __future__ import annotations
+"""
+Components module.
+
+Contains classes and logic relevant to specific component types in PyPSA.
+Generic functionality is implemented in the abstract module.
+"""
 
 import logging
-from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Any, Callable
+import warnings
+from typing import Any
 
-import geopandas as gpd
-import numpy as np
 import pandas as pd
-from pyproj import CRS
 
-from pypsa.definitions.components import ComponentType
+from pypsa.components.abstract import Components
+from pypsa.components.types import ComponentTypeInfo, get_component_type
 from pypsa.definitions.structures import Dict
-from pypsa.utils import equals
 
 logger = logging.getLogger(__name__)
 
-# TODO attachement todos
-# - crs
-# snapshots, investment_periods
 
-
-@dataclass
-class ComponentsData:
-    ct: ComponentType
-    n: Any | None
-    static: pd.DataFrame
-    dynamic_container: dict
-    standard_types: pd.DataFrame | None = None
-
-
-class Components(ComponentsData):
+class GenericComponents(Components):
     """
-    Container class of energy system related assets, such as generators or
-    transmission lines.
+    Generic Components class
+
+    This class is used for components that do not have a specific class implementation.
+    All functionality specific to generic types only is implemented here. Functionality
+    for all components is implemented in the abstract base class.
 
     .. warning::
         This class is under ongoing development and will be subject to changes.
         It is not recommended to use this class outside of PyPSA.
-
-    Parameters
-    ----------
-    name : str
-        The singular name of the component (e.g., 'Generator').
-    list_name : str
-        The plural name used for lists of components (e.g., 'generators').
-    attrs : Dict[str, Any]
-        A dictionary of attributes and their metadata.
-    static : pd.DataFrame
-        A DataFrame containing data for each component instance.
-    dynamic : Dict[str, pd.DataFrame]
-        A dictionary of time series data (panel data) for the component.
-    ind : pd.Index
-        An index of component identifiers.
     """
 
-    def __init__(
-        self,
-        ct: ComponentType,
-        n: Any | None,
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Generators(Components):
+    """
+    Generators Components class
+
+    This class is used for components that are generators. All functionality specific to
+    generators is implemented here. Functionality for all components is implemented in
+    the abstract base class.
+
+    .. warning::
+        This class is under ongoing development and will be subject to changes.
+        It is not recommended to use this class outside of PyPSA.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+CLASS_MAPPING = {
+    "Generator": Generators,
+}
+
+
+class Component:
+    """
+    Legacy Component Class
+
+    Allows to keep functionallity of previous dataclass and named tuple and wraps
+    around new structure.
+
+    .. warning::
+        This class is deprecated and should not be used anymore.
+    """
+
+    def __new__(
+        cls,
+        name: str | None = None,
+        ct: ComponentTypeInfo | None = None,
+        n: Any | None = None,
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
-        standard_types: pd.DataFrame | None = None,
-    ) -> None:
-        if static is None:
-            static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
-            if ct.name == "Shape":
-                # TODO: Needs general default crs
-                crs = CRS.from_epsg("4326") if n is None else n.crs
-                static = gpd.GeoDataFrame(
-                    {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
-                    columns=static_dtypes.index,
-                    crs=crs,
-                )
-            else:
-                static = pd.DataFrame(
-                    {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
-                    columns=static_dtypes.index,
-                )
-            static.index.name = ct.name
-
-        if dynamic is None:
-            # # it's currently hard to imagine non-float series,
-            # but this could be generalised
-            dynamic = Dict()
-            # TODO: Needs general default
-            snapshots = pd.Index(["now"]) if n is None else n.snapshots
-            for k in ct.defaults.index[ct.defaults.varying]:
-                df = pd.DataFrame(index=snapshots, columns=[], dtype=float)
-                df.index.name = "snapshot"
-                df.columns.name = ct.name
-                dynamic[k] = df
-
-        super().__init__(ct, n, static, dynamic, standard_types)
-
-    def __repr__(self) -> str:
-        text = f"PyPSA '{self.ct.name}' Components\n"
-
-        # Add attachment status
-        if self.attached:
-            network_name = f"'{self.n_save.name}'" if self.n_save.name else ""
-            text += f"- Attached: PyPSA Network {network_name}" + "\n"
-        else:
-            text += "- Attached: Not attached to any network" + "\n"
-
-        text += f"- Number of Components: {len(self.static)}" + "\n"
-        text += f"- Number of Dynamic Attributes: {len(self.dynamic_container)}" + "\n"
-
-        return text
-        # f"Components(name={self.name!r}, list_name={self.list_name!r}, "
-        # f"attrs=Keys({list(self.attrs.keys())}), static=DataFrame(shape={self.static.shape}), "
-        # f"dynamic=Keys({list(self.dynamic.keys())}))"
-
-    def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        if key in self.__dict__:
-            setattr(self, key, value)
-        else:
-            raise KeyError(f"'{key}' not found in Component")
-
-    def __eq__(self, other: Any) -> bool:
-        return (
-            equals(self.ct, other.ct)
-            and equals(self.static, other.static)
-            and equals(self.dynamic, other.dynamic)
-            and equals(self.standard_types, other.standard_types)
-        )
-
-    @property
-    def name(self) -> str:
-        return self.ct.name
-
-    @property
-    def list_name(self) -> str:
-        return self.ct.list_name
-
-    @property
-    def description(self) -> str:
-        return self.ct.description
-
-    @property
-    def category(self) -> str:
-        return self.ct.category
-
-    @property
-    def type(self) -> str:
-        return self.ct.category
-
-    @property
-    def attrs(self) -> pd.DataFrame:
-        return self.ct.defaults
-
-    @property
-    def defaults(self) -> pd.DataFrame:
-        return self.ct.defaults
-
-    def get(self, attribute_name: str, default: Any = None) -> Any:
-        return getattr(self, attribute_name, default)
-
-    @property
-    def attached(self) -> bool:
-        return self.n is not None
-
-    @property
-    def n_save(self) -> Any:
-        """A save property to access the network (component must be attached)."""
-        if not self.attached:
-            raise ValueError("Component must be attached to a Network.")
-        return self.n
-
-    @property
-    def dynamic(self) -> Any:
-        return self.dynamic_container
-
-    @dynamic.setter
-    def dynamic(self, value: Any) -> None:
-        self.dynamic_container = value
-
-    @property
-    def df(self) -> pd.DataFrame:
-        return self.static
-
-    @property
-    def pnl(self) -> dict:
-        return self.dynamic
-
-    def get_active_assets(
-        self,
-        investment_period: int | str | Sequence | None = None,
-    ) -> pd.Series:
-        """
-        Get active components mask of componen type in investment period(s).
-
-        A component is considered active when:
-        - it's active attribute is True
-        - it's build year + lifetime is smaller than the investment period (if given)
-
-        Parameters
-        ----------
-        investment_period : int, str, Sequence
-            Investment period(s) to check for active within build year and lifetime. If none
-            only the active attribute is considered and build year and lifetime are ignored.
-            If multiple periods are given the mask is True if the component is active in any
-            of the given periods.
-
-        Returns
-        -------
-        pd.Series
-            Boolean mask for active components
-        """
-        if investment_period is None:
-            return self.static.active
-        if not {"build_year", "lifetime"}.issubset(self.static):
-            return self.static.active
-
-        # Logical OR of active assets in all investment periods and
-        # logical AND with active attribute
-        active = {}
-        for period in np.atleast_1d(investment_period):
-            if period not in self.n_save.investment_periods:
-                raise ValueError("Investment period not in `n.investment_periods`")
-            active[period] = self.static.eval(
-                "build_year <= @period < build_year + lifetime"
+        list_name: str | None = None,
+        attrs: pd.DataFrame | None = None,
+        investment_periods: pd.Index | None = None,
+        ind: None = None,
+    ) -> Any:
+        # Deprecation warnings
+        if (name and ct is not None) or (not name and ct is None):
+            msg = "One out of 'name' or 'ct' must be given."
+            raise ValueError(msg)
+        if list_name is not None or attrs is not None:
+            warnings.warn(
+                "Passing 'list_name' and 'attrs' is deprecated and they will be "
+                "retrieved via the 'name' argument.",
+                DeprecationWarning,
+                stacklevel=2,
             )
-        return pd.DataFrame(active).any(axis=1) & self.static.active
+        if ind is not None:
+            warnings.warn(
+                "The 'ind' attribute is deprecated.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if investment_periods is not None:
+            raise DeprecationWarning(
+                "The 'investment_periods' attribute is deprecated. Pass 'n' instead."
+            )
 
-
-class SubNetworkComponents:
-    def __init__(self, wrapped_data: Components, wrapper_func: Callable) -> None:
-        self._wrapped_data = wrapped_data
-        self._wrapper_func = wrapper_func
-
-    def __getattr__(self, item: str) -> Any:
-        # Determine which attributes to monitor
-        # Delegate attribute access to the wrapped data object
-
-        return self._wrapper_func(item, self._wrapped_data)
-
-    def __setattr__(self, key: str, value: Any) -> None:
-        if key in {"_wrapped_data", "_wrapper_func"}:
-            super().__setattr__(key, value)
+        if name:
+            ct_ = get_component_type(name)
         else:
-            raise AttributeError("SubNetworkComponents is read-only")
+            ct_ = ct  # type: ignore
 
-    def __delattr__(self, name: str) -> None:
-        raise AttributeError("SubNetworkComponents is read-only")
+        component_class = CLASS_MAPPING.get(ct_.name, None)
+        instance: Components
+        if component_class is not None:
+            instance = component_class(ct=ct_)
+        else:
+            instance = GenericComponents(ct=ct_)
+
+        if n is not None:
+            instance.n = n
+        if static is not None:
+            instance.static = static
+        if dynamic is not None:
+            instance.dynamic = dynamic
+
+        return instance
