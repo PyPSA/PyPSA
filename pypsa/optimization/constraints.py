@@ -1017,13 +1017,25 @@ def define_generator_constraints(n: Network, sns: Sequence) -> None:
     eh = expand_series(n.snapshot_weightings.generators[sns_], static.index)
 
     e_sum_min_set = static[static.e_sum_min > -inf].index
-    e = m[f"{c}-p"].loc[sns_, e_sum_min_set].mul(eh).sum(dim="snapshot")
-    e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
+    if not e_sum_min_set.empty:
+        e = (
+            m[f"{c}-p"]
+            .loc[sns_, e_sum_min_set]
+            .mul(eh[e_sum_min_set])
+            .sum(dim="snapshot")
+        )
+        e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
 
-    m.add_constraints(e, ">=", e_sum_min, name=f"{c}-e_sum_min")
+        m.add_constraints(e, ">=", e_sum_min, name=f"{c}-e_sum_min")
 
     e_sum_max_set = static[static.e_sum_max < inf].index
-    e = m[f"{c}-p"].loc[sns_, e_sum_max_set].mul(eh).sum(dim="snapshot")
-    e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
+    if not e_sum_max_set.empty:
+        e = (
+            m[f"{c}-p"]
+            .loc[sns_, e_sum_max_set]
+            .mul(eh[e_sum_max_set])
+            .sum(dim="snapshot")
+        )
+        e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
 
-    m.add_constraints(e, "<=", e_sum_max, name=f"{c}-e_sum_max")
+        m.add_constraints(e, "<=", e_sum_max, name=f"{c}-e_sum_max")
