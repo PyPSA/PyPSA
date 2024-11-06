@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import linopy
 import pandas as pd
+from deprecation import deprecated
 from linopy import LinearExpression, merge
 from numpy import inf, isfinite
 from scipy import sparse
@@ -975,7 +976,12 @@ def define_loss_constraints(
             )
 
 
-def define_generator_constraints(n: Network, sns: Sequence) -> None:
+@deprecated("Use define_total_supply_constraints instead.")
+def define_generators_constraints(n: Network, sns: Sequence) -> None:
+    return define_total_supply_constraints(n, sns)
+
+
+def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     """
     Defines energy sum constraints for generators in the network model.
 
