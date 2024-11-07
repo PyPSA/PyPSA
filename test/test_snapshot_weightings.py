@@ -36,7 +36,7 @@ def test_default_snapshot_weightings(time_index):
 
     weightings = pd.Series(2.0, index=time_index)
     df_true = pd.DataFrame({c: weightings for c in n.snapshot_weightings.columns})
-    df_true.index.name = "snapshot"
+    df_true.index.name = "timestep"
 
     n.set_snapshots(time_index, default_snapshot_weightings=2.0)
     df_actual = n.snapshot_weightings

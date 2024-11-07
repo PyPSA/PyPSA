@@ -163,7 +163,6 @@ class Network:
 
     # Core attributes
     name: str
-    snapshots: pd.Index | pd.MultiIndex
     components: ComponentsStore
     sub_networks: pd.DataFrame
 
@@ -278,14 +277,19 @@ class Network:
         self._meta: dict = {}
 
         self._snapshots = pd.Index(["now"])
+        self._snapshots.name = "timestep"
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
 
         self._investment_periods: pd.Index = pd.Index([])
+        self._investment_periods.name = "period"
 
         cols = ["objective", "years"]
         self._investment_period_weightings: pd.DataFrame = pd.DataFrame(columns=cols)
+
+        self._scenarios: pd.Index = pd.Index([])
+        self._scenarios.name = "scenario"
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -600,10 +604,10 @@ class Network:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
             sns = snapshots.rename(["period", "timestep"])
-            sns.name = "snapshot"
+            sns.names = ["period", "timestep"]
             self._snapshots = sns
         else:
-            self._snapshots = pd.Index(snapshots, name="snapshot")
+            self._snapshots = pd.Index(snapshots, name="timestep")
 
         if len(self._snapshots) == 0:
             raise ValueError("Snapshots must not be empty.")
@@ -643,37 +647,6 @@ class Network:
                     dynamic[k] = dynamic[k].reindex(self._snapshots)
 
         # NB: No need to rebind dynamic to self, since haven't changed it
-
-    snapshots = property(
-        lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
-    )
-
-    @property
-    def snapshot_weightings(self) -> pd.DataFrame:
-        """
-        Weightings applied to each snapshots during the optimization (LOPF).
-
-        * Objective weightings multiply the operational cost in the
-          objective function.
-
-        * Generator weightings multiply the impact of all generators
-          in global constraints, e.g. multiplier of GHG emmissions.
-
-        * Store weightings define the elapsed hours for the charge, discharge
-          standing loss and spillage of storage units and stores in order to
-          determine the state of charge.
-        """
-        return self._snapshot_weightings
-
-    @snapshot_weightings.setter
-    def snapshot_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(
-            self.snapshots
-        ), "Weightings not defined for all snapshots."
-        if isinstance(df, pd.Series):
-            logger.info("Applying weightings to all columns of `snapshot_weightings`")
-            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
-        self._snapshot_weightings = df
 
     def set_investment_periods(self, periods: Sequence) -> None:
         """
@@ -730,7 +703,6 @@ class Network:
                     dynamic[k] = pd.concat(
                         {p: dynamic[k] for p in periods_}, names=names
                     )
-                    dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
                 [periods_, self.snapshots], names=names
@@ -739,18 +711,75 @@ class Network:
             self._snapshot_weightings = pd.concat(
                 {p: self.snapshot_weightings for p in periods_}, names=names
             )
-            self._snapshot_weightings.index.name = "snapshot"
+            self._snapshot_weightings.index.names = ["period", "timestep"]
 
         self._investment_periods = periods_
         self.investment_period_weightings = self.investment_period_weightings.reindex(
             periods_, fill_value=1.0
         ).astype(float)
 
+    snapshots = property(
+        lambda self: self._snapshots, set_snapshots, doc="Index for dynamic data."
+    )
+
     investment_periods = property(
         lambda self: self._investment_periods,
         set_investment_periods,
         doc="Investment steps during the optimization.",
     )
+
+    scenarios = property(
+        lambda self: self._scenarios,
+        lambda self, value: setattr(self, "_scenarios", value),
+        doc="Scenarios of the network for stochastic optimization.",
+    )
+
+    @property
+    def timesteps(self) -> pd.Index:
+        """
+        Time steps of the network.
+
+        If no investment periods nor scenarios are defined, this is equal to snapshots.
+
+        Returns
+        -------
+        pandas.Index
+        """
+        return self.snapshots.get_level_values("timestep").unique()
+
+    @property
+    def snapshot_weightings(self) -> pd.DataFrame:
+        """
+        Weightings applied to each snapshots during the optimization (LOPF).
+
+        * Objective weightings multiply the operational cost in the
+          objective function.
+
+        * Generator weightings multiply the impact of all generators
+          in global constraints, e.g. multiplier of GHG emmissions.
+
+        * Store weightings define the elapsed hours for the charge, discharge
+          standing loss and spillage of storage units and stores in order to
+          determine the state of charge.
+        """
+        return self._snapshot_weightings
+
+    @snapshot_weightings.setter
+    def snapshot_weightings(self, df: pd.DataFrame) -> None:
+        assert df.index.equals(
+            self.snapshots
+        ), "Weightings not defined for all snapshots."
+        if isinstance(df, pd.Series):
+            logger.info("Applying weightings to all columns of `snapshot_weightings`")
+            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
+        self._snapshot_weightings = df
+
+    @property
+    def has_investment_periods(self) -> bool:
+        """
+        Boolean indicating if the network has investment periods defined.
+        """
+        return len(self.investment_periods) > 0
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -780,6 +809,13 @@ class Network:
                 {c: df for c in self._investment_period_weightings.columns}
             )
         self._investment_period_weightings = df
+
+    @property
+    def has_scenarios(self) -> bool:
+        """
+        Boolean indicating if the network has scenarios defined.
+        """
+        return len(self.scenarios) > 0
 
     def add(
         self,
@@ -1228,7 +1264,7 @@ class Network:
                 DeprecationWarning,
                 stacklevel=2,
             )
-            snapshots_ = pd.Index([], name="snapshot")
+            snapshots_ = pd.Index([], name="timestep")
 
         # Setup new network
         (
