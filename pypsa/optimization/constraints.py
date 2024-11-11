@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import linopy
 import pandas as pd
+from deprecation import deprecated
 from linopy import LinearExpression, merge
 from numpy import inf, isfinite
 from scipy import sparse
@@ -975,7 +976,12 @@ def define_loss_constraints(
             )
 
 
-def define_generator_constraints(n: Network, sns: Sequence) -> None:
+@deprecated("Use define_total_supply_constraints instead.")
+def define_generators_constraints(n: Network, sns: Sequence) -> None:
+    return define_total_supply_constraints(n, sns)
+
+
+def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     """
     Defines energy sum constraints for generators in the network model.
 
@@ -1016,14 +1022,26 @@ def define_generator_constraints(n: Network, sns: Sequence) -> None:
     # elapsed hours
     eh = expand_series(n.snapshot_weightings.generators[sns_], static.index)
 
-    e_sum_min_set = static[static.e_sum_min >= 0].index
-    e = m[f"{c}-p"].loc[sns_, e_sum_min_set].mul(eh).sum(dim="snapshot")
-    e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
+    e_sum_min_set = static[static.e_sum_min > -inf].index
+    if not e_sum_min_set.empty:
+        e = (
+            m[f"{c}-p"]
+            .loc[sns_, e_sum_min_set]
+            .mul(eh[e_sum_min_set])
+            .sum(dim="snapshot")
+        )
+        e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
 
-    m.add_constraints(e, ">=", e_sum_min, name=f"{c}-e_sum_min")
+        m.add_constraints(e, ">=", e_sum_min, name=f"{c}-e_sum_min")
 
-    e_sum_max_set = static[static.e_sum_max >= 0].index
-    e = m[f"{c}-p"].loc[sns_, e_sum_max_set].mul(eh).sum(dim="snapshot")
-    e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
+    e_sum_max_set = static[static.e_sum_max < inf].index
+    if not e_sum_max_set.empty:
+        e = (
+            m[f"{c}-p"]
+            .loc[sns_, e_sum_max_set]
+            .mul(eh[e_sum_max_set])
+            .sum(dim="snapshot")
+        )
+        e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
 
-    m.add_constraints(e, "<=", e_sum_max, name=f"{c}-e_sum_max")
+        m.add_constraints(e, "<=", e_sum_max, name=f"{c}-e_sum_max")

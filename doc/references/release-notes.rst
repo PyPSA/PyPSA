@@ -12,7 +12,7 @@ Upcoming Release
   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
 
 * A new module `pypsa.optimize.expressions` was added. It contains functions to quickly create expressions for the optimization model. The behavior of the functions is mirroring the behavior of the `statistics` module and allows for similar complexity in grouping and filtering. Use it with e.g. `n.optimize.expressions.energy_balance()`.
-
+* The constraint to account for `e_sum_max`/`e_sum_min` is now skipped if not applied to any asset.   
 
 v0.31.1 (1st November 2024)
 ===========================
