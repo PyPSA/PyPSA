@@ -91,6 +91,12 @@ def test_no_grouping(ac_dc_network_r):
     assert not df.empty
 
 
+def test_no_time_aggregation(ac_dc_network_r):
+    df = ac_dc_network_r.statistics.supply(aggregate_time=False)
+    assert not df.empty
+    assert isinstance(df, pd.DataFrame)
+
+
 def test_bus_carrier_selection(ac_dc_network_r):
     df = ac_dc_network_r.statistics(groupby=False, bus_carrier="AC")
     assert not df.empty
@@ -128,12 +134,38 @@ def test_single_component(ac_dc_network_r):
     assert df.index.nlevels == 1
 
 
+def test_aggregate_across_components(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics.installed_capacity(
+        comps=["Generator", "Line"], aggregate_across_components=True
+    )
+    assert not df.empty
+    assert "component" not in df.index.names
+
+    df = n.statistics.supply(
+        comps=["Generator", "Line"],
+        aggregate_across_components=True,
+        aggregate_time=False,
+    )
+    assert not df.empty
+    assert "component" not in df.index.names
+
+
 def test_multiindexed(ac_dc_network_multiindexed):
     n = ac_dc_network_multiindexed
     df = n.statistics()
     assert not df.empty
     assert df.columns.nlevels == 2
     assert df.columns.unique(1)[0] == 2013
+
+
+def test_multiindexed_aggregate_across_components(ac_dc_network_multiindexed):
+    n = ac_dc_network_multiindexed
+    df = n.statistics.installed_capacity(
+        comps=["Generator", "Line"], aggregate_across_components=True
+    )
+    assert not df.empty
+    assert "component" not in df.index.names
 
 
 def test_inactive_exclusion_in_static(ac_dc_network_r):
