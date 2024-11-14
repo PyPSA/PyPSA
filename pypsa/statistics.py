@@ -49,14 +49,46 @@ def get_bus_carrier(
     return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
 
 
+def get_bus(n: Network, c: str, port: str = "") -> pd.Series:
+    """
+    Get the buses for a component.
+    """
+    bus = f"bus{port}"
+    return n.static(c)[bus].rename("bus")
+
+
+def get_country(n: Network, c: str, port: str = "") -> pd.Series:
+    """
+    Get the country for a component.
+    """
+    bus = f"bus{port}"
+    return n.static(c)[bus].map(n.buses.country).rename("country")
+
+
+def get_unit(n: Network, c: str, port: str = "") -> pd.Series:
+    """
+    Get the unit for a component.
+    """
+    bus = f"bus{port}"
+    return n.static(c)[bus].map(n.buses.unit).rename("unit")
+
+
+def get_name(n: Network, c: str) -> pd.Series:
+    """
+    Get the name for a component.
+    """
+    return n.static(c).index.to_series().rename("name")
+
+
 def get_bus_and_carrier(
     n: Network, c: str, port: str = "", nice_names: bool = True
 ) -> list[pd.Series]:
     """
     Get the buses and nice carrier names for a component.
     """
-    bus = f"bus{port}"
-    return [n.static(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
+    return LOCAL_GROUPERS.create_grouper(["bus", "carrier"])(
+        n, c, port, nice_names=nice_names
+    )
 
 
 def get_bus_unit_and_carrier(
@@ -65,12 +97,9 @@ def get_bus_unit_and_carrier(
     """
     Get the buses and nice carrier names for a component.
     """
-    bus = f"bus{port}"
-    return [
-        n.static(c)[bus].rename("bus"),
-        n.static(c)[bus].map(n.buses.unit).rename("unit"),
-        get_carrier(n, c, nice_names=nice_names),
-    ]
+    return LOCAL_GROUPERS.create_grouper(["bus", "unit", "carrier"])(
+        n, c, port, nice_names=nice_names
+    )
 
 
 def get_name_bus_and_carrier(
@@ -79,10 +108,9 @@ def get_name_bus_and_carrier(
     """
     Get the name, buses and nice carrier names for a component.
     """
-    return [
-        n.static(c).index.to_series().rename("name"),
-        *get_bus_and_carrier(n, c, port, nice_names=nice_names),
-    ]
+    return LOCAL_GROUPERS.create_grouper(["name", "bus", "carrier"])(
+        n, c, port, nice_names=nice_names
+    )
 
 
 def get_country_and_carrier(
@@ -91,10 +119,9 @@ def get_country_and_carrier(
     """
     Get component country and carrier.
     """
-    # bus = f"bus{port}"
-    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    country = bus.map(n.buses.country).rename("country")
-    return [country, carrier]
+    return LOCAL_GROUPERS.create_grouper(["country", "carrier"])(
+        n, c, port, nice_names=nice_names
+    )
 
 
 def get_bus_and_carrier_and_bus_carrier(
@@ -105,9 +132,9 @@ def get_bus_and_carrier_and_bus_carrier(
 
     Used for MultiIndex in energy balance.
     """
-    bus_and_carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
-    return [*bus_and_carrier, bus_carrier]
+    return LOCAL_GROUPERS.create_grouper(["bus", "carrier", "bus_carrier"])(
+        n, c, port, nice_names=nice_names
+    )
 
 
 def get_carrier_and_bus_carrier(
@@ -116,9 +143,9 @@ def get_carrier_and_bus_carrier(
     """
     Get component carrier and bus carrier in one combined list.
     """
-    carrier = get_carrier(n, c, nice_names=nice_names)
-    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
-    return [carrier, bus_carrier]
+    return LOCAL_GROUPERS.create_grouper(["carrier", "bus_carrier"])(
+        n, c, port, nice_names=nice_names
+    )
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -306,16 +333,74 @@ class Groupers:
     Container for all the get_ methods.
     """
 
+    # Class-level dictionary for registered groupers
+    _registered_groupers: dict[str, Callable] = {
+        "carrier": get_carrier,
+        "bus_carrier": get_bus_carrier,
+        "name": get_name,
+        "bus": get_bus,
+        "country": get_country,
+        "unit": get_unit,
+    }
+
+    def __init__(self) -> None:
+        pass
+
+    @classmethod
+    def __repr__(cls) -> str:
+        return f"Groupers with registered groupers: {list(cls._registered_groupers.keys())}"
+
+    @classmethod
+    def register_grouper(cls, name: str, func: Callable) -> None:
+        """Register a new grouper function"""
+        cls._registered_groupers[name] = func
+
+    @classmethod
+    def create_grouper(cls, keys: str | tuple[str] | list[str]) -> Callable:
+        if scalar_passed := isinstance(keys, str):
+            keys = (keys,)
+
+        def group_by_keys(
+            n: Network, c: str, port: str, nice_names: bool = False
+        ) -> list:
+            grouped_data = []
+            for key in keys:
+                if key not in cls._registered_groupers:
+                    grouped_data.append(n.static(c)[key].rename(key))
+                    continue
+
+                method = cls._registered_groupers[key]
+                kwargs = {}
+                if "port" in signature(method).parameters:
+                    kwargs["port"] = port
+                if "nice_names" in signature(method).parameters:
+                    kwargs["nice_names"] = nice_names
+                grouped_data.append(method(n, c, **kwargs))
+
+            return grouped_data[0] if scalar_passed else grouped_data
+
+        return group_by_keys
+
+    # Single groupers
     get_carrier = staticmethod(get_carrier)
+    get_bus = staticmethod(get_bus)
     get_bus_carrier = staticmethod(get_bus_carrier)
+    get_country = staticmethod(get_country)
+    get_name = staticmethod(get_name)
+    get_unit = staticmethod(get_unit)
+
+    # Combined groupers
     get_bus_and_carrier = staticmethod(get_bus_and_carrier)
+    get_bus_unit_and_carrier = staticmethod(get_bus_unit_and_carrier)
     get_name_bus_and_carrier = staticmethod(get_name_bus_and_carrier)
     get_country_and_carrier = staticmethod(get_country_and_carrier)
-    get_carrier_and_bus_carrier = staticmethod(get_carrier_and_bus_carrier)
     get_bus_and_carrier_and_bus_carrier = staticmethod(
         get_bus_and_carrier_and_bus_carrier
     )
-    get_bus_unit_and_carrier = staticmethod(get_bus_unit_and_carrier)
+    get_carrier_and_bus_carrier = staticmethod(get_carrier_and_bus_carrier)
+
+
+LOCAL_GROUPERS = Groupers()
 
 
 class AbstractStatisticsAccessor(ABC):
@@ -336,9 +421,8 @@ class AbstractStatisticsAccessor(ABC):
         """
         self.parameters.set_parameters(**kwargs)
 
-    @classmethod
     def _get_grouping(
-        cls,
+        self,
         n: Network,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
@@ -352,10 +436,10 @@ class AbstractStatisticsAccessor(ABC):
                 by = groupby(n, c, port=port, nice_names=nice_names)
             else:
                 by = groupby(n, c, nice_names=nice_names)
-        elif isinstance(groupby, list):
-            by = [n.static(c)[key] for key in groupby]
-        elif isinstance(groupby, str):
-            by = n.static(c)[groupby]
+        elif isinstance(groupby, (str, list)):
+            by = self.groupers.create_grouper(groupby)(
+                n, c, port=port, nice_names=nice_names
+            )
         elif groupby is not False:
             raise ValueError(
                 f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
@@ -419,7 +503,7 @@ class AbstractStatisticsAccessor(ABC):
         func: Callable,
         agg: Callable | str = "sum",
         comps: Collection[str] | str | None = None,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         aggregate_across_components: bool = False,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -529,6 +613,8 @@ class AbstractStatisticsAccessor(ABC):
             raise ValueError(
                 f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
             )
+        # links may have empty ports which results in NaNs
+        mask = mask.where(mask.notnull(), False)
         return obj.loc[ports.index[mask]]
 
 
@@ -676,7 +762,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -721,7 +807,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -764,7 +850,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -812,7 +898,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool = False,
@@ -866,7 +952,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool = False,
@@ -920,7 +1006,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -965,7 +1051,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -1020,7 +1106,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -1056,7 +1142,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -1092,7 +1178,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -1131,6 +1217,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -1146,7 +1233,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = get_carrier_and_bus_carrier,
+        groupby: list[str] | Callable | None = ["carrier", "bus_carrier"],
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -1177,7 +1264,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             and bus_carrier is None
         ):
             logger.warning(
-                "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
+                "Network has multiple bus carriers which are aggregated together. "
+                "To separate bus carriers set `bus_carrier` or use `bus_carrier` in the groupby argument."
             )
 
         @pass_empty_series_if_keyerror
@@ -1216,7 +1304,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -1271,7 +1359,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
         at_port: Sequence[str] | str | bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
@@ -1320,7 +1408,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -1391,7 +1479,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "mean",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,

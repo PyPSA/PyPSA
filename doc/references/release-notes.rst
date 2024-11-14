@@ -13,6 +13,31 @@ Upcoming Release
 
 * A new module `pypsa.optimize.expressions` was added. It contains functions to quickly create expressions for the optimization model. The behavior of the functions is mirroring the behavior of the `statistics` module and allows for similar complexity in grouping and filtering. Use it with e.g. `n.optimize.expressions.energy_balance()`.
 * The constraint to account for `e_sum_max`/`e_sum_min` is now skipped if not applied to any asset.   
+* Added flexible grouping support in statistics and expressions modules:
+
+  * The `groupby` argument now accepts keys to allow for more granular and flexible grouping.
+    Example: `n.statistics.energy_balance(groupby=["bus", "carrier"])` groups by both bus and carrier.
+
+  * Added custom grouping function registration via `Groupers` class:
+    - Register custom groupers using `n.statistics.groupers.register_grouper(key, function)`
+    - The key will be used as identifier in the `groupby` argument
+    - Custom grouper functions must accept:
+      * n (Network): The PyPSA network instance
+      * c (str): Component name
+      * port (str): Component port as integer string
+      * nice_names (bool, optional): Whether to use nice carrier names
+    - The function must return a pandas Series with the same length as the component index
+
+  * Built-in groupers include: "carrier", "bus_carrier", "name", "bus", "country", "unit"
+
+  * Example:
+    ```python
+    def my_custom_grouper(n, c, port=""):
+        return n.static(c)["my_column"].rename("custom")
+        
+    n.statistics.groupers.register_grouper("custom", my_custom_grouper)
+    n.statistics.energy_balance(groupby=["custom", "carrier"])
+    ```
 
 v0.31.1 (1st November 2024)
 ===========================
