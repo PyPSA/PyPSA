@@ -27,6 +27,7 @@ Upcoming Release
       * c (str): Component name 
       * port (str): Component port as integer string
       * nice_names (bool, optional): Whether to use nice carrier names
+
     * The function must return a pandas Series with the same length as the component index
 
   * Built-in groupers include: "carrier", "bus_carrier", "name", "bus", "country", "unit"
