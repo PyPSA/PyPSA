@@ -242,14 +242,14 @@ def get_grouping(
     port: str | None = None,
     nice_names: bool = False,
 ) -> dict:
-    return StatisticsAccessor._get_grouping(n, c, groupby, port, nice_names)
+    return n.statistics._get_grouping(n, c, groupby, port, nice_names)
 
 
 @deprecated("Use n.statistics._aggregate_timeseries instead.")
 def aggregate_timeseries(
     df: pd.DataFrame, weights: pd.Series, agg: str = "sum"
 ) -> pd.Series:
-    return StatisticsAccessor._aggregate_timeseries(df, weights, agg)
+    return AbstractStatisticsAccessor._aggregate_timeseries(df, weights, agg)
 
 
 @deprecated("Use n.statistics._filter_active_assets instead.")
@@ -370,7 +370,7 @@ class Groupers:
                     continue
 
                 method = cls._registered_groupers[key]
-                kwargs = {}
+                kwargs: dict[str, str | bool] = {}
                 if "port" in signature(method).parameters:
                     kwargs["port"] = port
                 if "nice_names" in signature(method).parameters:

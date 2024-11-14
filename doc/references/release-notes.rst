@@ -16,29 +16,29 @@ Upcoming Release
 * The statistics and expressions modules now supports setting the groupby argument by keys. This allows for more flexibility grouping strategy. For example, ``n.statistics.energy_balance(groupby=["bus_carrier", "carrier"])`` groups the energy balance by bus carrier and carrier.
 * Added flexible grouping support in statistics and expressions modules:
 
-  * The `groupby` argument now accepts keys to allow for more granular and flexible grouping.
-    Example: `n.statistics.energy_balance(groupby=["bus", "carrier"])` groups by both bus and carrier.
+  * The ``groupby`` argument now accepts keys to allow for more granular and flexible grouping.
+    Example: ``n.statistics.energy_balance(groupby=["bus", "carrier"])`` groups by both bus and carrier.
 
-  * Added custom grouping function registration via `Groupers` class:
-    - Register custom groupers using `n.statistics.groupers.register_grouper(key, function)`
-    - The key will be used as identifier in the `groupby` argument
-    - Custom grouper functions must accept:
+  * Added custom grouping function registration via ``Groupers`` class:
+    * Register custom groupers using ``n.statistics.groupers.register_grouper(key, function)``
+    * The key will be used as identifier in the ``groupby`` argument
+    * Custom grouper functions must accept:
       * n (Network): The PyPSA network instance
-      * c (str): Component name
+      * c (str): Component name 
       * port (str): Component port as integer string
       * nice_names (bool, optional): Whether to use nice carrier names
-    - The function must return a pandas Series with the same length as the component index
+    * The function must return a pandas Series with the same length as the component index
 
   * Built-in groupers include: "carrier", "bus_carrier", "name", "bus", "country", "unit"
 
-  * Example:
-    ```python
-    def my_custom_grouper(n, c, port=""):
-        return n.static(c)["my_column"].rename("custom")
-        
-    n.statistics.groupers.register_grouper("custom", my_custom_grouper)
-    n.statistics.energy_balance(groupby=["custom", "carrier"])
-    ```
+  * Example::
+
+      def my_custom_grouper(n, c, port=""):
+          return n.static(c)["my_column"].rename("custom")
+          
+      n.statistics.groupers.register_grouper("custom", my_custom_grouper)
+      n.statistics.energy_balance(groupby=["custom", "carrier"])
+
 
 v0.31.1 (1st November 2024)
 ===========================
