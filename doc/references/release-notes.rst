@@ -13,6 +13,7 @@ Upcoming Release
 
 * A new module `pypsa.optimize.expressions` was added. It contains functions to quickly create expressions for the optimization model. The behavior of the functions is mirroring the behavior of the `statistics` module and allows for similar complexity in grouping and filtering. Use it with e.g. `n.optimize.expressions.energy_balance()`.
 * The constraint to account for `e_sum_max`/`e_sum_min` is now skipped if not applied to any asset.   
+* The statistics and expressions modules now supports setting the groupby argument by keys. This allows for more flexibility grouping strategy. For example, ``n.statistics.energy_balance(groupby=["bus_carrier", "carrier"])`` groups the energy balance by bus carrier and carrier.
 * Added flexible grouping support in statistics and expressions modules:
 
   * The `groupby` argument now accepts keys to allow for more granular and flexible grouping.
