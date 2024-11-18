@@ -24,101 +24,200 @@ from pypsa.descriptors import nominal_attrs
 logger = logging.getLogger(__name__)
 
 
-def get_carrier(n: Network, c: str, nice_names: bool = True) -> pd.Series:
-    """
-    Get the nice carrier names for a component.
-    """
-    static = n.static(c)
-    fall_back = pd.Series("", index=static.index)
-    carrier_series = static.get("carrier", fall_back).rename("carrier")
-    if nice_names:
-        carrier_series = carrier_series.replace(
-            n.carriers.nice_name[lambda ds: ds != ""]
-        ).replace("", "-")
-    return carrier_series
+class _CarrierGrouper:
+    indices = ["carrier"]
+
+    def __call__(self, n: Network, c: str, nice_names: bool = True) -> pd.Series:
+        return self.get_carrier(n, c, nice_names=nice_names)
+
+    @staticmethod
+    def get_carrier(n: Network, c: str, nice_names: bool = True) -> pd.Series:
+        """
+        Get the nice carrier names for a component.
+        """
+        static = n.static(c)
+        fall_back = pd.Series("", index=static.index)
+        carrier_series = static.get("carrier", fall_back).rename("carrier")
+        if nice_names:
+            carrier_series = carrier_series.replace(
+                n.carriers.nice_name[lambda ds: ds != ""]
+            ).replace("", "-")
+        return carrier_series
 
 
-def get_bus_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> pd.Series:
-    """
-    Get the bus carrier for a component.
-    """
-    bus = f"bus{port}"
-    buses_carrier = get_carrier(n, "Bus", nice_names=nice_names)
-    return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
+get_carrier = _CarrierGrouper()
 
 
-def get_bus_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get the buses and nice carrier names for a component.
-    """
-    bus = f"bus{port}"
-    return [n.static(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
+class _BusCarrierGrouper:
+    indices = ["bus_carrier"]
+
+    def __call__(
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> pd.Series:
+        return self.get_bus_carrier(n, c, port=port, nice_names=nice_names)
+
+    @staticmethod
+    def get_bus_carrier(
+        n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> pd.Series:
+        """
+        Get the bus carrier for a component.
+        """
+        bus = f"bus{port}"
+        buses_carrier = get_carrier(n, "Bus", nice_names=nice_names)
+        return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
 
 
-def get_bus_unit_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get the buses and nice carrier names for a component.
-    """
-    bus = f"bus{port}"
-    return [
-        n.static(c)[bus].rename("bus"),
-        n.static(c)[bus].map(n.buses.unit).rename("unit"),
-        get_carrier(n, c, nice_names=nice_names),
-    ]
+get_bus_carrier = _BusCarrierGrouper()
 
 
-def get_name_bus_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get the name, buses and nice carrier names for a component.
-    """
-    return [
-        n.static(c).index.to_series().rename("name"),
-        *get_bus_and_carrier(n, c, port, nice_names=nice_names),
-    ]
+class _BusAndCarrierGrouper:
+    indices = ["bus", "carrier"]
+
+    def __call__(
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        return self.get_bus_and_carrier(n, c, port=port, nice_names=nice_names)
+
+    @staticmethod
+    def get_bus_and_carrier(
+        n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        """
+        Get the buses and nice carrier names for a component.
+        """
+        bus = f"bus{port}"
+        return [
+            n.static(c)[bus].rename("bus"),
+            get_carrier(n, c, nice_names=nice_names),
+        ]
 
 
-def get_country_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get component country and carrier.
-    """
-    # bus = f"bus{port}"
-    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    country = bus.map(n.buses.country).rename("country")
-    return [country, carrier]
+get_bus_and_carrier = _BusAndCarrierGrouper()
 
 
-def get_bus_and_carrier_and_bus_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get component's carrier, bus and bus carrier in one combined list.
+class _BusUnitAndCarrierGrouper:
+    indices = ["bus", "unit", "carrier"]
 
-    Used for MultiIndex in energy balance.
-    """
-    bus_and_carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
-    return [*bus_and_carrier, bus_carrier]
+    def __call__(
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        return self.get_bus_unit_and_carrier(n, c, port=port, nice_names=nice_names)
+
+    @staticmethod
+    def get_bus_unit_and_carrier(
+        n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        """
+        Get the buses and nice carrier names for a component.
+        """
+        bus = f"bus{port}"
+        return [
+            n.static(c)[bus].rename("bus"),
+            n.static(c)[bus].map(n.buses.unit).rename("unit"),
+            get_carrier(n, c, nice_names=nice_names),
+        ]
 
 
-def get_carrier_and_bus_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get component carrier and bus carrier in one combined list.
-    """
-    carrier = get_carrier(n, c, nice_names=nice_names)
-    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
-    return [carrier, bus_carrier]
+get_bus_unit_and_carrier = _BusUnitAndCarrierGrouper()
+
+
+class NameBusAndCarrierGrouper:
+    indices = ["name", "bus", "carrier"]
+
+    def __call__(
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        return self.get_name_bus_and_carrier(n, c, port=port, nice_names=nice_names)
+
+    @staticmethod
+    def get_name_bus_and_carrier(
+        n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        """
+        Get the name, buses and nice carrier names for a component.
+        """
+        return [
+            n.static(c).index.to_series().rename("name"),
+            *get_bus_and_carrier(n, c, port, nice_names=nice_names),
+        ]
+
+
+get_name_bus_and_carrier = NameBusAndCarrierGrouper()
+
+
+class _CountryAndCarrierGrouper:
+    indices = ["country", "carrier"]
+
+    def __call__(
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        return self.get_country_and_carrier(n, c, port=port, nice_names=nice_names)
+
+    @staticmethod
+    def get_country_and_carrier(
+        n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        """
+        Get component country and carrier.
+        """
+        # bus = f"bus{port}"
+        bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
+        country = bus.map(n.buses.country).rename("country")
+        return [country, carrier]
+
+
+get_country_and_carrier = _CountryAndCarrierGrouper()
+
+
+class _BusAndCarrierAndBusCarrierGrouper:
+    indices = ["bus_carrier"]
+
+    def __call__(
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        return self.get_bus_and_carrier_and_bus_carrier(
+            n, c, port, nice_names=nice_names
+        )
+
+    @staticmethod
+    def get_bus_and_carrier_and_bus_carrier(
+        n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        """
+        Get component's carrier, bus and bus carrier in one combined list.
+
+        Used for MultiIndex in energy balance.
+        """
+        bus_and_carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
+        bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
+        return [*bus_and_carrier, bus_carrier]
+
+
+get_bus_and_carrier_and_bus_carrier = _BusAndCarrierAndBusCarrierGrouper()
+
+
+class _CarrierAndBusCarrierGrouper:
+    indices = ["carrier", "bus_carrier"]
+
+    def __call__(
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        return self.get_carrier_and_bus_carrier(n, c, port, nice_names=nice_names)
+
+    @staticmethod
+    def get_carrier_and_bus_carrier(
+        n: Network, c: str, port: str = "", nice_names: bool = True
+    ) -> list[pd.Series]:
+        """
+        Get component carrier and bus carrier in one combined list.
+        """
+        carrier = get_carrier(n, c, nice_names=nice_names)
+        bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
+        return [carrier, bus_carrier]
+
+
+get_carrier_and_bus_carrier = _CarrierAndBusCarrierGrouper()
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -475,6 +574,15 @@ class AbstractStatisticsAccessor(ABC):
 
         df = self._aggregate_components_concat_data(d, is_one_component)
 
+        if isinstance(df, pd.DataFrame) and df.empty:
+            try:
+                idx = pd.MultiIndex.from_tuples(
+                    [], names=["component"] + groupby.indices
+                )  # type: ignore
+            except AttributeError:
+                idx = pd.MultiIndex.from_tuples([], names=["component", "name"])
+            df.index = idx
+
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)
 
@@ -579,8 +687,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         self, d: dict[str, pd.DataFrame], is_one_component: bool
     ) -> pd.DataFrame | pd.Series:
         if d == {}:
-            idx = pd.MultiIndex.from_tuples([], names=["component", "name"])
-            return pd.Series([], index=idx)
+            return pd.DataFrame()
         first_key = next(iter(d))
         if is_one_component:
             return d[first_key]

@@ -113,8 +113,10 @@ def test_storage_capacity(ac_dc_network_r):
     n = ac_dc_network_r
     df = n.statistics.installed_capacity(storage=True)
     assert df.empty
+    assert df.index.names == ["component", "carrier"]
 
     df = n.statistics.optimal_capacity(storage=True)
+    assert df.index.names == ["component", "carrier"]
     assert df.empty
 
     n.add("Store", "example", carrier="any", bus="Manchester", e_nom=10, e_nom_opt=5)
