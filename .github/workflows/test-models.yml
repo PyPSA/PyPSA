@@ -1,0 +1,110 @@
+# SPDX-FileCopyrightText: : 2021-2024 The PyPSA-Eur Authors
+#
+# SPDX-License-Identifier: CC0-1.0
+
+name: Test models
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+  schedule:
+  - cron: "0 5 * * *"
+
+# Cancel any in-progress runs when a new run is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-pypsa-eur:
+    name: PyPSA-Eur
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+        - master
+        # - latest # Activate when v0.14.0 is released
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+    - uses: actions/checkout@v4.2.2
+      with:
+        repository: PyPSA/pypsa-eur
+        ref: master
+
+    - name: Check out latest release
+      if: matrix.version == 'latest'
+      run: |
+        git fetch --tags
+        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+        git checkout $latest_tag
+
+    # Only run check if package is not pinned
+    - name: Check if inhouse package is pinned
+      run: |
+        grep_line=$(grep -- '- pypsa' envs/environment.yaml)
+        if [[ $grep_line == *"<"* || $grep_line == *"=="* ]]; then
+            echo "pinned=true" >> $GITHUB_ENV
+        else
+            echo "pinned=false" >> $GITHUB_ENV
+        fi
+
+    - name: Setup secrets & cache dates
+      if: env.pinned == 'false'
+      run: |
+        echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
+        echo "week=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
+
+    - uses: actions/cache@v4
+      if: env.pinned == 'false'
+      with:
+        path: |
+          data
+          cutouts
+        key: data-cutouts-${{ env.week }}
+
+    - uses: conda-incubator/setup-miniconda@v3
+      if: env.pinned == 'false'
+      with:
+        activate-environment: pypsa-eur
+
+    - name: Cache Conda env
+      if: env.pinned == 'false'
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CONDA }}/envs
+        key: conda-pypsa-eur-${{ env.week }}-${{ hashFiles('envs/linux-pinned.yaml') }}
+      id: cache-env
+
+    - name: Update environment
+      if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
+      run: conda env update -n pypsa-eur -f envs/linux-pinned.yaml
+
+    - name: Install package from ref
+      if: env.pinned == 'false'
+      run: |
+        python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+    - name: Run snakemake test workflows
+      if: env.pinned == 'false'
+      run: |
+        make test
+
+    - name: Upload artifacts
+      if: env.pinned == 'false'
+      uses: actions/upload-artifact@v4
+      with:
+        name: results-pypsa-eur-${{ matrix.version }}
+        path: |
+          logs
+          .snakemake/log
+          results
+        retention-days: 3
