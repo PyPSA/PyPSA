@@ -577,8 +577,9 @@ class AbstractStatisticsAccessor(ABC):
         if isinstance(df, pd.DataFrame) and df.empty:
             try:
                 idx = pd.MultiIndex.from_tuples(
-                    [], names=["component"] + groupby.indices
-                )  # type: ignore
+                    [],
+                    names=["component"] + groupby.indices,  # type: ignore
+                )
             except AttributeError:
                 idx = pd.MultiIndex.from_tuples([], names=["component", "name"])
             df.index = idx
