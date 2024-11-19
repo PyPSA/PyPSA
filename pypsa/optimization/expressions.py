@@ -9,6 +9,7 @@ from collections.abc import Collection, Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
 import linopy as ln
+import numpy as np
 import pandas as pd
 from linopy import LinearExpression, Variable
 from xarray import DataArray
@@ -81,6 +82,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return expr @ weights
         else:
             raise ValueError(f"Aggregation method {agg} not supported.")
+
+    def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
+        return vals is None or not np.prod(vals.shape)
 
     def _aggregate_components_groupby(
         self, vals: LinearExpression, grouping: pd.DataFrame, agg: Callable | str

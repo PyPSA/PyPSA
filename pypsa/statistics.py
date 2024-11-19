@@ -11,8 +11,6 @@ from functools import wraps
 from inspect import signature
 from typing import TYPE_CHECKING, Any
 
-from numpy import prod
-
 if TYPE_CHECKING:
     from pypsa import Network
 
@@ -534,13 +532,13 @@ class AbstractStatisticsAccessor(ABC):
             values = []
             for port in ports:
                 vals = func(n, c, port)
-                if vals is None or not prod(vals.shape):
+                if self._aggregate_components_skip_iteration(vals):
                     continue
 
                 vals = self._filter_active_assets(n, c, vals)  # for multiinvest
                 vals = self._filter_bus_carrier(n, c, port, bus_carrier, vals)
 
-                if vals is None or not prod(vals.shape):
+                if self._aggregate_components_skip_iteration(vals):
                     continue
 
                 if groupby is not False:
@@ -563,6 +561,9 @@ class AbstractStatisticsAccessor(ABC):
             df = self._aggregate_across_components(df, agg)
 
         return df
+
+    def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
+        return False
 
     def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
         """
