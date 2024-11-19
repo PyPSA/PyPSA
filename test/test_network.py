@@ -75,9 +75,9 @@ def test_remove_misspelled_component(ac_dc_network):
     component dataframe and an error should be logged.
     """
     n = ac_dc_network
-
-    with pytest.raises(ValueError):
-        n.remove("Liness", ["0", "1"])
+    misspelled_component = "Liness"
+    with pytest.raises(AttributeError, match=f"components '{misspelled_component}'"):
+        n.remove(misspelled_component, ["0", "1"])
 
 
 def test_add_misspelled_component(n_5bus):
@@ -90,7 +90,7 @@ def test_add_misspelled_component(n_5bus):
     be logged.
     """
     misspelled_component = "Generatro"
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(AttributeError, match=f"components '{misspelled_component}'"):
         n_5bus.add(
             misspelled_component,
             ["g_1", "g_2"],

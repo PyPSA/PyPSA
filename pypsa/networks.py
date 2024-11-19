@@ -13,6 +13,7 @@ from weakref import ref
 from deprecation import deprecated
 
 from pypsa.components.abstract import Components
+from pypsa.components.utils import as_components
 from pypsa.utils import equals, future_deprecation
 
 try:
@@ -394,20 +395,16 @@ class Network:
             ct = get_component_type(c_name)
 
             self.components[ct.list_name] = Component(ct=ct, n=self)
-            # Handle list_name and name as alias
-            # e.g. components.Bus references components.buses
-            self.components[ct.name] = self.components[ct.list_name]
 
-            # TODO rename to n.list_name and point n.name
             setattr(
                 type(self),
                 ct.list_name,
-                create_component_property("static", ct.name),
+                create_component_property("static", ct.list_name),
             )
             setattr(
                 type(self),
                 ct.list_name + "_t",
-                create_component_property("dynamic", ct.name),
+                create_component_property("dynamic", ct.list_name),
             )
 
     def read_in_default_standard_types(self) -> None:
@@ -499,7 +496,7 @@ class Network:
         pandas.DataFrame
 
         """
-        return Dict({key: value.defaults for key, value in self.components.items()})
+        return Dict({value.name: value.defaults for value in self.components})
 
     @property
     def meta(self) -> dict:
@@ -872,9 +869,7 @@ class Network:
         ...       p_max_pu=wind)
 
         """
-        if class_name not in self.components:
-            msg = f"Component class {class_name} not found."
-            raise ValueError(msg)
+        c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
         names = pd.Index([name]) if single_component else pd.Index(name)
@@ -887,7 +882,7 @@ class Network:
 
         # Check if names are unique
         if not names.is_unique:
-            msg = f"Names for {class_name} must be unique."
+            msg = f"Names for {c.name} must be unique."
             raise ValueError(msg)
 
         for k, v in kwargs.items():
@@ -985,11 +980,11 @@ class Network:
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        _import_components_from_df(self, static_df, class_name, overwrite=overwrite)
+        _import_components_from_df(self, static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
-            self._import_series_from_df(v, class_name, k, overwrite=overwrite)
+            self._import_series_from_df(v, c.name, k, overwrite=overwrite)
 
         return names
 
@@ -1018,20 +1013,18 @@ class Network:
         >>> n.remove("Line", "my_line 12345")
         >>> n.remove("Line", ["line x", "line y"])
         """
-        if class_name not in self.components:
-            msg = f"Component class {class_name} not found"
-            raise ValueError(msg)
+        c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix
         names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
         names = names.astype(str) + suffix
 
         # Drop from static components
-        cls_static = self.static(class_name)
+        cls_static = self.static(c.name)
         cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
-        dynamic = self.dynamic(class_name)
+        dynamic = self.dynamic(c.name)
         for df in dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
