@@ -515,6 +515,16 @@ def _export_to_exporter(
         for attr in dir(n)
         if (not attr.startswith("__") and isinstance(getattr(n, attr), allowed_types))
     }
+    _attrs = {}
+    for attr in dir(n):
+        if not attr.startswith("__"):
+            value = getattr(n, attr)
+            if isinstance(value, allowed_types):
+                # skip properties without setter
+                prop = getattr(n.__class__, attr, None)
+                if isinstance(prop, property) and prop.fset is None:
+                    continue
+                _attrs[attr] = value
     exporter.save_attributes(_attrs)
 
     crs = {}

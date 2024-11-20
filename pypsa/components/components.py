@@ -14,7 +14,8 @@ from typing import Any
 import pandas as pd
 
 from pypsa.components.abstract import Components
-from pypsa.components.types import ComponentTypeInfo, get_component_type
+from pypsa.components.types import ComponentTypeInfo
+from pypsa.components.types import get as get_component_type
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)

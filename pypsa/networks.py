@@ -31,7 +31,14 @@ from scipy.sparse import csgraph
 from pypsa.clustering import ClusteringAccessor
 from pypsa.components.abstract import SubNetworkComponents
 from pypsa.components.components import Component
-from pypsa.components.types import component_types_df, get_component_type
+from pypsa.components.types import (
+    check_if_added,
+    component_types_df,
+    default_components,
+)
+from pypsa.components.types import (
+    get as get_component_type,
+)
 from pypsa.consistency import (
     check_assets,
     check_dtypes_,
@@ -262,10 +269,21 @@ class Network:
         import_name: str | Path = "",
         name: str = "",
         ignore_standard_types: bool = False,
+        custom_components: list[str] | None = None,
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
     ):
+        if override_components is not None or override_component_attrs is not None:
+            msg = (
+                "The arguments `override_components` and `override_component_attrs` "
+                "are deprecated. Please use the #TODO"
+            )
+            raise DeprecationWarning(msg)
+
+        if custom_components is None:
+            custom_components = []
+
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -296,7 +314,7 @@ class Network:
         # Define component sets
         self._initialize_component_sets()
 
-        self._initialize_components()
+        self._initialize_components(custom_components=custom_components)
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -384,14 +402,11 @@ class Network:
 
         self.all_components = set(component_types_df.index) - {"Network"}
 
-    def _initialize_components(self) -> None:
-        """
-        Function called when network is created to build component
-        pandas.DataFrames.
-        """
+    def _initialize_components(self, custom_components: list) -> None:
+        components = component_types_df.index.to_list() + custom_components
 
         self.components = ComponentsStore()
-        for c_name in component_types_df.index:
+        for c_name in components:
             ct = get_component_type(c_name)
 
             self.components[ct.list_name] = Component(ct=ct, n=self)
@@ -414,6 +429,16 @@ class Network:
                 self.components[std_type].ct.standard_types.index,
                 **self.components[std_type].ct.standard_types,
             )
+
+    @property
+    def has_custom_components(self) -> bool:
+        """Check if network has custom components."""
+        return bool(set(self.components.keys()) - set(default_components))
+
+    @property
+    def custom_components(self) -> list[str]:
+        """List of custom components."""
+        return list(set(self.components.keys()) - set(default_components))
 
     @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
     def df(self, component_name: str) -> pd.DataFrame:
@@ -1140,23 +1165,6 @@ class Network:
         """
         self.remove(class_name=class_name, name=names)
 
-    def _retrieve_overridden_components(self) -> tuple[pd.DataFrame, Dict]:
-        components_index = list(self.components.keys())
-
-        cols = ["list_name", "description", "type"]
-
-        override_components = pd.DataFrame(
-            [[self.components[i][c] for c in cols] for i in components_index],
-            columns=cols,
-            index=components_index,
-        )
-
-        override_component_attrs = Dict(
-            {i: c.defaults.copy() for i, c in enumerate(self.components)}
-        )
-
-        return override_components, override_component_attrs
-
     def copy(
         self,
         snapshots: Sequence | None = None,
@@ -1223,16 +1231,13 @@ class Network:
             )
             snapshots_ = pd.Index([], name="snapshot")
 
-        # Setup new network
-        (
-            override_components,
-            override_component_attrs,
-        ) = self._retrieve_overridden_components()
+        # Check if custom components are registered
+        check_if_added(self.custom_components)
 
+        # Setup new network
         n = self.__class__(
             ignore_standard_types=ignore_standard_types,
-            override_components=override_components,
-            override_component_attrs=override_component_attrs,
+            custom_components=list(self.components.keys()) + self.custom_components,
         )
 
         # Copy components
@@ -1322,13 +1327,12 @@ class Network:
         else:
             time_i = slice(None)
 
-        (
-            override_components,
-            override_component_attrs,
-        ) = self._retrieve_overridden_components()
+        # Check if custom components are registered
+        check_if_added(self.custom_components)
+
+        # Setup new network
         n = self.__class__(
-            override_components=override_components,
-            override_component_attrs=override_component_attrs,
+            custom_components=list(self.components.keys()) + self.custom_components
         )
         n.add(
             "Bus",
