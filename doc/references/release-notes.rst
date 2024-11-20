@@ -17,6 +17,18 @@ v0.31.1 (1st November 2024)
 Bug fixes
 ---------
 
+
+* New component class structure. This is an experimental feature, will be further 
+  developed and is not yet recommended for general use. While those changes are
+  trying to keep full backwards compatibility, there might be some breaking changes 
+  for ..
+  
+  - .. custom component classes: If you use custom component classes during the network 
+    creation.
+
+  Specially for those use cases, but also in general, please report any issues and 
+  bugs you might encounter via the issue tracker on GitHub.
+
 * Abolishing ``min_units`` in the post discretization. If the maximum capacity of a 
   component is smaller than the specified unit size, the maximum capacity is built as 
   soon as the threshold is passed (https://github.com/PyPSA/PyPSA/pull/1052)

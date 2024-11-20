@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from pyproj import CRS
 
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentTypeInfo
 from pypsa.definitions.structures import Dict
 from pypsa.utils import equals
@@ -105,9 +106,8 @@ class Components(ComponentsData, ABC):
     def _get_data_containers(ct: ComponentTypeInfo) -> tuple[pd.DataFrame, Dict]:
         static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
         if ct.name == "Shape":
-            # TODO: Needs general default crs
             crs = CRS.from_epsg(
-                "4326"
+                DEFAULT_EPSG
             )  # if n is None else n.crs #TODO attach mechanism
             static = gpd.GeoDataFrame(
                 {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
@@ -124,9 +124,8 @@ class Components(ComponentsData, ABC):
         # # it's currently hard to imagine non-float series,
         # but this could be generalised
         dynamic = Dict()
-        # TODO: Needs general default
         snapshots = pd.Index(
-            ["now"]
+            [DEFAULT_TIMESTAMP]
         )  # if n is None else n.snapshots #TODO attach mechanism
         for k in ct.defaults.index[ct.defaults.varying]:
             df = pd.DataFrame(index=snapshots, columns=[], dtype=float)

@@ -71,12 +71,12 @@ class ComponentsStore(dict):
         --------
         >>> components = ComponentsStore()
         >>> components["generator"] = Generators()
-        >>> components["storage"] = Storage()
+        >>> components["stores"] = Stores()
         >>> components["generator"]
         'Generator class instance'
-        >>> components[["generator", "storage"]]
-        >>> components[["generator", "storage"]]
-        ['Generator class instance', 'Storage class instance']
+        >>> components[["generator", "stores"]]
+        >>> components[["generator", "stores"]]
+        ['Generator class instance', 'Stores class instance']
         """
         if isinstance(item, (list, set)):
             return [self[key] for key in item]

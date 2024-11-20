@@ -14,6 +14,7 @@ from deprecation import deprecated
 
 from pypsa.components.abstract import Components
 from pypsa.components.utils import as_components
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.utils import equals, future_deprecation
 
 try:
@@ -220,7 +221,7 @@ class Network:
     iteration: int
 
     # Geospatial
-    _crs = CRS.from_epsg("4326")
+    _crs = CRS.from_epsg(DEFAULT_EPSG)
 
     # Methods
     # -------
@@ -296,7 +297,7 @@ class Network:
 
         self._meta: dict = {}
 
-        self._snapshots = pd.Index(["now"])
+        self._snapshots = pd.Index([DEFAULT_TIMESTAMP])
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
