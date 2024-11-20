@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+    - v*.*.*
+
+env:
+  PREPARATION_COMMIT: '[github-actions.ci] prepare release ${{ github.ref_name }}'
+
+jobs:
+  check-preparation:
+    name: Check if release is prepared
+    runs-on: ubuntu-latest
+    outputs:
+      prepared: ${{ steps.validate.outputs.prepared }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Validate commit message
+      id: validate
+      run: |
+        # Check if last commit is the expected commit message
+        COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+        echo "Expected: '${{ env.PREPARATION_COMMIT }}'"
+        echo "Received: '$COMMIT_MESSAGE'"
+
+        prepared="false"
+        if [[ "$COMMIT_MESSAGE" == "${{ env.PREPARATION_COMMIT }}" ]]; then
+          prepared="true"
+        fi
+
+        echo "prepared=$prepared" >> $GITHUB_OUTPUT
+
+  prepare-release:
+    name: Prepare release
+    needs: [check-preparation]
+    if: ${{ needs.check-preparation.outputs.prepared == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate token for PyPSA Bot
+      id: generate-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ vars.PYPSA_BOT_ID }}
+        private-key: ${{ secrets.PYPSA_BOT_PRIVATE_KEY }}
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Find the branch for commit/ tag
+      run: |
+        branch=$(git branch -r --contains ${{ github.sha }} | grep -v 'HEAD' | head -n 1 | sed 's|origin/||' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        echo "Branch found: $branch"
+        echo "BRANCH_NAME=$branch" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ env.BRANCH_NAME }}
+        token: ${{ steps.generate-token.outputs.token }}
+
+    # Start of preparation script
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: Install packages
+      run: |
+        python -m pip install uv
+        uv pip install --system toml
+        uv pip install --system setuptools_scm
+
+    - name: Update CITATION.cff
+      run: |
+        import re
+        from setuptools_scm import get_version
+
+        version = get_version()
+
+        with open('CITATION.cff', 'r') as file:
+          cff_content = file.read()
+        cff_content = open('CITATION.cff', 'r').read()
+
+        updated_cff_content = re.sub(r"(?<=version: ).+(?= #)",version,cff_content,flags=re.MULTILINE)
+
+        with open('CITATION.cff', 'w') as file:
+          file.write(updated_cff_content)      
+      shell: python
+
+    # End of preparation script
+
+    - name: Remove previous tag
+      run: |
+        git tag -d ${{ github.ref_name }}
+        git push origin --delete ${{ github.ref_name }}
+
+    - name: Commit changes
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        branch: ${{ env.BRANCH_NAME }}
+        commit_message: '${{ env.PREPARATION_COMMIT }}'
+        tagging_message: '${{ github.ref_name }}' # add tag again
+        push_options: '${{ github.ref_name }}'
+
+  build:
+    name: Build and verify package
+    needs: [check-preparation]
+    if: ${{ needs.check-preparation.outputs.prepared == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: hynek/build-and-inspect-python-package@v2
+
+  release:
+    name: Create GitHub release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: softprops/action-gh-release@v2
+      with:
+        body: |
+          Revised release notes are available in the [documentation](https://${{ github.event.repository.name }}.readthedocs.io/en/latest/release-notes.html).
+        append_body: true
+        generate_release_notes: true
+
+  publish:
+    name: Publish to PyPI
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/${{ github.event.repository.name }}
+    permissions:
+      id-token: write
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: Packages
+        path: dist
+    - uses: pypa/gh-action-pypi-publish@release/v1

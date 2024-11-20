@@ -17,7 +17,6 @@ def test_optimize_security_constrained(scipy_network):
         n.snapshots[0],
         branch_outages=branch_outages,
     )
-
     # For the PF, set the P to the optimised P
     n.generators_t.p_set = n.generators_t.p.copy()
     n.storage_units_t.p_set = n.storage_units_t.p.copy()

@@ -185,19 +185,17 @@ def test_import_from_pandapower_network(
 ):
     nets = [pandapower_custom_network, pandapower_cigre_network]
     for net in nets:
-        network = pypsa.Network()
-        network.import_from_pandapower_net(
+        n = pypsa.Network()
+        n.import_from_pandapower_net(
             net,
             use_pandapower_index=use_pandapower_index,
             extra_line_data=extra_line_data,
         )
-        assert len(network.buses) == len(net.bus)
-        assert len(network.generators) == (
-            len(net.gen) + len(net.sgen) + len(net.ext_grid)
-        )
-        assert len(network.loads) == len(net.load)
-        assert len(network.transformers) == len(net.trafo)
-        assert len(network.shunt_impedances) == len(net.shunt)
+        assert len(n.buses) == len(net.bus)
+        assert len(n.generators) == (len(net.gen) + len(net.sgen) + len(net.ext_grid))
+        assert len(n.loads) == len(net.load)
+        assert len(n.transformers) == len(net.trafo)
+        assert len(n.shunt_impedances) == len(net.shunt)
 
 
 def test_netcdf_from_url():
@@ -275,3 +273,20 @@ def test_io_time_dependent_efficiencies(tmpdir):
     equal(m.generators_t.efficiency, n.generators_t.efficiency)
     equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
     equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
+
+
+def test_cloudpathlib_uses_pathlib_path_locally(scipy_network, tmpdir):
+    cloudpathlib = pytest.importorskip("cloudpathlib")
+    fn = cloudpathlib.AnyPath(tmpdir).joinpath("netcdf_export.nc")
+    assert isinstance(fn, Path)
+    assert not isinstance(fn, cloudpathlib.CloudPath)
+    scipy_network.export_to_netcdf(fn)
+
+
+def test_cloudpathlib_uri_schemes():
+    cloudpathlib = pytest.importorskip("cloudpathlib")
+    assert isinstance(cloudpathlib.AnyPath("s3://bucket/file"), cloudpathlib.S3Path)
+    assert isinstance(cloudpathlib.AnyPath("gs://bucket/file"), cloudpathlib.GSPath)
+    assert isinstance(
+        cloudpathlib.AnyPath("az://bucket/file"), cloudpathlib.AzureBlobPath
+    )

@@ -383,14 +383,14 @@ def test_linearized_unit_commitment():
     n.add("Bus", "bus")
 
     for seed, i in enumerate(range(40), start=1):
-        np.random.seed(seed)
-        p_min_pu = np.random.randint(1, 5) / 10
-        marginal_cost = np.random.randint(1, 11) * 10
-        min_up_time = np.random.randint(0, 6)
-        min_down_time = np.random.randint(0, 6)
-        p_nom = np.random.randint(1, 10) * 5
-        start_up_cost = np.random.randint(1, 5) * 100
-        shut_down_cost = np.random.randint(1, 5) * 100
+        rng = np.random.default_rng(seed)  # Create a random number generator
+        p_min_pu = rng.integers(1, 5) / 10
+        marginal_cost = rng.integers(1, 11) * 10
+        min_up_time = rng.integers(0, 6)
+        min_down_time = rng.integers(0, 6)
+        p_nom = rng.integers(1, 10) * 5
+        start_up_cost = rng.integers(1, 5) * 100
+        shut_down_cost = rng.integers(1, 5) * 100
 
         n.add(
             "Generator",
@@ -410,7 +410,7 @@ def test_linearized_unit_commitment():
 
     n.optimize(linearized_unit_commitment=True)
 
-    MILP_objective = 1510000
+    MILP_objective = 1241100
     assert round(n.objective / MILP_objective, 2) == 1
 
 
@@ -421,7 +421,7 @@ def test_link_unit_commitment():
 
     n.set_snapshots(snapshots)
 
-    n.madd("Bus", ["gas", "electricity"])
+    n.add("Bus", ["gas", "electricity"])
 
     n.add("Generator", "gas", bus="gas", marginal_cost=10, p_nom=20000)
 
@@ -480,7 +480,7 @@ def test_dynamic_ramp_rates():
 
     static_ramp_up = 0.8
     static_ramp_down = 1
-    p_max_pu = pd.Series(1, index=n.snapshots)
+    p_max_pu = pd.Series(1, index=n.snapshots).astype(float)
     p_max_pu.loc[n.snapshots[0:6]] = 0.5  # 50% capacity outage for 6 periods
 
     n.add(

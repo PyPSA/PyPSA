@@ -3,14 +3,14 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/pypsa.svg)](https://pypi.python.org/pypi/pypsa)
 [![Conda version](https://img.shields.io/conda/vn/conda-forge/pypsa.svg)](https://anaconda.org/conda-forge/pypsa)
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FPyPSA%2FPyPSA%2Fmaster%2Fpyproject.toml)
 [![Tests](https://github.com/PyPSA/PyPSA/actions/workflows/test.yml/badge.svg)](https://github.com/PyPSA/PyPSA/actions/workflows/test.yml)
-[![Code coverage](https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr)](https://codecov.io/gh/PyPSA/PyPSA)
 [![Documentation Status](https://readthedocs.org/projects/pypsa/badge/?version=latest)](https://pypsa.readthedocs.io/en/latest/?badge=latest)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg)](https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master)
+[![Code coverage](https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr)](https://codecov.io/gh/PyPSA/PyPSA)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE.txt)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg)](https://doi.org/10.5281/zenodo.3946412)
-[![Examples of use](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/PyPSA/PyPSA/master?filepath=examples%2Fnotebooks)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg)](https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 [![Stack Exchange questions](https://img.shields.io/stackexchange/stackoverflow/t/pypsa)](https://stackoverflow.com/questions/tagged/pypsa)
@@ -35,7 +35,7 @@ Energy
 Group](https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/)
 at [FIAS](https://fias.uni-frankfurt.de/) to carry out simulations for the
 [CoNDyNet project](https://fias.institute/en/projects/condynet/), financed by the [German Federal
-Ministry for Education and Research (BMBF)](https://www.bmbf.de/en/index.html)
+Ministry for Education and Research (BMBF)](https://www.bmbf.de/bmbf/en/)
 as part of the [Stromnetze Research
 Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/).
 
@@ -74,14 +74,13 @@ It has models for:
 
 ## Documentation
 
-[Documentation](https://pypsa.readthedocs.io/en/latest/index.html)
+* [Documentation](https://pypsa.readthedocs.io/en/latest/index.html)
 
-[Quick start](https://pypsa.readthedocs.io/en/latest/quick_start.html)
+    * [Quick start](https://pypsa.readthedocs.io/en/latest/quick_start.html)
 
-[Examples](https://pypsa.readthedocs.io/en/latest/examples-basic.html)
+    * [Examples](https://pypsa.readthedocs.io/en/latest/examples-basic.html)
 
-[Known users of
-PyPSA](https://pypsa.readthedocs.io/en/latest/users.html)
+    * [Known users of PyPSA](https://pypsa.readthedocs.io/en/latest/users.html)
 
 ## Installation
 
@@ -93,7 +92,7 @@ conda/mamba:
 
 ```conda install -c conda-forge pypsa```
 
-Additionally, install a solver.
+Additionally, install a solver (see [here](https://pypsa.readthedocs.io/en/latest/installation.html#getting-a-solver-for-optimisation)).
 
 ## Usage
 
@@ -123,9 +122,8 @@ n.statistics.energy_balance()
 
 There are [more extensive
 examples](https://pypsa.readthedocs.io/en/latest/examples-basic.html) available
-as [Jupyter notebooks](https://jupyter.org/). They are also described in the
-[doc/examples.rst](doc/examples.rst) and are available as Python scripts in
-[examples/](examples/).
+as [Jupyter notebooks](https://jupyter.org/). They are also available as Python scripts in
+[examples/notebooks/](examples/notebooks/) directory.
 
 ## Screenshots
 
@@ -144,7 +142,7 @@ for 2015.
 
 ## Dependencies
 
-PyPSA is written and tested to be compatible with Python 3.7 and above.
+PyPSA is written and tested to be compatible with Python 3.9 and above.
 The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 It leans heavily on the following Python packages:
@@ -156,7 +154,7 @@ It leans heavily on the following Python packages:
 -   [networkx](https://networkx.github.io/) for some network
     calculations
 -   [matplotlib](https://matplotlib.org/) for static plotting
--   [linpy](https://github.com/PyPSA/linopy) for preparing optimisation problems
+-   [linopy](https://github.com/PyPSA/linopy) for preparing optimisation problems
     (currently only linear and mixed integer linear optimisation)
 -   [cartopy](https://scitools.org.uk/cartopy) for plotting the
     baselayer map
@@ -164,15 +162,14 @@ It leans heavily on the following Python packages:
 -   [logging](https://docs.python.org/3/library/logging.html) for
     managing messages
 
+Find the full list of dependencies in the 
+[dependency graph](https://github.com/PyPSA/PyPSA/network/dependencies).
+
 The optimisation uses interface libraries like `linopy` which are independent of
 the preferred solver. You can use e.g. one of the free solvers
 [HiGHS](https://highs.dev/), [GLPK](https://www.gnu.org/software/glpk/) and
 [CLP/CBC](https://github.com/coin-or/Cbc/) or the commercial solver
 [Gurobi](http://www.gurobi.com/) for which free academic licenses are available.
-
-## Documentation
-
-Please check the [documentation](https://pypsa.readthedocs.io).
 
 ## Contributing and Support
 
@@ -183,6 +180,8 @@ We strongly welcome anyone interested in contributing to this project. If you ha
 -   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [discord server](https://discord.gg/AnuJBk23FU).
 -   For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
 -   For **troubleshooting**, please check the [troubleshooting](https://pypsa.readthedocs.io/en/latest/troubleshooting.html) in the documentation.
+
+Detailed guidelines can be found in the [Contributing](https://pypsa.readthedocs.io/en/latest/contributing.html) section of our documentation.
 
 ## Code of Conduct
 

@@ -18,6 +18,19 @@ from shapely.geometry import Polygon
 import pypsa
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--test-docs",
+        action="store_true",
+        default=False,
+        help="run sphinx build test",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "test_docs: mark test as sphinx build")
+
+
 @pytest.fixture(scope="function")
 def scipy_network():
     csv_folder = os.path.join(
@@ -28,7 +41,11 @@ def scipy_network():
         "scigrid-with-load-gen-trafos",
     )
     n = pypsa.Network(csv_folder)
+    n.generators.control = "PV"
+    g = n.generators[n.generators.bus == "492"]
+    n.generators.loc[g.index, "control"] = "PQ"
     n.calculate_dependent_values()
+    n.determine_network_topology()
     return n
 
 
@@ -65,7 +82,8 @@ def ac_dc_network_multiindexed(ac_dc_network):
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.investment_periods = [2013]
     gens_i = n.generators.index
-    n.generators_t.p[gens_i] = np.random.rand(len(n.snapshots), len(gens_i))
+    rng = np.random.default_rng()  # Create a random number generator
+    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
     return n
 
 
@@ -89,9 +107,9 @@ def ac_dc_network_shapes(ac_dc_network):
     # Convert to GeoSeries
     geo_series = gpd.GeoSeries(bboxes, crs="epsg:4326")
 
-    n.madd(
+    n.add(
         "Shape",
-        names=geo_series.index,
+        name=geo_series.index,
         geometry=geo_series,
         idx=geo_series.index,
         component="Bus",
@@ -110,6 +128,23 @@ def storage_hvdc_network():
         "opf-storage-data",
     )
     return pypsa.Network(csv_folder)
+
+
+@pytest.fixture(scope="module")
+def all_networks(
+    ac_dc_network,
+    ac_dc_network_r,
+    ac_dc_network_multiindexed,
+    ac_dc_network_shapes,
+    storage_hvdc_network,
+):
+    return [
+        ac_dc_network,
+        ac_dc_network_r,
+        ac_dc_network_multiindexed,
+        ac_dc_network_shapes,
+        storage_hvdc_network,
+    ]
 
 
 @pytest.fixture(scope="module")

@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 import pypsa
 from pypsa.statistics import get_bus_and_carrier, get_country_and_carrier
@@ -90,6 +91,12 @@ def test_no_grouping(ac_dc_network_r):
     assert not df.empty
 
 
+def test_no_time_aggregation(ac_dc_network_r):
+    df = ac_dc_network_r.statistics.supply(aggregate_time=False)
+    assert not df.empty
+    assert isinstance(df, pd.DataFrame)
+
+
 def test_bus_carrier_selection(ac_dc_network_r):
     df = ac_dc_network_r.statistics(groupby=False, bus_carrier="AC")
     assert not df.empty
@@ -127,12 +134,56 @@ def test_single_component(ac_dc_network_r):
     assert df.index.nlevels == 1
 
 
+def test_aggregate_across_components(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics.installed_capacity(
+        comps=["Generator", "Line"], aggregate_across_components=True
+    )
+    assert not df.empty
+    assert "component" not in df.index.names
+
+    df = n.statistics.supply(
+        comps=["Generator", "Line"],
+        aggregate_across_components=True,
+        aggregate_time=False,
+    )
+    assert not df.empty
+    assert "component" not in df.index.names
+
+
 def test_multiindexed(ac_dc_network_multiindexed):
     n = ac_dc_network_multiindexed
     df = n.statistics()
     assert not df.empty
     assert df.columns.nlevels == 2
     assert df.columns.unique(1)[0] == 2013
+
+
+def test_multiindexed_aggregate_across_components(ac_dc_network_multiindexed):
+    n = ac_dc_network_multiindexed
+    df = n.statistics.installed_capacity(
+        comps=["Generator", "Line"], aggregate_across_components=True
+    )
+    assert not df.empty
+    assert "component" not in df.index.names
+
+
+def test_inactive_exclusion_in_static(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics()
+    assert "Line" in df.index.unique(0)
+
+    df = n.statistics(aggregate_time=False)
+    assert "Line" in df.index.unique(0)
+
+    n.lines["active"] = False
+    df = n.statistics()
+    assert "Line" not in df.index.unique(0)
+
+    df = n.statistics(aggregate_time=False)
+    assert "Line" not in df.index.unique(0)
+
+    n.lines["active"] = True
 
 
 def test_transmission_carriers(ac_dc_network_r):
@@ -147,6 +198,9 @@ def test_groupers(ac_dc_network_r):
     c = "Generator"
 
     grouper = n.statistics.groupers.get_carrier(n, c)
+    assert isinstance(grouper, pd.Series)
+
+    grouper = n.statistics.groupers.get_bus_carrier(n, c)
     assert isinstance(grouper, pd.Series)
 
     grouper = n.statistics.groupers.get_bus_and_carrier(n, c)
@@ -168,3 +222,18 @@ def test_groupers(ac_dc_network_r):
     grouper = n.statistics.groupers.get_bus_and_carrier_and_bus_carrier(n, c)
     assert isinstance(grouper, list)
     assert all(isinstance(ds, pd.Series) for ds in grouper)
+
+
+def test_parameters(ac_dc_network_r):
+    n = ac_dc_network_r
+    target = n.statistics.capex(nice_names=False).round(2)
+    n.statistics.set_parameters(nice_names=False, round=2)
+    df = n.statistics.capex()
+    assert np.allclose(df, target)
+    with pytest.raises(ValueError):
+        # Test setting not existing parameters
+        n.statistics.set_parameters(groupby=False)
+        # Test setting wrong dtype of parameter
+        n.statistics.set_parameters(round="one")
+    # Test parameter representation
+    isinstance(n.statistics.parameters, str)

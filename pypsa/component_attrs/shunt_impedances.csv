@@ -8,3 +8,4 @@ p,series,MW,0.,active power at bus (positive if net load),Output
 q,series,MVar,0.,reactive power (positive if net generation),Output
 g_pu,float,per unit,0.,Calculated from g and bus.v_nom.,Output
 b_pu,float,per unit,0.,Calculated from b and bus.v_nom.,Output
+active,boolean,n/a,True,Whether to consider the component in basic functionality or not,Input (optional)

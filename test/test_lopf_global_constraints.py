@@ -5,7 +5,7 @@ import pytest
 
 
 def test_operational_limit_ac_dc_meshed(ac_dc_network):
-    n = ac_dc_network
+    n = ac_dc_network.copy()
 
     limit = 30_000
 
@@ -21,11 +21,11 @@ def test_operational_limit_ac_dc_meshed(ac_dc_network):
     )
 
     n.optimize()
-    assert n.statistics.dispatch().loc[:, "gas"].sum().round(3) == limit
+    assert n.statistics.energy_balance().loc[:, "gas"].sum().round(3) == limit
 
 
 def test_operational_limit_storage_hvdc(storage_hvdc_network):
-    n = storage_hvdc_network
+    n = storage_hvdc_network.copy()
 
     limit = 5_000
 

@@ -4,20 +4,12 @@ Functionality to help with georeferencing and calculate distances/areas.
 
 from __future__ import annotations
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
-
 import logging
 from typing import TYPE_CHECKING
 
 import cartopy.crs as ccrs
 import numpy as np
+from numpy.typing import ArrayLike
 
 if TYPE_CHECKING:
     from cartopy.mpl.geoaxes import GeoAxes
@@ -27,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def haversine_pts(a: np.ndarray | ArrayLike, b: np.ndarray | ArrayLike) -> np.ndarray:
+def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     """
     Determine crow-flies distance between points in a and b.
 
@@ -57,7 +49,7 @@ def haversine_pts(a: np.ndarray | ArrayLike, b: np.ndarray | ArrayLike) -> np.nd
     return 6371.000 * 2 * np.arctan2(np.sqrt(c), np.sqrt(1 - c))
 
 
-def haversine(a: np.ndarray | ArrayLike, b: np.ndarray | ArrayLike) -> np.ndarray:
+def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     """
     Compute the distance in km between two sets of points in long/lat.
 
@@ -87,7 +79,7 @@ def haversine(a: np.ndarray | ArrayLike, b: np.ndarray | ArrayLike) -> np.ndarra
     """
 
     #
-    def ensure_dimensions(arr: np.ndarray | ArrayLike) -> np.ndarray:
+    def ensure_dimensions(a: np.ndarray | ArrayLike) -> np.ndarray:
         """
         Ensure correct shape for haversine calculation.
 
@@ -102,16 +94,16 @@ def haversine(a: np.ndarray | ArrayLike, b: np.ndarray | ArrayLike) -> np.ndarra
             N x 2 array
 
         """
-        arr = np.asarray(arr)
+        a = np.asarray(a)
 
-        if arr.ndim == 1:
-            arr = arr[np.newaxis, :]
+        if a.ndim == 1:
+            a = a[np.newaxis, :]
 
-        if arr.shape[1] != 2:
+        if a.shape[1] != 2:
             msg = "Array must have shape (N, 2)"
             raise ValueError(msg)
 
-        return arr
+        return a
 
     a = ensure_dimensions(a)
     b = ensure_dimensions(b)
@@ -143,7 +135,7 @@ def compute_bbox(
     """
     # set margins
     pos = np.asarray((x, y))
-    minxy, maxxy = pos.min(axis=1), pos.max(axis=1)
+    minxy, maxxy = np.nanmin(pos, axis=1), np.nanmax(pos, axis=1)
     xy1 = minxy - margin * (maxxy - minxy)
     xy2 = maxxy + margin * (maxxy - minxy)
     return tuple(xy1), tuple(xy2)

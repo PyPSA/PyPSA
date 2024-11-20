@@ -1,21 +1,16 @@
+# type: ignore #TODO: remove with #912
 """
 Functions for plotting networks.
 """
 
 from __future__ import annotations
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
 import logging
 import warnings
 from typing import TYPE_CHECKING
 
+import geopandas as gpd
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -23,6 +18,7 @@ import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
+from shapely import linestrings
 
 from pypsa.geo import (
     compute_bbox,
@@ -258,8 +254,10 @@ class NetworkPlotter:
         y_jittered : numpy.ndarray
             Y data with added jitter.
         """
-        self.x = self.x + np.random.uniform(low=-jitter, high=jitter, size=len(self.x))
-        self.y = self.y + np.random.uniform(low=-jitter, high=jitter, size=len(self.y))
+        rng = np.random.default_rng()  # Create a random number generator
+        if jitter is not None:
+            self.x = self.x + rng.uniform(low=-jitter, high=jitter, size=len(self.x))
+            self.y = self.y + rng.uniform(low=-jitter, high=jitter, size=len(self.y))
 
         return self.x, self.y
 
@@ -324,21 +322,27 @@ class NetworkPlotter:
             return self.n.pnl(component_name).p0.loc[flow]
 
         if isinstance(flow, str) or callable(flow):
-            return self.n.pnl(component_name).p0.agg(flow, axis=0)
+            return self.n.dynamic(component_name).p0.agg(flow, axis=0)
 
     def _get_branch_collection(self, c, df, geometry):
         if not geometry:
             segments = np.asarray(
                 (
-                    (c.df.bus0[df.index].map(self.x), c.df.bus0[df.index].map(self.y)),
-                    (c.df.bus1[df.index].map(self.x), c.df.bus1[df.index].map(self.y)),
+                    (
+                        c.static.bus0[df.index].map(self.x),
+                        c.static.bus0[df.index].map(self.y),
+                    ),
+                    (
+                        c.static.bus1[df.index].map(self.x),
+                        c.static.bus1[df.index].map(self.y),
+                    ),
                 )
             ).transpose(2, 0, 1)
         else:
             from shapely.geometry import LineString
             from shapely.wkt import loads
 
-            linestrings = c.df.geometry[lambda ds: ds != ""].map(loads)
+            linestrings = c.static.geometry[lambda ds: ds != ""].map(loads)
             if not all(isinstance(ls, LineString) for ls in linestrings):
                 msg = "The WKT-encoded geometry in the 'geometry' column must be "
                 "composed of LineStrings"
@@ -491,15 +495,15 @@ class NetworkPlotter:
 def plot(
     n,
     layouter: nx.drawing.layout = None,
-    boundaries: list | tuple = None,
+    boundaries: list | tuple | None = None,
     margin: float = 0.05,
     ax: plt.Axes = None,
     geomap: bool | str = True,
     projection: cartopy.crs.Projection = None,
-    geomap_colors: dict | bool = None,
+    geomap_colors: dict | bool | None = None,
     title: str = "",
-    jitter: float = None,
-    branch_components: list = None,
+    jitter: float | None = None,
+    branch_components: list | None = None,
     bus_sizes: float | dict | pd.Series = 2e-2,
     bus_split_circles: bool = False,
     bus_colors: str | dict | pd.Series = None,
@@ -871,7 +875,34 @@ class HandlerCircle(HandlerPatch):
         return [p]
 
 
-def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
+class WedgeHandler(HandlerPatch):
+    """
+    Legend Handler used to create sermi-circles for legend entries.
+
+    This handler resizes the semi-circles in order to match the same
+    dimensional scaling as in the applied axis.
+    """
+
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        fig = legend.get_figure()
+        ax = legend.axes
+        center = 5 - xdescent, 3 - ydescent
+        unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
+        r = orig_handle.r * (72 / fig.dpi) * unit
+        p = Wedge(
+            center=center,
+            r=r,
+            theta1=orig_handle.theta1,
+            theta2=orig_handle.theta2,
+        )
+        self.update_prop(p, orig_handle, legend)
+        p.set_transform(trans)
+        return [p]
+
+
+def add_legend_lines(ax, sizes, labels, colors=None, patch_kw=None, legend_kw=None):
     """
     Add a legend for lines and links.
 
@@ -891,7 +922,11 @@ def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
-    colors = np.atleast_1d(colors)
+    colors = [] if colors is None else np.atleast_1d(colors)
+    if patch_kw is None:
+        patch_kw = {}
+    if legend_kw is None:
+        legend_kw = {}
 
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
@@ -913,7 +948,7 @@ def add_legend_lines(ax, sizes, labels, colors=[], patch_kw={}, legend_kw={}):
     ax.get_figure().add_artist(legend)
 
 
-def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
+def add_legend_patches(ax, colors, labels, patch_kw=None, legend_kw=None):
     """
     Add patches for color references.
 
@@ -931,6 +966,10 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     """
     colors = np.atleast_1d(colors)
     labels = np.atleast_1d(labels)
+    if patch_kw is None:
+        patch_kw = {}
+    if legend_kw is None:
+        legend_kw = {}
 
     if len(colors) != len(labels):
         msg = "Colors and labels must have the same length."
@@ -943,7 +982,7 @@ def add_legend_patches(ax, colors, labels, patch_kw={}, legend_kw={}):
     ax.get_figure().add_artist(legend)
 
 
-def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=None):
     """
     Add a legend for reference circles.
 
@@ -961,6 +1000,10 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
+    if patch_kw is None:
+        patch_kw = {}
+    if legend_kw is None:
+        legend_kw = {}
 
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
@@ -977,6 +1020,182 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     )
 
     ax.get_figure().add_artist(legend)
+
+
+def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+    """
+    Add a legend for reference semi-circles.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the reference circle; for example [3, 2, 1]
+    labels : list-like, str
+        Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
+    patch_kw : defaults to {}
+        Keyword arguments passed to matplotlib.patches.Wedges
+    legend_kw : defaults to {}
+        Keyword arguments passed to ax.legend
+    """
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+
+    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+
+    if hasattr(ax, "projection"):
+        area_correction = get_projected_area_factor(ax, srid) ** 2
+        sizes = [s * area_correction for s in sizes]
+
+    radius = [np.sign(s) * np.abs(s) ** 0.5 for s in sizes]
+    handles = [
+        Wedge((0, -r / 2), r=r, theta1=0, theta2=180, **patch_kw) for r in radius
+    ]
+
+    legend = ax.legend(
+        handles, labels, handler_map={Wedge: WedgeHandler()}, **legend_kw
+    )
+
+    ax.get_figure().add_artist(legend)
+
+
+def _flow_ds_from_arg(flow, n, branch_components):
+    if isinstance(flow, pd.Series):
+        if not isinstance(flow.index, pd.MultiIndex):
+            raise ValueError(
+                "Argument 'flow' is a pandas.Series without "
+                "a MultiIndex. Please provide a multiindexed series, with "
+                "the first level being a subset of 'branch_components'."
+            )
+        return flow
+    if flow in n.snapshots:
+        return pd.concat(
+            {
+                c: n.dynamic(c).p0.loc[flow]
+                for c in branch_components
+                if not n.dynamic(c).p0.empty
+            },
+            sort=True,
+        )
+    if isinstance(flow, str) or callable(flow):
+        return pd.concat(
+            [n.dynamic(c).p0 for c in branch_components],
+            axis=1,
+            keys=branch_components,
+            sort=True,
+        ).agg(flow, axis=0)
+
+
+def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
+    """
+    Helper function to generate arrows from flow data.
+    """
+    # this funtion is used for diplaying arrows representing the network flow
+    data = pd.DataFrame(
+        {
+            "arrowsize": flow.abs().pipe(np.sqrt).clip(lower=1e-8),
+            "direction": np.sign(flow),
+            "linelength": (
+                np.sqrt((coords.x1 - coords.x2) ** 2.0 + (coords.y1 - coords.y2) ** 2)
+            ),
+        }
+    )
+    data = data.join(coords)
+    if area_factor:
+        data["arrowsize"] = data["arrowsize"].mul(area_factor)
+    data["arrowtolarge"] = 1.5 * data.arrowsize > data.linelength
+    # swap coords for negativ directions
+    data.loc[data.direction == -1.0, ["x1", "x2", "y1", "y2"]] = data.loc[
+        data.direction == -1.0, ["x2", "x1", "y2", "y1"]
+    ].values
+    if ((data.linelength > 0.0) & (~data.arrowtolarge)).any():
+        data["arrows"] = data[(data.linelength > 0.0) & (~data.arrowtolarge)].apply(
+            lambda ds: FancyArrow(
+                ds.x1,
+                ds.y1,
+                0.6 * (ds.x2 - ds.x1)
+                - ds.arrowsize * 0.75 * (ds.x2 - ds.x1) / ds.linelength,
+                0.6 * (ds.y2 - ds.y1)
+                - ds.arrowsize * 0.75 * (ds.y2 - ds.y1) / ds.linelength,
+                head_width=ds.arrowsize,
+            ),
+            axis=1,
+        )
+    data.loc[(data.linelength > 0.0) & (data.arrowtolarge), "arrows"] = data[
+        (data.linelength > 0.0) & (data.arrowtolarge)
+    ].apply(
+        lambda ds: FancyArrow(
+            ds.x1,
+            ds.y1,
+            0.001 * (ds.x2 - ds.x1),
+            0.001 * (ds.y2 - ds.y1),
+            head_width=ds.arrowsize,
+        ),
+        axis=1,
+    )
+    data = data.dropna(subset=["arrows"])
+    return PatchCollection(
+        data.arrows,
+        color=color,
+        alpha=alpha,
+        edgecolors="k",
+        linewidths=0.0,
+        zorder=4,
+    )
+
+
+def autogenerate_coordinates(n, assign=False, layouter=None):
+    """
+    Automatically generate bus coordinates for the network graph according to a
+    layouting function from `networkx <https://networkx.github.io/>`_.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    assign : bool, default False
+        Assign generated coordinates to the network bus coordinates
+        at ``n.buses[['x', 'y']]``.
+    layouter : networkx.drawing.layout function, default None
+        Layouting function from `networkx <https://networkx.github.io/>`_. See
+        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        of available options. By default coordinates are determined for a
+        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_
+        if the network graph is planar, otherwise for a
+        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_.
+
+    Returns
+    -------
+    coordinates : pd.DataFrame
+        DataFrame containing the generated coordinates with
+        buses as index and ['x', 'y'] as columns.
+
+    Examples
+    --------
+    >>> autogenerate_coordinates(n)
+    >>> autogenerate_coordinates(n, assign=True, layouter=nx.circle_layout)
+
+    """
+    G = n.graph()
+
+    if layouter is None:
+        if nx.check_planarity(G)[0]:
+            layouter = nx.planar_layout
+        else:
+            layouter = nx.kamada_kawai_layout
+
+    coordinates = pd.DataFrame(layouter(G)).T.rename({0: "x", 1: "y"}, axis=1)
+
+    if assign:
+        n.buses[["x", "y"]] = coordinates
+
+    return coordinates
+
+
+def _get_coordinates(n, layouter=None):
+    if layouter is not None or n.buses[["x", "y"]].isin([np.nan, 0]).all().all():
+        coordinates = autogenerate_coordinates(n, layouter=layouter)
+        return coordinates["x"], coordinates["y"]
+    return n.buses["x"], n.buses["y"]
 
 
 _token_required_mb_styles = [
@@ -1045,7 +1264,7 @@ def iplot(
     mapbox=False,
     mapbox_style="open-street-map",
     mapbox_token="",
-    mapbox_parameters={},
+    mapbox_parameters=None,
 ):
     """
     Plot the network buses and lines interactively using plotly.
@@ -1136,8 +1355,10 @@ def iplot(
 
     x, y = _get_coordinates(n, layouter=layouter)
 
+    rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
-        x, y = _add_jitter(x, y, jitter)
+        x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+        y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
     bus_trace = dict(
         x=x,
@@ -1202,14 +1423,14 @@ def iplot(
         b_text = branch_text[c.name]
 
         if b_text is None:
-            b_text = c.name + " " + c.df.index
+            b_text = c.name + " " + c.static.index
 
-        x0 = c.df.bus0.map(x)
-        x1 = c.df.bus1.map(x)
-        y0 = c.df.bus0.map(y)
-        y1 = c.df.bus1.map(y)
+        x0 = c.static.bus0.map(x)
+        x1 = c.static.bus1.map(x)
+        y0 = c.static.bus0.map(y)
+        y1 = c.static.bus1.map(y)
 
-        for b in c.df.index:
+        for b in c.static.index:
             shapes.append(
                 dict(
                     type="line",
@@ -1299,3 +1520,272 @@ def iplot(
             pltly.iplot(fig)
 
     return fig
+
+
+def explore(
+    n,
+    crs=None,
+    tooltip=True,
+    popup=True,
+    tiles="OpenStreetMap",
+    components=None,
+):
+    """
+    Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
+
+    This function generates a Folium map showing buses, lines, links, and transformers from the provided network object.
+
+    Parameters
+    ----------
+    n : PyPSA.Network object
+        containing components `buses`, `links`, `lines`, `transformers`, `generators`, `loads`, and `storage_units`.
+    crs : str, optional. If not specified, it will check whether `n.crs` exists and use it, else it will default to "EPSG:4326".
+        Coordinate Reference System for the GeoDataFrames.
+    tooltip : bool, optional, default=True
+        Whether to include tooltips (on hover) for the features.
+    popup : bool, optional, default=True
+        Whether to include popups (on click) for the features.
+    tiles : str, optional, default="OpenStreetMap"
+        The tileset to use for the map. Options include "OpenStreetMap", "CartoDB Positron", and "CartoDB dark_matter".
+    components : list-like, optional, default=None
+        The components to plot. Default includes "Bus", "Line", "Link", "Transformer".
+
+    Returns
+    -------
+    folium.Map
+        A Folium map object with the PyPSA.Network components plotted.
+    """
+    try:
+        import mapclassify  # noqa: F401
+        from folium import Element, LayerControl, Map, TileLayer
+    except ImportError:
+        logger.warning(
+            "folium and mapclassify need to be installed to use `n.explore()`."
+        )
+        return None
+
+    if n.crs and crs is None:
+        crs = n.crs
+    else:
+        crs = "EPSG:4326"
+
+    if components is None:
+        components = {"Bus", "Line", "Transformer", "Link"}
+
+    # Map related settings
+    bus_colors = mcolors.CSS4_COLORS["cadetblue"]
+    line_colors = mcolors.CSS4_COLORS["rosybrown"]
+    link_colors = mcolors.CSS4_COLORS["darkseagreen"]
+    transformer_colors = mcolors.CSS4_COLORS["orange"]
+    generator_colors = mcolors.CSS4_COLORS["purple"]
+    load_colors = mcolors.CSS4_COLORS["red"]
+    storage_unit_colors = mcolors.CSS4_COLORS["black"]
+
+    # Initialize the map
+    map = Map(tiles=None)
+
+    # Add map title
+    map_title = "PyPSA Network" + (f": {n.name}" if n.name else "")
+    map.get_root().html.add_child(
+        Element(
+            f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>"
+        )
+    )
+
+    # Add tile layer legend entries
+    TileLayer(tiles, name=tiles).add_to(map)
+
+    components_possible = [
+        "Bus",
+        "Line",
+        "Link",
+        "Transformer",
+        "Generator",
+        "Load",
+        "StorageUnit",
+    ]
+    components_present = []
+
+    if not n.transformers.empty and "Transformer" in components:
+        x1 = n.transformers.bus0.map(n.buses.x)
+        y1 = n.transformers.bus0.map(n.buses.y)
+        x2 = n.transformers.bus1.map(n.buses.x)
+        y2 = n.transformers.bus1.map(n.buses.y)
+        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
+
+        if num_invalid := sum(~valid_rows):
+            logger.info(
+                f"Omitting {num_invalid} transformers due to missing coordinates"
+            )
+
+        gdf_transformers = gpd.GeoDataFrame(
+            n.transformers[valid_rows],
+            geometry=linestrings(
+                np.stack(
+                    [
+                        (x1[valid_rows], y1[valid_rows]),
+                        (x2[valid_rows], y2[valid_rows]),
+                    ],
+                    axis=1,
+                ).T
+            ),
+            crs=crs,
+        )
+
+        gdf_transformers[gdf_transformers.is_valid].explore(
+            m=map,
+            color=transformer_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Transformers",
+        )
+        components_present.append("Transformer")
+
+    if not n.lines.empty and "Line" in components:
+        x1 = n.lines.bus0.map(n.buses.x)
+        y1 = n.lines.bus0.map(n.buses.y)
+        x2 = n.lines.bus1.map(n.buses.x)
+        y2 = n.lines.bus1.map(n.buses.y)
+        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
+
+        if num_invalid := sum(~valid_rows):
+            logger.info(f"Omitting {num_invalid} lines due to missing coordinates.")
+
+        gdf_lines = gpd.GeoDataFrame(
+            n.lines[valid_rows],
+            geometry=linestrings(
+                np.stack(
+                    [
+                        (x1[valid_rows], y1[valid_rows]),
+                        (x2[valid_rows], y2[valid_rows]),
+                    ],
+                    axis=1,
+                ).T
+            ),
+            crs=crs,
+        )
+
+        gdf_lines[gdf_lines.is_valid].explore(
+            m=map, color=line_colors, tooltip=tooltip, popup=popup, name="Lines"
+        )
+        components_present.append("Line")
+
+    if not n.links.empty and "Link" in components:
+        x1 = n.links.bus0.map(n.buses.x)
+        y1 = n.links.bus0.map(n.buses.y)
+        x2 = n.links.bus1.map(n.buses.x)
+        y2 = n.links.bus1.map(n.buses.y)
+        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
+
+        if num_invalid := sum(~valid_rows):
+            logger.info(f"Omitting {num_invalid} links due to missing coordinates.")
+
+        gdf_links = gpd.GeoDataFrame(
+            n.links[valid_rows],
+            geometry=linestrings(
+                np.stack(
+                    [
+                        (x1[valid_rows], y1[valid_rows]),
+                        (x2[valid_rows], y2[valid_rows]),
+                    ],
+                    axis=1,
+                ).T
+            ),
+            crs="EPSG:4326",
+        )
+
+        gdf_links[gdf_links.is_valid].explore(
+            m=map, color=link_colors, tooltip=tooltip, popup=popup, name="Links"
+        )
+        components_present.append("Link")
+
+    if not n.buses.empty and "Bus" in components:
+        gdf_buses = gpd.GeoDataFrame(
+            n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
+        )
+
+        gdf_buses[gdf_buses.is_valid].explore(
+            m=map,
+            color=bus_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Buses",
+            marker_kwds={"radius": 4},
+        )
+        components_present.append("Bus")
+
+    if not n.generators.empty and "Generator" in components:
+        gdf_generators = gpd.GeoDataFrame(
+            n.generators,
+            geometry=gpd.points_from_xy(
+                n.generators.bus.map(n.buses.x), n.generators.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
+        gdf_generators[gdf_generators.is_valid].explore(
+            m=map,
+            color=generator_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Generators",
+            marker_kwds={"radius": 2.5},
+        )
+        components_present.append("Generator")
+
+    if not n.loads.empty and "Load" in components:
+        loads = n.loads.copy()
+        loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
+        gdf_loads = gpd.GeoDataFrame(
+            loads,
+            geometry=gpd.points_from_xy(
+                loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
+        gdf_loads[gdf_loads.is_valid].explore(
+            m=map,
+            color=load_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Loads",
+            marker_kwds={"radius": 1.5},
+        )
+        components_present.append("Load")
+
+    if not n.storage_units.empty and "StorageUnit" in components:
+        gdf_storage_units = gpd.GeoDataFrame(
+            n.storage_units,
+            geometry=gpd.points_from_xy(
+                n.storage_units.bus.map(n.buses.x), n.storage_units.bus.map(n.buses.y)
+            ),
+            crs=crs,
+        )
+
+        gdf_storage_units[gdf_storage_units.is_valid].explore(
+            m=map,
+            color=storage_unit_colors,
+            tooltip=tooltip,
+            popup=popup,
+            name="Storage Units",
+            marker_kwds={"radius": 1},
+        )
+        components_present.append("StorageUnit")
+
+    if len(components_present) > 0:
+        logger.info(
+            f"Components rendered on the map: {', '.join(sorted(components_present))}."
+        )
+    if len(set(components) - set(components_present)) > 0:
+        logger.info(
+            f"Components omitted as they are missing or not selected: {', '.join(sorted(set(components_possible) - set(components_present)))}."
+        )
+
+    # Set the default view to the bounds of the elements in the map
+    map.fit_bounds(map.get_bounds())
+
+    # Add a Layer Control to toggle layers on and off
+    LayerControl().add_to(map)
+
+    return map

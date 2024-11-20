@@ -3,15 +3,22 @@
 Define optimisation variables from PyPSA networks with Linopy.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
+if TYPE_CHECKING:
+    from pypsa import Network
+
 logger = logging.getLogger(__name__)
 
 
-def define_operational_variables(n, sns, c, attr):
+def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -> None:
     """
     Initializes variables for power dispatch for a given component and a given
     attribute.
@@ -24,21 +31,21 @@ def define_operational_variables(n, sns, c, attr):
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if n.df(c).empty:
+    if n.static(c).empty:
         return
 
-    active = get_activity_mask(n, c, sns) if n._multi_invest else None
-    coords = [sns, n.df(c).index.rename(c)]
+    active = get_activity_mask(n, c, sns)
+    coords = [sns, n.static(c).index.rename(c)]
     n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
 
 
-def define_status_variables(n, sns, c):
+def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
         return
 
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
@@ -47,13 +54,13 @@ def define_status_variables(n, sns, c):
     )
 
 
-def define_start_up_variables(n, sns, c):
+def define_start_up_variables(n: Network, sns: Sequence, c: str) -> None:
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
         return
 
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
@@ -62,13 +69,13 @@ def define_start_up_variables(n, sns, c):
     )
 
 
-def define_shut_down_variables(n, sns, c):
+def define_shut_down_variables(n: Network, sns: Sequence, c: str) -> None:
     com_i = n.get_committable_i(c)
 
     if com_i.empty:
         return
 
-    active = get_activity_mask(n, c, sns, com_i) if n._multi_invest else None
+    active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
@@ -77,7 +84,7 @@ def define_shut_down_variables(n, sns, c):
     )
 
 
-def define_nominal_variables(n, c, attr):
+def define_nominal_variables(n: Network, c: str, attr: str) -> None:
     """
     Initializes variables for nominal capacities for a given component and a
     given attribute.
@@ -97,7 +104,7 @@ def define_nominal_variables(n, c, attr):
     n.model.add_variables(coords=[ext_i], name=f"{c}-{attr}")
 
 
-def define_modular_variables(n, c, attr):
+def define_modular_variables(n: Network, c: str, attr: str) -> None:
     """
     Initializes variables 'attr' for a given component c to allow a modular
     expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
@@ -111,7 +118,7 @@ def define_modular_variables(n, c, attr):
     attr : str
         name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
     """
-    mod_i = n.df(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+    mod_i = n.static(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
     mod_i = mod_i.rename(f"{c}-ext")
 
     if (mod_i).empty:
@@ -120,12 +127,12 @@ def define_modular_variables(n, c, attr):
     n.model.add_variables(lower=0, coords=[mod_i], name=f"{c}-n_mod", integer=True)
 
 
-def define_spillage_variables(n, sns):
+def define_spillage_variables(n: Network, sns: Sequence) -> None:
     """
     Defines the spillage variables for storage units.
     """
     c = "StorageUnit"
-    if n.df(c).empty:
+    if n.static(c).empty:
         return
 
     upper = get_as_dense(n, c, "inflow", sns)
@@ -136,13 +143,13 @@ def define_spillage_variables(n, sns):
     n.model.add_variables(0, upper, name="StorageUnit-spill", mask=active)
 
 
-def define_loss_variables(n, sns, c):
+def define_loss_variables(n: Network, sns: Sequence, c: str) -> None:
     """
     Initializes variables for transmission losses.
     """
-    if n.df(c).empty or c not in n.passive_branch_components:
+    if n.static(c).empty or c not in n.passive_branch_components:
         return
 
-    active = get_activity_mask(n, c, sns) if n._multi_invest else None
-    coords = [sns, n.df(c).index.rename(c)]
+    active = get_activity_mask(n, c, sns)
+    coords = [sns, n.static(c).index.rename(c)]
     n.model.add_variables(0, coords=coords, name=f"{c}-loss", mask=active)

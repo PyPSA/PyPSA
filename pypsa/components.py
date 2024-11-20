@@ -1,31 +1,30 @@
 """Power system components."""
 
-from weakref import ref
+from __future__ import annotations
 
-from pypsa.clustering import ClusteringAccessor
-
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
-
+import copy
 import logging
 import os
-from collections import namedtuple
-from pathlib import Path
-from typing import Union
+import warnings
+from collections.abc import Collection, Iterator, Sequence
+from typing import TYPE_CHECKING, Any
+from weakref import ref
+
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
 import validators
+from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
+from pypsa.clustering import ClusteringAccessor
 from pypsa.consistency import (
     check_assets,
     check_dtypes_,
@@ -43,17 +42,19 @@ from pypsa.consistency import (
     check_time_series_power_attributes,
 )
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
+from pypsa.definitions.components import Component
+from pypsa.definitions.structures import Dict
 from pypsa.descriptors import (
-    Dict,
     get_active_assets,
     get_committable_i,
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
-    update_linkports_component_attrs,
 )
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
+    _import_components_from_df,
+    _import_series_from_df,
     export_to_csv_folder,
     export_to_hdf5,
     export_to_netcdf,
@@ -80,10 +81,17 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import iplot, plot
+from pypsa.plot import explore, iplot, plot  # type: ignore
 from pypsa.statistics import StatisticsAccessor
+from pypsa.types import is_1d_list_like
+from pypsa.utils import as_index, deprecated_common_kwargs
+
+if TYPE_CHECKING:
+    import linopy
+    from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 dir_name = os.path.dirname(__file__)
@@ -110,36 +118,7 @@ for component in components.index:
 del component
 
 
-class Basic:
-    """Common to every object."""
-
-    name = ""
-
-    def __init__(self, name=""):
-        self.name = name
-
-    def __repr__(self):
-        return f"{self.__class__.__name__} {self.name}"
-
-
-class Common(Basic):
-    """Common to all objects inside Network object."""
-
-    network = None
-
-    def __init__(self, network, name=""):
-        Basic.__init__(self, name)
-        self._network = ref(network)
-
-    @property
-    def network(self):
-        return self._network()
-
-
-Component = namedtuple("Component", ["name", "list_name", "attrs", "df", "pnl", "ind"])
-
-
-class Network(Basic):
+class Network:
     """
     Network container for all buses, one-ports and branches.
 
@@ -147,7 +126,8 @@ class Network(Basic):
     ----------
     import_name : string, Path
         Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
-        import network data. The string could be a URL.
+        import network data. The string could be a URL. If cloudpathlib is installed,
+        the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
     name : string, default ""
         Network name.
     ignore_standard_types : boolean, default False
@@ -160,7 +140,7 @@ class Network(Basic):
         pypsa.components.components. See git repository examples/new_components/.
     override_component_attrs : pypsa.descriptors.Dict of pandas.DataFrame
         If you want to override pypsa.component_attrs, follow its format.
-        See git repository examples/new_components/.
+        See :doc:`/user-guide/components` for more information.
     kwargs
         Any remaining attributes to set
 
@@ -173,96 +153,143 @@ class Network(Basic):
     >>> nw1 = pypsa.Network("my_store.h5")
     >>> nw2 = pypsa.Network("/my/folder")
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
+    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc")
 
     """
 
-    _crs = CRS.from_epsg(4326)
+    # Type hints
+    # ----------------
 
-    # methods imported from other sub-modules
+    # Core attributes
+    name: str
+    snapshots: pd.Index | pd.MultiIndex
+    components: Dict
+    component_attrs: Dict
+    sub_networks: pd.DataFrame
+
+    # Component sets
+    all_components: set[str]
+    branch_components: set[str]
+    passive_branch_components: set[str]
+    passive_one_port_components: set[str]
+    standard_type_components: set[str]
+    controllable_branch_components: set[str]
+    controllable_one_port_components: set[str]
+    one_port_components: set[str]
+
+    # Components
+    buses: pd.DataFrame
+    carriers: pd.DataFrame
+    global_constraints: pd.DataFrame
+    lines: pd.DataFrame
+    line_types: pd.DataFrame
+    transformers: pd.DataFrame
+    transformer_types: pd.DataFrame
+    links: pd.DataFrame
+    loads: pd.DataFrame
+    generators: pd.DataFrame
+    storage_units: pd.DataFrame
+    stores: pd.DataFrame
+    shunt_impedances: pd.DataFrame
+    shapes: pd.DataFrame
+
+    # Components (time-dependent data)
+    buses_t: Dict
+    generators_t: Dict
+    loads_t: Dict
+    lines_t: Dict
+    links_t: Dict
+    transformers_t: Dict
+    storage_units_t: Dict
+    stores_t: Dict
+
+    # Optimization
+    model: linopy.Model
+    _multi_invest: int
+    _linearized_uc: int
+    objective: float
+    objective_constant: float
+    iteration: int
+
+    # Geospatial
+    _crs = CRS.from_epsg("4326")
+
+    # Methods
+    # -------
+
+    # from pypsa.io
     import_from_csv_folder = import_from_csv_folder
-
     export_to_csv_folder = export_to_csv_folder
-
     import_from_hdf5 = import_from_hdf5
-
     export_to_hdf5 = export_to_hdf5
-
     import_from_netcdf = import_from_netcdf
-
     export_to_netcdf = export_to_netcdf
-
     import_from_pypower_ppc = import_from_pypower_ppc
-
     import_from_pandapower_net = import_from_pandapower_net
-
-    import_components_from_dataframe = import_components_from_dataframe
-
     merge = merge
+    import_components_from_dataframe = import_components_from_dataframe  # Deprecated
+    _import_series_from_df = _import_series_from_df
+    import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
-    import_series_from_dataframe = import_series_from_dataframe
-
+    # from pypsa.pf
+    calculate_dependent_values = calculate_dependent_values
     lpf = network_lpf
-
     pf = network_pf
 
+    # from pypsa.plot
     plot = plot
-
     iplot = iplot
+    explore = explore
 
-    calculate_dependent_values = calculate_dependent_values
-
+    # from pypsa.contingency
     lpf_contingency = network_lpf_contingency
 
+    # from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
-    get_switchable_as_dense = get_switchable_as_dense
-
-    get_extendable_i = get_extendable_i
-
-    get_non_extendable_i = get_non_extendable_i
-
+    # from pypsa.descriptors
     get_committable_i = get_committable_i
-
+    get_extendable_i = get_extendable_i
+    get_switchable_as_dense = get_switchable_as_dense
+    get_non_extendable_i = get_non_extendable_i
     get_active_assets = get_active_assets
 
     def __init__(
         self,
-        import_name=None,
-        name="",
-        ignore_standard_types=False,
-        override_components=None,
-        override_component_attrs=None,
-        **kwargs,
+        import_name: str | Path = "",
+        name: str = "",
+        ignore_standard_types: bool = False,
+        override_components: pd.DataFrame | None = None,
+        override_component_attrs: Dict | None = None,
+        **kwargs: Any,
     ):
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
         from pypsa import release_version as pypsa_version
 
-        Basic.__init__(self, name)
+        self.name: str = name
 
         # this will be saved on export
-        self.pypsa_version = pypsa_version
+        self.pypsa_version: str = pypsa_version
 
-        self._meta = {}
+        self._meta: dict = {}
 
         self._snapshots = pd.Index(["now"])
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
 
-        self._investment_periods = pd.Index([])
+        self._investment_periods: pd.Index = pd.Index([])
 
         cols = ["objective", "years"]
-        self._investment_period_weightings = pd.DataFrame(columns=cols)
+        self._investment_period_weightings: pd.DataFrame = pd.DataFrame(columns=cols)
 
-        self.optimize = OptimizationAccessor(self)
+        self.optimize: OptimizationAccessor = OptimizationAccessor(self)
 
-        self.cluster = ClusteringAccessor(self)
+        self.cluster: ClusteringAccessor = ClusteringAccessor(self)
 
         if override_components is None:
             self.components = components
@@ -294,7 +321,7 @@ class Network(Basic):
 
         self.components = Dict(self.components.T.to_dict())
 
-        self.statistics = StatisticsAccessor(self)
+        self.statistics: StatisticsAccessor = StatisticsAccessor(self)
 
         for component in self.components:
             # make copies to prevent unexpected sharing of variables
@@ -330,7 +357,7 @@ class Network(Basic):
 
             # exclude Network because it's not in a DF and has non-typical attributes
             if component != "Network":
-                str_b = attrs.typ == str
+                str_b = attrs.typ.apply(lambda x: x is str)
                 attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
                 for typ in (str, float, int):
                     typ_b = attrs.typ == typ
@@ -341,7 +368,7 @@ class Network(Basic):
             self.component_attrs[component] = attrs
             self.components[component]["attrs"] = attrs
 
-        self._build_dataframes()
+        self._build_dfs()
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -353,7 +380,7 @@ class Network(Basic):
                 self.import_from_hdf5(import_name)
             elif str(import_name).endswith(".nc"):
                 self.import_from_netcdf(import_name)
-            elif import_name.is_dir():
+            elif isinstance(import_name, Path) and import_name.is_dir():
                 self.import_from_csv_folder(import_name)
             else:
                 raise ValueError(
@@ -363,12 +390,12 @@ class Network(Basic):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
         comps = {
-            c.name: f" - {c.name}: {len(c.df)}"
+            c.name: f" - {c.name}: {len(c.static)}"
             for c in self.iterate_components()
-            if "Type" not in c.name and len(c.df)
+            if "Type" not in c.name and len(c.static)
         }
         content = "\nComponents:"
         if comps:
@@ -381,11 +408,62 @@ class Network(Basic):
 
         return header + content
 
-    def __add__(self, other):
+    # def __getattr__(self, name: str) -> Any:
+    #     return self[name]
+
+    def __add__(self, other: Network) -> None:
         """Merge all components of two networks."""
         self.merge(other)
 
-    def _build_dataframes(self):
+    def __eq__(self, other: Any) -> bool:
+        """Check for equality of two networks."""
+
+        def equals(a: Any, b: Any) -> bool:
+            assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
+            # Classes with equality methods
+            if isinstance(a, np.ndarray):
+                if not np.array_equal(a, b):
+                    return False
+            elif isinstance(a, (pd.DataFrame, pd.Series, pd.Index)):
+                if not a.equals(b):
+                    return False
+            # Iterators
+            elif isinstance(a, (dict, Dict)):
+                for k, v in a.items():
+                    if not equals(v, b[k]):
+                        return False
+            elif isinstance(a, (list, tuple)):
+                for i, v in enumerate(a):
+                    if not equals(v, b[i]):
+                        return False
+            # Ignore for now
+            elif isinstance(
+                value, (OptimizationAccessor, ClusteringAccessor, StatisticsAccessor)
+            ):
+                pass
+            # Nans
+            elif pd.isna(a) and pd.isna(b):
+                pass
+            else:
+                if a != b:
+                    return False
+
+            return True
+
+        if isinstance(other, self.__class__):
+            for key, value in self.__dict__.items():
+                if not equals(value, other.__dict__[key]):
+                    return False
+        else:
+            logger.warning(
+                "Can only compare two pypsa.Network objects with each other. Got %s.",
+                type(other),
+            )
+
+            return False
+        return True
+
+    def _build_dfs(self) -> None:
         """
         Function called when network is created to build component
         pandas.DataFrames.
@@ -412,16 +490,16 @@ class Network(Basic):
 
             # it's currently hard to imagine non-float series,
             # but this could be generalised
-            pnl = Dict()
+            dynamic = Dict()
             for k in attrs.index[attrs.varying]:
                 df = pd.DataFrame(index=self.snapshots, columns=[], dtype=float)
                 df.index.name = "snapshot"
                 df.columns.name = component
-                pnl[k] = df
+                dynamic[k] = df
 
-            setattr(self, self.components[component]["list_name"] + "_t", pnl)
+            setattr(self, self.components[component]["list_name"] + "_t", dynamic)
 
-    def read_in_default_standard_types(self):
+    def read_in_default_standard_types(self) -> None:
         for std_type in self.standard_type_components:
             list_name = self.components[std_type]["list_name"]
 
@@ -432,15 +510,37 @@ class Network(Basic):
             self.components[std_type]["standard_types"] = pd.read_csv(
                 file_name, index_col=0
             )
-
-            self.import_components_from_dataframe(
-                self.components[std_type]["standard_types"], std_type
+            self.add(
+                std_type,
+                self.components[std_type]["standard_types"].index,
+                **self.components[std_type]["standard_types"],
             )
 
-    def df(self, component_name):
+    # Deprecate not yet
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `n.static` instead.",
+    # )
+    def df(self, component_name: str) -> pd.DataFrame:
+        """
+        Alias for :py:meth:`pypsa.Network.static`.
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        pandas.DataFrame
+
+        """
+        return self.static(component_name)
+
+    def static(self, component_name: str) -> pd.DataFrame:
         """
         Return the DataFrame of static components for component_name, i.e.
-        network.component_names.
+        n.component_names.
 
         Parameters
         ----------
@@ -453,10 +553,31 @@ class Network(Basic):
         """
         return getattr(self, self.components[component_name]["list_name"])
 
-    def pnl(self, component_name):
+    # Deprecate not yet
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `n.dynamic` instead.",
+    # )
+    def pnl(self, component_name: str) -> Dict:
+        """
+        Alias for :py:meth:`pypsa.Network.dynamic`.
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        dict of pandas.DataFrame
+
+        """
+        return self.dynamic(component_name)
+
+    def dynamic(self, component_name: str) -> Dict:
         """
         Return the dictionary of DataFrames of varying components for
-        component_name, i.e. network.component_names_t.
+        component_name, i.e. n.component_names_t.
 
         Parameters
         ----------
@@ -470,31 +591,31 @@ class Network(Basic):
         return getattr(self, self.components[component_name]["list_name"] + "_t")
 
     @property
-    def meta(self):
+    def meta(self) -> dict:
         """Dictionary of the network meta data."""
         return self._meta
 
     @meta.setter
-    def meta(self, new):
+    def meta(self, new: dict) -> None:
         if not isinstance(new, (dict, Dict)):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
     @property
-    def crs(self):
+    def crs(self) -> Any:
         """Coordinate reference system of the network's geometries (n.shapes)."""
         return self._crs
 
     @crs.setter
-    def crs(self, new):
+    def crs(self, new: Any) -> None:
         """
         Set the coordinate reference system of the network's geometries
         (n.shapes).
         """
-        self.shapes.crs = new
+        self.shapes.set_crs(new)
         self._crs = self.shapes.crs
 
-    def to_crs(self, new):
+    def to_crs(self, new: int | str | pyproj.CRS) -> None:
         """
         Convert the network's geometries and bus coordinates to a new
         coordinate reference system.
@@ -508,7 +629,7 @@ class Network(Basic):
         )
 
     @property
-    def srid(self):
+    def srid(self) -> int:
         """
         Spatial reference system identifier of the network's geometries
         (n.shapes).
@@ -516,7 +637,7 @@ class Network(Basic):
         return self.crs.to_epsg()
 
     @srid.setter
-    def srid(self, new):
+    def srid(self, new: str | int) -> None:
         """
         Set the spatial reference system identifier of the network's geometries
         (n.shapes).
@@ -525,22 +646,24 @@ class Network(Basic):
 
     def set_snapshots(
         self,
-        snapshots: Union[list, pd.Index, pd.MultiIndex, pd.DatetimeIndex],
+        snapshots: Sequence,
         default_snapshot_weightings: float = 1.0,
         weightings_from_timedelta: bool = False,
     ) -> None:
         """
         Set the snapshots/time steps and reindex all time-dependent data.
 
-        Snapshot weightings, typically representing the hourly length of each snapshot, is filled with the `default_snapshot_weighintgs` value,
-        or uses the timedelta of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are of type `pd.DatetimeIndex`.
+        Snapshot weightings, typically representing the hourly length of each snapshot,
+        is filled with the `default_snapshot_weighintgs` value, or uses the timedelta
+        of the snapshots if `weightings_from_timedelta` flag is True, and snapshots are
+        of type `pd.DatetimeIndex`.
 
-        This will reindex all components time-dependent DataFrames (:role:`Network.pnl`); NaNs are filled
-        with the default value for that quantity.
+        This will reindex all components time-dependent DataFrames
+        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for that quantity.
 
         Parameters
         ----------
-        snapshots : list, pandas.Index, pd.MultiIndex or pd.DatetimeIndex
+        snapshots : list, pandas.Index or pd.MultiIndex
             All time steps.
         default_snapshot_weightings: float
             The default weight for each snapshot. Defaults to 1.0.
@@ -552,15 +675,27 @@ class Network(Basic):
         None
 
         """
+        # Check if snapshots contain timezones
+        if isinstance(snapshots, pd.DatetimeIndex) and snapshots.tz is not None:
+            msg = (
+                "Numpy datetime64[ns] objects with timezones are not supported and are "
+                "thus not allowed in snapshots. Please pass timezone-naive timestamps "
+                "(e.g. via ds.values)."
+            )
+            raise ValueError(msg)
+
         if isinstance(snapshots, pd.MultiIndex):
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
-            snapshots = snapshots.rename(["period", "timestep"])
-            snapshots.name = "snapshot"
-            self._snapshots = snapshots
+            sns = snapshots.rename(["period", "timestep"])
+            sns.name = "snapshot"
+            self._snapshots = sns
         else:
             self._snapshots = pd.Index(snapshots, name="snapshot")
+
+        if len(self._snapshots) == 0:
+            raise ValueError("Snapshots must not be empty.")
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
             self._snapshots, fill_value=default_snapshot_weightings
@@ -583,23 +718,27 @@ class Network(Basic):
             )
 
         for component in self.all_components:
-            pnl = self.pnl(component)
+            dynamic = self.dynamic(component)
             attrs = self.components[component]["attrs"]
 
-            for k, default in attrs.default[attrs.varying].items():
-                if pnl[k].empty:  # avoid expensive reindex operation
-                    pnl[k].index = self._snapshots
+            for k in dynamic.keys():
+                if dynamic[k].empty:  # avoid expensive reindex operation
+                    dynamic[k].index = self._snapshots
+                elif k in attrs.default[attrs.varying]:
+                    dynamic[k] = dynamic[k].reindex(
+                        self._snapshots, fill_value=attrs.default[attrs.varying][k]
+                    )
                 else:
-                    pnl[k] = pnl[k].reindex(self._snapshots, fill_value=default)
+                    dynamic[k] = dynamic[k].reindex(self._snapshots)
 
-        # NB: No need to rebind pnl to self, since haven't changed it
+        # NB: No need to rebind dynamic to self, since haven't changed it
 
     snapshots = property(
         lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
     )
 
     @property
-    def snapshot_weightings(self):
+    def snapshot_weightings(self) -> pd.DataFrame:
         """
         Weightings applied to each snapshots during the optimization (LOPF).
 
@@ -616,7 +755,7 @@ class Network(Basic):
         return self._snapshot_weightings
 
     @snapshot_weightings.setter
-    def snapshot_weightings(self, df):
+    def snapshot_weightings(self, df: pd.DataFrame) -> None:
         assert df.index.equals(
             self.snapshots
         ), "Weightings not defined for all snapshots."
@@ -625,7 +764,7 @@ class Network(Basic):
             df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
         self._snapshot_weightings = df
 
-    def set_investment_periods(self, periods):
+    def set_investment_periods(self, periods: Sequence) -> None:
         """
         Set the investment periods of the network.
 
@@ -646,22 +785,22 @@ class Network(Basic):
         None.
 
         """
-        periods = pd.Index(periods)
+        periods_ = pd.Index(periods)
         if not (
-            pd.api.types.is_integer_dtype(periods)
-            and periods.is_unique
-            and periods.is_monotonic_increasing
+            pd.api.types.is_integer_dtype(periods_)
+            and periods_.is_unique
+            and periods_.is_monotonic_increasing
         ):
             raise ValueError(
                 "Investment periods are not strictly increasing integers, "
                 "which is required for multi-period investment optimisation."
             )
         if isinstance(self.snapshots, pd.MultiIndex):
-            if not periods.isin(self.snapshots.unique("period")).all():
+            if not periods_.isin(self.snapshots.unique("period")).all():
                 raise ValueError(
                     "Not all investment periods are in level `period` " "of snapshots."
                 )
-            if len(periods) < len(self.snapshots.unique(level="period")):
+            if len(periods_) < len(self.snapshots.unique(level="period")):
                 raise NotImplementedError(
                     "Investment periods do not equal first level "
                     "values of snapshots."
@@ -674,25 +813,26 @@ class Network(Basic):
             )
             names = ["period", "timestep"]
             for component in self.all_components:
-                pnl = self.pnl(component)
-                attrs = self.components[component]["attrs"]
+                dynamic = self.dynamic(component)
 
-                for k, default in attrs.default[attrs.varying].items():
-                    pnl[k] = pd.concat({p: pnl[k] for p in periods}, names=names)
-                    pnl[k].index.name = "snapshot"
+                for k in dynamic.keys():
+                    dynamic[k] = pd.concat(
+                        {p: dynamic[k] for p in periods_}, names=names
+                    )
+                    dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
-                [periods, self.snapshots], names=names
+                [periods_, self.snapshots], names=names
             )
             self._snapshots.name = "snapshot"
             self._snapshot_weightings = pd.concat(
-                {p: self.snapshot_weightings for p in periods}, names=names
+                {p: self.snapshot_weightings for p in periods_}, names=names
             )
             self._snapshot_weightings.index.name = "snapshot"
 
-        self._investment_periods = periods
+        self._investment_periods = periods_
         self.investment_period_weightings = self.investment_period_weightings.reindex(
-            periods, fill_value=1.0
+            periods_, fill_value=1.0
         ).astype(float)
 
     investment_periods = property(
@@ -702,7 +842,7 @@ class Network(Basic):
     )
 
     @property
-    def investment_period_weightings(self):
+    def investment_period_weightings(self) -> pd.DataFrame:
         """
         Weightings applied to each investment period during the optimization
         (LOPF).
@@ -717,7 +857,7 @@ class Network(Basic):
         return self._investment_period_weightings
 
     @investment_period_weightings.setter
-    def investment_period_weightings(self, df):
+    def investment_period_weightings(self, df: pd.DataFrame) -> None:
         assert df.index.equals(
             self.investment_periods
         ), "Weightings not defined for all investment periods."
@@ -730,138 +870,286 @@ class Network(Basic):
             )
         self._investment_period_weightings = df
 
-    def add(self, class_name, name, **kwargs):
+    def add(
+        self,
+        class_name: str,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
         """
-        Add a single component to the network.
+        Add components to the network.
 
-        Adds it to component DataFrame.
+        Handles addition of single and multiple components along with their attributes.
+        Pass a list of names to add multiple components at once or pass a single name
+        to add a single component.
+
+        When a single component is added, all non-scalar attributes are assumed to be
+        time-varying and indexed by snapshots.
+        When multiple components are added, all non-scalar attributes are assumed to be
+        static and indexed by names. A single value sequence is treated as scalar and
+        broadcasted to all components. It is recommended to explicitly pass a scalar
+        instead.
+        If you want to add time-varying attributes to multiple components, you can pass
+        a 2D array/ DataFrame where the first dimension is snapshots and the second
+        dimension is names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
-
-        This method is slow for many components; instead use ``madd`` or
-        ``import_components_from_dataframe`` (see below).
+        value from :doc:`/user-guide/components`.
 
         Parameters
         ----------
-        class_name : string
+        class_name : str
             Component class name in ("Bus", "Generator", "Load", "StorageUnit",
             "Store", "ShuntImpedance", "Line", "Transformer", "Link").
-        name : string
-            Component name
-        kwargs
-            Component attributes, e.g. x=0.1, length=123
+        name : str or int or list of str or list of int
+            Component name(s)
+        suffix : str, default ""
+            All components are named after name with this added suffix.
+        overwrite : bool, default False
+            If True, existing components with the same names as in `name` will be
+            overwritten. Otherwise only new components will be added and others will be
+            ignored.
+        kwargs : Any
+            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
+            of pandas.DataFrame for time-varying
+
+        Returns
+        -------
+        new_names : pandas.index
+            Names of new components (including suffix)
 
         Examples
         --------
-        >>> network.add("Bus", "my_bus_0")
-        >>> network.add("Bus", "my_bus_1", v_nom=380)
-        >>> network.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+        Add a single component:
+
+        >>> n.add("Bus", "my_bus_0")
+        >>> n.add("Bus", "my_bus_1", v_nom=380)
+        >>> n.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+
+        Add multiple components with static attributes:
+
+        >>> n.add("Load", ["load 1", "load 2"],
+        ...       bus=["1", "2"],
+        ...       p_set=np.random.rand(len(n.snapshots), 2))
+
+        Add multiple components with time-varying attributes:
+
+        >>> import pandas as pd, numpy as np
+        >>> buses = range(13)
+        >>> snapshots = range(7)
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(snapshots)
+        >>> n.add("Bus", buses)
+        >>> # add load as numpy array
+        >>> n.add("Load",
+        ...       n.buses.index + " load",
+        ...       bus=buses,
+        ...       p_set=np.random.rand(len(snapshots), len(buses)))
+        >>> # add wind availability as pandas DataFrame
+        >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
+        ...        index=n.snapshots,
+        ...        columns=buses)
+        >>> #use a suffix to avoid boilerplate to rename everything
+        >>> n.add("Generator",
+        ...       buses,
+        ...       suffix=' wind',
+        ...       bus=buses,
+        ...       p_nom_extendable=True,
+        ...       capital_cost=1e5,
+        ...       p_max_pu=wind)
 
         """
         if class_name not in self.components:
-            msg = f"Component class {class_name} not found"
+            msg = f"Component class {class_name} not found."
             raise ValueError(msg)
+        # Process name/names to pandas.Index of strings and add suffix
+        single_component = np.isscalar(name)
+        names = pd.Index([name]) if single_component else pd.Index(name)
+        names = names.astype(str) + suffix
 
-        cls_df = self.df(class_name)
-        cls_pnl = self.pnl(class_name)
+        names_str = "name" if single_component else "names"
+        # Read kwargs into static and time-varying attributes
+        series = {}
+        static = {}
 
-        name = str(name)
-
-        if name in cls_df.index:
-            msg = (
-                f"Failed to add {class_name} component {name} because there is "
-                f"already an object with this name in "
-                f"{self.components[class_name]['list_name']}"
-            )
+        # Check if names are unique
+        if not names.is_unique:
+            msg = f"Names for {class_name} must be unique."
             raise ValueError(msg)
-
-        if class_name == "Link":
-            update_linkports_component_attrs(self, kwargs.keys())
-
-        attrs = self.components[class_name]["attrs"]
-
-        static_attrs = attrs[attrs.static].drop("name")
-
-        # This guarantees that the correct attribute type is maintained
-        obj_df = pd.DataFrame(
-            data=[static_attrs.default], index=[name], columns=static_attrs.index
-        )
-        new_df = pd.concat([cls_df, obj_df], sort=False)
-
-        new_df.index.name = class_name
-        setattr(self, self.components[class_name]["list_name"], new_df)
 
         for k, v in kwargs.items():
-            if k not in attrs.index:
-                logger.warning(
-                    f"{class_name} has no attribute {k}, " "ignoring this passed value."
+            # If index/ columnes are passed (pd.DataFrame or pd.Series)
+            # - cast names index to string and add suffix
+            # - check if passed index/ columns align
+            msg = "{} has an index which does not align with the passed {}."
+            if isinstance(v, pd.Series) and single_component:
+                if not v.index.equals(self.snapshots):
+                    raise ValueError(msg.format(f"Series {k}", "network snapshots"))
+            elif isinstance(v, pd.Series):
+                # Cast names index to string + suffix
+                v = v.rename(
+                    index=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
                 )
-                continue
-            typ = attrs.at[k, "typ"]
-            if not attrs.at[k, "varying"]:
-                new_df.at[name, k] = typ(v) if typ != "geometry" else v
-            elif attrs.at[k, "static"] and not isinstance(
-                v, (pd.Series, pd.DataFrame, np.ndarray, list)
-            ):
-                new_df.at[name, k] = typ(v)
-            else:
-                cls_pnl[k][name] = pd.Series(data=v, index=self.snapshots, dtype=typ)
-
-        for attr in [attr for attr in new_df if attr.startswith("bus")]:
-            bus_name = new_df.at[name, attr]
-            # allow empty buses for multi-ports
-            port = int(attr[-1]) if attr[-1].isdigit() else 0
-            if bus_name not in self.buses.index and not (bus_name == "" and port > 1):
-                logger.warning(
-                    f"The bus name `{bus_name}` given for {attr} "
-                    f"of {class_name} `{name}` does not appear "
-                    "in network.buses"
+                if not v.index.equals(names):
+                    raise ValueError(msg.format(f"Series {k}", names_str))
+            if isinstance(v, pd.DataFrame):
+                # Cast names columns to string + suffix
+                v = v.rename(
+                    columns=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
                 )
+                if not v.index.equals(self.snapshots):
+                    raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
+                if not v.columns.equals(names):
+                    raise ValueError(msg.format(f"DataFrame {k}", names_str))
 
-    def remove(self, class_name, name):
+            # Convert list-like and 1-dim array to pandas.Series
+            if is_1d_list_like(v):
+                try:
+                    if single_component:
+                        v = pd.Series(v, index=self.snapshots)
+                    else:
+                        v = pd.Series(v)
+                        if len(v) == 1:
+                            v = v.iloc[0]
+                            logger.debug(
+                                f"Single value sequence for {k} is treated as a scalar "
+                                f"and broadcasted to all components. It is recommended "
+                                f"to explicitly pass a scalar instead."
+                            )
+                        else:
+                            v.index = names
+                except ValueError:
+                    expec_str = (
+                        f"{len(self.snapshots)} for each snapshot."
+                        if single_component
+                        else f"{len(names)} for each component name."
+                    )
+                    msg = f"Data for {k} has length {len(v)} but expected {expec_str}"
+                    raise ValueError(msg)
+            # Convert 2-dim array to pandas.DataFrame
+            if isinstance(v, np.ndarray):
+                if v.shape == (len(self.snapshots), len(names)):
+                    v = pd.DataFrame(v, index=self.snapshots, columns=names)
+                else:
+                    msg = (
+                        f"Array {k} has shape {v.shape} but expected "
+                        f"({len(self.snapshots)}, {len(names)})."
+                    )
+                    raise ValueError(msg)
+
+            if isinstance(v, dict):
+                msg = (
+                    "Dictionaries are not supported as attribute values. Please use "
+                    "pandas.Series or pandas.DataFrame instead."
+                )
+                raise NotImplementedError(msg)
+
+            # Handle addition of single component
+            if single_component:
+                # Read 1-dim data as time-varying attribute
+                if isinstance(v, pd.Series):
+                    series[k] = pd.DataFrame(
+                        v.values, index=self.snapshots, columns=names
+                    )
+                # Read 0-dim data as static attribute
+                else:
+                    static[k] = v
+
+            # Handle addition of multiple components
+            elif not single_component:
+                # Read 2-dim data as time-varying attribute
+                if isinstance(v, pd.DataFrame):
+                    series[k] = v
+                # Read 1-dim data as static attribute
+                elif isinstance(v, pd.Series):
+                    static[k] = v.values
+                # Read scalar data as static attribute
+                else:
+                    static[k] = v
+
+        # Load static attributes as components
+        if static:
+            static_df = pd.DataFrame(static, index=names)
+        else:
+            static_df = pd.DataFrame(index=names)
+        _import_components_from_df(self, static_df, class_name, overwrite=overwrite)
+
+        # Load time-varying attributes as components
+        for k, v in series.items():
+            self._import_series_from_df(v, class_name, k, overwrite=overwrite)
+
+        return names
+
+    def remove(
+        self,
+        class_name: str,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+    ) -> None:
         """
-        Removes a single component from the network.
+        Removes a single component or a list of components from the network.
 
         Removes it from component DataFrames.
 
         Parameters
         ----------
-        class_name : string
+        class_name : str
             Component class name
-        name : string
-            Component name
+        name : str, int, list-like or pandas.Index
+            Component name(s)
+        suffix : str, default ''
+
 
         Examples
         --------
-        >>> network.remove("Line", "my_line 12345")
-
+        >>> n.remove("Line", "my_line 12345")
+        >>> n.remove("Line", ["line x", "line y"])
         """
         if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
+            msg = f"Component class {class_name} not found"
+            raise ValueError(msg)
 
-        cls_df = self.df(class_name)
+        # Process name/names to pandas.Index of strings and add suffix
+        names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
+        names = names.astype(str) + suffix
 
-        cls_df.drop(name, inplace=True)
+        # Drop from static components
+        cls_static = self.static(class_name)
+        cls_static.drop(names, inplace=True)
 
-        pnl = self.pnl(class_name)
+        # Drop from time-varying components
+        dynamic = self.dynamic(class_name)
+        for df in dynamic.values():
+            df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
-        for df in pnl.values():
-            if name in df:
-                df.drop(name, axis=1, inplace=True)
-
-    def madd(self, class_name, names, suffix="", **kwargs):
+    @deprecated(
+        deprecated_in="0.31",
+        removed_in="1.0",
+        details="Use `n.add` as a drop-in replacement instead.",
+    )
+    def madd(
+        self,
+        class_name: str,
+        names: Sequence,
+        suffix: str = "",
+        **kwargs: Any,
+    ) -> pd.Index:
         """
         Add multiple components to the network, along with their attributes.
 
+        ``n.madd`` is deprecated and will be removed in version 1.0. Use
+        :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
+        addition of components.
+
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
-        their index is a superset of network.snapshots and their columns are a
+        their index is a superset of n.snapshots and their columns are a
         subset of names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`components`.
+        value from :doc:`/user-guide/components`.
 
         Parameters
         ----------
@@ -886,9 +1174,9 @@ class Network(Basic):
         --------
         Short Example:
 
-        >>> network.madd("Load", ["load 1", "load 2"],
+        >>> n.madd("Load", ["load 1", "load 2"],
         ...        bus=["1", "2"],
-        ...        p_set=np.random.rand(len(network.snapshots), 2))
+        ...        p_set=np.random.rand(len(n.snapshots), 2))
 
         Long Example:
 
@@ -917,42 +1205,20 @@ class Network(Basic):
         ...        p_max_pu=wind)
 
         """
-        if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
+        return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
-        if not isinstance(names, pd.Index):
-            names = pd.Index(names)
-
-        new_names = names.astype(str) + suffix
-
-        static = {}
-        series = {}
-        for k, v in kwargs.items():
-            if isinstance(v, pd.DataFrame):
-                series[k] = v.rename(columns=lambda i: str(i) + suffix)
-            elif isinstance(v, pd.Series):
-                static[k] = v.rename(lambda i: str(i) + suffix)
-            elif isinstance(v, np.ndarray) and v.shape == (
-                len(self.snapshots),
-                len(names),
-            ):
-                series[k] = pd.DataFrame(v, index=self.snapshots, columns=new_names)
-            else:
-                static[k] = v
-
-        self.import_components_from_dataframe(
-            pd.DataFrame(static, index=new_names), class_name
-        )
-
-        for k, v in series.items():
-            self.import_series_from_dataframe(v, class_name, k)
-
-        return new_names
-
-    def mremove(self, class_name, names):
+    @deprecated(
+        deprecated_in="0.31",
+        removed_in="1.0",
+        details="Use `n.remove` as a drop-in replacement instead.",
+    )
+    def mremove(self, class_name: str, names: Sequence) -> None:
         """
         Removes multiple components from the network.
+
+        ``n.mremove`` is deprecated and will be removed in version 1.0. Use
+        py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple removal of
+        components.
 
         Removes them from component DataFrames.
 
@@ -965,26 +1231,12 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.mremove("Line", ["line x", "line y"])
+        >>> n.mremove("Line", ["line x", "line y"])
 
         """
-        if class_name not in self.components:
-            logger.error(f"Component class {class_name} not found")
-            return None
+        self.remove(class_name=class_name, name=names)
 
-        if not isinstance(names, pd.Index):
-            names = pd.Index(names)
-
-        cls_df = self.df(class_name)
-
-        cls_df.drop(names, inplace=True)
-
-        pnl = self.pnl(class_name)
-
-        for df in pnl.values():
-            df.drop(df.columns.intersection(names), axis=1, inplace=True)
-
-    def _retrieve_overridden_components(self):
+    def _retrieve_overridden_components(self) -> tuple[pd.DataFrame, Dict]:
         components_index = list(self.components.keys())
 
         cols = ["list_name", "description", "type"]
@@ -1003,83 +1255,140 @@ class Network(Basic):
 
     def copy(
         self,
-        with_time=True,
-        snapshots=None,
-        investment_periods=None,
-        ignore_standard_types=False,
-    ):
+        snapshots: Sequence | None = None,
+        investment_periods: Sequence | None = None,
+        ignore_standard_types: bool = False,
+        with_time: bool | None = None,
+    ) -> Network:
         """
-        Returns a deep copy of the Network object with all components and time-
-        dependent data.
+        Returns a deep copy of Network objec    t.
 
-        Returns
-        -------
-        network : pypsa.Network
+        If only default arguments are passed, the copy will be created via
+        :func:`copy.deepcopy` and will contain all components and time-varying data.
+        For most networks this is the fastest way. However, if the network is very
+        large, it might be better to filter snapshots and investment periods to reduce
+        the size of the copy. In this case :func:`copy.deepcopy` is not used and only
+        the selected snapshots and investment periods are copied to a new object.
+
 
         Parameters
         ----------
-        with_time : boolean, default True
-            Copy snapshots and time-varying network.component_names_t data too.
-        snapshots : list or index slice
-            A list of snapshots to copy, must be a subset of
-            network.snapshots, defaults to network.snapshots
+        snapshots : list or tuple or pd.Index , default self.snapshots
+            A list of snapshots to copy, must be a subset of n.snapshots. Pass
+            an empty list ignore all snapshots.
+        investment_periods : list or tuple or pd.Index, default self.investment_period_weightings.index
+            A list of investment periods to copy, must be a subset of n.investment_periods. Pass
         ignore_standard_types : boolean, default False
             Ignore the PyPSA standard types.
+        with_time : boolean, default True
+            Copy snapshots and time-varying n.component_names_t data too.
+
+            .. deprecated:: 0.29.0
+              The 'with_time' argument is deprecated in 0.29 and will be removed in a
+              future version. Pass an empty list to 'snapshots' instead.
+
+        Returns
+        -------
+        n : pypsa.Network
+            The copied network object.
 
         Examples
         --------
-        >>> network_copy = network.copy()
+        >>> network_copy = n.copy()
 
         """
+
+        # Use copy.deepcopy if no arguments are passed
+        args = [snapshots, investment_periods, ignore_standard_types, with_time]
+        if all(arg is None or arg is False for arg in args):
+            return copy.deepcopy(self)
+
+        # Convert to pandas.Index
+        snapshots_ = as_index(self, snapshots, "snapshots", "snapshot")
+        investment_periods_ = as_index(
+            self, investment_periods, "investment_periods", None
+        )
+
+        # Deprecation warnings
+        if with_time is not None:
+            warnings.warn(
+                "Argument 'with_time' is deprecated in 0.29 and will be "
+                "removed in a future version. Pass an empty list to 'snapshots' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            snapshots_ = pd.Index([], name="snapshot")
+
+        # Setup new network
         (
             override_components,
             override_component_attrs,
         ) = self._retrieve_overridden_components()
 
-        network = self.__class__(
+        n = self.__class__(
             ignore_standard_types=ignore_standard_types,
             override_components=override_components,
             override_component_attrs=override_component_attrs,
         )
 
+        # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
+        # Needs to copy buses and carriers first, since there are dependencies on them
         for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
-            df = component.df
-            # drop the standard types to avoid them being read in twice
+            # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
                 and component.name in self.standard_type_components
             ):
-                df = component.df.drop(
-                    network.components[component.name]["standard_types"].index
+                static = component.static.drop(
+                    n.components[component.name]["standard_types"].index
                 )
+            else:
+                static = component.static
+            n.add(component.name, static.index, **static)
 
-            import_components_from_dataframe(network, df, component.name)
+        # Copy time-varying data, if given
 
-        if with_time:
-            if snapshots is None:
-                snapshots = self.snapshots
-            if investment_periods is None:
-                investment_periods = self.investment_period_weightings.index
-            network.set_snapshots(snapshots)
-            if not investment_periods.empty:
-                network.set_investment_periods(investment_periods)
+        if len(snapshots_) > 0:
+            n.set_snapshots(snapshots_)
+            # Apply time-varying data
             for component in self.iterate_components():
-                pnl = getattr(network, component.list_name + "_t")
-                for k in component.pnl.keys():
-                    pnl[k] = component.pnl[k].loc[snapshots].copy()
-            network.snapshot_weightings = self.snapshot_weightings.loc[snapshots].copy()
-            network.investment_period_weightings = (
-                self.investment_period_weightings.loc[investment_periods].copy()
-            )
+                dynamic = getattr(n, component.list_name + "_t")
+                for k in component.dynamic.keys():
+                    try:
+                        dynamic[k] = component.dynamic[k].loc[snapshots_].copy()
+                    except KeyError:
+                        dynamic[k] = component.dynamic[k].reindex(snapshots_).copy()
 
-        # catch all remaining attributes of network
-        for attr in ["name", "srid"]:
-            setattr(network, attr, getattr(self, attr))
+            # Apply investment periods
+            if not investment_periods_.empty:
+                n.set_investment_periods(investment_periods_)
 
-        return network
+            # Add weightings
+            n.snapshot_weightings = self.snapshot_weightings.loc[snapshots_].copy()
+            n.investment_period_weightings = self.investment_period_weightings.loc[
+                investment_periods_
+            ].copy()
 
-    def __getitem__(self, key):
+        # Catch all remaining attributes of network
+        for attr in [
+            "name",
+            "srid",
+            "_meta",
+            "_linearized_uc",
+            "_multi_invest",
+            "objective",
+            "objective_constant",
+            "now",
+        ]:
+            try:
+                setattr(n, attr, getattr(self, attr))
+            except AttributeError:
+                pass
+
+        return n
+
+    def __getitem__(self, key: str) -> Network:
         """
         Returns a shallow slice of the Network object containing only the
         selected buses and all the connected components.
@@ -1095,13 +1404,13 @@ class Network(Basic):
 
         Returns
         -------
-        network : pypsa.Network
+        n : pypsa.Network
 
         Examples
         --------
-        >>> sub_network_0 = network[network.buses.sub_network = "0"]
+        >>> sub_network_0 = n[n.buses.sub_network = "0"]
 
-        >>> sub_network_0_with_only_10_snapshots = network[:10, network.buses.sub_network = "0"]
+        >>> sub_network_0_with_only_10_snapshots = n[:10, n.buses.sub_network = "0"]
 
         """
         if isinstance(key, tuple):
@@ -1117,8 +1426,10 @@ class Network(Basic):
             override_components=override_components,
             override_component_attrs=override_component_attrs,
         )
-        n.import_components_from_dataframe(
-            pd.DataFrame(self.buses.loc[key]).assign(sub_network=""), "Bus"
+        n.add(
+            "Bus",
+            pd.DataFrame(self.buses.loc[key]).assign(sub_network="").index,
+            **pd.DataFrame(self.buses.loc[key]).assign(sub_network=""),
         )
         buses_i = n.buses.index
 
@@ -1129,31 +1440,37 @@ class Network(Basic):
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n.import_components_from_dataframe(pd.DataFrame(self.df(c)), c)
+            n.add(c, pd.DataFrame(self.static(c)).index, **pd.DataFrame(self.static(c)))
 
         for c in self.standard_type_components:
-            df = self.df(c).drop(self.components[c]["standard_types"].index)
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            static = pd.DataFrame(
+                self.static(c).drop(self.components[c]["standard_types"].index)
+            )
+            n.add(c, static.index, **static)
 
         for c in self.one_port_components:
-            df = self.df(c).loc[lambda df: df.bus.isin(buses_i)]
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            static = pd.DataFrame(self.static(c).loc[lambda df: df.bus.isin(buses_i)])
+            n.add(c, static.index, **static)
 
         for c in self.branch_components:
-            df = self.df(c).loc[
-                lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
-            ]
-            n.import_components_from_dataframe(pd.DataFrame(df), c)
+            static = pd.DataFrame(
+                self.static(c).loc[
+                    lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
+                ]
+            )
+            n.add(c, static.index, **static)
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:
-            i = n.df(c).index
+            i = n.static(c).index
             try:
-                npnl = n.pnl(c)
-                pnl = self.pnl(c)
+                ndynamic = n.dynamic(c)
+                dynamic = self.dynamic(c)
 
-                for k in pnl:
-                    npnl[k] = pnl[k].loc[time_i, i.intersection(pnl[k].columns)]
+                for k in dynamic:
+                    ndynamic[k] = dynamic[k].loc[
+                        time_i, i.intersection(dynamic[k].columns)
+                    ]
             except AttributeError:
                 pass
 
@@ -1167,31 +1484,33 @@ class Network(Basic):
 
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
-    def branches(self):
+    def branches(self) -> pd.DataFrame:
         return pd.concat(
-            (self.df(c) for c in self.branch_components),
+            (self.static(c) for c in self.branch_components),
             keys=self.branch_components,
             sort=True,
             names=["component", "name"],
         )
 
-    def passive_branches(self):
+    def passive_branches(self) -> pd.DataFrame:
         return pd.concat(
-            (self.df(c) for c in self.passive_branch_components),
+            (self.static(c) for c in self.passive_branch_components),
             keys=self.passive_branch_components,
             sort=True,
         )
 
-    def controllable_branches(self):
+    def controllable_branches(self) -> pd.DataFrame:
         return pd.concat(
-            (self.df(c) for c in self.controllable_branch_components),
+            (self.static(c) for c in self.controllable_branch_components),
             keys=self.controllable_branch_components,
             sort=True,
         )
 
     def determine_network_topology(
-        self, investment_period=None, skip_isolated_buses=False
-    ):
+        self,
+        investment_period: int | str | None = None,
+        skip_isolated_buses: bool = False,
+    ) -> None:
         """
         Build sub_networks from topology.
 
@@ -1248,32 +1567,38 @@ class Network(Basic):
         self.buses.loc[:, "sub_network"] = labels.astype(str)
 
         for c in self.iterate_components(self.passive_branch_components):
-            c.df["sub_network"] = c.df.bus0.map(self.buses["sub_network"])
+            c.static["sub_network"] = c.static.bus0.map(self.buses["sub_network"])
 
             if investment_period is not None:
                 active = get_active_assets(self, c.name, investment_period)
                 # set non active assets to NaN
-                c.df.loc[~active, "sub_network"] = np.nan
+                c.static.loc[~active, "sub_network"] = np.nan
 
         for sub in self.sub_networks.obj:
             find_cycles(sub)
             sub.find_bus_controls()
 
-    def iterate_components(self, components=None, skip_empty=True):
+    def component(self, c_name: str) -> Component:
+        return Component(
+            name=c_name,
+            list_name=self.components[c_name]["list_name"],
+            attrs=self.components[c_name]["attrs"],
+            investment_periods=self.investment_periods,
+            static=self.static(c_name),
+            dynamic=self.dynamic(c_name),
+            ind=None,
+        )
+
+    def iterate_components(
+        self, components: Collection[str] | None = None, skip_empty: bool = True
+    ) -> Iterator[Component]:
         if components is None:
             components = self.all_components
 
         return (
-            Component(
-                name=c,
-                list_name=self.components[c]["list_name"],
-                attrs=self.components[c]["attrs"],
-                df=self.df(c),
-                pnl=self.pnl(c),
-                ind=None,
-            )
-            for c in components
-            if not (skip_empty and self.df(c).empty)
+            self.component(c_name)
+            for c_name in components
+            if not (skip_empty and self.static(c_name).empty)
         )
 
     def consistency_check(self, check_dtypes: bool = False) -> None:
@@ -1285,7 +1610,7 @@ class Network(Basic):
 
         Examples
         --------
-        >>> network.consistency_check()
+        >>> n.consistency_check()
 
         """
         self.calculate_dependent_values()
@@ -1320,103 +1645,195 @@ class Network(Basic):
         check_shapes(self)
 
 
-class SubNetwork(Common):
+class SubNetwork:
     """
     Connected network of electric buses (AC or DC) with passive flows or
     isolated non-electric buses.
 
-    Generated by network.determine_network_topology().
+    Generated by n.determine_network_topology().
     """
+
+    # Type hints
+    # ----------------
+
+    buses_o: pd.Index
+    pvpqs: pd.Index
+    pqs: pd.Index
+    pvs: pd.Index
+    slack_bus: str
+    B: spmatrix
+    K: spmatrix
+    C: spmatrix
+    PTDF: spmatrix
+    BODF: spmatrix
 
     list_name = "sub_networks"
 
+    # Methods
+    # ------------------
+
+    # from pypsa.pf
     lpf = sub_network_lpf
-
     pf = sub_network_pf
-
     find_bus_controls = find_bus_controls
-
     find_slack_bus = find_slack_bus
-
     calculate_Y = calculate_Y
-
     calculate_PTDF = calculate_PTDF
-
     calculate_B_H = calculate_B_H
 
+    # from pypsa.contingency
     calculate_BODF = calculate_BODF
 
+    # from pypsa.graph
     graph = graph
-
     incidence_matrix = incidence_matrix
-
     adjacency_matrix = adjacency_matrix
 
-    def buses_i(self):
-        return self.network.buses.index[self.network.buses.sub_network == self.name]
+    @deprecated_common_kwargs
+    def __init__(self, n: Network, name: str) -> None:
+        self._n = ref(n)
+        self.name = name
 
-    def lines_i(self):
-        return self.network.lines.index[self.network.lines.sub_network == self.name]
+    @property
+    @deprecated(
+        deprecated_in="0.31",
+        removed_in="0.33",
+        details="Use the `n` property instead.",
+    )
+    def network(self) -> Network:
+        return self._n()  # type: ignore
 
-    def transformers_i(self):
-        return self.network.transformers.index[
-            self.network.transformers.sub_network == self.name
-        ]
+    @property
+    def n(self) -> Network:
+        return self._n()  # type: ignore
 
-    def branches_i(self):
+    @property
+    def snapshots(self) -> pd.Index | pd.MultiIndex:
+        return self.n.snapshots
+
+    @property
+    def snapshot_weightings(self) -> pd.DataFrame:
+        return self.n.snapshot_weightings
+
+    @property
+    def investment_periods(self) -> pd.Index:
+        return self.n.investment_periods
+
+    @property
+    def investment_period_weightings(self) -> pd.DataFrame:
+        return self.n.investment_period_weightings
+
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `sub_network.static` instead.",
+    # )
+    def df(self, c_name: str) -> pd.DataFrame:
+        return self.static(c_name)
+
+    def static(self, c_name: str) -> pd.DataFrame:
+        n = self.n
+        static = n.static(c_name)
+        if c_name in {"Bus"} | n.passive_branch_components:
+            return static[static.sub_network == self.name]
+        elif c_name in n.one_port_components:
+            buses = self.buses_i()
+            return static[static.bus.isin(buses)]
+        else:
+            raise ValueError(f"Component {c_name} not supported for sub-networks")
+
+    # @deprecated(
+    #     deprecated_in="0.32",
+    #     removed_in="1.0",
+    #     details="Use `sub_network.dynamic` instead.",
+    # )
+    def pnl(self, c_name: str) -> Dict:
+        return self.dynamic(c_name)
+
+    def dynamic(self, c_name: str) -> Dict:
+        dynamic = Dict()
+        n = self.n
+        index = self.static(c_name).index
+        for k, v in n.dynamic(c_name).items():
+            dynamic[k] = v[index.intersection(v.columns)]
+        return dynamic
+
+    def buses_i(self) -> pd.Index:
+        return self.n.buses.index[self.n.buses.sub_network == self.name]
+
+    def lines_i(self) -> pd.Index:
+        return self.n.lines.index[self.n.lines.sub_network == self.name]
+
+    def transformers_i(self) -> pd.Index:
+        return self.n.transformers.index[self.n.transformers.sub_network == self.name]
+
+    def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
         types = []
         names = []
-        for c in self.iterate_components(self.network.passive_branch_components):
-            types += len(c.ind) * [c.name]
-            names += list(c.ind)
+        for c in self.iterate_components(self.n.passive_branch_components):
+            idx = c.static.query("active").index if active_only else c.static.index
+            types += len(idx) * [c.name]
+            names += list(idx)
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
 
-    def branches(self):
-        branches = self.network.passive_branches()
+    def branches(self) -> pd.DataFrame:
+        branches = self.n.passive_branches()
         return branches[branches.sub_network == self.name]
 
-    def generators_i(self):
-        sub_networks = self.network.generators.bus.map(self.network.buses.sub_network)
-        return self.network.generators.index[sub_networks == self.name]
+    def generators_i(self) -> pd.Index:
+        sub_networks = self.n.generators.bus.map(self.n.buses.sub_network)
+        return self.n.generators.index[sub_networks == self.name]
 
-    def loads_i(self):
-        sub_networks = self.network.loads.bus.map(self.network.buses.sub_network)
-        return self.network.loads.index[sub_networks == self.name]
+    def loads_i(self) -> pd.Index:
+        sub_networks = self.n.loads.bus.map(self.n.buses.sub_network)
+        return self.n.loads.index[sub_networks == self.name]
 
-    def shunt_impedances_i(self):
-        sub_networks = self.network.shunt_impedances.bus.map(
-            self.network.buses.sub_network
+    def shunt_impedances_i(self) -> pd.Index:
+        sub_networks = self.n.shunt_impedances.bus.map(self.n.buses.sub_network)
+        return self.n.shunt_impedances.index[sub_networks == self.name]
+
+    def storage_units_i(self) -> pd.Index:
+        sub_networks = self.n.storage_units.bus.map(self.n.buses.sub_network)
+        return self.n.storage_units.index[sub_networks == self.name]
+
+    def stores_i(self) -> pd.Index:
+        sub_networks = self.n.stores.bus.map(self.n.buses.sub_network)
+        return self.n.stores.index[sub_networks == self.name]
+
+    def buses(self) -> pd.DataFrame:
+        return self.n.buses.loc[self.buses_i()]
+
+    def generators(self) -> pd.DataFrame:
+        return self.n.generators.loc[self.generators_i()]
+
+    def loads(self) -> pd.DataFrame:
+        return self.n.loads.loc[self.loads_i()]
+
+    def shunt_impedances(self) -> pd.DataFrame:
+        return self.n.shunt_impedances.loc[self.shunt_impedances_i()]
+
+    def storage_units(self) -> pd.DataFrame:
+        return self.n.storage_units.loc[self.storage_units_i()]
+
+    def stores(self) -> pd.DataFrame:
+        return self.n.stores.loc[self.stores_i()]
+
+    def component(self, c_name: str) -> Component:
+        return Component(
+            name=c_name,
+            list_name=self.n.components[c_name]["list_name"],
+            attrs=self.n.components[c_name]["attrs"],
+            investment_periods=self.investment_periods,
+            static=self.static(c_name),
+            dynamic=self.dynamic(c_name),
+            ind=None,
         )
-        return self.network.shunt_impedances.index[sub_networks == self.name]
 
-    def storage_units_i(self):
-        sub_networks = self.network.storage_units.bus.map(
-            self.network.buses.sub_network
-        )
-        return self.network.storage_units.index[sub_networks == self.name]
-
-    def stores_i(self):
-        sub_networks = self.network.stores.bus.map(self.network.buses.sub_network)
-        return self.network.stores.index[sub_networks == self.name]
-
-    def buses(self):
-        return self.network.buses.loc[self.buses_i()]
-
-    def generators(self):
-        return self.network.generators.loc[self.generators_i()]
-
-    def loads(self):
-        return self.network.loads.loc[self.loads_i()]
-
-    def shunt_impedances(self):
-        return self.network.shunt_impedances.loc[self.shunt_impedances_i()]
-
-    def storage_units(self):
-        return self.network.storage_units.loc[self.storage_units_i()]
-
-    def iterate_components(self, components=None, skip_empty=True):
+    def iterate_components(
+        self, components: Collection[str] | None = None, skip_empty: bool = True
+    ) -> Iterator[Component]:
         """
-        Iterate over components of the subnetwork and extract corresponding
+        Iterate over components of the sub-network and extract corresponding
         data.
 
         Parameters
@@ -1434,13 +1851,11 @@ class SubNetwork(Common):
             Container for component data. See Component class for details.
 
         """
-        for c in self.network.iterate_components(
-            components=components, skip_empty=False
-        ):
-            ind = getattr(self, c.list_name + "_i")()
-            pnl = Dict()
-            for k, v in c.pnl.items():
-                pnl[k] = v[ind.intersection(v.columns)]
-            c = Component(c.name, c.list_name, c.attrs, c.df.loc[ind], pnl, ind)
-            if not (skip_empty and len(ind) == 0):
-                yield c
+        if components is None:
+            components = self.n.all_components
+
+        return (
+            self.component(c_name)
+            for c_name in components
+            if not (skip_empty and self.static(c_name).empty)
+        )

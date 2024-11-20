@@ -1,6 +1,0 @@
-[run]
-branch = True
-source = pypsa
-omit =
-    test/*
-    setup.py
