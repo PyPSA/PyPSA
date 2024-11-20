@@ -164,7 +164,7 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
     except ValueError:
         pass
 
-    if crs != 4326 and not crs.endswith("4326"):
+    if crs != 4326 and not str(crs).endswith("4326"):
         logger.warning(
             "Could not find projection for '%s'. Falling back to latlong.", crs
         )

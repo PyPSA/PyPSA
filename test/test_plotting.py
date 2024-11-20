@@ -233,10 +233,10 @@ def test_plot_map_flow(ac_dc_network):
 
     n.lines_t.p0.loc[:, line_flow.index] = 0
     n.lines_t.p0 += line_flow
-    n.plot(flow="mean", geomap=False)
+    n.plot(line_flow="mean", geomap=False)
     plt.close()
 
-    n.plot(flow=n.snapshots[0], geomap=False)
+    n.plot(line_flow=n.snapshots[0], geomap=False)
     plt.close()
 
 
@@ -245,7 +245,9 @@ def test_plot_map_line_colorbar(ac_dc_network):
 
     norm = plt.Normalize(vmin=0, vmax=10)
 
-    n.plot(line_colors=n.lines.index.astype(int), line_cmap="viridis", line_norm=norm)
+    n.plot(
+        line_colors=n.lines.index.astype(int), line_cmap="viridis", line_cmap_norm=norm
+    )
 
     plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 
@@ -255,7 +257,7 @@ def test_plot_map_bus_colorbar(ac_dc_network):
 
     norm = plt.Normalize(vmin=0, vmax=10)
 
-    n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_norm=norm)
+    n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_cmap_norm=norm)
 
     plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 
