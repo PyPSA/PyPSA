@@ -256,3 +256,14 @@ def list_as_string(
         raise ValueError(
             f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
         )
+
+
+def pass_none_if_keyerror(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except (KeyError, AttributeError):
+            return None
+
+    return wrapper

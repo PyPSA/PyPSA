@@ -27,6 +27,7 @@ from pypsa import (
     pf,
     plot,
     statistics,
+    utils,
 )
 from pypsa.networks import Network, SubNetwork
 
@@ -50,6 +51,7 @@ __all__ = [
     "pf",
     "plot",
     "statistics",
+    "utils",
     "Network",
     "SubNetwork",
 ]
