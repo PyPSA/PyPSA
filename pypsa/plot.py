@@ -149,7 +149,7 @@ class NetworkPlotter:
         else:
             self.boundaries = boundaries
 
-    def _add_geomap_features(self, geomap=True, geomap_colors=None):
+    def add_geomap_features(self, geomap=True, geomap_colors=None):
         resolution = "50m" if isinstance(geomap, bool) else geomap
         if resolution not in ["10m", "50m", "110m"]:
             msg = "Resolution has to be one of '10m', '50m', '110m'"
@@ -192,7 +192,7 @@ class NetworkPlotter:
     def init_axis(self, ax, projection, geomap, geomap_colors, title):
         # Set up plot (either cartopy or matplotlib)
 
-        transform = get_projection_from_crs(self.n.srid)
+        transform = get_projection_from_crs(self.n.crs)
         if geomap:
             if projection is None:
                 projection = transform
@@ -217,7 +217,7 @@ class NetworkPlotter:
             self.x, self.y = pd.Series(x_, self.x.index), pd.Series(y_, self.y.index)
 
             if geomap_colors is not False:
-                self._add_geomap_features(geomap, geomap_colors)
+                self.add_geomap_features(geomap, geomap_colors)
 
             if self.boundaries is not None:
                 self.ax.set_extent(self.boundaries, crs=transform)
@@ -261,7 +261,7 @@ class NetworkPlotter:
 
         return self.x, self.y
 
-    def get_multiindex_busses(
+    def get_multiindex_buses(
         self, sizes: pd.Series, colors: pd.Series, alpha, split_circles
     ):
         # We are drawing pies to show all the different shares
@@ -300,7 +300,7 @@ class NetworkPlotter:
                     start = start + ratio
         return patches
 
-    def get_singleindex_busses(self, sizes, colors, alpha):
+    def get_singleindex_buses(self, sizes, colors, alpha):
         patches = []
         for b_i in sizes.index[(sizes != 0) & ~sizes.isna()]:
             radius = sizes.at[b_i] ** 0.5
@@ -796,11 +796,11 @@ def plot(
     if geomap:
         bus_sizes = bus_sizes * plotter.area_factor**2
     if isinstance(bus_sizes.index, pd.MultiIndex):
-        patches = plotter.get_multiindex_busses(
+        patches = plotter.get_multiindex_buses(
             bus_sizes, bus_colors, bus_alpha, bus_split_circles
         )
     else:
-        patches = plotter.get_singleindex_busses(bus_sizes, bus_colors, bus_alpha)
+        patches = plotter.get_singleindex_buses(bus_sizes, bus_colors, bus_alpha)
     bus_collection = PatchCollection(patches, match_original=True, zorder=5)
     plotter.ax.add_collection(bus_collection)
 
