@@ -7,11 +7,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import cartopy.crs as ccrs
 import numpy as np
 from numpy.typing import ArrayLike
 
 if TYPE_CHECKING:
+    import cartopy.crs as ccrs
     from cartopy.mpl.geoaxes import GeoAxes
     from numpy.typing import ArrayLike
 
@@ -159,6 +159,8 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
         Cartopy projection object
 
     """
+    import cartopy.crs as ccrs
+
     try:
         return ccrs.epsg(crs)
     except ValueError:

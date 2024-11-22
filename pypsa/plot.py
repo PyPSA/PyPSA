@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from functools import wraps
 from typing import TYPE_CHECKING
 
 import geopandas as gpd
@@ -23,7 +24,6 @@ from shapely import linestrings
 from pypsa.geo import (
     compute_bbox,
     get_projected_area_factor,
-    get_projection_from_crs,
 )
 from pypsa.utils import deprecated_kwargs
 
@@ -192,7 +192,7 @@ class NetworkPlotter:
     def init_axis(self, ax, projection, geomap, geomap_colors, title):
         # Set up plot (either cartopy or matplotlib)
 
-        transform = get_projection_from_crs(self.n.crs)
+        transform = cartopy.crs.Projection(self.n.crs)
         if geomap:
             if projection is None:
                 projection = transform
@@ -314,27 +314,57 @@ class NetworkPlotter:
             )
         return patches
 
+    @staticmethod
+    def _dataframe_from_arguments(index, **kwargs):
+        if any(isinstance(v, pd.Series) for v in kwargs.values()):
+            return pd.DataFrame(kwargs)
+        return pd.DataFrame(kwargs, index=index)
+
     def _flow_ds_from_arg(self, flow, component_name):
         if isinstance(flow, pd.Series):
             return flow
 
         if flow in self.n.snapshots:
-            return self.n.pnl(component_name).p0.loc[flow]
+            return self.n.dynamic(component_name).p0.loc[flow]
 
         if isinstance(flow, str) or callable(flow):
             return self.n.dynamic(component_name).p0.agg(flow, axis=0)
 
-    def _get_branch_collection(self, c, df, geometry):
+    def get_branch_collection(
+        self,
+        c,
+        widths: pd.Series,
+        colors: pd.Series,
+        alpha: pd.Series,
+        geometry: pd.Series,
+    ):
+        """
+        Create a LineCollection for a single branch component.
+
+        Parameters
+        ----------
+        c : Component
+            Network component being plotted
+        widths : float/Series
+            Line widths for the component
+        colors : str/Series
+            Colors for the component
+        alpha : float/Series
+            Alpha values for the component
+        geometry : bool
+            Whether to use geometry data for plotting
+        """
+        idx = widths.index
         if not geometry:
             segments = np.asarray(
                 (
                     (
-                        c.static.bus0[df.index].map(self.x),
-                        c.static.bus0[df.index].map(self.y),
+                        c.static.bus0[idx].map(self.x),
+                        c.static.bus0[idx].map(self.y),
                     ),
                     (
-                        c.static.bus1[df.index].map(self.x),
-                        c.static.bus1[df.index].map(self.y),
+                        c.static.bus1[idx].map(self.x),
+                        c.static.bus1[idx].map(self.y),
                     ),
                 )
             ).transpose(2, 0, 1)
@@ -342,41 +372,20 @@ class NetworkPlotter:
             from shapely.geometry import LineString
             from shapely.wkt import loads
 
-            linestrings = c.static.geometry[lambda ds: ds != ""].map(loads)
+            linestrings = geometry[lambda ds: ds != ""].map(loads)
             if not all(isinstance(ls, LineString) for ls in linestrings):
                 msg = "The WKT-encoded geometry in the 'geometry' column must be "
                 "composed of LineStrings"
                 raise ValueError(msg)
             segments = np.asarray(list(linestrings.map(np.asarray)))
 
-        branch_coll = LineCollection(
+        return LineCollection(
             segments,
-            linewidths=df.width,
+            linewidths=widths,
             antialiaseds=(1,),
-            colors=df.color,
-            alpha=df.alpha,
+            colors=colors,
+            alpha=alpha,
         )
-
-        return branch_coll
-
-    def get_branch_collections(self, branch_components, geometry, branch_data):
-        components = self.n.iterate_components(branch_components)
-
-        branch_colls = {}
-        for c in components:
-            d = branch_data[c.name]
-            if any([isinstance(v, pd.Series) for _, v in d.items()]):
-                df = pd.DataFrame(d)
-            else:
-                df = pd.DataFrame(d, index=c.df.index)
-
-            if df.empty:  # TODO: Can be removed since there are default values?
-                continue
-
-            branch_coll = self._get_branch_collection(c, df, geometry)
-            branch_colls[c.name] = branch_coll
-
-        return branch_colls
 
     @staticmethod
     def _directed_flow(coords, flow, color, area_factor, alpha=1):
@@ -437,52 +446,410 @@ class NetworkPlotter:
             zorder=4,
         )
 
-    def _get_flow_collection(self, c, df):
-        # b_flow = .df.get("flow")
-        # if b_flow is not None:
+    def get_flow_collection(self, c, flow, widths, colors, alpha):
+        """
+        Create a flow arrow collection for a single branch component.
+
+        Parameters
+        ----------
+        c : Component
+            Network component being plotted
+        flow : pd.Series
+            Flow values for the component
+        widths : float/Series
+            Line widths to scale the arrows
+        colors : str/Series
+            Colors for the arrows
+        alpha : float/Series
+            Alpha values for the arrows
+        """
+        idx = widths.index
         coords = pd.DataFrame(
             {
-                "x1": c.df.bus0.map(self.x),
-                "y1": c.df.bus0.map(self.y),
-                "x2": c.df.bus1.map(self.x),
-                "y2": c.df.bus1.map(self.y),
+                "x1": c.static.bus0[idx].map(self.x),
+                "y1": c.static.bus0[idx].map(self.y),
+                "x2": c.static.bus1[idx].map(self.x),
+                "y2": c.static.bus1[idx].map(self.y),
             }
         )
-        b_flow = df["flow"].mul(df.width.abs(), fill_value=0)
-        # update the line width, allows to set line widths separately from flows
-        # df.width.update((5 * b_flow.abs()).pipe(np.sqrt))
-        flow_coll = self._directed_flow(
-            coords, b_flow, df.color, self.area_factor, df.alpha
+
+        return self._directed_flow(coords, flow, colors, self.area_factor, alpha)
+
+    @classmethod
+    def plot(
+        cls,
+        n: Network,
+        layouter: nx.drawing.layout = None,
+        boundaries: list | tuple | None = None,
+        margin: float | None = 0.05,
+        ax: plt.Axes = None,
+        geomap: bool | str = True,
+        projection: cartopy.crs.Projection = None,
+        geomap_colors: dict | bool | None = None,
+        title: str = "",
+        jitter: float | None = None,
+        branch_components: list | None = None,
+        bus_sizes: float | dict | pd.Series = 2e-2,
+        bus_split_circles: bool = False,
+        bus_colors: str | dict | pd.Series = None,
+        bus_cmap: str | plt.cm.ColorMap = None,
+        bus_cmap_norm: plt.Normalize = None,
+        bus_alpha: float | dict | pd.Series = 1,
+        geometry=False,
+        line_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+        line_colors: str | dict | pd.Series = "rosybrown",
+        line_cmap: str | plt.cm.ColorMap = "viridis",
+        line_cmap_norm: plt.Normalize = None,
+        line_alpha: float | dict | pd.Series = 1,
+        line_widths: float | dict | pd.Series = 1.5,
+        link_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+        link_colors: str | dict | pd.Series = "darkseagreen",
+        link_cmap: str | plt.cm.ColorMap = "viridis",
+        link_cmap_norm: plt.Normalize = None,
+        link_alpha: float | dict | pd.Series = 1,
+        link_widths: float | dict | pd.Series = 1.5,
+        transformer_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+        transformer_colors: str | dict | pd.Series = "orange",
+        transformer_cmap: str | plt.cm.ColorMap = "viridis",
+        transformer_cmap_norm: plt.Normalize = None,
+        transformer_alpha: float | dict | pd.Series = 1,
+        transformer_widths: float | dict | pd.Series = 1.5,
+        auto_scale_flow: bool = True,
+        flow=None,
+    ):
+        """
+            Plot the network buses and lines using matplotlib and cartopy.
+
+        Parameters
+        ----------
+            n : pypsa.Network
+                Network to plot
+            layouter : networkx.drawing.layout, default None
+                Layouting function from `networkx <https://networkx.github.io/>`_ which
+                overrules coordinates given in ``n.buses[['x', 'y']]``. See
+                `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+                of available options.
+            boundaries : list/tuple, default None
+                Boundaries of the plot in format [x1, x2, y1, y2]
+            margin : float, defaults to 0.05
+                Margin at the sides as proportion of distance between max/min x, y
+                Will be ignored if boundaries are given.
+            ax : matplotlib.pyplot.Axes, defaults to None
+                Axis to plot on. Defaults to plt.gca() if geomap is False, otherwise
+                to plt.axes(projection=projection).
+            geomap: bool/str, default True
+                Switch to use Cartopy and draw geographical features.
+                If string is passed, it will be used as a resolution argument,
+                valid options are '10m', '50m' and '110m'.
+            projection: cartopy.crs.Projection, defaults to None
+                Define the projection of your geomap, only valid if cartopy is
+                installed. If None (default) is passed the projection for cartopy
+                is set to cartopy.crs.PlateCarree
+            geomap_colors : dict/bool, default None
+                Specify colors to paint land and sea areas in.
+                If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
+                If no dictionary is provided, colors are white.
+                If False, no geographical features are plotted.
+            title : string, default ""
+                Graph title
+            jitter : float, default None
+                Amount of random noise to add to bus positions to distinguish
+                overlapping buses
+            branch_components : list, default n.branch_components
+                Branch components to be plotted
+            bus_sizes : float/dict/pandas.Series
+                Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
+                the function will draw pies for each bus (first index level) with
+                segments of different color (second index level). Such a Series is ob-
+                tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
+            bus_split_circles : bool, default False
+                Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+                If set to true, the upper half circle per bus then includes all positive values
+                of the series, the lower half circle all negative values. Defaults to False.
+            bus_colors : str/dict/pandas.Series
+                Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+                pandas.Series with a Multiindex, bus_colors defaults to the
+                n.carriers['color'] column.
+            bus_cmap : plt.cm.ColorMap/str
+                If bus_colors are floats, this color map will assign the colors
+            bus_cmap_norm : plt.Normalize
+                The norm applied to the bus_cmap
+            bus_alpha : float/dict/pandas.Series
+                Adds alpha channel to buses, defaults to 1
+            geometry :
+                # TODO
+
+            Additional Parameters
+            ---------------------
+            line_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+                Flow to be for each line branch. If an element of
+                n.snapshots is given, the flow at this timestamp will be
+                displayed. If an aggregation function is given, is will be applied
+                to the total network flow via pandas.DataFrame.agg (accepts also
+                function names). Otherwise flows can be specified by passing a pandas
+                Series. Use the corresponding width argument to adjust size of the
+                flow arrows.
+            line_colors : str/pandas.Series
+                Colors for the lines, defaults to 'rosybrown'.
+            line_cmap : plt.cm.ColorMap/str|dict
+                If line_colors are floats, this color map will assign the colors.
+            line_cmap_norm : plt.Normalize
+                The norm applied to the line_cmap.
+            line_alpha : str/pandas.Series
+                Alpha for the lines, defaults to 1.
+            line_widths : dict/pandas.Series
+                Widths of lines, defaults to 1.5
+            link_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+                Flow to be for each link branch. See line_flow for more information.
+            link_colors : str/pandas.Series
+                Colors for the links, defaults to 'darkseagreen'.
+            link_cmap : plt.cm.ColorMap/str|dict
+                If link_colors are floats, this color map will assign the colors.
+            link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
+                The norm applied to the link_cmap.
+            link_alpha : str/pandas.Series
+                Alpha for the links, defaults to 1.
+            link_widths : dict/pandas.Series
+                Widths of links, defaults to 1.5
+            transformer_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+                Flow to be for each transformer branch. See line_flow for more information.
+            transformer_colors : str/pandas.Series
+                Colors for the transfomer, defaults to 'orange'.
+            transformer_cmap : plt.cm.ColorMap/str|dict
+                If transformer_colors are floats, this color map will assign the colors.
+            transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+                The norm applied to the transformer_cmap.
+            transformer_alpha : str/pandas.Series
+                Alpha for the transfomer, defaults to 1.
+            transformer_widths : dict/pandas.Series
+                Widths of transformer, defaults to 1.5
+
+            .. deprecated:: 0.28.0
+                `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow`
+                    instead. The argument will be passed to all branches.
+                `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated,
+                    use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and
+                    `transformer_cmap_norm` instead.
+                `color_geomap` is deprecated, use `geomap_colors` instead.
+
+        Returns
+        -------
+        dict: collections of matplotlib objects
+            2D dictinary with the following keys:
+            - 'nodes'
+                - 'Bus': Collection of bus points
+            - 'branches' (for each branch component)
+                - 'lines': Collection of line branches
+                - 'links': Collection of link branches
+                - 'transformers': Collection of transformer branches
+            - 'flows' (for each branch component)
+                - 'lines': Collection of line flows
+                - 'links': Collection of link flows
+                - 'transformers': Collection of transformer flows
+        """
+
+        # Check for API changes
+
+        # Deprecation warnings
+        if flow is not None:
+            if (
+                line_flow is not None
+                or link_flow is not None
+                or transformer_flow is not None
+            ):
+                msg = "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
+                "`transformer_flow` instead. You can't use both arguments at the same time."
+                raise ValueError(msg)
+            if isinstance(flow, pd.Series) and isinstance(flow.index, pd.MultiIndex):
+                msg = (
+                    "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
+                    "`transformer_flow` instead. Multiindex Series are not supported anymore."
+                )
+                raise ValueError(msg)
+            warnings.warn(
+                "The `flow` argument is deprecated and will be removed in a future "
+                "version. Use `line_flow`, `link_flow` and `transformer_flow` instead. The "
+                "argument will be passed to all branches. Multiindex Series are not supported anymore.",
+                DeprecationWarning,
+                2,
+            )
+            line_flow = flow
+            link_flow = flow
+            transformer_flow = flow
+
+        if margin is None:
+            logger.warning(
+                "The `margin` argument does support None value anymore. "
+                "Falling back to the default value 0.05. This will raise "
+                "an error in the future."
+            )
+            margin = 0.05
+
+        # Deprecation errors
+        if isinstance(line_widths, pd.Series) and isinstance(
+            line_widths.index, pd.MultiIndex
+        ):
+            msg = (
+                "Index of argument 'line_widths' is a Multiindex, "
+                "this is not support since pypsa v0.17. "
+                "Set differing widths with arguments 'line_widths', "
+                "'link_widths' and 'transformer_widths'."
+            )
+            raise TypeError(msg)
+
+        if isinstance(line_colors, pd.Series) and isinstance(
+            line_colors.index, pd.MultiIndex
+        ):
+            msg = (
+                "Index of argument 'line_colors' is a Multiindex, "
+                "this is not support since pypsa v0.17. "
+                "Set differing colors with arguments 'line_colors', "
+                "'link_colors' and 'transformer_colors'."
+            )
+            raise TypeError(msg)
+
+        # Check for ValueErrors
+
+        if geomap:
+            if not cartopy_present:
+                logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+                geomap = False
+
+        if not geomap and hasattr(ax, "projection"):
+            msg = "The axis has a projection, but `geomap` is set to False"
+            raise ValueError(msg)
+
+        if geomap and not cartopy_present:
+            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+            geomap = False
+
+        # Check if bus_sizes is a MultiIndex
+        multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
+            bus_sizes.index, pd.MultiIndex
         )
-        return flow_coll
 
-    def get_flow_collections(self, branch_components, flow_data, branch_data):
-        components = self.n.iterate_components(branch_components)
-
-        flow_colls = {}
-        for c in components:
-            if flow_data[c.name] is None:
-                continue
+        # Apply default values
+        if bus_colors is None:
+            if multindex_buses:
+                bus_colors = n.carriers.color
             else:
-                flow_arg = flow_data[c.name]
+                bus_colors = "cadetblue"
 
-            # Get general component data
-            d = branch_data[c.name]
-            if any([isinstance(v, pd.Series) for _, v in d.items()]):
-                df = pd.DataFrame(d)
-            else:
-                df = pd.DataFrame(d, index=c.df.index)
+        # Format different input types
+        bus_colors = _convert_to_series(bus_colors, n.buses.index)
+        bus_sizes = _convert_to_series(bus_sizes, n.buses.index)
 
-            # Get flow data
-            rough_scale = sum(len(self.n.df(c)) for c in branch_components) + 100
-            df["flow"] = (
-                self._flow_ds_from_arg(flow_arg, c.name) / rough_scale
-            )  # TODO move this out
+        # Add missing colors
+        # TODO: This is not consistent, since for multiindex a ValueError is raised
+        if not multindex_buses:
+            bus_colors = bus_colors.reindex(n.buses.index)
 
-            flow_coll = self._get_flow_collection(c, df)
-            flow_colls[c.name] = flow_coll
+        # Raise additional ValueErrors after formatting
+        if multindex_buses:
+            if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
+                msg = "The first MultiIndex level of sizes must contain buses"
+                raise ValueError(msg)
+            if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
+                msg = "Colors not defined for all elements in the second MultiIndex "
+                "level of sizes, please make sure that all the elements are "
+                "included in colors or in n.carriers.color"
+                raise ValueError(msg)
 
-        return flow_colls
+        # Apply all cmaps
+        bus_colors = _apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
+
+        # Initiate NetworkPlotter
+        plotter = NetworkPlotter(n)
+        plotter.init_layout(layouter)
+        buses = (
+            bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
+        )
+        plotter.init_boundaries(buses, boundaries, margin)
+        plotter.init_axis(ax, projection, geomap, geomap_colors, title)
+
+        # Add jitter if given
+        if jitter is not None:
+            plotter.add_jitter(jitter)
+
+        # Plot buses
+        bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
+        if geomap:
+            bus_sizes = bus_sizes * plotter.area_factor**2
+        if isinstance(bus_sizes.index, pd.MultiIndex):
+            patches = plotter.get_multiindex_buses(
+                bus_sizes, bus_colors, bus_alpha, bus_split_circles
+            )
+        else:
+            patches = plotter.get_singleindex_buses(bus_sizes, bus_colors, bus_alpha)
+        bus_collection = PatchCollection(patches, match_original=True, zorder=5)
+        plotter.ax.add_collection(bus_collection)
+
+        # Plot branches and flows
+        if branch_components is None:
+            branch_components = n.branch_components
+
+        branch_collections = {}
+        flow_collections = {}
+
+        for c in n.iterate_components(branch_components):
+            # Get branch collection
+            if c.name == "Line":
+                widths = line_widths
+                colors = line_colors
+                alpha = line_alpha
+                flow = plotter._flow_ds_from_arg(line_flow, c.name)
+                cmap = line_cmap
+                cmap_norm = line_cmap_norm
+            elif c.name == "Link":
+                widths = link_widths
+                colors = link_colors
+                alpha = link_alpha
+                flow = plotter._flow_ds_from_arg(link_flow, c.name)
+                cmap = link_cmap
+                cmap_norm = link_cmap_norm
+            elif c.name == "Transformer":
+                widths = transformer_widths
+                colors = transformer_colors
+                alpha = transformer_alpha
+                flow = plotter._flow_ds_from_arg(transformer_flow, c.name)
+                cmap = transformer_cmap
+                cmap_norm = transformer_cmap_norm
+
+            data = plotter._dataframe_from_arguments(
+                c.df.index, widths=widths, colors=colors, alpha=alpha, flow=flow
+            )
+            data["colors"] = _apply_cmap(data.colors, cmap, cmap_norm)
+
+            branch_coll = plotter.get_branch_collection(
+                c, data.widths, data.colors, data.alpha, geometry
+            )
+            if branch_coll is not None:
+                plotter.ax.add_collection(branch_coll)
+                branch_collections[c.name] = branch_coll
+
+            # Get flow collection if flow data exists
+            if flow is not None:
+                if auto_scale_flow:
+                    rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
+                    data["flow"] = (
+                        data.flow.mul(abs(widths), fill_value=0) / rough_scale
+                    )
+                flow_coll = plotter.get_flow_collection(
+                    c,
+                    flow=data.flow,
+                    widths=data.widths,
+                    colors=data.colors,
+                    alpha=data.alpha,
+                )
+                if flow_coll is not None:
+                    plotter.ax.add_collection(flow_coll)
+                    flow_collections[c.name] = flow_coll
+
+        return {
+            "nodes": {"Bus": bus_collection},
+            "branches": branch_collections,
+            "flows": flow_collections,
+        }
 
 
 @deprecated_kwargs(
@@ -492,363 +859,12 @@ class NetworkPlotter:
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
 )
-def plot(
-    n,
-    layouter: nx.drawing.layout = None,
-    boundaries: list | tuple | None = None,
-    margin: float = 0.05,
-    ax: plt.Axes = None,
-    geomap: bool | str = True,
-    projection: cartopy.crs.Projection = None,
-    geomap_colors: dict | bool | None = None,
-    title: str = "",
-    jitter: float | None = None,
-    branch_components: list | None = None,
-    bus_sizes: float | dict | pd.Series = 2e-2,
-    bus_split_circles: bool = False,
-    bus_colors: str | dict | pd.Series = None,
-    bus_cmap: str | plt.cm.ColorMap = None,
-    bus_cmap_norm: plt.Normalize = None,
-    bus_alpha: float | dict | pd.Series = 1,
-    geometry=False,  # TODO
-    line_flow: str | callable | dict | pd.Series | Network.snapshots = None,
-    line_colors: str | dict | pd.Series = "rosybrown",
-    line_cmap: str | plt.cm.ColorMap = "viridis",
-    line_cmap_norm: plt.Normalize = None,
-    line_alpha: float | dict | pd.Series = 1,
-    line_widths: float | dict | pd.Series = 1.5,
-    link_flow: str | callable | dict | pd.Series | Network.snapshots = None,
-    link_colors: str | dict | pd.Series = "darkseagreen",
-    link_cmap: str | plt.cm.ColorMap = "viridis",
-    link_cmap_norm: plt.Normalize = None,
-    link_alpha: float | dict | pd.Series = 1,
-    link_widths: float | dict | pd.Series = 1.5,
-    transformer_flow: str | callable | dict | pd.Series | Network.snapshots = None,
-    transformer_colors: str | dict | pd.Series = "orange",
-    transformer_cmap: str | plt.cm.ColorMap = "viridis",
-    transformer_cmap_norm: plt.Normalize = None,
-    transformer_alpha: float | dict | pd.Series = 1,
-    transformer_widths: float | dict | pd.Series = 1.5,
-    flow=None,  # Deprecated
-):
-    """
-    Plot the network buses and lines using matplotlib and cartopy.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network to plot
-    layouter : networkx.drawing.layout, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_ which
-        overrules coordinates given in ``n.buses[['x', 'y']]``. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
-        of available options.
-    boundaries : list/tuple, default None
-        Boundaries of the plot in format [x1, x2, y1, y2]
-    margin : float, defaults to 0.05
-        Margin at the sides as proportion of distance between max/min x, y
-        Will be ignored if boundaries are given.
-    ax : matplotlib.pyplot.Axes, defaults to None
-        Axis to plot on. Defaults to plt.gca() if geomap is False, otherwise
-        to plt.axes(projection=projection).
-    geomap: bool/str, default True
-        Switch to use Cartopy and draw geographical features.
-        If string is passed, it will be used as a resolution argument,
-        valid options are '10m', '50m' and '110m'.
-    projection: cartopy.crs.Projection, defaults to None
-        Define the projection of your geomap, only valid if cartopy is
-        installed. If None (default) is passed the projection for cartopy
-        is set to cartopy.crs.PlateCarree
-    geomap_colors : dict/bool, default None
-        Specify colors to paint land and sea areas in.
-        If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
-        If no dictionary is provided, colors are white.
-        If False, no geographical features are plotted.
-    title : string, default ""
-        Graph title
-    jitter : float, default None
-        Amount of random noise to add to bus positions to distinguish
-        overlapping buses
-    branch_components : list, default n.branch_components
-        Branch components to be plotted
-    bus_sizes : float/dict/pandas.Series
-        Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
-        the function will draw pies for each bus (first index level) with
-        segments of different color (second index level). Such a Series is ob-
-        tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
-    bus_split_circles : bool, default False
-        Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
-        If set to true, the upper half circle per bus then includes all positive values
-        of the series, the lower half circle all negative values. Defaults to False.
-    bus_colors : str/dict/pandas.Series
-        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
-        pandas.Series with a Multiindex, bus_colors defaults to the
-        n.carriers['color'] column.
-    bus_cmap : plt.cm.ColorMap/str
-        If bus_colors are floats, this color map will assign the colors
-    bus_cmap_norm : plt.Normalize
-        The norm applied to the bus_cmap
-    bus_alpha : float/dict/pandas.Series
-        Adds alpha channel to buses, defaults to 1
-    geometry :
-        # TODO
-
-    Additional Parameters
-    ---------------------
-    line_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
-        Flow to be for each line branch. If an element of
-        n.snapshots is given, the flow at this timestamp will be
-        displayed. If an aggregation function is given, is will be applied
-        to the total network flow via pandas.DataFrame.agg (accepts also
-        function names). Otherwise flows can be specified by passing a pandas
-        Series. Use the corresponding width argument to adjust size of the
-        flow arrows.
-    line_colors : str/pandas.Series
-        Colors for the lines, defaults to 'rosybrown'.
-    line_cmap : plt.cm.ColorMap/str|dict
-        If line_colors are floats, this color map will assign the colors.
-    line_cmap_norm : plt.Normalize
-        The norm applied to the line_cmap.
-    line_alpha : str/pandas.Series
-        Alpha for the lines, defaults to 1.
-    line_widths : dict/pandas.Series
-        Widths of lines, defaults to 1.5
-    link_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
-        Flow to be for each link branch. See line_flow for more information.
-    link_colors : str/pandas.Series
-        Colors for the links, defaults to 'darkseagreen'.
-    link_cmap : plt.cm.ColorMap/str|dict
-        If link_colors are floats, this color map will assign the colors.
-    link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
-        The norm applied to the link_cmap.
-    link_alpha : str/pandas.Series
-        Alpha for the links, defaults to 1.
-    link_widths : dict/pandas.Series
-        Widths of links, defaults to 1.5
-    transformer_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
-        Flow to be for each transformer branch. See line_flow for more information.
-    transformer_colors : str/pandas.Series
-        Colors for the transfomer, defaults to 'orange'.
-    transformer_cmap : plt.cm.ColorMap/str|dict
-        If transformer_colors are floats, this color map will assign the colors.
-    transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
-        The norm applied to the transformer_cmap.
-    transformer_alpha : str/pandas.Series
-        Alpha for the transfomer, defaults to 1.
-    transformer_widths : dict/pandas.Series
-        Widths of transformer, defaults to 1.5
-
-    .. deprecated:: 0.28.0
-        `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow`
-            instead. The argument will be passed to all branches.
-        `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated,
-            use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and
-            `transformer_cmap_norm` instead.
-        `color_geomap` is deprecated, use `geomap_colors` instead.
-
-    Returns
-    -------
-    dict: collections of matplotlib objects
-        2D dictinary with the following keys:
-        - 'nodes'
-            - 'Bus': Collection of bus points
-        - 'branches' (for each branch component)
-            - 'lines': Collection of line branches
-            - 'links': Collection of link branches
-            - 'transformers': Collection of transformer branches
-        - 'flows' (for each branch component)
-            - 'lines': Collection of line flows
-            - 'links': Collection of link flows
-            - 'transformers': Collection of transformer flows
-    """
-
-    # Check for API changes
-
-    # Deprecation warnings
-    if flow is not None:
-        if (
-            line_flow is not None
-            or link_flow is not None
-            or transformer_flow is not None
-        ):
-            msg = "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
-            "`transformer_flow` instead. You can't use both arguments at the same time."
-            raise ValueError(msg)
-        if isinstance(flow, pd.Series) and isinstance(flow.index, pd.MultiIndex):
-            msg = (
-                "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
-                "`transformer_flow` instead. Multiindex Series are not supported anymore."
-            )
-            raise ValueError(msg)
-        warnings.warn(
-            "The `flow` argument is deprecated and will be removed in a future "
-            "version. Use `line_flow`, `link_flow` and `transformer_flow` instead. The "
-            "argument will be passed to all branches. Multiindex Series are not supported anymore.",
-            DeprecationWarning,
-            2,
-        )
-        line_flow = flow
-        link_flow = flow
-        transformer_flow = flow
-
-    if margin is None:
-        logger.warning(
-            "The `margin` argument does support None value anymore. "
-            "Falling back to the default value 0.05. This will raise "
-            "an error in the future."
-        )
-        margin = 0.05
-
-    # Deprecation errors
-    if isinstance(line_widths, pd.Series) and isinstance(
-        line_widths.index, pd.MultiIndex
-    ):
-        msg = (
-            "Index of argument 'line_widths' is a Multiindex, "
-            "this is not support since pypsa v0.17. "
-            "Set differing widths with arguments 'line_widths', "
-            "'link_widths' and 'transformer_widths'."
-        )
-        raise TypeError(msg)
-
-    if isinstance(line_colors, pd.Series) and isinstance(
-        line_colors.index, pd.MultiIndex
-    ):
-        msg = (
-            "Index of argument 'line_colors' is a Multiindex, "
-            "this is not support since pypsa v0.17. "
-            "Set differing colors with arguments 'line_colors', "
-            "'link_colors' and 'transformer_colors'."
-        )
-        raise TypeError(msg)
-
-    # Check for ValueErrors
-
-    if geomap:
-        if not cartopy_present:
-            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-            geomap = False
-
-    if not geomap and hasattr(ax, "projection"):
-        msg = "The axis has a projection, but `geomap` is set to False"
-        raise ValueError(msg)
-
-    if geomap and not cartopy_present:
-        logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-        geomap = False
-
-    # Check if bus_sizes is a MultiIndex
-    multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
-        bus_sizes.index, pd.MultiIndex
-    )
-
-    # Apply default values
-    if bus_colors is None:
-        if multindex_buses:
-            bus_colors = n.carriers.color
-        else:
-            bus_colors = "cadetblue"
-
-    # Format different input types
-    bus_colors = _convert_to_series(bus_colors, n.buses.index)
-    bus_sizes = _convert_to_series(bus_sizes, n.buses.index)
-    line_colors = _convert_to_series(line_colors, n.lines.index)
-    link_colors = _convert_to_series(link_colors, n.links.index)
-    transformer_colors = _convert_to_series(transformer_colors, n.transformers.index)
-
-    # Add missing colors
-    # TODO: This is not consistent, since for multiindex a ValueError is raised
-    if not multindex_buses:
-        bus_colors = bus_colors.reindex(n.buses.index)
-
-    # Raise additional ValueErrors after formatting
-    if multindex_buses:
-        if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
-            msg = "The first MultiIndex level of sizes must contain buses"
-            raise ValueError(msg)
-        if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
-            msg = "Colors not defined for all elements in the second MultiIndex "
-            "level of sizes, please make sure that all the elements are "
-            "included in colors or in n.carriers.color"
-            raise ValueError(msg)
-
-    # Apply all cmaps
-    bus_colors = _apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
-    line_colors = _apply_cmap(line_colors, line_cmap, line_cmap_norm)
-    link_colors = _apply_cmap(link_colors, link_cmap, link_cmap_norm)
-    transformer_colors = _apply_cmap(
-        transformer_colors, transformer_cmap, transformer_cmap_norm
-    )
-
-    # Initiate NetworkPlotter
-    plotter = NetworkPlotter(n)
-    plotter.init_layout(layouter)
-    buses = bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
-    plotter.init_boundaries(buses, boundaries, margin)
-    plotter.init_axis(ax, projection, geomap, geomap_colors, title)
-
-    # Add jitter if given
-    if jitter is not None:
-        plotter.add_jitter(jitter)
-
-    # Plot buses
-    bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
-    if geomap:
-        bus_sizes = bus_sizes * plotter.area_factor**2
-    if isinstance(bus_sizes.index, pd.MultiIndex):
-        patches = plotter.get_multiindex_buses(
-            bus_sizes, bus_colors, bus_alpha, bus_split_circles
-        )
-    else:
-        patches = plotter.get_singleindex_buses(bus_sizes, bus_colors, bus_alpha)
-    bus_collection = PatchCollection(patches, match_original=True, zorder=5)
-    plotter.ax.add_collection(bus_collection)
-
-    # Collect data for branches and flows
-    branch_data = {
-        "Line": {
-            "width": line_widths,
-            "color": line_colors,
-            "alpha": line_alpha,
-        },
-        "Link": {
-            "width": link_widths,
-            "color": link_colors,
-            "alpha": link_alpha,
-        },
-        "Transformer": {
-            "width": transformer_widths,
-            "color": transformer_colors,
-            "alpha": transformer_alpha,
-        },
-    }
-    if branch_components is None:
-        branch_components = plotter.n.branch_components
-
-    # Plot branches
-    branches = plotter.get_branch_collections(
-        branch_components,
-        geometry,
-        branch_data,
-    )
-    for branch in branches.values():
-        plotter.ax.add_collection(branch)
-
-    # Plot flows
-    flow_data = {
-        "Line": line_flow,
-        "Link": link_flow,
-        "Transformer": transformer_flow,
-    }
-    flows = plotter.get_flow_collections(
-        branch_components,
-        flow_data,
-        branch_data,
-    )
-    for flow in flows.values():
-        plotter.ax.add_collection(flow)
-
-    return {"nodes": {"Bus": bus_collection}, "branches": branches, "flows": flows}
+@wraps(NetworkPlotter.plot)
+def plot(*args, **kwargs):
+    # Get the signature from the classmethod
+    plot.__doc__ = NetworkPlotter.plot.__doc__
+    plot.__annotations__ = NetworkPlotter.plot.__annotations__
+    return NetworkPlotter.plot(*args, **kwargs)
 
 
 class HandlerCircle(HandlerPatch):
@@ -900,6 +916,35 @@ class WedgeHandler(HandlerPatch):
         self.update_prop(p, orig_handle, legend)
         p.set_transform(trans)
         return [p]
+
+
+class HandlerArrow(HandlerPatch):
+    """Handler for FancyArrow patches in legends."""
+
+    def __init__(self, width_ratio=0.2):
+        super().__init__()
+        self.width_ratio = width_ratio
+
+    def create_artists(
+        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+    ):
+        # Create a transformed arrow that fits in the legend box
+        arrow = FancyArrow(
+            -2,
+            ydescent + height / 2,
+            4,
+            0,
+            head_width=orig_handle._head_width,
+            head_length=orig_handle._head_length,
+            length_includes_head=False,
+            width=orig_handle._head_width * self.width_ratio,  # Use the passed ratio
+            color=orig_handle.get_facecolor(),
+            **{
+                k: getattr(orig_handle, f"get_{k}")()
+                for k in ["edgecolor", "linewidth", "alpha"]
+            },
+        )
+        return [arrow]
 
 
 def add_legend_lines(ax, sizes, labels, colors=None, patch_kw=None, legend_kw=None):
@@ -1059,31 +1104,74 @@ def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw=
     ax.get_figure().add_artist(legend)
 
 
-def _flow_ds_from_arg(flow, n, branch_components):
-    if isinstance(flow, pd.Series):
-        if not isinstance(flow.index, pd.MultiIndex):
-            raise ValueError(
-                "Argument 'flow' is a pandas.Series without "
-                "a MultiIndex. Please provide a multiindexed series, with "
-                "the first level being a subset of 'branch_components'."
-            )
-        return flow
-    if flow in n.snapshots:
-        return pd.concat(
-            {
-                c: n.dynamic(c).p0.loc[flow]
-                for c in branch_components
-                if not n.dynamic(c).p0.empty
-            },
-            sort=True,
+def add_legend_arrows(
+    ax,
+    sizes,
+    labels,
+    colors=None,
+    arrow_to_tail_width=0.2,
+    patch_kw=None,
+    legend_kw=None,
+):
+    """
+    Add a legend for flow arrows.
+
+    Parameters
+    ----------
+    ax : matplotlib ax
+    sizes : list-like, float
+        Size of the reference arrows; for example [3, 2, 1]
+    labels : list-like, str
+        Label of the reference arrows; for example ["30 GW", "20 GW", "10 GW"]
+    colors : str/list-like, default 'b'
+        Color(s) of the arrows
+    patch_kw : dict, optional
+        Keyword arguments passed to FancyArrow
+    legend_kw : dict, optional
+        Keyword arguments passed to ax.legend
+    """
+    sizes = np.atleast_1d(sizes)
+    labels = np.atleast_1d(labels)
+    colors = np.atleast_1d(colors)
+
+    if patch_kw is None:
+        patch_kw = dict(linewidth=1, zorder=4)
+    if legend_kw is None:
+        legend_kw = {}
+
+    if len(sizes) != len(labels):
+        msg = "Sizes and labels must have the same length."
+        raise ValueError(msg)
+
+    if len(colors) == 1:
+        colors = np.repeat(colors, len(sizes))
+    elif len(colors) != len(sizes):
+        msg = "Colors must be a single value or match length of sizes"
+        raise ValueError(msg)
+
+    # Scale sizes to be more visible in legend
+    handles = [
+        FancyArrow(
+            0,
+            0,
+            1,
+            0,  # Shorter arrow length
+            head_width=s,
+            head_length=s / 0.6,
+            length_includes_head=False,
+            color=c,
+            **patch_kw,
         )
-    if isinstance(flow, str) or callable(flow):
-        return pd.concat(
-            [n.dynamic(c).p0 for c in branch_components],
-            axis=1,
-            keys=branch_components,
-            sort=True,
-        ).agg(flow, axis=0)
+        for s, c in zip(sizes, colors)
+    ]
+
+    legend = ax.legend(
+        handles,
+        labels,
+        handler_map={FancyArrow: HandlerArrow(width_ratio=arrow_to_tail_width)},
+        **legend_kw,
+    )
+    ax.get_figure().add_artist(legend)
 
 
 def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
