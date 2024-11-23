@@ -120,15 +120,92 @@ def apply_layouter(
 
 
 class NetworkMapPlotter:
-    def __init__(self, network: Network):
-        self.n = network
-        self.x = None  # Initialized in init_layout
-        self.y = None  # Initialized in init_layout
-        self.boundaries = None  # Initialized in init_boundaries
-        self.ax = None  # Initialized in init_axis
-        self.area_factor = 1  # Initialized in init_axis
+    def __init__(
+        self,
+        n: Network,
+        layout: nx.drawing.layout = None,
+        boundaries=None,
+        margin: float = 0.05,
+        buses=None,
+    ):
+        self._n = n
+        self._x = None
+        self._y = None
+        self._boundaries = None
+        self._margin = margin
+        self._ax = None
+        self._area_factor = None
 
-    def init_layout(self, layouter: nx.drawing.layout = None):
+        self.set_layout(layout)
+        self.set_boundaries(boundaries, margin, buses)
+
+    @property
+    def n(self):
+        return self._n
+
+    @property
+    def x(self):
+        if self._x is None:
+            self.set_layout()
+        return self._x
+
+    @x.setter
+    def x(self, value):
+        self._x = value
+
+    @property
+    def y(self):
+        if self._y is None:
+            self.set_layout()
+        return self._y
+
+    @y.setter
+    def y(self, value):
+        self._y = value
+
+    @property
+    def margin(self):
+        return self._margin
+
+    @margin.setter
+    def margin(self, value):
+        self._margin = value
+
+    @property
+    def boundaries(self):
+        return self._boundaries
+
+    @boundaries.setter
+    def boundaries(self, value):
+        if value is not None and len(value) != 4:
+            raise ValueError(
+                "Boundaries must be a sequence of 4 values (xmin, xmax, ymin, ymax)"
+            )
+        self._boundaries = value
+
+    @property
+    def ax(self):
+        return self._ax
+
+    @ax.setter
+    def ax(self, value):
+        if value is not None and not isinstance(
+            value, (plt.Axes, cartopy.mpl.geoaxes.GeoAxesSubplot)
+        ):
+            raise ValueError("ax must be either matplotlib Axes or GeoAxesSubplot")
+        self._ax = value
+
+    @property
+    def area_factor(self):
+        return self._area_factor
+
+    @area_factor.setter
+    def area_factor(self, value):
+        if value is not None and not isinstance(value, (int, float)):
+            raise ValueError("area_factor must be a number")
+        self._area_factor = value
+
+    def set_layout(self, layouter: nx.drawing.layout = None):
         # Check if networkx layouter is given or needed to get bus positions
         is_empty = (
             (self.n.buses[["x", "y"]].isnull() | (self.n.buses[["x", "y"]] == 0))
@@ -140,8 +217,11 @@ class NetworkMapPlotter:
         else:
             self.x, self.y = self.n.buses["x"], self.n.buses["y"]
 
-    def init_boundaries(self, buses, boundaries, margin):
+    def set_boundaries(self, boundaries, margin, buses=None):
         # Set boundaries, if not given
+
+        if buses is None:
+            buses = self.n.buses.index
 
         if boundaries is None:
             self.boundaries = sum(
@@ -149,6 +229,57 @@ class NetworkMapPlotter:
             )
         else:
             self.boundaries = boundaries
+
+    def init_axis(
+        self,
+        ax: plt.Axes = None,
+        projection: cartopy.crs.Projection = None,
+        geomap: bool = True,
+        geomap_colors: dict | bool = True,
+        title: str = "",
+    ) -> None:
+        # Set up plot (either cartopy or matplotlib)
+
+        network_projection = cartopy.crs.Projection(self.n.crs)
+        if geomap:
+            if projection is None:
+                projection = network_projection
+            elif not isinstance(projection, cartopy.crs.Projection):
+                msg = "The passed projection is not a cartopy.crs.Projection"
+                raise ValueError(msg)
+
+            if ax is None:
+                self.ax = plt.axes(projection=projection)
+            elif not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
+                msg = "The passed axis is not a GeoAxesSubplot. You can "
+                "create one with: \nimport cartopy.crs as ccrs \n"
+                "fig, ax = plt.subplots("
+                'subplot_kw={"projection":ccrs.PlateCarree()})'
+                raise ValueError(msg)
+            else:
+                self.ax = ax
+
+            x, y, _ = self.ax.projection.transform_points(
+                network_projection, self.x.values, self.y.values
+            ).T
+            self.x, self.y = pd.Series(x, self.x.index), pd.Series(y, self.y.index)
+
+            if geomap_colors is not False:
+                self.add_geomap_features(geomap, geomap_colors)
+
+            if self.boundaries is not None:
+                self.ax.set_extent(self.boundaries, crs=network_projection)
+
+            self.area_factor = get_projected_area_factor(self.ax, self.n.srid)
+        else:
+            if ax is None:
+                self.ax = plt.gca()
+            else:
+                self.ax = ax
+            self.ax.axis(self.boundaries)
+        self.ax.set_aspect("equal")
+        self.ax.axis("off")
+        self.ax.set_title(title)
 
     def add_geomap_features(self, geomap=True, geomap_colors=None):
         resolution = "50m" if isinstance(geomap, bool) else geomap
@@ -189,50 +320,6 @@ class NetworkMapPlotter:
             linewidth=0.3,
             edgecolor=geomap_colors.get("coastline", "black"),
         )
-
-    def init_axis(self, ax, projection, geomap, geomap_colors, title):
-        # Set up plot (either cartopy or matplotlib)
-
-        transform = cartopy.crs.Projection(self.n.crs)
-        if geomap:
-            if projection is None:
-                projection = transform
-            elif not isinstance(projection, cartopy.crs.Projection):
-                msg = "The passed projection is not a cartopy.crs.Projection"
-                raise ValueError(msg)
-
-            if ax is None:
-                self.ax = plt.axes(projection=projection)
-            elif not isinstance(ax, cartopy.mpl.geoaxes.GeoAxesSubplot):
-                msg = "The passed axis is not a GeoAxesSubplot. You can "
-                "create one with: \nimport cartopy.crs as ccrs \n"
-                "fig, ax = plt.subplots("
-                'subplot_kw={"projection":ccrs.PlateCarree()})'
-                raise ValueError(msg)
-            else:
-                self.ax = ax
-
-            x_, y_, _ = self.ax.projection.transform_points(
-                transform, self.x.values, self.y.values
-            ).T
-            self.x, self.y = pd.Series(x_, self.x.index), pd.Series(y_, self.y.index)
-
-            if geomap_colors is not False:
-                self.add_geomap_features(geomap, geomap_colors)
-
-            if self.boundaries is not None:
-                self.ax.set_extent(self.boundaries, crs=transform)
-
-            self.area_factor = get_projected_area_factor(self.ax, self.n.srid)
-        else:
-            if ax is None:
-                self.ax = plt.gca()
-            else:
-                self.ax = ax
-            self.ax.axis(self.boundaries)
-        self.ax.set_aspect("equal")
-        self.ax.axis("off")
-        self.ax.set_title(title)
 
     def add_jitter(self, jitter):
         """
@@ -539,19 +626,13 @@ class NetworkMapPlotter:
         """
         return abs(flow) ** 0.5 * width_factor * 10
 
-    @classmethod
-    def plot(
-        cls,
-        n: Network,
-        layouter: nx.drawing.layout = None,
-        boundaries: list | tuple | None = None,
-        margin: float | None = 0.05,
+    def static_map(
+        self,
         ax: plt.Axes = None,
-        geomap: bool | str = True,
         projection: cartopy.crs.Projection = None,
-        geomap_colors: dict | bool | None = None,
+        geomap: bool = True,
+        geomap_colors: dict | bool = True,
         title: str = "",
-        jitter: float | None = None,
         branch_components: list | None = None,
         bus_sizes: float | dict | pd.Series = 2e-2,
         bus_split_circles: bool = False,
@@ -559,7 +640,7 @@ class NetworkMapPlotter:
         bus_cmap: str | plt.cm.ColorMap = None,
         bus_cmap_norm: plt.Normalize = None,
         bus_alpha: float | dict | pd.Series = 1,
-        geometry=False,
+        geometry: bool = False,
         line_flow: str | callable | dict | pd.Series | Network.snapshots = None,
         line_colors: str | dict | pd.Series = "rosybrown",
         line_cmap: str | plt.cm.ColorMap = "viridis",
@@ -578,8 +659,8 @@ class NetworkMapPlotter:
         transformer_cmap_norm: plt.Normalize = None,
         transformer_alpha: float | dict | pd.Series = 1,
         transformer_widths: float | dict | pd.Series = 1.5,
+        flow: str | callable | dict | pd.Series | Network.snapshots = None,
         auto_scale_flow: bool = True,
-        flow=None,
     ):
         """
             Plot the network buses and lines using matplotlib and cartopy.
@@ -711,10 +792,16 @@ class NetworkMapPlotter:
                 - 'links': Collection of link flows
                 - 'transformers': Collection of transformer flows
         """
+        n = self.n
 
-        # Check for API changes
+        self.init_axis(
+            ax=ax,
+            projection=projection,
+            geomap=geomap,
+            geomap_colors=geomap_colors,
+            title=title,
+        )
 
-        # Deprecation warnings
         if flow is not None:
             if (
                 line_flow is not None
@@ -741,14 +828,6 @@ class NetworkMapPlotter:
             link_flow = flow
             transformer_flow = flow
 
-        if margin is None:
-            logger.warning(
-                "The `margin` argument does support None value anymore. "
-                "Falling back to the default value 0.05. This will raise "
-                "an error in the future."
-            )
-            margin = 0.05
-
         # Deprecation errors
         if isinstance(line_widths, pd.Series) and isinstance(
             line_widths.index, pd.MultiIndex
@@ -773,13 +852,12 @@ class NetworkMapPlotter:
             raise TypeError(msg)
 
         # Check for ValueErrors
-
         if geomap:
             if not cartopy_present:
                 logger.warning("Cartopy needs to be installed to use `geomap=True`.")
                 geomap = False
 
-        if not geomap and hasattr(ax, "projection"):
+        if not geomap and hasattr(self.ax, "projection"):
             msg = "The axis has a projection, but `geomap` is set to False"
             raise ValueError(msg)
 
@@ -822,31 +900,18 @@ class NetworkMapPlotter:
         # Apply all cmaps
         bus_colors = _apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
 
-        # Initiate NetworkPlotter
-        plotter = NetworkMapPlotter(n)
-        plotter.init_layout(layouter)
-        buses = (
-            bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
-        )
-        plotter.init_boundaries(buses, boundaries, margin)
-        plotter.init_axis(ax, projection, geomap, geomap_colors, title)
-
-        # Add jitter if given
-        if jitter is not None:
-            plotter.add_jitter(jitter)
-
         # Plot buses
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
         if geomap:
-            bus_sizes = bus_sizes * plotter.area_factor**2
+            bus_sizes = bus_sizes * self.area_factor**2
         if isinstance(bus_sizes.index, pd.MultiIndex):
-            patches = plotter.get_multiindex_buses(
+            patches = self.get_multiindex_buses(
                 bus_sizes, bus_colors, bus_alpha, bus_split_circles
             )
         else:
-            patches = plotter.get_singleindex_buses(bus_sizes, bus_colors, bus_alpha)
+            patches = self.get_singleindex_buses(bus_sizes, bus_colors, bus_alpha)
         bus_collection = PatchCollection(patches, match_original=True, zorder=5)
-        plotter.ax.add_collection(bus_collection)
+        self.ax.add_collection(bus_collection)
 
         # Plot branches and flows
         if branch_components is None:
@@ -861,34 +926,34 @@ class NetworkMapPlotter:
                 widths = line_widths
                 colors = line_colors
                 alpha = line_alpha
-                flow = plotter._flow_ds_from_arg(line_flow, c.name)
+                flow = self._flow_ds_from_arg(line_flow, c.name)
                 cmap = line_cmap
                 cmap_norm = line_cmap_norm
             elif c.name == "Link":
                 widths = link_widths
                 colors = link_colors
                 alpha = link_alpha
-                flow = plotter._flow_ds_from_arg(link_flow, c.name)
+                flow = self._flow_ds_from_arg(link_flow, c.name)
                 cmap = link_cmap
                 cmap_norm = link_cmap_norm
             elif c.name == "Transformer":
                 widths = transformer_widths
                 colors = transformer_colors
                 alpha = transformer_alpha
-                flow = plotter._flow_ds_from_arg(transformer_flow, c.name)
+                flow = self._flow_ds_from_arg(transformer_flow, c.name)
                 cmap = transformer_cmap
                 cmap_norm = transformer_cmap_norm
 
-            data = plotter._dataframe_from_arguments(
+            data = self._dataframe_from_arguments(
                 c.df.index, widths=widths, colors=colors, alpha=alpha, flow=flow
             )
             data["colors"] = _apply_cmap(data.colors, cmap, cmap_norm)
 
-            branch_coll = plotter.get_branch_collection(
+            branch_coll = self.get_branch_collection(
                 c, data.widths, data.colors, data.alpha, geometry
             )
             if branch_coll is not None:
-                plotter.ax.add_collection(branch_coll)
+                self.ax.add_collection(branch_coll)
                 branch_collections[c.name] = branch_coll
 
             # Get flow collection if flow data exists
@@ -898,7 +963,7 @@ class NetworkMapPlotter:
                     data["flow"] = (
                         data.flow.mul(abs(widths), fill_value=0) / rough_scale
                     )
-                flow_coll = plotter.get_flow_collection(
+                flow_coll = self.get_flow_collection(
                     c,
                     flow=data.flow,
                     widths=data.widths,
@@ -906,7 +971,7 @@ class NetworkMapPlotter:
                     alpha=data.alpha,
                 )
                 if flow_coll is not None:
-                    plotter.ax.add_collection(flow_coll)
+                    self.ax.add_collection(flow_coll)
                     flow_collections[c.name] = flow_coll
 
         return {
@@ -915,12 +980,14 @@ class NetworkMapPlotter:
             "flows": flow_collections,
         }
 
-    def plot_balance_map(
+    def static_balance_map(
         self,
         carrier: str,
-        figsize: tuple = (8, 8),
-        margin: float = 0.1,
-        projection: cartopy.crs.Projection = cartopy.crs.PlateCarree(),
+        ax: plt.Axes = None,
+        projection: cartopy.crs.Projection = None,
+        geomap: bool = True,
+        geomap_colors: dict | bool = True,
+        title: str = "",
         bus_area_fraction: float = 0.02,
         flow_area_fraction: float = 0.02,
         draw_legend_circles: bool = True,
@@ -956,6 +1023,14 @@ class NetworkMapPlotter:
         tuple[plt.Figure, plt.Axes]
             Matplotlib figure and axes objects
         """
+        self.init_axis(
+            ax=ax,
+            projection=projection,
+            geomap=geomap,
+            geomap_colors=geomap_colors,
+            title=title,
+        )
+
         n = self.n
         s = n.statistics
 
@@ -976,7 +1051,7 @@ class NetworkMapPlotter:
         # Calculate map bounds and scaling
         unique_buses = balance.index.get_level_values("bus").unique()
         (x_min, x_max), (y_min, y_max) = compute_bbox(
-            n.buses.x[unique_buses], n.buses.y[unique_buses], margin
+            n.buses.x[unique_buses], n.buses.y[unique_buses], self.margin
         )
         bus_size_factor = NetworkMapPlotter.scaling_factor_from_area_contribution(
             balance, x_min, x_max, y_min, y_max, target_area_fraction=bus_area_fraction
@@ -990,16 +1065,10 @@ class NetworkMapPlotter:
         )
         flow_scaled = flow * flow_scaling_factor
 
-        # Create plot
-        fig, ax = plt.subplots(
-            figsize=figsize,
-            subplot_kw=dict(projection=projection),
-        )
-
         plot_args = dict(
             bus_sizes=bus_size_factor * balance,
             bus_split_circles=True,
-            ax=ax,
+            ax=self.ax,
             line_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Line", 0)),
             link_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Link", 0)),
             line_flow=flow_scaled.get("Line"),
@@ -1017,7 +1086,7 @@ class NetworkMapPlotter:
                 balance, group_on_first_level=True
             )
             add_legend_semicircles(
-                ax,
+                self.ax,
                 [s * bus_size_factor for s, label in legend_representatives],
                 [label for s, label in legend_representatives],
                 legend_kw={
@@ -1032,7 +1101,7 @@ class NetworkMapPlotter:
                 flow, n_significant=1, base_unit="MWh"
             )
             add_legend_arrows(
-                ax,
+                self.ax,
                 [s * flow_scaling_factor * 10 for s, label in legend_representatives],
                 [label for s, label in legend_representatives],
                 arrow_to_tail_width=0.2,
@@ -1043,7 +1112,7 @@ class NetworkMapPlotter:
                 },
             )
 
-        return fig, ax
+        return self.ax.get_figure(), self.ax
 
 
 @deprecated_kwargs(
@@ -1053,12 +1122,60 @@ class NetworkMapPlotter:
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
 )
-@wraps(NetworkMapPlotter.plot)
-def plot(*args, **kwargs):
-    # Get the signature from the classmethod
-    plot.__doc__ = NetworkMapPlotter.plot.__doc__
-    plot.__annotations__ = NetworkMapPlotter.plot.__annotations__
-    return NetworkMapPlotter.plot(*args, **kwargs)
+@wraps(NetworkMapPlotter.static_map)
+def plot(
+    n: Network,
+    ax: plt.Axes = None,
+    layouter: nx.drawing.layout = None,
+    boundaries: list | tuple | None = None,
+    margin: float | None = 0.05,
+    projection: cartopy.crs.Projection = None,
+    geomap: bool | str = True,
+    geomap_colors: dict | bool | None = None,
+    title: str = "",
+    jitter: float | None = None,
+    **kwargs,
+):
+    if margin is None:
+        logger.warning(
+            "The `margin` argument does support None value anymore. "
+            "Falling back to the default value 0.05. This will raise "
+            "an error in the future."
+        )
+        margin = 0.05
+
+    bus_sizes = kwargs.get("bus_sizes")
+    multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
+        bus_sizes.index, pd.MultiIndex
+    )
+    if isinstance(bus_sizes, pd.Series):
+        buses = (
+            bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
+        )
+    else:
+        buses = n.buses.index
+
+    # setup plotter
+    plotter = NetworkMapPlotter(
+        n,
+        layouter,
+        boundaries=boundaries,
+        margin=margin,
+        buses=buses,
+    )
+
+    plotter.init_axis(
+        ax,
+        projection=projection,
+        geomap=geomap,
+        geomap_colors=geomap_colors,
+        title=title,
+    )
+    # Add jitter if given
+    if jitter is not None:
+        plotter.add_jitter(jitter)
+
+    return plotter.static_map(**kwargs)
 
 
 class HandlerCircle(HandlerPatch):
