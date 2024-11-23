@@ -25,6 +25,7 @@ from pypsa.geo import (
     compute_bbox,
     get_projected_area_factor,
 )
+from pypsa.statistics import get_transmission_carriers
 from pypsa.utils import deprecated_kwargs
 
 cartopy_present = True
@@ -118,7 +119,7 @@ def apply_layouter(
         return coordinates.x, coordinates.y
 
 
-class NetworkPlotter:
+class NetworkMapPlotter:
     def __init__(self, network: Network):
         self.n = network
         self.x = None  # Initialized in init_layout
@@ -475,6 +476,69 @@ class NetworkPlotter:
 
         return self._directed_flow(coords, flow, colors, self.area_factor, alpha)
 
+    @staticmethod
+    def scaling_factor_from_area_contribution(
+        area_contributions, x_min, x_max, y_min, y_max, target_area_fraction=0.1
+    ):
+        """
+        Scale series for plotting so that the total area of all area contributions
+        takes up approximately the specified fraction of the plot area.
+
+        Parameters
+        ----------
+        area_contribution : pd.Series
+            Series containing the balance values for each bus
+        x_min, x_max : float
+            The x-axis extent of the plot
+        y_min, y_max : float
+            The y-axis extent of the plot
+        target_area_fraction : float, optional
+            Desired fraction of plot area to be covered by all circles (default: 0.3)
+
+        Returns
+        -------
+        pd.Series
+            Scaled values
+        """
+        plot_area = (x_max - x_min) * (y_max - y_min)
+        target_total_circle_area = plot_area * target_area_fraction
+        current_total_area = np.sum(np.abs(area_contributions))
+        return target_total_circle_area / current_total_area
+
+    @staticmethod
+    def aggregate_flow_by_connection(
+        flow: pd.Series, branches: pd.DataFrame
+    ) -> pd.Series:
+        if flow.empty:
+            return flow
+        connected_buses = branches.loc[flow.index, ["bus0", "bus1"]]
+        correctly_sorted = connected_buses.bus0 < connected_buses.bus1
+
+        flow_sorted = flow.where(correctly_sorted, -flow)
+        buses_sorted = connected_buses.apply(sorted, axis=1).str.join(" - ")
+        flow_grouped = (
+            flow_sorted.groupby(buses_sorted).transform("sum") * correctly_sorted
+        )
+        flow_grouped = flow_grouped[buses_sorted.drop_duplicates().index]
+
+        return flow_grouped
+
+    @staticmethod
+    def flow_to_width(
+        flow: float | pd.Series, width_factor: float = 0.2
+    ) -> float | pd.Series:
+        """
+        Calculate the width of a line based on the flow value.
+
+        Parameters
+        ----------
+        flow : float or pd.Series
+            Flow values
+        width_factor : float
+            Ratio between the flow width and and line width (default: 0.5)
+        """
+        return abs(flow) ** 0.5 * width_factor * 10
+
     @classmethod
     def plot(
         cls,
@@ -759,7 +823,7 @@ class NetworkPlotter:
         bus_colors = _apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
 
         # Initiate NetworkPlotter
-        plotter = NetworkPlotter(n)
+        plotter = NetworkMapPlotter(n)
         plotter.init_layout(layouter)
         buses = (
             bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
@@ -851,6 +915,136 @@ class NetworkPlotter:
             "flows": flow_collections,
         }
 
+    def plot_balance_map(
+        self,
+        carrier: str,
+        figsize: tuple = (8, 8),
+        margin: float = 0.1,
+        projection: cartopy.crs.Projection = cartopy.crs.PlateCarree(),
+        bus_area_fraction: float = 0.02,
+        flow_area_fraction: float = 0.02,
+        draw_legend_circles: bool = True,
+        draw_legend_arrows: bool = True,
+        plot_kwargs: dict = {},
+    ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plot energy balance map for a given carrier showing bus sizes and transmission flows.
+
+        Parameters
+        ----------
+        network : pypsa.Network
+            PyPSA network to plot
+        carrier : str, optional
+            Energy carrier to plot, by default "H2"
+        figsize : tuple, optional
+            Figure dimensions (width, height), by default (8, 8)
+        margin : float, optional
+            Margin around the map bounds, by default 0.1
+        bus_area_fraction : float, optional
+            Target fraction of map area for bus scaling, by default 0.02
+        flow_area_fraction : float, optional
+            Target fraction of map area for flow scaling, by default 0.02
+        draw_legend_circles : bool, optional
+            Whether to draw the bus size legend, by default True
+        draw_legend_arrows : bool, optional
+            Whether to draw the flow arrows legend, by default True
+        plot_kwargs : dict, optional
+            Additional kwargs passed to network.plot(), by default None
+
+        Returns
+        -------
+        tuple[plt.Figure, plt.Axes]
+            Matplotlib figure and axes objects
+        """
+        n = self.n
+        s = n.statistics
+
+        # Calculate energy balance
+        balance = s.energy_balance(
+            bus_carrier=carrier,
+            groupby=s.groupers.get_bus_and_carrier,
+            nice_names=False,
+        )
+        transmission_carriers = get_transmission_carriers(n, bus_carrier=carrier)
+        if "Link" in balance.index.get_level_values("component"):
+            sub = balance.loc[["Link"]].drop(
+                transmission_carriers.unique(1), level="carrier", errors="ignore"
+            )
+            balance = pd.concat([balance.drop("Link"), sub])
+        balance = balance.groupby(["bus", "carrier"]).sum()
+
+        # Calculate map bounds and scaling
+        unique_buses = balance.index.get_level_values("bus").unique()
+        (x_min, x_max), (y_min, y_max) = compute_bbox(
+            n.buses.x[unique_buses], n.buses.y[unique_buses], margin
+        )
+        bus_size_factor = NetworkMapPlotter.scaling_factor_from_area_contribution(
+            balance, x_min, x_max, y_min, y_max, target_area_fraction=bus_area_fraction
+        )
+
+        # Calculate flows
+        flow = s.transmission(groupby=False, bus_carrier=carrier)
+        flow = NetworkMapPlotter.aggregate_flow_by_connection(flow, n.branches())
+        flow_scaling_factor = self.scaling_factor_from_area_contribution(
+            flow, x_min, x_max, y_min, y_max, target_area_fraction=flow_area_fraction
+        )
+        flow_scaled = flow * flow_scaling_factor
+
+        # Create plot
+        fig, ax = plt.subplots(
+            figsize=figsize,
+            subplot_kw=dict(projection=projection),
+        )
+
+        plot_args = dict(
+            bus_sizes=bus_size_factor * balance,
+            bus_split_circles=True,
+            ax=ax,
+            line_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Line", 0)),
+            link_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Link", 0)),
+            line_flow=flow_scaled.get("Line"),
+            link_flow=flow_scaled.get("Link"),
+            auto_scale_flow=False,
+        )
+        if plot_kwargs is not None:
+            plot_args.update(plot_kwargs)
+
+        n.plot(**plot_args)
+
+        # Add legends
+        if draw_legend_circles:
+            legend_representatives = get_legend_representatives(
+                balance, group_on_first_level=True
+            )
+            add_legend_semicircles(
+                ax,
+                [s * bus_size_factor for s, label in legend_representatives],
+                [label for s, label in legend_representatives],
+                legend_kw={
+                    "bbox_to_anchor": (0, 1),
+                    "loc": "upper left",
+                    "frameon": False,
+                },
+            )
+
+        if draw_legend_arrows:
+            legend_representatives = get_legend_representatives(
+                flow, n_significant=1, base_unit="MWh"
+            )
+            add_legend_arrows(
+                ax,
+                [s * flow_scaling_factor * 10 for s, label in legend_representatives],
+                [label for s, label in legend_representatives],
+                arrow_to_tail_width=0.2,
+                legend_kw={
+                    "bbox_to_anchor": (0, 0.9),
+                    "loc": "upper left",
+                    "frameon": False,
+                },
+            )
+
+        return fig, ax
+
 
 @deprecated_kwargs(
     bus_norm="bus_cmap_norm",
@@ -859,12 +1053,12 @@ class NetworkPlotter:
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
 )
-@wraps(NetworkPlotter.plot)
+@wraps(NetworkMapPlotter.plot)
 def plot(*args, **kwargs):
     # Get the signature from the classmethod
-    plot.__doc__ = NetworkPlotter.plot.__doc__
-    plot.__annotations__ = NetworkPlotter.plot.__annotations__
-    return NetworkPlotter.plot(*args, **kwargs)
+    plot.__doc__ = NetworkMapPlotter.plot.__doc__
+    plot.__annotations__ = NetworkMapPlotter.plot.__annotations__
+    return NetworkMapPlotter.plot(*args, **kwargs)
 
 
 class HandlerCircle(HandlerPatch):
@@ -1174,116 +1368,106 @@ def add_legend_arrows(
     ax.get_figure().add_artist(legend)
 
 
-def directed_flow(coords, flow, color, area_factor=1, cmap=None, alpha=1):
-    """
-    Helper function to generate arrows from flow data.
-    """
-    # this funtion is used for diplaying arrows representing the network flow
-    data = pd.DataFrame(
-        {
-            "arrowsize": flow.abs().pipe(np.sqrt).clip(lower=1e-8),
-            "direction": np.sign(flow),
-            "linelength": (
-                np.sqrt((coords.x1 - coords.x2) ** 2.0 + (coords.y1 - coords.y2) ** 2)
-            ),
-        }
-    )
-    data = data.join(coords)
-    if area_factor:
-        data["arrowsize"] = data["arrowsize"].mul(area_factor)
-    data["arrowtolarge"] = 1.5 * data.arrowsize > data.linelength
-    # swap coords for negativ directions
-    data.loc[data.direction == -1.0, ["x1", "x2", "y1", "y2"]] = data.loc[
-        data.direction == -1.0, ["x2", "x1", "y2", "y1"]
-    ].values
-    if ((data.linelength > 0.0) & (~data.arrowtolarge)).any():
-        data["arrows"] = data[(data.linelength > 0.0) & (~data.arrowtolarge)].apply(
-            lambda ds: FancyArrow(
-                ds.x1,
-                ds.y1,
-                0.6 * (ds.x2 - ds.x1)
-                - ds.arrowsize * 0.75 * (ds.x2 - ds.x1) / ds.linelength,
-                0.6 * (ds.y2 - ds.y1)
-                - ds.arrowsize * 0.75 * (ds.y2 - ds.y1) / ds.linelength,
-                head_width=ds.arrowsize,
-            ),
-            axis=1,
-        )
-    data.loc[(data.linelength > 0.0) & (data.arrowtolarge), "arrows"] = data[
-        (data.linelength > 0.0) & (data.arrowtolarge)
-    ].apply(
-        lambda ds: FancyArrow(
-            ds.x1,
-            ds.y1,
-            0.001 * (ds.x2 - ds.x1),
-            0.001 * (ds.y2 - ds.y1),
-            head_width=ds.arrowsize,
-        ),
-        axis=1,
-    )
-    data = data.dropna(subset=["arrows"])
-    return PatchCollection(
-        data.arrows,
-        color=color,
-        alpha=alpha,
-        edgecolors="k",
-        linewidths=0.0,
-        zorder=4,
-    )
+def round_to_significant_digits(x: float, n: int = 2) -> int | float:
+    """Round a number to n significant figures."""
+    if x == 0:
+        return 0
+    magnitude = int(np.floor(np.log10(abs(x))))
+    rounded = round(x, -magnitude + (n - 1))
+    return int(rounded) if rounded >= 1 else rounded
 
 
-def autogenerate_coordinates(n, assign=False, layouter=None):
+def scaled_legend_label(value: float, base_unit: str = "MWh") -> str:
     """
-    Automatically generate bus coordinates for the network graph according to a
-    layouting function from `networkx <https://networkx.github.io/>`_.
+    Scale a value to an appropriate unit and return the scaled value and new unit.
+    Ensures scaled values >= 1 are integers.
+    """
+    unit_scales = {
+        "": 1,  # base
+        "k": 1e3,  # kilo
+        "M": 1e6,  # mega
+        "G": 1e9,  # giga
+        "T": 1e12,  # tera
+        "P": 1e15,  # peta
+    }
+
+    # Extract base unit without prefix
+    base_prefix = ""
+    unit_name = base_unit
+    for prefix in sorted(unit_scales.keys(), key=len, reverse=True):
+        if base_unit.startswith(prefix):
+            base_prefix = prefix
+            unit_name = base_unit[len(prefix) :]
+            break
+
+    # Calculate absolute value in base units
+    base_value = value * unit_scales[base_prefix]
+
+    # Find appropriate prefix
+    magnitude = np.floor(np.log10(abs(base_value))) if base_value != 0 else 0
+
+    # Get closest unit scale that keeps value between 1 and 1000
+    scales = np.array(list(unit_scales.values()))
+    prefixes = list(unit_scales.keys())
+    target_scale_idx = np.searchsorted(scales, 10 ** (magnitude - 3))
+    if target_scale_idx >= len(scales):
+        target_scale_idx = len(scales) - 1
+
+    target_scale = scales[target_scale_idx]
+    target_prefix = prefixes[target_scale_idx]
+
+    # If base_unit already has a prefix, adjust the scale accordingly
+    if base_prefix:
+        # Calculate the relative scale between target and base prefix
+        scale_difference = target_scale / unit_scales[base_prefix]
+        scaled_value = value / scale_difference
+    else:
+        scaled_value = base_value / target_scale
+
+    # Convert to integer if >= 1
+    if abs(scaled_value) >= 1:
+        scaled_value = int(round(scaled_value))
+
+    return f"{scaled_value} {target_prefix}{unit_name}"
+
+
+def get_legend_representatives(
+    series: pd.Series,
+    quantiles: list[float] = [0.6, 0.2],
+    n_significant: int = 1,
+    base_unit: str = "MWh",
+    group_on_first_level: bool = False,
+) -> list[tuple[int | float, str]]:
+    """
+    Get representative values from a numeric series for legend visualization,
+    with automatic unit scaling. Values >= 1 are returned as integers.
 
     Parameters
     ----------
-    n : pypsa.Network
-    assign : bool, default False
-        Assign generated coordinates to the network bus coordinates
-        at ``n.buses[['x', 'y']]``.
-    layouter : networkx.drawing.layout function, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
-        of available options. By default coordinates are determined for a
-        `planar layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.planar_layout.html#networkx.drawing.layout.planar_layout>`_
-        if the network graph is planar, otherwise for a
-        `Kamada-Kawai layout <https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout>`_.
+    series : pd.Series
+        Series containing the values
+    quantiles : list
+        List of quantile to use assuming a uniform distribution from
+        0 to the maximum value (default: [0.6, 0.2])
+    n_significant : int
+        Number of significant figures to round to
+    base_unit : str
+        Base unit of the values (default: "MWh")
 
     Returns
     -------
-    coordinates : pd.DataFrame
-        DataFrame containing the generated coordinates with
-        buses as index and ['x', 'y'] as columns.
-
-    Examples
-    --------
-    >>> autogenerate_coordinates(n)
-    >>> autogenerate_coordinates(n, assign=True, layouter=nx.circle_layout)
-
+    list
+        List of tuples (scaled_value, unit) for each quantile
     """
-    G = n.graph()
+    if series.empty:
+        return []
+    if group_on_first_level:
+        series = series.abs().groupby(level=0).sum()
+    max_value = series.abs().max()
+    values = [max_value * q for q in quantiles]
+    rounded_values = [round_to_significant_digits(v, n_significant) for v in values]
 
-    if layouter is None:
-        if nx.check_planarity(G)[0]:
-            layouter = nx.planar_layout
-        else:
-            layouter = nx.kamada_kawai_layout
-
-    coordinates = pd.DataFrame(layouter(G)).T.rename({0: "x", 1: "y"}, axis=1)
-
-    if assign:
-        n.buses[["x", "y"]] = coordinates
-
-    return coordinates
-
-
-def _get_coordinates(n, layouter=None):
-    if layouter is not None or n.buses[["x", "y"]].isin([np.nan, 0]).all().all():
-        coordinates = autogenerate_coordinates(n, layouter=layouter)
-        return coordinates["x"], coordinates["y"]
-    return n.buses["x"], n.buses["y"]
+    return [(v, scaled_legend_label(v, base_unit)) for v in rounded_values]
 
 
 _token_required_mb_styles = [
@@ -1441,7 +1625,7 @@ def iplot(
     if bus_text is None:
         bus_text = "Bus " + n.buses.index
 
-    x, y = _get_coordinates(n, layouter=layouter)
+    x, y = apply_layouter(n, layouter=layouter)
 
     rng = np.random.default_rng()  # Create a random number generator
     if jitter is not None:
