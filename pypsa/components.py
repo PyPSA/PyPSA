@@ -277,15 +277,17 @@ class Network:
 
         self._meta: dict = {}
 
-        self._snapshots = pd.Index(["now"])
+        self._snapshots = pd.Index(["now"], name="snapshot")
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
 
-        self._investment_periods: pd.Index = pd.Index([])
+        self._investment_periods: pd.Index = pd.Index([], name="period")
 
         cols = ["objective", "years"]
-        self._investment_period_weightings: pd.DataFrame = pd.DataFrame(columns=cols)
+        self._investment_period_weightings: pd.DataFrame = pd.DataFrame(
+            index=self.investment_periods, columns=cols
+        )
 
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
 
@@ -493,7 +495,6 @@ class Network:
             dynamic = Dict()
             for k in attrs.index[attrs.varying]:
                 df = pd.DataFrame(index=self.snapshots, columns=[], dtype=float)
-                df.index.name = "snapshot"
                 df.columns.name = component
                 dynamic[k] = df
 
@@ -659,7 +660,8 @@ class Network:
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for that quantity.
+        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
+        that quantity.
 
         Parameters
         ----------
@@ -668,7 +670,8 @@ class Network:
         default_snapshot_weightings: float
             The default weight for each snapshot. Defaults to 1.0.
         weightings_from_timedelta: bool
-            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
+            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if
+            `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
 
         Returns
         -------
@@ -688,8 +691,7 @@ class Network:
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
-            sns = snapshots.rename(["period", "timestep"])
-            sns.name = "snapshot"
+            sns = snapshots.rename(["period", "snapshot"])
             self._snapshots = sns
         else:
             self._snapshots = pd.Index(snapshots, name="snapshot")
@@ -725,9 +727,16 @@ class Network:
                 if dynamic[k].empty:  # avoid expensive reindex operation
                     dynamic[k].index = self._snapshots
                 elif k in attrs.default[attrs.varying]:
-                    dynamic[k] = dynamic[k].reindex(
-                        self._snapshots, fill_value=attrs.default[attrs.varying][k]
-                    )
+                    if isinstance(dynamic[k].index, pd.MultiIndex):
+                        dynamic[k] = dynamic[k].reindex(
+                            self._snapshots, fill_value=attrs.default[attrs.varying][k]
+                        )
+                    else:
+                        dynamic[k] = dynamic[k].reindex(
+                            self._snapshots,
+                            fill_value=attrs.default[attrs.varying][k],
+                            level=-1,  # Make sure to keep timestep level in case of MultiIndex
+                        )
                 else:
                     dynamic[k] = dynamic[k].reindex(self._snapshots)
 
@@ -785,7 +794,7 @@ class Network:
         None.
 
         """
-        periods_ = pd.Index(periods)
+        periods_ = pd.Index(periods, name="period")
         if not (
             pd.api.types.is_integer_dtype(periods_)
             and periods_.is_unique
@@ -811,7 +820,7 @@ class Network:
                 "Repeating time-series for each investment period and "
                 "converting snapshots to a pandas.MultiIndex."
             )
-            names = ["period", "timestep"]
+            names = ["period", "snapshot"]
             for component in self.all_components:
                 dynamic = self.dynamic(component)
 
@@ -819,16 +828,13 @@ class Network:
                     dynamic[k] = pd.concat(
                         {p: dynamic[k] for p in periods_}, names=names
                     )
-                    dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
                 [periods_, self.snapshots], names=names
             )
-            self._snapshots.name = "snapshot"
             self._snapshot_weightings = pd.concat(
                 {p: self.snapshot_weightings for p in periods_}, names=names
             )
-            self._snapshot_weightings.index.name = "snapshot"
 
         self._investment_periods = periods_
         self.investment_period_weightings = self.investment_period_weightings.reindex(
@@ -1304,10 +1310,8 @@ class Network:
             return copy.deepcopy(self)
 
         # Convert to pandas.Index
-        snapshots_ = as_index(self, snapshots, "snapshots", "snapshot")
-        investment_periods_ = as_index(
-            self, investment_periods, "investment_periods", None
-        )
+        snapshots_ = as_index(self, snapshots, "snapshots")
+        investment_periods_ = as_index(self, investment_periods, "investment_periods")
 
         # Deprecation warnings
         if with_time is not None:

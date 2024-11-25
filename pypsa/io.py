@@ -526,7 +526,7 @@ def _export_to_exporter(
 
     # now export snapshots
     if isinstance(n.snapshot_weightings.index, pd.MultiIndex):
-        n.snapshot_weightings.index.rename(["period", "timestep"], inplace=True)
+        n.snapshot_weightings.index.rename(["period", "snapshot"], inplace=True)
     else:
         n.snapshot_weightings.index.rename("snapshot", inplace=True)
     snapshots = n.snapshot_weightings.reset_index()

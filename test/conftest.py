@@ -31,8 +31,11 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "test_docs: mark test as sphinx build")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def scipy_network():
+    """
+    scigrid network (module scope)
+    """
     csv_folder = os.path.join(
         os.path.dirname(__file__),
         "..",
@@ -49,8 +52,19 @@ def scipy_network():
     return n
 
 
+@pytest.fixture(scope="function")
+def scipy_network_scoped(scipy_network):
+    """
+    scipy network (function scope)
+    """
+    return scipy_network
+
+
 @pytest.fixture(scope="module")
 def ac_dc_network():
+    """
+    ac-dc-meshed network (module scope)
+    """
     csv_folder = os.path.join(
         os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
     )
@@ -60,8 +74,19 @@ def ac_dc_network():
     return n
 
 
+@pytest.fixture(scope="function")
+def ac_dc_network_scoped(ac_dc_network):
+    """
+    ac-dc-meshed network (function scope)
+    """
+    return ac_dc_network
+
+
 @pytest.fixture(scope="module")
 def ac_dc_network_r():
+    """
+    ac-dc-meshed network with results (module scope)
+    """
     csv_folder = os.path.join(
         os.path.dirname(__file__),
         "..",
@@ -76,8 +101,20 @@ def ac_dc_network_r():
     return n
 
 
+@pytest.fixture(scope="function")
+def ac_dc_network_r_scoped(ac_dc_network_r):
+    """
+    ac-dc-meshed network with results (function scope)
+    """
+    return ac_dc_network_r
+
+
 @pytest.fixture(scope="module")
-def ac_dc_network_multiindexed(ac_dc_network):
+def ac_dc_network_mi(ac_dc_network):
+    """
+    ac-dc-meshed network with investment periods (module scope)
+    """
+
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.investment_periods = [2013]
@@ -87,8 +124,19 @@ def ac_dc_network_multiindexed(ac_dc_network):
     return n
 
 
+@pytest.fixture(scope="function")
+def ac_dc_network_mi_scoped(ac_dc_network_mi):
+    """
+    ac-dc-meshed network with investment periods (function scope)
+    """
+    return ac_dc_network_mi
+
+
 @pytest.fixture(scope="module")
 def ac_dc_network_shapes(ac_dc_network):
+    """
+    ac-dc-meshed network with shapes (module scope)
+    """
     n = ac_dc_network
 
     # Create bounding boxes around points
@@ -120,6 +168,9 @@ def ac_dc_network_shapes(ac_dc_network):
 
 @pytest.fixture(scope="module")
 def storage_hvdc_network():
+    """
+    storage-hvdc network (module scope)
+    """
     csv_folder = os.path.join(
         os.path.dirname(__file__),
         "..",
@@ -131,24 +182,10 @@ def storage_hvdc_network():
 
 
 @pytest.fixture(scope="module")
-def all_networks(
-    ac_dc_network,
-    ac_dc_network_r,
-    ac_dc_network_multiindexed,
-    ac_dc_network_shapes,
-    storage_hvdc_network,
-):
-    return [
-        ac_dc_network,
-        ac_dc_network_r,
-        ac_dc_network_multiindexed,
-        ac_dc_network_shapes,
-        storage_hvdc_network,
-    ]
-
-
-@pytest.fixture(scope="module")
 def pandapower_custom_network():
+    """
+    pandapower custom network (module scope)
+    """
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")
@@ -174,4 +211,30 @@ def pandapower_custom_network():
 
 @pytest.fixture(scope="module")
 def pandapower_cigre_network():
+    """
+    pandapower cigre network (module scope)
+    """
     return pn.create_cigre_network_mv(with_der="all")
+
+
+@pytest.fixture(
+    scope="module",
+    params=[
+        "ac_dc_network_scoped",
+        "ac_dc_network_r_scoped",
+        "ac_dc_network_mi_scoped",
+    ],
+)
+def all_networks(request):
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture(
+    params=[
+        "ac_dc_network_scoped",
+        "ac_dc_network_r_scoped",
+        "ac_dc_network_mi_scoped",
+    ]
+)
+def all_networks_scoped(request):
+    return request.getfixturevalue(request.param)

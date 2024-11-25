@@ -11,12 +11,7 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-def as_index(
-    n: Network,
-    values: Any,
-    network_attribute: str,
-    index_name: str | None,
-) -> pd.Index:
+def as_index(n: Network, values: Any, network_attribute: str) -> pd.Index:
     """
     Returns a pd.Index object from a list-like or scalar object.
 
@@ -40,18 +35,24 @@ def as_index(
     -------
     pd.Index: values as a pd.Index object.
     """
+    n_attr = getattr(n, network_attribute)
 
     if values is None:
-        values_ = getattr(n, network_attribute)
-    elif isinstance(values, (pd.Index, pd.MultiIndex)):
+        values_ = n_attr
+    elif isinstance(values, pd.MultiIndex):
         values_ = values
+        values_.names = n_attr.names
+    elif isinstance(values, pd.Index):
+        values_ = values
+        # If only timestep level is given for multiindex snapshots
+        # TODO: This ambiguity should be resolved
+        values_.names = n_attr.names[:1]
     elif not is_list_like(values):
-        values_ = pd.Index([values])
+        values_ = pd.Index([values], name=n_attr.names[0])
     else:
-        values_ = pd.Index(values)
-    values_.name = index_name
+        values_ = pd.Index(values, name=n_attr.names[0])
 
-    assert values_.isin(getattr(n, network_attribute)).all()
+    assert values_.isin(n_attr).all()
     assert isinstance(values_, pd.Index)
 
     return values_
@@ -60,7 +61,7 @@ def as_index(
 def deprecated_kwargs(**aliases: str) -> Callable:
     """
     Decorator for deprecated function and method arguments.
-    Based on solution from [here](https://stackoverflow.com/questions/49802412).
+    Based on solution fr [here](https://stackoverflow.com/questions/49802412).
 
     Parameters
     ----------
