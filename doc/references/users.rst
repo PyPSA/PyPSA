@@ -25,6 +25,8 @@ Universities and Research Institutes
 
 * `Frankfurt Institute of Advanced Studies <https://fias.science/>`_ (FIAS, where PyPSA was initially developed): multiple research papers, for example: `doi:10.1016/j.energy.2017.06.004 <https://doi.org/10.1016/j.energy.2017.06.004>`_, `doi:10.1109/EEM.2017.7982024 <https://doi.org/10.1109/EEM.2017.7982024>`_, `doi:10.1016/j.energy.2018.08.070 <https://doi.org/10.1016/j.energy.2018.08.070>`_, `doi:10.1016/j.apenergy.2018.09.084 <https://doi.org/10.1016/j.apenergy.2018.09.084>`_, `doi:10.1016/j.epsr.2017.12.034 <https://doi.org/10.1016/j.epsr.2017.12.034>`_
 
+* `Stanford University <https://www.stanford.edu/>`_ in the United States: research paper: `doi:10.2139/ssrn.5029120 <https://dx.doi.org/10.2139/ssrn.5029120>`_
+
 * `TU Delft <https://www.tudelft.nl/>`_ in the Netherlands: multiple research papers: `doi:10.1016/j.eneco.2018.04.037 <https://doi.org/10.1016/j.eneco.2018.04.037>`_, `doi:10.1016/j.energy.2017.02.111 <https://doi.org/10.1016/j.energy.2017.02.111>`_
 
 * `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022. In 2023, JRC used PyPSA for the study `"MODECO – Modelling study on the role of energy communities in the energy transition" <https://publications.jrc.ec.europa.eu/repository/bitstream/JRC132896/JRC132896_01.pdf>`_

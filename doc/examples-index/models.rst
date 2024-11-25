@@ -12,6 +12,7 @@ This section provides examples of open-source models using PyPSA:
 - Define your own sector-coupled European scenarios `model.energy/scenarios <https://model.energy/scenarios/>`_, maintained by `pypsa.org <pypsa.org>`_
 - Transmission grid optimisation `eTraGo <https://github.com/openego/eTraGo>`_
 - Distribution grid optimisation `dDisGo <https://github.com/openego/eDisGo>`_
+- Energy system model for the United States `PyPSA-USA <https://github.com/pypsa/pypsa-usa>`_
 - Chinese sector-coupled model `PyPSA-China <https://doi.org/10.1049/ein2.12011>`_
 - South-African electricity model `PyPSA-ZA <https://github.com/PyPSA/pypsa-za>`_
 - Vietnamese electricity model `PyPSA-VN <https://github.com/fiasresna/pypsa-vn>`_
