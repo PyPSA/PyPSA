@@ -532,6 +532,8 @@ class AbstractStatisticsAccessor(ABC):
             raise ValueError(
                 f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
             )
+
+        # TODO: add value error if bus_carrier yields empty mask
         return obj.loc[ports.index[mask]]
 
 

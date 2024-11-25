@@ -205,7 +205,7 @@ class NetworkMapPlotter:
             raise ValueError("area_factor must be a number")
         self._area_factor = value
 
-    def set_layout(self, layouter: nx.drawing.layout = None):
+    def set_layout(self, layouter: nx.drawing.layout | None = None):
         # Check if networkx layouter is given or needed to get bus positions
         is_empty = (
             (self.n.buses[["x", "y"]].isnull() | (self.n.buses[["x", "y"]] == 0))
@@ -217,7 +217,9 @@ class NetworkMapPlotter:
         else:
             self.x, self.y = self.n.buses["x"], self.n.buses["y"]
 
-    def set_boundaries(self, boundaries, margin, buses=None):
+    def set_boundaries(
+        self, boundaries: list[float] | None = None, margin: float = 0.05, buses=None
+    ):
         # Set boundaries, if not given
 
         if buses is None:
@@ -232,14 +234,18 @@ class NetworkMapPlotter:
 
     def init_axis(
         self,
-        ax: plt.Axes = None,
+        ax: plt.Axes | None = None,
         projection: cartopy.crs.Projection = None,
         geomap: bool = True,
-        geomap_colors: dict | bool = True,
+        geomap_colors: dict | bool | None = None,
+        boundaries: list | tuple | None = None,
         title: str = "",
     ) -> None:
-        # Set up plot (either cartopy or matplotlib)
+        # Ensure that boundaries are set
+        if boundaries is None:
+            boundaries = self.boundaries
 
+        # Set up plot (either cartopy or matplotlib)
         network_projection = cartopy.crs.Projection(self.n.crs)
         if geomap:
             if projection is None:
@@ -267,8 +273,7 @@ class NetworkMapPlotter:
             if geomap_colors is not False:
                 self.add_geomap_features(geomap, geomap_colors)
 
-            if self.boundaries is not None:
-                self.ax.set_extent(self.boundaries, crs=network_projection)
+            self.ax.set_extent(boundaries, crs=network_projection)
 
             self.area_factor = get_projected_area_factor(self.ax, self.n.srid)
         else:
@@ -276,7 +281,7 @@ class NetworkMapPlotter:
                 self.ax = plt.gca()
             else:
                 self.ax = ax
-            self.ax.axis(self.boundaries)
+            self.ax.axis(boundaries)
         self.ax.set_aspect("equal")
         self.ax.axis("off")
         self.ax.set_title(title)
@@ -631,8 +636,9 @@ class NetworkMapPlotter:
         ax: plt.Axes = None,
         projection: cartopy.crs.Projection = None,
         geomap: bool = True,
-        geomap_colors: dict | bool = True,
+        geomap_colors: dict | bool | None = None,
         title: str = "",
+        boundaries: list | tuple | None = None,
         branch_components: list | None = None,
         bus_sizes: float | dict | pd.Series = 2e-2,
         bus_split_circles: bool = False,
@@ -795,11 +801,12 @@ class NetworkMapPlotter:
         n = self.n
 
         self.init_axis(
-            ax=ax,
+            ax=self.ax if ax is None else ax,
             projection=projection,
             geomap=geomap,
             geomap_colors=geomap_colors,
             title=title,
+            boundaries=boundaries,
         )
 
         if flow is not None:
@@ -986,13 +993,14 @@ class NetworkMapPlotter:
         ax: plt.Axes = None,
         projection: cartopy.crs.Projection = None,
         geomap: bool = True,
-        geomap_colors: dict | bool = True,
+        geomap_colors: dict | bool | None = None,
+        boundaries: list | tuple | None = None,
         title: str = "",
         bus_area_fraction: float = 0.02,
         flow_area_fraction: float = 0.02,
         draw_legend_circles: bool = True,
         draw_legend_arrows: bool = True,
-        plot_kwargs: dict = {},
+        **kwargs,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot energy balance map for a given carrier showing bus sizes and transmission flows.
@@ -1015,7 +1023,7 @@ class NetworkMapPlotter:
             Whether to draw the bus size legend, by default True
         draw_legend_arrows : bool, optional
             Whether to draw the flow arrows legend, by default True
-        plot_kwargs : dict, optional
+        kwargs : dict, optional
             Additional kwargs passed to network.plot(), by default None
 
         Returns
@@ -1023,14 +1031,6 @@ class NetworkMapPlotter:
         tuple[plt.Figure, plt.Axes]
             Matplotlib figure and axes objects
         """
-        self.init_axis(
-            ax=ax,
-            projection=projection,
-            geomap=geomap,
-            geomap_colors=geomap_colors,
-            title=title,
-        )
-
         n = self.n
         s = n.statistics
 
@@ -1049,36 +1049,40 @@ class NetworkMapPlotter:
         balance = balance.groupby(["bus", "carrier"]).sum()
 
         # Calculate map bounds and scaling
-        unique_buses = balance.index.get_level_values("bus").unique()
-        (x_min, x_max), (y_min, y_max) = compute_bbox(
-            n.buses.x[unique_buses], n.buses.y[unique_buses], self.margin
-        )
+        boundaries = boundaries or self.boundaries
         bus_size_factor = NetworkMapPlotter.scaling_factor_from_area_contribution(
-            balance, x_min, x_max, y_min, y_max, target_area_fraction=bus_area_fraction
+            balance, *boundaries, target_area_fraction=bus_area_fraction
         )
 
         # Calculate flows
         flow = s.transmission(groupby=False, bus_carrier=carrier)
         flow = NetworkMapPlotter.aggregate_flow_by_connection(flow, n.branches())
         flow_scaling_factor = self.scaling_factor_from_area_contribution(
-            flow, x_min, x_max, y_min, y_max, target_area_fraction=flow_area_fraction
+            flow, *boundaries, target_area_fraction=flow_area_fraction
         )
         flow_scaled = flow * flow_scaling_factor
 
         plot_args = dict(
             bus_sizes=bus_size_factor * balance,
             bus_split_circles=True,
-            ax=self.ax,
             line_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Line", 0)),
             link_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Link", 0)),
             line_flow=flow_scaled.get("Line"),
             link_flow=flow_scaled.get("Link"),
             auto_scale_flow=False,
         )
-        if plot_kwargs is not None:
-            plot_args.update(plot_kwargs)
+        if kwargs:
+            plot_args.update(kwargs)
 
-        n.plot(**plot_args)
+        self.static_map(
+            ax=ax,
+            projection=projection,
+            geomap=geomap,
+            geomap_colors=geomap_colors,
+            title=title,
+            boundaries=boundaries,
+            **plot_args,
+        )
 
         # Add legends
         if draw_legend_circles:
@@ -1186,6 +1190,12 @@ class HandlerCircle(HandlerPatch):
     dimensional scaling as in the applied axis.
     """
 
+    LEGEND_SCALE_FACTOR = 72
+
+    def __init__(self, scale_factor=None):
+        super().__init__()
+        self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
+
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
     ):
@@ -1194,7 +1204,8 @@ class HandlerCircle(HandlerPatch):
 
         # take minimum to protect against too uneven x- and y-axis extents
         unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
-        radius = orig_handle.get_radius() * (72 / fig.dpi) * unit
+        norm = (self.scale_factor / fig.dpi) * unit
+        radius = orig_handle.get_radius() * norm
         center = 5 - xdescent, 3 - ydescent
         p = plt.Circle(center, radius)
         self.update_prop(p, orig_handle, legend)
@@ -1210,6 +1221,12 @@ class WedgeHandler(HandlerPatch):
     dimensional scaling as in the applied axis.
     """
 
+    LEGEND_SCALE_FACTOR = 72
+
+    def __init__(self, scale_factor=None):
+        super().__init__()
+        self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
+
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
     ):
@@ -1217,7 +1234,8 @@ class WedgeHandler(HandlerPatch):
         ax = legend.axes
         center = 5 - xdescent, 3 - ydescent
         unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
-        r = orig_handle.r * (72 / fig.dpi) * unit
+        norm = (self.scale_factor / fig.dpi) * unit
+        r = orig_handle.r * norm
         p = Wedge(
             center=center,
             r=r,
@@ -1232,23 +1250,38 @@ class WedgeHandler(HandlerPatch):
 class HandlerArrow(HandlerPatch):
     """Handler for FancyArrow patches in legends."""
 
-    def __init__(self, width_ratio=0.2):
+    # Empirically determined scale factor for legend arrow sizes
+    LEGEND_SCALE_FACTOR = 600000
+
+    def __init__(self, width_ratio=0.2, scale_factor=None):
+        """
+        Parameters
+        ----------
+        width_ratio : float, optional
+            Ratio of arrow width to head width, by default 0.2
+        scale_factor : float, optional
+            Custom scaling factor for arrow size, by default None
+        """
         super().__init__()
         self.width_ratio = width_ratio
+        self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
     def create_artists(
         self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
     ):
-        # Create a transformed arrow that fits in the legend box
+        fig = legend.get_figure()
+        ax = legend.axes
+        unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
+        norm = (self.scale_factor / fig.dpi) * unit
         arrow = FancyArrow(
-            -2,
+            -2 * norm,
             ydescent + height / 2,
-            4,
+            4 * norm,
             0,
-            head_width=orig_handle._head_width,
-            head_length=orig_handle._head_length,
+            head_width=orig_handle._head_width * norm,
+            head_length=orig_handle._head_length * norm,
             length_includes_head=False,
-            width=orig_handle._head_width * self.width_ratio,  # Use the passed ratio
+            width=orig_handle._head_width * self.width_ratio * norm,
             color=orig_handle.get_facecolor(),
             **{
                 k: getattr(orig_handle, f"get_{k}")()
