@@ -735,7 +735,7 @@ class Network:
                         dynamic[k] = dynamic[k].reindex(
                             self._snapshots,
                             fill_value=attrs.default[attrs.varying][k],
-                            level=-1,  # Make sure to keep timestep level in case of MultiIndex
+                            level="snapshot",  # Make sure to keep timestep level in case of MultiIndex
                         )
                 else:
                     dynamic[k] = dynamic[k].reindex(self._snapshots)
