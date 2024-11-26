@@ -250,15 +250,15 @@ def create_model(
     n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
     # Define variables
-    for c, attr in lookup.query("nominal").index:
-        define_nominal_variables(n, c, attr)
-        define_modular_variables(n, c, attr)
+    for c_name, attr in lookup.query("nominal").index:
+        define_nominal_variables(n, c_name, attr)
+        define_modular_variables(n, c_name, attr)
 
-    for c, attr in lookup.query("not nominal and not handle_separately").index:
-        define_operational_variables(n, sns, c, attr)
-        define_status_variables(n, sns, c)
-        define_start_up_variables(n, sns, c)
-        define_shut_down_variables(n, sns, c)
+    for c_name, attr in lookup.query("not nominal and not handle_separately").index:
+        define_operational_variables(n, sns, c_name, attr)
+        define_status_variables(n, sns, c_name)
+        define_start_up_variables(n, sns, c_name)
+        define_shut_down_variables(n, sns, c_name)
 
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")

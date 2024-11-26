@@ -745,7 +745,11 @@ class Network:
         -------
         pandas.Index
         """
-        return self.snapshots.get_level_values("timestep").unique()
+        try:
+            return self.snapshots.get_level_values("timestep").unique()
+        # TODO: hot fix
+        except:
+            return self.snapshots.get_level_values("snapshot").unique().rename('timestep')
 
     @property
     def snapshot_weightings(self) -> pd.DataFrame:

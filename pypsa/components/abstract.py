@@ -5,7 +5,7 @@ Contains classes and logic relevant to all component types in PyPSA.
 """
 
 from __future__ import annotations
-
+import xarray as xr
 import copy
 import logging
 from abc import ABC
@@ -21,7 +21,7 @@ from pyproj import CRS
 
 from pypsa.definitions.components import ComponentTypeInfo
 from pypsa.definitions.structures import Dict
-from pypsa.utils import equals
+from pypsa.utils import equals, as_index
 
 logger = logging.getLogger(__name__)
 
@@ -283,6 +283,36 @@ class Components(ComponentsData, ABC):
                 "build_year <= @period < build_year + lifetime"
             )
         return pd.DataFrame(active).any(axis=1) & self.static.active
+
+    def ds_get_active_assets(
+        self,
+        investment_period: int | str | Sequence | None = None,
+        aggregate_periods: bool = False,
+    ) -> pd.Series:
+        if investment_period and aggregate_periods:
+            msg = "Either 'investment_period' or 'aggregate_periods' can be given, not both."
+            raise ValueError(msg)
+
+        mask = xr.broadcast(self.ds.active, self.ds)[0]  # TODO, drop unnecessary dims
+
+        if not {"build_year", "lifetime"}.issubset(list(self.ds.data_vars)):
+            return mask
+        else:
+            raise NotImplementedError()
+            # Logical OR of active assets in all investment periods and
+            # logical AND with active attribute
+            active = {}
+            for period in np.atleast_1d(investment_period):
+                raise NotImplementedError()
+                if period not in self.n_save.investment_periods:
+                    raise ValueError("Investment period not in `n.investment_periods`")
+                # active[period] = (self.ds["build_year"] <= period) & (
+                #     period < self.ds["build_year"] + self.ds["lifetime"]
+                # )
+                active[period] = self.static.eval(
+                    "build_year <= @period < build_year + lifetime"
+                )
+            return pd.DataFrame(active).any(axis=1) & self.static.active
 
 
 class SubNetworkComponents:

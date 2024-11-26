@@ -31,12 +31,13 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if n.static(c).empty:
+    c_ = n.components[c]
+    if c_.static.empty:
         return
 
-    active = get_activity_mask(n, c, sns)
-    coords = [sns, n.static(c).index.rename(c)]
-    n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
+    active = c_.ds_get_activity_mask(sns)
+    # coords = [sns, n.static(c).index.rename(c)]
+    n.model.add_variables(coords=active.coords, name=f"{c}-{attr}", mask=active)
 
 
 def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
@@ -97,11 +98,13 @@ def define_nominal_variables(n: Network, c: str, attr: str) -> None:
     attr : str
         name of the variable, e.g. 'p_nom'
     """
-    ext_i = n.get_extendable_i(c)
+    c_ = n.components[c]
+
+    ext_i = n.get_extendable_i(c_.name)
     if ext_i.empty:
         return
 
-    n.model.add_variables(coords=[ext_i], name=f"{c}-{attr}")
+    n.model.add_variables(coords=[ext_i], name=f"{c_.name}-{attr}")
 
 
 def define_modular_variables(n: Network, c: str, attr: str) -> None:
