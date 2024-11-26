@@ -126,6 +126,7 @@ class NetworkMapPlotter:
         layout: nx.drawing.layout = None,
         boundaries=None,
         margin: float = 0.05,
+        jitter: float | None = None,
         buses=None,
     ):
         self._n = n
@@ -138,6 +139,9 @@ class NetworkMapPlotter:
 
         self.set_layout(layout)
         self.set_boundaries(boundaries, margin, buses)
+
+        if jitter:
+            self.add_jitter(jitter)
 
     @property
     def n(self):
@@ -417,11 +421,18 @@ class NetworkMapPlotter:
         if isinstance(flow, pd.Series):
             return flow
 
-        if flow in self.n.snapshots:
+        elif flow in self.n.snapshots:
             return self.n.dynamic(component_name).p0.loc[flow]
 
-        if isinstance(flow, str) or callable(flow):
+        elif isinstance(flow, str) or callable(flow):
             return self.n.dynamic(component_name).p0.agg(flow, axis=0)
+
+        elif isinstance(flow, (int, float)):
+            return pd.Series(flow, index=self.n.static(component_name).index)
+
+        elif flow is not None:
+            msg = f"The 'flow' argument must be a pandas.Series, a string, a float or a callable, got {type(flow)}."
+            raise ValueError(msg)
 
     def get_branch_collection(
         self,
@@ -627,7 +638,7 @@ class NetworkMapPlotter:
         flow : float or pd.Series
             Flow values
         width_factor : float
-            Ratio between the flow width and and line width (default: 0.5)
+            Ratio between the flow width and and line width (default: 0.2)
         """
         return abs(flow) ** 0.5 * width_factor * 10
 
@@ -647,19 +658,24 @@ class NetworkMapPlotter:
         bus_cmap_norm: plt.Normalize = None,
         bus_alpha: float | dict | pd.Series = 1,
         geometry: bool = False,
-        line_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+        line_flow: float | str | callable | dict | pd.Series | Network.snapshots = None,
         line_colors: str | dict | pd.Series = "rosybrown",
         line_cmap: str | plt.cm.ColorMap = "viridis",
         line_cmap_norm: plt.Normalize = None,
         line_alpha: float | dict | pd.Series = 1,
         line_widths: float | dict | pd.Series = 1.5,
-        link_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+        link_flow: float | str | callable | dict | pd.Series | Network.snapshots = None,
         link_colors: str | dict | pd.Series = "darkseagreen",
         link_cmap: str | plt.cm.ColorMap = "viridis",
         link_cmap_norm: plt.Normalize = None,
         link_alpha: float | dict | pd.Series = 1,
         link_widths: float | dict | pd.Series = 1.5,
-        transformer_flow: str | callable | dict | pd.Series | Network.snapshots = None,
+        transformer_flow: float
+        | str
+        | callable
+        | dict
+        | pd.Series
+        | Network.snapshots = None,
         transformer_colors: str | dict | pd.Series = "orange",
         transformer_cmap: str | plt.cm.ColorMap = "viridis",
         transformer_cmap_norm: plt.Normalize = None,
@@ -1000,6 +1016,10 @@ class NetworkMapPlotter:
         flow_area_fraction: float = 0.02,
         draw_legend_circles: bool = True,
         draw_legend_arrows: bool = True,
+        draw_legend_patches: bool = True,
+        legend_circles_kw: dict | None = None,
+        legend_arrows_kw: dict | None = None,
+        legend_patches_kw: dict | None = None,
         **kwargs,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
@@ -1023,6 +1043,10 @@ class NetworkMapPlotter:
             Whether to draw the bus size legend, by default True
         draw_legend_arrows : bool, optional
             Whether to draw the flow arrows legend, by default True
+        legend_circles_kw : dict, optional
+            Keyword arguments passed to the legend for circles, by default None
+        legend_arrows_kw : dict, optional
+            Keyword arguments passed to the legend for arrows, by default None
         kwargs : dict, optional
             Additional kwargs passed to network.plot(), by default None
 
@@ -1096,7 +1120,8 @@ class NetworkMapPlotter:
                 legend_kw={
                     "bbox_to_anchor": (0, 1),
                     "loc": "upper left",
-                    "frameon": False,
+                    "frameon": True,
+                    **(legend_circles_kw or {}),
                 },
             )
 
@@ -1108,11 +1133,28 @@ class NetworkMapPlotter:
                 self.ax,
                 [s * flow_scaling_factor * 10 for s, label in legend_representatives],
                 [label for s, label in legend_representatives],
-                arrow_to_tail_width=0.2,
                 legend_kw={
                     "bbox_to_anchor": (0, 0.9),
                     "loc": "upper left",
+                    "frameon": True,
+                    **(legend_arrows_kw or {}),
+                },
+            )
+
+        if draw_legend_patches:
+            carriers = balance.index.get_level_values("carrier").unique()
+            colors = n.carriers.color[carriers]
+            labels = n.carriers.nice_name[carriers]
+            labels = labels.where(labels != "", carriers)
+            add_legend_patches(
+                self.ax,
+                colors=colors,
+                labels=labels,
+                legend_kw={
+                    "bbox_to_anchor": (1, 1),
+                    "loc": "upper left",
                     "frameon": False,
+                    **(legend_patches_kw or {}),
                 },
             )
 
@@ -1168,18 +1210,18 @@ def plot(
         buses=buses,
     )
 
-    plotter.init_axis(
+    # Add jitter if given
+    if jitter is not None:
+        plotter.add_jitter(jitter)
+
+    return plotter.static_map(
         ax,
         projection=projection,
         geomap=geomap,
         geomap_colors=geomap_colors,
         title=title,
+        **kwargs,
     )
-    # Add jitter if given
-    if jitter is not None:
-        plotter.add_jitter(jitter)
-
-    return plotter.static_map(**kwargs)
 
 
 class HandlerCircle(HandlerPatch):
@@ -1452,8 +1494,9 @@ def add_legend_arrows(
     ax,
     sizes,
     labels,
+    srid=4326,
     colors=None,
-    arrow_to_tail_width=0.2,
+    arrow_to_tail_width=0.15,
     patch_kw=None,
     legend_kw=None,
 ):
@@ -1486,6 +1529,10 @@ def add_legend_arrows(
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
         raise ValueError(msg)
+
+    if hasattr(ax, "projection"):
+        area_correction = get_projected_area_factor(ax, srid)
+        sizes = [s * area_correction for s in sizes]
 
     if len(colors) == 1:
         colors = np.repeat(colors, len(sizes))
