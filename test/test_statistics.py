@@ -49,14 +49,49 @@ def test_per_bus_carrier_solved(ac_dc_network_r):
     assert not df.empty
 
 
-def test_column_grouping_unsolved(ac_dc_network):
-    df = ac_dc_network.statistics(groupby=["bus0", "carrier"], comps={"Link"})
+def test_grouping_by_keys_unsolved(ac_dc_network):
+    df = ac_dc_network.statistics(groupby=["bus_carrier", "carrier"])
     assert not df.empty
 
 
-def test_column_grouping_solved(ac_dc_network_r):
+def test_grouping_by_keys_solved(ac_dc_network_r):
+    df = ac_dc_network_r.statistics(groupby=["bus_carrier", "carrier"])
+    assert not df.empty
+
+
+def test_grouping_by_keys_with_specific_column_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics(groupby=["bus0", "carrier"], comps={"Link"})
     assert not df.empty
+
+
+def test_grouping_by_new_registered_key(ac_dc_network_r):
+    def new_grouper(n, c):
+        return n.df(c).index.to_series()
+
+    n = ac_dc_network_r
+    n.statistics.groupers.register_grouper("new_grouper", new_grouper)
+    df = n.statistics.supply(groupby="new_grouper")
+    assert not df.empty
+    assert df.index.nlevels == 2
+
+    df = n.statistics.supply(groupby=["new_grouper", "carrier"], comps="Link")
+    assert not df.empty
+    assert df.index.nlevels == 2
+
+
+def test_grouping_by_new_registered_key_on_global_level(ac_dc_network_r):
+    def new_grouper(n, c):
+        return n.df(c).index.to_series()
+
+    n = ac_dc_network_r
+    pypsa.statistics.Groupers.register_grouper("additional_grouper", new_grouper)
+    df = n.statistics.supply(groupby="additional_grouper")
+    assert not df.empty
+    assert df.index.nlevels == 2
+
+    df = n.statistics.supply(groupby=["additional_grouper", "carrier"], comps="Link")
+    assert not df.empty
+    assert df.index.nlevels == 2
 
 
 def test_zero_profit_rule_branches(ac_dc_network_r):
