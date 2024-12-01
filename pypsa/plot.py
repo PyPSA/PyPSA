@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
-from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
+from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
 from shapely import linestrings
 
 from pypsa.geo import (
@@ -441,9 +441,10 @@ class NetworkMapPlotter:
         colors: pd.Series,
         alpha: pd.Series,
         geometry: pd.Series,
+        auto_scale_branches: bool = True,
     ):
         """
-        Create a LineCollection for a single branch component.
+        Create a collection of branches for a single component.
 
         Parameters
         ----------
@@ -457,6 +458,28 @@ class NetworkMapPlotter:
             Alpha values for the component
         geometry : bool
             Whether to use geometry data for plotting
+        auto_scale_branches : bool
+            Whether to create a LineCollection with widths in data units
+            or a PatchCollection with widths in display units
+
+        """
+        if auto_scale_branches:
+            return self._get_branch_collection_lines(c, widths, colors, alpha, geometry)
+        if geometry:
+            msg = "The 'geometry' argument cannot be used with 'auto_scale_branches=True'."
+            raise ValueError(msg)
+        return self._get_branch_collection_patches(c, widths, colors, alpha)
+
+    def _get_branch_collection_lines(
+        self,
+        c,
+        widths: pd.Series,
+        colors: pd.Series,
+        alpha: pd.Series,
+        geometry: pd.Series,
+    ):
+        """
+        Create a LineCollection for a single branch component.
         """
         idx = widths.index
         if not geometry:
@@ -490,6 +513,63 @@ class NetworkMapPlotter:
             colors=colors,
             alpha=alpha,
         )
+
+    def _get_branch_collection_patches(
+        self,
+        c,
+        widths: pd.Series,
+        colors: pd.Series,
+        alpha: pd.Series,
+    ):
+        """
+        Create a PatchCollection of polygons representing lines with widths in data units.
+        """
+        idx = widths.index
+        patches = []
+        facecolors = []
+        alphas = []
+        x0s, y0s = c.static.bus0.map(self.x), c.static.bus0.map(self.y)
+        x1s, y1s = c.static.bus1.map(self.x), c.static.bus1.map(self.y)
+
+        for i in idx:
+            x0, y0 = x0s[i], y0s[i]
+            x1, y1 = x1s[i], y1s[i]
+            width = widths[i] * self.area_factor
+
+            # Calculate the direction vector
+            dx = x1 - x0
+            dy = y1 - y0
+            length = np.hypot(dx, dy)
+            if length == 0:
+                continue  # Skip zero-length lines
+            udx = dx / length
+            udy = dy / length
+
+            # Perpendicular vector scaled by half the width
+            px = -udy * width / 2.0
+            py = udx * width / 2.0
+
+            # Define the corners of the rectangle
+            corners = [
+                (x0 + px, y0 + py),
+                (x1 + px, y1 + py),
+                (x1 - px, y1 - py),
+                (x0 - px, y0 - py),
+            ]
+
+            polygon = Polygon(corners, closed=True)
+            patches.append(polygon)
+            facecolors.append(colors[i])
+            alphas.append(alpha[i])
+
+        patch_collection = PatchCollection(
+            patches,
+            facecolors=facecolors,
+            edgecolors="none",
+            alpha=alphas,
+        )
+
+        return patch_collection
 
     @staticmethod
     def _directed_flow(coords, flow, color, area_factor, alpha=1):
@@ -546,7 +626,7 @@ class NetworkMapPlotter:
             color=color,
             alpha=alpha,
             edgecolors="black",
-            linewidths=0.0,
+            linewidths=0,
             zorder=4,
         )
 
@@ -640,7 +720,7 @@ class NetworkMapPlotter:
         width_factor : float
             Ratio between the flow width and and line width (default: 0.2)
         """
-        return abs(flow) ** 0.5 * width_factor * 10
+        return abs(flow) ** 0.5 * width_factor
 
     def static_map(
         self,
@@ -682,7 +762,7 @@ class NetworkMapPlotter:
         transformer_alpha: float | dict | pd.Series = 1,
         transformer_widths: float | dict | pd.Series = 1.5,
         flow: str | callable | dict | pd.Series | Network.snapshots = None,
-        auto_scale_flow: bool = True,
+        auto_scale_branches: bool = True,
     ):
         """
             Plot the network buses and lines using matplotlib and cartopy.
@@ -745,6 +825,13 @@ class NetworkMapPlotter:
                 Adds alpha channel to buses, defaults to 1
             geometry :
                 # TODO
+            auto_scale_branches : bool
+                Whether to auto scale the flow and branch sizes. If true, the function
+                uses a rough auto-scaling when plotting flows as well as it creates
+                a LineCollection with widths in data units. If false, the function
+                does not scale the flow and branch sizes and creates a PatchCollection
+                with widths in display units. The latter is useful for plotting
+                consistent branch widths and flows in different zoom levels.
 
             Additional Parameters
             ---------------------
@@ -973,7 +1060,7 @@ class NetworkMapPlotter:
             data["colors"] = _apply_cmap(data.colors, cmap, cmap_norm)
 
             branch_coll = self.get_branch_collection(
-                c, data.widths, data.colors, data.alpha, geometry
+                c, data.widths, data.colors, data.alpha, geometry, auto_scale_branches
             )
             if branch_coll is not None:
                 self.ax.add_collection(branch_coll)
@@ -981,7 +1068,7 @@ class NetworkMapPlotter:
 
             # Get flow collection if flow data exists
             if flow is not None:
-                if auto_scale_flow:
+                if auto_scale_branches:
                     rough_scale = sum(len(n.df(c)) for c in branch_components) + 100
                     data["flow"] = (
                         data.flow.mul(abs(widths), fill_value=0) / rough_scale
@@ -1093,7 +1180,7 @@ class NetworkMapPlotter:
             link_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Link", 0)),
             line_flow=flow_scaled.get("Line"),
             link_flow=flow_scaled.get("Link"),
-            auto_scale_flow=False,
+            auto_scale_branches=False,
         )
         if kwargs:
             plot_args.update(kwargs)
@@ -1118,8 +1205,8 @@ class NetworkMapPlotter:
                 [s * bus_size_factor for s, label in legend_representatives],
                 [label for s, label in legend_representatives],
                 legend_kw={
-                    "bbox_to_anchor": (0, 1),
-                    "loc": "upper left",
+                    "bbox_to_anchor": (0, 0.9),
+                    "loc": "lower left",
                     "frameon": True,
                     **(legend_circles_kw or {}),
                 },
@@ -1131,7 +1218,7 @@ class NetworkMapPlotter:
             )
             add_legend_arrows(
                 self.ax,
-                [s * flow_scaling_factor * 10 for s, label in legend_representatives],
+                [s * flow_scaling_factor for s, label in legend_representatives],
                 [label for s, label in legend_representatives],
                 legend_kw={
                     "bbox_to_anchor": (0, 0.9),
@@ -1293,7 +1380,7 @@ class HandlerArrow(HandlerPatch):
     """Handler for FancyArrow patches in legends."""
 
     # Empirically determined scale factor for legend arrow sizes
-    LEGEND_SCALE_FACTOR = 600000
+    LEGEND_SCALE_FACTOR = 72
 
     def __init__(self, width_ratio=0.2, scale_factor=None):
         """
@@ -1316,9 +1403,9 @@ class HandlerArrow(HandlerPatch):
         unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
         norm = (self.scale_factor / fig.dpi) * unit
         arrow = FancyArrow(
-            -2 * norm,
+            0,
             ydescent + height / 2,
-            4 * norm,
+            width / 4,
             0,
             head_width=orig_handle._head_width * norm,
             head_length=orig_handle._head_length * norm,
@@ -1378,6 +1465,8 @@ def add_legend_lines(ax, sizes, labels, colors=None, patch_kw=None, legend_kw=No
 
     ax.get_figure().add_artist(legend)
 
+    return legend
+
 
 def add_legend_patches(ax, colors, labels, patch_kw=None, legend_kw=None):
     """
@@ -1411,6 +1500,8 @@ def add_legend_patches(ax, colors, labels, patch_kw=None, legend_kw=None):
     legend = ax.legend(handles, labels, **legend_kw)
 
     ax.get_figure().add_artist(legend)
+
+    return legend
 
 
 def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=None):
@@ -1452,6 +1543,8 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=No
 
     ax.get_figure().add_artist(legend)
 
+    return legend
+
 
 def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
     """
@@ -1488,6 +1581,8 @@ def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw=
     )
 
     ax.get_figure().add_artist(legend)
+
+    return legend
 
 
 def add_legend_arrows(
@@ -1563,6 +1658,8 @@ def add_legend_arrows(
         **legend_kw,
     )
     ax.get_figure().add_artist(legend)
+
+    return legend
 
 
 def round_to_significant_digits(x: float, n: int = 2) -> int | float:
