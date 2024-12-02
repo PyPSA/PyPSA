@@ -1,5 +1,4 @@
 import numpy as np
-import pandapower as pp
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
@@ -11,6 +10,8 @@ import pypsa
 def test_pandapower_custom_case(
     pandapower_custom_network, use_pandapower_index, extra_line_data
 ):
+    import pandapower as pp
+
     net = pandapower_custom_network
     # because of phase angles, need to init with DC
     pp.runpp(net, calculate_voltage_angles=True, init="dc")
