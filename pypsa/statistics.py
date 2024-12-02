@@ -5,6 +5,7 @@ Statistics Accessor.
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
 from functools import wraps
@@ -20,6 +21,7 @@ from deprecation import deprecated
 from pypsa.descriptors import nominal_attrs
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_carrier(n: Network, c: str, nice_names: bool = True) -> pd.Series:
