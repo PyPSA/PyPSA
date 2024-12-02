@@ -82,7 +82,7 @@ jobs:
         coverage xml
 
     - name: Upload code coverage report
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
