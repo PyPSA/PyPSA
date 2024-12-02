@@ -153,3 +153,14 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
             return None
 
     return wrapper
+
+
+def pass_empty_series_if_keyerror(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> pd.Series:
+        try:
+            return func(*args, **kwargs)
+        except (KeyError, AttributeError):
+            return pd.Series([], dtype=float)
+
+    return wrapper
