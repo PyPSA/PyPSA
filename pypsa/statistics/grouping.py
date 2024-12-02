@@ -136,7 +136,8 @@ class Groupers:
         >>> groupers[["carrier", "bus"]] # for multi-indexed grouper
 
         """
-        if scalar_passed := isinstance(keys, str):
+        keys_: Sequence[str | Callable]
+        if scalar_passed := isinstance(keys, str) or callable(keys):
             keys_ = (keys,)
         else:
             keys_ = keys
