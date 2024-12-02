@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import importlib.util
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -153,3 +154,14 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
             return None
 
     return wrapper
+
+
+def check_optional_dependency(module_name: str, install_message: str) -> None:
+    """
+    Check if an optional dependency is installed.
+
+    If not, raise an ImportError with an install message.
+    """
+
+    if importlib.util.find_spec(module_name) is None:
+        raise ImportError(install_message)

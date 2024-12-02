@@ -31,7 +31,6 @@ dependencies = [
     "pandas>=0.24",
     "xarray",
     "netcdf4",
-    "tables",
     "linopy>=0.4",
     "matplotlib",
     "geopandas>=0.9",
@@ -46,6 +45,13 @@ Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
 
 [project.optional-dependencies]
+hdf5 = ["tables"]
+cartopy = [
+    "cartopy>=0.16",
+    "requests",
+]
+gurobipy = ["gurobipy"]
+cloudpath = ["cloudpathlib[all]"]
 dev = [
     "pytest", 
     "coverage",
@@ -55,10 +61,6 @@ dev = [
     "pre-commit", 
     "ruff",
     "mypy"
-]
-cartopy = [
-    "cartopy>=0.16",
-    "requests",
 ]
 docs = [
     "numpydoc==1.8.0",
@@ -73,8 +75,6 @@ docs = [
     "ipython==8.26.0",
     "ipykernel==6.29.5",
 ]
-gurobipy = ["gurobipy"]
-cloudpath = ["cloudpathlib[all]"]
 
 # setuptools_scm settings
  
