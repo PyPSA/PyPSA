@@ -175,16 +175,16 @@ def test_aggregate_across_components(ac_dc_network_r):
     assert "component" not in df.index.names
 
 
-def test_multiindexed(ac_dc_network_multiindexed):
-    n = ac_dc_network_multiindexed
+def test_multiindexed(ac_dc_network_mi):
+    n = ac_dc_network_mi
     df = n.statistics()
     assert not df.empty
     assert df.columns.nlevels == 2
     assert df.columns.unique(1)[0] == 2013
 
 
-def test_multiindexed_aggregate_across_components(ac_dc_network_multiindexed):
-    n = ac_dc_network_multiindexed
+def test_multiindexed_aggregate_across_components(ac_dc_network_mi):
+    n = ac_dc_network_mi
     df = n.statistics.installed_capacity(
         comps=["Generator", "Line"], aggregate_across_components=True
     )

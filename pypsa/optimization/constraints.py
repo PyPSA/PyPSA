@@ -395,7 +395,6 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
     else:
         active = get_activity_mask(n, c, sns[1:])
         rhs_start = pd.DataFrame(0, index=sns[1:], columns=n.static(c).index)
-        rhs_start.index.name = "snapshot"
 
         def p_actual(idx: pd.Index) -> DataArray:
             return reindex(p, c, idx).sel(snapshot=sns[1:])
@@ -600,10 +599,6 @@ def define_nodal_balance_constraints(
         .sum()
         .T.reindex(columns=buses, fill_value=0)
     )
-    # the name for multi-index is getting lost by groupby before pandas 1.4.0
-    # TODO remove once we bump the required pandas version to >= 1.4.0
-    rhs.index.name = "snapshot"
-
     empty_nodal_balance = (lhs.vars == -1).all("_term")
     rhs = DataArray(rhs)
     if empty_nodal_balance.any():
@@ -1010,7 +1005,7 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
 
     """
 
-    sns_ = as_index(n, sns, "snapshots", "snapshot")
+    sns_ = as_index(n, sns, "snapshots")
 
     m = n.model
     c = "Generator"
