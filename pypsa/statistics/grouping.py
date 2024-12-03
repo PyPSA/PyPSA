@@ -195,7 +195,7 @@ class Groupers:
 
 
         """
-        setattr(self, name, staticmethod(func))
+        setattr(self, name, func)
 
     def carrier(self, n: Network, c: str, nice_names: bool = True) -> pd.Series:
         """
