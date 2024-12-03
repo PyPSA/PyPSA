@@ -13,9 +13,10 @@ Upcoming Release
 
 * PyPSA `0.33` provides support for the recent Python 3.13 release and drops support 
   for Python 3.9. While Python 3.9 still gets security updates until October 2025,
-  core dependencies of PyPSA are dropping support for Python 3.9 (e.g. `numpy`). It is 
-  recommended to upgrade to the latest Python version if possible.
-  (https://github.com/PyPSA/PyPSA/pull/1099)
+  core dependencies of PyPSA are dropping support for Python 3.9 (e.g. `numpy`) and
+  active support is only provided for the most recent versions 
+  (see `here <https://endoflife.date/python>`_). It is recommended to upgrade to the 
+  latest Python version if possible. (https://github.com/PyPSA/PyPSA/pull/1099)
 
 Features
 --------
