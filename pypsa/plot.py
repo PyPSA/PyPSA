@@ -1173,6 +1173,10 @@ class NetworkMapPlotter:
         )
         flow_scaled = flow * flow_scaling_factor
 
+        unit = balance.attrs["unit"]
+        if unit == "carrier dependent":
+            unit = ""
+
         plot_args = dict(
             bus_sizes=bus_size_factor * balance,
             bus_split_circles=True,
@@ -1198,7 +1202,7 @@ class NetworkMapPlotter:
         # Add legends
         if draw_legend_circles:
             legend_representatives = get_legend_representatives(
-                balance, group_on_first_level=True
+                balance, group_on_first_level=True, base_unit=unit
             )
             add_legend_semicircles(
                 self.ax,
@@ -1214,7 +1218,7 @@ class NetworkMapPlotter:
 
         if draw_legend_arrows:
             legend_representatives = get_legend_representatives(
-                flow, n_significant=1, base_unit="MWh"
+                flow, n_significant=1, base_unit=unit
             )
             add_legend_arrows(
                 self.ax,

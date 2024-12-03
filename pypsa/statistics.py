@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 import pandas as pd
 from deprecation import deprecated
 
-from pypsa.descriptors import nominal_attrs
+from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 
 logger = logging.getLogger(__name__)
 warnings.simplefilter("always", DeprecationWarning)
@@ -729,8 +729,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             )
             kwargs.pop("aggregate_time")
 
-        # TODO replace dispatch by energy_balance
-
         funcs: list[Callable] = [
             self.optimal_capacity,
             self.installed_capacity,
@@ -1298,7 +1296,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
 
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = "carrier dependent"
+        df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
     def curtailment(
