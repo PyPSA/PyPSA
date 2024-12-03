@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import functools
-import importlib.util
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -162,6 +161,7 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
 
     If not, raise an ImportError with an install message.
     """
-
-    if importlib.util.find_spec(module_name) is None:
+    try:
+        __import__(module_name)
+    except ImportError:
         raise ImportError(install_message)
