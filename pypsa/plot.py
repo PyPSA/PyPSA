@@ -695,12 +695,12 @@ class NetworkMapPlotter:
         if flow.empty:
             return flow
         connected_buses = branches.loc[flow.index, ["bus0", "bus1"]]
-        correctly_sorted = connected_buses.bus0 < connected_buses.bus1
+        sign_correction = np.where(connected_buses.bus0 < connected_buses.bus1, 1, -1)
 
-        flow_sorted = flow.where(correctly_sorted, -flow)
+        flow_sorted = flow * sign_correction
         buses_sorted = connected_buses.apply(sorted, axis=1).str.join(" - ")
         flow_grouped = (
-            flow_sorted.groupby(buses_sorted).transform("sum") * correctly_sorted
+            flow_sorted.groupby(buses_sorted).transform("sum") * sign_correction
         )
         flow_grouped = flow_grouped[buses_sorted.drop_duplicates().index]
 
@@ -1612,7 +1612,7 @@ def add_legend_arrows(
     legend_kw : dict, optional
         Keyword arguments passed to ax.legend
     """
-    sizes = np.atleast_1d(sizes)
+    sizes = np.atleast_1d(sizes) ** 0.5
     labels = np.atleast_1d(labels)
     colors = np.atleast_1d(colors)
 
