@@ -1,3 +1,5 @@
+# type: ignore
+# ruff: noqa
 """
 Use compatibility methods for optimization problem definition with Linopy.
 
@@ -16,7 +18,6 @@ from deprecation import deprecated
     removed_in="1.0",
     details="Use native linopy syntax instead.",
 )
-# type: ignore
 def get_var(n, c, key):
     """
     Get variables directly from network.
@@ -29,7 +30,6 @@ def get_var(n, c, key):
     removed_in="1.0",
     details="Use native linopy syntax instead.",
 )
-# type: ignore
 def define_variables(
     n, lower, upper, name, attr="", axes=None, spec="", mask=None, **kwargs
 ):
@@ -50,7 +50,6 @@ def define_variables(
     removed_in="1.0",
     details="Use native linopy syntax instead.",
 )
-# type: ignore
 def define_constraints(
     n, lhs, sense, rhs, name, attr="", axes=None, spec="", mask=None, **kwargs
 ):
@@ -70,7 +69,6 @@ def define_constraints(
     removed_in="1.0",
     details="Use native linopy syntax instead.",
 )
-# type: ignore
 def linexpr(*tuples, as_pandas=True, return_axes=False):
     """
     Define a linear expression.
@@ -86,7 +84,6 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     removed_in="1.0",
     details="Use native linopy syntax instead.",
 )
-# type: ignore
 def join_exprs(arr, **kwargs):
     """
     Sum over linear expression.

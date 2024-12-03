@@ -14,7 +14,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.request import urlretrieve
 
-from pypsa.utils import deprecated_common_kwargs
+from pypsa.utils import check_optional_dependency, deprecated_common_kwargs
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -250,6 +250,11 @@ class ExporterCSV(Exporter):
 
 class ImporterHDF5(Importer):
     def __init__(self, path: str | pd.HDFStore) -> None:
+        check_optional_dependency(
+            "tables",
+            "Missing optional dependencies to use HDF5 files. Install them via "
+            "`pip install pypsa[hdf5]` or `conda install -c conda-forge pypsa[hdf5]`.",
+        )
         self.path = path
         self.ds: pd.HDFStore
         if isinstance(path, (str, Path)):
@@ -298,6 +303,11 @@ class ImporterHDF5(Importer):
 
 class ExporterHDF5(Exporter):
     def __init__(self, path: str | Path, **kwargs: Any) -> None:
+        check_optional_dependency(
+            "tables",
+            "Missing optional dependencies to use HDF5 files. Install them via "
+            "`pip install pypsa[hdf5]` or `conda install -c conda-forge pypsa[hdf5]`.",
+        )
         path = Path(path)
         self._hdf5_handle = path.open("w")
         self.ds = pd.HDFStore(path, mode="w", **kwargs)

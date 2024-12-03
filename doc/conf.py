@@ -30,7 +30,7 @@ import pypsa  # noqa
 
 # The short X.Y version.
 release: str = get_version("pypsa")
-version: str = ".".join(release.split(".")[:2])
+version: str = ".".join(release.split(".")[:3])
 
 # -- General configuration ------------------------------------------------
 
@@ -238,14 +238,14 @@ htmlhelp_basename = "PyPSAdoc"
 nbsphinx_prolog = """
 {% set docname = env.doc2path(env.docname, base=None).replace("nblink", "ipynb").replace("examples/", "examples/notebooks/") %}
 {% if env.config.release != 'master' %}
-    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/v' + env.config.release + '?labpath=' + docname %}
+    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/v' + env.config.version + '?labpath=' + docname %}
 {% else %}
-    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/' + env.config.release + '?labpath=' + docname %}
+    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/' + env.config.version + '?labpath=' + docname %}
 {% endif %}
 
 .. note::
 
-    You can `download <https://github.com/pypsa/pypsa/tree/{{ env.config.release|e }}/{{ docname }}>`_ this example as a Jupyter notebook
+    You can `download <https://github.com/pypsa/pypsa/tree/v{{ env.config.version|e }}/{{ docname }}>`_ this example as a Jupyter notebook
     or start it `in interactive mode <{{ binder_url }}>`_.
 
 """

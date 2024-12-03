@@ -1,14 +1,13 @@
 name: Bug Report
 description: Create a report if something doesn't work quite right.
-labels: ["bug"]
+labels: ["bug", "needs triage"]
 
 body:
 - type: markdown
   attributes:
     value: |
       Thanks for taking the time to fill out this bug report!
-      Please do not post usage questions here. Ask them on the 
-      [PyPSA mailing list](https://groups.google.com/forum/#!forum/pypsa).
+      Please do not post usage questions here. Ask them on the [PyPSA mailing list](https://groups.google.com/forum/#!forum/pypsa).
 
 - type: checkboxes
   id: checks
@@ -33,20 +32,23 @@ body:
 
 - type: textarea
   id: example
+  validations:
+    required: true
   attributes:
     label: Reproducible Example
     description: >
-      Please provide a minimal, copy-pastable example.
+      Please provide a minimal reproduciable example. See how to [craft minimal bug reports](https://matthewrocklin.com/minimal-bug-reports).
     placeholder: >
-      import pypa
+      import pypsa
 
       n = pypsa.Network()
 
-      ...
     render: python
 
 - type: textarea
   id: expected-behavior
+  validations:
+    required: true
   attributes:
     label: Expected Behavior
     description: >
@@ -61,9 +63,7 @@ body:
     value: >
       <details>
 
-
       Replace this line.
-
 
       </details>
 
