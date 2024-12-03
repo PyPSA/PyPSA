@@ -1703,7 +1703,7 @@ def scaled_legend_label(value: float, base_unit: str = "MWh") -> str:
     # Get closest unit scale that keeps value between 1 and 1000
     scales = np.array(list(unit_scales.values()))
     prefixes = list(unit_scales.keys())
-    target_scale_idx = np.searchsorted(scales, 10 ** (magnitude - 3))
+    target_scale_idx = np.searchsorted(scales, 10 ** (magnitude - 2))
     if target_scale_idx >= len(scales):
         target_scale_idx = len(scales) - 1
 
