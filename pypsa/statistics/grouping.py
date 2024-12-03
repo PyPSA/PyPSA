@@ -25,8 +25,7 @@ logger = logging.getLogger(__name__)
 class Groupers:
     """Container for all the get_ methods."""
 
-    @classmethod
-    def __repr__(cls) -> str:
+    def __repr__(self) -> str:
         """
         Return a string representation of the grouper container.
 
@@ -38,11 +37,10 @@ class Groupers:
         """
         return (
             f"Grouper container with the following groupers: "
-            f"{', '.join(cls.list_groupers())}"
+            f"{', '.join(self.list_groupers())}"
         )
 
-    @classmethod
-    def __getitem__(cls, keys: str | Callable | Sequence[str | Callable]) -> Callable:
+    def __getitem__(self, keys: str | Callable | Sequence[str | Callable]) -> Callable:
         """
         Get a single or multi-indexed grouper method.
 
@@ -62,10 +60,9 @@ class Groupers:
         >>> groupers[["carrier", "bus"]] # for multi-indexed grouper
 
         """
-        return cls._multi_grouper(keys)
+        return self._multi_grouper(keys)
 
-    @classmethod
-    def __setitem__(cls, key: str, value: Callable) -> None:
+    def __setitem__(self, key: str, value: Callable) -> None:
         """
         Set a custom grouper method.
 
@@ -84,16 +81,14 @@ class Groupers:
         """
         raise NotImplementedError()
 
-    @staticmethod
-    def _get_generic_grouper(n: Network, c: str, key: str) -> pd.Series:
+    def _get_generic_grouper(self, n: Network, c: str, key: str) -> pd.Series:
         try:
             return n.static(c)[key].rename(key)
         except KeyError:
             msg = f"Unknown grouper {key}."
             raise ValueError(msg)
 
-    @classmethod
-    def list_groupers(cls) -> dict:
+    def list_groupers(self) -> dict:
         """
         List all available groupers which are avaliable on the module level.
 
@@ -108,13 +103,14 @@ class Groupers:
         """
         no_groupers = ["add_grouper", "list_groupers"]
         return {
-            key: value
-            for key, value in cls.__dict__.items()
+            key: getattr(self, key)
+            for key in dir(self)
             if not key.startswith("_") and key not in no_groupers
         }
 
-    @staticmethod
-    def _multi_grouper(keys: str | Callable | Sequence[str | Callable]) -> Callable:
+    def _multi_grouper(
+        self, keys: str | Callable | Sequence[str | Callable]
+    ) -> Callable:
         """
         Get a single or multi-indexed grouper method.
 
@@ -148,10 +144,10 @@ class Groupers:
             grouped_data = []
             for key in keys_:
                 if isinstance(key, str):
-                    if key not in Groupers.list_groupers():
-                        grouped_data.append(Groupers._get_generic_grouper(n, c, key))
+                    if key not in self.list_groupers():
+                        grouped_data.append(self._get_generic_grouper(n, c, key))
                         continue
-                    method = Groupers.list_groupers()[key]
+                    method = self.list_groupers()[key]
                 else:
                     method = key
 
@@ -166,8 +162,7 @@ class Groupers:
 
         return multi_grouper
 
-    @classmethod
-    def add_grouper(cls, name: str, func: Callable) -> None:
+    def add_grouper(self, name: str, func: Callable) -> None:
         """
         Add a custom grouper to groupers on module level.
 
@@ -200,10 +195,9 @@ class Groupers:
 
 
         """
-        setattr(cls, name, staticmethod(func))
+        setattr(self, name, staticmethod(func))
 
-    @staticmethod
-    def carrier(n: Network, c: str, nice_names: bool = True) -> pd.Series:
+    def carrier(self, n: Network, c: str, nice_names: bool = True) -> pd.Series:
         """
         Grouper method to group by the carrier of the components.
 
@@ -231,9 +225,8 @@ class Groupers:
             ).replace("", "-")
         return carrier_series
 
-    @staticmethod
     def bus_carrier(
-        n: Network, c: str, port: str = "", nice_names: bool = True
+        self, n: Network, c: str, port: str = "", nice_names: bool = True
     ) -> pd.Series:
         """
         Grouper method to group by the carrier of the attached bus of a component.
@@ -256,11 +249,10 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        buses_carrier = Groupers.carrier(n, "Bus", nice_names=nice_names)
+        buses_carrier = self.carrier(n, "Bus", nice_names=nice_names)
         return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
 
-    @staticmethod
-    def bus(n: Network, c: str, port: str = "") -> pd.Series:
+    def bus(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
         Grouper method to group by the attached bus of the components.
 
@@ -282,8 +274,7 @@ class Groupers:
         bus = f"bus{port}"
         return n.static(c)[bus].rename("bus")
 
-    @staticmethod
-    def country(n: Network, c: str, port: str = "") -> pd.Series:
+    def country(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
         Grouper method to group by the country of the components corresponding bus.
 
@@ -305,8 +296,7 @@ class Groupers:
         bus = f"bus{port}"
         return n.static(c)[bus].map(n.buses.country).rename("country")
 
-    @staticmethod
-    def unit(n: Network, c: str, port: str = "") -> pd.Series:
+    def unit(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
         Grouper method to group by the unit of the components corresponding bus.
 
@@ -328,8 +318,7 @@ class Groupers:
         bus = f"bus{port}"
         return n.static(c)[bus].map(n.buses.unit).rename("unit")
 
-    @staticmethod
-    def name(n: Network, c: str) -> pd.Series:
+    def name(self, n: Network, c: str) -> pd.Series:
         """
         Grouper method to group by the name of components.
 
@@ -403,9 +392,8 @@ class DeprecatedGroupers:
     module level and raises a DeprecationWarning.
     """
 
-    @staticmethod
     @deprecated_grouper
-    def get_carrier(*args: Any, **kwargs: Any) -> pd.Series:
+    def get_carrier(self, *args: Any, **kwargs: Any) -> pd.Series:
         """
         Deprecated grouper method.
 
@@ -413,9 +401,8 @@ class DeprecatedGroupers:
         """
         return groupers.carrier(*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_bus_carrier(*args: Any, **kwargs: Any) -> pd.Series:
+    def get_bus_carrier(self, *args: Any, **kwargs: Any) -> pd.Series:
         """
         Deprecated grouper method.
 
@@ -423,9 +410,8 @@ class DeprecatedGroupers:
         """
         return groupers.bus_carrier(*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_bus(*args: Any, **kwargs: Any) -> pd.Series:
+    def get_bus(self, *args: Any, **kwargs: Any) -> pd.Series:
         """
         Deprecated grouper method.
 
@@ -433,9 +419,8 @@ class DeprecatedGroupers:
         """
         return groupers.bus(*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_country(*args: Any, **kwargs: Any) -> pd.Series:
+    def get_country(self, *args: Any, **kwargs: Any) -> pd.Series:
         """
         Deprecated grouper method.
 
@@ -443,9 +428,8 @@ class DeprecatedGroupers:
         """
         return groupers.country(*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_unit(*args: Any, **kwargs: Any) -> pd.Series:
+    def get_unit(self, *args: Any, **kwargs: Any) -> pd.Series:
         """
         Deprecated grouper method.
 
@@ -453,9 +437,8 @@ class DeprecatedGroupers:
         """
         return groupers.unit(*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_name(*args: Any, **kwargs: Any) -> pd.Series:
+    def get_name(self, *args: Any, **kwargs: Any) -> pd.Series:
         """
         Deprecated grouper method.
 
@@ -463,9 +446,8 @@ class DeprecatedGroupers:
         """
         return groupers.name(*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_bus_and_carrier(*args: Any, **kwargs: Any) -> list:
+    def get_bus_and_carrier(self, *args: Any, **kwargs: Any) -> list:
         """
         Deprecated grouper method.
 
@@ -473,9 +455,8 @@ class DeprecatedGroupers:
         """
         return groupers["bus", "carrier"](*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_bus_unit_and_carrier(*args: Any, **kwargs: Any) -> list:
+    def get_bus_unit_and_carrier(self, *args: Any, **kwargs: Any) -> list:
         """
         Deprecated grouper method.
 
@@ -483,9 +464,8 @@ class DeprecatedGroupers:
         """
         return groupers["bus", "unit", "carrier"](*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_name_bus_and_carrier(*args: Any, **kwargs: Any) -> list:
+    def get_name_bus_and_carrier(self, *args: Any, **kwargs: Any) -> list:
         """
         Deprecated grouper method.
 
@@ -493,9 +473,8 @@ class DeprecatedGroupers:
         """
         return groupers["name", "bus", "carrier"](*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_country_and_carrier(*args: Any, **kwargs: Any) -> list:
+    def get_country_and_carrier(self, *args: Any, **kwargs: Any) -> list:
         """
         Deprecated grouper method.
 
@@ -503,9 +482,8 @@ class DeprecatedGroupers:
         """
         return groupers["country", "carrier"](*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_bus_and_carrier_and_bus_carrier(*args: Any, **kwargs: Any) -> list:
+    def get_bus_and_carrier_and_bus_carrier(self, *args: Any, **kwargs: Any) -> list:
         """
         Deprecated grouper method.
 
@@ -513,9 +491,8 @@ class DeprecatedGroupers:
         """
         return groupers["bus", "carrier", "bus_carrier"](*args, **kwargs)
 
-    @staticmethod
     @deprecated_grouper
-    def get_carrier_and_bus_carrier(*args: Any, **kwargs: Any) -> list:
+    def get_carrier_and_bus_carrier(self, *args: Any, **kwargs: Any) -> list:
         """
         Deprecated grouper method.
 
