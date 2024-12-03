@@ -17,7 +17,6 @@ from xarray import DataArray
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     AbstractStatisticsAccessor,
-    get_carrier_and_bus_carrier,
     get_transmission_branches,
     get_weightings,
     port_efficiency,
@@ -39,9 +38,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     The results are aggregated by the given groupby function.
     """
 
-    @classmethod
     def _get_grouping(
-        cls,
+        self,
         n: Network,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
@@ -119,7 +117,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     ) -> LinearExpression:
         if agg != "sum":
             raise ValueError(f"Aggregation method {agg} not supported.")
-        group = expr.indexes["group"].to_frame().drop(columns="component")
+        if expr.empty:
+            return expr
+        group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
         return expr.groupby(group).sum()
 
     def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
@@ -140,7 +140,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -184,7 +184,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         comps: Sequence[str] | str | None = None,
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool = False,
@@ -240,7 +240,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -290,7 +290,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -344,7 +344,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = get_carrier_and_bus_carrier,
+        groupby: list[str] | Callable | None = ["carrier", "bus_carrier"],
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -374,7 +374,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             and bus_carrier is None
         ):
             logger.warning(
-                "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
+                "Network has multiple bus carriers which are aggregated together. "
+                "To separate bus carriers set `bus_carrier` or use `bus_carrier` in the groupby argument."
             )
 
         @pass_none_if_keyerror
@@ -412,7 +413,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = get_carrier_and_bus_carrier,
+        groupby: list[str] | Callable | None = ["carrier", "bus_carrier"],
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -445,7 +446,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = get_carrier_and_bus_carrier,
+        groupby: list[str] | Callable | None = ["carrier", "bus_carrier"],
         at_port: Sequence[str] | str | bool = True,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -478,7 +479,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         at_port: Sequence[str] | str | bool = False,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
@@ -537,7 +538,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
         at_port: Sequence[str] | str | bool = False,
-        groupby: Callable | None = None,
+        groupby: list[str] | Callable | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
