@@ -46,7 +46,7 @@ Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
 
 [project.optional-dependencies]
-hdf5 = ["tables"]
+hdf5 = ["tables; python_version < '3.13'"]
 cartopy = [
     "cartopy>=0.16",
     "requests",
