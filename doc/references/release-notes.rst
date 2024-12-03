@@ -44,6 +44,9 @@ Upcoming Release
       n.statistics.groupers.register_grouper("custom", my_custom_grouper)
       n.statistics.energy_balance(groupby=["custom", "carrier"])
 
+  * ``pytables`` is now an optional dependency for using the HDF5 format. Install 
+    it via ``pip install pypsa[hdf5]``. Otherwise it is not installed by default 
+    anymore. (https://github.com/PyPSA/PyPSA/pull/1100)
 
 `v0.31.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.31.2>`__ (27th November 2024)
 =======================================================================================

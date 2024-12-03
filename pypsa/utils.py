@@ -153,3 +153,15 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
             return None
 
     return wrapper
+
+
+def check_optional_dependency(module_name: str, install_message: str) -> None:
+    """
+    Check if an optional dependency is installed.
+
+    If not, raise an ImportError with an install message.
+    """
+    try:
+        __import__(module_name)
+    except ImportError:
+        raise ImportError(install_message)
