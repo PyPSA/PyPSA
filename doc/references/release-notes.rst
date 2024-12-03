@@ -53,6 +53,9 @@ Features
   :meth:`n.optimize.expressions.energy_balance() <pypsa.Network.expressions.energy_balance>`.
   (https://github.com/PyPSA/PyPSA/pull/1044)
 
+  * ``pytables`` is now an optional dependency for using the HDF5 format. Install 
+    it via ``pip install pypsa[hdf5]``. Otherwise it is not installed by default 
+    anymore. (https://github.com/PyPSA/PyPSA/pull/1100)
 
 `v0.31.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.31.2>`__ (27th November 2024)
 =======================================================================================
