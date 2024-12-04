@@ -19,7 +19,7 @@ from pypsa.plot import (  # type: ignore[attr-defined]
     add_legend_patches,
     add_legend_semicircles,
 )
-from pypsa.statistics import get_transmission_branches
+from pypsa.statistics import get_transmission_branches, groupers
 
 try:
     import cartopy.crs as ccrs
@@ -188,7 +188,7 @@ def test_plot_from_statistics(ac_dc_network):
     n = ac_dc_network
     bus_carrier = "AC"
 
-    grouper = n.statistics.groupers.get_bus_and_carrier
+    grouper = groupers["bus", "carrier"]
     bus_sizes = n.statistics.installed_capacity(
         bus_carrier=bus_carrier, groupby=grouper, nice_names=False
     )

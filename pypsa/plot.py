@@ -1,4 +1,8 @@
-# type: ignore #TODO: remove with #912
+# TODO: remove with #912
+# type: ignore
+# ruff: noqa: ANN001
+# ruff: noqa: ANN201
+# ruff: noqa: ANN202
 """
 Functions for plotting networks.
 """

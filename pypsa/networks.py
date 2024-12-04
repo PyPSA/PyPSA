@@ -274,7 +274,7 @@ class Network:
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
         if override_components is not None or override_component_attrs is not None:
             msg = (
                 "The arguments `override_components` and `override_component_attrs` "

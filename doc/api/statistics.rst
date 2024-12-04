@@ -31,22 +31,48 @@ Statistic methods
 Statistic groupers
 ~~~~~~~~~~~~~~~~~~~
 
-Groupers can be used in combination with the statistic methods. For example
+Groupers can be used via the ``groupby`` argument in the statistic methods. 
 
 .. code-block:: python
     
     groupers = n.statistics.groupers
-    n.statistics.capex(groupby=groupers.get_carrier)
+    n.statistics.capex(groupby=groupers.carrier)
+    # or simply
+    n.statistics.capex(groupby='carrier')
 
-Or any other grouper could be used.
+All default groupers are defined in the :class:`pypsa.statistics.grouping.Groupers` 
+class and currently included are, grouping by ..
+
+* .. :meth:`carrier <pypsa.statistics.grouping.Groupers.carrier>`
+* .. :meth:`bus_carrier <pypsa.statistics.grouping.Groupers.bus_carrier>`
+* .. :meth:`name <pypsa.statistics.grouping.Groupers.name>`
+* .. :meth:`bus <pypsa.statistics.grouping.Groupers.bus>`
+* .. :meth:`country <pypsa.statistics.grouping.Groupers.country>`
+* .. :meth:`unit <pypsa.statistics.grouping.Groupers.unit>`
+
+Custom groupers can be registered on module level via
+:meth:`pypsa.statistics.groupers.add_grouper <pypsa.statistics.grouping.Groupers.add_grouper>`.
+The key will be used as identifier in the ``groupby`` argument.
+
+Groupers can also be used to create multiindexed groupers. For example, to group by 
+bus and carrier:
+
+.. code-block:: python
+    
+    groupers = n.statistics.groupers
+    n.statistics.capex(groupby=groupers['bus', 'carrier'])
+    # or simply
+    n.statistics.capex(groupby=['bus', 'carrier'])
 
 .. autosummary::
     :toctree: _source/
 
-    ~pypsa.statistics.Groupers.get_carrier
-    ~pypsa.statistics.Groupers.get_bus_and_carrier
-    ~pypsa.statistics.Groupers.get_name_bus_and_carrier
-    ~pypsa.statistics.Groupers.get_country_and_carrier
-    ~pypsa.statistics.Groupers.get_carrier_and_bus_carrier
-    ~pypsa.statistics.Groupers.get_bus_and_carrier_and_bus_carrier
-    ~pypsa.statistics.Groupers.get_bus_unit_and_carrier
+    ~pypsa.statistics.grouping.Groupers.add_grouper
+    ~pypsa.statistics.grouping.Groupers.list_groupers
+    ~pypsa.statistics.grouping.Groupers.carrier
+    ~pypsa.statistics.grouping.Groupers.bus_carrier
+    ~pypsa.statistics.grouping.Groupers.name
+    ~pypsa.statistics.grouping.Groupers.bus
+    ~pypsa.statistics.grouping.Groupers.country
+    ~pypsa.statistics.grouping.Groupers.unit
+

@@ -5,118 +5,19 @@ Statistics Accessor.
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
-from functools import wraps
-from inspect import signature
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pypsa import Network
 
 import pandas as pd
-from deprecation import deprecated
 
 from pypsa.descriptors import nominal_attrs
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
+from pypsa.utils import pass_empty_series_if_keyerror
 
 logger = logging.getLogger(__name__)
-
-
-def get_carrier(n: Network, c: str, nice_names: bool = True) -> pd.Series:
-    """
-    Get the nice carrier names for a component.
-    """
-    static = n.static(c)
-    fall_back = pd.Series("", index=static.index)
-    carrier_series = static.get("carrier", fall_back).rename("carrier")
-    if nice_names:
-        carrier_series = carrier_series.replace(
-            n.carriers.nice_name[lambda ds: ds != ""]
-        ).replace("", "-")
-    return carrier_series
-
-
-def get_bus_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> pd.Series:
-    """
-    Get the bus carrier for a component.
-    """
-    bus = f"bus{port}"
-    buses_carrier = get_carrier(n, "Bus", nice_names=nice_names)
-    return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
-
-
-def get_bus_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get the buses and nice carrier names for a component.
-    """
-    bus = f"bus{port}"
-    return [n.static(c)[bus].rename("bus"), get_carrier(n, c, nice_names=nice_names)]
-
-
-def get_bus_unit_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get the buses and nice carrier names for a component.
-    """
-    bus = f"bus{port}"
-    return [
-        n.static(c)[bus].rename("bus"),
-        n.static(c)[bus].map(n.buses.unit).rename("unit"),
-        get_carrier(n, c, nice_names=nice_names),
-    ]
-
-
-def get_name_bus_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get the name, buses and nice carrier names for a component.
-    """
-    return [
-        n.static(c).index.to_series().rename("name"),
-        *get_bus_and_carrier(n, c, port, nice_names=nice_names),
-    ]
-
-
-def get_country_and_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get component country and carrier.
-    """
-    # bus = f"bus{port}"
-    bus, carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    country = bus.map(n.buses.country).rename("country")
-    return [country, carrier]
-
-
-def get_bus_and_carrier_and_bus_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get component's carrier, bus and bus carrier in one combined list.
-
-    Used for MultiIndex in energy balance.
-    """
-    bus_and_carrier = get_bus_and_carrier(n, c, port, nice_names=nice_names)
-    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
-    return [*bus_and_carrier, bus_carrier]
-
-
-def get_carrier_and_bus_carrier(
-    n: Network, c: str, port: str = "", nice_names: bool = True
-) -> list[pd.Series]:
-    """
-    Get component carrier and bus carrier in one combined list.
-    """
-    carrier = get_carrier(n, c, nice_names=nice_names)
-    bus_carrier = get_bus_carrier(n, c, port, nice_names=nice_names)
-    return [carrier, bus_carrier]
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -161,7 +62,7 @@ def port_efficiency(
 
 
 def get_transmission_branches(
-    n: Network, bus_carrier: Sequence[str] | str | None = None
+    n: Network, bus_carrier: str | Sequence[str] | None = None
 ) -> pd.MultiIndex:
     """
     Get the list of assets which transport between buses of the carrier
@@ -188,7 +89,7 @@ def get_transmission_branches(
 
 
 def get_transmission_carriers(
-    n: Network, bus_carrier: Sequence[str] | str | None = None
+    n: Network, bus_carrier: str | Sequence[str] | None = None
 ) -> pd.MultiIndex:
     """
     Get the carriers which transport between buses of the carrier
@@ -203,53 +104,6 @@ def get_transmission_carriers(
         [(c, i) for c, idx in carriers.items() for i in idx],
         names=["component", "carrier"],
     )
-
-
-@deprecated("Use n.statistics._get_grouping instead.")
-def get_grouping(
-    n: Network,
-    c: str,
-    groupby: Callable | Sequence[str] | str | bool,
-    port: str | None = None,
-    nice_names: bool = False,
-) -> dict:
-    return StatisticsAccessor._get_grouping(n, c, groupby, port, nice_names)
-
-
-@deprecated("Use n.statistics._aggregate_timeseries instead.")
-def aggregate_timeseries(
-    df: pd.DataFrame, weights: pd.Series, agg: str = "sum"
-) -> pd.Series:
-    return StatisticsAccessor._aggregate_timeseries(df, weights, agg)
-
-
-@deprecated("Use n.statistics._filter_active_assets instead.")
-def filter_active_assets(
-    n: Network, c: str, df: pd.Series | pd.DataFrame
-) -> pd.Series | pd.DataFrame:
-    return n.statistics._filter_active_assets(n, c, df)
-
-
-@deprecated("Use n.statistics._filter_bus_carrier instead.")
-def filter_bus_carrier(
-    n: Network,
-    c: str,
-    port: str,
-    bus_carrier: Sequence[str] | str | None,
-    df: pd.DataFrame,
-) -> pd.DataFrame:
-    return n.statistics._filter_bus_carrier(n, c, port, bus_carrier, df)
-
-
-def pass_empty_series_if_keyerror(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> pd.Series:
-        try:
-            return func(*args, **kwargs)
-        except (KeyError, AttributeError):
-            return pd.Series([], dtype=float)
-
-    return wrapper
 
 
 class Parameters:
@@ -297,240 +151,6 @@ class Parameters:
                 )
             else:
                 setattr(self, key, value)
-
-
-class Groupers:
-    """
-    Container for all the get_ methods.
-    """
-
-    get_carrier = staticmethod(get_carrier)
-    get_bus_carrier = staticmethod(get_bus_carrier)
-    get_bus_and_carrier = staticmethod(get_bus_and_carrier)
-    get_name_bus_and_carrier = staticmethod(get_name_bus_and_carrier)
-    get_country_and_carrier = staticmethod(get_country_and_carrier)
-    get_carrier_and_bus_carrier = staticmethod(get_carrier_and_bus_carrier)
-    get_bus_and_carrier_and_bus_carrier = staticmethod(
-        get_bus_and_carrier_and_bus_carrier
-    )
-    get_bus_unit_and_carrier = staticmethod(get_bus_unit_and_carrier)
-
-
-class AbstractStatisticsAccessor(ABC):
-    """
-    Abstract accessor to calculate different statistical values.
-    """
-
-    def __init__(self, n: Network) -> None:
-        self.n = n
-        self.groupers = Groupers()  # Create an instance of the Groupers class
-        self.parameters = Parameters()  # Create an instance of the Parameters class
-
-    def set_parameters(self, **kwargs: Any) -> None:
-        """
-        Setting the parameters for the statistics accessor.
-
-        To see the list of parameters, one can simply call `n.statistics.parameters`.
-        """
-        self.parameters.set_parameters(**kwargs)
-
-    @classmethod
-    def _get_grouping(
-        cls,
-        n: Network,
-        c: str,
-        groupby: Callable | Sequence[str] | str | bool,
-        port: str | None = None,
-        nice_names: bool = False,
-    ) -> dict:
-        by = None
-        level = None
-        if callable(groupby):
-            if "port" in signature(groupby).parameters:
-                by = groupby(n, c, port=port, nice_names=nice_names)
-            else:
-                by = groupby(n, c, nice_names=nice_names)
-        elif isinstance(groupby, list):
-            by = [n.static(c)[key] for key in groupby]
-        elif isinstance(groupby, str):
-            by = n.static(c)[groupby]
-        elif groupby is not False:
-            raise ValueError(
-                f"Argument `groupby` must be a function, list, string, False or dict, got {type(groupby)}"
-            )
-        return dict(by=by, level=level)
-
-    @property
-    def is_multi_indexed(self) -> bool:
-        return isinstance(self.n.snapshots, pd.MultiIndex)
-
-    @classmethod
-    def _aggregate_timeseries(
-        cls, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
-    ) -> Any:
-        """
-        Calculate the weighted sum or average of a DataFrame or Series.
-        """
-        if not agg:
-            return obj.T if isinstance(obj, pd.DataFrame) else obj
-
-        if agg == "mean":
-            if isinstance(weights.index, pd.MultiIndex):
-                weights = weights.groupby(level=0).transform(lambda w: w / w.sum())
-            else:
-                weights = weights / weights.sum()
-            agg = "sum"
-
-        return cls._aggregate_with_weights(obj, weights, agg)
-
-    # The following methods are implemented in the concrete classes
-    @abstractmethod
-    def _aggregate_with_weights(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _aggregate_components_groupby(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _aggregate_components_concat_values(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _aggregate_components_concat_data(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _aggregate_across_components(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _get_component_index(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-    @abstractmethod
-    def _concat_periods(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
-    def _aggregate_components(
-        self,
-        func: Callable,
-        agg: Callable | str = "sum",
-        comps: Collection[str] | str | None = None,
-        groupby: Callable | None = None,
-        aggregate_across_components: bool = False,
-        at_port: Sequence[str] | str | bool | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
-        nice_names: bool | None = True,
-    ) -> pd.Series | pd.DataFrame:
-        """
-        Apply a function and group the result for a collection of components.
-        """
-        d = {}
-        n = self.n
-
-        if is_one_component := isinstance(comps, str):
-            comps = [comps]
-        if comps is None:
-            comps = n.branch_components | n.one_port_components
-        if groupby is None:
-            groupby = get_carrier
-        if nice_names is None:
-            nice_names = self.parameters.nice_names
-        for c in comps:
-            if n.static(c).empty:
-                continue
-
-            ports = [str(col)[3:] for col in n.static(c) if str(col).startswith("bus")]
-            if not at_port:
-                ports = [ports[0]]
-
-            values = []
-            for port in ports:
-                vals = func(n, c, port)
-                if self._aggregate_components_skip_iteration(vals):
-                    continue
-
-                vals = self._filter_active_assets(n, c, vals)  # for multiinvest
-                vals = self._filter_bus_carrier(n, c, port, bus_carrier, vals)
-
-                if self._aggregate_components_skip_iteration(vals):
-                    continue
-
-                if groupby is not False:
-                    grouping = self._get_grouping(
-                        n, c, groupby, port=port, nice_names=nice_names
-                    )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg)
-                values.append(vals)
-
-            if not values:
-                continue
-
-            df = self._aggregate_components_concat_values(values, agg)
-
-            d[c] = df
-
-        df = self._aggregate_components_concat_data(d, is_one_component)
-
-        if aggregate_across_components:
-            df = self._aggregate_across_components(df, agg)
-
-        return df
-
-    def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
-        return False
-
-    def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
-        """
-        For static values iterate over periods and concat values.
-        """
-        if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
-            return obj
-        idx = self._get_component_index(obj, c)
-        if not self.is_multi_indexed:
-            mask = n.get_active_assets(c)
-            idx = mask.index[mask].intersection(idx)
-            return obj.loc[idx]
-
-        per_period = {}
-        for p in n.investment_periods:
-            mask = n.get_active_assets(c, p)
-            idx = mask.index[mask].intersection(idx)
-            per_period[p] = obj.loc[idx]
-
-        return self._concat_periods(per_period, c)
-
-    def _filter_bus_carrier(
-        self,
-        n: Network,
-        c: str,
-        port: str,
-        bus_carrier: Sequence[str] | str | None,
-        obj: Any,
-    ) -> Any:
-        """
-        Filter the DataFrame for components which are connected to a bus with
-        carrier `bus_carrier`.
-        """
-        if bus_carrier is None:
-            return obj
-
-        idx = self._get_component_index(obj, c)
-        ports = n.static(c).loc[idx, f"bus{port}"]
-        port_carriers = ports.map(n.buses.carrier)
-        if isinstance(bus_carrier, str):
-            if bus_carrier in n.buses.carrier.unique():
-                mask = port_carriers == bus_carrier
-            else:
-                mask = port_carriers.str.contains(bus_carrier)
-        elif isinstance(bus_carrier, list):
-            mask = port_carriers.isin(bus_carrier)
-        else:
-            raise ValueError(
-                f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
-            )
-        return obj.loc[ports.index[mask]]
 
 
 class StatisticsAccessor(AbstractStatisticsAccessor):
@@ -601,9 +221,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def __call__(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
-        groupby: Callable = get_carrier,
+        groupby: str | Sequence[str] | Callable = "carrier",
         nice_names: bool = True,
         **kwargs: Any,
     ) -> pd.DataFrame:
@@ -641,8 +261,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             )
             kwargs.pop("aggregate_time")
 
-        # TODO replace dispatch by energy_balance
-
         funcs: list[Callable] = [
             self.optimal_capacity,
             self.installed_capacity,
@@ -674,12 +292,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def capex(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -719,12 +337,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def installed_capex(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -762,12 +380,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def expanded_capex(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -810,12 +428,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def optimal_capacity(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: str | Sequence[str] | bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
@@ -864,12 +482,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def installed_capacity(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: str | Sequence[str] | bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
@@ -918,12 +536,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def expanded_capacity(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: str | Sequence[str] | bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -962,13 +580,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def opex(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1017,13 +635,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def supply(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1053,13 +671,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def withdrawal(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1093,9 +711,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1132,6 +750,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             func,
             comps=comps,
             agg=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
@@ -1143,13 +762,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def energy_balance(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = get_carrier_and_bus_carrier,
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
@@ -1178,7 +797,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             and bus_carrier is None
         ):
             logger.warning(
-                "Network has multiple bus carriers which are aggregated together. To separate bus carriers set `bus_carrier` or use groupers like `get_carrier_and_bus_carrier`."
+                "Network has multiple bus carriers which are aggregated together. "
+                "To separate bus carriers set `bus_carrier` or use `bus_carrier` in the groupby argument."
             )
 
         @pass_empty_series_if_keyerror
@@ -1213,13 +833,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def curtailment(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1267,13 +887,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def capacity_factor(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        at_port: Sequence[str] | str | bool = False,
-        groupby: Callable | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
+        at_port: bool | str | Sequence[str] = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1317,13 +937,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def revenue(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
@@ -1388,13 +1008,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     def market_value(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: Callable | None = None,
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
