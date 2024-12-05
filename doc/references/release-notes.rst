@@ -2,14 +2,17 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: 
+.. .. warning:: 
   
-  The features listed below are not released yet, but will be part of the next release! 
-  To use the features already you have to install the ``master`` branch, e.g. 
-  ``pip install git+https://github.com/pypsa/pypsa``.
+..   The features listed below are not released yet, but will be part of the next release! 
+..   To use the features already you have to install the ``master`` branch, e.g. 
+..   ``pip install git+https://github.com/pypsa/pypsa``.
+
+`v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
+=======================================================================================
 
 Features
 --------
