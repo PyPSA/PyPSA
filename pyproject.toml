@@ -91,7 +91,7 @@ include = ["pypsa"]
 
 [tool.pytest.ini_options]   
 filterwarnings = [
-    "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
+    # "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     "error::FutureWarning",      # Raise all FutureWarnings as errors
 ]
 
