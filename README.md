@@ -25,7 +25,7 @@ energy sectors, and mixed alternating and direct current networks. PyPSA is
 designed to scale well with large networks and long time series.
 
 This project is maintained by the [Department of Digital Transformation in
-Energy Systems](https://tub-ensys.github.io) at the [Technical University of
+Energy Systems](https://www.tu.berlin/ensys) at the [Technical University of
 Berlin](https://www.tu.berlin). Previous versions were developed by the Energy
 System Modelling group at the [Institute for Automation and Applied
 Informatics](https://www.iai.kit.edu/english/index.php) at the [Karlsruhe
@@ -33,7 +33,7 @@ Institute of Technology](http://www.kit.edu/english/index.php) funded by the
 [Helmholtz Association](https://www.helmholtz.de/en/), and by the [Renewable
 Energy
 Group](https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/)
-at [FIAS](https://fias.uni-frankfurt.de/) to carry out simulations for the
+at [FIAS](https://fias.uni-frankfurt.de/en/) to carry out simulations for the
 [CoNDyNet project](https://fias.institute/en/projects/condynet/), financed by the [German Federal
 Ministry for Education and Research (BMBF)](https://www.bmbf.de/bmbf/en/)
 as part of the [Stromnetze Research
@@ -78,7 +78,7 @@ It has models for:
 
     * [Quick start](https://pypsa.readthedocs.io/en/latest/quick_start.html)
 
-    * [Examples](https://pypsa.readthedocs.io/en/latest/examples-basic.html)
+    * [Examples](https://pypsa.readthedocs.io/en/latest/examples-index/lopf.html)
 
     * [Known users of PyPSA](https://pypsa.readthedocs.io/en/latest/users.html)
 
@@ -92,7 +92,7 @@ conda/mamba:
 
 ```conda install -c conda-forge pypsa```
 
-Additionally, install a solver (see [here](https://pypsa.readthedocs.io/en/latest/installation.html#getting-a-solver-for-optimisation)).
+Additionally, install a solver (see [here](https://pypsa.readthedocs.io/en/latest/getting-started/installation.html#getting-a-solver)).
 
 ## Usage
 
@@ -151,14 +151,14 @@ It leans heavily on the following Python packages:
     components and time series
 -   [numpy](http://www.numpy.org/) and [scipy](http://scipy.org/) for
     calculations, such as linear algebra and sparse matrix calculations
--   [networkx](https://networkx.github.io/) for some network
+-   [networkx](https://networkx.org/) for some network
     calculations
 -   [matplotlib](https://matplotlib.org/) for static plotting
 -   [linopy](https://github.com/PyPSA/linopy) for preparing optimisation problems
     (currently only linear and mixed integer linear optimisation)
 -   [cartopy](https://scitools.org.uk/cartopy) for plotting the
     baselayer map
--   [pytest](http://pytest.org/) for unit testing
+-   [pytest](https://docs.pytest.org/) for unit testing
 -   [logging](https://docs.python.org/3/library/logging.html) for
     managing messages
 
