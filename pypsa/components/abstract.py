@@ -270,6 +270,7 @@ class Components(ComponentsData, ABC):
             List name of component.
 
         """
+        return self.ct.list_name
 
     @property
     def description(self) -> str:
@@ -402,7 +403,7 @@ class Components(ComponentsData, ABC):
     def n_save(self) -> Any:
         """A save property to access the network (component must be attached)."""
         if not self.attached:
-            raise ValueError("Component must be attached to a Network.")
+            raise AttributeError("Component must be attached to a Network.")
         return self.n
 
     @property
@@ -420,6 +421,7 @@ class Components(ComponentsData, ABC):
             DataFrame with components as index and attributes as columns.
 
         """
+        return self.static
 
     @property
     def pnl(self) -> dict:

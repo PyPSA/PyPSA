@@ -50,3 +50,10 @@ def test_active_in_investment_period(legacy_component):
     assert active_assets["asset1"]
     assert not active_assets["asset2"]
     assert active_assets["asset3"]
+
+
+def test_imports():
+    with pytest.raises(ImportError):
+        from pypsa.components import Network  # noqa: F401
+    with pytest.raises(ImportError):
+        from pypsa.components import SubNetwork  # noqa: F401

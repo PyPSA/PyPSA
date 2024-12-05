@@ -36,7 +36,7 @@ def as_components(n: Network, value: str | Components) -> Components:
             value = COMPONENT_ALIAS_DICT[value]
         return getattr(n.components, value)
     elif isinstance(value, Components):
-        if value.n is not None:
+        if value.n is None:
             msg = "Passed component must be attached to the same network."
             raise ValueError(msg)
         elif value.n is not n:
