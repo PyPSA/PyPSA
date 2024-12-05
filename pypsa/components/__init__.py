@@ -1,6 +1,4 @@
-"""
-Package for component specific functionality in PyPSA.
-"""
+"""Package for component specific functionality in PyPSA."""
 
 from typing import Any
 

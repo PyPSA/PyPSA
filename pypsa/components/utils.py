@@ -1,6 +1,4 @@
-"""
-General utility functions for PyPSA.
-"""
+"""General utility functions for PyPSA."""
 
 from __future__ import annotations
 
@@ -31,8 +29,8 @@ def as_components(n: Network, value: str | Components) -> Components:
     -------
     Components
         Components class instance.
-    """
 
+    """
     if isinstance(value, str):
         if value in COMPONENT_ALIAS_DICT:
             value = COMPONENT_ALIAS_DICT[value]

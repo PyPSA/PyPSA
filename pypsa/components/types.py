@@ -84,7 +84,6 @@ def add_component_type(
     >>> pypsa.components.types.get("CustomComponent")
 
     """
-
     if name in all_components:
         msg = f"Component type '{name}' already exists."
         raise ValueError(msg)
@@ -151,8 +150,8 @@ def _load_default_component_types(
         Path to the default attributes dir. E.g. `/pypsa/data/default_components/`.
     standard_types_path : pathlib.Path
         Path to the standard types dir. E.g. `/pypsa/data/standard_types/`.
-    """
 
+    """
     for c_name, row in component_df.iterrows():
         # Read in defaults attributes
         attrs_file_path = attrs_path / f"{row.list_name}.csv"
@@ -204,8 +203,8 @@ def get(name: str) -> ComponentTypeInfo:
     --------
     >>> import pypsa
     >>> pypsa.components.types.get("Generator")
-    """
 
+    """
     if name in COMPONENT_ALIAS_DICT:
         name = COMPONENT_ALIAS_DICT[name]
     try:
@@ -232,6 +231,7 @@ def check_if_added(components: str | Sequence) -> None:
     ------
     ValueError
         If a component is not registered package-wide.
+
     """
     if np.isscalar(components):
         components = [components]
@@ -241,8 +241,8 @@ def check_if_added(components: str | Sequence) -> None:
         c_name for c_name in components if c_name not in all_components.keys()
     ]:
         msg = (
-            f"Network contains custom components which are not registered package-wide. "
-            f"Add them first: {not_registered}components_"
+            f"Network contains custom components which are not registered "
+            f"package-wide. Add them first: {not_registered}components_"
         )
         raise ValueError(msg)
 
