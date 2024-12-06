@@ -56,10 +56,8 @@ class ComponentTypeInfo:
 
 class ComponentsStore(dict):
     def __repr__(self) -> str:
-        return (
-            f"PyPSA Components Store \n"
-            f"====================== \n- "
-            f"{'\n- '.join(f'{value}' for value in self.values())}"
+        return "PyPSA Components Store \n====================== \n- " + "\n- ".join(
+            str(value) for value in self.values()
         )
 
     def __setattr__(self, name: str, value: Any) -> None:

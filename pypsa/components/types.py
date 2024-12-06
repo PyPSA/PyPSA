@@ -5,6 +5,8 @@ Contains module wide component types. Default types are loaded from the package 
 Additional types can be added by the user.
 """
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from pathlib import Path
 
