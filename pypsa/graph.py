@@ -51,15 +51,15 @@ def graph(
     graph : OrderedGraph
         NetworkX graph
     """
-    from pypsa import components
+    from pypsa import Network, SubNetwork
 
-    if isinstance(n, components.Network):
+    if isinstance(n, Network):
         if branch_components is None:
             branch_components = n.branch_components
         else:
             branch_components = set(branch_components)
         buses_i = n.buses.index
-    elif isinstance(n, components.SubNetwork):
+    elif isinstance(n, SubNetwork):
         if branch_components is None:
             branch_components = n.n.passive_branch_components
         buses_i = n.buses_i()
@@ -122,14 +122,14 @@ def adjacency_matrix(
        Directed adjacency matrix
     """
 
-    from pypsa import components
+    from pypsa import Network, SubNetwork
 
-    if isinstance(n, components.Network):
+    if isinstance(n, Network):
         if branch_components is None:
             branch_components = n.branch_components
         if busorder is None:
             busorder = n.buses.index
-    elif isinstance(n, components.SubNetwork):
+    elif isinstance(n, SubNetwork):
         if branch_components is None:
             branch_components = n.n.passive_branch_components
         if busorder is None:
@@ -188,14 +188,14 @@ def incidence_matrix(
     incidence_matrix : sp.sparse.csr_matrix
        Directed incidence matrix
     """
-    from pypsa import components
+    from pypsa import Network, SubNetwork
 
-    if isinstance(n, components.Network):
+    if isinstance(n, Network):
         if branch_components is None:
             branch_components = n.branch_components
         if busorder is None:
             busorder = n.buses.index
-    elif isinstance(n, components.SubNetwork):
+    elif isinstance(n, SubNetwork):
         if branch_components is None:
             branch_components = n.n.passive_branch_components
         if busorder is None:

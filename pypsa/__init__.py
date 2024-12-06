@@ -29,7 +29,7 @@ from pypsa import (
     statistics,
     utils,
 )
-from pypsa.components import Network, SubNetwork
+from pypsa.networks import Network, SubNetwork
 
 # e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
 __version__ = version("pypsa")

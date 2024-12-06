@@ -1,6 +1,6 @@
-include pypsa/component_attrs/*.csv
-include pypsa/standard_types/*.csv
-include pypsa/components.csv
-include pypsa/variables.csv
+include pypsa/data/component_attrs/*.csv
+include pypsa/data/standard_types/*.csv
+include pypsa/data/components.csv
+include pypsa/data/variables.csv
 include README.rst LICENSE.txt
 include requirements.yml

@@ -8,7 +8,7 @@ PyPSA represents power and energy systems using the following components:
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/components.csv
+   :file: ../../pypsa/data/components.csv
 
 This table is also available as a dictionary within each network
 object as ``n.components``.
@@ -49,7 +49,7 @@ major functions as methods, such as ``n.optimize()``, ``n.statistics()``,
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/networks.csv
+   :file: ../../pypsa/data/component_attrs/networks.csv
 
 
 Sub-Network
@@ -77,7 +77,7 @@ Sub-Network are determined by calling
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/sub_networks.csv
+   :file: ../../pypsa/data/component_attrs/sub_networks.csv
 
 
 Bus
@@ -97,7 +97,7 @@ energy conservation for all elements feeding in and out of it
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/buses.csv
+   :file: ../../pypsa/data/component_attrs/buses.csv
 
 
 
@@ -118,7 +118,7 @@ relevant for limits on CO2 emissions.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/carriers.csv
+   :file: ../../pypsa/data/component_attrs/carriers.csv
 
 
 
@@ -133,7 +133,7 @@ Global constraints are added to the optimization problems created by
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/global_constraints.csv
+   :file: ../../pypsa/data/component_attrs/global_constraints.csv
 
 
 .. _component-generator:
@@ -181,7 +181,7 @@ to the bus and if :math:`q>0` it is supplying reactive power
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/generators.csv
+   :file: ../../pypsa/data/component_attrs/generators.csv
 
 
 
@@ -208,7 +208,7 @@ power to the bus and if :math:`q>0` it is supplying reactive power
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/storage_units.csv
+   :file: ../../pypsa/data/component_attrs/storage_units.csv
 
 
 Store
@@ -242,7 +242,7 @@ discharging processes as described above.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/stores.csv
+   :file: ../../pypsa/data/component_attrs/stores.csv
 
 
 Load
@@ -259,7 +259,7 @@ like an inductor).
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/loads.csv
+   :file: ../../pypsa/data/component_attrs/loads.csv
 
 
 Shunt Impedance
@@ -280,7 +280,7 @@ an capacitor).
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/shunt_impedances.csv
+   :file: ../../pypsa/data/component_attrs/shunt_impedances.csv
 
 
 Line
@@ -296,7 +296,7 @@ To see how the impedances are used in the power flow, see :ref:`line-model`.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/lines.csv
+   :file: ../../pypsa/data/component_attrs/lines.csv
 
 
 .. _line-types:
@@ -313,14 +313,14 @@ parameters.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/line_types.csv
+   :file: ../../pypsa/data/component_attrs/line_types.csv
 
 The following standard line types are available:
 
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/standard_types/line_types.csv
+   :file: ../../pypsa/data/standard_types/line_types.csv
 
 The line type parameters intable above are based on `pandapower's standard types
 <https://pandapower.readthedocs.io/en/latest/std_types/basic.html>`__, whose
@@ -342,7 +342,7 @@ the power flow, see :ref:`transformer-model`.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/transformers.csv
+   :file: ../../pypsa/data/component_attrs/transformers.csv
 
 
 .. _transformer-types:
@@ -359,14 +359,14 @@ values are used for the transformer's electrical parameters.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/transformer_types.csv
+   :file: ../../pypsa/data/component_attrs/transformer_types.csv
 
 The following standard transformer types are available:
 
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/standard_types/transformer_types.csv
+   :file: ../../pypsa/data/standard_types/transformer_types.csv
 
 The transformer type parameters in the table above are based on `pandapower's
 standard types
@@ -395,7 +395,7 @@ or resistive heater from an AC/DC bus to a heat bus, etc.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/links.csv
+   :file: ../../pypsa/data/component_attrs/links.csv
 
 
 .. _components-links-multiple-outputs:
@@ -447,7 +447,7 @@ possibility to store additional information about the shapes.
 .. csv-table::
    :class: full-width
    :header-rows: 1
-   :file: ../../pypsa/component_attrs/shapes.csv
+   :file: ../../pypsa/data/component_attrs/shapes.csv
 
 
 Component Groups
@@ -478,17 +478,17 @@ Custom Components
 
 If you want to define your own components and override the standard
 functionality of PyPSA, you can override the standard
-components by passing ``pypsa.Network()`` the arguments
-``override_components`` and ``override_component_attrs``.
+components by passing the arguments ``override_components`` and 
+``override_component_attrs`` when initialising a network via 
+:meth:`pypsa.Network() <pypsa.Network>`.
 
-For this network, these will replace the standard definitions in
-``pypsa.components.components`` and
-``pypsa.components.component_attrs``, which correspond to the
-repository CSV files ``pypsa/components.csv`` and
-``pypsa/component_attrs/*.csv``.
+For this network, these will replace the standard definitions in 
+:meth:`n.default_components <pypsa.Network.default_components>`
+and :meth:`n.default_component_attrs <pypsa.Network.default_component_attrs>`, which 
+correspond to the repository CSV files ``pypsa/data/components.csv`` and
+``pypsa/data/component_attrs/*.csv`` and are just slightly formatted when read in.
 
-``components`` is a pandas.DataFrame with the component ``name``,
-``list_name`` and ``description``. ``component_attrs`` is a
-pypsa.descriptors.Dict of pandas.DataFrame with the attribute
-properties for each component.  Just follow the formatting for the
-standard components.
+``default_components`` is a pandas.DataFrame with the component ``name``,
+``list_name``, ``description`` and ``type``. ``default_component_attrs`` is a special
+:meth:`Dict <pypsa.definitions.structures.Dict>` of pandas.DataFrame with the attribute
+properties for each component.  Just follow the formatting for the standard components.

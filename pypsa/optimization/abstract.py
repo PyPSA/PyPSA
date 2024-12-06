@@ -213,7 +213,7 @@ def optimize_transmission_expansion_iteratively(
             / n.lines["s_nom_opt"].mean()
         )
         logger.info(
-            f"Mean square difference after iteration {iteration} is " f"{lines_err}"
+            f"Mean square difference after iteration {iteration} is " f"{lines_err}"  # type: ignore
         )
         return lines_err
 
@@ -536,7 +536,7 @@ def optimize_mga(
     weights : dict-like
         Weights for alternate objective function. The default is None, which
         minimizes generation capacity. The weights dictionary should be keyed
-        with the component and variable (see ``pypsa/variables.csv``), followed
+        with the component and variable (see ``pypsa/data/variables.csv``), followed
         by a float, dict, pd.Series or pd.DataFrame for the coefficients of the
         objective function. Examples:
 

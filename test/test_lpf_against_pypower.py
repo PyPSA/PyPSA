@@ -17,6 +17,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
+from pypsa.constants import DEFAULT_TIMESTAMP
 
 
 @pytest.mark.skipif(
@@ -72,7 +73,7 @@ def test_pypower_case():
     n.lpf()
 
     # compare generator dispatch
-    p_pypsa = n.generators_t.p.loc["now"].values
+    p_pypsa = n.generators_t.p.loc[DEFAULT_TIMESTAMP].values
     p_pypower = results_df["gen"]["p"].values
 
     equal(p_pypsa, p_pypower)
@@ -83,6 +84,6 @@ def test_pypower_case():
         dynamic = getattr(n, item + "_t")
 
         for si in ["p0", "p1"]:
-            si_pypsa = getattr(dynamic, si).loc["now"].values
+            si_pypsa = getattr(dynamic, si).loc[DEFAULT_TIMESTAMP].values
             si_pypower = results_df["branch"][si][df.original_index].values
             equal(si_pypsa, si_pypower)

@@ -1,120 +1,139 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+import logging
+import re
 from dataclasses import dataclass
+from typing import Any
 
-import numpy as np
 import pandas as pd
+from deprecation import deprecated
 
-from pypsa.definitions.structures import Dict
+from pypsa.deprecations import COMPONENT_ALIAS_DICT
+
+logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Component:
-    """
-    Container class of energy system related assets, such as generators or
-    transmission lines.
-
-    .. warning::
-        This class is under ongoing development and will be subject to changes.
-        It is not recommended to use this class outside of PyPSA.
-
-    Parameters
-    ----------
-    name : str
-        The singular name of the component (e.g., 'Generator').
-    list_name : str
-        The plural name used for lists of components (e.g., 'generators').
-    attrs : Dict[str, Any]
-        A dictionary of attributes and their metadata.
-    static : pd.DataFrame
-        A DataFrame containing data for each component instance.
-    dynamic : Dict[str, pd.DataFrame]
-        A dictionary of time series data (panel data) for the component.
-    ind : pd.Index
-        An index of component identifiers.
-    """
-
+@dataclass(frozen=True)
+class ComponentTypeInfo:
     name: str
     list_name: str
-    attrs: pd.DataFrame
-    investment_periods: pd.Index  # TODO: Needs better general approach
-    static: pd.DataFrame
-    dynamic: Dict
-    ind: None  # deprecated
+    description: str
+    category: str
+    defaults: pd.DataFrame
+    standard_types: pd.DataFrame | None = None
 
-    # raise a deprecation warning if ind attribute is not None
-    def __post_init__(self) -> None:
-        if self.ind is not None:
-            raise DeprecationWarning(
-                "The 'ind' attribute is deprecated and will be removed in future versions."
-            )
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, ComponentTypeInfo):
+            return NotImplemented
 
-    def __repr__(self) -> str:
         return (
-            f"Component(name={self.name!r}, list_name={self.list_name!r}, "
-            f"attrs=Keys({list(self.attrs.keys())}), static=DataFrame(shape={self.static.shape}), "
-            f"dynamic=Keys({list(self.dynamic.keys())}))"
+            self.name == other.name
+            and self.list_name == other.list_name
+            and self.description == other.description
+            and str(self.category) == str(other.category)
+            and self.defaults.equals(other.defaults)
         )
 
-    # @deprecated(
-    #     deprecated_in="0.32",
-    #     removed_in="1.0",
-    #     details="Use `c.static` instead.",
-    # )
+    def __repr__(self) -> str:
+        return self.name + " Component Type"
+
     @property
-    def df(self) -> pd.DataFrame:
-        return self.static
+    @deprecated(
+        deprecated_in="0.32.0",
+        details="Use the 'category' attribute instead.",
+    )
+    def type(self) -> str:
+        return self.category
 
-    # @deprecated(
-    #     deprecated_in="0.32",
-    #     removed_in="1.0",
-    #     details="Use `c.dynamic` instead.",
-    # )
     @property
-    def pnl(self) -> Dict:
-        return self.dynamic
+    @deprecated(
+        deprecated_in="0.32.0",
+        details="Use the 'defaults' attribute instead.",
+    )
+    def attrs(self) -> pd.DataFrame:
+        return self.defaults
 
-    def get_active_assets(
-        self,
-        investment_period: int | str | Sequence | None = None,
-    ) -> pd.Series:
+
+class ComponentsStore(dict):
+    def __repr__(self) -> str:
+        return "PyPSA Components Store \n====================== \n- " + "\n- ".join(
+            str(value) for value in self.values()
+        )
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if hasattr(ComponentsStore, name):
+            msg = "'ComponentsStore' object attribute " f"'{name}' can not be set."
+            raise AttributeError(msg)
+        self[name] = value
+
+    def __getitem__(self, item: str | list | set) -> Any:
         """
-        Get active components mask of componen type in investment period(s).
+        Index single and multiple items from the dictionary.
 
-        A component is considered active when:
-        - it's active attribute is True
-        - it's build year + lifetime is smaller than the investment period (if given)
+        Similar behavior to pandas.DataFrame.__getitem__.
 
-        Parameters
-        ----------
-        n : pypsa.Network
-            Network instance
-        c : str
-            Component name
-        investment_period : int, str, Sequence
-            Investment period(s) to check for active within build year and lifetime. If none
-            only the active attribute is considered and build year and lifetime are ignored.
-            If multiple periods are given the mask is True if the component is active in any
-            of the given periods.
-
-        Returns
-        -------
-        pd.Series
-            Boolean mask for active components
+        Examples
+        --------
+        >>> components = ComponentsStore()
+        >>> components["generator"] = Generators()
+        >>> components["stores"] = Stores()
+        >>> components["generator"]
+        'Generator class instance'
+        >>> components[["generator", "stores"]]
+        >>> components[["generator", "stores"]]
+        ['Generator class instance', 'Stores class instance']
         """
-        if investment_period is None:
-            return self.static.active
-        if not {"build_year", "lifetime"}.issubset(self.static):
-            return self.static.active
+        if isinstance(item, (list, set)):
+            return [self[key] for key in item]
+        else:
+            if item in COMPONENT_ALIAS_DICT:
+                # TODO: Activate when changing logic
+                # warnings.warn(
+                #     f"Accessing components in n.components using capitalized singular "
+                #     f"name is deprecated. Use lowercase list name instead: "
+                #     f"'{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.",
+                #     DeprecationWarning,
+                #     stacklevel=2,
+                # )
+                return super().__getitem__(COMPONENT_ALIAS_DICT[item])
+            return super().__getitem__(item)
 
-        # Logical OR of active assets in all investment periods and
-        # logical AND with active attribute
-        active = {}
-        for period in np.atleast_1d(investment_period):
-            if period not in self.investment_periods:
-                raise ValueError("Investment period not in `n.investment_periods`")
-            active[period] = self.static.eval(
-                "build_year <= @period < build_year + lifetime"
-            )
-        return pd.DataFrame(active).any(axis=1) & self.static.active
+    def __getattr__(self, item: str) -> Any:
+        """
+        Get attribute from the dictionary.
+
+        Examples
+        --------
+        >>> components = ComponentsStore()
+        >>> components["generator"] = Generators()
+        >>> components.generators
+        """
+        try:
+            return self[item]
+        except KeyError:
+            msg = f"Network has no components '{item}'"
+            raise AttributeError(msg)
+
+    def __delattr__(self, name: str) -> None:
+        """
+        Is invoked when del object.member is called.
+        """
+        del self[name]
+
+    _re_pattern = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
+
+    def __dir__(self) -> list[str]:
+        """
+        Return a list of object attributes including dynamic ones from the dictionary keys.
+        """
+        dict_keys = [
+            k for k in self.keys() if isinstance(k, str) and self._re_pattern.match(k)
+        ]
+        obj_attrs = list(dir(super()))
+        return dict_keys + obj_attrs
+
+    def __iter__(self) -> Any:
+        """
+        Value iterator over components in store.
+        """
+        return iter(self.values())

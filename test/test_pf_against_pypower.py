@@ -16,6 +16,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
+from pypsa.constants import DEFAULT_TIMESTAMP
 
 
 @pytest.mark.skipif(
@@ -79,23 +80,23 @@ def test_pypower_case():
     # compare branch flows
     for c in n.iterate_components(n.passive_branch_components):
         for si in ["p0", "p1", "q0", "q1"]:
-            si_pypsa = getattr(c.dynamic, si).loc["now"].values
+            si_pypsa = getattr(c.dynamic, si).loc[DEFAULT_TIMESTAMP].values
             si_pypower = results_df["branch"][si][c.static.original_index].values
             equal(si_pypsa, si_pypower)
 
     # compare generator dispatch
     for s in ["p", "q"]:
-        s_pypsa = getattr(n.generators_t, s).loc["now"].values
+        s_pypsa = getattr(n.generators_t, s).loc[DEFAULT_TIMESTAMP].values
         s_pypower = results_df["gen"][s].values
         equal(s_pypsa, s_pypower)
 
     # compare voltages
-    v_mag_pypsa = n.buses_t.v_mag_pu.loc["now"]
+    v_mag_pypsa = n.buses_t.v_mag_pu.loc[DEFAULT_TIMESTAMP]
     v_mag_pypower = results_df["bus"]["v_mag_pu"]
 
     equal(v_mag_pypsa, v_mag_pypower)
 
-    v_ang_pypsa = n.buses_t.v_ang.loc["now"]
+    v_ang_pypsa = n.buses_t.v_ang.loc[DEFAULT_TIMESTAMP]
     pypower_slack_angle = results_df["bus"]["v_ang"][
         results_df["bus"]["type"] == 3
     ].values[0]
