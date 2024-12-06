@@ -2,14 +2,36 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa``.
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa``.
+
+Features
+--------
+
+* New component class structure (https://github.com/PyPSA/PyPSA/pull/1075)
+
+  * Major structural refactoring of how component data is stored and accessed. The new 
+    structure adds an extra layer to move all component-specific data from the network 
+    class to a new component class.
+
+  * This is an experimental feature, will be developed further and is not yet 
+    recommended for general use. More features, documentation and examples will 
+    follow. Most users will not notice any changes. If you wanna play around with
+    it, you could do so for example via: ``c = n.components.generators``.
+  
+  * While the changes try to maintain full backwards compatibility, there may be some 
+    breaking changes or bugs, especially if you use custom components or custom 
+    component attributes in your network attributes in your network. 
+  
+  * Please report any issues and bugs you might encounter
+    via the `issue tracker <https://github.com/PyPSA/PyPSA/issues/new>`__ on 
+    GitHub.
 
 `v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
 =======================================================================================
@@ -76,18 +98,6 @@ Bug fixes
 
 Bug fixes
 ---------
-
-
-* New component class structure. This is an experimental feature, will be further 
-  developed and is not yet recommended for general use. While those changes are
-  trying to keep full backwards compatibility, there might be some breaking changes 
-  for ..
-  
-  - .. custom component classes: If you use custom component classes during the network 
-    creation.
-
-  Specially for those use cases, but also in general, please report any issues and 
-  bugs you might encounter via the issue tracker on GitHub.
 
 * Abolishing ``min_units`` in the post discretization. If the maximum capacity of a 
   component is smaller than the specified unit size, the maximum capacity is built as 

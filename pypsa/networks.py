@@ -432,6 +432,21 @@ class Network:
             )
 
     @property
+    def c(self) -> ComponentsStore:
+        """
+        Alias for network components.
+
+        Access all components of the network via `n.c.<component>`. Same as
+        :py:attr:`pypsa.Network.components`.
+
+        Returns
+        -------
+        ComponentsStore
+
+        """
+        return self.components
+
+    @property
     def has_custom_components(self) -> bool:
         """Check if network has custom components."""
         return bool(set(self.components.keys()) - set(default_components))

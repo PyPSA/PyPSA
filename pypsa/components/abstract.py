@@ -108,6 +108,16 @@ class Components(ComponentsData, ABC):
         str
             String representation of component.
 
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c
+        PyPSA 'Generator' Components
+        ----------------------------
+        Attached to PyPSA Network 'AC-DC'
+        Components: 6
+
         """
         num_components = len(self.static)
         if not num_components:
@@ -122,6 +132,27 @@ class Components(ComponentsData, ABC):
 
         text += f"Components: {len(self.static)}"
 
+        return text
+
+    def __str__(self) -> str:
+        """
+        Get string representation of component.
+
+        Returns
+        -------
+        str
+            String representation of component.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> print(c)
+        6 'Generator' Components
+
+        """
+        num_components = len(self.static)
+        text = f"{num_components} '{self.ct.name}' Components"
         return text
 
     def __getitem__(self, key: str) -> Any:
