@@ -10,21 +10,36 @@ from collections.abc import Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
+from deprecation import deprecated
+
+from pypsa.components.abstract import Components
+from pypsa.components.utils import as_components
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.utils import equals, future_deprecation
+
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
     from pathlib import Path
 
-import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
 import validators
-from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
+from pypsa.components.abstract import SubNetworkComponents
+from pypsa.components.components import Component
+from pypsa.components.types import (
+    check_if_added,
+    component_types_df,
+    default_components,
+)
+from pypsa.components.types import (
+    get as get_component_type,
+)
 from pypsa.consistency import (
     check_assets,
     check_dtypes_,
@@ -42,7 +57,7 @@ from pypsa.consistency import (
     check_time_series_power_attributes,
 )
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
-from pypsa.definitions.components import Component
+from pypsa.definitions.components import ComponentsStore
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import (
     get_active_assets,
@@ -83,7 +98,7 @@ from pypsa.pf import (
 )
 from pypsa.plot import explore, iplot, plot  # type: ignore
 from pypsa.statistics import StatisticsAccessor
-from pypsa.types import is_1d_list_like
+from pypsa.typing import is_1d_list_like
 from pypsa.utils import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
@@ -95,27 +110,21 @@ warnings.simplefilter("always", DeprecationWarning)
 
 
 dir_name = os.path.dirname(__file__)
-component_attrs_dir_name = "component_attrs"
 
-standard_types_dir_name = "standard_types"
+standard_types_dir_name = "data/standard_types"
 
 
 inf = float("inf")
 
 
-components = pd.read_csv(os.path.join(dir_name, "components.csv"), index_col=0)
+def create_component_property(property_type: str, component: str) -> property:
+    def getter(self: Any) -> Any:
+        return self.components.get(component).get(property_type)
 
-component_attrs = Dict()
+    def setter(self: Any, value: Any) -> None:
+        setattr(self.components[component], property_type, value)
 
-for component in components.index:
-    file_name = os.path.join(
-        dir_name,
-        component_attrs_dir_name,
-        components.at[component, "list_name"] + ".csv",
-    )
-    component_attrs[component] = pd.read_csv(file_name, index_col=0, na_values="n/a")
-
-del component
+    return property(getter, setter)
 
 
 class Network:
@@ -135,11 +144,12 @@ class Network:
         DataFrames.
     override_components : pandas.DataFrame
         If you want to override the standard PyPSA components in
-        pypsa.components.components, pass it a DataFrame with index of component
-        name and columns of list_name and description, following the format of
-        pypsa.components.components. See git repository examples/new_components/.
+        :meth:`n.default_components <pypsa.Network.default_components>`, pass it a
+        DataFrame indexed by component names and.
+        See :doc:`/user-guide/components` for more information.
     override_component_attrs : pypsa.descriptors.Dict of pandas.DataFrame
-        If you want to override pypsa.component_attrs, follow its format.
+        If you want to override
+        :meth:`n.default_component_attrs <pypsa.Network.default_component_attrs>`.
         See :doc:`/user-guide/components` for more information.
     kwargs
         Any remaining attributes to set
@@ -163,8 +173,7 @@ class Network:
     # Core attributes
     name: str
     snapshots: pd.Index | pd.MultiIndex
-    components: Dict
-    component_attrs: Dict
+    components: ComponentsStore
     sub_networks: pd.DataFrame
 
     # Component sets
@@ -212,7 +221,7 @@ class Network:
     iteration: int
 
     # Geospatial
-    _crs = CRS.from_epsg("4326")
+    _crs = CRS.from_epsg(DEFAULT_EPSG)
 
     # Methods
     # -------
@@ -261,10 +270,21 @@ class Network:
         import_name: str | Path = "",
         name: str = "",
         ignore_standard_types: bool = False,
+        custom_components: list[str] | None = None,
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
     ) -> None:
+        if override_components is not None or override_component_attrs is not None:
+            msg = (
+                "The arguments `override_components` and `override_component_attrs` "
+                "are deprecated. Please use the #TODO"
+            )
+            raise DeprecationWarning(msg)
+
+        if custom_components is None:
+            custom_components = []
+
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -277,7 +297,7 @@ class Network:
 
         self._meta: dict = {}
 
-        self._snapshots = pd.Index(["now"])
+        self._snapshots = pd.Index([DEFAULT_TIMESTAMP])
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
@@ -287,88 +307,15 @@ class Network:
         cols = ["objective", "years"]
         self._investment_period_weightings: pd.DataFrame = pd.DataFrame(columns=cols)
 
+        # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
-
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
-
-        if override_components is None:
-            self.components = components
-        else:
-            self.components = override_components
-
-        if override_component_attrs is None:
-            self.component_attrs = component_attrs
-        else:
-            self.component_attrs = override_component_attrs
-
-        for c_type in set(self.components.type.unique()):
-            if not isinstance(c_type, float):
-                setattr(
-                    self,
-                    c_type + "_components",
-                    set(self.components.index[self.components.type == c_type]),
-                )
-
-        self.one_port_components = (
-            self.passive_one_port_components | self.controllable_one_port_components
-        )
-
-        self.branch_components = (
-            self.passive_branch_components | self.controllable_branch_components
-        )
-
-        self.all_components = set(self.components.index) - {"Network"}
-
-        self.components = Dict(self.components.T.to_dict())
-
         self.statistics: StatisticsAccessor = StatisticsAccessor(self)
 
-        for component in self.components:
-            # make copies to prevent unexpected sharing of variables
-            attrs = self.component_attrs[component].copy()
+        # Define component sets
+        self._initialize_component_sets()
 
-            attrs["default"] = attrs.default.astype(object)
-            attrs["static"] = attrs["type"] != "series"
-            attrs["varying"] = attrs["type"].isin({"series", "static or series"})
-            attrs["typ"] = (
-                attrs["type"]
-                .map(
-                    {"boolean": bool, "int": int, "string": str, "geometry": "geometry"}
-                )
-                .fillna(float)
-            )
-            attrs["dtype"] = (
-                attrs["type"]
-                .map(
-                    {
-                        "boolean": np.dtype(bool),
-                        "int": np.dtype(int),
-                        "string": np.dtype("O"),
-                    }
-                )
-                .fillna(np.dtype(float))
-            )
-
-            bool_b = attrs.type == "boolean"
-            if bool_b.any():
-                attrs.loc[bool_b, "default"] = attrs.loc[bool_b, "default"].isin(
-                    {True, "True"}
-                )
-
-            # exclude Network because it's not in a DF and has non-typical attributes
-            if component != "Network":
-                str_b = attrs.typ.apply(lambda x: x is str)
-                attrs.loc[str_b, "default"] = attrs.loc[str_b, "default"].fillna("")
-                for typ in (str, float, int):
-                    typ_b = attrs.typ == typ
-                    attrs.loc[typ_b, "default"] = attrs.loc[typ_b, "default"].astype(
-                        typ
-                    )
-
-            self.component_attrs[component] = attrs
-            self.components[component]["attrs"] = attrs
-
-        self._build_dfs()
+        self._initialize_components(custom_components=custom_components)
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -392,6 +339,7 @@ class Network:
 
     def __repr__(self) -> str:
         header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
+        header += "\n" + "-" * len(header)
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
             for c in self.iterate_components()
@@ -408,9 +356,6 @@ class Network:
 
         return header + content
 
-    # def __getattr__(self, name: str) -> Any:
-    #     return self[name]
-
     def __add__(self, other: Network) -> None:
         """Merge all components of two networks."""
         self.merge(other)
@@ -418,41 +363,12 @@ class Network:
     def __eq__(self, other: Any) -> bool:
         """Check for equality of two networks."""
 
-        def equals(a: Any, b: Any) -> bool:
-            assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
-            # Classes with equality methods
-            if isinstance(a, np.ndarray):
-                if not np.array_equal(a, b):
-                    return False
-            elif isinstance(a, (pd.DataFrame, pd.Series, pd.Index)):
-                if not a.equals(b):
-                    return False
-            # Iterators
-            elif isinstance(a, (dict, Dict)):
-                for k, v in a.items():
-                    if not equals(v, b[k]):
-                        return False
-            elif isinstance(a, (list, tuple)):
-                for i, v in enumerate(a):
-                    if not equals(v, b[i]):
-                        return False
-            # Ignore for now
-            elif isinstance(
-                value, (OptimizationAccessor, ClusteringAccessor, StatisticsAccessor)
-            ):
-                pass
-            # Nans
-            elif pd.isna(a) and pd.isna(b):
-                pass
-            else:
-                if a != b:
-                    return False
-
-            return True
+        ignore = [OptimizationAccessor, ClusteringAccessor, StatisticsAccessor]
 
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
-                if not equals(value, other.__dict__[key]):
+                if not equals(value, other.__dict__[key], ignored_classes=ignore):
+                    logger.warning("Mismatch in attribute: %s", key)
                     return False
         else:
             logger.warning(
@@ -463,65 +379,84 @@ class Network:
             return False
         return True
 
-    def _build_dfs(self) -> None:
-        """
-        Function called when network is created to build component
-        pandas.DataFrames.
-        """
-        for component in self.all_components:
-            attrs = self.components[component]["attrs"]
-
-            static_dtypes = attrs.loc[attrs.static, "dtype"].drop(["name"])
-
-            if component == "Shape":
-                df = gpd.GeoDataFrame(
-                    {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
-                    columns=static_dtypes.index,
-                    crs=self.srid,
-                )
-            else:
-                df = pd.DataFrame(
-                    {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
-                    columns=static_dtypes.index,
+    def _initialize_component_sets(self) -> None:
+        # TODO merge with components.types
+        for category in set(component_types_df.category.unique()):
+            if not isinstance(category, float):
+                setattr(
+                    self,
+                    category + "_components",
+                    set(
+                        component_types_df.index[
+                            component_types_df.category == category
+                        ]
+                    ),
                 )
 
-            df.index.name = component
-            setattr(self, self.components[component]["list_name"], df)
+        self.one_port_components = (
+            self.passive_one_port_components | self.controllable_one_port_components
+        )
 
-            # it's currently hard to imagine non-float series,
-            # but this could be generalised
-            dynamic = Dict()
-            for k in attrs.index[attrs.varying]:
-                df = pd.DataFrame(index=self.snapshots, columns=[], dtype=float)
-                df.index.name = "snapshot"
-                df.columns.name = component
-                dynamic[k] = df
+        self.branch_components = (
+            self.passive_branch_components | self.controllable_branch_components
+        )
 
-            setattr(self, self.components[component]["list_name"] + "_t", dynamic)
+        self.all_components = set(component_types_df.index) - {"Network"}
+
+    def _initialize_components(self, custom_components: list) -> None:
+        components = component_types_df.index.to_list() + custom_components
+
+        self.components = ComponentsStore()
+        for c_name in components:
+            ct = get_component_type(c_name)
+
+            self.components[ct.list_name] = Component(ct=ct, n=self)
+
+            setattr(
+                type(self),
+                ct.list_name,
+                create_component_property("static", ct.list_name),
+            )
+            setattr(
+                type(self),
+                ct.list_name + "_t",
+                create_component_property("dynamic", ct.list_name),
+            )
 
     def read_in_default_standard_types(self) -> None:
         for std_type in self.standard_type_components:
-            list_name = self.components[std_type]["list_name"]
-
-            file_name = os.path.join(
-                dir_name, standard_types_dir_name, list_name + ".csv"
-            )
-
-            self.components[std_type]["standard_types"] = pd.read_csv(
-                file_name, index_col=0
-            )
             self.add(
                 std_type,
-                self.components[std_type]["standard_types"].index,
-                **self.components[std_type]["standard_types"],
+                self.components[std_type].ct.standard_types.index,
+                **self.components[std_type].ct.standard_types,
             )
 
-    # Deprecate not yet
-    # @deprecated(
-    #     deprecated_in="0.32",
-    #     removed_in="1.0",
-    #     details="Use `n.static` instead.",
-    # )
+    @property
+    def c(self) -> ComponentsStore:
+        """
+        Alias for network components.
+
+        Access all components of the network via `n.c.<component>`. Same as
+        :py:attr:`pypsa.Network.components`.
+
+        Returns
+        -------
+        ComponentsStore
+
+        """
+        return self.components
+
+    @property
+    def has_custom_components(self) -> bool:
+        """Check if network has custom components."""
+        return bool(set(self.components.keys()) - set(default_components))
+
+    @property
+    def custom_components(self) -> list[str]:
+        """List of custom components."""
+        return list(set(self.components.keys()) - set(default_components))
+
+    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
     def df(self, component_name: str) -> pd.DataFrame:
         """
         Alias for :py:meth:`pypsa.Network.static`.
@@ -537,6 +472,7 @@ class Network:
         """
         return self.static(component_name)
 
+    @future_deprecation(details="Use `self.components.<component>.static` instead.")
     def static(self, component_name: str) -> pd.DataFrame:
         """
         Return the DataFrame of static components for component_name, i.e.
@@ -551,14 +487,9 @@ class Network:
         pandas.DataFrame
 
         """
-        return getattr(self, self.components[component_name]["list_name"])
+        return self.components[component_name].static
 
-    # Deprecate not yet
-    # @deprecated(
-    #     deprecated_in="0.32",
-    #     removed_in="1.0",
-    #     details="Use `n.dynamic` instead.",
-    # )
+    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
     def pnl(self, component_name: str) -> Dict:
         """
         Alias for :py:meth:`pypsa.Network.dynamic`.
@@ -574,6 +505,7 @@ class Network:
         """
         return self.dynamic(component_name)
 
+    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
     def dynamic(self, component_name: str) -> Dict:
         """
         Return the dictionary of DataFrames of varying components for
@@ -588,7 +520,24 @@ class Network:
         dict of pandas.DataFrame
 
         """
-        return getattr(self, self.components[component_name]["list_name"] + "_t")
+        return self.components[component_name].dynamic
+
+    @property
+    @future_deprecation(details="Use `self.components.<component>.defaults` instead.")
+    def component_attrs(self) -> pd.DataFrame:
+        """
+        Alias for :py:meth:`pypsa.Network.get`.
+
+        Parameters
+        ----------
+        component_name : string
+
+        Returns
+        -------
+        pandas.DataFrame
+
+        """
+        return Dict({value.name: value.defaults for value in self.components})
 
     @property
     def meta(self) -> dict:
@@ -961,9 +910,7 @@ class Network:
         ...       p_max_pu=wind)
 
         """
-        if class_name not in self.components:
-            msg = f"Component class {class_name} not found."
-            raise ValueError(msg)
+        c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
         names = pd.Index([name]) if single_component else pd.Index(name)
@@ -976,7 +923,7 @@ class Network:
 
         # Check if names are unique
         if not names.is_unique:
-            msg = f"Names for {class_name} must be unique."
+            msg = f"Names for {c.name} must be unique."
             raise ValueError(msg)
 
         for k, v in kwargs.items():
@@ -1074,11 +1021,11 @@ class Network:
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        _import_components_from_df(self, static_df, class_name, overwrite=overwrite)
+        _import_components_from_df(self, static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
-            self._import_series_from_df(v, class_name, k, overwrite=overwrite)
+            self._import_series_from_df(v, c.name, k, overwrite=overwrite)
 
         return names
 
@@ -1107,20 +1054,18 @@ class Network:
         >>> n.remove("Line", "my_line 12345")
         >>> n.remove("Line", ["line x", "line y"])
         """
-        if class_name not in self.components:
-            msg = f"Component class {class_name} not found"
-            raise ValueError(msg)
+        c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix
         names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
         names = names.astype(str) + suffix
 
         # Drop from static components
-        cls_static = self.static(class_name)
+        cls_static = self.static(c.name)
         cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
-        dynamic = self.dynamic(class_name)
+        dynamic = self.dynamic(c.name)
         for df in dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
@@ -1236,23 +1181,6 @@ class Network:
         """
         self.remove(class_name=class_name, name=names)
 
-    def _retrieve_overridden_components(self) -> tuple[pd.DataFrame, Dict]:
-        components_index = list(self.components.keys())
-
-        cols = ["list_name", "description", "type"]
-
-        override_components = pd.DataFrame(
-            [[self.components[i][c] for c in cols] for i in components_index],
-            columns=cols,
-            index=components_index,
-        )
-
-        override_component_attrs = Dict(
-            {i: self.component_attrs[i].copy() for i in components_index}
-        )
-
-        return override_components, override_component_attrs
-
     def copy(
         self,
         snapshots: Sequence | None = None,
@@ -1319,16 +1247,13 @@ class Network:
             )
             snapshots_ = pd.Index([], name="snapshot")
 
-        # Setup new network
-        (
-            override_components,
-            override_component_attrs,
-        ) = self._retrieve_overridden_components()
+        # Check if custom components are registered
+        check_if_added(self.custom_components)
 
+        # Setup new network
         n = self.__class__(
             ignore_standard_types=ignore_standard_types,
-            override_components=override_components,
-            override_component_attrs=override_component_attrs,
+            custom_components=list(self.components.keys()) + self.custom_components,
         )
 
         # Copy components
@@ -1418,13 +1343,12 @@ class Network:
         else:
             time_i = slice(None)
 
-        (
-            override_components,
-            override_component_attrs,
-        ) = self._retrieve_overridden_components()
+        # Check if custom components are registered
+        check_if_added(self.custom_components)
+
+        # Setup new network
         n = self.__class__(
-            override_components=override_components,
-            override_component_attrs=override_component_attrs,
+            custom_components=list(self.components.keys()) + self.custom_components
         )
         n.add(
             "Bus",
@@ -1578,17 +1502,11 @@ class Network:
             find_cycles(sub)
             sub.find_bus_controls()
 
+    @future_deprecation(details="Use `self.components.<component>` instead.")
     def component(self, c_name: str) -> Component:
-        return Component(
-            name=c_name,
-            list_name=self.components[c_name]["list_name"],
-            attrs=self.components[c_name]["attrs"],
-            investment_periods=self.investment_periods,
-            static=self.static(c_name),
-            dynamic=self.dynamic(c_name),
-            ind=None,
-        )
+        return self.components[c_name]
 
+    @future_deprecation(details="Use `self.components` instead.")
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
@@ -1695,17 +1613,47 @@ class SubNetwork:
         self.name = name
 
     @property
-    @deprecated(
-        deprecated_in="0.31",
-        removed_in="0.33",
-        details="Use the `n` property instead.",
-    )
+    @deprecated(details="Use the `n` property instead.")
     def network(self) -> Network:
         return self._n()  # type: ignore
 
     @property
     def n(self) -> Network:
         return self._n()  # type: ignore
+
+    @property
+    def components(self) -> ComponentsStore:
+        def filter_down(key: str, c: Components) -> Any:
+            value = c[key]
+            if key == "static":
+                if c.name in {"Bus"} | self.n.passive_branch_components:
+                    return value[value.sub_network == self.name]
+                elif c.name in self.n.one_port_components:
+                    buses = self.buses_i()
+                    return value[value.bus.isin(buses)]
+                else:
+                    raise ValueError(
+                        f"Component {c.name} not supported for sub-networks"
+                    )
+            elif key == "dynamic":
+                dynamic = Dict()
+                index = self.static(c.name).index
+                for k, v in self.n.dynamic(c.name).items():
+                    dynamic[k] = v[index.intersection(v.columns)]
+                return dynamic
+            else:
+                return value
+
+        return ComponentsStore(
+            {
+                key: SubNetworkComponents(value, filter_down)
+                for key, value in self.n.components.items()
+            }
+        )
+
+    @property
+    def c(self) -> ComponentsStore:
+        return self.components
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
@@ -1723,50 +1671,6 @@ class SubNetwork:
     def investment_period_weightings(self) -> pd.DataFrame:
         return self.n.investment_period_weightings
 
-    # @deprecated(
-    #     deprecated_in="0.32",
-    #     removed_in="1.0",
-    #     details="Use `sub_network.static` instead.",
-    # )
-    def df(self, c_name: str) -> pd.DataFrame:
-        return self.static(c_name)
-
-    def static(self, c_name: str) -> pd.DataFrame:
-        n = self.n
-        static = n.static(c_name)
-        if c_name in {"Bus"} | n.passive_branch_components:
-            return static[static.sub_network == self.name]
-        elif c_name in n.one_port_components:
-            buses = self.buses_i()
-            return static[static.bus.isin(buses)]
-        else:
-            raise ValueError(f"Component {c_name} not supported for sub-networks")
-
-    # @deprecated(
-    #     deprecated_in="0.32",
-    #     removed_in="1.0",
-    #     details="Use `sub_network.dynamic` instead.",
-    # )
-    def pnl(self, c_name: str) -> Dict:
-        return self.dynamic(c_name)
-
-    def dynamic(self, c_name: str) -> Dict:
-        dynamic = Dict()
-        n = self.n
-        index = self.static(c_name).index
-        for k, v in n.dynamic(c_name).items():
-            dynamic[k] = v[index.intersection(v.columns)]
-        return dynamic
-
-    def buses_i(self) -> pd.Index:
-        return self.n.buses.index[self.n.buses.sub_network == self.name]
-
-    def lines_i(self) -> pd.Index:
-        return self.n.lines.index[self.n.lines.sub_network == self.name]
-
-    def transformers_i(self) -> pd.Index:
-        return self.n.transformers.index[self.n.transformers.sub_network == self.name]
-
     def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
         types = []
         names = []
@@ -1780,58 +1684,97 @@ class SubNetwork:
         branches = self.n.passive_branches()
         return branches[branches.sub_network == self.name]
 
+    @future_deprecation(details="Use `self.components.<c_name>` instead.")
+    def component(self, c_name: str) -> SubNetworkComponents:
+        return self.components[c_name]
+
+    @future_deprecation(details="Use `self.components.<c_name>.static` instead.")
+    def df(self, c_name: str) -> pd.DataFrame:
+        return self.static(c_name)
+
+    @future_deprecation(details="Use `self.components.<c_name>.static` instead.")
+    def static(self, c_name: str) -> pd.DataFrame:
+        return self.components[c_name].static
+
+    @future_deprecation(details="Use `self.components.<c_name>.dynamic` instead.")
+    def pnl(self, c_name: str) -> Dict:
+        return self.dynamic(c_name)
+
+    @future_deprecation(details="Use `self.components.<c_name>.dynamic` instead.")
+    def dynamic(self, c_name: str) -> Dict:
+        return self.components[c_name].dynamic
+
+    @future_deprecation(details="Use `self.components.buses.static.index` instead.")
+    def buses_i(self) -> pd.Index:
+        return self.components.buses.static.index
+
+    @future_deprecation(details="Use `self.components.lines.static.index` instead.")
+    def lines_i(self) -> pd.Index:
+        return self.components.lines.static.index
+
+    @future_deprecation(
+        details="Use `self.components.transformers.static.index` instead."
+    )
+    def transformers_i(self) -> pd.Index:
+        return self.components.transformers.static.index
+
+    @future_deprecation(
+        details="Use `self.components.generators.static.index` instead."
+    )
     def generators_i(self) -> pd.Index:
-        sub_networks = self.n.generators.bus.map(self.n.buses.sub_network)
-        return self.n.generators.index[sub_networks == self.name]
+        return self.components.generators.static.index
 
+    @future_deprecation(details="Use `self.components.loads.static.index` instead.")
     def loads_i(self) -> pd.Index:
-        sub_networks = self.n.loads.bus.map(self.n.buses.sub_network)
-        return self.n.loads.index[sub_networks == self.name]
+        return self.components.loads.static.index
 
+    @future_deprecation(
+        details="Use `self.components.shunt_impedances.static.index` instead."
+    )
     def shunt_impedances_i(self) -> pd.Index:
-        sub_networks = self.n.shunt_impedances.bus.map(self.n.buses.sub_network)
-        return self.n.shunt_impedances.index[sub_networks == self.name]
+        return self.components.shunt_impedances.static.index
 
+    @future_deprecation(
+        details="Use `self.components.storage_units.static.index` instead."
+    )
     def storage_units_i(self) -> pd.Index:
-        sub_networks = self.n.storage_units.bus.map(self.n.buses.sub_network)
-        return self.n.storage_units.index[sub_networks == self.name]
+        return self.components.storage_units.static.index
 
+    @future_deprecation(details="Use `self.components.stores.index.static` instead.")
     def stores_i(self) -> pd.Index:
-        sub_networks = self.n.stores.bus.map(self.n.buses.sub_network)
-        return self.n.stores.index[sub_networks == self.name]
+        return self.components.stores.static.index
 
+    @future_deprecation(details="Use `self.components.buses.static` instead.")
     def buses(self) -> pd.DataFrame:
-        return self.n.buses.loc[self.buses_i()]
+        return self.components.buses.static
 
+    @future_deprecation(details="Use `self.components.generators.static` instead.")
     def generators(self) -> pd.DataFrame:
-        return self.n.generators.loc[self.generators_i()]
+        return self.components.generators.static
 
+    @future_deprecation(details="Use `self.components.loads.static` instead.")
     def loads(self) -> pd.DataFrame:
-        return self.n.loads.loc[self.loads_i()]
+        return self.components.loads.static
 
+    @future_deprecation(
+        details="Use `self.components.shunt_impedances.static` instead."
+    )
     def shunt_impedances(self) -> pd.DataFrame:
-        return self.n.shunt_impedances.loc[self.shunt_impedances_i()]
+        return self.components.shunt_impedances.static
 
+    @future_deprecation(details="Use `self.components.storage_units.static` instead.")
     def storage_units(self) -> pd.DataFrame:
-        return self.n.storage_units.loc[self.storage_units_i()]
+        return self.components.storage_units.static
 
+    @future_deprecation(details="Use `self.components.stores.static` instead.")
     def stores(self) -> pd.DataFrame:
-        return self.n.stores.loc[self.stores_i()]
+        return self.components.stores.static
 
-    def component(self, c_name: str) -> Component:
-        return Component(
-            name=c_name,
-            list_name=self.n.components[c_name]["list_name"],
-            attrs=self.n.components[c_name]["attrs"],
-            investment_periods=self.investment_periods,
-            static=self.static(c_name),
-            dynamic=self.dynamic(c_name),
-            ind=None,
-        )
-
+    @future_deprecation(details="Use `self.components` instead.")
+    # Deprecate: Use `self.iterate_components` instead
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
-    ) -> Iterator[Component]:
+    ) -> Iterator[SubNetworkComponents]:
         """
         Iterate over components of the sub-network and extract corresponding
         data.
@@ -1855,7 +1798,7 @@ class SubNetwork:
             components = self.n.all_components
 
         return (
-            self.component(c_name)
+            self.components[c_name]
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )

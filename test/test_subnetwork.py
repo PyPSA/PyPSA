@@ -1,7 +1,7 @@
 import pytest
 
 import pypsa
-from pypsa.components import Network, SubNetwork
+from pypsa import Network, SubNetwork
 
 
 @pytest.fixture

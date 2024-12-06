@@ -22,6 +22,8 @@ from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Wedge
 from shapely import linestrings
 
+from pypsa.constants import DEFAULT_EPSG
+
 cartopy_present = True
 try:
     import cartopy
@@ -488,7 +490,7 @@ def as_branch_series(ser, arg, c, n):
 
 
 def get_projection_from_crs(crs):
-    if crs == 4326:
+    if crs == DEFAULT_EPSG:
         # if data is in latlon system, return default map with latlon system
         return ccrs.PlateCarree()
     try:
@@ -519,7 +521,7 @@ def compute_bbox_with_margins(margin, x, y):
     return tuple(xy1), tuple(xy2)
 
 
-def projected_area_factor(ax, original_crs=4326):
+def projected_area_factor(ax, original_crs=DEFAULT_EPSG):
     """
     Helper function to get the area scale of the current projection in
     reference to the default projection.
@@ -710,7 +712,9 @@ def add_legend_patches(ax, colors, labels, patch_kw=None, legend_kw=None):
     ax.get_figure().add_artist(legend)
 
 
-def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=None):
+def add_legend_circles(
+    ax, sizes, labels, srid=DEFAULT_EPSG, patch_kw=None, legend_kw=None
+):
     """
     Add a legend for reference circles.
 
@@ -750,7 +754,9 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=No
     ax.get_figure().add_artist(legend)
 
 
-def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+def add_legend_semicircles(
+    ax, sizes, labels, srid=DEFAULT_EPSG, patch_kw={}, legend_kw={}
+):
     """
     Add a legend for reference semi-circles.
 
@@ -1290,7 +1296,7 @@ def explore(
     if n.crs and crs is None:
         crs = n.crs
     else:
-        crs = "EPSG:4326"
+        crs = DEFAULT_EPSG
 
     if components is None:
         components = {"Bus", "Line", "Transformer", "Link"}
@@ -1414,7 +1420,7 @@ def explore(
                     axis=1,
                 ).T
             ),
-            crs="EPSG:4326",
+            crs=DEFAULT_EPSG,
         )
 
         gdf_links[gdf_links.is_valid].explore(

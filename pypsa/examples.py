@@ -13,8 +13,8 @@ from urllib.request import urlretrieve
 
 import pandas as pd
 
-from pypsa.components import Network
 from pypsa.io import _data_dir
+from pypsa.networks import Network
 
 if TYPE_CHECKING:
     from pypsa import Network

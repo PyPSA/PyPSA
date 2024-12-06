@@ -2,14 +2,36 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa``.
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa``.
+
+Features
+--------
+
+* New component class structure (https://github.com/PyPSA/PyPSA/pull/1075)
+
+  * Major structural refactoring of how component data is stored and accessed. The new 
+    structure adds an extra layer to move all component-specific data from the network 
+    class to a new component class.
+
+  * This is an experimental feature, will be developed further and is not yet 
+    recommended for general use. More features, documentation and examples will 
+    follow. Most users will not notice any changes. If you wanna play around with
+    it, you could do so for example via: ``c = n.components.generators``.
+  
+  * While the changes try to maintain full backwards compatibility, there may be some 
+    breaking changes or bugs, especially if you use custom components or custom 
+    component attributes in your network attributes in your network. 
+  
+  * Please report any issues and bugs you might encounter
+    via the `issue tracker <https://github.com/PyPSA/PyPSA/issues/new>`__ on 
+    GitHub.
 
 `v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
 =======================================================================================
@@ -1763,7 +1785,7 @@ changes to the internal API.
   interface for components is gone. You can only access component
   attributes through the dataframes, e.g. ``network.lines``.
 * Component attributes are now defined in CSV files in
-  ``pypsa/component_attrs/``. You can access these CSVs in the code
+  ``pypsa/data/component_attrs/``. You can access these CSVs in the code
   via the dictionary ``network.components``,
   e.g. ``network.components["Line"]["attrs"]`` will show a pandas
   DataFrame with all attributes and their types, defaults, units and
