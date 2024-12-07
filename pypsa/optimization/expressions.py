@@ -16,11 +16,11 @@ from xarray import DataArray
 
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
-    AbstractStatisticsAccessor,
     get_transmission_branches,
     get_weightings,
     port_efficiency,
 )
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.utils import pass_none_if_keyerror
 
 logger = logging.getLogger(__name__)
@@ -137,12 +137,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def capex(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
         include_non_extendable: bool = True,
@@ -181,12 +181,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def capacity(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = None,
-        at_port: Sequence[str] | str | bool | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: str | Sequence[str] | bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
         include_non_extendable: bool = True,
@@ -236,13 +236,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def opex(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -290,9 +290,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -340,13 +340,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def energy_balance(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = ["carrier", "bus_carrier"],
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> LinearExpression:
@@ -409,13 +409,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def supply(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = ["carrier", "bus_carrier"],
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -442,13 +442,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def withdrawal(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = ["carrier", "bus_carrier"],
-        at_port: Sequence[str] | str | bool = True,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -475,13 +475,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def curtailment(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: list[str] | Callable | None = None,
-        at_port: Sequence[str] | str | bool = False,
-        bus_carrier: Sequence[str] | str | None = None,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -533,13 +533,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def operation(
         self,
-        comps: Sequence[str] | str | None = None,
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        at_port: Sequence[str] | str | bool = False,
-        groupby: list[str] | Callable | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
+        at_port: bool | str | Sequence[str] = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """

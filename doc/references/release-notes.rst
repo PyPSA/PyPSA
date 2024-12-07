@@ -11,39 +11,51 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa``.
 
+Features
+--------
+
+* Improvements to groupers in the statistics module 
+  (https://github.com/PyPSA/PyPSA/pull/1093, https://github.com/PyPSA/PyPSA/pull/1078)
+
+  * The ``groupby`` argument now accepts keys to allow for more granular and flexible 
+    grouping.
+    For example,
+    :meth:`n.statistics.energy_balance(groupby=["bus_carrier", "carrier"]) <pypsa.statistics.StatisticsAccessor.energy_balance>`
+    groups the energy balance by bus carrier and carrier.
+
+    * Build in groupers include: 
+
+      * :meth:`pypsa.statistics.groupers.carrier <pypsa.statistics.grouping.Groupers.carrier>`
+      * :meth:`pypsa.statistics.groupers.bus_carrier <pypsa.statistics.grouping.Groupers.bus_carrier>`
+      * :meth:`pypsa.statistics.groupers.name <pypsa.statistics.grouping.Groupers.name>`
+      * :meth:`pypsa.statistics.groupers.bus <pypsa.statistics.grouping.Groupers.bus>`
+      * :meth:`pypsa.statistics.groupers.country <pypsa.statistics.grouping.Groupers.country>`
+      * :meth:`pypsa.statistics.groupers.unit <pypsa.statistics.grouping.Groupers.unit>`
+      * A list of registered groupers can be accessed via
+        :meth:`pypsa.statistics.groupers.list_groupers <pypsa.statistics.grouping.Groupers.list_groupers>`
+  
+  * Custom groupers can be registered on module level via
+    :meth:`pypsa.statistics.groupers.add_grouper <pypsa.statistics.grouping.Groupers.add_grouper>`.
+    The key will be used as identifier in the ``groupby`` argument. Check the API reference
+    for more information.
+
+  * Accessing default groupers was moved to module level and an improved API was 
+    introduced. ``n.statistics.get_carrier`` can now be accessed as 
+    :meth:`pypsa.statistics.groupers.carrier <pypsa.statistics.grouping.Groupers.carrier>`
+    and a combination of groupers can be accessed as 
+    :meth:`pypsa.statistics.groupers['bus', 'carrier'] <pypsa.statistics.grouping.Groupers.__call__>`
+    instead of ``n.statistics.groupers.get_bus_and_carrier``.
+
 * A new module ``pypsa.optimize.expressions`` was added. It contains functions to quickly 
   create expressions for the optimization model. The behavior of the functions is 
   mirroring the behavior of the ``statistics``` module and allows for similar complexity 
-  in grouping and filtering. Use it with e.g. ``n.optimize.expressions.energy_balance()``.
+  in grouping and filtering. Use it with e.g. 
+  :meth:`n.optimize.expressions.energy_balance() <pypsa.Network.expressions.energy_balance>`.
+  (https://github.com/PyPSA/PyPSA/pull/1044)
 
-* The constraint to account for `e_sum_max`/`e_sum_min` is now skipped if not applied to any asset.   
-* The statistics and expressions modules now supports setting the groupby argument by keys. This allows for more flexibility grouping strategy. For example, ``n.statistics.energy_balance(groupby=["bus_carrier", "carrier"])`` groups the energy balance by bus carrier and carrier.
-* Added flexible grouping support in statistics and expressions modules:
-
-  * The ``groupby`` argument now accepts keys to allow for more granular and flexible grouping.
-    Example: ``n.statistics.energy_balance(groupby=["bus", "carrier"])`` groups by both bus and carrier.
-
-  * Added custom grouping function registration via ``Groupers`` class:
-    * Register custom groupers using ``n.statistics.groupers.register_grouper(key, function)``
-    * The key will be used as identifier in the ``groupby`` argument
-    * Custom grouper functions must accept:
-      * n (Network): The PyPSA network instance
-      * c (str): Component name 
-      * port (str): Component port as integer string
-      * nice_names (bool, optional): Whether to use nice carrier names
-
-    * The function must return a pandas Series with the same length as the component index
-
-  * Built-in groupers include: "carrier", "bus_carrier", "name", "bus", "country", "unit"
-
-  * Example::
-
-      def my_custom_grouper(n, c, port=""):
-          return n.static(c)["my_column"].rename("custom")
-          
-      n.statistics.groupers.register_grouper("custom", my_custom_grouper)
-      n.statistics.energy_balance(groupby=["custom", "carrier"])
-
+* ``pytables`` is now an optional dependency for using the HDF5 format. Install 
+  it via ``pip install pypsa[hdf5]``. Otherwise it is not installed by default 
+  anymore. (https://github.com/PyPSA/PyPSA/pull/1100)
 
 `v0.31.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.31.2>`__ (27th November 2024)
 =======================================================================================

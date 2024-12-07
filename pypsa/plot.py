@@ -1,4 +1,8 @@
-# type: ignore #TODO: remove with #912
+# TODO: remove with #912
+# type: ignore
+# ruff: noqa: ANN001
+# ruff: noqa: ANN201
+# ruff: noqa: ANN202
 """
 Functions for plotting networks.
 """
@@ -8,7 +12,7 @@ from __future__ import annotations
 import logging
 import warnings
 from functools import wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
 import matplotlib.colors as mcolors
@@ -121,14 +125,14 @@ def apply_layouter(
 
 class NetworkMapPlotter:
     def __init__(
-        self,
+        self: NetworkMapPlotter,
         n: Network,
         layout: nx.drawing.layout = None,
         boundaries=None,
         margin: float = 0.05,
         jitter: float | None = None,
         buses=None,
-    ):
+    ) -> None:
         self._n = n
         self._x = None
         self._y = None
@@ -412,7 +416,7 @@ class NetworkMapPlotter:
         return patches
 
     @staticmethod
-    def _dataframe_from_arguments(index, **kwargs):
+    def _dataframe_from_arguments(index: pd.Index, **kwargs: Any) -> pd.DataFrame:
         if any(isinstance(v, pd.Series) for v in kwargs.values()):
             return pd.DataFrame(kwargs)
         return pd.DataFrame(kwargs, index=index)
@@ -572,7 +576,13 @@ class NetworkMapPlotter:
         return patch_collection
 
     @staticmethod
-    def _directed_flow(coords, flow, color, area_factor, alpha=1):
+    def _directed_flow(
+        coords: pd.DataFrame,
+        flow: pd.Series,
+        color: pd.Series,
+        area_factor: float,
+        alpha: float | int = 1,
+    ) -> PatchCollection:
         """
         Helper function to generate arrows from flow data.
         """
@@ -630,7 +640,14 @@ class NetworkMapPlotter:
             zorder=4,
         )
 
-    def get_flow_collection(self, c, flow, widths, colors, alpha):
+    def get_flow_collection(
+        self: NetworkMapPlotter,
+        c: str,
+        flow: pd.Series,
+        widths: pd.Series,
+        colors: pd.Series,
+        alpha: pd.Series,
+    ) -> PatchCollection:
         """
         Create a flow arrow collection for a single branch component.
 
@@ -661,8 +678,13 @@ class NetworkMapPlotter:
 
     @staticmethod
     def scaling_factor_from_area_contribution(
-        area_contributions, x_min, x_max, y_min, y_max, target_area_fraction=0.1
-    ):
+        area_contributions: float,
+        x_min: float,
+        x_max: float,
+        y_min: float,
+        y_max: float,
+        target_area_fraction: float = 0.1,
+    ) -> float:
         """
         Scale series for plotting so that the total area of all area contributions
         takes up approximately the specified fraction of the plot area.
@@ -1091,7 +1113,7 @@ class NetworkMapPlotter:
         }
 
     def static_balance_map(
-        self,
+        self: NetworkMapPlotter,
         carrier: str,
         ax: plt.Axes = None,
         projection: cartopy.crs.Projection = None,
@@ -1107,7 +1129,7 @@ class NetworkMapPlotter:
         legend_circles_kw: dict | None = None,
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
         Plot energy balance map for a given carrier showing bus sizes and transmission flows.
@@ -1271,8 +1293,8 @@ def plot(
     geomap_colors: dict | bool | None = None,
     title: str = "",
     jitter: float | None = None,
-    **kwargs,
-):
+    **kwargs: Any,
+) -> plt.Figure:
     if margin is None:
         logger.warning(
             "The `margin` argument does support None value anymore. "
@@ -1325,13 +1347,21 @@ class HandlerCircle(HandlerPatch):
 
     LEGEND_SCALE_FACTOR = 72
 
-    def __init__(self, scale_factor=None):
+    def __init__(self: HandlerPatch, scale_factor: float | None = None) -> None:
         super().__init__()
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
     def create_artists(
-        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
-    ):
+        self: HandlerCircle,
+        legend: plt.Legend,
+        orig_handle: plt.Circle,
+        xdescent: float,
+        ydescent: float,
+        width: float,
+        height: float,
+        fontsize: float,
+        trans: Any,
+    ) -> list[plt.Circle]:
         fig = legend.get_figure()
         ax = legend.axes
 
@@ -1356,13 +1386,21 @@ class WedgeHandler(HandlerPatch):
 
     LEGEND_SCALE_FACTOR = 72
 
-    def __init__(self, scale_factor=None):
+    def __init__(self: Warning, scale_factor: float | None = None) -> None:
         super().__init__()
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
     def create_artists(
-        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
-    ):
+        self: WedgeHandler,
+        legend: plt.Legend,
+        orig_handle: Wedge,
+        xdescent: float,
+        ydescent: float,
+        width: float,
+        height: float,
+        fontsize: float,
+        trans: Any,
+    ) -> list[Wedge]:
         fig = legend.get_figure()
         ax = legend.axes
         center = 5 - xdescent, 3 - ydescent
@@ -1386,7 +1424,9 @@ class HandlerArrow(HandlerPatch):
     # Empirically determined scale factor for legend arrow sizes
     LEGEND_SCALE_FACTOR = 72
 
-    def __init__(self, width_ratio=0.2, scale_factor=None):
+    def __init__(
+        self: HandlerArrow, width_ratio: float = 0.2, scale_factor: float | None = None
+    ) -> None:
         """
         Parameters
         ----------
@@ -1400,7 +1440,15 @@ class HandlerArrow(HandlerPatch):
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
     def create_artists(
-        self, legend, orig_handle, xdescent, ydescent, width, height, fontsize, trans
+        self: HandlerArrow,
+        legend: plt.Legend,
+        orig_handle: FancyArrow,
+        xdescent: float,
+        ydescent: float,
+        width: float,
+        height: float,
+        fontsize: float,
+        trans: Any,
     ):
         fig = legend.get_figure()
         ax = legend.axes

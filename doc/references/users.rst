@@ -77,6 +77,7 @@ Universities and Research Institutes
 
 * `Energy Innovation Lab <https://energyinnovation.korea.ac.kr/>`_ at `Korea University <https://www.korea.ac.kr/sites/ko/index.do>`_ uses PyPSA-Earth to support development of long-term energy strategy
 
+* `South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS) <https://ait.ac.th/centre/smartscenter/>`_ at `Asian Institute of Technology <https://ait.ac.th/>`_  and `Department of Electrical and Electronic Engineering at International University of Business Agriculture and Technology (IUBAT), Dhaka <https://eee.iubat.edu/>`_ developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh `<https://doi.org/10.1016/j.ref.2024.100655>`_
 
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================

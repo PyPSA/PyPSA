@@ -153,3 +153,26 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
             return None
 
     return wrapper
+
+
+def pass_empty_series_if_keyerror(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> pd.Series:
+        try:
+            return func(*args, **kwargs)
+        except (KeyError, AttributeError):
+            return pd.Series([], dtype=float)
+
+    return wrapper
+
+
+def check_optional_dependency(module_name: str, install_message: str) -> None:
+    """
+    Check if an optional dependency is installed.
+
+    If not, raise an ImportError with an install message.
+    """
+    try:
+        __import__(module_name)
+    except ImportError:
+        raise ImportError(install_message)
