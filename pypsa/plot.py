@@ -140,7 +140,7 @@ class NetworkMapPlotter:
         self._boundaries = None
         self._margin = margin
         self._ax = None
-        self._area_factor = None
+        self._area_factor = 1
 
         self.set_layout(layout)
         self.set_boundaries(boundaries, margin, buses)
