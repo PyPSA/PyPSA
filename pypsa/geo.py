@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import ArrayLike
 
+from pypsa.constants import DEFAULT_EPSG
+
 if TYPE_CHECKING:
     import cartopy.crs as ccrs
     from cartopy.mpl.geoaxes import GeoAxes
@@ -174,7 +176,9 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
     return ccrs.PlateCarree()
 
 
-def get_projected_area_factor(ax: GeoAxes, original_crs: int | str = 4326) -> float:
+def get_projected_area_factor(
+    ax: GeoAxes, original_crs: int | str = DEFAULT_EPSG
+) -> float:
     """
     Get scale of current vs original projection in terms of area.
 

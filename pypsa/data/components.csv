@@ -1,5 +1,4 @@
-component,list_name,description,type
-Network,networks,"Container for all components and functions which act upon the whole network."
+component,list_name,description,category
 SubNetwork,sub_networks,"Subsets of buses and passive branches (i.e. lines and transformers) that are connected (i.e. synchronous areas)."
 Bus,buses,"Electrically fundamental node where x-port objects attach."
 Carrier,carriers,"Energy carrier, such as AC, DC, heat, wind, PV or coal. Buses have direct carriers and Generators indicate their primary energy carriers.  The Carrier can track properties relevant for global constraints, such as CO2 emissions."

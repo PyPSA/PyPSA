@@ -15,7 +15,8 @@ import pandas as pd
 from pypsa.utils import deprecated_common_kwargs
 
 if TYPE_CHECKING:
-    from pypsa.components import Component, Network
+    from pypsa import Network
+    from pypsa.components import Components
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ def _bus_columns(df: pd.DataFrame) -> pd.Index:
 
 
 @deprecated_common_kwargs
-def check_for_unknown_buses(n: Network, component: Component) -> None:
+def check_for_unknown_buses(n: Network, component: Components) -> None:
     """
     Check if buses are attached to component but are not defined in the network.
 
@@ -76,7 +77,7 @@ def check_for_disconnected_buses(n: Network) -> None:
 
 
 @deprecated_common_kwargs
-def check_for_unknown_carriers(n: Network, component: Component) -> None:
+def check_for_unknown_carriers(n: Network, component: Components) -> None:
     """
     Check if carriers are attached to component but are not defined in the network.
 
@@ -103,7 +104,7 @@ def check_for_unknown_carriers(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_for_zero_impedances(n: Network, component: Component) -> None:
+def check_for_zero_impedances(n: Network, component: Components) -> None:
     """
     Check if component has zero impedances. Only checks passive branch components.
 
@@ -129,7 +130,7 @@ def check_for_zero_impedances(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_for_zero_s_nom(component: Component) -> None:
+def check_for_zero_s_nom(component: Components) -> None:
     """
     Check if component has zero s_nom. Only checks transformers.
 
@@ -152,7 +153,7 @@ def check_for_zero_s_nom(component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_time_series(n: Network, component: Component) -> None:
+def check_time_series(n: Network, component: Components) -> None:
     """
     Check if time series of component are aligned with network snapshots.
 
@@ -190,7 +191,7 @@ def check_time_series(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_static_power_attributes(n: Network, component: Component) -> None:
+def check_static_power_attributes(n: Network, component: Components) -> None:
     """
     Check static attrs p_now, s_nom, e_nom in any component.
 
@@ -232,7 +233,7 @@ def check_static_power_attributes(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_time_series_power_attributes(n: Network, component: Component) -> None:
+def check_time_series_power_attributes(n: Network, component: Components) -> None:
     """
     Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
 
@@ -313,7 +314,7 @@ def check_time_series_power_attributes(n: Network, component: Component) -> None
 
 
 @deprecated_common_kwargs
-def check_assets(n: Network, component: Component) -> None:
+def check_assets(n: Network, component: Components) -> None:
     """
     Check if assets are only committable or extendable, but not both.
 
@@ -338,7 +339,7 @@ def check_assets(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_generators(component: Component) -> None:
+def check_generators(component: Components) -> None:
     """
     Check the consistency of generator attributes before the simulation.
 
@@ -381,7 +382,7 @@ def check_generators(component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_dtypes_(component: Component) -> None:
+def check_dtypes_(component: Components) -> None:
     """
     Check if the dtypes of the attributes in the component are as expected.
 
@@ -485,7 +486,7 @@ def check_shapes(n: Network) -> None:
 
 
 @deprecated_common_kwargs
-def check_nans_for_component_default_attrs(n: Network, component: Component) -> None:
+def check_nans_for_component_default_attrs(n: Network, component: Components) -> None:
     """
     Check for missing values in component attributes.
 

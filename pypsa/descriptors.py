@@ -17,7 +17,7 @@ import pandas as pd
 from pypsa.utils import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
-    from pypsa.components import Network, SubNetwork
+    from pypsa import Network, SubNetwork
 
 logger = logging.getLogger(__name__)
 

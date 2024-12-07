@@ -25,6 +25,7 @@ from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
 from shapely import linestrings
 
+from pypsa.constants import DEFAULT_EPSG
 from pypsa.geo import (
     compute_bbox,
     get_projected_area_factor,
@@ -1556,7 +1557,9 @@ def add_legend_patches(ax, colors, labels, patch_kw=None, legend_kw=None):
     return legend
 
 
-def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=None):
+def add_legend_circles(
+    ax, sizes, labels, srid=DEFAULT_EPSG, patch_kw=None, legend_kw=None
+):
     """
     Add a legend for reference circles.
 
@@ -1598,7 +1601,9 @@ def add_legend_circles(ax, sizes, labels, srid=4326, patch_kw=None, legend_kw=No
     return legend
 
 
-def add_legend_semicircles(ax, sizes, labels, srid=4326, patch_kw={}, legend_kw={}):
+def add_legend_semicircles(
+    ax, sizes, labels, srid=DEFAULT_EPSG, patch_kw={}, legend_kw={}
+):
     """
     Add a legend for reference semi-circles.
 
@@ -2185,7 +2190,7 @@ def explore(
     if n.crs and crs is None:
         crs = n.crs
     else:
-        crs = "EPSG:4326"
+        crs = DEFAULT_EPSG
 
     if components is None:
         components = {"Bus", "Line", "Transformer", "Link"}
@@ -2309,7 +2314,7 @@ def explore(
                     axis=1,
                 ).T
             ),
-            crs="EPSG:4326",
+            crs=DEFAULT_EPSG,
         )
 
         gdf_links[gdf_links.is_valid].explore(
