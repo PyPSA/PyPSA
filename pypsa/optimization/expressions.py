@@ -84,7 +84,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             raise ValueError(f"Aggregation method {agg} not supported.")
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
-        return vals is None or not np.prod(vals.shape)
+        return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
 
     def _aggregate_components_groupby(
         self, vals: LinearExpression, grouping: pd.DataFrame, agg: Callable | str
@@ -128,6 +128,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         m = self.n.model
 
+        if c == "Load":
+            return LinearExpression(self.n.get_switchable_as_dense(c, "p_set"), m)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             assert set(["p_store", "p_dispatch"]) <= set(attr)

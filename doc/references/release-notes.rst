@@ -11,6 +11,13 @@ Upcoming Release
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa``.
 
+Bug fixes
+---------
+
+* The expression module now correctly includes the "Load" component in the
+  energy balance calculation. Before the fix, the "Load" component was not
+  considered.
+
 Features
 --------
 
