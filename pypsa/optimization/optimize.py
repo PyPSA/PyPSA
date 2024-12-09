@@ -70,7 +70,7 @@ logger = logging.getLogger(__name__)
 
 
 lookup = pd.read_csv(
-    os.path.join(os.path.dirname(__file__), "..", "variables.csv"),
+    os.path.join(os.path.dirname(__file__), "..", "data", "variables.csv"),
     index_col=["component", "variable"],
 )
 
