@@ -16,7 +16,7 @@ Bug fixes
 
 * The expression module now correctly includes the "Load" component in the
   energy balance calculation. Before the fix, the "Load" component was not
-  considered.
+  considered. (https://github.com/PyPSA/PyPSA/pull/1110)
 
 Features
 --------
