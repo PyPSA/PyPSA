@@ -117,7 +117,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     ) -> LinearExpression:
         if agg != "sum":
             raise ValueError(f"Aggregation method {agg} not supported.")
-        if expr.empty:
+        if expr.empty():
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
         return expr.groupby(group).sum()
