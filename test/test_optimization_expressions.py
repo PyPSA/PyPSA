@@ -42,9 +42,15 @@ def test_expressions_capacity(prepared_network, groupby):
     assert expr.size > 0
 
 
-def test_expression_capacity_all_filtered(prepared_network):
+@pytest.mark.parametrize("aggregate_across_components", (True, False))
+def test_expression_capacity_all_filtered(
+    prepared_network, aggregate_across_components
+):
     n = prepared_network
-    expr = n.optimize.expressions.capacity(bus_carrier="non-existent")
+    expr = n.optimize.expressions.capacity(
+        bus_carrier="non-existent",
+        aggregate_across_components=aggregate_across_components,
+    )
     assert isinstance(expr, LinearExpression)
     assert expr.size == 0
 
