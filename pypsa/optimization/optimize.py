@@ -29,7 +29,6 @@ from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
-    define_generator_constraints,
     define_kirchhoff_voltage_constraints,
     define_loss_constraints,
     define_modular_constraints,
@@ -41,7 +40,9 @@ from pypsa.optimization.constraints import (
     define_ramp_limit_constraints,
     define_storage_unit_constraints,
     define_store_constraints,
+    define_total_supply_constraints,
 )
+from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.global_constraints import (
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
@@ -69,7 +70,7 @@ logger = logging.getLogger(__name__)
 
 
 lookup = pd.read_csv(
-    os.path.join(os.path.dirname(__file__), "..", "data/variables.csv"),
+    os.path.join(os.path.dirname(__file__), "..", "data", "variables.csv"),
     index_col=["component", "variable"],
 )
 
@@ -307,7 +308,7 @@ def create_model(
     define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
-    define_generator_constraints(n, sns)
+    define_total_supply_constraints(n, sns)
 
     if transmission_losses:
         for c in n.passive_branch_components:
@@ -620,6 +621,7 @@ class OptimizationAccessor:
 
     def __init__(self, n: Network) -> None:
         self.n = n
+        self.expressions = StatisticExpressionsAccessor(self.n)
 
     @wraps(optimize)
     def __call__(self, *args: Any, **kwargs: Any) -> Any:

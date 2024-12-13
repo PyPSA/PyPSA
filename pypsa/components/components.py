@@ -14,7 +14,8 @@ from typing import Any
 import pandas as pd
 
 from pypsa.components.abstract import Components
-from pypsa.components.types import ComponentTypeInfo, get_component_type
+from pypsa.components.types import ComponentTypeInfo
+from pypsa.components.types import get as get_component_type
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class GenericComponents(Components):
     """
-    Generic Components class
+    Generic components class.
 
     This class is used for components that do not have a specific class implementation.
     All functionality specific to generic types only is implemented here. Functionality
@@ -31,26 +32,72 @@ class GenericComponents(Components):
     .. warning::
         This class is under ongoing development and will be subject to changes.
         It is not recommended to use this class outside of PyPSA.
+
+    See Also
+    --------
+    pypsa.components.abstract.Components : Base class for all components.
+    pypsa.components.components.Generators : Generators components class.
+
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize generic components class.
+
+        See :class:`pypsa.components.abstract.Components` for more information.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments of base class.
+        kwargs : Any
+            Keyword arguments of base class.
+
+        Returns
+        -------
+        None
+
+        """
         super().__init__(*args, **kwargs)
 
 
 class Generators(Components):
     """
-    Generators Components class
+    Generators components class.
 
-    This class is used for components that are generators. All functionality specific to
+    This class is used for generator components. All functionality specific to
     generators is implemented here. Functionality for all components is implemented in
     the abstract base class.
 
     .. warning::
         This class is under ongoing development and will be subject to changes.
         It is not recommended to use this class outside of PyPSA.
+
+    See Also
+    --------
+    pypsa.components.abstract.Components : Base class for all components.
+    pypsa.components.components.GenericComponents : Generic components class.
+
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize Generators class.
+
+        See :class:`pypsa.components.abstract.Components` for more information.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments of base class.
+        kwargs : Any
+            Keyword arguments of base class.
+
+        Returns
+        -------
+        None
+
+        """
         super().__init__(*args, **kwargs)
 
 
@@ -61,15 +108,16 @@ CLASS_MAPPING = {
 
 class Component:
     """
-    Legacy Component Class
+    Legacy component class.
 
-    Allows to keep functionallity of previous dataclass and named tuple and wraps
+    Allows to keep functionallity of previous dataclass/ named tuple and wraps
     around new structure.
 
     .. warning::
         This class is deprecated and should not be used anymore.
     """
 
+    # ruff: noqa: D102
     def __new__(
         cls,
         name: str | None = None,

@@ -53,6 +53,7 @@ def test_csv_io_Path(scipy_network, tmpdir):
 
 @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
 def test_hdf5_io(scipy_network, tmpdir, meta):
+    pytest.importorskip("tables", reason="PyTables not installed")
     fn = os.path.join(tmpdir, "hdf5_export.h5")
     scipy_network.meta = meta
     scipy_network.export_to_hdf5(fn)
@@ -62,6 +63,7 @@ def test_hdf5_io(scipy_network, tmpdir, meta):
 
 
 def test_hdf5_io_Path(scipy_network, tmpdir):
+    pytest.importorskip("tables", reason="PyTables not installed")
     fn = Path(os.path.join(tmpdir, "hdf5_export.h5"))
     scipy_network.export_to_hdf5(fn)
     pypsa.Network(fn)
@@ -94,6 +96,7 @@ def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
 
 
 def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
+    pytest.importorskip("tables", reason="PyTables not installed")
     fn = os.path.join(tmpdir, "hdf5_export.h5")
     ac_dc_network_multiindexed.export_to_hdf5(fn)
     m = pypsa.Network(fn)
@@ -126,6 +129,7 @@ def test_csv_io_shapes(ac_dc_network_shapes, tmpdir):
 
 
 def test_hdf5_io_shapes(ac_dc_network_shapes, tmpdir):
+    pytest.importorskip("tables", reason="PyTables not installed")
     fn = os.path.join(tmpdir, "hdf5_export.h5")
     ac_dc_network_shapes.export_to_hdf5(fn)
     m = pypsa.Network(fn)
@@ -163,6 +167,7 @@ def test_csv_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
 
 
 def test_hdf5_io_shapes_with_missing(ac_dc_network_shapes, tmpdir):
+    pytest.importorskip("tables", reason="PyTables not installed")
     fn = os.path.join(tmpdir, "hdf5_export.h5")
     n = ac_dc_network_shapes.copy()
     n.shapes.loc["Manchester", "geometry"] = None

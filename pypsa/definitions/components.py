@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
 from deprecation import deprecated
+
+from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +55,48 @@ class ComponentTypeInfo:
 
 
 class ComponentsStore(dict):
+    def __repr__(self) -> str:
+        return "PyPSA Components Store \n====================== \n- " + "\n- ".join(
+            str(value) for value in self.values()
+        )
+
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(ComponentsStore, name):
             msg = "'ComponentsStore' object attribute " f"'{name}' can not be set."
             raise AttributeError(msg)
         self[name] = value
+
+    def __getitem__(self, item: str | list | set) -> Any:
+        """
+        Index single and multiple items from the dictionary.
+
+        Similar behavior to pandas.DataFrame.__getitem__.
+
+        Examples
+        --------
+        >>> components = ComponentsStore()
+        >>> components["generator"] = Generators()
+        >>> components["stores"] = Stores()
+        >>> components["generator"]
+        'Generator class instance'
+        >>> components[["generator", "stores"]]
+        >>> components[["generator", "stores"]]
+        ['Generator class instance', 'Stores class instance']
+        """
+        if isinstance(item, (list, set)):
+            return [self[key] for key in item]
+        else:
+            if item in COMPONENT_ALIAS_DICT:
+                # TODO: Activate when changing logic
+                # warnings.warn(
+                #     f"Accessing components in n.components using capitalized singular "
+                #     f"name is deprecated. Use lowercase list name instead: "
+                #     f"'{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.",
+                #     DeprecationWarning,
+                #     stacklevel=2,
+                # )
+                return super().__getitem__(COMPONENT_ALIAS_DICT[item])
+            return super().__getitem__(item)
 
     def __getattr__(self, item: str) -> Any:
         """
@@ -73,30 +111,8 @@ class ComponentsStore(dict):
         try:
             return self[item]
         except KeyError:
-            msg = f"'{self.__class__.__name__}' object has no component '{item}'."
+            msg = f"Network has no components '{item}'"
             raise AttributeError(msg)
-
-    def __getitem__(self, item: str | Sequence) -> Any:
-        """
-        Index single and multiple items from the dictionary.
-
-        Similar behavior to pandas.DataFrame.__getitem__.
-
-        Examples
-        --------
-        >>> components = ComponentsStore()
-        >>> components["generator"] = Generators()
-        >>> components["storage"] = Storage()
-        >>> components["generator"]
-        'Generator class instance'
-        >>> components[["generator", "storage"]]
-        >>> components[["generator", "storage"]]
-        ['Generator class instance', 'Storage class instance']
-        """
-        if isinstance(item, (list, set)):
-            return [self[key] for key in item]
-        else:
-            return super().__getitem__(item)
 
     def __delattr__(self, name: str) -> None:
         """
@@ -118,9 +134,6 @@ class ComponentsStore(dict):
 
     def __iter__(self) -> Any:
         """
-        Make class iterable over the values.
-        #TODO: Do we want this? So list like behavior or dict like behavior?
+        Value iterator over components in store.
         """
-        for key, value in super().items():
-            if key != "Network":  # TODO Drop Network completly?
-                yield value
+        return iter(self.values())

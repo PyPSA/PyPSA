@@ -16,6 +16,7 @@ import pytest
 from shapely.geometry import Polygon
 
 import pypsa
+from pypsa.constants import DEFAULT_EPSG
 
 
 def pytest_addoption(parser):
@@ -105,7 +106,7 @@ def ac_dc_network_shapes(ac_dc_network):
     bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
 
     # Convert to GeoSeries
-    geo_series = gpd.GeoSeries(bboxes, crs="epsg:4326")
+    geo_series = gpd.GeoSeries(bboxes, crs=DEFAULT_EPSG)
 
     n.add(
         "Shape",

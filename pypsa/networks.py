@@ -13,6 +13,8 @@ from weakref import ref
 from deprecation import deprecated
 
 from pypsa.components.abstract import Components
+from pypsa.components.utils import as_components
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.utils import equals, future_deprecation
 
 try:
@@ -30,7 +32,14 @@ from scipy.sparse import csgraph
 from pypsa.clustering import ClusteringAccessor
 from pypsa.components.abstract import SubNetworkComponents
 from pypsa.components.components import Component
-from pypsa.components.types import component_types_df, get_component_type
+from pypsa.components.types import (
+    check_if_added,
+    component_types_df,
+    default_components,
+)
+from pypsa.components.types import (
+    get as get_component_type,
+)
 from pypsa.consistency import (
     check_assets,
     check_dtypes_,
@@ -163,6 +172,7 @@ class Network:
 
     # Core attributes
     name: str
+    snapshots: pd.Index | pd.MultiIndex
     components: ComponentsStore
     sub_networks: pd.DataFrame
 
@@ -211,7 +221,7 @@ class Network:
     iteration: int
 
     # Geospatial
-    _crs = CRS.from_epsg("4326")
+    _crs = CRS.from_epsg(DEFAULT_EPSG)
 
     # Methods
     # -------
@@ -260,10 +270,21 @@ class Network:
         import_name: str | Path = "",
         name: str = "",
         ignore_standard_types: bool = False,
+        custom_components: list[str] | None = None,
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
+        if override_components is not None or override_component_attrs is not None:
+            msg = (
+                "The arguments `override_components` and `override_component_attrs` "
+                "are deprecated. Please use the #TODO"
+            )
+            raise DeprecationWarning(msg)
+
+        if custom_components is None:
+            custom_components = []
+
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -276,8 +297,7 @@ class Network:
 
         self._meta: dict = {}
 
-        self._snapshots = pd.Index(["now"])
-        self._snapshots.name = "timestep"
+        self._snapshots = pd.Index([DEFAULT_TIMESTAMP])
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
@@ -299,7 +319,7 @@ class Network:
         # Define component sets
         self._initialize_component_sets()
 
-        self._initialize_components()
+        self._initialize_components(custom_components=custom_components)
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -387,31 +407,24 @@ class Network:
 
         self.all_components = set(component_types_df.index) - {"Network"}
 
-    def _initialize_components(self) -> None:
-        """
-        Function called when network is created to build component
-        pandas.DataFrames.
-        """
+    def _initialize_components(self, custom_components: list) -> None:
+        components = component_types_df.index.to_list() + custom_components
 
         self.components = ComponentsStore()
-        for c_name in component_types_df.index:
+        for c_name in components:
             ct = get_component_type(c_name)
 
             self.components[ct.list_name] = Component(ct=ct, n=self)
-            # Handle list_name and name as alias
-            # e.g. components.Bus references components.buses
-            self.components[ct.name] = self.components[ct.list_name]
 
-            # TODO rename to n.list_name and point n.name
             setattr(
                 type(self),
                 ct.list_name,
-                create_component_property("static", ct.name),
+                create_component_property("static", ct.list_name),
             )
             setattr(
                 type(self),
                 ct.list_name + "_t",
-                create_component_property("dynamic", ct.name),
+                create_component_property("dynamic", ct.list_name),
             )
 
     def read_in_default_standard_types(self) -> None:
@@ -421,6 +434,31 @@ class Network:
                 self.components[std_type].ct.standard_types.index,
                 **self.components[std_type].ct.standard_types,
             )
+
+    @property
+    def c(self) -> ComponentsStore:
+        """
+        Alias for network components.
+
+        Access all components of the network via `n.c.<component>`. Same as
+        :py:attr:`pypsa.Network.components`.
+
+        Returns
+        -------
+        ComponentsStore
+
+        """
+        return self.components
+
+    @property
+    def has_custom_components(self) -> bool:
+        """Check if network has custom components."""
+        return bool(set(self.components.keys()) - set(default_components))
+
+    @property
+    def custom_components(self) -> list[str]:
+        """List of custom components."""
+        return list(set(self.components.keys()) - set(default_components))
 
     @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
     def df(self, component_name: str) -> pd.DataFrame:
@@ -503,7 +541,7 @@ class Network:
         pandas.DataFrame
 
         """
-        return Dict({key: value.defaults for key, value in self.components.items()})
+        return Dict({value.name: value.defaults for value in self.components})
 
     @property
     def meta(self) -> dict:
@@ -908,9 +946,7 @@ class Network:
         ...       p_max_pu=wind)
 
         """
-        if class_name not in self.components:
-            msg = f"Component class {class_name} not found."
-            raise ValueError(msg)
+        c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
         names = pd.Index([name]) if single_component else pd.Index(name)
@@ -923,7 +959,7 @@ class Network:
 
         # Check if names are unique
         if not names.is_unique:
-            msg = f"Names for {class_name} must be unique."
+            msg = f"Names for {c.name} must be unique."
             raise ValueError(msg)
 
         for k, v in kwargs.items():
@@ -1021,11 +1057,11 @@ class Network:
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        _import_components_from_df(self, static_df, class_name, overwrite=overwrite)
+        _import_components_from_df(self, static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
-            self._import_series_from_df(v, class_name, k, overwrite=overwrite)
+            self._import_series_from_df(v, c.name, k, overwrite=overwrite)
 
         return names
 
@@ -1054,20 +1090,18 @@ class Network:
         >>> n.remove("Line", "my_line 12345")
         >>> n.remove("Line", ["line x", "line y"])
         """
-        if class_name not in self.components:
-            msg = f"Component class {class_name} not found"
-            raise ValueError(msg)
+        c = as_components(self, class_name)
 
         # Process name/names to pandas.Index of strings and add suffix
         names = pd.Index([name]) if np.isscalar(name) else pd.Index(name)
         names = names.astype(str) + suffix
 
         # Drop from static components
-        cls_static = self.static(class_name)
+        cls_static = self.static(c.name)
         cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
-        dynamic = self.dynamic(class_name)
+        dynamic = self.dynamic(c.name)
         for df in dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
@@ -1183,23 +1217,6 @@ class Network:
         """
         self.remove(class_name=class_name, name=names)
 
-    def _retrieve_overridden_components(self) -> tuple[pd.DataFrame, Dict]:
-        components_index = list(self.components.keys())
-
-        cols = ["list_name", "description", "type"]
-
-        override_components = pd.DataFrame(
-            [[self.components[i][c] for c in cols] for i in components_index],
-            columns=cols,
-            index=components_index,
-        )
-
-        override_component_attrs = Dict(
-            {i: c.defaults.copy() for i, c in enumerate(self.components)}
-        )
-
-        return override_components, override_component_attrs
-
     def copy(
         self,
         snapshots: Sequence | None = None,
@@ -1266,16 +1283,13 @@ class Network:
             )
             snapshots_ = pd.Index([], name="timestep")
 
-        # Setup new network
-        (
-            override_components,
-            override_component_attrs,
-        ) = self._retrieve_overridden_components()
+        # Check if custom components are registered
+        check_if_added(self.custom_components)
 
+        # Setup new network
         n = self.__class__(
             ignore_standard_types=ignore_standard_types,
-            override_components=override_components,
-            override_component_attrs=override_component_attrs,
+            custom_components=list(self.components.keys()) + self.custom_components,
         )
 
         # Copy components
@@ -1365,13 +1379,12 @@ class Network:
         else:
             time_i = slice(None)
 
-        (
-            override_components,
-            override_component_attrs,
-        ) = self._retrieve_overridden_components()
+        # Check if custom components are registered
+        check_if_added(self.custom_components)
+
+        # Setup new network
         n = self.__class__(
-            override_components=override_components,
-            override_component_attrs=override_component_attrs,
+            custom_components=list(self.components.keys()) + self.custom_components
         )
         n.add(
             "Bus",
