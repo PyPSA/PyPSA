@@ -27,7 +27,7 @@ def network_add_snapshots_multiindex(network):
     )
     n.set_snapshots(snapshots)
     assert n.snapshots.equals(snapshots)
-    assert n.snapshots.names == ["period", "snapshot"]
+    assert n.snapshots.names == ["period", "timestep"]
     return n
 
 

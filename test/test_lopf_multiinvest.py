@@ -252,7 +252,7 @@ def test_simple_network_storage_noncyclic_per_period(n_sus):
     soc_initial = (n_sus.storage_units_t.state_of_charge + n_sus.storage_units_t.p).loc[
         idx[:, 0], :
     ]
-    soc_initial = soc_initial.droplevel("snapshot")
+    soc_initial = soc_initial.droplevel("timestep")
     assert soc_initial.loc[2020, "sto1-2020"] == 200
     assert soc_initial.loc[2030, "sto1-2020"] == 200
     assert soc_initial.loc[2040, "sto1-2040"] == 200
@@ -303,7 +303,7 @@ def test_simple_network_store_noncyclic(n_sts):
     assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
 
     e_initial = (n_sts.stores_t.e + n_sts.stores_t.p).loc[idx[:, 0], :]
-    e_initial = e_initial.droplevel("snapshot")
+    e_initial = e_initial.droplevel("timestep")
     assert e_initial.loc[2020, "sto1-2020"] == 20
 
 
@@ -318,7 +318,7 @@ def test_simple_network_store_noncyclic_per_period(n_sts):
     assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
 
     e_initial = (n_sts.stores_t.e + n_sts.stores_t.p).loc[idx[:, 0], :]
-    e_initial = e_initial.droplevel("snapshot")
+    e_initial = e_initial.droplevel("timestep")
     assert e_initial.loc[2020, "sto1-2020"] == 20
     assert e_initial.loc[2030, "sto1-2020"] == 20
 

@@ -38,8 +38,12 @@ def test_as_index(ac_dc_network_mi, attr, expected_name):
     assert result.equals(pd.Index(values))
     assert result.name == expected_name
 
+    # Test with different levels
+    # with pytest.raises(ValueError):
+    #     as_index(n, n.snapshots, attr)
+
     # Test with invalid values
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         as_index(n, ["invalid"], attr)
 
     # # Test with scalar value

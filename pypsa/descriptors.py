@@ -73,6 +73,7 @@ def get_switchable_as_dense(
     diff = index.difference(dynamic.columns)
     static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
     res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
+    res.index.name = sns.name
     res.columns.name = component
     return res
 

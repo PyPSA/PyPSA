@@ -641,7 +641,8 @@ class Network:
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
-            sns = snapshots.rename(["period", "snapshot"])
+            sns = snapshots.rename(["period", "timestep"])
+            sns.name = "snapshot"
             self._snapshots = sns
         else:
             self._snapshots = pd.Index(snapshots, name="snapshot")
@@ -682,10 +683,11 @@ class Network:
                             self._snapshots, fill_value=attrs.default[attrs.varying][k]
                         )
                     else:
+                        # Make sure to keep timestep level in case of MultiIndex
                         dynamic[k] = dynamic[k].reindex(
                             self._snapshots,
                             fill_value=attrs.default[attrs.varying][k],
-                            level="snapshot",  # Make sure to keep timestep level in case of MultiIndex
+                            level="timestep",
                         )
                 else:
                     dynamic[k] = dynamic[k].reindex(self._snapshots)
@@ -770,7 +772,7 @@ class Network:
                 "Repeating time-series for each investment period and "
                 "converting snapshots to a pandas.MultiIndex."
             )
-            names = ["period", "snapshot"]
+            names = ["period", "timestep"]
             for component in self.all_components:
                 dynamic = self.dynamic(component)
 
@@ -778,13 +780,16 @@ class Network:
                     dynamic[k] = pd.concat(
                         {p: dynamic[k] for p in periods_}, names=names
                     )
+                    dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
                 [periods_, self.snapshots], names=names
             )
+            self._snapshots.name = "snapshot"
             self._snapshot_weightings = pd.concat(
                 {p: self.snapshot_weightings for p in periods_}, names=names
             )
+            self._snapshot_weightings.index.name = "snapshot"
 
         self._investment_periods = periods_
         self.investment_period_weightings = self.investment_period_weightings.reindex(

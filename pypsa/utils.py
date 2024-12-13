@@ -20,7 +20,9 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-def as_index(n: Network, values: Any, network_attribute: str) -> pd.Index:
+def as_index(
+    n: Network, values: Any, network_attribute: str, force_subset: bool = True
+) -> pd.Index:
     """
     Returns a pd.Index object from a list-like or scalar object.
 
@@ -36,9 +38,9 @@ def as_index(n: Network, values: Any, network_attribute: str) -> pd.Index:
     network_attribute : str
         Name of the network attribute to be used as the default values. Only used if
         values is None.
-    index_name : str, optional
-        Name of the index. Will overwrite the name of the default attribute or passed
-        values.
+    force_subset : bool, optional
+        If True, the values must be a subset of the network attribute. Otherwise this
+        is not checked, by default True.
 
     Returns
     -------
@@ -51,6 +53,7 @@ def as_index(n: Network, values: Any, network_attribute: str) -> pd.Index:
     elif isinstance(values, pd.MultiIndex):
         values_ = values
         values_.names = n_attr.names
+        values_.name = n_attr.name
     elif isinstance(values, pd.Index):
         values_ = values
         # If only timestep level is given for multiindex snapshots
@@ -61,7 +64,20 @@ def as_index(n: Network, values: Any, network_attribute: str) -> pd.Index:
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    assert values_.isin(n_attr).all()
+    # if n_attr.nlevels != values_.nlevels:
+    #     raise ValueError(
+    #         f"Number of levels of the given MultiIndex does not match the number"
+    #         f" of levels of the network attribute '{network_attribute}'. Please"
+    #         f" set them for the network first."
+    #     )
+
+    if force_subset:
+        if not values_.isin(n_attr).all():
+            msg = (
+                f"Values must be a subset of the network attribute "
+                f"'{network_attribute}'. Pass force_subset=False to disable this check."
+            )
+            raise ValueError(msg)
     assert isinstance(values_, pd.Index)
 
     return values_
@@ -103,7 +119,7 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
 def deprecated_kwargs(**aliases: str) -> Callable:
     """
     Decorator for deprecated function and method arguments.
-    Based on solution fr [here](https://stackoverflow.com/questions/49802412).
+    Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
     Parameters
     ----------
