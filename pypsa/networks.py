@@ -642,10 +642,10 @@ class Network:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
             sns = snapshots.rename(["period", "timestep"])
-            sns.names = ["period", "timestep"]
+            sns.name = "snapshot"
             self._snapshots = sns
         else:
-            self._snapshots = pd.Index(snapshots, name="timestep")
+            self._snapshots = pd.Index(snapshots, name="snapshot")
 
         if len(self._snapshots) == 0:
             raise ValueError("Snapshots must not be empty.")
@@ -685,6 +685,37 @@ class Network:
                     dynamic[k] = dynamic[k].reindex(self._snapshots)
 
         # NB: No need to rebind dynamic to self, since haven't changed it
+
+    snapshots = property(
+        lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
+    )
+
+    @property
+    def snapshot_weightings(self) -> pd.DataFrame:
+        """
+        Weightings applied to each snapshots during the optimization (LOPF).
+
+        * Objective weightings multiply the operational cost in the
+          objective function.
+
+        * Generator weightings multiply the impact of all generators
+          in global constraints, e.g. multiplier of GHG emmissions.
+
+        * Store weightings define the elapsed hours for the charge, discharge
+          standing loss and spillage of storage units and stores in order to
+          determine the state of charge.
+        """
+        return self._snapshot_weightings
+
+    @snapshot_weightings.setter
+    def snapshot_weightings(self, df: pd.DataFrame) -> None:
+        assert df.index.equals(
+            self.snapshots
+        ), "Weightings not defined for all snapshots."
+        if isinstance(df, pd.Series):
+            logger.info("Applying weightings to all columns of `snapshot_weightings`")
+            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
+        self._snapshot_weightings = df
 
     def set_investment_periods(self, periods: Sequence) -> None:
         """
@@ -741,6 +772,7 @@ class Network:
                     dynamic[k] = pd.concat(
                         {p: dynamic[k] for p in periods_}, names=names
                     )
+                    dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
                 [periods_, self.snapshots], names=names
@@ -749,7 +781,7 @@ class Network:
             self._snapshot_weightings = pd.concat(
                 {p: self.snapshot_weightings for p in periods_}, names=names
             )
-            self._snapshot_weightings.index.names = ["period", "timestep"]
+            self._snapshot_weightings.index.name = "snapshot"
 
         self._investment_periods = periods_
         self.investment_period_weightings = self.investment_period_weightings.reindex(
@@ -1281,7 +1313,7 @@ class Network:
                 DeprecationWarning,
                 stacklevel=2,
             )
-            snapshots_ = pd.Index([], name="timestep")
+            snapshots_ = pd.Index([], name="snapshot")
 
         # Check if custom components are registered
         check_if_added(self.custom_components)
