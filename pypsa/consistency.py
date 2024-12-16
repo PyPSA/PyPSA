@@ -21,13 +21,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class ConsistencyError(Exception):
+    pass
+
+
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
     return df.columns[df.columns.str.startswith("bus")]
 
 
 def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     if strict:
-        raise ValueError(message, *args)
+        raise ConsistencyError(message, *args)
     else:
         logger.warning(message, *args)
 

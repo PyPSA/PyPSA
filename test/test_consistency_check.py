@@ -11,11 +11,12 @@ import numpy as np
 import pytest
 
 import pypsa
+import pypsa.consistency
 
 
 def assert_log_or_error_in_consistency(n, caplog, strict=False):
     if strict:
-        with pytest.raises(ValueError):
+        with pytest.raises(pypsa.consistency.ConsistencyError):
             n.consistency_check(strict=strict)
     else:
         n.consistency_check(strict=strict)
