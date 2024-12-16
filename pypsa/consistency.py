@@ -7,7 +7,7 @@ Mainly used in the `Network.consistency_check()` method.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -25,9 +25,9 @@ def _bus_columns(df: pd.DataFrame) -> pd.Index:
     return df.columns[df.columns.str.startswith("bus")]
 
 
-def _log_or_raise(strict, message, *args):
+def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     if strict:
-        raise ValueError(message % args)
+        raise ValueError(message, *args)
     else:
         logger.warning(message, *args)
 
@@ -56,9 +56,10 @@ def check_for_unknown_buses(
             missing &= component.static[attr] != ""
         if missing.any():
             _log_or_raise(
-                f"The following {component.list_name} have buses which are not defined:\n"
-                f"{component.static.index[missing]}",
                 strict,
+                "The following %s have buses which are not defined:\n%s",
+                component.list_name,
+                component.static.index[missing],
             )
 
 
@@ -83,9 +84,9 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
     disconnected_buses = set(n.buses.index) - connected_buses
     if disconnected_buses:
         _log_or_raise(
-            f"The following buses have no attached components, which can break the lopf:\n"
-            f"{disconnected_buses}",
             strict,
+            "The following buses have no attached components, which can break the lopf: %s",
+            disconnected_buses,
         )
 
 
@@ -114,9 +115,10 @@ def check_for_unknown_carriers(
         )
         if missing.any():
             _log_or_raise(
-                f"The following {component.list_name} have carriers which are not defined:\n"
-                f"{component.static.index[missing]}",
                 strict,
+                "The following %s have carriers which are not defined:\n%s",
+                component.list_name,
+                component.static.index[missing],
             )
 
 
@@ -142,9 +144,11 @@ def check_for_zero_impedances(
             bad = component.static[attr] == 0
             if bad.any():
                 _log_or_raise(
-                    f"The following {component.list_name} have zero {attr}, which could break "
-                    f"the linear load flow:\n{component.static.index[bad]}",
                     strict,
+                    "The following %s have zero %s, which could break the linear load flow:\n%s",
+                    component.list_name,
+                    attr,
+                    component.static.index[bad],
                 )
 
 
@@ -165,9 +169,11 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
         bad = component.static["s_nom"] == 0
         if bad.any():
             _log_or_raise(
-                f"The following {component.list_name} have zero s_nom, which is used to define "
-                f"the impedance and will thus break the load flow:\n{component.static.index[bad]}",
                 strict,
+                "The following %s have zero s_nom, which is used to define the "
+                "impedance and will thus break the load flow:\n%s",
+                component.list_name,
+                component.static.index[bad],
             )
 
 
@@ -192,17 +198,23 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
         diff = attr_df.columns.difference(component.static.index)
         if len(diff):
             _log_or_raise(
-                f"The following {component.list_name} have time series defined for attribute "
-                f"{attr} in n.{component.list_name}_t, but are not defined in n.{component.list_name}:\n"
-                f"{diff}",
                 strict,
+                "The following %s have time series defined for attribute %s in n.%s_t, "
+                "but are not defined in n.%s:\n%s",
+                component.list_name,
+                attr,
+                component.list_name,
+                component.list_name,
+                diff,
             )
 
         if not n.snapshots.equals(attr_df.index):
             _log_or_raise(
-                f"The index of the time-dependent Dataframe for attribute {attr} of "
-                f"n.{component.list_name}_t is not aligned with network snapshots",
                 strict,
+                "The index of the time-dependent Dataframe for attribute %s of n.%s_t "
+                "is not aligned with network snapshots",
+                attr,
+                component.list_name,
             )
 
 
@@ -231,9 +243,11 @@ def check_static_power_attributes(
             bad = component.static[attr + "_max"] < component.static[attr + "_min"]
             if bad.any():
                 _log_or_raise(
-                    f"The following {component.list_name} have smaller maximum than minimum "
-                    f"expansion limit which can lead to infeasibility:\n{component.static.index[bad]}",
                     strict,
+                    "The following %s have smaller maximum than minimum expansion "
+                    "limit which can lead to infeasibility:\n%s",
+                    component.list_name,
+                    component.static.index[bad],
                 )
 
             attr = static_attr[0]
@@ -244,8 +258,10 @@ def check_static_power_attributes(
                     .any()
                 ):
                     _log_or_raise(
-                        f"Encountered nan's in column {col} of component '{component.name}'.",
-                        strict=strict,
+                        strict,
+                        "Encountered nan's in column %s of component '%s'.",
+                        col,
+                        component.name,
                     )
 
 
@@ -281,42 +297,60 @@ def check_time_series_power_attributes(
             if max_pu.isna().to_numpy().any():
                 for col in max_pu.columns[max_pu.isna().any()]:
                     _log_or_raise(
-                        f"The attribute {attr}_max_pu of element {col} of {component.list_name} "
-                        f"has NaN values for the following snapshots:\n{max_pu.index[max_pu[col].isna()]}",
                         strict,
+                        "The attribute %s_max_pu of element %s of %s has NaN "
+                        "values for the following snapshots:\n%s",
+                        attr,
+                        col,
+                        component.list_name,
+                        max_pu.index[max_pu[col].isna()],
                     )
             if min_pu.isna().to_numpy().any():
                 for col in min_pu.columns[min_pu.isna().any()]:
                     _log_or_raise(
-                        f"The attribute {attr}_min_pu of element {col} of {component.list_name} "
-                        f"has NaN values for the following snapshots:\n{min_pu.index[min_pu[col].isna()]}",
                         strict,
+                        "The attribute %s_min_pu of element %s of %s has NaN "
+                        "values for the following snapshots:\n%s",
+                        attr,
+                        col,
+                        component.list_name,
+                        min_pu.index[min_pu[col].isna()],
                     )
 
             # check for infinite values
             if np.isinf(max_pu).to_numpy().any():
                 for col in max_pu.columns[np.isinf(max_pu).any()]:
                     _log_or_raise(
-                        f"The attribute {attr}_max_pu of element {col} of {component.list_name} "
-                        f"has infinite values for the following snapshots:\n{max_pu.index[np.isinf(max_pu[col])]}",
                         strict,
+                        "The attribute %s_max_pu of element %s of %s has infinite"
+                        " values for the following snapshots:\n%s",
+                        attr,
+                        col,
+                        component.list_name,
+                        max_pu.index[np.isinf(max_pu[col])],
                     )
             if np.isinf(min_pu).to_numpy().any():
                 for col in min_pu.columns[np.isinf(min_pu).any()]:
                     _log_or_raise(
-                        f"The attribute {attr}_min_pu of element {col} of {component.list_name} "
-                        f"has infinite values for the following snapshots:\n{min_pu.index[np.isinf(min_pu[col])]}",
                         strict,
+                        "The attribute %s_min_pu of element %s of %s has infinite"
+                        " values for the following snapshots:\n%s",
+                        attr,
+                        col,
+                        component.list_name,
+                        min_pu.index[np.isinf(min_pu[col])],
                     )
 
             diff = max_pu - min_pu
             diff = diff[diff < 0].dropna(axis=1, how="all")
             for col in diff.columns:
                 _log_or_raise(
-                    f"The element {col} of {component.list_name} has a smaller maximum "
-                    f"than minimum operational limit which can lead to infeasibility for the following snapshots:\n"
-                    f"{diff[col].dropna().index}",
-                    strict=strict,
+                    strict,
+                    "The element %s of %s has a smaller maximum than minimum operational"
+                    " limit which can lead to infeasibility for the following snapshots:\n%s",
+                    col,
+                    component.list_name,
+                    diff[col].dropna().index,
                 )
 
 
@@ -341,9 +375,11 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
         intersection = committables.intersection(extendables)
         if not intersection.empty:
             _log_or_raise(
-                f"Assets can only be committable or extendable. Found assets in component "
-                f"{component.name} which are both:\n\n\t{', '.join(intersection)}",
                 strict,
+                "Assets can only be committable or extendable."
+                " Found assets in component %s which are both:\n\n\t%s",
+                component.name,
+                ", ".join(intersection),
             )
 
 
@@ -376,9 +412,10 @@ def check_generators(component: Components, strict: bool = False) -> None:
         ]
         if not bad_uc_gens.empty:
             _log_or_raise(
-                f"The following committable generators were both up and down before the simulation: "
-                f"{bad_uc_gens}. This could cause an infeasibility.",
                 strict,
+                "The following committable generators were both"
+                " up and down before the simulation: %s. This could cause an infeasibility.",
+                bad_uc_gens,
             )
 
         bad_e_sum_gens = component.static.index[
@@ -386,9 +423,10 @@ def check_generators(component: Components, strict: bool = False) -> None:
         ]
         if not bad_e_sum_gens.empty:
             _log_or_raise(
-                f"The following generators have e_sum_min > e_sum_max, which can lead to infeasibility:\n"
-                f"{bad_e_sum_gens}.",
                 strict,
+                "The following generators have e_sum_min > e_sum_max,"
+                " which can lead to infeasibility:\n%s.",
+                bad_e_sum_gens,
             )
 
 
@@ -412,10 +450,13 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     if unmatched.any():
         _log_or_raise(
-            f"The following attributes of the dataframe {component.list_name} have the wrong dtype:\n"
-            f"{unmatched.index[unmatched]}\nThey are:\n{component.static.dtypes[dtypes_soll.index[unmatched]]}\n"
-            f"but should be:\n{dtypes_soll[unmatched]}",
             strict,
+            "The following attributes of the dataframe %s have"
+            " the wrong dtype:\n%s\nThey are:\n%s\nbut should be:\n%s",
+            component.list_name,
+            unmatched.index[unmatched],
+            component.static.dtypes[dtypes_soll.index[unmatched]],
+            dtypes_soll[unmatched],
         )
 
     # now check varying attributes
@@ -430,10 +471,14 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
         if unmatched.any():
             _log_or_raise(
-                f"The following columns of time-varying attribute {attr} in {component.list_name}_t "
-                f"have the wrong dtype:\n{unmatched.index[unmatched]}\nThey are:\n{component.dynamic[attr].dtypes[unmatched]}\n"
-                f"but should be:\n{typ}",
                 strict,
+                "The following columns of time-varying attribute %s in %s_t"
+                " have the wrong dtype:\n%s\nThey are:\n%s\nbut should be:\n%s",
+                attr,
+                component.list_name,
+                unmatched.index[unmatched],
+                component.dynamic[attr].dtypes[unmatched],
+                typ,
             )
 
 
@@ -460,7 +505,7 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
             if strict:
                 raise ValueError(msg)
             else:
-                _log_or_raise(msg, strict)
+                _log_or_raise(strict, msg)
     else:
         if constraint_periods:
             msg = (
@@ -470,7 +515,7 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
             if strict:
                 raise ValueError(msg)
             else:
-                _log_or_raise(msg, strict)
+                _log_or_raise(strict, msg)
 
 
 @deprecated_common_kwargs
@@ -493,9 +538,11 @@ def check_shapes(n: Network, strict: bool = False) -> None:
 
         if not not_included.empty:
             _log_or_raise(
-                f"The following shapes are related to component {c} and have idx values that are not "
-                f"included in the component's index:\n{not_included}",
                 strict,
+                "The following shapes are related to component %s and"
+                " have idx values that are not included in the component's index:\n%s",
+                c,
+                not_included,
             )
 
 
@@ -534,8 +581,10 @@ def check_nans_for_component_default_attrs(
     if (isna := relevant_static_df.isna().any()).any():
         nan_cols = relevant_static_df.columns[isna]
         _log_or_raise(
-            f"Encountered nan's in static data for columns {nan_cols.to_list()} of component '{component.name}'.",
             strict,
+            "Encountered nan's in static data for columns %s of component '%s'.",
+            nan_cols.to_list(),
+            component.name,
         )
 
     # Remove attributes that are not in the component's time series data (if
@@ -551,6 +600,9 @@ def check_nans_for_component_default_attrs(
         if (isna := values_df.isna().any()).any():
             nan_cols = values_df.columns[isna]
             _log_or_raise(
-                f"Encountered nan's in varying data '{key}' for columns {nan_cols.to_list()} of component '{component.name}'.",
                 strict,
+                "Encountered nan's in varying data '%s' for columns %s of component '%s'.",
+                key,
+                nan_cols.to_list(),
+                component.name,
             )
