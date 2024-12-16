@@ -4,7 +4,7 @@
 import pytest
 
 
-def test_operational_limit_ac_dc_meshed(ac_dc_network):
+def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
     n = ac_dc_network.copy()
 
     limit = 30_000

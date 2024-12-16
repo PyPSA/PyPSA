@@ -19,28 +19,32 @@ from pypsa.utils import (
     "attr, expected_name",
     [
         ("snapshots", "snapshot"),
-        ("investment_periods", None),
+        ("investment_periods", "period"),
     ],
 )
-def test_as_index(ac_dc_network_multiindexed, attr, expected_name):
-    n = ac_dc_network_multiindexed
+def test_as_index(ac_dc_network_mi, attr, expected_name):
+    n = ac_dc_network_mi
 
     # Test with None values
-    result = as_index(n, None, attr, expected_name)
+    result = as_index(n, None, attr)
     assert isinstance(result, pd.Index)
     assert result.equals(getattr(n, attr))
     assert result.name == expected_name
 
     # Test with valid values
     values = getattr(n, attr)[:3]
-    result = as_index(n, values, attr, expected_name)
+    result = as_index(n, values, attr)
     assert isinstance(result, pd.Index)
     assert result.equals(pd.Index(values))
     assert result.name == expected_name
 
+    # Test with different levels
+    # with pytest.raises(ValueError):
+    #     as_index(n, n.snapshots, attr)
+
     # Test with invalid values
-    with pytest.raises(AssertionError):
-        as_index(n, ["invalid"], attr, expected_name)
+    with pytest.raises(ValueError):
+        as_index(n, ["invalid"], attr)
 
     # # Test with scalar value
     # scalar_result = as_index(n, getattr(n, attr)[0], attr, expected_name)

@@ -10,6 +10,16 @@ Upcoming Release
   The features listed below are not released yet, but will be part of the next release! 
   To use the features already you have to install the ``master`` branch, e.g. 
   ``pip install git+https://github.com/pypsa/pypsa``.
+  
+Bug fixes
+---------
+
+* The expression module now correctly includes the "Load" component in the
+  energy balance calculation. Before the fix, the "Load" component was not
+  considered. (https://github.com/PyPSA/PyPSA/pull/1110)
+
+Features
+--------
 
 * PyPSA `0.33` provides support for the recent Python 3.13 release and drops support 
   for Python 3.9. While Python 3.9 still gets security updates until October 2025,
@@ -17,9 +27,6 @@ Upcoming Release
   active support is only provided for the most recent versions 
   (see `here <https://endoflife.date/python>`_). It is recommended to upgrade to the 
   latest Python version if possible. (https://github.com/PyPSA/PyPSA/pull/1099)
-
-Features
---------
 
 * New component class structure (https://github.com/PyPSA/PyPSA/pull/1075)
 
