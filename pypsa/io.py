@@ -925,7 +925,7 @@ def _import_from_importer(
     periods = importer.get_investment_periods()
 
     if periods is not None:
-        n._investment_periods = periods.index
+        n.periods = periods.index
 
         n._investment_period_weightings = periods.reindex(n.investment_periods)
 

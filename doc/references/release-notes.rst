@@ -33,6 +33,11 @@ Features
     via the `issue tracker <https://github.com/PyPSA/PyPSA/issues/new>`__ on 
     GitHub.
 
+* New network attributes :meth:`n.timesteps <pypsa.networks.Network.timesteps>`_, 
+  :meth:`n.periods <pypsa.networks.Network.periods>`_ and 
+  :meth:`n.has_periods <pypsa.networks.Network.has_periods>`_ to simplified level access
+  of the snapshots dimension.
+
 `v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
 =======================================================================================
 
