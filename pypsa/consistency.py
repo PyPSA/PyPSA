@@ -25,11 +25,11 @@ def _bus_columns(df: pd.DataFrame) -> pd.Index:
     return df.columns[df.columns.str.startswith("bus")]
 
 
-def _log_or_raise(message: str, strict: bool) -> None:
+def _log_or_raise(strict, message, *args):
     if strict:
-        raise ValueError(message)
+        raise ValueError(message % args)
     else:
-        logger.warning(message)
+        logger.warning(message, *args)
 
 
 @deprecated_common_kwargs
