@@ -7,7 +7,7 @@ Mainly used in the `Network.consistency_check()` method.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -20,12 +20,25 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class ConsistencyError(Exception):
+    pass
+
+
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
     return df.columns[df.columns.str.startswith("bus")]
 
 
+def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
+    if strict:
+        raise ConsistencyError(message, *args)
+    else:
+        logger.warning(message, *args)
+
+
 @deprecated_common_kwargs
-def check_for_unknown_buses(n: Network, component: Component) -> None:
+def check_for_unknown_buses(
+    n: Network, component: Component, strict: bool = False
+) -> None:
     """
     Check if buses are attached to component but are not defined in the network.
 
@@ -35,6 +48,8 @@ def check_for_unknown_buses(n: Network, component: Component) -> None:
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     for attr in _bus_columns(component.static):
@@ -43,7 +58,8 @@ def check_for_unknown_buses(n: Network, component: Component) -> None:
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
         if missing.any():
-            logger.warning(
+            _log_or_raise(
+                strict,
                 "The following %s have buses which are not defined:\n%s",
                 component.list_name,
                 component.static.index[missing],
@@ -51,7 +67,7 @@ def check_for_unknown_buses(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_for_disconnected_buses(n: Network) -> None:
+def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
     """
     Check if network has buses that are not connected to any component.
 
@@ -59,6 +75,8 @@ def check_for_disconnected_buses(n: Network) -> None:
     ----------
     n : pypsa.Network
         The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     connected_buses = set()
@@ -68,15 +86,17 @@ def check_for_disconnected_buses(n: Network) -> None:
 
     disconnected_buses = set(n.buses.index) - connected_buses
     if disconnected_buses:
-        logger.warning(
-            "The following buses have no attached components, which can break the "
-            "lopf:\n%s",
+        _log_or_raise(
+            strict,
+            "The following buses have no attached components, which can break the lopf: %s",
             disconnected_buses,
         )
 
 
 @deprecated_common_kwargs
-def check_for_unknown_carriers(n: Network, component: Component) -> None:
+def check_for_unknown_carriers(
+    n: Network, component: Component, strict: bool = False
+) -> None:
     """
     Check if carriers are attached to component but are not defined in the network.
 
@@ -86,6 +106,8 @@ def check_for_unknown_carriers(n: Network, component: Component) -> None:
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     if "carrier" in component.static.columns:
@@ -95,7 +117,8 @@ def check_for_unknown_carriers(n: Network, component: Component) -> None:
             & (component.static["carrier"] != "")
         )
         if missing.any():
-            logger.warning(
+            _log_or_raise(
+                strict,
                 "The following %s have carriers which are not defined:\n%s",
                 component.list_name,
                 component.static.index[missing],
@@ -103,7 +126,9 @@ def check_for_unknown_carriers(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_for_zero_impedances(n: Network, component: Component) -> None:
+def check_for_zero_impedances(
+    n: Network, component: Component, strict: bool = False
+) -> None:
     """
     Check if component has zero impedances. Only checks passive branch components.
 
@@ -113,15 +138,17 @@ def check_for_zero_impedances(n: Network, component: Component) -> None:
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     if component.name in n.passive_branch_components:
         for attr in ["x", "r"]:
             bad = component.static[attr] == 0
             if bad.any():
-                logger.warning(
-                    "The following %s have zero %s, which "
-                    "could break the linear load flow:\n%s",
+                _log_or_raise(
+                    strict,
+                    "The following %s have zero %s, which could break the linear load flow:\n%s",
                     component.list_name,
                     attr,
                     component.static.index[bad],
@@ -129,7 +156,7 @@ def check_for_zero_impedances(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_for_zero_s_nom(component: Component) -> None:
+def check_for_zero_s_nom(component: Component, strict: bool = False) -> None:
     """
     Check if component has zero s_nom. Only checks transformers.
 
@@ -137,22 +164,24 @@ def check_for_zero_s_nom(component: Component) -> None:
     ----------
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     if component.name in {"Transformer"}:
         bad = component.static["s_nom"] == 0
         if bad.any():
-            logger.warning(
-                "The following %s have zero s_nom, which is used "
-                "to define the impedance and will thus break "
-                "the load flow:\n%s",
+            _log_or_raise(
+                strict,
+                "The following %s have zero s_nom, which is used to define the "
+                "impedance and will thus break the load flow:\n%s",
                 component.list_name,
                 component.static.index[bad],
             )
 
 
 @deprecated_common_kwargs
-def check_time_series(n: Network, component: Component) -> None:
+def check_time_series(n: Network, component: Component, strict: bool = False) -> None:
     """
     Check if time series of component are aligned with network snapshots.
 
@@ -162,6 +191,8 @@ def check_time_series(n: Network, component: Component) -> None:
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     for attr in component.attrs.index[component.attrs.varying & component.attrs.static]:
@@ -169,10 +200,10 @@ def check_time_series(n: Network, component: Component) -> None:
 
         diff = attr_df.columns.difference(component.static.index)
         if len(diff):
-            logger.warning(
-                "The following %s have time series defined "
-                "for attribute %s in n.%s_t, but are "
-                "not defined in n.%s:\n%s",
+            _log_or_raise(
+                strict,
+                "The following %s have time series defined for attribute %s in n.%s_t, "
+                "but are not defined in n.%s:\n%s",
                 component.list_name,
                 attr,
                 component.list_name,
@@ -181,16 +212,19 @@ def check_time_series(n: Network, component: Component) -> None:
             )
 
         if not n.snapshots.equals(attr_df.index):
-            logger.warning(
-                "The index of the time-dependent Dataframe for attribute "
-                "%s of n.%s_t is not aligned with network snapshots",
+            _log_or_raise(
+                strict,
+                "The index of the time-dependent Dataframe for attribute %s of n.%s_t "
+                "is not aligned with network snapshots",
                 attr,
                 component.list_name,
             )
 
 
 @deprecated_common_kwargs
-def check_static_power_attributes(n: Network, component: Component) -> None:
+def check_static_power_attributes(
+    n: Network, component: Component, strict: bool = False
+) -> None:
     """
     Check static attrs p_now, s_nom, e_nom in any component.
 
@@ -200,6 +234,8 @@ def check_static_power_attributes(n: Network, component: Component) -> None:
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     static_attrs = ["p_nom", "s_nom", "e_nom"]
@@ -209,10 +245,10 @@ def check_static_power_attributes(n: Network, component: Component) -> None:
             attr = static_attr[0]
             bad = component.static[attr + "_max"] < component.static[attr + "_min"]
             if bad.any():
-                logger.warning(
-                    "The following %s have smaller maximum than "
-                    "minimum expansion limit which can lead to "
-                    "infeasibilty:\n%s",
+                _log_or_raise(
+                    strict,
+                    "The following %s have smaller maximum than minimum expansion "
+                    "limit which can lead to infeasibility:\n%s",
                     component.list_name,
                     component.static.index[bad],
                 )
@@ -224,7 +260,8 @@ def check_static_power_attributes(n: Network, component: Component) -> None:
                     .isna()
                     .any()
                 ):
-                    logger.warning(
+                    _log_or_raise(
+                        strict,
                         "Encountered nan's in column %s of component '%s'.",
                         col,
                         component.name,
@@ -232,7 +269,9 @@ def check_static_power_attributes(n: Network, component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_time_series_power_attributes(n: Network, component: Component) -> None:
+def check_time_series_power_attributes(
+    n: Network, component: Component, strict: bool = False
+) -> None:
     """
     Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
 
@@ -242,6 +281,8 @@ def check_time_series_power_attributes(n: Network, component: Component) -> None
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     varying_attrs = ["p_max_pu", "e_max_pu"]
@@ -258,20 +299,22 @@ def check_time_series_power_attributes(n: Network, component: Component) -> None
             # check for NaN values:
             if max_pu.isna().to_numpy().any():
                 for col in max_pu.columns[max_pu.isna().any()]:
-                    logger.warning(
-                        "The attribute %s of element %s of %s has "
-                        "NaN values for the following snapshots:\n%s",
-                        attr + "_max_pu",
+                    _log_or_raise(
+                        strict,
+                        "The attribute %s_max_pu of element %s of %s has NaN "
+                        "values for the following snapshots:\n%s",
+                        attr,
                         col,
                         component.list_name,
                         max_pu.index[max_pu[col].isna()],
                     )
             if min_pu.isna().to_numpy().any():
                 for col in min_pu.columns[min_pu.isna().any()]:
-                    logger.warning(
-                        "The attribute %s of element %s of %s has "
-                        "NaN values for the following snapshots:\n%s",
-                        attr + "_min_pu",
+                    _log_or_raise(
+                        strict,
+                        "The attribute %s_min_pu of element %s of %s has NaN "
+                        "values for the following snapshots:\n%s",
+                        attr,
                         col,
                         component.list_name,
                         min_pu.index[min_pu[col].isna()],
@@ -280,20 +323,22 @@ def check_time_series_power_attributes(n: Network, component: Component) -> None
             # check for infinite values
             if np.isinf(max_pu).to_numpy().any():
                 for col in max_pu.columns[np.isinf(max_pu).any()]:
-                    logger.warning(
-                        "The attribute %s of element %s of %s has "
-                        "infinite values for the following snapshots:\n%s",
-                        attr + "_max_pu",
+                    _log_or_raise(
+                        strict,
+                        "The attribute %s_max_pu of element %s of %s has infinite"
+                        " values for the following snapshots:\n%s",
+                        attr,
                         col,
                         component.list_name,
                         max_pu.index[np.isinf(max_pu[col])],
                     )
             if np.isinf(min_pu).to_numpy().any():
                 for col in min_pu.columns[np.isinf(min_pu).any()]:
-                    logger.warning(
-                        "The attribute %s of element %s of %s has "
-                        "infinite values for the following snapshots:\n%s",
-                        attr + "_min_pu",
+                    _log_or_raise(
+                        strict,
+                        "The attribute %s_min_pu of element %s of %s has infinite"
+                        " values for the following snapshots:\n%s",
+                        attr,
                         col,
                         component.list_name,
                         min_pu.index[np.isinf(min_pu[col])],
@@ -302,10 +347,10 @@ def check_time_series_power_attributes(n: Network, component: Component) -> None
             diff = max_pu - min_pu
             diff = diff[diff < 0].dropna(axis=1, how="all")
             for col in diff.columns:
-                logger.warning(
-                    "The element %s of %s has a smaller maximum "
-                    "than minimum operational limit which can "
-                    "lead to infeasibility for the following snapshots:\n%s",
+                _log_or_raise(
+                    strict,
+                    "The element %s of %s has a smaller maximum than minimum operational"
+                    " limit which can lead to infeasibility for the following snapshots:\n%s",
                     col,
                     component.list_name,
                     diff[col].dropna().index,
@@ -313,7 +358,7 @@ def check_time_series_power_attributes(n: Network, component: Component) -> None
 
 
 @deprecated_common_kwargs
-def check_assets(n: Network, component: Component) -> None:
+def check_assets(n: Network, component: Component, strict: bool = False) -> None:
     """
     Check if assets are only committable or extendable, but not both.
 
@@ -323,6 +368,8 @@ def check_assets(n: Network, component: Component) -> None:
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     if component.name in {"Generator", "Link"}:
@@ -330,15 +377,17 @@ def check_assets(n: Network, component: Component) -> None:
         extendables = n.get_extendable_i(component.name)
         intersection = committables.intersection(extendables)
         if not intersection.empty:
-            logger.warning(
-                "Assets can only be committable or extendable. Found "
-                f"assets in component {component.name} which are both:"
-                f"\n\n\t{', '.join(intersection)}"
+            _log_or_raise(
+                strict,
+                "Assets can only be committable or extendable."
+                " Found assets in component %s which are both:\n\n\t%s",
+                component.name,
+                ", ".join(intersection),
             )
 
 
 @deprecated_common_kwargs
-def check_generators(component: Component) -> None:
+def check_generators(component: Component, strict: bool = False) -> None:
     """
     Check the consistency of generator attributes before the simulation.
 
@@ -350,6 +399,8 @@ def check_generators(component: Component) -> None:
     ----------
     component : Component
         The generator component to be checked.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     Returns
     -------
@@ -363,25 +414,27 @@ def check_generators(component: Component) -> None:
             & (component.static.down_time_before > 0)
         ]
         if not bad_uc_gens.empty:
-            logger.warning(
-                "The following committable generators were both up and down"
-                f" before the simulation: {bad_uc_gens}."
-                " This could cause an infeasibility."
+            _log_or_raise(
+                strict,
+                "The following committable generators were both"
+                " up and down before the simulation: %s. This could cause an infeasibility.",
+                bad_uc_gens,
             )
 
         bad_e_sum_gens = component.static.index[
             component.static.e_sum_min > component.static.e_sum_max
         ]
         if not bad_e_sum_gens.empty:
-            logger.warning(
-                "The following generators have e_sum_min > e_sum_max, "
-                "which can lead to infeasibility:\n"
-                f"{bad_e_sum_gens}.",
+            _log_or_raise(
+                strict,
+                "The following generators have e_sum_min > e_sum_max,"
+                " which can lead to infeasibility:\n%s.",
+                bad_e_sum_gens,
             )
 
 
 @deprecated_common_kwargs
-def check_dtypes_(component: Component) -> None:
+def check_dtypes_(component: Component, strict: bool = False) -> None:
     """
     Check if the dtypes of the attributes in the component are as expected.
 
@@ -391,16 +444,18 @@ def check_dtypes_(component: Component) -> None:
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     dtypes_soll = component.attrs.loc[component.attrs["static"], "dtype"].drop("name")
     unmatched = component.static.dtypes[dtypes_soll.index] != dtypes_soll
 
     if unmatched.any():
-        logger.warning(
-            "The following attributes of the dataframe %s "
-            "have the wrong dtype:\n%s\n"
-            "They are:\n%s\nbut should be:\n%s",
+        _log_or_raise(
+            strict,
+            "The following attributes of the dataframe %s have"
+            " the wrong dtype:\n%s\nThey are:\n%s\nbut should be:\n%s",
             component.list_name,
             unmatched.index[unmatched],
             component.static.dtypes[dtypes_soll.index[unmatched]],
@@ -418,10 +473,10 @@ def check_dtypes_(component: Component) -> None:
         unmatched = component.dynamic[attr].dtypes != dtype
 
         if unmatched.any():
-            logger.warning(
-                "The following columns of time-varying attribute "
-                "%s in %s_t have the wrong dtype:\n%s\n"
-                "They are:\n%s\nbut should be:\n%s",
+            _log_or_raise(
+                strict,
+                "The following columns of time-varying attribute %s in %s_t"
+                " have the wrong dtype:\n%s\nThey are:\n%s\nbut should be:\n%s",
                 attr,
                 component.list_name,
                 unmatched.index[unmatched],
@@ -431,7 +486,7 @@ def check_dtypes_(component: Component) -> None:
 
 
 @deprecated_common_kwargs
-def check_investment_periods(n: Network) -> None:
+def check_investment_periods(n: Network, strict: bool = False) -> None:
     """
     Check if investment periods are aligned with snapshots.
 
@@ -439,6 +494,8 @@ def check_investment_periods(n: Network) -> None:
     ----------
     n : pypsa.Network
         The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     constraint_periods = set(n.global_constraints.investment_period.dropna().unique())
@@ -448,18 +505,24 @@ def check_investment_periods(n: Network) -> None:
                 "The global constraints contain investment periods which "
                 "are not in the set of optimized snapshots."
             )
-            raise ValueError(msg)
+            if strict:
+                raise ValueError(msg)
+            else:
+                _log_or_raise(strict, msg)
     else:
         if constraint_periods:
             msg = (
                 "The global constraints contain investment periods but "
                 "snapshots are not multi-indexed."
             )
-            raise ValueError(msg)
+            if strict:
+                raise ValueError(msg)
+            else:
+                _log_or_raise(strict, msg)
 
 
 @deprecated_common_kwargs
-def check_shapes(n: Network) -> None:
+def check_shapes(n: Network, strict: bool = False) -> None:
     """
     Check if shapes are aligned with related components.
 
@@ -467,8 +530,8 @@ def check_shapes(n: Network) -> None:
     ----------
     n : pypsa.Network
         The network to check.
-    component : pypsa.Component
-        The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     shape_components = n.shapes.component.unique()
@@ -477,15 +540,19 @@ def check_shapes(n: Network) -> None:
         not_included = geos.index[~geos.idx.isin(n.static(c).index)]
 
         if not not_included.empty:
-            logger.warning(
-                f"The following shapes are related to component {c} and have"
-                f" idx values that are not included in the component's index:\n"
-                f"{not_included}"
+            _log_or_raise(
+                strict,
+                "The following shapes are related to component %s and"
+                " have idx values that are not included in the component's index:\n%s",
+                c,
+                not_included,
             )
 
 
 @deprecated_common_kwargs
-def check_nans_for_component_default_attrs(n: Network, component: Component) -> None:
+def check_nans_for_component_default_attrs(
+    n: Network, component: Component, strict: bool = False
+) -> None:
     """
     Check for missing values in component attributes.
 
@@ -498,6 +565,8 @@ def check_nans_for_component_default_attrs(n: Network, component: Component) -> 
         The network to check.
     component : pypsa.Component
         The component to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
 
     """
     # Get non-NA and not-empty default attributes for the current component
@@ -514,7 +583,8 @@ def check_nans_for_component_default_attrs(n: Network, component: Component) -> 
     # Run the check for nan values on relevant static data
     if (isna := relevant_static_df.isna().any()).any():
         nan_cols = relevant_static_df.columns[isna]
-        logger.warning(
+        _log_or_raise(
+            strict,
             "Encountered nan's in static data for columns %s of component '%s'.",
             nan_cols.to_list(),
             component.name,
@@ -532,7 +602,8 @@ def check_nans_for_component_default_attrs(n: Network, component: Component) -> 
     for key, values_df in relevant_series_dfs.items():
         if (isna := values_df.isna().any()).any():
             nan_cols = values_df.columns[isna]
-            logger.warning(
+            _log_or_raise(
+                strict,
                 "Encountered nan's in varying data '%s' for columns %s of component '%s'.",
                 key,
                 nan_cols.to_list(),

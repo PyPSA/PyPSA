@@ -1601,7 +1601,9 @@ class Network:
             if not (skip_empty and self.static(c_name).empty)
         )
 
-    def consistency_check(self, check_dtypes: bool = False) -> None:
+    def consistency_check(
+        self, check_dtypes: bool = False, strict: bool = False
+    ) -> None:
         """
         Checks the network for consistency; e.g. that all components are
         connected to existing buses and that no impedances are singular.
@@ -1621,28 +1623,28 @@ class Network:
         # Per component checks
         for c in self.iterate_components():
             # Checks all components
-            check_for_unknown_buses(self, c)
-            check_for_unknown_carriers(self, c)
-            check_time_series(self, c)
-            check_static_power_attributes(self, c)
-            check_time_series_power_attributes(self, c)
-            check_nans_for_component_default_attrs(self, c)
+            check_for_unknown_buses(self, c, strict)
+            check_for_unknown_carriers(self, c, strict)
+            check_time_series(self, c, strict)
+            check_static_power_attributes(self, c, strict)
+            check_time_series_power_attributes(self, c, strict)
+            check_nans_for_component_default_attrs(self, c, strict)
             # Checks passive_branch_components
-            check_for_zero_impedances(self, c)
+            check_for_zero_impedances(self, c, strict)
             # Checks transformers
-            check_for_zero_s_nom(c)
+            check_for_zero_s_nom(c, strict)
             # Checks generators and links
-            check_assets(self, c)
+            check_assets(self, c, strict)
             # Checks generators
-            check_generators(c)
+            check_generators(c, strict)
 
             if check_dtypes:
-                check_dtypes_(c)
+                check_dtypes_(c, strict)
 
         # Combined checks
-        check_for_disconnected_buses(self)
-        check_investment_periods(self)
-        check_shapes(self)
+        check_for_disconnected_buses(self, strict)
+        check_investment_periods(self, strict)
+        check_shapes(self, strict)
 
 
 class SubNetwork:

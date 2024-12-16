@@ -11,6 +11,10 @@ Release Notes
 ..   To use the features already you have to install the ``master`` branch, e.g. 
 ..   ``pip install git+https://github.com/pypsa/pypsa``.
 
+* Consistency checks can now be run with the parameter ``strict``. If set to 
+  ``True``, the consistency check will raise an error if any of the checks fail.  
+
+
 `v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
 =======================================================================================
 
