@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import xarray
 from pyproj import CRS
 
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
@@ -393,6 +394,30 @@ class Components(ComponentsData, ABC):
         """
         return self.ct.defaults
 
+    @property
+    def component_names(self) -> pd.Index:
+        return self.static.index.get_level_values(self.ct.name).unique()
+
+    @property
+    def timesteps(self) -> pd.Index:
+        return self.n_save.timesteps
+
+    @property
+    def investment_periods(self) -> pd.Index:
+        return self.n_save.investment_periods
+
+    @property
+    def has_investment_periods(self) -> bool:
+        return self.n_save.has_investment_periods
+
+    @property
+    def scenarios(self) -> pd.Index:
+        return self.n_save.scenarios
+
+    @property
+    def has_scenarios(self) -> bool:
+        return self.n_save.has_scenarios
+
     def get(self, attribute_name: str, default: Any = None) -> Any:
         """
         Get attribute of component.
@@ -472,6 +497,27 @@ class Components(ComponentsData, ABC):
 
         """
         return self.dynamic
+
+    @property
+    def ds(self) -> xarray.Dataset:
+        components = self.component_names
+        xr_static = self.static.to_xarray()
+        ds = xr_static.assign_coords(timestep=self.n_save.timesteps)
+        if self.has_scenarios:
+            ds = ds.assign_coords(scenario=self.scenarios)
+        if self.has_investment_periods:
+            ds = ds.assign_coords(period=self.investment_periods)
+
+        for k, v in self.dynamic.items():
+            # Empty dfs must be handled separately, since stack will remove the index
+            if v.empty:
+                da = xarray.DataArray(np.nan, coords=ds.coords, dims=ds.dims)
+            else:
+                da = v.stack().to_xarray().reindex({self.name: components})  # add
+            if k in self.static:
+                da = da.fillna(self.static[k].to_xarray())
+            ds[k] = da
+        return ds
 
     def get_active_assets(
         self,

@@ -309,6 +309,9 @@ class Network:
             index=self.investment_periods, columns=cols
         )
 
+        self._scenarios: pd.Index = pd.Index([])
+        self._scenarios.name = "scenario"
+
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
@@ -796,11 +799,68 @@ class Network:
             periods_, fill_value=1.0
         ).astype(float)
 
+    snapshots = property(
+        lambda self: self._snapshots, set_snapshots, doc="Index for dynamic data."
+    )
+
     investment_periods = property(
         lambda self: self._investment_periods,
         set_investment_periods,
         doc="Investment steps during the optimization.",
     )
+
+    scenarios = property(
+        lambda self: self._scenarios,
+        lambda self, value: setattr(self, "_scenarios", value),
+        doc="Scenarios of the network for stochastic optimization.",
+    )
+
+    @property
+    def timesteps(self) -> pd.Index:
+        """
+        Time steps of the network.
+
+        If no investment periods nor scenarios are defined, this is equal to snapshots.
+
+        Returns
+        -------
+        pandas.Index
+        """
+        return self.snapshots.get_level_values("timestep").unique()
+
+    @property
+    def snapshot_weightings(self) -> pd.DataFrame:
+        """
+        Weightings applied to each snapshots during the optimization (LOPF).
+
+        * Objective weightings multiply the operational cost in the
+          objective function.
+
+        * Generator weightings multiply the impact of all generators
+          in global constraints, e.g. multiplier of GHG emmissions.
+
+        * Store weightings define the elapsed hours for the charge, discharge
+          standing loss and spillage of storage units and stores in order to
+          determine the state of charge.
+        """
+        return self._snapshot_weightings
+
+    @snapshot_weightings.setter
+    def snapshot_weightings(self, df: pd.DataFrame) -> None:
+        assert df.index.equals(
+            self.snapshots
+        ), "Weightings not defined for all snapshots."
+        if isinstance(df, pd.Series):
+            logger.info("Applying weightings to all columns of `snapshot_weightings`")
+            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
+        self._snapshot_weightings = df
+
+    @property
+    def has_investment_periods(self) -> bool:
+        """
+        Boolean indicating if the network has investment periods defined.
+        """
+        return len(self.investment_periods) > 0
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -830,6 +890,13 @@ class Network:
                 {c: df for c in self._investment_period_weightings.columns}
             )
         self._investment_period_weightings = df
+
+    @property
+    def has_scenarios(self) -> bool:
+        """
+        Boolean indicating if the network has scenarios defined.
+        """
+        return len(self.scenarios) > 0
 
     def add(
         self,
