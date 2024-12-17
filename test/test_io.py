@@ -69,40 +69,40 @@ def test_hdf5_io_Path(scipy_network, tmpdir):
     pypsa.Network(fn)
 
 
-def test_netcdf_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
+def test_netcdf_io_multiindexed(ac_dc_network_mi, tmpdir):
     fn = os.path.join(tmpdir, "netcdf_export.nc")
-    ac_dc_network_multiindexed.export_to_netcdf(fn)
+    ac_dc_network_mi.export_to_netcdf(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
         m.generators_t.p,
-        ac_dc_network_multiindexed.generators_t.p,
+        ac_dc_network_mi.generators_t.p,
     )
     pd.testing.assert_frame_equal(
         m.snapshot_weightings,
-        ac_dc_network_multiindexed.snapshot_weightings[
+        ac_dc_network_mi.snapshot_weightings[
             m.snapshot_weightings.columns
         ],  # reset order
     )
 
 
-def test_csv_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
+def test_csv_io_multiindexed(ac_dc_network_mi, tmpdir):
     fn = os.path.join(tmpdir, "csv_export")
-    ac_dc_network_multiindexed.export_to_csv_folder(fn)
+    ac_dc_network_mi.export_to_csv_folder(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
         m.generators_t.p,
-        ac_dc_network_multiindexed.generators_t.p,
+        ac_dc_network_mi.generators_t.p,
     )
 
 
-def test_hdf5_io_multiindexed(ac_dc_network_multiindexed, tmpdir):
+def test_hdf5_io_multiindexed(ac_dc_network_mi, tmpdir):
     pytest.importorskip("tables", reason="PyTables not installed")
     fn = os.path.join(tmpdir, "hdf5_export.h5")
-    ac_dc_network_multiindexed.export_to_hdf5(fn)
+    ac_dc_network_mi.export_to_hdf5(fn)
     m = pypsa.Network(fn)
     pd.testing.assert_frame_equal(
         m.generators_t.p,
-        ac_dc_network_multiindexed.generators_t.p,
+        ac_dc_network_mi.generators_t.p,
     )
 
 

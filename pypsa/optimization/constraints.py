@@ -1010,7 +1010,7 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
 
     """
 
-    sns_ = as_index(n, sns, "snapshots", "snapshot")
+    sns_ = as_index(n, sns, "snapshots")
 
     m = n.model
     c = "Generator"

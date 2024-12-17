@@ -297,16 +297,17 @@ class Network:
 
         self._meta: dict = {}
 
-        self._snapshots = pd.Index([DEFAULT_TIMESTAMP])
+        self._snapshots = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
 
-        self._investment_periods: pd.Index = pd.Index([])
-        self._investment_periods.name = "period"
+        self._investment_periods: pd.Index = pd.Index([], name="period")
 
         cols = ["objective", "years"]
-        self._investment_period_weightings: pd.DataFrame = pd.DataFrame(columns=cols)
+        self._investment_period_weightings: pd.DataFrame = pd.DataFrame(
+            index=self.investment_periods, columns=cols
+        )
 
         self._scenarios: pd.Index = pd.Index([])
         self._scenarios.name = "scenario"
@@ -612,7 +613,8 @@ class Network:
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for that quantity.
+        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
+        that quantity.
 
         Parameters
         ----------
@@ -621,7 +623,8 @@ class Network:
         default_snapshot_weightings: float
             The default weight for each snapshot. Defaults to 1.0.
         weightings_from_timedelta: bool
-            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
+            Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if
+            `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
 
         Returns
         -------
@@ -678,9 +681,17 @@ class Network:
                 if dynamic[k].empty:  # avoid expensive reindex operation
                     dynamic[k].index = self._snapshots
                 elif k in attrs.default[attrs.varying]:
-                    dynamic[k] = dynamic[k].reindex(
-                        self._snapshots, fill_value=attrs.default[attrs.varying][k]
-                    )
+                    if isinstance(dynamic[k].index, pd.MultiIndex):
+                        dynamic[k] = dynamic[k].reindex(
+                            self._snapshots, fill_value=attrs.default[attrs.varying][k]
+                        )
+                    else:
+                        # Make sure to keep timestep level in case of MultiIndex
+                        dynamic[k] = dynamic[k].reindex(
+                            self._snapshots,
+                            fill_value=attrs.default[attrs.varying][k],
+                            level="timestep",
+                        )
                 else:
                     dynamic[k] = dynamic[k].reindex(self._snapshots)
 
@@ -738,7 +749,7 @@ class Network:
         None.
 
         """
-        periods_ = pd.Index(periods)
+        periods_ = pd.Index(periods, name="period")
         if not (
             pd.api.types.is_integer_dtype(periods_)
             and periods_.is_unique
@@ -1300,10 +1311,8 @@ class Network:
             return copy.deepcopy(self)
 
         # Convert to pandas.Index
-        snapshots_ = as_index(self, snapshots, "snapshots", "snapshot")
-        investment_periods_ = as_index(
-            self, investment_periods, "investment_periods", None
-        )
+        snapshots_ = as_index(self, snapshots, "snapshots")
+        investment_periods_ = as_index(self, investment_periods, "investment_periods")
 
         # Deprecation warnings
         if with_time is not None:
@@ -1587,7 +1596,9 @@ class Network:
             if not (skip_empty and self.static(c_name).empty)
         )
 
-    def consistency_check(self, check_dtypes: bool = False) -> None:
+    def consistency_check(
+        self, check_dtypes: bool = False, strict: bool = False
+    ) -> None:
         """
         Checks the network for consistency; e.g. that all components are
         connected to existing buses and that no impedances are singular.
@@ -1607,28 +1618,28 @@ class Network:
         # Per component checks
         for c in self.iterate_components():
             # Checks all components
-            check_for_unknown_buses(self, c)
-            check_for_unknown_carriers(self, c)
-            check_time_series(self, c)
-            check_static_power_attributes(self, c)
-            check_time_series_power_attributes(self, c)
-            check_nans_for_component_default_attrs(self, c)
+            check_for_unknown_buses(self, c, strict)
+            check_for_unknown_carriers(self, c, strict)
+            check_time_series(self, c, strict)
+            check_static_power_attributes(self, c, strict)
+            check_time_series_power_attributes(self, c, strict)
+            check_nans_for_component_default_attrs(self, c, strict)
             # Checks passive_branch_components
-            check_for_zero_impedances(self, c)
+            check_for_zero_impedances(self, c, strict)
             # Checks transformers
-            check_for_zero_s_nom(c)
+            check_for_zero_s_nom(c, strict)
             # Checks generators and links
-            check_assets(self, c)
+            check_assets(self, c, strict)
             # Checks generators
-            check_generators(c)
+            check_generators(c, strict)
 
             if check_dtypes:
-                check_dtypes_(c)
+                check_dtypes_(c, strict)
 
         # Combined checks
-        check_for_disconnected_buses(self)
-        check_investment_periods(self)
-        check_shapes(self)
+        check_for_disconnected_buses(self, strict)
+        check_investment_periods(self, strict)
+        check_shapes(self, strict)
 
 
 class SubNetwork:

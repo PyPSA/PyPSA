@@ -60,21 +60,20 @@ def get_switchable_as_dense(
     --------
     >>> get_switchable_as_dense(n, 'Generator', 'p_max_pu')
     """
-    if snapshots is None:
-        snapshots = n.snapshots
+    sns = as_index(n, snapshots, "snapshots")
 
     static = n.static(component)[attr]
-    empty = pd.DataFrame(index=snapshots)
-    dynamic = n.dynamic(component).get(attr, empty).loc[snapshots]
+    empty = pd.DataFrame(index=sns)
+    dynamic = n.dynamic(component).get(attr, empty).loc[sns]
 
     index = static.index
     if inds is not None:
         index = index.intersection(inds)
 
     diff = index.difference(dynamic.columns)
-    static_to_dynamic = pd.DataFrame({**static[diff]}, index=snapshots)
-    res = pd.concat([dynamic, static_to_dynamic], axis=1)[index]
-    res.index.name = "snapshot"
+    static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
+    res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
+    res.index.name = sns.name
     res.columns.name = component
     return res
 
@@ -312,7 +311,7 @@ def get_activity_mask(
         Subset of the component elements. If None (default) all components are returned.
     """
 
-    sns_ = as_index(n, sns, "snapshots", "snapshot")
+    sns_ = as_index(n, sns, "snapshots")
 
     if getattr(n, "_multi_invest", False):
         active_assets_per_period = {
@@ -452,7 +451,6 @@ def update_linkports_component_attrs(
         # Also update container for varying attributes
         if attr in ["efficiency", "p"] and target not in n.dynamic(c).keys():
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
-            df.index.name = "snapshot"
             df.columns.name = c
             n.dynamic(c)[target] = df
         elif attr == "bus" and target not in n.static(c).columns:

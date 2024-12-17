@@ -93,6 +93,8 @@ include = ["pypsa"]
 filterwarnings = [
     "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     "error::FutureWarning",      # Raise all FutureWarnings as errors
+    "ignore::matplotlib._api.deprecation.MatplotlibDeprecationWarning:pydev",
+    # See https://github.com/microsoft/debugpy/issues/1623
 ]
 
 # Coverage settings
