@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.test_docs
+@pytest.mark.test_sphinx_build
 def test_sphinx_build(pytestconfig):
     if not pytestconfig.getoption("--test-docs"):
         pytest.skip("need --test-docs option to run")

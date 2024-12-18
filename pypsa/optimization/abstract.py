@@ -71,32 +71,32 @@ def discretized_capacity(
     Examples
     --------
     >>> discretized_capacity(
-    nom_opt = 7,
-    nom_max = 25,
-    unit_size = 5,
-    threshold = 0.1,
-    fractional_last_unit_size = False)
+    ... nom_opt = 7,
+    ... nom_max = 25,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = False)
     10
     >>> discretized_capacity(
-    nom_opt = 7,
-    nom_max = 8,
-    unit_size = 5,
-    threshold = 0.1,
-    fractional_last_unit_size = False)
+    ... nom_opt = 7,
+    ... nom_max = 8,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = False)
     5
     >>> discretized_capacity(
-    nom_opt = 7,
-    nom_max = 8,
-    unit_size = 5,
-    threshold = 0.1,
-    fractional_last_unit_size = True)
+    ... nom_opt = 7,
+    ... nom_max = 8,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = True)
     8
     >>> discretized_capacity(
-    nom_opt = 3,
-    nom_max = 4,
-    unit_size = 5,
-    threshold = 0.1,
-    fractional_last_unit_size = False)
+    ... nom_opt = 3,
+    ... nom_max = 4,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = False)
     4
     """
     if min_units is not None:
@@ -538,16 +538,7 @@ def optimize_mga(
         minimizes generation capacity. The weights dictionary should be keyed
         with the component and variable (see ``pypsa/data/variables.csv``), followed
         by a float, dict, pd.Series or pd.DataFrame for the coefficients of the
-        objective function. Examples:
-
-        >>> {"Generator": {"p_nom": 1}}
-        >>> {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
-        >>> {"Generator": {"p_nom": {"gas": 1, "coal": 2}}}
-        >>> {"Generator": {"p": pd.Series(1, index=n.generators.index)}
-        >>> {"Generator": {"p": pd.DataFrame(1, columns=n.generators.index, index=n.snapshots)}
-
-        Weights for non-extendable components are ignored. The dictionary does
-        not need to provide weights for all extendable components.
+        objective function.
     sense : str|int
         Optimization sense of alternate objective function. Defaults to 'min'.
         Can also be 'max'.
@@ -568,6 +559,7 @@ def optimize_mga(
         The termination condition of the optimization, either
         "optimal" or one of the codes listed in
         https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+
     """
     if snapshots is None:
         snapshots = n.snapshots

@@ -516,7 +516,7 @@ def _export_to_exporter(
     """
     if not basename:
         basename = "<unnamed>"
-    # exportable component types
+    # exportable component variants
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties
@@ -650,7 +650,7 @@ def import_from_csv_folder(
 
     Examples
     --------
-    >>> n.import_from_csv_folder(csv_folder_name)
+    >>> n.import_from_csv_folder(csv_folder_name) # doctest: +SKIP
     """
     basename = Path(csv_folder_name).name
     with ImporterCSV(csv_folder_name, encoding=encoding) as importer:
@@ -694,7 +694,7 @@ def export_to_csv_folder(
 
     Examples
     --------
-    >>> n.export_to_csv_folder(csv_folder_name)
+    >>> n.export_to_csv_folder(csv_folder_name) # doctest: +SKIP
     """
 
     basename = os.path.basename(csv_folder_name)
@@ -755,7 +755,7 @@ def export_to_hdf5(
 
     Examples
     --------
-    >>> n.export_to_hdf5(filename)
+    >>> n.export_to_hdf5(filename) # doctest: +SKIP
     """
     kwargs.setdefault("complevel", 4)
 
@@ -836,7 +836,10 @@ def export_to_netcdf(
 
     Examples
     --------
-    >>> n.export_to_netcdf("my_file.nc")
+    >>> import pypsa
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> n.export_to_netcdf("my_file.nc") # doctest: +SKIP
+
     """
     basename = os.path.basename(path) if path is not None else None
     with ExporterNetCDF(path, compression, float32) as exporter:
@@ -1019,19 +1022,6 @@ def import_components_from_dataframe(
     cls_name : string
         Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
 
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> buses = ['Berlin', 'Frankfurt', 'Munich', 'Hamburg']
-    >>> n.import_components_from_dataframe(
-    ...     pd.DataFrame({"v_nom" : 380, "control" : 'PV'},
-    ...                 index=buses),
-    ...                 "Bus")
-    >>> n.import_components_from_dataframe(
-    ...     pd.DataFrame({"carrier" : "solar", "bus" : buses, "p_nom_extendable" : True},
-    ...                 index=[b+" PV" for b in buses]),
-    ...                 "Generator")
-
     See Also
     --------
     pypsa.Network.madd
@@ -1065,17 +1055,6 @@ def import_series_from_dataframe(
         Name of class of component
     attr : string
         Name of time-varying series attribute
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> n.set_snapshots(range(10))
-    >>> n.import_series_from_dataframe(
-    ...     pd.DataFrame(np.random.rand(10, 4),
-    ...         columns=n.generators.index,
-    ...                     index=range(10)),
-    ...                 "Generator",
-    ...                 "p_max_pu")
 
     --------
     """
@@ -1362,9 +1341,9 @@ def import_from_pypower_ppc(
 
     Examples
     --------
-    >>> from pypower.api import case30
-    >>> ppc = case30()
-    >>> n.import_from_pypower_ppc(ppc)
+    >>> from pypower.api import case30 # doctest: +SKIP
+    >>> ppc = case30() # doctest: +SKIP
+    >>> n.import_from_pypower_ppc(ppc) # doctest: +SKIP
     """
     version = ppc["version"]
     if int(version) != 2:
@@ -1586,7 +1565,7 @@ def import_from_pandapower_net(
 
     Examples
     --------
-    >>> n.import_from_pandapower_net(net)
+    >>> n.import_from_pandapower_net(net) # doctest: +SKIP
     OR
     >>> import pypsa
     >>> import pandapower as pp

@@ -1,7 +1,7 @@
 """
 Abstract components module.
 
-Contains classes and logic relevant to all component types in PyPSA.
+Contains classes and logic relevant to all component variants in PyPSA.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import pandas as pd
 from pyproj import CRS
 
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentTypeInfo
+from pypsa.definitions.components import ComponentVariant
 from pypsa.definitions.structures import Dict
 from pypsa.utils import equals
 
@@ -40,9 +40,20 @@ class ComponentsData:
     Dataclass to store all data of a Components object and used to separate data from
     logic.
 
+    Attributes
+    ----------
+    ct : ComponentVariant
+        Component variant information containing all default values and attributes.
+    n : Network | None
+        Network object to which the component might be attached.
+    static : pd.DataFrame
+        Static data of components.
+    dynamic : dict
+        Dynamic data of components.
+
     """
 
-    ct: ComponentTypeInfo
+    ct: ComponentVariant
     n: Network | None
     static: pd.DataFrame
     dynamic: dict
@@ -54,7 +65,7 @@ class Components(ComponentsData, ABC):
 
     Abstract base class for Container of energy system related assets, such as
     generators or transmission lines. Use the specific subclasses for concrete or
-    a generic component type.
+    a generic component variant.
     All data is stored in dataclass :class:`pypsa.components.abstract.ComponentsData`.
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
@@ -67,7 +78,7 @@ class Components(ComponentsData, ABC):
 
     def __init__(
         self,
-        ct: ComponentTypeInfo,
+        ct: ComponentVariant,
         n: Network | None = None,
         names: str | int | Sequence[int | str] | None = None,
         suffix: str = "",
@@ -77,7 +88,7 @@ class Components(ComponentsData, ABC):
 
         Parameters
         ----------
-        ct : ComponentTypeInfo
+        ct : ComponentVariant
             Component type information.
         n : Network, optional
             Network object to attach to, by default None.
@@ -146,9 +157,12 @@ class Components(ComponentsData, ABC):
         Examples
         --------
         >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
-        >>> print(c)
-        6 'Generator' Components
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators
+        PyPSA 'Generator' Components
+        ----------------------------
+        Attached to PyPSA Network 'AC-DC'
+        Components: 6
 
         """
         num_components = len(self.static)
@@ -220,7 +234,7 @@ class Components(ComponentsData, ABC):
         )
 
     @staticmethod
-    def _get_data_containers(ct: ComponentTypeInfo) -> tuple[pd.DataFrame, Dict]:
+    def _get_data_containers(ct: ComponentVariant) -> tuple[pd.DataFrame, Dict]:
         static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
         if ct.name == "Shape":
             crs = CRS.from_epsg(
@@ -258,7 +272,7 @@ class Components(ComponentsData, ABC):
         Get standard types of component.
 
         It is an alias for the `standard_types` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        :class:`pypsa.definitions.ComponentVariant`.
 
         Returns
         -------
@@ -271,15 +285,25 @@ class Components(ComponentsData, ABC):
     @property
     def name(self) -> str:
         """
-        Get name of component.
-
-        It is an alias for the `name` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        Name of component variant.
 
         Returns
         -------
         str
             Name of component.
+
+        See Also
+        --------
+        pypsa.definitions.ComponentVariant :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.name
+        'Generator'
 
         """
         return self.ct.name
@@ -287,18 +311,25 @@ class Components(ComponentsData, ABC):
     @property
     def list_name(self) -> str:
         """
-        Get list name of component.
-
-        E.g. 'generators' or 'lines', for the corresponding 'Generator' or 'Line'
-        component. It is an alias for the `list_name` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        List name of component variant.
 
         Returns
         -------
-        return self.ct.list_name
-        -------
         str
             List name of component.
+
+        See Also
+        --------
+        pypsa.definitions.ComponentVariant :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.list_name
+        'generators'
 
         """
         return self.ct.list_name
@@ -306,15 +337,25 @@ class Components(ComponentsData, ABC):
     @property
     def description(self) -> str:
         """
-        Get description of component.
-
-        It is an alias for the `description` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        Description of component.
 
         Returns
         -------
         str
             Description of component.
+
+        See Also
+        --------
+        pypsa.definitions.ComponentVariant :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.description
+        'Power generator.'
 
         """
         return self.ct.description
@@ -322,15 +363,25 @@ class Components(ComponentsData, ABC):
     @property
     def category(self) -> str:
         """
-        Get category of component.
-
-        E.g. 'controllable_one_port'. It is an alias for the `category` attribute of
-        the underlying :class:`pypsa.definitions.ComponentTypeInfo`.
+        Category of component.
 
         Returns
         -------
         str
             Category of component.
+
+        See Also
+        --------
+        pypsa.definitions.ComponentVariant :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.category
+        'controllable_one_port'
 
         """
         return self.ct.category
@@ -340,17 +391,20 @@ class Components(ComponentsData, ABC):
         """
         Get category of component.
 
-        E.g. 'controllable_one_port'. It is an alias for the `category` attribute of
-        the underlying :class:`pypsa.definitions.ComponentTypeInfo`.
-
         .. note ::
             While not actively deprecated yet, :meth:`category` is the preferred method
-            to access component type.
+            to access component variant.
 
         Returns
         -------
         str
             Category of component.
+
+        See Also
+        --------
+        pypsa.definitions.ComponentVariant :
+            This property directly references the same property in the
+            associated underlying class.
 
         """
         return self.ct.category
@@ -358,10 +412,7 @@ class Components(ComponentsData, ABC):
     @property
     def attrs(self) -> pd.DataFrame:
         """
-        Get default values of corresponding component type.
-
-        It is an alias for the `defaults` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        Default values of corresponding component variant.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -373,22 +424,49 @@ class Components(ComponentsData, ABC):
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentVariant :
+            This property directly references the same property in the
+            associated underlying class.
+
+
         """
         return self.ct.defaults
 
     @property
     def defaults(self) -> pd.DataFrame:
         """
-        Get default values of corresponding component type.
+        Default values of corresponding component variant.
 
-        It is an alias for the `defaults` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        .. note::
+            While not actively deprecated yet, :meth:`defaults` is the preferred method
+            to access component attributes.
 
         Returns
         -------
         pd.DataFrame
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
+
+        See Also
+        --------
+        pypsa.definitions.ComponentVariant :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.defaults.head() # doctest: +SKIP
+                     type unit default                                        description            status  static  varying              typ    dtype
+        attribute
+        name       string  NaN                                                Unique name  Input (required)    True    False    <class 'str'>   object
+        bus        string  NaN                 name of bus to which generator is attached  Input (required)    True    False    <class 'str'>   object
+        control    string  NaN      PQ  P,Q,V control strategy for PF, must be "PQ", "...  Input (optional)    True    False    <class 'str'>   object
+        type       string  NaN          Placeholder for generator type. Not yet implem...  Input (optional)    True    False    <class 'str'>   object
+        p_nom       float   MW     0.0          Nominal power for limits in optimization.  Input (optional)    True    False  <class 'float'>  float64
 
         """
         return self.ct.defaults
@@ -426,6 +504,13 @@ class Components(ComponentsData, ABC):
         -------
         bool
             True if component is attached to a Network, otherwise False.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.attached
+        True
 
         """
         return self.n is not None

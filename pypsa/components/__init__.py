@@ -13,7 +13,7 @@ def __getattr__(name: str) -> Any:
             "Import it from 'pypsa' instead."
         )
         raise ImportError(msg)
-    return globals()[name]
+    return getattr(Components, name)
 
 
 __all__ = [

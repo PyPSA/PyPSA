@@ -29,7 +29,7 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "test_docs: mark test as sphinx build")
+    config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
 
 
 @pytest.fixture(scope="function")

@@ -160,10 +160,11 @@ class Network:
 
     Examples
     --------
-    >>> nw1 = pypsa.Network("my_store.h5")
-    >>> nw2 = pypsa.Network("/my/folder")
-    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
-    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc")
+    >>> import pypsa
+    >>> nw1 = pypsa.Network("network.nc") # doctest: +SKIP
+    >>> nw2 = pypsa.Network("/my/folder") # doctest: +SKIP
+    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc") # doctest: +SKIP
+    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc") # doctest: +SKIP
 
     """
 
@@ -904,6 +905,26 @@ class Network:
         self.periods = periods
 
     @property
+    def has_investment_periods(self) -> bool:
+        """
+        Check if network has investment periods assigned to snapshots dimension.
+
+        .. Note :: Alias for :py:meth:`pypsa.Network.has_periods`.
+
+        Returns
+        -------
+        bool
+            True if network has investment periods, otherwise False.
+
+
+        See Also
+        --------
+        pypsa.networks.Network.snapshots : Snapshots dimension of the network.
+        pypsa.networks.Network.periods : Periods level of snapshots dimension.
+        """
+        return self.has_periods
+
+    @property
     def snapshot_weightings(self) -> pd.DataFrame:
         """
         Weightings applied to each snapshots during the optimization (LOPF).
@@ -1083,17 +1104,24 @@ class Network:
 
         Examples
         --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+
         Add a single component:
 
         >>> n.add("Bus", "my_bus_0")
+        Index(['my_bus_0'], dtype='object')
         >>> n.add("Bus", "my_bus_1", v_nom=380)
+        Index(['my_bus_1'], dtype='object')
         >>> n.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+        Index(['my_line_name'], dtype='object')
 
         Add multiple components with static attributes:
 
         >>> n.add("Load", ["load 1", "load 2"],
         ...       bus=["1", "2"],
         ...       p_set=np.random.rand(len(n.snapshots), 2))
+        Index(['load 1', 'load 2'], dtype='object')
 
         Add multiple components with time-varying attributes:
 
@@ -1103,16 +1131,20 @@ class Network:
         >>> n = pypsa.Network()
         >>> n.set_snapshots(snapshots)
         >>> n.add("Bus", buses)
+        Index(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], dtype='object')
         >>> # add load as numpy array
         >>> n.add("Load",
         ...       n.buses.index + " load",
         ...       bus=buses,
         ...       p_set=np.random.rand(len(snapshots), len(buses)))
+        Index(['0 load', '1 load', '2 load', '3 load', '4 load', '5 load', '6 load',
+               '7 load', '8 load', '9 load', '10 load', '11 load', '12 load'],
+              dtype='object', name='Bus')
         >>> # add wind availability as pandas DataFrame
         >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
         ...        columns=buses)
-        >>> #use a suffix to avoid boilerplate to rename everything
+        >>> # use a suffix to avoid boilerplate to rename everything
         >>> n.add("Generator",
         ...       buses,
         ...       suffix=' wind',
@@ -1120,6 +1152,10 @@ class Network:
         ...       p_nom_extendable=True,
         ...       capital_cost=1e5,
         ...       p_max_pu=wind)
+        Index(['0 wind', '1 wind', '2 wind', '3 wind', '4 wind', '5 wind', '6 wind',
+               '7 wind', '8 wind', '9 wind', '10 wind', '11 wind', '12 wind'],
+              dtype='object')
+
 
         """
         c = as_components(self, class_name)
@@ -1149,14 +1185,18 @@ class Network:
             elif isinstance(v, pd.Series):
                 # Cast names index to string + suffix
                 v = v.rename(
-                    index=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
+                    index=lambda s: str(s)
+                    if str(s).endswith(suffix)
+                    else str(s) + suffix
                 )
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 # Cast names columns to string + suffix
                 v = v.rename(
-                    columns=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
+                    columns=lambda s: str(s)
+                    if str(s).endswith(suffix)
+                    else str(s) + suffix
                 )
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
@@ -1263,8 +1303,10 @@ class Network:
 
         Examples
         --------
-        >>> n.remove("Line", "my_line 12345")
-        >>> n.remove("Line", ["line x", "line y"])
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.remove("Line", "0")
+        >>> n.remove("Line", ["1","2"])
         """
         c = as_components(self, class_name)
 
@@ -1296,9 +1338,10 @@ class Network:
         """
         Add multiple components to the network, along with their attributes.
 
-        ``n.madd`` is deprecated and will be removed in version 1.0. Use
-        :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
-        addition of components.
+        .. deprecated:: 0.31
+          ``n.madd`` is deprecated and will be removed in a future version. Use
+            :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
+            removal of components.
 
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
@@ -1322,45 +1365,6 @@ class Network:
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
-        Returns
-        -------
-        new_names : pandas.index
-            Names of new components (including suffix)
-
-        Examples
-        --------
-        Short Example:
-
-        >>> n.madd("Load", ["load 1", "load 2"],
-        ...        bus=["1", "2"],
-        ...        p_set=np.random.rand(len(n.snapshots), 2))
-
-        Long Example:
-
-        >>> import pandas as pd, numpy as np
-        >>> buses = range(13)
-        >>> snapshots = range(7)
-        >>> n = pypsa.Network()
-        >>> n.set_snapshots(snapshots)
-        >>> n.madd("Bus", buses)
-        >>> # add load as numpy array
-        >>> n.madd("Load",
-        ...        n.buses.index + " load",
-        ...        bus=buses,
-        ...        p_set=np.random.rand(len(snapshots), len(buses)))
-        >>> # add wind availability as pandas DataFrame
-        >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
-        ...        index=n.snapshots,
-        ...        columns=buses)
-        >>> #use a suffix to avoid boilerplate to rename everything
-        >>> n.madd("Generator",
-        ...        buses,
-        ...        suffix=' wind',
-        ...        bus=buses,
-        ...        p_nom_extendable=True,
-        ...        capital_cost=1e5,
-        ...        p_max_pu=wind)
-
         """
         return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
@@ -1372,6 +1376,11 @@ class Network:
     def mremove(self, class_name: str, names: Sequence) -> None:
         """
         Removes multiple components from the network.
+
+        .. deprecated:: 0.31
+          ``n.mremove`` is deprecated and will be removed in a future version. Use
+            :py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple
+            removal of components.
 
         ``n.mremove`` is deprecated and will be removed in version 1.0. Use
         py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple removal of
@@ -1385,10 +1394,6 @@ class Network:
             Component class name
         name : list-like
             Component names
-
-        Examples
-        --------
-        >>> n.mremove("Line", ["line x", "line y"])
 
         """
         self.remove(class_name=class_name, name=names)
@@ -1434,6 +1439,8 @@ class Network:
 
         Examples
         --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
         >>> network_copy = n.copy()
 
         """
@@ -1543,9 +1550,9 @@ class Network:
 
         Examples
         --------
-        >>> sub_network_0 = n[n.buses.sub_network = "0"]
-
-        >>> sub_network_0_with_only_10_snapshots = n[:10, n.buses.sub_network = "0"]
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> sub_network_0 = n[n.buses.sub_network == "0"]
 
         """
         if isinstance(key, tuple):
@@ -1738,6 +1745,8 @@ class Network:
 
         Examples
         --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.consistency_check()
 
         """

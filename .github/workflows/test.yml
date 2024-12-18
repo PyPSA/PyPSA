@@ -76,10 +76,13 @@ jobs:
         # will be broken on python<3.12
         # See https://github.com/astral-sh/uv/issues/1928#issuecomment-1968857514
 
-    - name: Test with pytest
+    - name: Run unit tests
       run: |
         coverage run -m pytest
         coverage xml
+
+    - name: Run Doctests
+      run: / pytest --doctest-modules pypsa
 
     - name: Upload code coverage report
       uses: codecov/codecov-action@v5
@@ -116,7 +119,7 @@ jobs:
     - name: Test docs build
       run: |
         sudo apt-get install -y pandoc
-        pytest test/test_docs.py --test-docs
+        pytest test/test_docs.py --test-sphinx-build
 
   check-types:
     name: Check types

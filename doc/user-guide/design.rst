@@ -50,7 +50,7 @@ To see which data is stored for each component, see :doc:`/user-guide/components
 Static data
 -----------
 
-For each component type (line, transformer, generator, etc.), which must be
+For each component variant (line, transformer, generator, etc.), which must be
 uniquely named for each network, its basic static data is stored in a
 ``pandas.DataFrame``, which is an attribute of the ``pypsa.Network``, with names
 that follow the component names:

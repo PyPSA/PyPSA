@@ -116,6 +116,28 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
     return True
 
 
+def is_documented_by(original: Callable, reference: str = "") -> Callable:
+    def wrapper(target: Callable) -> Callable:
+        if not target.__doc__:
+            return target
+
+        if reference:
+            header_text = "See also\n--------\n"
+            ref_text = (
+                f"{reference} :\n"
+                f"    This property directly references the same property in the\n"
+                f"    associated underlying class.\n"
+            )
+            if header_text not in target.__doc__:
+                target.__doc__.replace(header_text, header_text + ref_text)
+            else:
+                target.__doc__ += header_text + ref_text
+
+        return target
+
+    return wrapper
+
+
 def deprecated_kwargs(**aliases: str) -> Callable:
     """
     Decorator for deprecated function and method arguments.
@@ -133,8 +155,12 @@ def deprecated_kwargs(**aliases: str) -> Callable:
 
     Examples
     --------
-    >>> @deprecated_alias(object_id="id_object")
-    ... def __init__(self, id_object):
+    >>> @deprecated_kwargs(object_id="id_object")
+    ... def some_func(id_object):
+    ...     print(id_object)
+    >>> some_func(object_id=1) # doctest: +SKIP
+    1
+
     """
 
     def deco(f: Callable) -> Callable:
@@ -255,10 +281,6 @@ def list_as_string(
     --------
     >>> list_as_string(['a', 'b', 'c'])
     'a, b, c'
-    >>> list_as_string(['x', 'y', 'z'], prefix="  ", style="bullet-list")
-    '  - x'
-    '  - y'
-    '  - z'
     """
     if isinstance(list_, dict):
         list_ = list(list_.keys())

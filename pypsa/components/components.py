@@ -1,7 +1,7 @@
 """
 Components module.
 
-Contains classes and logic relevant to specific component types in PyPSA.
+Contains classes and logic relevant to specific component variants in PyPSA.
 Generic functionality is implemented in the abstract module.
 """
 
@@ -14,7 +14,7 @@ from typing import Any
 import pandas as pd
 
 from pypsa.components.abstract import Components
-from pypsa.components.types import ComponentTypeInfo
+from pypsa.components.types import ComponentVariant
 from pypsa.components.types import get as get_component_type
 from pypsa.definitions.structures import Dict
 
@@ -121,7 +121,7 @@ class Component:
     def __new__(
         cls,
         name: str | None = None,
-        ct: ComponentTypeInfo | None = None,
+        ct: ComponentVariant | None = None,
         n: Any | None = None,
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
