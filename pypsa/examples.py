@@ -93,6 +93,12 @@ def ac_dc_meshed(
     n = Network(path)
     if remove_link_p_set:
         n.links_t.p_set = pd.DataFrame(index=n.snapshots)
+    # add missing carriers and colors
+    n.carriers["color"] = ["red", "blue", "green"]
+    n.loads["carrier"] = "load"
+    n.add("Carrier", "load", color="black")
+    n.add("Carrier", "AC", color="orange")
+    n.add("Carrier", "DC", color="purple")
     return n
 
 

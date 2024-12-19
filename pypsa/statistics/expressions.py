@@ -5,6 +5,7 @@ Statistics Accessor.
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -13,11 +14,12 @@ if TYPE_CHECKING:
 
 import pandas as pd
 
-from pypsa.descriptors import nominal_attrs
+from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.utils import pass_empty_series_if_keyerror
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -828,7 +830,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
 
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = "carrier dependent"
+        df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
     def curtailment(
