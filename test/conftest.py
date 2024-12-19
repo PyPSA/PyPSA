@@ -21,7 +21,7 @@ from pypsa.constants import DEFAULT_EPSG
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--test-docs",
+        "--test-docs-build",
         action="store_true",
         default=False,
         help="run sphinx build test",

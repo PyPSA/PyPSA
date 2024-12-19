@@ -120,7 +120,7 @@ jobs:
     - name: Test docs build
       run: |
         sudo apt-get install -y pandoc
-        pytest test/test_docs.py --test-sphinx-build
+        pytest test/test_docs.py --test-docs-build
 
   check-types:
     name: Check types

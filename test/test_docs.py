@@ -7,8 +7,8 @@ import pytest
 
 @pytest.mark.test_sphinx_build
 def test_sphinx_build(pytestconfig):
-    if not pytestconfig.getoption("--test-docs"):
-        pytest.skip("need --test-docs option to run")
+    if not pytestconfig.getoption("--test-docs-build"):
+        pytest.skip("need --test-docs-build option to run")
 
     source_dir = Path("doc")
     build_dir = Path("doc") / "_build"
