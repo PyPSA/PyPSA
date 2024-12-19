@@ -720,12 +720,6 @@ class Network:
         and the second level are timesteps. If snapshots are single indexed, the only
         level is timesteps.
 
-        .. note::
-            Note that Snapshots are a dimension, while timesteps and and periods are
-            only levels of the snapshots dimension, similar to coords in xarray.
-            That is because timesteps and periods are not necessarily unique or entire
-            across snapshots.
-
         Returns
         -------
         pd.Index or pd.MultiIndex
@@ -736,6 +730,12 @@ class Network:
         pypsa.networks.Network.timesteps : Get the timestep level only.
         pypsa.networks.Network.periods : Get the period level only.
 
+        Notes
+        -----
+        Note that Snapshots are a dimension, while timesteps and and periods are
+        only levels of the snapshots dimension, similar to coords in xarray.
+        That is because timesteps and periods are not necessarily unique or entire
+        across snapshots.
         """
         return self._snapshots
 
@@ -749,7 +749,7 @@ class Network:
         snapshots : Sequence
 
 
-        Also see
+        See Also
         --------
         pypsa.networks.Network.snapshots : Getter method
         pypsa.networks.Network.set_snapshots : Setter method
@@ -852,7 +852,6 @@ class Network:
         bool
             True if network has investment periods, otherwise False.
 
-
         See Also
         --------
         pypsa.networks.Network.snapshots : Snapshots dimension of the network.
@@ -915,7 +914,6 @@ class Network:
         -------
         bool
             True if network has investment periods, otherwise False.
-
 
         See Also
         --------

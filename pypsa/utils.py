@@ -116,28 +116,6 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
     return True
 
 
-def is_documented_by(original: Callable, reference: str = "") -> Callable:
-    def wrapper(target: Callable) -> Callable:
-        if not target.__doc__:
-            return target
-
-        if reference:
-            header_text = "See also\n--------\n"
-            ref_text = (
-                f"{reference} :\n"
-                f"    This property directly references the same property in the\n"
-                f"    associated underlying class.\n"
-            )
-            if header_text not in target.__doc__:
-                target.__doc__.replace(header_text, header_text + ref_text)
-            else:
-                target.__doc__ += header_text + ref_text
-
-        return target
-
-    return wrapper
-
-
 def deprecated_kwargs(**aliases: str) -> Callable:
     """
     Decorator for deprecated function and method arguments.
