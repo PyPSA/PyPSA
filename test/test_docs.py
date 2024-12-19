@@ -1,8 +1,24 @@
+import doctest
+import importlib
+import pkgutil
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+
+import pypsa
+
+modules = [
+    importlib.import_module(name)
+    for _, name, _ in pkgutil.walk_packages(pypsa.__path__, pypsa.__name__ + ".")
+]
+
+
+@pytest.mark.parametrize("module", modules)
+def test_doctest(module):
+    failed, _ = doctest.testmod(module)
+    assert failed == 0, f"{failed} doctest(s) failed in module {module.__name__}"
 
 
 @pytest.mark.test_sphinx_build
