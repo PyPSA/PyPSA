@@ -905,8 +905,30 @@ def autogenerate_coordinates(n, assign=False, layouter=None):
 
     Examples
     --------
-    >>> autogenerate_coordinates(n)
-    >>> autogenerate_coordinates(n, assign=True, layouter=nx.circle_layout)
+    >>> import pypsa
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> autogenerate_coordinates(n) # doctest: +SKIP
+                   x     y
+    London     -1.00 -0.32
+    Norwich     0.56 -0.20
+    Norwich DC  0.44 -0.08
+    Manchester  0.68 -0.32
+    Bremen     -0.28  0.16
+    Bremen DC  -0.16  0.04
+    Frankfurt  -0.40  0.28
+    Norway      0.08  0.16
+    Norway DC   0.08  0.28
+    >>> autogenerate_coordinates(n, assign=True, layouter=nx.circular_layout)
+                       x             y
+    London      1.000000  1.986821e-08
+    Norwich     0.766044  6.427876e-01
+    Norwich DC  0.173648  9.848077e-01
+    Manchester -0.500000  8.660254e-01
+    Bremen     -0.939693  3.420202e-01
+    Bremen DC  -0.939693 -3.420201e-01
+    Frankfurt  -0.500000 -8.660254e-01
+    Norway      0.173648 -9.848077e-01
+    Norway DC   0.766044 -6.427877e-01
 
     """
     G = n.graph()

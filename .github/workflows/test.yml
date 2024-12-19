@@ -76,7 +76,7 @@ jobs:
         # will be broken on python<3.12
         # See https://github.com/astral-sh/uv/issues/1928#issuecomment-1968857514
 
-    - name: Test with pytest
+    - name: Run unit tests # Also includes 
       run: |
         coverage run -m pytest
         coverage xml
@@ -116,7 +116,7 @@ jobs:
     - name: Test docs build
       run: |
         sudo apt-get install -y pandoc
-        pytest test/test_docs.py --test-docs
+        pytest test/test_docs.py --test-docs-build
 
   check-types:
     name: Check types

@@ -14,7 +14,30 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class ComponentTypeInfo:
+class ComponentVariant:
+    """
+    Dataclass for network component variant.
+
+    Contains all information about a component variant, such as its name and defaults
+    attributes. Two different variants are for example 'Generator' and 'Carrier'.
+
+    Attributes
+    ----------
+    name : str
+        Name of component variant, e.g. 'Generator'.
+    list_name : str
+        Name of component variant in list form, e.g. 'generators'.
+    description : str
+        Description of the component variant.
+    category : str
+        Category of the component variant, e.g. 'passive_branch'.
+    defaults : pd.DataFrame
+        Default values for the component variant.
+    standard_types : pd.DataFrame | None
+        Standard types for the component variant.
+
+    """
+
     name: str
     list_name: str
     description: str
@@ -23,7 +46,7 @@ class ComponentTypeInfo:
     standard_types: pd.DataFrame | None = None
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, ComponentTypeInfo):
+        if not isinstance(other, ComponentVariant):
             return NotImplemented
 
         return (
@@ -35,7 +58,7 @@ class ComponentTypeInfo:
         )
 
     def __repr__(self) -> str:
-        return self.name + " Component Type"
+        return f"'{self.name}' Component Variant"
 
     @property
     @deprecated(
@@ -56,7 +79,7 @@ class ComponentTypeInfo:
 
 class ComponentsStore(dict):
     def __repr__(self) -> str:
-        return "PyPSA Components Store \n====================== \n- " + "\n- ".join(
+        return "PyPSA Components Store\n======================\n- " + "\n- ".join(
             str(value) for value in self.values()
         )
 
@@ -74,14 +97,31 @@ class ComponentsStore(dict):
 
         Examples
         --------
-        >>> components = ComponentsStore()
-        >>> components["generator"] = Generators()
-        >>> components["stores"] = Stores()
-        >>> components["generator"]
-        'Generator class instance'
-        >>> components[["generator", "stores"]]
-        >>> components[["generator", "stores"]]
-        ['Generator class instance', 'Stores class instance']
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components
+        PyPSA Components Store
+        ======================
+        - 0 'SubNetwork' Components
+        - 9 'Bus' Components
+        - 3 'Carrier' Components
+        - 1 'GlobalConstraint' Components
+        - 7 'Line' Components
+        - 36 'LineType' Components
+        - 0 'Transformer' Components
+        - 14 'TransformerType' Components
+        - 4 'Link' Components
+        - 6 'Load' Components
+        - 6 'Generator' Components
+        - 0 'StorageUnit' Components
+        - 0 'Store' Components
+        - 0 'ShuntImpedance' Components
+        - 0 'Shape' Components
+        >>> n.components["generators"]
+        PyPSA 'Generator' Components
+        ----------------------------
+        Attached to PyPSA Network 'AC-DC'
+        Components: 6
         """
         if isinstance(item, (list, set)):
             return [self[key] for key in item]
@@ -104,9 +144,13 @@ class ComponentsStore(dict):
 
         Examples
         --------
-        >>> components = ComponentsStore()
-        >>> components["generator"] = Generators()
-        >>> components.generators
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators
+        PyPSA 'Generator' Components
+        ----------------------------
+        Attached to PyPSA Network 'AC-DC'
+        Components: 6
         """
         try:
             return self[item]

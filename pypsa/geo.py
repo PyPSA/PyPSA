@@ -64,7 +64,7 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     Examples
     --------
     >>> haversine([10.1, 52.6], [[10.8, 52.1], [-34, 56.]])
-    array([[   73.15416698,  2836.6707696 ]])
+    array([[  73.15416698, 2836.6707696 ]])
 
     See Also
     --------

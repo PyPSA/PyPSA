@@ -43,4 +43,3 @@ repos:
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
-

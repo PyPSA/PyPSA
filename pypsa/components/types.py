@@ -1,7 +1,7 @@
 """
 Components types module.
 
-Contains module wide component types. Default types are loaded from the package data.
+Contains module wide component variants. Default types are loaded from the package data.
 Additional types can be added by the user.
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pypsa.definitions.components import ComponentTypeInfo
+from pypsa.definitions.components import ComponentVariant
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 from pypsa.utils import list_as_string
 
@@ -37,7 +37,7 @@ def add_component_type(
     standard_types_df: pd.DataFrame | None = None,
 ) -> None:
     """
-    Add component type to package wide component types library.
+    Add component variant to package wide component variants library.
 
     The function is used to add the package default components but can also be used to
     add custom components, which then again can be used during the network creation.
@@ -45,18 +45,18 @@ def add_component_type(
     Parameters
     ----------
     name : str
-        Name of the component type. Must be unique.
+        Name of the component variant. Must be unique.
     list_name : str
-        List name of the component type.
+        List name of the component variant.
     description : str
-        Description of the component type.
+        Description of the component variant.
     category : str
-        Category of the component type.
+        Category of the component variant.
     defaults_df : pandas.DataFrame
-        Default attributes of the component type. Pass as a DataFrame with the same
+        Default attributes of the component variant. Pass as a DataFrame with the same
         structure as the default components in `/pypsa/data/default_components/`.
     standard_types_df : pandas.DataFrame, optional
-        Standard types of the component type.
+        Standard types of the component variant.
 
     Returns
     -------
@@ -82,8 +82,9 @@ def add_component_type(
     ...     category="custom",
     ...     defaults_df=defaults_df,
     ... )
-    >>> # Check created component type
-    >>> pypsa.components.types.get("CustomComponent")
+    >>> # Check created component variant
+    >>> pypsa.components.types.get("custom_components")
+    'CustomComponent' Component Variant
 
     """
     if name in all_components:
@@ -126,7 +127,7 @@ def add_component_type(
         )
 
     # Initialize Component
-    all_components[list_name] = ComponentTypeInfo(
+    all_components[list_name] = ComponentVariant(
         name=name,
         list_name=list_name,
         description=description,
@@ -140,7 +141,7 @@ def _load_default_component_types(
     component_df: pd.DataFrame, attrs_path: Path, standard_types_path: Path
 ) -> None:
     """
-    Load default component types from package data.
+    Load default component variants from package data.
 
     Function is called during package import and should not be used otherwise.
 
@@ -182,29 +183,30 @@ def _load_default_component_types(
         )
 
 
-def get(name: str) -> ComponentTypeInfo:
+def get(name: str) -> ComponentVariant:
     """
-    Get component type instance from package wide component types library.
+    Get component variant instance from package wide component variants library.
 
     The function is used to get the package default components but can also be used to
     get custom components. During network creation, the type instance is not needed but
-    to pass a component type name as a string to the network constructor, a custom
-    component must be added to the package wide component types library first.
+    to pass a component variant name as a string to the network constructor, a custom
+    component must be added to the package wide component variants library first.
 
     Parameters
     ----------
     name : str
-        Name of the component type.
+        Name of the component variant.
 
     Returns
     -------
-    pypsa.components.types.ComponentTypeInfo
+    pypsa.components.types.ComponentVariant
         Component type instance.
 
     Examples
     --------
     >>> import pypsa
     >>> pypsa.components.types.get("Generator")
+    'Generator' Component Variant
 
     """
     if name in COMPONENT_ALIAS_DICT:
@@ -227,7 +229,7 @@ def check_if_added(components: str | Sequence) -> None:
     Parameters
     ----------
     components : list of str
-        List of component type names.
+        List of component variant names.
 
     Raises
     ------
@@ -249,7 +251,7 @@ def check_if_added(components: str | Sequence) -> None:
         raise ValueError(msg)
 
 
-# Load default component types
+# Load default component variants
 _load_default_component_types(
     component_df=component_types_df,
     attrs_path=_attrs_path,
