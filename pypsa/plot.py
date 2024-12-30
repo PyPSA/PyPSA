@@ -31,7 +31,7 @@ from pypsa.geo import (
     get_projected_area_factor,
 )
 from pypsa.statistics import get_transmission_carriers
-from pypsa.utils import deprecated_kwargs
+from pypsa.utils import _convert_to_series, deprecated_kwargs
 
 cartopy_present = True
 try:
@@ -52,15 +52,6 @@ if TYPE_CHECKING:
     from pypsa.components import Network
 
 logger = logging.getLogger(__name__)
-warnings.simplefilter("always", DeprecationWarning)
-
-
-def _convert_to_series(variable, index):
-    if isinstance(variable, dict):
-        variable = pd.Series(variable)
-    elif not isinstance(variable, pd.Series):
-        variable = pd.Series(variable, index=index)
-    return variable
 
 
 def _apply_cmap(colors, cmap, cmap_norm=None):
@@ -198,9 +189,11 @@ class NetworkMapPlotter:
 
     @ax.setter
     def ax(self, value):
-        if value is not None and not isinstance(
-            value, (plt.Axes, cartopy.mpl.geoaxes.GeoAxesSubplot)
-        ):
+        if not cartopy_present:
+            axis_type = (plt.Axes,)
+        else:
+            axis_type = (plt.Axes, cartopy.mpl.geoaxes.GeoAxesSubplot)
+        if value is not None and not isinstance(value, axis_type):
             raise ValueError("ax must be either matplotlib Axes or GeoAxesSubplot")
         self._ax = value
 
@@ -244,8 +237,9 @@ class NetworkMapPlotter:
     def init_axis(
         self,
         ax: plt.Axes | None = None,
-        projection: cartopy.crs.Projection = None,
+        projection: Any = None,
         geomap: bool = True,
+        geomap_resolution: str = "50m",
         geomap_colors: dict | bool | None = None,
         boundaries: list | tuple | None = None,
         title: str = "",
@@ -254,9 +248,16 @@ class NetworkMapPlotter:
         if boundaries is None:
             boundaries = self.boundaries
 
+        # Check if geomap is requested but cartopy not available
+        if geomap and not cartopy_present:
+            logger.warning(
+                "Cartopy is not available. Falling back to non-geographic plotting."
+            )
+            geomap = False
+
         # Set up plot (either cartopy or matplotlib)
-        network_projection = cartopy.crs.Projection(self.n.crs)
         if geomap:
+            network_projection = cartopy.crs.Projection(self.n.crs)
             if projection is None:
                 projection = network_projection
             elif not isinstance(projection, cartopy.crs.Projection):
@@ -280,7 +281,7 @@ class NetworkMapPlotter:
             self.x, self.y = pd.Series(x, self.x.index), pd.Series(y, self.y.index)
 
             if geomap_colors is not False:
-                self.add_geomap_features(geomap, geomap_colors)
+                self.add_geomap_features(geomap_resolution, geomap_colors)
 
             self.ax.set_extent(boundaries, crs=network_projection)
 
@@ -295,8 +296,12 @@ class NetworkMapPlotter:
         self.ax.axis("off")
         self.ax.set_title(title)
 
-    def add_geomap_features(self, geomap=True, geomap_colors=None):
-        resolution = "50m" if isinstance(geomap, bool) else geomap
+    def add_geomap_features(self, resolution: str = "50m", geomap_colors=None):
+        """Add geographic features to the map using cartopy."""
+        if not cartopy_present:
+            logger.warning("Cartopy is not available. Cannot add geographic features.")
+            return
+
         if resolution not in ["10m", "50m", "110m"]:
             msg = "Resolution has to be one of '10m', '50m', '110m'"
             raise ValueError(msg)
@@ -335,7 +340,7 @@ class NetworkMapPlotter:
             edgecolor=geomap_colors.get("coastline", "black"),
         )
 
-    def add_jitter(self, jitter):
+    def add_jitter(self, jitter: float):
         """
         Add random jitter to data.
 
@@ -357,9 +362,8 @@ class NetworkMapPlotter:
             Y data with added jitter.
         """
         rng = np.random.default_rng()  # Create a random number generator
-        if jitter is not None:
-            self.x = self.x + rng.uniform(low=-jitter, high=jitter, size=len(self.x))
-            self.y = self.y + rng.uniform(low=-jitter, high=jitter, size=len(self.y))
+        self.x = self.x + rng.uniform(low=-jitter, high=jitter, size=len(self.x))
+        self.y = self.y + rng.uniform(low=-jitter, high=jitter, size=len(self.y))
 
         return self.x, self.y
 
@@ -748,8 +752,9 @@ class NetworkMapPlotter:
     def static_map(
         self,
         ax: plt.Axes = None,
-        projection: cartopy.crs.Projection = None,
+        projection: Any = None,
         geomap: bool = True,
+        geomap_resolution: str = "50m",
         geomap_colors: dict | bool | None = None,
         title: str = "",
         boundaries: list | tuple | None = None,
@@ -930,6 +935,7 @@ class NetworkMapPlotter:
             ax=self.ax if ax is None else ax,
             projection=projection,
             geomap=geomap,
+            geomap_resolution=geomap_resolution,
             geomap_colors=geomap_colors,
             title=title,
             boundaries=boundaries,
@@ -1117,8 +1123,9 @@ class NetworkMapPlotter:
         self: NetworkMapPlotter,
         carrier: str,
         ax: plt.Axes = None,
-        projection: cartopy.crs.Projection = None,
+        projection: Any = None,
         geomap: bool = True,
+        geomap_resolution: str = "50m",
         geomap_colors: dict | bool | None = None,
         boundaries: list | tuple | None = None,
         title: str = "",
@@ -1216,6 +1223,7 @@ class NetworkMapPlotter:
             ax=ax,
             projection=projection,
             geomap=geomap,
+            geomap_resolution=geomap_resolution,
             geomap_colors=geomap_colors,
             title=title,
             boundaries=boundaries,
@@ -1289,8 +1297,9 @@ def plot(
     layouter: nx.drawing.layout = None,
     boundaries: list | tuple | None = None,
     margin: float | None = 0.05,
-    projection: cartopy.crs.Projection = None,
+    projection: Any = None,
     geomap: bool | str = True,
+    geomap_resolution: str = "50m",
     geomap_colors: dict | bool | None = None,
     title: str = "",
     jitter: float | None = None,
@@ -1315,6 +1324,15 @@ def plot(
     else:
         buses = n.buses.index
 
+    if isinstance(geomap, str):
+        logger.warning(
+            "The `geomap` argument now only accepts a boolean value. "
+            "If you want to set the resolution, use the `geomap_resolution` "
+            "argument instead."
+        )
+        geomap = True
+        geomap_resolution = geomap
+
     # setup plotter
     plotter = NetworkMapPlotter(
         n,
@@ -1332,6 +1350,7 @@ def plot(
         ax,
         projection=projection,
         geomap=geomap,
+        geomap_resolution=geomap_resolution,
         geomap_colors=geomap_colors,
         title=title,
         **kwargs,

@@ -48,7 +48,6 @@ Source = "https://github.com/PyPSA/PyPSA"
 hdf5 = ["tables"]
 cartopy = [
     "cartopy>=0.16",
-    "requests",
 ]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib[all]"]

@@ -290,3 +290,11 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         __import__(module_name)
     except ImportError:
         raise ImportError(install_message)
+
+
+def _convert_to_series(variable: dict | Sequence, index: pd.Index) -> pd.Series:
+    if isinstance(variable, dict):
+        return pd.Series(variable)
+    elif not isinstance(variable, pd.Series):
+        return pd.Series(variable, index=index)
+    return variable
