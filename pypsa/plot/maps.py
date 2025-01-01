@@ -203,7 +203,7 @@ class NetworkMapPlotter:
 
     @area_factor.setter
     def area_factor(self, value):
-        if value is not None and not isinstance(value, (int, float)):
+        if value is not None and not isinstance(value, int | float):
             raise ValueError("area_factor must be a number")
         self._area_factor = value
 
@@ -436,7 +436,7 @@ class NetworkMapPlotter:
         elif isinstance(flow, str) or callable(flow):
             return self.n.dynamic(component_name).p0.agg(flow, axis=0)
 
-        elif isinstance(flow, (int, float)):
+        elif isinstance(flow, int | float):
             return pd.Series(flow, index=self.n.static(component_name).index)
 
         elif flow is not None:
