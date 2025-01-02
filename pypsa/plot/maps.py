@@ -115,9 +115,9 @@ def apply_layouter(
         return coordinates.x, coordinates.y
 
 
-class NetworkMapPlotter:
+class MapPlotter:
     def __init__(
-        self: NetworkMapPlotter,
+        self: MapPlotter,
         n: Network,
         layout: nx.drawing.layout = None,
         boundaries=None,
@@ -646,7 +646,7 @@ class NetworkMapPlotter:
         )
 
     def get_flow_collection(
-        self: NetworkMapPlotter,
+        self: MapPlotter,
         c: str,
         flow: pd.Series,
         widths: pd.Series,
@@ -749,7 +749,7 @@ class NetworkMapPlotter:
         """
         return abs(flow) ** 0.5 * width_factor
 
-    def static_map(
+    def draw_map(
         self,
         ax: plt.Axes = None,
         projection: Any = None,
@@ -1119,8 +1119,45 @@ class NetworkMapPlotter:
             "flows": flow_collections,
         }
 
-    def static_balance_map(
-        self: NetworkMapPlotter,
+    def _plot_statistics(
+        self: MapPlotter,
+        data: dict[str, pd.DataFrame],
+        bus_carrier: str | None = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Implement map plotting logic"""
+
+        bus_data = data["bus_data"]
+        branch_data = data["branch_data"]
+
+        # Handle transmission carriers separately
+        transmission_carriers = get_transmission_carriers(  # noqa: F841
+            self._network, bus_carrier=bus_carrier
+        ).unique(1)
+        bus_data = bus_data.query(
+            "not (carrier in @transmission_carriers and component == 'Link')"
+        )
+        bus_data = bus_data.set_index(["bus", "carrier"])
+
+        branch_data["color"] = branch_data["carrier"].map(self._network.carriers.color)
+        branch_data = branch_data.set_index(["component", "name"])
+
+        # Plot non-transmission data
+        self._plotter.draw_map(
+            bus_sizes=bus_data.groupby("bus")["value"].sum(),
+            line_widths=branch_data.value.get("Line", 0),
+            line_colors=branch_data.color.get("Line", "k"),
+            link_widths=branch_data.value.get("Link", 0),
+            link_colors=branch_data.color.get("Link", "k"),
+            transformer_widths=branch_data.get("Transformer", 0),
+            transformer_colors=branch_data.color.get("Transformer", "k"),
+            auto_scale_branches=False,
+        )
+
+        return plt.gcf()
+
+    def energy_balance(
+        self: MapPlotter,
         carrier: str,
         ax: plt.Axes = None,
         projection: Any = None,
@@ -1191,13 +1228,13 @@ class NetworkMapPlotter:
 
         # Calculate map bounds and scaling
         boundaries = boundaries or self.boundaries
-        bus_size_factor = NetworkMapPlotter.scaling_factor_from_area_contribution(
+        bus_size_factor = MapPlotter.scaling_factor_from_area_contribution(
             balance, *boundaries, target_area_fraction=bus_area_fraction
         )
 
         # Calculate flows
         flow = s.transmission(groupby=False, bus_carrier=carrier)
-        flow = NetworkMapPlotter.aggregate_flow_by_connection(flow, n.branches())
+        flow = MapPlotter.aggregate_flow_by_connection(flow, n.branches())
         flow_scaling_factor = self.scaling_factor_from_area_contribution(
             flow, *boundaries, target_area_fraction=flow_area_fraction
         )
@@ -1210,8 +1247,8 @@ class NetworkMapPlotter:
         plot_args = dict(
             bus_sizes=bus_size_factor * balance,
             bus_split_circles=True,
-            line_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Line", 0)),
-            link_widths=NetworkMapPlotter.flow_to_width(flow_scaled.get("Link", 0)),
+            line_widths=MapPlotter.flow_to_width(flow_scaled.get("Line", 0)),
+            link_widths=MapPlotter.flow_to_width(flow_scaled.get("Link", 0)),
             line_flow=flow_scaled.get("Line"),
             link_flow=flow_scaled.get("Link"),
             auto_scale_branches=False,
@@ -1219,7 +1256,7 @@ class NetworkMapPlotter:
         if kwargs:
             plot_args.update(kwargs)
 
-        self.static_map(
+        self.draw_map(
             ax=ax,
             projection=projection,
             geomap=geomap,
@@ -1290,7 +1327,7 @@ class NetworkMapPlotter:
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
 )
-@wraps(NetworkMapPlotter.static_map)
+@wraps(MapPlotter.draw_map)
 def plot(
     n: Network,
     ax: plt.Axes = None,
@@ -1334,7 +1371,7 @@ def plot(
         geomap_resolution = geomap
 
     # setup plotter
-    plotter = NetworkMapPlotter(
+    plotter = MapPlotter(
         n,
         layouter,
         boundaries=boundaries,
@@ -1346,7 +1383,7 @@ def plot(
     if jitter is not None:
         plotter.add_jitter(jitter)
 
-    return plotter.static_map(
+    return plotter.draw_map(
         ax,
         projection=projection,
         geomap=geomap,

@@ -96,7 +96,8 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import explore, iplot, plot  # type: ignore
+from pypsa.plot import explore, iplot  # type: ignore
+from pypsa.plot.accessors import PlotAccessor
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 from pypsa.utils import as_index, deprecated_common_kwargs
@@ -246,9 +247,28 @@ class Network:
     pf = network_pf
 
     # from pypsa.plot
-    plot = plot
     iplot = iplot
     explore = explore
+
+    @property
+    def plot(self) -> PlotAccessor:
+        """
+        Access plotting functionality.
+
+        Provides access to different plot types through sub-accessors:
+        - maps: For network topology on static maps
+        - bar: For bar plots of network statistics
+        - line: For time series data
+        - area: For stacked area plots
+
+        Examples
+        --------
+        >>> n.plot.maps()  # Static map plot
+        >>> n.plot.bar.optimal_capacity(groupby=["carrier"])  # Bar plot
+        >>> n.plot.line.energy_balance(groupby=["carrier"])  # Line plot
+        >>> n.plot.area.supply(groupby=["carrier"])  # Area plot
+        """
+        return PlotAccessor(self)
 
     # from pypsa.contingency
     lpf_contingency = network_lpf_contingency
@@ -546,7 +566,7 @@ class Network:
 
     @meta.setter
     def meta(self, new: dict) -> None:
-        if not isinstance(new, (dict, Dict)):
+        if not isinstance(new, dict | Dict):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
