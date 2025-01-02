@@ -81,7 +81,7 @@ Screenshots
 Dependencies
 ============
 
-PyPSA is written and tested to be compatible with Python 3.9 and
+PyPSA is written and tested to be compatible with Python 3.10 and
 above.
 
 

@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import functools
 import warnings
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -94,15 +94,15 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
     if isinstance(a, np.ndarray):
         if not np.array_equal(a, b):
             return False
-    elif isinstance(a, (pd.DataFrame, pd.Series, pd.Index)):
+    elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
         if not a.equals(b):
             return False
     # Iterators
-    elif isinstance(a, (dict, Dict)):
+    elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
             if not equals(v, b[k]):
                 return False
-    elif isinstance(a, (list, tuple)):
+    elif isinstance(a, (list | tuple)):
         for i, v in enumerate(a):
             if not equals(v, b[i]):
                 return False

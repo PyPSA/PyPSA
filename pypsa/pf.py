@@ -465,7 +465,7 @@ def sub_network_pf(
     remaining error, and convergence status for each snapshot
     """
 
-    if not isinstance(slack_weights, (str, pd.Series, dict)):
+    if not isinstance(slack_weights, (str | pd.Series | dict)):
         msg = (
             f"Type of 'slack_weights' must be string, pd.Series or dict. Got "
             f"{type(slack_weights)}."
