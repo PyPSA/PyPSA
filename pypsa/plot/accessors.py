@@ -7,6 +7,10 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import pandas as pd
 import seaborn.objects as so
 
+from pypsa.consistency import (
+    check_for_missing_carrier_colors,
+    check_for_unknown_carriers,
+)
 from pypsa.plot.maps import MapPlotter, plot
 
 if TYPE_CHECKING:
@@ -50,6 +54,11 @@ class BasePlotTypeAccessor:
         """Validation method to be implemented by subclasses"""
         pass
 
+    def _check_plotting_consistency(self: BasePlotTypeAccessor) -> None:
+        for c in self._network.iterate_components():
+            check_for_unknown_carriers(self._network, c, strict=True)
+        check_for_missing_carrier_colors(self._network, strict=True)
+
     def _get_carrier_colors(self, data: pd.DataFrame) -> dict:
         """Get colors for carriers from network.carriers.color"""
         if "carrier" in data.columns:
@@ -79,6 +88,7 @@ class BasePlotTypeAccessor:
         self: BasePlotTypeAccessor, func: Callable, *args: Any, **kwargs: Any
     ) -> Any:
         """Common data processing pipeline"""
+        self._check_plotting_consistency()
         plot_kwargs = kwargs.pop("plot_kwargs", {})
         data = func(*args, **kwargs)
         data = self._to_long_format(data)

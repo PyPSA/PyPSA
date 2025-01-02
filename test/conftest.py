@@ -54,7 +54,13 @@ def ac_dc_network():
         os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
     )
     n = pypsa.Network(csv_folder)
+    # TODO: consolidate this with examples.py
     n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    n.carriers["color"] = ["red", "blue", "green"]
+    n.loads["carrier"] = "load"
+    n.add("Carrier", "load", color="black")
+    n.add("Carrier", "AC", color="orange")
+    n.add("Carrier", "DC", color="purple")
     n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
     return n
 
@@ -70,7 +76,13 @@ def ac_dc_network_r():
         "results-lopf",
     )
     n = pypsa.Network(csv_folder)
+    # TODO: consolidate this with examples.py
     n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    n.carriers["color"] = ["red", "blue", "green"]
+    n.loads["carrier"] = "load"
+    n.add("Carrier", "load", color="black")
+    n.add("Carrier", "AC", color="orange")
+    n.add("Carrier", "DC", color="purple")
     n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
     return n
 
