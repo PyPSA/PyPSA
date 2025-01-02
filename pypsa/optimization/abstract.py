@@ -394,7 +394,7 @@ def optimize_security_constrained(
 
     if branch_outages is None:
         branch_outages = all_passive_branches
-    elif isinstance(branch_outages, (list, pd.Index)):
+    elif isinstance(branch_outages, (list | pd.Index)):
         branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
         if diff := set(branch_outages) - set(all_passive_branches):
@@ -599,7 +599,7 @@ def optimize_mga(
         fixed_cost = (n.statistics.installed_capex().sum() * w).sum()
 
     objective = m.objective
-    if not isinstance(objective, (LinearExpression, QuadraticExpression)):
+    if not isinstance(objective, (LinearExpression | QuadraticExpression)):
         objective = objective.expression
 
     m.add_constraints(
