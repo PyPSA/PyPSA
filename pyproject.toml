@@ -33,6 +33,7 @@ dependencies = [
     "netcdf4",
     "linopy>=0.4",
     "matplotlib",
+    "seaborn",
     "geopandas>=0.9",
     "networkx>=2",
     "deprecation",

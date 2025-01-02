@@ -4,9 +4,8 @@ from collections.abc import Callable, Sequence
 from functools import wraps
 from typing import TYPE_CHECKING, Any, ClassVar
 
-import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
+import seaborn.objects as so
 
 from pypsa.plot.maps import MapPlotter, plot
 
@@ -47,9 +46,30 @@ class BasePlotTypeAccessor:
         else:
             return data.fillna(0).melt(ignore_index=False).reset_index()
 
-    def _validate(self: BasePlotTypeAccessor, data: pd.DataFrame) -> pd.DataFrame:
+    def _validate(self: BasePlotTypeAccessor, data: pd.DataFrame) -> None:
         """Validation method to be implemented by subclasses"""
-        raise NotImplementedError
+        pass
+
+    def _get_carrier_colors(self, data: pd.DataFrame) -> dict:
+        """Get colors for carriers from network.carriers.color"""
+        if "carrier" in data.columns:
+            colors = self._network.carriers.color.copy()
+            colors["-"] = "gray"
+            return dict(colors[data["carrier"].dropna().unique()])
+        return {}
+
+    def _create_base_plot(
+        self, data: pd.DataFrame, x: str, y: str, **kwargs: Any
+    ) -> so.Plot:
+        """Create base plot with carrier colors"""
+        colors = self._get_carrier_colors(data)
+        return (
+            so.Plot(data, x=x, y=y, color="carrier" if colors else None).scale(
+                color=so.Nominal(colors)
+            )
+            if colors
+            else so.Plot(data, x=x, y=y)
+        )
 
     def _plot(self: BasePlotTypeAccessor, data: pd.DataFrame, **kwargs: Any) -> Any:
         """Plot method to be implemented by subclasses"""
@@ -212,32 +232,21 @@ class BarPlotter(BasePlotTypeAccessor):
         orientation: str | None = None,
         **kwargs: Any,
     ) -> Any:
-        """Implement bar plotting logic"""
+        """Implement bar plotting logic with seaborn.objects"""
         orientation = orientation or self._default_orientation
+        x = "value" if orientation == "horizontal" else "carrier"
+        y = "carrier" if orientation == "horizontal" else "value"
 
-        # Handle bus_carrier subplots
+        plot = self._create_base_plot(data, x=x, y=y)
+
         if "bus_carrier" in data.columns:
-            g = sns.FacetGrid(data, col="bus_carrier", sharey=False)
-            g.map_dataframe(
-                sns.barplot,
-                x="value" if orientation == "horizontal" else "carrier",
-                y="carrier" if orientation == "horizontal" else "value",
-                hue="carrier" if stacked else None,
-                orient=orientation,
-                **kwargs,
-            )
-        else:
-            plt.figure()
-            sns.barplot(
-                data=data,
-                x="value" if orientation == "horizontal" else "carrier",
-                y="carrier" if orientation == "horizontal" else "value",
-                hue="carrier" if stacked else None,
-                orient=orientation,
-                **kwargs,
-            )
-        plt.tight_layout()
-        return plt.gcf()
+            plot = plot.facet(col="bus_carrier")
+
+        transforms = [so.Agg()]
+        if stacked:
+            transforms.append(so.Dodge())
+
+        return plot.add(so.Bar(), *transforms).label(x=x.title(), y=y.title()).plot()
 
 
 class LinePlotter(BasePlotTypeAccessor):
@@ -250,9 +259,13 @@ class LinePlotter(BasePlotTypeAccessor):
         self._time_aggregation = False
 
     def _validate(self: LinePlotter, data: pd.DataFrame) -> pd.DataFrame:
-        """Implement time series data validation"""
-        if not isinstance(data.index, pd.DatetimeIndex):
-            raise ValueError("Data must have a datetime index for time series plots")
+        """Implement data validation for line plots"""
+        # For time series data, ensure datetime index
+        if "snapshot" in data.columns:
+            try:
+                data["snapshot"] = pd.to_datetime(data["snapshot"])
+            except (ValueError, TypeError):
+                pass
         return data
 
     def _plot(
@@ -261,23 +274,16 @@ class LinePlotter(BasePlotTypeAccessor):
         resample: str | None = None,
         **kwargs: Any,
     ) -> Any:
-        """Implement line plotting logic"""
-        resample = resample or self._default_resample
-
+        """Implement line plotting logic with seaborn.objects"""
         if resample:
             data = data.set_index("snapshot").resample(resample).mean().reset_index()
 
-        # Handle bus_carrier subplots
+        plot = self._create_base_plot(data, x="snapshot", y="value")
+
         if "bus_carrier" in data.columns:
-            g = sns.FacetGrid(data, col="bus_carrier", sharey=False)
-            g.map_dataframe(
-                sns.lineplot, x="snapshot", y="value", hue="carrier", **kwargs
-            )
-        else:
-            plt.figure()
-            sns.lineplot(data=data, x="snapshot", y="value", hue="carrier", **kwargs)
-        plt.tight_layout()
-        return plt.gcf()
+            plot = plot.facet(col="bus_carrier")
+
+        return plot.add(so.Line()).label(x="Time", y="Value").plot()
 
 
 class AreaPlotter(BasePlotTypeAccessor):
@@ -291,9 +297,13 @@ class AreaPlotter(BasePlotTypeAccessor):
         self._time_aggregation = False
 
     def _validate(self: AreaPlotter, data: pd.DataFrame) -> pd.DataFrame:
-        """Implement time series data validation"""
-        if not isinstance(data.index, pd.DatetimeIndex):
-            raise ValueError("Data must have a datetime index for time series plots")
+        """Implement data validation for area plots"""
+        # For time series data, ensure datetime index
+        if "snapshot" in data.columns:
+            try:
+                data["snapshot"] = pd.to_datetime(data["snapshot"])
+            except (ValueError, TypeError):
+                pass
         return data
 
     def _plot(
@@ -303,32 +313,23 @@ class AreaPlotter(BasePlotTypeAccessor):
         stacked: bool | None = None,
         **kwargs: Any,
     ) -> Any:
-        """Implement area plotting logic"""
+        """Implement area plotting logic with seaborn.objects"""
         resample = resample or self._default_resample
         stacked = stacked if stacked is not None else self._default_stacked
 
         if resample:
             data = data.set_index("snapshot").resample(resample).mean().reset_index()
 
-        # Handle bus_carrier subplots
+        plot = self._create_base_plot(data, x="snapshot", y="value")
+
         if "bus_carrier" in data.columns:
-            g = sns.FacetGrid(data, col="bus_carrier", sharey=False)
-            g.map_dataframe(
-                sns.lineplot, x="snapshot", y="value", hue="carrier", **kwargs
-            )
-            for ax in g.axes.flat:
-                ax.fill_between(
-                    ax.lines[0].get_xdata(), ax.lines[0].get_ydata(), alpha=0.2
-                )
-        else:
-            plt.figure()
-            ax = sns.lineplot(
-                data=data, x="snapshot", y="value", hue="carrier", **kwargs
-            )
-            for line in ax.lines:
-                ax.fill_between(line.get_xdata(), line.get_ydata(), alpha=0.2)
-        plt.tight_layout()
-        return plt.gcf()
+            plot = plot.facet(col="bus_carrier")
+
+        return (
+            plot.add(so.Area(), so.Stack() if stacked else None)
+            .label(x="", y="Value")
+            .plot()
+        )
 
 
 class PlotAccessor:

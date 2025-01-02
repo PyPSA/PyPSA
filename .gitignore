@@ -63,3 +63,4 @@ dev
 
 .venv
 .aider*
+uv.lock
