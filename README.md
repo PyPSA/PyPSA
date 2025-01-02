@@ -142,7 +142,7 @@ for 2015.
 
 ## Dependencies
 
-PyPSA is written and tested to be compatible with Python 3.9 and above.
+PyPSA is written and tested to be compatible with Python 3.10 and above.
 The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 It leans heavily on the following Python packages:

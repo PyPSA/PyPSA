@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import functools
 import warnings
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
