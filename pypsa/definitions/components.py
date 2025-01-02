@@ -83,7 +83,7 @@ class ComponentsStore(dict):
         >>> components[["generator", "stores"]]
         ['Generator class instance', 'Stores class instance']
         """
-        if isinstance(item, (list, set)):
+        if isinstance(item, (list | set)):
             return [self[key] for key in item]
         else:
             if item in COMPONENT_ALIAS_DICT:

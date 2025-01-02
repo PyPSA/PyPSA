@@ -5,8 +5,8 @@ Statistics Expression Accessor.
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection, Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Collection, Sequence
+from typing import TYPE_CHECKING, Any
 
 import linopy as ln
 import numpy as np
@@ -84,7 +84,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             raise ValueError(f"Aggregation method {agg} not supported.")
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
-        return vals is None or not np.prod(vals.shape)
+        return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
 
     def _aggregate_components_groupby(
         self, vals: LinearExpression, grouping: pd.DataFrame, agg: Callable | str
@@ -117,7 +117,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     ) -> LinearExpression:
         if agg != "sum":
             raise ValueError(f"Aggregation method {agg} not supported.")
-        if expr.empty:
+        if expr.empty():
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
         return expr.groupby(group).sum()
@@ -128,6 +128,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
         m = self.n.model
 
+        if c == "Load":
+            return LinearExpression(self.n.get_switchable_as_dense(c, "p_set"), m)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             assert set(["p_store", "p_dispatch"]) <= set(attr)

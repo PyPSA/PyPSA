@@ -257,7 +257,7 @@ class ImporterHDF5(Importer):
         )
         self.path = path
         self.ds: pd.HDFStore
-        if isinstance(path, (str, Path)):
+        if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
             self.ds = pd.HDFStore(path, mode="r")
@@ -363,7 +363,7 @@ class ImporterNetCDF(Importer):
 
     def __init__(self, path: str | Path | xr.Dataset) -> None:
         self.path = path
-        if isinstance(path, (str, Path)):
+        if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
             self.ds = xr.open_dataset(path)
@@ -371,7 +371,7 @@ class ImporterNetCDF(Importer):
             self.ds = path
 
     def __enter__(self) -> ImporterNetCDF:
-        if isinstance(self.path, (str, Path)):
+        if isinstance(self.path, (str | Path)):
             super().__init__()
         return self
 
@@ -381,7 +381,7 @@ class ImporterNetCDF(Importer):
         exc_val: BaseException,
         exc_tb: TracebackType,
     ) -> None:
-        if isinstance(self.path, (str, Path)):
+        if isinstance(self.path, (str | Path)):
             super().__exit__(exc_type, exc_val, exc_tb)
 
     def get_attributes(self) -> dict:
@@ -925,7 +925,7 @@ def _import_from_importer(
     periods = importer.get_investment_periods()
 
     if periods is not None:
-        n._investment_periods = periods.index
+        n.periods = periods.index
 
         n._investment_period_weightings = periods.reindex(n.investment_periods)
 

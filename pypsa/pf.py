@@ -146,7 +146,7 @@ def _network_prepare_and_run_pf(
         calculate_dependent_values(n)
         _allocate_pf_outputs(n, linear)
 
-    sns = as_index(n, snapshots, "snapshots", "snapshot")
+    sns = as_index(n, snapshots, "snapshots")
 
     # deal with links
     if not n.links.empty:
@@ -349,7 +349,7 @@ def sub_network_pf_singlebus(
         that has the generators of the single bus as index/keys.
     """
 
-    sns = as_index(sub_network.n, snapshots, "snapshots", "snapshot")
+    sns = as_index(sub_network.n, snapshots, "snapshots")
     n = sub_network.n
     logger.info(
         f"Balancing power on single-bus sub-network {sub_network} for snapshots {snapshots}"
@@ -465,7 +465,7 @@ def sub_network_pf(
     remaining error, and convergence status for each snapshot
     """
 
-    if not isinstance(slack_weights, (str, pd.Series, dict)):
+    if not isinstance(slack_weights, (str | pd.Series | dict)):
         msg = (
             f"Type of 'slack_weights' must be string, pd.Series or dict. Got "
             f"{type(slack_weights)}."
@@ -483,7 +483,7 @@ def sub_network_pf(
             )
             raise ValueError(msg)
 
-    sns = as_index(sub_network.n, snapshots, "snapshots", "snapshot")
+    sns = as_index(sub_network.n, snapshots, "snapshots")
     logger.info(
         "Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(
             sub_network.n.sub_networks.at[sub_network.name, "carrier"],
@@ -844,7 +844,7 @@ def network_lpf(
     -------
     None
     """
-    sns = as_index(n, snapshots, "snapshots", "snapshot")
+    sns = as_index(n, snapshots, "snapshots")
     _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
 
 
@@ -1449,7 +1449,7 @@ def sub_network_lpf(
     -------
     None
     """
-    sns = as_index(sub_network.n, snapshots, "snapshots", "snapshot")
+    sns = as_index(sub_network.n, snapshots, "snapshots")
     logger.info(
         "Performing linear load-flow on %s sub-network %s for snapshot(s) %s",
         sub_network.n.sub_networks.at[sub_network.name, "carrier"],
