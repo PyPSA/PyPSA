@@ -50,19 +50,22 @@ class BasePlotTypeAccessor:
         else:
             return data.fillna(0).melt(ignore_index=False).reset_index()
 
-    def _validate(self: BasePlotTypeAccessor, data: pd.DataFrame) -> None:
+    def _validate(self: BasePlotTypeAccessor, data: pd.DataFrame) -> pd.DataFrame:
         """Validation method to be implemented by subclasses"""
-        pass
+        return data
 
     def _check_plotting_consistency(self: BasePlotTypeAccessor) -> None:
         for c in self._network.iterate_components():
             check_for_unknown_carriers(self._network, c, strict=True)
         check_for_missing_carrier_colors(self._network, strict=True)
 
-    def _get_carrier_colors(self, data: pd.DataFrame) -> dict:
+    def _get_carrier_colors(self, data: pd.DataFrame, nice_name: bool = True) -> dict:
         """Get colors for carriers from network.carriers.color"""
         if "carrier" in data.columns:
-            colors = self._network.carriers.color.copy()
+            if nice_name:
+                colors = self._network.carriers.set_index("nice_name").color
+            else:
+                colors = self._network.carriers.color
             colors["-"] = "gray"
             return dict(colors[data["carrier"].dropna().unique()])
         return {}
@@ -72,7 +75,7 @@ class BasePlotTypeAccessor:
     ) -> so.Plot:
         """Create base plot with carrier colors"""
         colors = self._get_carrier_colors(data)
-        return (
+        plot = (
             so.Plot(data, x=x, y=y, color="carrier" if colors else None).scale(
                 color=so.Nominal(colors)
             )
@@ -80,144 +83,241 @@ class BasePlotTypeAccessor:
             else so.Plot(data, x=x, y=y)
         )
 
+        # Add faceting for component and bus_carrier if present
+        if "component" in data.columns:
+            plot = plot.facet(col="component")
+        if "bus_carrier" in data.columns:
+            plot = plot.facet(row="bus_carrier")
+
+        return plot
+
     def _plot(self: BasePlotTypeAccessor, data: pd.DataFrame, **kwargs: Any) -> Any:
         """Plot method to be implemented by subclasses"""
         raise NotImplementedError
 
     def _process_data(
-        self: BasePlotTypeAccessor, func: Callable, *args: Any, **kwargs: Any
+        self: BasePlotTypeAccessor, data: pd.DataFrame | pd.Series, **kwargs: Any
     ) -> Any:
         """Common data processing pipeline"""
         self._check_plotting_consistency()
         plot_kwargs = kwargs.pop("plot_kwargs", {})
-        data = func(*args, **kwargs)
         data = self._to_long_format(data)
         data = self._validate(data)
         return self._plot(data, **plot_kwargs)
 
     # Shared statistics methods
     def optimal_capacity(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot optimal capacity"""
-        return self._process_data(
-            self._statistics.optimal_capacity, groupby=groupby, plot_kwargs=kwargs
+        data = self._statistics.optimal_capacity(
+            groupby=groupby,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def installed_capacity(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot installed capacity"""
-        return self._process_data(
-            self._statistics.installed_capacity, groupby=groupby, plot_kwargs=kwargs
+        data = self._statistics.installed_capacity(
+            groupby=groupby,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def supply(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot supply data"""
-        return self._process_data(
-            self._statistics.supply,
+        data = self._statistics.supply(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def withdrawal(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot withdrawal data"""
-        return self._process_data(
-            self._statistics.withdrawal,
+        data = self._statistics.withdrawal(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def energy_balance(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot energy balance"""
-        return self._process_data(
-            self._statistics.energy_balance,
+        data = self._statistics.energy_balance(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def transmission(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot transmission data"""
-        return self._process_data(
-            self._statistics.transmission,
+        data = self._statistics.transmission(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def capacity_factor(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot capacity factor"""
-        return self._process_data(
-            self._statistics.capacity_factor,
+        data = self._statistics.capacity_factor(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def curtailment(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot curtailment"""
-        return self._process_data(
-            self._statistics.curtailment,
+        data = self._statistics.curtailment(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def capex(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot capital expenditure"""
-        return self._process_data(
-            self._statistics.capex, groupby=groupby, plot_kwargs=kwargs
+        data = self._statistics.capex(
+            groupby=groupby,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def opex(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot operational expenditure"""
-        return self._process_data(
-            self._statistics.opex,
+        data = self._statistics.opex(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def revenue(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot revenue"""
-        return self._process_data(
-            self._statistics.revenue,
+        data = self._statistics.revenue(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
     def market_value(
-        self: BasePlotTypeAccessor, groupby: Sequence[str] = ["carrier"], **kwargs: Any
+        self: BasePlotTypeAccessor,
+        groupby: Sequence[str] = ["carrier"],
+        aggregate_across_components: bool = True,
+        bus_carrier: str | None = None,
+        nice_names: bool = True,
+        **kwargs: Any,
     ) -> Any:
         """Plot market value"""
-        return self._process_data(
-            self._statistics.market_value,
+        data = self._statistics.market_value(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
-            plot_kwargs=kwargs,
+            aggregate_across_components=aggregate_across_components,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
         )
+        return self._process_data(data, plot_kwargs=kwargs)
 
 
 class BarPlotter(BasePlotTypeAccessor):
@@ -248,9 +348,6 @@ class BarPlotter(BasePlotTypeAccessor):
         y = "carrier" if orientation == "horizontal" else "value"
 
         plot = self._create_base_plot(data, x=x, y=y)
-
-        if "bus_carrier" in data.columns:
-            plot = plot.facet(col="bus_carrier")
 
         transforms = [so.Agg()]
         if stacked:
@@ -290,9 +387,6 @@ class LinePlotter(BasePlotTypeAccessor):
 
         plot = self._create_base_plot(data, x="snapshot", y="value")
 
-        if "bus_carrier" in data.columns:
-            plot = plot.facet(col="bus_carrier")
-
         return plot.add(so.Line()).label(x="Time", y="Value").plot()
 
 
@@ -331,9 +425,6 @@ class AreaPlotter(BasePlotTypeAccessor):
             data = data.set_index("snapshot").resample(resample).mean().reset_index()
 
         plot = self._create_base_plot(data, x="snapshot", y="value")
-
-        if "bus_carrier" in data.columns:
-            plot = plot.facet(col="bus_carrier")
 
         return (
             plot.add(so.Area(), so.Stack() if stacked else None)
