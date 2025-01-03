@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from pypsa.plot.accessors import (
     AreaPlotter,
@@ -194,3 +195,133 @@ def test_plot_methods_with_plot_kwargs(ac_dc_network_r):
     # Test area plot kwargs
     plot.area.energy_balance(stacked=True)
     plot.area.transmission(stacked=False)
+
+def test_base_plot_type_accessor_initialization(ac_dc_network_r):
+    """Test BasePlotTypeAccessor initialization"""
+    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    
+    assert hasattr(accessor, '_network')
+    assert hasattr(accessor, '_statistics')
+    assert accessor._time_aggregation is False
+
+def test_to_long_format_series(ac_dc_network_r):
+    """Test _to_long_format with Series input"""
+    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    
+    # Create test series with multiindex
+    index = pd.MultiIndex.from_tuples([('a', 1), ('b', 2)], names=['carrier', 'bus'])
+    series = pd.Series([10, 20], index=index)
+    
+    result = accessor._to_long_format(series)
+    
+    assert isinstance(result, pd.DataFrame)
+    assert set(result.columns) == {'carrier', 'bus', 'value'}
+
+def test_check_plotting_consistency(ac_dc_network_r):
+    """Test _check_plotting_consistency method"""
+    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    
+    # Should not raise errors with valid network
+    accessor._check_plotting_consistency()
+
+def test_get_carrier_colors(ac_dc_network_r):
+    """Test _get_carrier_colors method"""
+    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    
+    # Test with carrier data
+    data = pd.DataFrame({'carrier': ['solar', 'wind']})
+    colors = accessor._get_carrier_colors(data)
+    
+    assert isinstance(colors, dict)
+    assert 'solar' in colors
+    assert 'wind' in colors
+    assert '-' in colors  # Test default gray color
+
+def test_get_carrier_labels(ac_dc_network_r):
+    """Test _get_carrier_labels method"""
+    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    
+    # Test with nice names
+    labels = accessor._get_carrier_labels(nice_name=True)
+    assert isinstance(labels, dict)
+    
+    # Test without nice names
+    labels = accessor._get_carrier_labels(nice_name=False)
+    assert labels is None
+
+def test_create_base_plot(ac_dc_network_r):
+    """Test _create_base_plot method"""
+    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    
+    # Test with simple data
+    data = pd.DataFrame({
+        'carrier': ['solar', 'wind'],
+        'value': [10, 20],
+        'bus_carrier': ['AC', 'AC']
+    })
+    
+    plot = accessor._create_base_plot(data, x='carrier', y='value')
+    assert isinstance(plot, so.Plot)
+
+def test_process_data(ac_dc_network_r):
+    """Test _process_data method"""
+    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    
+    # Test with mock data
+    data = pd.DataFrame({
+        'carrier': ['solar', 'wind'],
+        'value': [10, 20]
+    })
+    
+    # Should raise NotImplementedError since _plot is abstract
+    with pytest.raises(NotImplementedError):
+        accessor._process_data(data)
+
+def test_bar_plotter_plot(ac_dc_network_r):
+    """Test BarPlotter._plot method"""
+    plotter = BarPlotter(ac_dc_network_r)
+    
+    # Test with simple data
+    data = pd.DataFrame({
+        'carrier': ['solar', 'wind'],
+        'value': [10, 20]
+    })
+    
+    plot = plotter._plot(data)
+    assert plot is not None
+
+def test_line_plotter_plot(ac_dc_network_r):
+    """Test LinePlotter._plot method"""
+    plotter = LinePlotter(ac_dc_network_r)
+    
+    # Test with time series data
+    data = pd.DataFrame({
+        'snapshot': pd.date_range('2023-01-01', periods=2),
+        'carrier': ['solar', 'wind'],
+        'value': [10, 20]
+    })
+    
+    plot = plotter._plot(data)
+    assert plot is not None
+
+def test_area_plotter_plot(ac_dc_network_r):
+    """Test AreaPlotter._plot method"""
+    plotter = AreaPlotter(ac_dc_network_r)
+    
+    # Test with time series data
+    data = pd.DataFrame({
+        'snapshot': pd.date_range('2023-01-01', periods=2),
+        'carrier': ['solar', 'wind'],
+        'value': [10, 20]
+    })
+    
+    plot = plotter._plot(data)
+    assert plot is not None
+
+def test_plot_accessor_call(ac_dc_network_r):
+    """Test PlotAccessor.__call__ method"""
+    plot = ac_dc_network_r.plot
+    
+    # Test map plotting
+    result = plot()
+    assert result is not None
