@@ -99,13 +99,98 @@ def test_plot_methods(ac_dc_network_r):
     plot.bar.optimal_capacity()
     plot.bar.installed_capacity()
     plot.bar.energy_balance()
+    plot.bar.capex()
+    plot.bar.opex()
+    plot.bar.revenue()
+    plot.bar.market_value()
 
     # Test line plot methods
     plot.line.supply()
     plot.line.withdrawal()
     plot.line.energy_balance()
+    plot.line.capacity_factor()
+    plot.line.curtailment()
+    plot.line.transmission()
 
     # Test area plot methods
     plot.area.supply()
     plot.area.withdrawal()
     plot.area.energy_balance()
+    plot.area.capacity_factor()
+    plot.area.curtailment()
+    plot.area.transmission()
+
+
+def test_plot_methods_with_bus_carrier(ac_dc_network_r):
+    """Test plotting methods with bus_carrier filtering"""
+    plot = ac_dc_network_r.plot
+
+    # Test with AC bus carrier
+    plot.bar.optimal_capacity(bus_carrier="AC")
+    plot.line.supply(bus_carrier="AC")
+    plot.area.energy_balance(bus_carrier="AC")
+
+    # Test with DC bus carrier
+    plot.bar.installed_capacity(bus_carrier="DC")
+    plot.line.withdrawal(bus_carrier="DC")
+    plot.area.transmission(bus_carrier="DC")
+
+
+def test_plot_methods_with_groupby(ac_dc_network_r):
+    """Test plotting methods with different groupby options"""
+    plot = ac_dc_network_r.plot
+
+    # Test single groupby
+    plot.bar.optimal_capacity(groupby=["carrier"])
+    plot.line.supply(groupby=["bus_carrier"])
+    plot.area.energy_balance(groupby=["carrier", "bus_carrier"])
+
+    # Test multiple groupby
+    plot.bar.installed_capacity(groupby=["carrier", "bus_carrier"])
+    plot.line.withdrawal(groupby=["carrier", "bus_carrier"])
+    plot.area.transmission(groupby=["bus_carrier"])
+
+
+def test_plot_methods_with_aggregation(ac_dc_network_r):
+    """Test plotting methods with aggregation options"""
+    plot = ac_dc_network_r.plot
+
+    # Test time aggregation
+    plot.line.supply(aggregate_time="mean")
+    plot.area.withdrawal(aggregate_time="sum")
+
+    # Test component aggregation
+    plot.bar.optimal_capacity(aggregate_across_components=False)
+    plot.line.energy_balance(aggregate_across_components=True)
+
+
+def test_plot_methods_with_nice_names(ac_dc_network_r):
+    """Test plotting methods with nice names"""
+    plot = ac_dc_network_r.plot
+
+    # Test with nice names
+    plot.bar.optimal_capacity(nice_names=True)
+    plot.line.supply(nice_names=True)
+    plot.area.energy_balance(nice_names=True)
+
+    # Test without nice names
+    plot.bar.installed_capacity(nice_names=False)
+    plot.line.withdrawal(nice_names=False)
+    plot.area.transmission(nice_names=False)
+
+
+def test_plot_methods_with_plot_kwargs(ac_dc_network_r):
+    """Test plotting methods with additional plot kwargs"""
+    plot = ac_dc_network_r.plot
+
+    # Test bar plot kwargs
+    plot.bar.optimal_capacity(stacked=True, orientation="horizontal")
+    plot.bar.installed_capacity(stacked=False, orientation="vertical")
+
+    # Test line plot kwargs
+    plot.line.supply(resample="h")  # Hourly resampling
+    plot.line.withdrawal(resample="D")  # Daily resampling
+
+    # Test area plot kwargs
+    plot.area.energy_balance(stacked=True)
+    plot.area.transmission(stacked=False)

@@ -218,8 +218,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _aggregate_across_components(
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
-        index_wo_component = df.index.droplevel("component")
-        return df.groupby(index_wo_component).agg(agg)
+        levels = [l for l in df.index.names if l != "component"]
+        return df.groupby(level=levels).agg(agg)
 
     def __call__(
         self,

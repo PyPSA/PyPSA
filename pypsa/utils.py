@@ -315,3 +315,44 @@ def _convert_to_series(variable: dict | Sequence, index: pd.Index) -> pd.Series:
     elif not isinstance(variable, pd.Series):
         return pd.Series(variable, index=index)
     return variable
+
+
+def resample_timeseries(
+    df: pd.DataFrame, freq: str, numeric_columns: list[str] | None = None
+) -> pd.DataFrame:
+    """
+    Resample a DataFrame with proper handling of numeric and non-numeric columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to resample, must have a datetime index
+    freq : str
+        Frequency string for resampling (e.g. 'H' for hourly)
+    numeric_columns : list[str] | None
+        List of numeric column names to resample. If None, auto-detected.
+
+    Returns
+    -------
+    pd.DataFrame
+        Resampled DataFrame with numeric columns aggregated by mean
+        and non-numeric columns forward-filled
+    """
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df = df.set_index(pd.to_datetime(df.index))
+
+    if numeric_columns is None:
+        numeric_columns = df.select_dtypes(include=["int64", "float64"]).columns
+
+    # Handle duplicate indices by aggregating first
+    if not df.index.is_unique:
+        numeric_df = df[numeric_columns].groupby(level=0).mean()
+        non_numeric_df = df.drop(columns=numeric_columns).groupby(level=0).first()
+        df = pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
+
+    # Split into numeric and non-numeric columns
+    numeric_df = df[numeric_columns].resample(freq).mean()
+    non_numeric_df = df.drop(columns=numeric_columns).resample(freq).ffill()
+
+    # Combine the results
+    return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
