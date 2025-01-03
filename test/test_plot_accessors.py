@@ -230,12 +230,12 @@ def test_get_carrier_colors(ac_dc_network_r):
     accessor = BasePlotTypeAccessor(ac_dc_network_r)
     
     # Test with carrier data
-    data = pd.DataFrame({'carrier': ['solar', 'wind']})
+    data = pd.DataFrame({'carrier': ['wind', 'gas']})
     colors = accessor._get_carrier_colors(data)
     
     assert isinstance(colors, dict)
-    assert 'solar' in colors
     assert 'wind' in colors
+    assert 'gas' in colors
     assert '-' in colors  # Test default gray color
 
 def test_get_carrier_labels(ac_dc_network_r):
@@ -256,7 +256,7 @@ def test_create_base_plot(ac_dc_network_r):
     
     # Test with simple data
     data = pd.DataFrame({
-        'carrier': ['solar', 'wind'],
+        'carrier': ['wind', 'gas'],
         'value': [10, 20],
         'bus_carrier': ['AC', 'AC']
     })
@@ -268,10 +268,10 @@ def test_process_data(ac_dc_network_r):
     """Test _process_data method"""
     accessor = BasePlotTypeAccessor(ac_dc_network_r)
     
-    # Test with mock data
+    # Test with mock data that doesn't need melting
     data = pd.DataFrame({
-        'carrier': ['solar', 'wind'],
-        'value': [10, 20]
+        'carrier': ['wind', 'gas'],
+        'other': [10, 20]
     })
     
     # Should raise NotImplementedError since _plot is abstract
@@ -284,7 +284,7 @@ def test_bar_plotter_plot(ac_dc_network_r):
     
     # Test with simple data
     data = pd.DataFrame({
-        'carrier': ['solar', 'wind'],
+        'carrier': ['wind', 'gas'],
         'value': [10, 20]
     })
     
@@ -298,7 +298,7 @@ def test_line_plotter_plot(ac_dc_network_r):
     # Test with time series data
     data = pd.DataFrame({
         'snapshot': pd.date_range('2023-01-01', periods=2),
-        'carrier': ['solar', 'wind'],
+        'carrier': ['wind', 'gas'],
         'value': [10, 20]
     })
     
@@ -312,7 +312,7 @@ def test_area_plotter_plot(ac_dc_network_r):
     # Test with time series data
     data = pd.DataFrame({
         'snapshot': pd.date_range('2023-01-01', periods=2),
-        'carrier': ['solar', 'wind'],
+        'carrier': ['wind', 'gas'],
         'value': [10, 20]
     })
     
