@@ -5,6 +5,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import pandas as pd
+from pandas.api.types import CategoricalDtype
 import seaborn.objects as so
 
 from pypsa.consistency import (
@@ -59,17 +60,9 @@ class BasePlotTypeAccessor:
         if "value" not in data.columns:
             raise ValueError("Data must contain 'value' column")
             
-        # Ensure at least one categorical column exists
-        cat_cols = [col for col in data.columns 
-                   if pd.api.types.is_categorical_dtype(data[col]) 
-                   or pd.api.types.is_object_dtype(data[col])]
-                   
-        if not cat_cols:
-            raise ValueError("Data must contain at least one categorical column")
-            
         # Convert object columns to category for better performance
         for col in data.columns:
-            if pd.api.types.is_object_dtype(data[col]):
+            if isinstance(data[col].dtype, (object, str)) and not isinstance(data[col].dtype, CategoricalDtype):
                 data[col] = data[col].astype("category")
                 
         return data
@@ -79,15 +72,20 @@ class BasePlotTypeAccessor:
             check_for_unknown_carriers(self._network, c, strict=True)
         check_for_missing_carrier_colors(self._network, strict=True)
 
+    def _get_carrier_colors(self, data: pd.DataFrame) -> dict:
+        """Get colors for carrier data with default gray colors"""
+        colors = self._network.carriers.color.copy()
+        # Always include default gray colors
+        default_colors = {"-": "gray", "": "gray", None: "gray"}
+        return {**default_colors, **colors}
+
     def _get_group_colors(self, data: pd.DataFrame, group_col: str) -> dict:
         """Get colors for any group column"""
         if group_col == "carrier":
-            colors = self._network.carriers.color.copy()
-        else:
-            # Generate default colors for other columns
-            unique_values = data[group_col].dropna().unique()
-            colors = {val: f"C{i}" for i, val in enumerate(unique_values)}
-        
+            return self._get_carrier_colors(data)
+        # Generate default colors for other columns
+        unique_values = data[group_col].dropna().unique()
+        colors = {val: f"C{i}" for i, val in enumerate(unique_values)}
         # Always include default gray colors
         default_colors = {"-": "gray", "": "gray", None: "gray"}
         return {**default_colors, **colors}
@@ -104,8 +102,7 @@ class BasePlotTypeAccessor:
         """Create base plot with dynamic color mapping and faceting"""
         # Get all categorical columns
         cat_cols = [col for col in data.columns 
-                   if pd.api.types.is_categorical_dtype(data[col]) 
-                   or pd.api.types.is_object_dtype(data[col])]
+                   if isinstance(data[col].dtype, CategoricalDtype)]
         
         # Remove x and y from categorical columns
         cat_cols = [col for col in cat_cols if col not in [x, y]]
@@ -117,7 +114,11 @@ class BasePlotTypeAccessor:
         if cat_cols:
             # Use first categorical column for color
             color_col = cat_cols[0]
-            colors = self._get_group_colors(data, color_col)
+            if color_col == "carrier":
+                colors = self._get_carrier_colors(data)
+            else:
+                colors = {val: f"C{i}" for i, val in enumerate(data[color_col].unique())}
+                
             plot = plot.scale(color=so.Nominal(colors))
             
             # Add nice names if requested and available
