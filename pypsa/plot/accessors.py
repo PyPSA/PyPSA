@@ -65,12 +65,15 @@ class BasePlotTypeAccessor:
 
     def _get_carrier_colors(self, data: pd.DataFrame) -> dict:
         """Get colors for carriers from network.carriers.color"""
+        colors = self._network.carriers.color.copy()
+        # Always include default gray colors
+        colors["-"] = "gray"
+        colors[""] = "gray"
+        
         if "carrier" in data.columns:
-            colors = self._network.carriers.color.copy()
-            colors["-"] = "gray"
-            colors[""] = "gray"
             carriers = data["carrier"].dropna().unique()
-            return dict(colors[carriers])
+            # Filter colors to only include carriers in data
+            return {c: colors[c] for c in carriers if c in colors}
         return {}
 
     def _get_carrier_labels(self, nice_name: bool = True) -> dict | None:
