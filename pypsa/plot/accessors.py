@@ -55,7 +55,23 @@ class BasePlotTypeAccessor:
         return df
 
     def _validate(self: BasePlotTypeAccessor, data: pd.DataFrame) -> pd.DataFrame:
-        """Validation method to be implemented by subclasses"""
+        """Validate data has required columns and types"""
+        if "value" not in data.columns:
+            raise ValueError("Data must contain 'value' column")
+            
+        # Ensure at least one categorical column exists
+        cat_cols = [col for col in data.columns 
+                   if pd.api.types.is_categorical_dtype(data[col]) 
+                   or pd.api.types.is_object_dtype(data[col])]
+                   
+        if not cat_cols:
+            raise ValueError("Data must contain at least one categorical column")
+            
+        # Convert object columns to category for better performance
+        for col in data.columns:
+            if pd.api.types.is_object_dtype(data[col]):
+                data[col] = data[col].astype("category")
+                
         return data
 
     def _check_plotting_consistency(self: BasePlotTypeAccessor) -> None:
@@ -63,11 +79,17 @@ class BasePlotTypeAccessor:
             check_for_unknown_carriers(self._network, c, strict=True)
         check_for_missing_carrier_colors(self._network, strict=True)
 
-    def _get_carrier_colors(self, data: pd.DataFrame) -> dict:
-        """Get colors for carriers from network.carriers.color"""
-        colors = self._network.carriers.color.copy()
+    def _get_group_colors(self, data: pd.DataFrame, group_col: str) -> dict:
+        """Get colors for any group column"""
+        if group_col == "carrier":
+            colors = self._network.carriers.color.copy()
+        else:
+            # Generate default colors for other columns
+            unique_values = data[group_col].dropna().unique()
+            colors = {val: f"C{i}" for i, val in enumerate(unique_values)}
+        
         # Always include default gray colors
-        default_colors = {"-": "gray", "": "gray"}
+        default_colors = {"-": "gray", "": "gray", None: "gray"}
         return {**default_colors, **colors}
 
     def _get_carrier_labels(self, nice_name: bool = True) -> dict | None:
@@ -79,28 +101,40 @@ class BasePlotTypeAccessor:
     def _create_base_plot(
         self, data: pd.DataFrame, x: str, y: str, nice_name: bool = True, **kwargs: Any
     ) -> so.Plot:
-        """Create base plot with carrier colors and optional nice names"""
-        # Only get colors if carrier column exists
-        colors = self._get_carrier_colors(data) if "carrier" in data.columns else None
-        labels = self._get_carrier_labels(nice_name) if "carrier" in data.columns else None
-
+        """Create base plot with dynamic color mapping and faceting"""
+        # Get all categorical columns
+        cat_cols = [col for col in data.columns 
+                   if pd.api.types.is_categorical_dtype(data[col]) 
+                   or pd.api.types.is_object_dtype(data[col])]
+        
+        # Remove x and y from categorical columns
+        cat_cols = [col for col in cat_cols if col not in [x, y]]
+        
         # Create base plot
         plot = so.Plot(data, x=x, y=y)
         
-        # Add color scale if we have colors
-        if colors:
+        # Add color scale if we have categorical columns
+        if cat_cols:
+            # Use first categorical column for color
+            color_col = cat_cols[0]
+            colors = self._get_group_colors(data, color_col)
             plot = plot.scale(color=so.Nominal(colors))
+            
+            # Add nice names if requested and available
+            if color_col == "carrier" and nice_name:
+                labels = self._get_carrier_labels(nice_name=True)
+                if labels:
+                    plot = plot.scale(labels=so.Nominal(labels))
+            
+            # Facet by remaining categorical columns
+            remaining_cols = cat_cols[1:]
+            if remaining_cols:
+                for i, col in enumerate(remaining_cols):
+                    if i % 2 == 0:
+                        plot = plot.facet(col=col)
+                    else:
+                        plot = plot.facet(row=col)
         
-        # Add labels if we have them
-        if labels:
-            plot = plot.scale(labels=so.Nominal(labels))
-
-        # Add faceting for component and bus_carrier if present
-        if "component" in data.columns:
-            plot = plot.facet(col="component")
-        if "bus_carrier" in data.columns:
-            plot = plot.facet(row="bus_carrier")
-
         return plot
 
     def _plot(self: BasePlotTypeAccessor, data: pd.DataFrame, **kwargs: Any) -> Any:
