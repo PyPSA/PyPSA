@@ -80,19 +80,18 @@ class BasePlotTypeAccessor:
         self, data: pd.DataFrame, x: str, y: str, nice_name: bool = True, **kwargs: Any
     ) -> so.Plot:
         """Create base plot with carrier colors and optional nice names"""
-        colors = self._get_carrier_colors(data)
-        labels = self._get_carrier_labels(nice_name)
+        # Only get colors if carrier column exists
+        colors = self._get_carrier_colors(data) if "carrier" in data.columns else None
+        labels = self._get_carrier_labels(nice_name) if "carrier" in data.columns else None
 
-        plot = (
-            (
-                so.Plot(data, x=x, y=y, color="carrier" if colors else None).scale(
-                    color=so.Nominal(colors)
-                )
-            )
-            if colors
-            else so.Plot(data, x=x, y=y)
-        )
-
+        # Create base plot
+        plot = so.Plot(data, x=x, y=y)
+        
+        # Add color scale if we have colors
+        if colors:
+            plot = plot.scale(color=so.Nominal(colors))
+        
+        # Add labels if we have them
         if labels:
             plot = plot.scale(labels=so.Nominal(labels))
 
