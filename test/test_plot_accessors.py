@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+import seaborn.objects as so
 
 from pypsa.plot.accessors import (
     AreaPlotter,
