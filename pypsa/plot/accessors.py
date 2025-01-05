@@ -5,8 +5,8 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import pandas as pd
-from pandas.api.types import CategoricalDtype
 import seaborn.objects as so
+from pandas.api.types import CategoricalDtype
 
 from pypsa.consistency import (
     check_for_missing_carrier_colors,
@@ -59,12 +59,14 @@ class BasePlotTypeAccessor:
         """Validate data has required columns and types"""
         if "value" not in data.columns:
             raise ValueError("Data must contain 'value' column")
-            
+
         # Convert object columns to category for better performance
         for col in data.columns:
-            if isinstance(data[col].dtype, (object, str)) and not isinstance(data[col].dtype, CategoricalDtype):
+            if isinstance(data[col].dtype, object | str) and not isinstance(
+                data[col].dtype, CategoricalDtype
+            ):
                 data[col] = data[col].astype("category")
-                
+
         return data
 
     def _check_plotting_consistency(self: BasePlotTypeAccessor) -> None:
@@ -72,85 +74,71 @@ class BasePlotTypeAccessor:
             check_for_unknown_carriers(self._network, c, strict=True)
         check_for_missing_carrier_colors(self._network, strict=True)
 
-    def _get_carrier_colors(self, data: pd.DataFrame) -> dict:
+    def _get_carrier_colors(self) -> dict:
         """Get colors for carrier data with default gray colors"""
         colors = self._network.carriers.color.copy()
         # Always include default gray colors
         default_colors = {"-": "gray", "": "gray", None: "gray"}
         return {**default_colors, **colors}
 
-    def _get_group_colors(self, data: pd.DataFrame, group_col: str) -> dict:
-        """Get colors for any group column"""
-        if group_col == "carrier":
-            return self._get_carrier_colors(data)
-        # Generate default colors for other columns
-        unique_values = data[group_col].dropna().unique()
-        colors = {val: f"C{i}" for i, val in enumerate(unique_values)}
-        # Always include default gray colors
-        default_colors = {"-": "gray", "": "gray", None: "gray"}
-        return {**default_colors, **colors}
-
-    def _get_carrier_labels(self, nice_name: bool = True) -> dict | None:
+    def _get_carrier_labels(self, nice_names: bool = True) -> dict:
         """Get mapping of carrier names to nice names if requested"""
-        if nice_name:
-            return dict(self._network.carriers[["nice_name"]].dropna().nice_name)
-        return None
+        if nice_names:
+            names = self._network.carriers.nice_name
+            return dict(names[names != ""])
+        return {}
 
     def _create_base_plot(
-        self, data: pd.DataFrame, x: str, y: str, nice_name: bool = True, **kwargs: Any
+        self,
+        data: pd.DataFrame,
+        x: str,
+        y: str,
+        nice_names: bool = True,
+        stacked: bool = False,
+        **kwargs: Any,
     ) -> so.Plot:
         """Create base plot with dynamic color mapping and faceting"""
-        # Get all categorical columns
-        cat_cols = [col for col in data.columns 
-                   if isinstance(data[col].dtype, CategoricalDtype)]
-        
         # Remove x and y from categorical columns
-        cat_cols = [col for col in cat_cols if col not in [x, y]]
-        
+        remaining_cols = [col for col in data.columns if col not in [x, y]]
+
         # Create base plot
-        plot = so.Plot(data, x=x, y=y)
-        
+        color_cols = {
+            "carrier",
+        }
+        color = next((col for col in data.columns if col in color_cols), None)
+        plot = so.Plot(data, x=x, y=y, color=color, **kwargs)
+
+        colors = self._get_carrier_colors()
+        plot = plot.scale(color=so.Nominal(colors))
+        if nice_names:
+            labels = self._get_carrier_labels(nice_names=nice_names)
+            plot = plot.scale(labels=so.Nominal(labels))
+
         # Add color scale if we have categorical columns
-        if cat_cols:
-            # Use first categorical column for color
-            color_col = cat_cols[0]
-            if color_col == "carrier":
-                colors = self._get_carrier_colors(data)
+        for i, col in enumerate(remaining_cols):
+            if i % 2 == 0:
+                plot = plot.facet(col=col)
             else:
-                colors = {val: f"C{i}" for i, val in enumerate(data[color_col].unique())}
-                
-            plot = plot.scale(color=so.Nominal(colors))
-            
-            # Add nice names if requested and available
-            if color_col == "carrier" and nice_name:
-                labels = self._get_carrier_labels(nice_name=True)
-                if labels:
-                    plot = plot.scale(labels=so.Nominal(labels))
-            
-            # Facet by remaining categorical columns
-            remaining_cols = cat_cols[1:]
-            if remaining_cols:
-                for i, col in enumerate(remaining_cols):
-                    if i % 2 == 0:
-                        plot = plot.facet(col=col)
-                    else:
-                        plot = plot.facet(row=col)
-        
+                plot = plot.facet(row=col)
+            plot = plot.share(x=False, y=False)
+
         return plot
 
-    def _plot(self: BasePlotTypeAccessor, data: pd.DataFrame, **kwargs: Any) -> Any:
+    def _plot(self: BasePlotTypeAccessor, data: pd.DataFrame, **kwargs: Any) -> so.Plot:
         """Plot method to be implemented by subclasses"""
-        raise NotImplementedError
+        return self._create_base_plot(data, **kwargs)
 
     def _process_data(
-        self: BasePlotTypeAccessor, data: pd.DataFrame | pd.Series, **kwargs: Any
-    ) -> Any:
+        self: BasePlotTypeAccessor,
+        data: pd.DataFrame | pd.Series,
+        nice_names: bool = True,
+        **kwargs: Any,
+    ) -> so.Plot:
         """Common data processing pipeline"""
         self._check_plotting_consistency()
-        plot_kwargs = kwargs.pop("plot_kwargs", {})
         data = self._to_long_format(data)
         data = self._validate(data)
-        return self._plot(data, **plot_kwargs)
+        return self._plot(data, nice_names=nice_names, **kwargs)
 
     # Shared statistics methods
     def optimal_capacity(
@@ -162,17 +150,17 @@ class BasePlotTypeAccessor:
         nice_names: bool = True,
         storage: bool = False,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot optimal capacity"""
         data = self._statistics.optimal_capacity(
             comps=comps,
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
             storage=storage,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def installed_capacity(
         self: BasePlotTypeAccessor,
@@ -183,17 +171,17 @@ class BasePlotTypeAccessor:
         nice_names: bool = True,
         storage: bool = False,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot installed capacity"""
         data = self._statistics.installed_capacity(
             comps=comps,
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
             storage=storage,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def supply(
         self: BasePlotTypeAccessor,
@@ -203,7 +191,7 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot supply data"""
         data = self._statistics.supply(
             comps=comps,
@@ -211,9 +199,9 @@ class BasePlotTypeAccessor:
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def withdrawal(
         self: BasePlotTypeAccessor,
@@ -223,7 +211,7 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot withdrawal data"""
         data = self._statistics.withdrawal(
             comps=comps,
@@ -231,9 +219,9 @@ class BasePlotTypeAccessor:
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def energy_balance(
         self: BasePlotTypeAccessor,
@@ -243,7 +231,7 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot energy balance"""
         data = self._statistics.energy_balance(
             comps=comps,
@@ -251,9 +239,9 @@ class BasePlotTypeAccessor:
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def transmission(
         self: BasePlotTypeAccessor,
@@ -262,16 +250,16 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot transmission data"""
         data = self._statistics.transmission(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def capacity_factor(
         self: BasePlotTypeAccessor,
@@ -280,16 +268,16 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot capacity factor"""
         data = self._statistics.capacity_factor(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def curtailment(
         self: BasePlotTypeAccessor,
@@ -298,16 +286,16 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot curtailment"""
         data = self._statistics.curtailment(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def capex(
         self: BasePlotTypeAccessor,
@@ -316,15 +304,15 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot capital expenditure"""
         data = self._statistics.capex(
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def opex(
         self: BasePlotTypeAccessor,
@@ -333,16 +321,16 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot operational expenditure"""
         data = self._statistics.opex(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def revenue(
         self: BasePlotTypeAccessor,
@@ -351,16 +339,16 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot revenue"""
         data = self._statistics.revenue(
             groupby=groupby,
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def expanded_capacity(
         self: BasePlotTypeAccessor,
@@ -370,16 +358,16 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot expanded capacity"""
         data = self._statistics.expanded_capacity(
             comps=comps,
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def expanded_capex(
         self: BasePlotTypeAccessor,
@@ -389,16 +377,16 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot expanded capital expenditure"""
         data = self._statistics.expanded_capex(
             comps=comps,
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
     def market_value(
         self: BasePlotTypeAccessor,
@@ -408,7 +396,7 @@ class BasePlotTypeAccessor:
         bus_carrier: str | None = None,
         nice_names: bool = True,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Plot market value"""
         data = self._statistics.market_value(
             comps=comps,
@@ -416,9 +404,9 @@ class BasePlotTypeAccessor:
             aggregate_time=self._time_aggregation,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
-            nice_names=nice_names,
+            nice_names=False,
         )
-        return self._process_data(data, plot_kwargs=kwargs)
+        return self._process_data(data, nice_names=nice_names, **kwargs)
 
 
 class BarPlotter(BasePlotTypeAccessor):
@@ -442,19 +430,21 @@ class BarPlotter(BasePlotTypeAccessor):
         stacked: bool = False,
         orientation: str | None = None,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Implement bar plotting logic with seaborn.objects"""
         orientation = orientation or self._default_orientation
-        x = "value" if orientation == "horizontal" else "carrier"
-        y = "carrier" if orientation == "horizontal" else "value"
+        y_col = "value"
+        x_col = next(col for col in data.columns if col != y_col)
+        x = y_col if orientation == "horizontal" else x_col
+        y = x_col if orientation == "horizontal" else y_col
 
-        plot = self._create_base_plot(data, x=x, y=y)
+        plot = self._create_base_plot(data, x=x, y=y, stacked=stacked)
 
-        transforms = [so.Agg()]
+        transforms = []
         if stacked:
-            transforms.append(so.Dodge())
+            transforms.append(so.Stack())
 
-        return plot.add(so.Bar(), *transforms).label(x=x.title(), y=y.title()).plot()
+        return plot.add(so.Bar(), *transforms).label(x=x.title(), y=y.title())
 
 
 class LinePlotter(BasePlotTypeAccessor):
@@ -481,7 +471,7 @@ class LinePlotter(BasePlotTypeAccessor):
         data: pd.DataFrame,
         resample: str | None = None,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Implement line plotting logic with seaborn.objects"""
         # Determine x-axis column
         if "snapshot" in data.columns:
@@ -496,7 +486,7 @@ class LinePlotter(BasePlotTypeAccessor):
 
         plot = self._create_base_plot(data, x=x_col, y="value")
 
-        return plot.add(so.Line()).label(x=x_col.title(), y="Value").plot()
+        return plot.add(so.Line()).label(x=x_col.title(), y="Value")
 
 
 class AreaPlotter(BasePlotTypeAccessor):
@@ -525,7 +515,7 @@ class AreaPlotter(BasePlotTypeAccessor):
         resample: str | None = None,
         stacked: bool | None = None,
         **kwargs: Any,
-    ) -> Any:
+    ) -> so.Plot:
         """Implement area plotting logic with seaborn.objects"""
         resample = resample or self._default_resample
         stacked = stacked if stacked is not None else self._default_stacked
@@ -547,7 +537,7 @@ class AreaPlotter(BasePlotTypeAccessor):
         if stacked:
             transforms.append(so.Stack())
 
-        return plot.add(so.Area(), *transforms).label(x=x_col.title(), y="Value").plot()
+        return plot.add(so.Area(), *transforms).label(x=x_col.title(), y="Value")
 
 
 class PlotAccessor:
@@ -561,6 +551,7 @@ class PlotAccessor:
 
     def __init__(self: PlotAccessor, n: Network) -> None:
         self._n = n
+        self._base = BasePlotTypeAccessor(n)
         self.maps = MapPlotter(n)
         self.bar = BarPlotter(n)
         self.line = LinePlotter(n)
