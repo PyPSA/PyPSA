@@ -123,7 +123,7 @@ class ComponentsStore(dict):
         Attached to PyPSA Network 'AC-DC'
         Components: 6
         """
-        if isinstance(item, (list, set)):
+        if isinstance(item, (list | set)):
             return [self[key] for key in item]
         else:
             if item in COMPONENT_ALIAS_DICT:

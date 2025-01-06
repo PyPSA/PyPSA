@@ -9,8 +9,6 @@ import os
 
 import geopandas as gpd
 import numpy as np
-import pandapower as pp
-import pandapower.networks as pn
 import pandas as pd
 import pytest
 from shapely.geometry import Polygon
@@ -150,6 +148,10 @@ def all_networks(
 
 @pytest.fixture(scope="module")
 def pandapower_custom_network():
+    try:
+        import pandapower as pp
+    except ImportError:
+        pytest.skip("pandapower not installed")
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")
@@ -175,4 +177,8 @@ def pandapower_custom_network():
 
 @pytest.fixture(scope="module")
 def pandapower_cigre_network():
+    try:
+        import pandapower.networks as pn
+    except ImportError:
+        pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")

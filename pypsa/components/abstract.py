@@ -8,9 +8,9 @@ from __future__ import annotations
 
 import logging
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
 import numpy as np

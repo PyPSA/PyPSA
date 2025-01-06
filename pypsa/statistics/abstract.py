@@ -101,7 +101,7 @@ class AbstractStatisticsAccessor(ABC):
                 by = groupby(n, c, port=port, nice_names=nice_names)
             except TypeError:
                 by = groupby(n, c, nice_names=nice_names)
-        elif isinstance(groupby, (str, list)):
+        elif isinstance(groupby, (str | list)):
             by = groupers[groupby](n, c, port=port, nice_names=nice_names)
         elif groupby is not False:
             msg = f"Argument `groupby` must be a function, list, string, False or dict, got {repr(groupby)}."

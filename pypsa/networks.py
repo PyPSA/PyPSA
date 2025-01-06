@@ -561,7 +561,7 @@ class Network:
 
     @meta.setter
     def meta(self, new: dict) -> None:
-        if not isinstance(new, (dict, Dict)):
+        if not isinstance(new, (dict | Dict)):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
