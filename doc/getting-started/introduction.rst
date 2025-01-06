@@ -109,6 +109,6 @@ licenses are available.
 Licence
 =======
 
-Copyright 2015-2024 :doc:`/references/developers`
+Copyright 2015-2025 :doc:`/references/developers`
 
 PyPSA is licensed under the open source `MIT License <https://github.com/PyPSA/PyPSA/blob/master/LICENSE.txt>`_.
