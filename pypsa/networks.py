@@ -734,7 +734,7 @@ class Network:
         -----
         Note that Snapshots are a dimension, while timesteps and and periods are
         only levels of the snapshots dimension, similar to coords in xarray.
-        That is because timesteps and periods are not necessarily unique or entire
+        This is because timesteps and periods are not necessarily unique or complete
         across snapshots.
         """
         return self._snapshots
