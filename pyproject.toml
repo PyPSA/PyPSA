@@ -27,7 +27,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "numpy",
-    "scipy>=1.14.1; python_version >= '3.13'",
+    "scipy>=1.14.1,!=1.15.0; python_version >= '3.13'",
     "scipy; python_version < '3.13'",
     "pandas>=0.24",
     "xarray",
