@@ -274,7 +274,7 @@ def test_bar_plotter_plot(ac_dc_network_r):
     # Test with simple data
     data = pd.DataFrame({"carrier": ["wind", "gas"], "value": [10, 20]})
 
-    plot = plotter._plot(data)
+    plot = plotter._base_plot(data)
     assert plot is not None
 
 
@@ -291,7 +291,7 @@ def test_line_plotter_plot(ac_dc_network_r):
         }
     )
 
-    plot = plotter._plot(data)
+    plot = plotter._base_plot(data)
     assert plot is not None
 
 
@@ -308,7 +308,7 @@ def test_area_plotter_plot(ac_dc_network_r):
         }
     )
 
-    plot = plotter._plot(data)
+    plot = plotter._base_plot(data)
     assert plot is not None
 
 

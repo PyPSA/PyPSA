@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from functools import wraps
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -55,6 +55,10 @@ class BasePlotTypeAccessor:
 
         return df
 
+    def _to_title(self: BasePlotTypeAccessor, s: str) -> str:
+        """Convert string to title case"""
+        return s.replace("_", " ").title()
+
     def _validate(self: BasePlotTypeAccessor, data: pd.DataFrame) -> pd.DataFrame:
         """Validate data has required columns and types"""
         if "value" not in data.columns:
@@ -78,7 +82,7 @@ class BasePlotTypeAccessor:
         """Get colors for carrier data with default gray colors"""
         colors = self._network.carriers.color.copy()
         # Always include default gray colors
-        default_colors = {"-": "gray", "": "gray", None: "gray"}
+        default_colors = {"-": "gray", None: "gray", "": "#00000000"}
         return {**default_colors, **colors}
 
     def _get_carrier_labels(self, nice_names: bool = True) -> dict:
@@ -88,70 +92,164 @@ class BasePlotTypeAccessor:
             return dict(names[names != ""])
         return {}
 
-    def _create_base_plot(
-        self,
+    def _process_data_for_stacking(
+        self: BasePlotTypeAccessor,
+        data: pd.DataFrame,
+        stacked_dim: str,
+    ) -> pd.DataFrame:
+        """
+        This function processes the data for correctly stacking positive and negative values.
+
+        In the default seaborn implementation, stacking is done by adding the contributions
+        on top of each other. This means that negative values are added on top of positive
+        values. In our case, we want negative values to be stacked on the negative side of
+        the x/y-axis. This function firstly sorts the values of the data and then assigns a
+        new negative contribution equal to the sum of all positive values. This new negative
+        contribution is drawn as a transparent block. This way, the negative values are
+        stacked on the negative side of the x/y-axis.
+        """
+        if stacked_dim not in data.columns:
+            raise ValueError(f"Column {stacked_dim} not found in data")
+
+        # Get the sum of all positive values
+        remaining_columns = [
+            c for c in data.columns if c != "value" and c != stacked_dim
+        ]
+        if not remaining_columns:
+            return data
+
+        balancing_contribution = (
+            data[data["value"] > 0]
+            .drop(columns=stacked_dim)
+            .groupby(remaining_columns, as_index=False)
+            .agg({"value": "sum"})
+            .assign(**{stacked_dim: ""})
+            .assign(value=lambda x: -x["value"])
+        )
+
+        return pd.concat(
+            [data[data["value"] > 0], balancing_contribution, data[data["value"] < 0]]
+        )
+
+    def _base_plot(
+        self: BasePlotTypeAccessor,
         data: pd.DataFrame,
         x: str,
         y: str,
-        nice_names: bool = True,
+        color: str | None = None,
+        col: str | None = None,
+        row: str | None = None,
         stacked: bool = False,
+        nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
-        """Create base plot with dynamic color mapping and faceting"""
-        # Remove x and y from categorical columns
-        remaining_cols = [col for col in data.columns if col not in [x, y]]
+        """Plot method to be implemented by subclasses"""
+        self._check_plotting_consistency()
+        data = self._to_long_format(data)
+        if stacked and color is not None:
+            data = self._process_data_for_stacking(data, color)
+        data = self._validate(data)
 
-        # Create base plot
-        color_cols = {
-            "carrier",
-        }
-        color = next((col for col in data.columns if col in color_cols), None)
         plot = so.Plot(data, x=x, y=y, color=color, **kwargs)
 
-        colors = self._get_carrier_colors()
-        plot = plot.scale(color=so.Nominal(colors))
-        if nice_names:
-            labels = self._get_carrier_labels(nice_names=nice_names)
-            plot = plot.scale(labels=so.Nominal(labels))
+        # Apply color scale if using carrier colors
+        if color in ["carrier", "bus_carrier"]:
+            colors = self._get_carrier_colors()
+            plot = plot.scale(color=so.Nominal(colors))
+            if nice_names:
+                labels = self._get_carrier_labels(nice_names=nice_names)
+                plot = plot.scale(labels=so.Nominal(labels))
 
-        # Add color scale if we have categorical columns
-        for i, col in enumerate(remaining_cols):
-            if i % 2 == 0:
-                plot = plot.facet(col=col)
-            else:
-                plot = plot.facet(row=col)
+        # Apply faceting if col/row specified
+        if col is not None:
+            plot = plot.facet(col=col)
+        if row is not None:
+            plot = plot.facet(row=row)
+        if col is not None or row is not None:
             plot = plot.share(x=False, y=False)
 
         return plot
 
-    def _plot(self: BasePlotTypeAccessor, data: pd.DataFrame, **kwargs: Any) -> so.Plot:
-        """Plot method to be implemented by subclasses"""
-        return self._create_base_plot(data, **kwargs)
-
-    def _process_data(
+    def _plot(
         self: BasePlotTypeAccessor,
-        data: pd.DataFrame | pd.Series,
+        data: pd.DataFrame,
+        x: str,
+        y: str,
+        color: str | None = None,
+        col: str | None = None,
+        row: str | None = None,
+        stacked: bool = False,
+        dodged: bool = False,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
-        """Common data processing pipeline"""
-        self._check_plotting_consistency()
-        data = self._to_long_format(data)
-        data = self._validate(data)
-        return self._plot(data, nice_names=nice_names, **kwargs)
+        """Plot method to be implemented by subclasses"""
+        raise NotImplementedError
 
-    # Shared statistics methods
+    def _derive_statistic_parameters(
+        self,
+        x: str | None = None,
+        y: str | None = None,
+        color: str | None = None,
+        col: str | None = None,
+        row: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        aggregate_time: bool | str | None = None,
+    ) -> tuple[str | Sequence[str] | Callable, bool, bool | str]:
+        """
+        Extract plotting specification rules including groupby columns and component aggregation.
+
+        Returns
+        -------
+        tuple
+            List of groupby columns and boolean for component aggregation
+        """
+        filtered = ["value", "component", "snapshot"]
+        filtered_cols = []
+        for c in [x, y, color, col, row]:
+            if c not in filtered and c is not None:
+                filtered_cols.append(c)
+        derived_groupby = list(set(filtered_cols))
+        derived_agg_across = "component" not in [x, y, color, col, row]
+        derived_agg_time: str | bool = "snapshot" not in [x, y, color, col, row]
+        if derived_agg_time:
+            derived_agg_time = "sum"
+
+        # Use derived values only if not explicitly specified
+        if groupby is None:
+            groupby = derived_groupby
+
+        if aggregate_across_components is None:
+            aggregate_across_components = derived_agg_across
+
+        if aggregate_time is None:
+            aggregate_time = derived_agg_time
+
+        return groupby, aggregate_across_components, aggregate_time
+
+    # Front-end plotting methods
     def optimal_capacity(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         storage: bool = False,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot optimal capacity"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.optimal_capacity(
             comps=comps,
             groupby=groupby,
@@ -160,19 +258,38 @@ class BasePlotTypeAccessor:
             storage=storage,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def installed_capacity(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         storage: bool = False,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot installed capacity"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.installed_capacity(
             comps=comps,
             groupby=groupby,
@@ -181,185 +298,375 @@ class BasePlotTypeAccessor:
             storage=storage,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def supply(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot supply data"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.supply(
             comps=comps,
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def withdrawal(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot withdrawal data"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.withdrawal(
             comps=comps,
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def energy_balance(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier", "bus_carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot energy balance"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.energy_balance(
             comps=comps,
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def transmission(
         self: BasePlotTypeAccessor,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot transmission data"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.transmission(
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def capacity_factor(
         self: BasePlotTypeAccessor,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot capacity factor"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.capacity_factor(
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def curtailment(
         self: BasePlotTypeAccessor,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot curtailment"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.curtailment(
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def capex(
         self: BasePlotTypeAccessor,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot capital expenditure"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.capex(
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def opex(
         self: BasePlotTypeAccessor,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot operational expenditure"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.opex(
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def revenue(
         self: BasePlotTypeAccessor,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot revenue"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.revenue(
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def expanded_capacity(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot expanded capacity"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.expanded_capacity(
             comps=comps,
             groupby=groupby,
@@ -367,18 +674,37 @@ class BasePlotTypeAccessor:
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def expanded_capex(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot expanded capital expenditure"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.expanded_capex(
             comps=comps,
             groupby=groupby,
@@ -386,27 +712,55 @@ class BasePlotTypeAccessor:
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
     def market_value(
         self: BasePlotTypeAccessor,
+        x: str = "carrier",
+        y: str = "value",
+        color: str | None = "carrier",
+        col: str | None = None,
+        row: str | None = None,
         comps: str | Sequence[str] | None = None,
-        groupby: Sequence[str] = ["carrier"],
-        aggregate_across_components: bool = True,
-        bus_carrier: str | None = None,
+        groupby: str | Sequence[str] | Callable | None = None,
+        aggregate_across_components: bool | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot market value"""
+        groupby, aggregate_across_components, aggregate_time = (
+            self._derive_statistic_parameters(
+                x, y, color, col, row, groupby, aggregate_across_components
+            )
+        )
         data = self._statistics.market_value(
             comps=comps,
             groupby=groupby,
-            aggregate_time=self._time_aggregation,
+            aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
             bus_carrier=bus_carrier,
             nice_names=False,
         )
-        return self._process_data(data, nice_names=nice_names, **kwargs)
+        return self._plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
 
 class BarPlotter(BasePlotTypeAccessor):
@@ -424,27 +778,42 @@ class BarPlotter(BasePlotTypeAccessor):
             raise ValueError("Data must have at least one index level for bar plots")
         return data
 
-    def _plot(
+    def _plot(  # type: ignore
         self: BarPlotter,
         data: pd.DataFrame,
+        x: str,
+        y: str,
+        color: str | None = None,
+        col: str | None = None,
+        row: str | None = None,
+        nice_names: bool = True,
         stacked: bool = False,
-        orientation: str | None = None,
+        dodged: bool = False,
         **kwargs: Any,
     ) -> so.Plot:
         """Implement bar plotting logic with seaborn.objects"""
-        orientation = orientation or self._default_orientation
-        y_col = "value"
-        x_col = next(col for col in data.columns if col != y_col)
-        x = y_col if orientation == "horizontal" else x_col
-        y = x_col if orientation == "horizontal" else y_col
 
-        plot = self._create_base_plot(data, x=x, y=y, stacked=stacked)
+        plot = self._base_plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            stacked=stacked,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
         transforms = []
         if stacked:
             transforms.append(so.Stack())
+        if dodged:
+            transforms.append(so.Dodge())
 
-        return plot.add(so.Bar(), *transforms).label(x=x.title(), y=y.title())
+        return plot.add(so.Bar(), *transforms).label(
+            x=self._to_title(x), y=self._to_title(y)
+        )
 
 
 class LinePlotter(BasePlotTypeAccessor):
@@ -466,27 +835,39 @@ class LinePlotter(BasePlotTypeAccessor):
                 pass
         return data
 
-    def _plot(
+    def _plot(  # type: ignore
         self: LinePlotter,
         data: pd.DataFrame,
+        x: str,
+        y: str,
+        color: str | None = None,
+        col: str | None = None,
+        row: str | None = None,
+        nice_names: bool = True,
         resample: str | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Implement line plotting logic with seaborn.objects"""
         # Determine x-axis column
         if "snapshot" in data.columns:
-            x_col = "snapshot"
+            x = "snapshot"
             if resample:
                 data = resample_timeseries(
                     data.set_index("snapshot"), resample
                 ).reset_index()
-        else:
-            # Use first non-value column as x-axis
-            x_col = next(col for col in data.columns if col != "value")
 
-        plot = self._create_base_plot(data, x=x_col, y="value")
+        plot = self._base_plot(
+            data,
+            x=x,
+            y=y,
+            color=color,
+            col=col,
+            row=row,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
-        return plot.add(so.Line()).label(x=x_col.title(), y="Value")
+        return plot.add(so.Line()).label(x=self._to_title(x), y=self._to_title(y))
 
 
 class AreaPlotter(BasePlotTypeAccessor):
@@ -509,35 +890,41 @@ class AreaPlotter(BasePlotTypeAccessor):
                 pass
         return data
 
-    def _plot(
+    def _plot(  # type: ignore
         self: AreaPlotter,
         data: pd.DataFrame,
-        resample: str | None = None,
-        stacked: bool | None = None,
+        x: str,
+        y: str,
+        color: str | None = None,
+        col: str | None = None,
+        row: str | None = None,
+        nice_names: bool = True,
+        stacked: bool = True,
+        dodged: bool = False,
         **kwargs: Any,
     ) -> so.Plot:
         """Implement area plotting logic with seaborn.objects"""
-        resample = resample or self._default_resample
         stacked = stacked if stacked is not None else self._default_stacked
 
-        # Determine x-axis column
-        if "snapshot" in data.columns:
-            x_col = "snapshot"
-            if resample:
-                data = resample_timeseries(
-                    data.set_index("snapshot"), resample
-                ).reset_index()
-        else:
-            # Use first non-value column as x-axis
-            x_col = next(col for col in data.columns if col != "value")
-
-        plot = self._create_base_plot(data, x=x_col, y="value")
+        plot = self._base_plot(
+            data,
+            x=x,
+            y="value",
+            color=color,
+            col=col,
+            row=row,
+            stacked=stacked,
+            nice_names=nice_names,
+            **kwargs,
+        )
 
         transforms = []
         if stacked:
             transforms.append(so.Stack())
 
-        return plot.add(so.Area(), *transforms).label(x=x_col.title(), y="Value")
+        return plot.add(so.Area(), *transforms).label(
+            x=self._to_title(x), y=self._to_title(y)
+        )
 
 
 class PlotAccessor:
