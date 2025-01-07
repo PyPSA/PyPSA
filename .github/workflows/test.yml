@@ -73,7 +73,8 @@ jobs:
         python -m pip install uv
         uv pip install --compile --system "$(ls dist/*.whl)[dev,hdf5]"
 
-    - name: Test with pytest
+
+    - name: Run unit tests # Also includes doctests
       if: matrix.os != 'windows-latest' || matrix.python-version != '3.13'
       run: |
         coverage run -m pytest
@@ -121,7 +122,7 @@ jobs:
     - name: Test docs build
       run: |
         sudo apt-get install -y pandoc
-        pytest test/test_docs.py --test-docs
+        pytest test/test_docs.py --test-docs-build
 
   check-types:
     name: Check types

@@ -1,14 +1,30 @@
+import doctest
+import importlib
+import pkgutil
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
+import pypsa
 
-@pytest.mark.test_docs
+modules = [
+    importlib.import_module(name)
+    for _, name, _ in pkgutil.walk_packages(pypsa.__path__, pypsa.__name__ + ".")
+]
+
+
+@pytest.mark.parametrize("module", modules)
+def test_doctest(module):
+    failed, _ = doctest.testmod(module)
+    assert failed == 0, f"{failed} doctest(s) failed in module {module.__name__}"
+
+
+@pytest.mark.test_sphinx_build
 def test_sphinx_build(pytestconfig):
-    if not pytestconfig.getoption("--test-docs"):
-        pytest.skip("need --test-docs option to run")
+    if not pytestconfig.getoption("--test-docs-build"):
+        pytest.skip("need --test-docs-build option to run")
 
     source_dir = Path("doc")
     build_dir = Path("doc") / "_build"
