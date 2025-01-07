@@ -535,6 +535,7 @@ def _export_to_exporter(
                 if isinstance(prop, property) and prop.fset is None:
                     continue
                 _attrs[attr] = value
+
     exporter.save_attributes(_attrs)
 
     crs = {}
@@ -1210,7 +1211,6 @@ def _import_series_from_df(
             pass  # Don't drop any columns if the data doesn't exist yet
 
     df.columns.name = cls_name
-    df.index.name = "snapshot"
 
     # Check if components exist in static df
     diff = df.columns.difference(static.index)
