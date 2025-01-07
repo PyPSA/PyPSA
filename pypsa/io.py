@@ -257,7 +257,7 @@ class ImporterHDF5(Importer):
         )
         self.path = path
         self.ds: pd.HDFStore
-        if isinstance(path, (str, Path)):
+        if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
             self.ds = pd.HDFStore(path, mode="r")
@@ -363,7 +363,7 @@ class ImporterNetCDF(Importer):
 
     def __init__(self, path: str | Path | xr.Dataset) -> None:
         self.path = path
-        if isinstance(path, (str, Path)):
+        if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
             self.ds = xr.open_dataset(path)
@@ -371,7 +371,7 @@ class ImporterNetCDF(Importer):
             self.ds = path
 
     def __enter__(self) -> ImporterNetCDF:
-        if isinstance(self.path, (str, Path)):
+        if isinstance(self.path, (str | Path)):
             super().__init__()
         return self
 
@@ -381,7 +381,7 @@ class ImporterNetCDF(Importer):
         exc_val: BaseException,
         exc_tb: TracebackType,
     ) -> None:
-        if isinstance(self.path, (str, Path)):
+        if isinstance(self.path, (str | Path)):
             super().__exit__(exc_type, exc_val, exc_tb)
 
     def get_attributes(self) -> dict:
@@ -651,7 +651,7 @@ def import_from_csv_folder(
 
     Examples
     --------
-    >>> n.import_from_csv_folder(csv_folder_name)
+    >>> n.import_from_csv_folder(csv_folder_name) # doctest: +SKIP
     """
     basename = Path(csv_folder_name).name
     with ImporterCSV(csv_folder_name, encoding=encoding) as importer:
@@ -695,7 +695,7 @@ def export_to_csv_folder(
 
     Examples
     --------
-    >>> n.export_to_csv_folder(csv_folder_name)
+    >>> n.export_to_csv_folder(csv_folder_name) # doctest: +SKIP
     """
 
     basename = os.path.basename(csv_folder_name)
@@ -756,7 +756,7 @@ def export_to_hdf5(
 
     Examples
     --------
-    >>> n.export_to_hdf5(filename)
+    >>> n.export_to_hdf5(filename) # doctest: +SKIP
     """
     kwargs.setdefault("complevel", 4)
 
@@ -837,7 +837,10 @@ def export_to_netcdf(
 
     Examples
     --------
-    >>> n.export_to_netcdf("my_file.nc")
+    >>> import pypsa
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> n.export_to_netcdf("my_file.nc") # doctest: +SKIP
+
     """
     basename = os.path.basename(path) if path is not None else None
     with ExporterNetCDF(path, compression, float32) as exporter:
@@ -926,7 +929,7 @@ def _import_from_importer(
     periods = importer.get_investment_periods()
 
     if periods is not None:
-        n._investment_periods = periods.index
+        n.periods = periods.index
 
         n._investment_period_weightings = periods.reindex(n.investment_periods)
 
@@ -1020,19 +1023,6 @@ def import_components_from_dataframe(
     cls_name : string
         Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
 
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> buses = ['Berlin', 'Frankfurt', 'Munich', 'Hamburg']
-    >>> n.import_components_from_dataframe(
-    ...     pd.DataFrame({"v_nom" : 380, "control" : 'PV'},
-    ...                 index=buses),
-    ...                 "Bus")
-    >>> n.import_components_from_dataframe(
-    ...     pd.DataFrame({"carrier" : "solar", "bus" : buses, "p_nom_extendable" : True},
-    ...                 index=[b+" PV" for b in buses]),
-    ...                 "Generator")
-
     See Also
     --------
     pypsa.Network.madd
@@ -1066,17 +1056,6 @@ def import_series_from_dataframe(
         Name of class of component
     attr : string
         Name of time-varying series attribute
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> n.set_snapshots(range(10))
-    >>> n.import_series_from_dataframe(
-    ...     pd.DataFrame(np.random.rand(10, 4),
-    ...         columns=n.generators.index,
-    ...                     index=range(10)),
-    ...                 "Generator",
-    ...                 "p_max_pu")
 
     --------
     """
@@ -1362,9 +1341,9 @@ def import_from_pypower_ppc(
 
     Examples
     --------
-    >>> from pypower.api import case30
-    >>> ppc = case30()
-    >>> n.import_from_pypower_ppc(ppc)
+    >>> from pypower.api import case30 # doctest: +SKIP
+    >>> ppc = case30() # doctest: +SKIP
+    >>> n.import_from_pypower_ppc(ppc) # doctest: +SKIP
     """
     version = ppc["version"]
     if int(version) != 2:
@@ -1586,14 +1565,14 @@ def import_from_pandapower_net(
 
     Examples
     --------
-    >>> n.import_from_pandapower_net(net)
+    >>> n.import_from_pandapower_net(net) # doctest: +SKIP
     OR
     >>> import pypsa
-    >>> import pandapower as pp
-    >>> import pandapower.networks as pn
-    >>> net = pn.create_cigre_network_mv(with_der='all')
+    >>> import pandapower as pp # doctest: +SKIP
+    >>> import pandapower.networks as pn # doctest: +SKIP
+    >>> net = pn.create_cigre_network_mv(with_der='all') # doctest: +SKIP
     >>> n = pypsa.Network()
-    >>> n.import_from_pandapower_net(net, extra_line_data=True)
+    >>> n.import_from_pandapower_net(net, extra_line_data=True)  # doctest: +SKIP
     """
     logger.warning(
         "Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers."

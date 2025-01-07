@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import functools
 import warnings
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -94,15 +94,15 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
     if isinstance(a, np.ndarray):
         if not np.array_equal(a, b):
             return False
-    elif isinstance(a, (pd.DataFrame, pd.Series, pd.Index)):
+    elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
         if not a.equals(b):
             return False
     # Iterators
-    elif isinstance(a, (dict, Dict)):
+    elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
             if not equals(v, b[k]):
                 return False
-    elif isinstance(a, (list, tuple)):
+    elif isinstance(a, (list | tuple)):
         for i, v in enumerate(a):
             if not equals(v, b[i]):
                 return False
@@ -133,8 +133,12 @@ def deprecated_kwargs(**aliases: str) -> Callable:
 
     Examples
     --------
-    >>> @deprecated_alias(object_id="id_object")
-    ... def __init__(self, id_object):
+    >>> @deprecated_kwargs(object_id="id_object")
+    ... def some_func(id_object):
+    ...     print(id_object)
+    >>> some_func(object_id=1) # doctest: +SKIP
+    1
+
     """
 
     def deco(f: Callable) -> Callable:
@@ -255,10 +259,6 @@ def list_as_string(
     --------
     >>> list_as_string(['a', 'b', 'c'])
     'a, b, c'
-    >>> list_as_string(['x', 'y', 'z'], prefix="  ", style="bullet-list")
-    '  - x'
-    '  - y'
-    '  - z'
     """
     if isinstance(list_, dict):
         list_ = list(list_.keys())

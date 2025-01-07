@@ -142,7 +142,7 @@ for 2015.
 
 ## Dependencies
 
-PyPSA is written and tested to be compatible with Python 3.9 and above.
+PyPSA is written and tested to be compatible with Python 3.10 and above.
 The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 It leans heavily on the following Python packages:
@@ -227,7 +227,7 @@ or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 
 # Licence
 
-Copyright 2015-2024 [PyPSA
+Copyright 2015-2025 [PyPSA
 Developers](https://pypsa.readthedocs.io/en/latest/developers.html)
 
 PyPSA is licensed under the open source [MIT

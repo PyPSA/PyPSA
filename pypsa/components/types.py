@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pypsa.definitions.components import ComponentTypeInfo
+from pypsa.definitions.components import ComponentType
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 from pypsa.utils import list_as_string
 
@@ -83,7 +83,8 @@ def add_component_type(
     ...     defaults_df=defaults_df,
     ... )
     >>> # Check created component type
-    >>> pypsa.components.types.get("CustomComponent")
+    >>> pypsa.components.types.get("custom_components")
+    'CustomComponent' Component Type
 
     """
     if name in all_components:
@@ -126,7 +127,7 @@ def add_component_type(
         )
 
     # Initialize Component
-    all_components[list_name] = ComponentTypeInfo(
+    all_components[list_name] = ComponentType(
         name=name,
         list_name=list_name,
         description=description,
@@ -182,7 +183,7 @@ def _load_default_component_types(
         )
 
 
-def get(name: str) -> ComponentTypeInfo:
+def get(name: str) -> ComponentType:
     """
     Get component type instance from package wide component types library.
 
@@ -198,13 +199,14 @@ def get(name: str) -> ComponentTypeInfo:
 
     Returns
     -------
-    pypsa.components.types.ComponentTypeInfo
+    pypsa.components.types.ComponentType
         Component type instance.
 
     Examples
     --------
     >>> import pypsa
     >>> pypsa.components.types.get("Generator")
+    'Generator' Component Type
 
     """
     if name in COMPONENT_ALIAS_DICT:

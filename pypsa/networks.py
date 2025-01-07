@@ -160,10 +160,11 @@ class Network:
 
     Examples
     --------
-    >>> nw1 = pypsa.Network("my_store.h5")
-    >>> nw2 = pypsa.Network("/my/folder")
-    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc")
-    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc")
+    >>> import pypsa
+    >>> nw1 = pypsa.Network("network.nc") # doctest: +SKIP
+    >>> nw2 = pypsa.Network("/my/folder") # doctest: +SKIP
+    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc") # doctest: +SKIP
+    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc") # doctest: +SKIP
 
     """
 
@@ -172,7 +173,6 @@ class Network:
 
     # Core attributes
     name: str
-    snapshots: pd.Index | pd.MultiIndex
     components: ComponentsStore
     sub_networks: pd.DataFrame
 
@@ -265,6 +265,10 @@ class Network:
     get_non_extendable_i = get_non_extendable_i
     get_active_assets = get_active_assets
 
+    # ----------------
+    # Dunder methods
+    # ----------------
+
     def __init__(
         self,
         import_name: str | Path = "",
@@ -301,8 +305,6 @@ class Network:
 
         cols = ["objective", "stores", "generators"]
         self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
-
-        self._investment_periods: pd.Index = pd.Index([], name="period")
 
         cols = ["objective", "years"]
         self._investment_period_weightings: pd.DataFrame = pd.DataFrame(
@@ -384,6 +386,9 @@ class Network:
             return False
         return True
 
+    # ----------------
+    # Initialization
+    # ----------------
     def _initialize_component_sets(self) -> None:
         # TODO merge with components.types
         for category in set(component_types_df.category.unique()):
@@ -413,28 +418,32 @@ class Network:
 
         self.components = ComponentsStore()
         for c_name in components:
-            ct = get_component_type(c_name)
+            ctype = get_component_type(c_name)
 
-            self.components[ct.list_name] = Component(ct=ct, n=self)
+            self.components[ctype.list_name] = Component(ctype=ctype, n=self)
 
             setattr(
                 type(self),
-                ct.list_name,
-                create_component_property("static", ct.list_name),
+                ctype.list_name,
+                create_component_property("static", ctype.list_name),
             )
             setattr(
                 type(self),
-                ct.list_name + "_t",
-                create_component_property("dynamic", ct.list_name),
+                ctype.list_name + "_t",
+                create_component_property("dynamic", ctype.list_name),
             )
 
     def read_in_default_standard_types(self) -> None:
         for std_type in self.standard_type_components:
             self.add(
                 std_type,
-                self.components[std_type].ct.standard_types.index,
-                **self.components[std_type].ct.standard_types,
+                self.components[std_type].ctype.standard_types.index,
+                **self.components[std_type].ctype.standard_types,
             )
+
+    # ----------------
+    # Components Store and Properties
+    # ----------------
 
     @property
     def c(self) -> ComponentsStore:
@@ -544,6 +553,10 @@ class Network:
         """
         return Dict({value.name: value.defaults for value in self.components})
 
+    # ----------------
+    # Meta data
+    # ----------------
+
     @property
     def meta(self) -> dict:
         """Dictionary of the network meta data."""
@@ -551,7 +564,7 @@ class Network:
 
     @meta.setter
     def meta(self, new: dict) -> None:
-        if not isinstance(new, (dict, Dict)):
+        if not isinstance(new, (dict | Dict)):
             raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
         self._meta = new
 
@@ -597,6 +610,10 @@ class Network:
         (n.shapes).
         """
         self.crs = pyproj.CRS.from_epsg(new)
+
+    # ----------------
+    # Indexers
+    # ----------------
 
     def set_snapshots(
         self,
@@ -697,9 +714,216 @@ class Network:
 
         # NB: No need to rebind dynamic to self, since haven't changed it
 
-    snapshots = property(
-        lambda self: self._snapshots, set_snapshots, doc="Time steps of the network"
-    )
+    @property
+    def snapshots(self) -> pd.Index | pd.MultiIndex:
+        """
+        Snapshots dimension of the network.
+
+        If snapshots are a pandas.MultiIndex, the first level are investment periods
+        and the second level are timesteps. If snapshots are single indexed, the only
+        level is timesteps.
+
+        Returns
+        -------
+        pd.Index or pd.MultiIndex
+            Snapshots of the network, either as a single index or a multi-index.
+
+        See Also
+        --------
+        pypsa.networks.Network.timesteps : Get the timestep level only.
+        pypsa.networks.Network.periods : Get the period level only.
+
+        Notes
+        -----
+        Note that Snapshots are a dimension, while timesteps and and periods are
+        only levels of the snapshots dimension, similar to coords in xarray.
+        This is because timesteps and periods are not necessarily unique or complete
+        across snapshots.
+        """
+        return self._snapshots
+
+    @snapshots.setter
+    def snapshots(self, snapshots: Sequence) -> None:
+        """
+        Setter for snapshots dimension.
+
+        Parameters
+        ----------
+        snapshots : Sequence
+
+
+        See Also
+        --------
+        pypsa.networks.Network.snapshots : Getter method
+        pypsa.networks.Network.set_snapshots : Setter method
+        """
+        self.set_snapshots(snapshots)
+
+    @property
+    def timesteps(self) -> pd.Index:
+        """
+        Timestep level of snapshots dimension.
+
+        If snapshots is single indexed, timesteps and snapshots yield the same result.
+        Otherwise only the timestep level will be returned.
+
+        Returns
+        -------
+        pd.Index
+            Timesteps of the network.
+
+        See Also
+        --------
+        pypsa.networks.Network.snapshots : Get the snapshots dimension.
+        pypsa.networks.Network.periods : Get the period level only.
+
+        """
+        if "timestep" in self.snapshots.names:
+            return self.snapshots.get_level_values("timestep").unique()
+        else:
+            return self.snapshots
+
+    @timesteps.setter
+    def timesteps(self, timesteps: Sequence) -> None:
+        """
+        Setter for timesteps level of snapshots dimension.
+
+        .. warning::
+            Setting `timesteps` is not supported. Please set `snapshots` instead.
+
+        Parameters
+        ----------
+        timesteps : Sequence
+
+        Also see
+        --------
+        pypsa.networks.Network.timesteps : Getter method
+        """
+
+        msg = "Setting `timesteps` is not supported. Please set `snapshots` instead."
+        raise NotImplementedError(msg)
+
+    @property
+    def periods(self) -> pd.Index:
+        """
+        Periods level of snapshots dimension.
+
+        If snapshots is single indexed, periods will always be empty, since there no
+        investment periods without timesteps are defined. Otherwise only the period
+        level will be returned.
+
+        Returns
+        -------
+        pd.Index
+            Periods of the network.
+
+        See Also
+        --------
+        pypsa.networks.Network.snapshots : Get the snapshots dimension.
+        pypsa.networks.Network.timesteps : Get the timestep level only.
+
+        """
+        if "period" in self.snapshots.names:
+            return self.snapshots.get_level_values("period").unique()
+        else:
+            return pd.Index([], name="period")
+
+    @periods.setter
+    def periods(self, periods: Sequence) -> None:
+        """
+        Setter for periods level of snapshots dimension.
+
+        Parameters
+        ----------
+        periods : Sequence
+
+        Also see
+        --------
+        pypsa.networks.Network.periods : Getter method
+        pypsa.networks.Network.set_investment_periods : Setter method
+        """
+
+        self.set_investment_periods(periods)
+
+    @property
+    def has_periods(self) -> bool:
+        """
+        Check if network has investment periods assigned to snapshots dimension.
+
+        Returns
+        -------
+        bool
+            True if network has investment periods, otherwise False.
+
+        See Also
+        --------
+        pypsa.networks.Network.snapshots : Snapshots dimension of the network.
+        pypsa.networks.Network.periods : Periods level of snapshots dimension.
+        """
+        return not self.periods.empty
+
+    @property
+    def investment_periods(self) -> pd.Index:
+        """
+        Periods level of snapshots dimension.
+
+        If snapshots is single indexed, periods will always be empty, since there no
+        investment periods without timesteps are defined. Otherwise only the period
+        level will be returned.
+
+        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+
+        Returns
+        -------
+        pd.Index
+            Investment periods of the network.
+
+        See Also
+        --------
+        pypsa.networks.Network.snapshots : Get the snapshots dimension.
+        pypsa.networks.Network.periods : Get the snapshots dimension.
+        pypsa.networks.Network.timesteps : Get the timestep level only.
+
+        """
+
+        return self.periods
+
+    @investment_periods.setter
+    def investment_periods(self, periods: Sequence) -> None:
+        """
+        Setter for periods level of snapshots dimension.
+
+        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+
+        Parameters
+        ----------
+        periods : Sequence
+
+        Also see
+        --------
+        pypsa.networks.Network.periods : Getter method
+        pypsa.networks.Network.set_investment_periods : Setter method
+        """
+        self.periods = periods
+
+    @property
+    def has_investment_periods(self) -> bool:
+        """
+        Check if network has investment periods assigned to snapshots dimension.
+
+        .. Note :: Alias for :py:meth:`pypsa.Network.has_periods`.
+
+        Returns
+        -------
+        bool
+            True if network has investment periods, otherwise False.
+
+        See Also
+        --------
+        pypsa.networks.Network.snapshots : Snapshots dimension of the network.
+        pypsa.networks.Network.periods : Periods level of snapshots dimension.
+        """
+        return self.has_periods
 
     @property
     def snapshot_weightings(self) -> pd.DataFrame:
@@ -750,6 +974,8 @@ class Network:
 
         """
         periods_ = pd.Index(periods, name="period")
+        if periods_.empty:
+            return
         if not (
             pd.api.types.is_integer_dtype(periods_)
             and periods_.is_unique
@@ -794,73 +1020,15 @@ class Network:
             )
             self._snapshot_weightings.index.name = "snapshot"
 
-        self._investment_periods = periods_
         self.investment_period_weightings = self.investment_period_weightings.reindex(
-            periods_, fill_value=1.0
+            self.periods, fill_value=1.0
         ).astype(float)
-
-    snapshots = property(
-        lambda self: self._snapshots, set_snapshots, doc="Index for dynamic data."
-    )
-
-    investment_periods = property(
-        lambda self: self._investment_periods,
-        set_investment_periods,
-        doc="Investment steps during the optimization.",
-    )
 
     scenarios = property(
         lambda self: self._scenarios,
         lambda self, value: setattr(self, "_scenarios", value),
         doc="Scenarios of the network for stochastic optimization.",
     )
-
-    @property
-    def timesteps(self) -> pd.Index:
-        """
-        Time steps of the network.
-
-        If no investment periods nor scenarios are defined, this is equal to snapshots.
-
-        Returns
-        -------
-        pandas.Index
-        """
-        return self.snapshots.get_level_values("timestep").unique()
-
-    @property
-    def snapshot_weightings(self) -> pd.DataFrame:
-        """
-        Weightings applied to each snapshots during the optimization (LOPF).
-
-        * Objective weightings multiply the operational cost in the
-          objective function.
-
-        * Generator weightings multiply the impact of all generators
-          in global constraints, e.g. multiplier of GHG emmissions.
-
-        * Store weightings define the elapsed hours for the charge, discharge
-          standing loss and spillage of storage units and stores in order to
-          determine the state of charge.
-        """
-        return self._snapshot_weightings
-
-    @snapshot_weightings.setter
-    def snapshot_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(
-            self.snapshots
-        ), "Weightings not defined for all snapshots."
-        if isinstance(df, pd.Series):
-            logger.info("Applying weightings to all columns of `snapshot_weightings`")
-            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
-        self._snapshot_weightings = df
-
-    @property
-    def has_investment_periods(self) -> bool:
-        """
-        Boolean indicating if the network has investment periods defined.
-        """
-        return len(self.investment_periods) > 0
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -950,17 +1118,24 @@ class Network:
 
         Examples
         --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+
         Add a single component:
 
         >>> n.add("Bus", "my_bus_0")
+        Index(['my_bus_0'], dtype='object')
         >>> n.add("Bus", "my_bus_1", v_nom=380)
+        Index(['my_bus_1'], dtype='object')
         >>> n.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
+        Index(['my_line_name'], dtype='object')
 
         Add multiple components with static attributes:
 
         >>> n.add("Load", ["load 1", "load 2"],
         ...       bus=["1", "2"],
         ...       p_set=np.random.rand(len(n.snapshots), 2))
+        Index(['load 1', 'load 2'], dtype='object')
 
         Add multiple components with time-varying attributes:
 
@@ -970,16 +1145,20 @@ class Network:
         >>> n = pypsa.Network()
         >>> n.set_snapshots(snapshots)
         >>> n.add("Bus", buses)
+        Index(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], dtype='object')
         >>> # add load as numpy array
         >>> n.add("Load",
         ...       n.buses.index + " load",
         ...       bus=buses,
         ...       p_set=np.random.rand(len(snapshots), len(buses)))
+        Index(['0 load', '1 load', '2 load', '3 load', '4 load', '5 load', '6 load',
+               '7 load', '8 load', '9 load', '10 load', '11 load', '12 load'],
+              dtype='object', name='Bus')
         >>> # add wind availability as pandas DataFrame
         >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
         ...        columns=buses)
-        >>> #use a suffix to avoid boilerplate to rename everything
+        >>> # use a suffix to avoid boilerplate to rename everything
         >>> n.add("Generator",
         ...       buses,
         ...       suffix=' wind',
@@ -987,6 +1166,10 @@ class Network:
         ...       p_nom_extendable=True,
         ...       capital_cost=1e5,
         ...       p_max_pu=wind)
+        Index(['0 wind', '1 wind', '2 wind', '3 wind', '4 wind', '5 wind', '6 wind',
+               '7 wind', '8 wind', '9 wind', '10 wind', '11 wind', '12 wind'],
+              dtype='object')
+
 
         """
         c = as_components(self, class_name)
@@ -1016,14 +1199,18 @@ class Network:
             elif isinstance(v, pd.Series):
                 # Cast names index to string + suffix
                 v = v.rename(
-                    index=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
+                    index=lambda s: str(s)
+                    if str(s).endswith(suffix)
+                    else str(s) + suffix
                 )
                 if not v.index.equals(names):
                     raise ValueError(msg.format(f"Series {k}", names_str))
             if isinstance(v, pd.DataFrame):
                 # Cast names columns to string + suffix
                 v = v.rename(
-                    columns=lambda s: str(s) if str(s).endswith(suffix) else s + suffix
+                    columns=lambda s: str(s)
+                    if str(s).endswith(suffix)
+                    else str(s) + suffix
                 )
                 if not v.index.equals(self.snapshots):
                     raise ValueError(msg.format(f"DataFrame {k}", "network snapshots"))
@@ -1130,8 +1317,10 @@ class Network:
 
         Examples
         --------
-        >>> n.remove("Line", "my_line 12345")
-        >>> n.remove("Line", ["line x", "line y"])
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.remove("Line", "0")
+        >>> n.remove("Line", ["1","2"])
         """
         c = as_components(self, class_name)
 
@@ -1163,9 +1352,10 @@ class Network:
         """
         Add multiple components to the network, along with their attributes.
 
-        ``n.madd`` is deprecated and will be removed in version 1.0. Use
-        :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
-        addition of components.
+        .. deprecated:: 0.31
+          ``n.madd`` is deprecated and will be removed in a future version. Use
+            :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
+            removal of components.
 
         Make sure when adding static attributes as pandas Series that they are indexed
         by names. Make sure when adding time-varying attributes as pandas DataFrames that
@@ -1189,45 +1379,6 @@ class Network:
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
-        Returns
-        -------
-        new_names : pandas.index
-            Names of new components (including suffix)
-
-        Examples
-        --------
-        Short Example:
-
-        >>> n.madd("Load", ["load 1", "load 2"],
-        ...        bus=["1", "2"],
-        ...        p_set=np.random.rand(len(n.snapshots), 2))
-
-        Long Example:
-
-        >>> import pandas as pd, numpy as np
-        >>> buses = range(13)
-        >>> snapshots = range(7)
-        >>> n = pypsa.Network()
-        >>> n.set_snapshots(snapshots)
-        >>> n.madd("Bus", buses)
-        >>> # add load as numpy array
-        >>> n.madd("Load",
-        ...        n.buses.index + " load",
-        ...        bus=buses,
-        ...        p_set=np.random.rand(len(snapshots), len(buses)))
-        >>> # add wind availability as pandas DataFrame
-        >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
-        ...        index=n.snapshots,
-        ...        columns=buses)
-        >>> #use a suffix to avoid boilerplate to rename everything
-        >>> n.madd("Generator",
-        ...        buses,
-        ...        suffix=' wind',
-        ...        bus=buses,
-        ...        p_nom_extendable=True,
-        ...        capital_cost=1e5,
-        ...        p_max_pu=wind)
-
         """
         return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
 
@@ -1239,6 +1390,11 @@ class Network:
     def mremove(self, class_name: str, names: Sequence) -> None:
         """
         Removes multiple components from the network.
+
+        .. deprecated:: 0.31
+          ``n.mremove`` is deprecated and will be removed in a future version. Use
+            :py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple
+            removal of components.
 
         ``n.mremove`` is deprecated and will be removed in version 1.0. Use
         py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple removal of
@@ -1252,10 +1408,6 @@ class Network:
             Component class name
         name : list-like
             Component names
-
-        Examples
-        --------
-        >>> n.mremove("Line", ["line x", "line y"])
 
         """
         self.remove(class_name=class_name, name=names)
@@ -1301,6 +1453,8 @@ class Network:
 
         Examples
         --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
         >>> network_copy = n.copy()
 
         """
@@ -1410,9 +1564,9 @@ class Network:
 
         Examples
         --------
-        >>> sub_network_0 = n[n.buses.sub_network = "0"]
-
-        >>> sub_network_0_with_only_10_snapshots = n[:10, n.buses.sub_network = "0"]
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> sub_network_0 = n[n.buses.sub_network == "0"]
 
         """
         if isinstance(key, tuple):
@@ -1607,6 +1761,8 @@ class Network:
 
         Examples
         --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.consistency_check()
 
         """

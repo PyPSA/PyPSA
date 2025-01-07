@@ -10,10 +10,10 @@ readme="README.md"
 authors=[{name = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html", email = "t.brown@tu-berlin.de"}]
 license = { file = "LICENSE" }
 classifiers=[
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
@@ -23,11 +23,12 @@ classifiers=[
     "Operating System :: OS Independent",
 ]
 
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 dependencies = [
     "numpy",
-    "scipy",
+    "scipy>=1.14.1,!=1.15.0; python_version >= '3.13'",
+    "scipy; python_version < '3.13'",
     "pandas>=0.24",
     "xarray",
     "netcdf4",
@@ -45,7 +46,7 @@ Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
 
 [project.optional-dependencies]
-hdf5 = ["tables"]
+hdf5 = ["tables; python_version < '3.13'"]
 cartopy = [
     "cartopy>=0.16",
     "requests",
@@ -56,7 +57,7 @@ dev = [
     "pytest", 
     "coverage",
     "pypower",
-    "pandapower>=2.14.9",
+    "pandapower>=2.14.11; python_version < '3.13'",
     "scikit-learn",
     "pre-commit", 
     "ruff",
@@ -89,7 +90,7 @@ include = ["pypsa"]
 
 # Pytest settings
 
-[tool.pytest.ini_options]   
+[tool.pytest.ini_options]
 filterwarnings = [
     "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     "error::FutureWarning",      # Raise all FutureWarnings as errors
@@ -146,6 +147,7 @@ select = [
 
 ignore = [
     'ANN401', # Dynamically typed expressions are forbidden
+    'E501', # line too long
     'E741', # ambiguous variable names
     'D203', # 1 blank line required before class docstring
     'D212', # Multi-line docstring summary should start at the second line
@@ -157,7 +159,6 @@ ignore = [
 # pydocstyle ignores, which could be enabled in future when existing
 # issues are fixed
 "!**/{grouping.py,components/**}" = [
-    'E501', # line too long
     'D100', # Missing docstring in public module
     'D101', # Missing docstring in public class
     'D102', # Missing docstring in public method
