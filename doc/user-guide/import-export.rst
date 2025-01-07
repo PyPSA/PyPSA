@@ -27,7 +27,7 @@ Multiple components can be removed by calling :py:meth:`pypsa.Network.mremove`.
 CSV import and export
 =====================
 
-Create a folder with CSVs for each component variant (e.g. ``generators.csv``,
+Create a folder with CSVs for each component type (e.g. ``generators.csv``,
 ``storage_units.csv``), then a CSV for each time-dependent variable (e.g.
 ``generators-p_max_pu.csv, loads-p_set.csv``). Then run
 :py:meth:`pypsa.Network.import_from_csv_folder` to **import** the network.

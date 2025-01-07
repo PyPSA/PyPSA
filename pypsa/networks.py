@@ -415,27 +415,27 @@ class Network:
 
         self.components = ComponentsStore()
         for c_name in components:
-            ct = get_component_type(c_name)
+            ctype = get_component_type(c_name)
 
-            self.components[ct.list_name] = Component(ct=ct, n=self)
+            self.components[ctype.list_name] = Component(ctype=ctype, n=self)
 
             setattr(
                 type(self),
-                ct.list_name,
-                create_component_property("static", ct.list_name),
+                ctype.list_name,
+                create_component_property("static", ctype.list_name),
             )
             setattr(
                 type(self),
-                ct.list_name + "_t",
-                create_component_property("dynamic", ct.list_name),
+                ctype.list_name + "_t",
+                create_component_property("dynamic", ctype.list_name),
             )
 
     def read_in_default_standard_types(self) -> None:
         for std_type in self.standard_type_components:
             self.add(
                 std_type,
-                self.components[std_type].ct.standard_types.index,
-                **self.components[std_type].ct.standard_types,
+                self.components[std_type].ctype.standard_types.index,
+                **self.components[std_type].ctype.standard_types,
             )
 
     # ----------------

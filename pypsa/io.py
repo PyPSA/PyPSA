@@ -516,7 +516,7 @@ def _export_to_exporter(
     """
     if not basename:
         basename = "<unnamed>"
-    # exportable component variants
+    # exportable component types
     allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
     # first export network properties

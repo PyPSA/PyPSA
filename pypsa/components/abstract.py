@@ -1,7 +1,7 @@
 """
 Abstract components module.
 
-Contains classes and logic relevant to all component variants in PyPSA.
+Contains classes and logic relevant to all component types in PyPSA.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import pandas as pd
 from pyproj import CRS
 
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentVariant
+from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
 from pypsa.utils import equals
 
@@ -42,8 +42,8 @@ class ComponentsData:
 
     Attributes
     ----------
-    ct : ComponentVariant
-        Component variant information containing all default values and attributes.
+    ctype : ComponentType
+        Component type information containing all default values and attributes.
     n : Network | None
         Network object to which the component might be attached.
     static : pd.DataFrame
@@ -53,7 +53,7 @@ class ComponentsData:
 
     """
 
-    ct: ComponentVariant
+    ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
     dynamic: dict
@@ -65,7 +65,7 @@ class Components(ComponentsData, ABC):
 
     Abstract base class for Container of energy system related assets, such as
     generators or transmission lines. Use the specific subclasses for concrete or
-    a generic component variant.
+    a generic component type.
     All data is stored in dataclass :class:`pypsa.components.abstract.ComponentsData`.
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
@@ -78,7 +78,7 @@ class Components(ComponentsData, ABC):
 
     def __init__(
         self,
-        ct: ComponentVariant,
+        ctype: ComponentType,
         n: Network | None = None,
         names: str | int | Sequence[int | str] | None = None,
         suffix: str = "",
@@ -88,7 +88,7 @@ class Components(ComponentsData, ABC):
 
         Parameters
         ----------
-        ct : ComponentVariant
+        ctype : ComponentType
             Component type information.
         n : Network, optional
             Network object to attach to, by default None.
@@ -107,8 +107,8 @@ class Components(ComponentsData, ABC):
                 "supported."
             )
             raise NotImplementedError(msg)
-        static, dynamic = self._get_data_containers(ct)
-        super().__init__(ct, n=None, static=static, dynamic=dynamic)
+        static, dynamic = self._get_data_containers(ctype)
+        super().__init__(ctype, n=None, static=static, dynamic=dynamic)
 
     def __repr__(self) -> str:
         """
@@ -132,8 +132,8 @@ class Components(ComponentsData, ABC):
         """
         num_components = len(self.static)
         if not num_components:
-            return f"Empty PyPSA {self.ct.name} Components\n"
-        text = f"PyPSA '{self.ct.name}' Components"
+            return f"Empty PyPSA {self.ctype.name} Components\n"
+        text = f"PyPSA '{self.ctype.name}' Components"
         text += "\n" + "-" * len(text) + "\n"
 
         # Add attachment status
@@ -166,7 +166,7 @@ class Components(ComponentsData, ABC):
 
         """
         num_components = len(self.static)
-        text = f"{num_components} '{self.ct.name}' Components"
+        text = f"{num_components} '{self.ctype.name}' Components"
         return text
 
     def __getitem__(self, key: str) -> Any:
@@ -228,13 +228,13 @@ class Components(ComponentsData, ABC):
 
         """
         return (
-            equals(self.ct, other.ct)
+            equals(self.ctype, other.ctype)
             and equals(self.static, other.static)
             and equals(self.dynamic, other.dynamic)
         )
 
     @staticmethod
-    def _get_data_containers(ct: ComponentVariant) -> tuple[pd.DataFrame, Dict]:
+    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict]:
         static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
         if ct.name == "Shape":
             crs = CRS.from_epsg(
@@ -272,7 +272,7 @@ class Components(ComponentsData, ABC):
         Get standard types of component.
 
         It is an alias for the `standard_types` attribute of the underlying
-        :class:`pypsa.definitions.ComponentVariant`.
+        :class:`pypsa.definitions.ComponentType`.
 
         Returns
         -------
@@ -280,12 +280,12 @@ class Components(ComponentsData, ABC):
             DataFrame with standard types of component.
 
         """
-        return self.ct.standard_types
+        return self.ctype.standard_types
 
     @property
     def name(self) -> str:
         """
-        Name of component variant.
+        Name of component type.
 
         Returns
         -------
@@ -294,7 +294,7 @@ class Components(ComponentsData, ABC):
 
         See Also
         --------
-        pypsa.definitions.ComponentVariant :
+        pypsa.definitions.ComponentType :
             This property directly references the same property in the
             associated underlying class.
 
@@ -306,12 +306,12 @@ class Components(ComponentsData, ABC):
         'Generator'
 
         """
-        return self.ct.name
+        return self.ctype.name
 
     @property
     def list_name(self) -> str:
         """
-        List name of component variant.
+        List name of component type.
 
         Returns
         -------
@@ -320,7 +320,7 @@ class Components(ComponentsData, ABC):
 
         See Also
         --------
-        pypsa.definitions.ComponentVariant :
+        pypsa.definitions.ComponentType :
             This property directly references the same property in the
             associated underlying class.
 
@@ -332,7 +332,7 @@ class Components(ComponentsData, ABC):
         'generators'
 
         """
-        return self.ct.list_name
+        return self.ctype.list_name
 
     @property
     def description(self) -> str:
@@ -346,7 +346,7 @@ class Components(ComponentsData, ABC):
 
         See Also
         --------
-        pypsa.definitions.ComponentVariant :
+        pypsa.definitions.ComponentType :
             This property directly references the same property in the
             associated underlying class.
 
@@ -358,7 +358,7 @@ class Components(ComponentsData, ABC):
         'Power generator.'
 
         """
-        return self.ct.description
+        return self.ctype.description
 
     @property
     def category(self) -> str:
@@ -372,7 +372,7 @@ class Components(ComponentsData, ABC):
 
         See Also
         --------
-        pypsa.definitions.ComponentVariant :
+        pypsa.definitions.ComponentType :
             This property directly references the same property in the
             associated underlying class.
 
@@ -384,7 +384,7 @@ class Components(ComponentsData, ABC):
         'controllable_one_port'
 
         """
-        return self.ct.category
+        return self.ctype.category
 
     @property
     def type(self) -> str:
@@ -393,7 +393,7 @@ class Components(ComponentsData, ABC):
 
         .. note ::
             While not actively deprecated yet, :meth:`category` is the preferred method
-            to access component variant.
+            to access component type.
 
         Returns
         -------
@@ -402,17 +402,17 @@ class Components(ComponentsData, ABC):
 
         See Also
         --------
-        pypsa.definitions.ComponentVariant :
+        pypsa.definitions.ComponentType :
             This property directly references the same property in the
             associated underlying class.
 
         """
-        return self.ct.category
+        return self.ctype.category
 
     @property
     def attrs(self) -> pd.DataFrame:
         """
-        Default values of corresponding component variant.
+        Default values of corresponding component type.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -426,18 +426,18 @@ class Components(ComponentsData, ABC):
 
         See Also
         --------
-        pypsa.definitions.ComponentVariant :
+        pypsa.definitions.ComponentType :
             This property directly references the same property in the
             associated underlying class.
 
 
         """
-        return self.ct.defaults
+        return self.ctype.defaults
 
     @property
     def defaults(self) -> pd.DataFrame:
         """
-        Default values of corresponding component variant.
+        Default values of corresponding component type.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -451,7 +451,7 @@ class Components(ComponentsData, ABC):
 
         See Also
         --------
-        pypsa.definitions.ComponentVariant :
+        pypsa.definitions.ComponentType :
             This property directly references the same property in the
             associated underlying class.
 
@@ -469,7 +469,7 @@ class Components(ComponentsData, ABC):
         p_nom       float   MW     0.0          Nominal power for limits in optimization.  Input (optional)    True    False  <class 'float'>  float64
 
         """
-        return self.ct.defaults
+        return self.ctype.defaults
 
     def get(self, attribute_name: str, default: Any = None) -> Any:
         """

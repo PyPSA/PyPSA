@@ -14,27 +14,27 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class ComponentVariant:
+class ComponentType:
     """
-    Dataclass for network component variant.
+    Dataclass for network component type.
 
-    Contains all information about a component variant, such as its name and defaults
-    attributes. Two different variants are for example 'Generator' and 'Carrier'.
+    Contains all information about a component type, such as its name and defaults
+    attributes. Two different types are for example 'Generator' and 'Carrier'.
 
     Attributes
     ----------
     name : str
-        Name of component variant, e.g. 'Generator'.
+        Name of component type, e.g. 'Generator'.
     list_name : str
-        Name of component variant in list form, e.g. 'generators'.
+        Name of component type in list form, e.g. 'generators'.
     description : str
-        Description of the component variant.
+        Description of the component type.
     category : str
-        Category of the component variant, e.g. 'passive_branch'.
+        Category of the component type, e.g. 'passive_branch'.
     defaults : pd.DataFrame
-        Default values for the component variant.
+        Default values for the component type.
     standard_types : pd.DataFrame | None
-        Standard types for the component variant.
+        Standard types for the component type.
 
     """
 
@@ -46,7 +46,7 @@ class ComponentVariant:
     standard_types: pd.DataFrame | None = None
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, ComponentVariant):
+        if not isinstance(other, ComponentType):
             return NotImplemented
 
         return (
@@ -58,7 +58,7 @@ class ComponentVariant:
         )
 
     def __repr__(self) -> str:
-        return f"'{self.name}' Component Variant"
+        return f"'{self.name}' Component Type"
 
     @property
     @deprecated(

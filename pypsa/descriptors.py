@@ -275,7 +275,7 @@ def get_active_assets(
     investment_period: int | str | Sequence | None = None,
 ) -> pd.Series:
     """
-    Get active components mask of component variant in investment period(s).
+    Get active components mask of component type in investment period(s).
 
     See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
 
