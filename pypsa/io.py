@@ -1568,11 +1568,11 @@ def import_from_pandapower_net(
     >>> n.import_from_pandapower_net(net) # doctest: +SKIP
     OR
     >>> import pypsa
-    >>> import pandapower as pp
-    >>> import pandapower.networks as pn
-    >>> net = pn.create_cigre_network_mv(with_der='all')
+    >>> import pandapower as pp # doctest: +SKIP
+    >>> import pandapower.networks as pn # doctest: +SKIP
+    >>> net = pn.create_cigre_network_mv(with_der='all') # doctest: +SKIP
     >>> n = pypsa.Network()
-    >>> n.import_from_pandapower_net(net, extra_line_data=True)
+    >>> n.import_from_pandapower_net(net, extra_line_data=True)  # doctest: +SKIP
     """
     logger.warning(
         "Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers."
