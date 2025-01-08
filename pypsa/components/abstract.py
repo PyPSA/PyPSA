@@ -6,6 +6,7 @@ Contains classes and logic relevant to all component types in PyPSA.
 
 from __future__ import annotations
 
+import copy
 import logging
 from abc import ABC
 from collections.abc import Callable, Sequence
@@ -610,9 +611,42 @@ class Components(ComponentsData, ABC):
             ds[k] = da
         return ds
 
+    @property
+    def nominal_attr(self) -> pd.Index:
+        # TODO: MOve to components.py
+        nominal_attrs = {
+            "Generator": "p_nom",
+            "Line": "s_nom",
+            "Transformer": "s_nom",
+            "Link": "p_nom",
+            "Store": "e_nom",
+            "StorageUnit": "p_nom",
+        }
+        if self.ctype.name not in nominal_attrs:
+            raise ValueError(f"Nominal attribute not defined for {self.ctype.name}")
+        return nominal_attrs[self.ctype.name]
+
+    def get_extendable_i(self) -> pd.Index:
+        """
+        Get the index of extendable elements of a given component.
+        """
+        idx = self.static[lambda ds: ds[self.nominal_attr + "_extendable"]].index
+        return idx.rename(f"{self.name}-ext")
+
+    def get_non_extendable_i(self) -> pd.Index:
+        """
+        Get the index of non-extendable elements of a given component.
+        """
+        idx = self.static[lambda ds: ~ds[self.nominal_attr + "_extendable"]].index
+        return idx.rename(f"{self.name}-non-ext")
+
+    def copy(self) -> Components:
+        return copy.deepcopy(self)
+
     def get_active_assets(
         self,
         investment_period: int | str | Sequence | None = None,
+        as_xarray: bool = False,
     ) -> pd.Series:
         """
         Get active components mask of componen type in investment period(s).
@@ -635,21 +669,27 @@ class Components(ComponentsData, ABC):
             Boolean mask for active components
 
         """
+        # TODO: Rename method
+
+        if not as_xarray:
+            raise NotImplementedError()
+
         if investment_period is None:
-            return self.static.active
+            return self.ds.active
         if not {"build_year", "lifetime"}.issubset(self.static):
-            return self.static.active
+            return self.ds.active
 
         # Logical OR of active assets in all investment periods and
         # logical AND with active attribute
-        active = {}
-        for period in np.atleast_1d(investment_period):
-            if period not in self.n_save.investment_periods:
-                raise ValueError("Investment period not in `n.investment_periods`")
-            active[period] = self.static.eval(
-                "build_year <= @period < build_year + lifetime"
-            )
-        return pd.DataFrame(active).any(axis=1) & self.static.active
+        raise NotImplementedError("Investment periods are not yet implemented.")
+        # active = {}
+        # for period in np.atleast_1d(investment_period):
+        #     if period not in self.n_save.investment_periods:
+        #         raise ValueError("Investment period not in `n.investment_periods`")
+        #     active[period] = self.static.eval(
+        #         "build_year <= @period < build_year + lifetime"
+        #     )
+        # return pd.DataFrame(active).any(axis=1) & self.static.active
 
 
 class SubNetworkComponents:

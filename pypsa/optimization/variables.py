@@ -9,6 +9,7 @@ import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from pypsa.components.utils import as_components
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
@@ -18,7 +19,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -> None:
+def define_operational_variables(
+    n: Network, component_name: str, attr: str, sns: Sequence | None = None
+) -> None:
     """
     Initializes variables for power dispatch for a given component and a given
     attribute.
@@ -31,12 +34,18 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if n.static(c).empty:
+    if sns is not None:
+        msg = "Passing sns is deprecated. `n.snapshots` is used instead."
+        raise DeprecationWarning(msg)
+
+    c = as_components(n, component_name)
+
+    if c.static.empty:
         return
 
-    active = get_activity_mask(n, c, sns)
-    coords = [sns, n.static(c).index.rename(c)]
-    n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
+    active = c.get_active_assets(as_xarray=True)
+
+    n.model.add_variables(coords=active.coords, name=f"{c}-{attr}", mask=active)
 
 
 def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
@@ -97,11 +106,13 @@ def define_nominal_variables(n: Network, c: str, attr: str) -> None:
     attr : str
         name of the variable, e.g. 'p_nom'
     """
-    ext_i = n.get_extendable_i(c)
+    c_ = n.components[c]
+
+    ext_i = n.get_extendable_i(c_.name)
     if ext_i.empty:
         return
 
-    n.model.add_variables(coords=[ext_i], name=f"{c}-{attr}")
+    n.model.add_variables(coords=[ext_i], name=f"{c_.name}-{attr}")
 
 
 def define_modular_variables(n: Network, c: str, attr: str) -> None:

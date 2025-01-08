@@ -56,7 +56,8 @@ def define_operational_constraints_for_non_extendables(
     dispatch_lower: DataArray | tuple
     dispatch_upper: DataArray | tuple
 
-    fix_i = n.get_non_extendable_i(c)
+    c_ = n.components[c]
+    fix_i = c_.get_non_extendable_i()
     fix_i = fix_i.difference(n.get_committable_i(c)).rename(fix_i.name)
 
     if fix_i.empty:
