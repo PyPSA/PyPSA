@@ -141,11 +141,14 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         stacked: bool = False,
         nice_names: bool = True,
+        query: str | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot method to be implemented by subclasses"""
         self._check_plotting_consistency()
         data = self._to_long_format(data)
+        if query:
+            data = data.query(query)
         if stacked and color is not None:
             data = self._process_data_for_stacking(data, color)
         data = self._validate(data)
@@ -181,6 +184,7 @@ class BasePlotTypeAccessor:
         stacked: bool = False,
         dodged: bool = False,
         nice_names: bool = True,
+        query: str | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot method to be implemented by subclasses"""
@@ -193,9 +197,7 @@ class BasePlotTypeAccessor:
         color: str | None = None,
         col: str | None = None,
         row: str | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        aggregate_time: bool | str | None = None,
+        stats_opts: dict[str, Any] = {},
     ) -> tuple[str | Sequence[str] | Callable, bool, bool | str]:
         """
         Extract plotting specification rules including groupby columns and component aggregation.
@@ -217,18 +219,15 @@ class BasePlotTypeAccessor:
             derived_agg_time = "sum"
 
         # Use derived values only if not explicitly specified
-        if groupby is None:
-            groupby = derived_groupby
-
-        if aggregate_across_components is None:
-            aggregate_across_components = derived_agg_across
-
-        if aggregate_time is None:
-            aggregate_time = derived_agg_time
+        groupby = stats_opts.get("groupby", derived_groupby)
+        aggregate_across_components = stats_opts.get(
+            "aggregate_across_components", derived_agg_across
+        )
+        aggregate_time = stats_opts.get("aggregate_time", derived_agg_time)
 
         return groupby, aggregate_across_components, aggregate_time
 
-    # Front-end plotting methods
+    # The following functions in this class are all Front-end plotting methods
     def optimal_capacity(
         self: BasePlotTypeAccessor,
         x: str = "carrier",
@@ -236,25 +235,22 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         storage: bool = False,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot optimal capacity"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.optimal_capacity(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             storage=storage,
             nice_names=False,
         )
@@ -266,6 +262,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -276,25 +273,22 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
         storage: bool = False,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot installed capacity"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.installed_capacity(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             storage=storage,
             nice_names=False,
         )
@@ -306,6 +300,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -316,25 +311,22 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot supply data"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.supply(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -345,6 +337,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -355,25 +348,22 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot withdrawal data"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.withdrawal(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -384,6 +374,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -394,25 +385,22 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot energy balance"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.energy_balance(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -423,6 +411,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -433,23 +422,21 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot transmission data"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.transmission(
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -460,6 +447,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -470,23 +458,21 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot capacity factor"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.capacity_factor(
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -497,6 +483,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -507,23 +494,21 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot curtailment"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.curtailment(
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -534,6 +519,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -544,22 +530,20 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot capital expenditure"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.capex(
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -570,6 +554,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -580,23 +565,21 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot operational expenditure"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.opex(
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -607,6 +590,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -617,23 +601,21 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot revenue"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.revenue(
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -644,6 +626,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -654,24 +637,21 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot expanded capacity"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.expanded_capacity(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -682,6 +662,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -692,24 +673,21 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot expanded capital expenditure"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.expanded_capex(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -720,6 +698,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -730,25 +709,22 @@ class BasePlotTypeAccessor:
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
-        comps: str | Sequence[str] | None = None,
-        groupby: str | Sequence[str] | Callable | None = None,
-        aggregate_across_components: bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool = True,
+        query: str | None = None,
+        stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Plot market value"""
+        stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(
-                x, y, color, col, row, groupby, aggregate_across_components
-            )
+            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
         )
         data = self._statistics.market_value(
-            comps=comps,
+            comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=bus_carrier,
+            bus_carrier=stats_opts.get("bus_carrier"),
             nice_names=False,
         )
         return self._plot(
@@ -759,6 +735,7 @@ class BasePlotTypeAccessor:
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -789,6 +766,7 @@ class BarPlotter(BasePlotTypeAccessor):
         nice_names: bool = True,
         stacked: bool = False,
         dodged: bool = False,
+        query: str | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Implement bar plotting logic with seaborn.objects"""
@@ -802,6 +780,7 @@ class BarPlotter(BasePlotTypeAccessor):
             row=row,
             stacked=stacked,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -845,6 +824,7 @@ class LinePlotter(BasePlotTypeAccessor):
         row: str | None = None,
         nice_names: bool = True,
         resample: str | None = None,
+        query: str | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Implement line plotting logic with seaborn.objects"""
@@ -864,6 +844,7 @@ class LinePlotter(BasePlotTypeAccessor):
             col=col,
             row=row,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
@@ -901,6 +882,7 @@ class AreaPlotter(BasePlotTypeAccessor):
         nice_names: bool = True,
         stacked: bool = True,
         dodged: bool = False,
+        query: str | None = None,
         **kwargs: Any,
     ) -> so.Plot:
         """Implement area plotting logic with seaborn.objects"""
@@ -915,6 +897,7 @@ class AreaPlotter(BasePlotTypeAccessor):
             row=row,
             stacked=stacked,
             nice_names=nice_names,
+            query=query,
             **kwargs,
         )
 
