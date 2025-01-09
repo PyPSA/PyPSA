@@ -128,13 +128,11 @@ class MapPlotter:
         self._n = n
         self._x = None
         self._y = None
-        self._boundaries = None
+        self._layout = layout
+        self._boundaries = boundaries
         self._margin = margin
         self._ax = None
         self._area_factor = 1
-
-        self.set_layout(layout)
-        self.set_boundaries(boundaries, margin, buses)
 
         if jitter:
             self.add_jitter(jitter)
@@ -173,6 +171,8 @@ class MapPlotter:
 
     @property
     def boundaries(self):
+        if self._boundaries is None:
+            self.set_boundaries(self._boundaries, self.margin, self._n.buses.index)
         return self._boundaries
 
     @boundaries.setter
@@ -214,7 +214,7 @@ class MapPlotter:
             .all()
             .all()
         )
-        if layouter or is_empty:
+        if layouter or self._layout or is_empty:
             self.x, self.y = apply_layouter(self.n, layouter)
         else:
             self.x, self.y = self.n.buses["x"], self.n.buses["y"]
@@ -1174,6 +1174,7 @@ class MapPlotter:
         legend_circles_kw: dict | None = None,
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
+        kind: str | None = None,
         **kwargs: Any,
     ) -> tuple[plt.Figure, plt.Axes]:
         """
@@ -1217,6 +1218,7 @@ class MapPlotter:
             bus_carrier=carrier,
             groupby=s.groupers.get_bus_and_carrier,
             nice_names=False,
+            kind=kind,
         )
         transmission_carriers = get_transmission_carriers(n, bus_carrier=carrier)
         if "Link" in balance.index.get_level_values("component"):

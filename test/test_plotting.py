@@ -77,7 +77,7 @@ def test_plot_bus_circles(ac_dc_network):
 
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()
     bus_sizes[:] = 1
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
     n.plot(bus_sizes=bus_sizes, bus_colors=bus_colors, geomap=False)
     plt.close()
 
@@ -100,9 +100,7 @@ def test_plot_split_circles(ac_dc_network):
     n.loads.carrier = "load"
     load_sizes = -n.loads_t.p_set.mean().groupby([n.loads.bus, n.loads.carrier]).max()
     bus_sizes = pd.concat((gen_sizes, load_sizes)) / 1e3
-    bus_colors = pd.Series(
-        ["blue", "red", "green", "orange"], index=list(n.carriers.index) + ["load"]
-    )
+    bus_colors = n.carriers.color
     n.plot(
         bus_sizes=bus_sizes, bus_colors=bus_colors, bus_split_circles=True, geomap=False
     )
@@ -134,7 +132,7 @@ def test_plot_alpha(ac_dc_network):
 
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()
     bus_sizes[:] = 1
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
     n.plot(
         bus_sizes=bus_sizes,
         bus_colors=bus_colors,
@@ -172,7 +170,7 @@ def test_plot_bus_subset(ac_dc_network):
 
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()[:3]
     bus_sizes[:] = 1
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
     n.plot(
         bus_sizes=bus_sizes,
         bus_colors=bus_colors,
@@ -201,7 +199,7 @@ def test_plot_from_statistics(ac_dc_network):
 
     bus_scale = 5e-6
     branch_scale = 1e-4
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
 
     n.plot(
         bus_sizes=bus_sizes * bus_scale,

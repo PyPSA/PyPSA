@@ -221,6 +221,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         levels = [l for l in df.index.names if l != "component"]
         return df.groupby(level=levels).agg(agg)
 
+    def _aggregate_components_skip_iteration(
+        self, vals: pd.Series | pd.DataFrame
+    ) -> bool:
+        return vals.empty
+
     def __call__(
         self,
         comps: str | Sequence[str] | None = None,

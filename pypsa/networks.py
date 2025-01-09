@@ -249,26 +249,6 @@ class Network:
     iplot = iplot
     explore = explore
 
-    @property
-    def plot(self) -> PlotAccessor:
-        """
-        Access plotting functionality.
-
-        Provides access to different plot types through sub-accessors:
-        - maps: For network topology on static maps
-        - bar: For bar plots of network statistics
-        - line: For time series data
-        - area: For stacked area plots
-
-        Examples
-        --------
-        >>> n.plot.maps()  # Static map plot
-        >>> n.plot.bar.optimal_capacity(groupby=["carrier"])  # Bar plot
-        >>> n.plot.line.energy_balance(groupby=["carrier"])  # Line plot
-        >>> n.plot.area.supply(groupby=["carrier"])  # Area plot
-        """
-        return PlotAccessor(self)
-
     # from pypsa.contingency
     lpf_contingency = network_lpf_contingency
 
@@ -334,6 +314,7 @@ class Network:
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
         self.statistics: StatisticsAccessor = StatisticsAccessor(self)
+        self.plot: PlotAccessor = PlotAccessor(self)
 
         # Define component sets
         self._initialize_component_sets()

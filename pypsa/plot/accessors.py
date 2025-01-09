@@ -14,7 +14,6 @@ from pypsa.consistency import (
 )
 from pypsa.plot.maps import MapPlotter, plot
 from pypsa.statistics.expressions import StatisticsAccessor
-from pypsa.utils import resample_timeseries
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -26,6 +25,8 @@ class BasePlotTypeAccessor:
     _network: Network
     _statistics: StatisticsAccessor
     _time_aggregation: str | bool
+    _default_static_x: ClassVar[str] = "carrier"  # Default for static plots
+    _default_dynamic_x: ClassVar[str] = "carrier"  # Default for time series plots
 
     def __init__(self: BasePlotTypeAccessor, n: Network) -> None:
         self._network = n
@@ -146,14 +147,14 @@ class BasePlotTypeAccessor:
     ) -> so.Plot:
         """Plot method to be implemented by subclasses"""
         self._check_plotting_consistency()
-        data = self._to_long_format(data)
+        ldata = self._to_long_format(data)
         if query:
-            data = data.query(query)
+            ldata = ldata.query(query)
         if stacked and color is not None:
-            data = self._process_data_for_stacking(data, color)
-        data = self._validate(data)
+            ldata = self._process_data_for_stacking(ldata, color)
+        ldata = self._validate(ldata)
 
-        plot = so.Plot(data, x=x, y=y, color=color, **kwargs)
+        plot = so.Plot(ldata, x=x, y=y, color=color, **kwargs)
 
         # Apply color scale if using carrier colors
         if color in ["carrier", "bus_carrier"]:
@@ -192,29 +193,36 @@ class BasePlotTypeAccessor:
 
     def _derive_statistic_parameters(
         self,
-        x: str | None = None,
-        y: str | None = None,
-        color: str | None = None,
-        col: str | None = None,
-        row: str | None = None,
+        *args: str | None,  # Changed to tuple argument
         stats_opts: dict[str, Any] = {},
+        support_snapshot: bool = True,
     ) -> tuple[str | Sequence[str] | Callable, bool, bool | str]:
         """
         Extract plotting specification rules including groupby columns and component aggregation.
+
+        Parameters
+        ----------
+        *args : tuple of (str | None)
+            Arguments representing x, y, color, col, row parameters
 
         Returns
         -------
         tuple
             List of groupby columns and boolean for component aggregation
         """
+        if not support_snapshot and "snapshot" in args:
+            raise ValueError(
+                "'snapshot' level is not supported for this plot function."
+            )
+
         filtered = ["value", "component", "snapshot"]
         filtered_cols = []
-        for c in [x, y, color, col, row]:
+        for c in args:  # Iterate through the args tuple
             if c not in filtered and c is not None:
                 filtered_cols.append(c)
         derived_groupby = list(set(filtered_cols))
-        derived_agg_across = "component" not in [x, y, color, col, row]
-        derived_agg_time: str | bool = "snapshot" not in [x, y, color, col, row]
+        derived_agg_across = "component" not in args  # Check in args tuple
+        derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
         if derived_agg_time:
             derived_agg_time = "sum"
 
@@ -230,7 +238,7 @@ class BasePlotTypeAccessor:
     # The following functions in this class are all Front-end plotting methods
     def optimal_capacity(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -242,9 +250,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot optimal capacity"""
+        x = x or self._default_static_x  # Static plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=False
+            )
         )
         data = self._statistics.optimal_capacity(
             comps=stats_opts.get("comps"),
@@ -268,7 +279,7 @@ class BasePlotTypeAccessor:
 
     def installed_capacity(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -280,9 +291,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot installed capacity"""
+        x = x or self._default_static_x  # Static plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=False
+            )
         )
         data = self._statistics.installed_capacity(
             comps=stats_opts.get("comps"),
@@ -306,7 +320,7 @@ class BasePlotTypeAccessor:
 
     def supply(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -317,9 +331,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot supply data"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.supply(
             comps=stats_opts.get("comps"),
@@ -343,7 +360,7 @@ class BasePlotTypeAccessor:
 
     def withdrawal(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -354,9 +371,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot withdrawal data"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.withdrawal(
             comps=stats_opts.get("comps"),
@@ -380,7 +400,7 @@ class BasePlotTypeAccessor:
 
     def energy_balance(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -391,9 +411,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot energy balance"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.energy_balance(
             comps=stats_opts.get("comps"),
@@ -417,7 +440,7 @@ class BasePlotTypeAccessor:
 
     def transmission(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -428,9 +451,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot transmission data"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.transmission(
             groupby=groupby,
@@ -453,7 +479,7 @@ class BasePlotTypeAccessor:
 
     def capacity_factor(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -464,9 +490,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot capacity factor"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.capacity_factor(
             groupby=groupby,
@@ -489,7 +518,7 @@ class BasePlotTypeAccessor:
 
     def curtailment(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -500,9 +529,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot curtailment"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.curtailment(
             groupby=groupby,
@@ -525,7 +557,7 @@ class BasePlotTypeAccessor:
 
     def capex(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -536,9 +568,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot capital expenditure"""
+        x = x or self._default_static_x  # Static plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=False
+            )
         )
         data = self._statistics.capex(
             groupby=groupby,
@@ -560,7 +595,7 @@ class BasePlotTypeAccessor:
 
     def opex(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -571,9 +606,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot operational expenditure"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.opex(
             groupby=groupby,
@@ -596,7 +634,7 @@ class BasePlotTypeAccessor:
 
     def revenue(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -607,9 +645,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot revenue"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.revenue(
             groupby=groupby,
@@ -632,7 +673,7 @@ class BasePlotTypeAccessor:
 
     def expanded_capacity(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -643,9 +684,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot expanded capacity"""
+        x = x or self._default_static_x  # Static plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=False
+            )
         )
         data = self._statistics.expanded_capacity(
             comps=stats_opts.get("comps"),
@@ -668,7 +712,7 @@ class BasePlotTypeAccessor:
 
     def expanded_capex(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -679,9 +723,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot expanded capital expenditure"""
+        x = x or self._default_static_x  # Static plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=False
+            )
         )
         data = self._statistics.expanded_capex(
             comps=stats_opts.get("comps"),
@@ -704,7 +751,7 @@ class BasePlotTypeAccessor:
 
     def market_value(
         self: BasePlotTypeAccessor,
-        x: str = "carrier",
+        x: str | None = None,  # Changed to optional
         y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
@@ -715,9 +762,12 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot market value"""
+        x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
         groupby, aggregate_across_components, aggregate_time = (
-            self._derive_statistic_parameters(x, y, color, col, row, stats_opts)
+            self._derive_statistic_parameters(
+                x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
+            )
         )
         data = self._statistics.market_value(
             comps=stats_opts.get("comps"),
@@ -744,6 +794,8 @@ class BarPlotter(BasePlotTypeAccessor):
     """Bar plot-specific implementation"""
 
     _default_orientation: ClassVar[str] = "vertical"
+    _default_static_x: ClassVar[str] = "carrier"
+    _default_dynamic_x: ClassVar[str] = "carrier"
 
     def __init__(self: BarPlotter, n: Network) -> None:
         super().__init__(n)
@@ -758,8 +810,8 @@ class BarPlotter(BasePlotTypeAccessor):
     def _plot(  # type: ignore
         self: BarPlotter,
         data: pd.DataFrame,
-        x: str,
-        y: str,
+        x: str,  # Removed default
+        y: str = "value",
         color: str | None = None,
         col: str | None = None,
         row: str | None = None,
@@ -799,6 +851,8 @@ class LinePlotter(BasePlotTypeAccessor):
     """Line plot-specific implementation"""
 
     _default_resample: ClassVar[str | None] = None
+    _default_static_x: ClassVar[str] = "carrier"
+    _default_dynamic_x: ClassVar[str] = "snapshot"
 
     def __init__(self: LinePlotter, n: Network) -> None:
         super().__init__(n)
@@ -817,8 +871,8 @@ class LinePlotter(BasePlotTypeAccessor):
     def _plot(  # type: ignore
         self: LinePlotter,
         data: pd.DataFrame,
-        x: str,
-        y: str,
+        x: str,  # Removed default
+        y: str = "value",
         color: str | None = None,
         col: str | None = None,
         row: str | None = None,
@@ -829,12 +883,11 @@ class LinePlotter(BasePlotTypeAccessor):
     ) -> so.Plot:
         """Implement line plotting logic with seaborn.objects"""
         # Determine x-axis column
-        if "snapshot" in data.columns:
-            x = "snapshot"
+        if isinstance(data, pd.DataFrame) and set(data.columns).issubset(
+            self._network.snapshots
+        ):
             if resample:
-                data = resample_timeseries(
-                    data.set_index("snapshot"), resample
-                ).reset_index()
+                data = data.T.resample(resample).mean().T
 
         plot = self._base_plot(
             data,
@@ -856,6 +909,8 @@ class AreaPlotter(BasePlotTypeAccessor):
 
     _default_resample: ClassVar[str | None] = None
     _default_stacked: ClassVar[bool] = True
+    _default_static_x: ClassVar[str] = "carrier"
+    _default_dynamic_x: ClassVar[str] = "snapshot"
 
     def __init__(self: AreaPlotter, n: Network) -> None:
         super().__init__(n)
@@ -874,8 +929,8 @@ class AreaPlotter(BasePlotTypeAccessor):
     def _plot(  # type: ignore
         self: AreaPlotter,
         data: pd.DataFrame,
-        x: str,
-        y: str,
+        x: str,  # Removed default
+        y: str = "value",
         color: str | None = None,
         col: str | None = None,
         row: str | None = None,

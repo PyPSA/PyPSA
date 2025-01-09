@@ -1,6 +1,8 @@
 import pandas as pd
+import pytest
 import seaborn.objects as so
 
+from pypsa.consistency import ConsistencyError
 from pypsa.plot.accessors import (
     AreaPlotter,
     BarPlotter,
@@ -92,6 +94,128 @@ def test_plot_accessor_creation(ac_dc_network_r):
     assert isinstance(plot.area, AreaPlotter)
 
 
+def test_process_data_for_stacking(ac_dc_network_r):
+    """Test the _process_data_for_stacking method"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+
+    # Test with positive and negative values
+    data = pd.DataFrame(
+        {
+            "carrier": ["a", "a", "b", "b"],
+            "value": [1, -1, 2, -2],
+        }
+    )
+    stacked_data = plotter._process_data_for_stacking(data, "carrier")
+    assert len(stacked_data) == 4
+    assert set(stacked_data["value"]) == {1, -1, 2, -2, -1, -2}
+
+
+def test_base_plot_color_scale(ac_dc_network_r):
+    """Test color scale application in base plot"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    data = pd.Series([1, 2, 3], index=pd.Index(["a", "b", "c"], name="carrier"))
+    plot = plotter._base_plot(data, x="carrier", y="value", color="carrier")
+    assert isinstance(plot, so.Plot)
+    assert plot._scales["color"] is not None
+
+
+def test_base_plot_faceting(ac_dc_network_r):
+    """Test faceting functionality in base plot"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    data = (
+        pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2], "region": ["r1", "r2"]})
+        .set_index(["carrier", "region"])
+        .value
+    )
+    plot = plotter._base_plot(data, x="carrier", y="value", col="region")
+    assert isinstance(plot, so.Plot)
+    assert plot._facet_spec is not None
+
+
+def test_derive_statistic_parameters(ac_dc_network_r):
+    """Test derivation of statistic parameters"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+
+    # Test with default parameters
+    groupby, agg_comp, agg_time = plotter._derive_statistic_parameters(
+        "carrier", "value", "carrier"
+    )
+    assert isinstance(groupby, list)
+    assert isinstance(agg_comp, bool)
+    assert isinstance(agg_time, bool | str)
+
+    # Test with custom parameters
+    stats_opts = {
+        "groupby": ["carrier"],
+        "aggregate_across_components": True,
+        "aggregate_time": "mean",
+    }
+    groupby, agg_comp, agg_time = plotter._derive_statistic_parameters(
+        "carrier", "value", stats_opts=stats_opts
+    )
+    assert groupby == ["carrier"]
+    assert agg_comp is True
+    assert agg_time == "mean"
+
+
+def test_get_carrier_colors_and_labels(ac_dc_network_r):
+    """Test carrier colors and labels retrieval"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+
+    colors = plotter._get_carrier_colors()
+    assert isinstance(colors, dict)
+    assert "-" in colors
+    assert None in colors
+
+    labels = plotter._get_carrier_labels()
+    assert isinstance(labels, dict)
+
+    # Test with nice_names=False
+    labels_raw = plotter._get_carrier_labels(nice_names=False)
+    assert isinstance(labels_raw, dict)
+    assert len(labels_raw) == 0
+
+
+def test_validate_data_requirements(ac_dc_network_r):
+    """Test data validation requirements"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+
+    # Test with missing value column
+    invalid_data = pd.DataFrame({"carrier": ["a", "b"]})
+    with pytest.raises(ValueError, match="Data must contain 'value' column"):
+        plotter._validate(invalid_data)
+
+    # Test with valid data
+    valid_data = pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2]})
+    validated = plotter._validate(valid_data)
+    assert "value" in validated.columns
+    assert isinstance(validated["carrier"].dtype, pd.CategoricalDtype)
+
+
+def test_query_filtering(ac_dc_network_r):
+    """Test query filtering in plots"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    data = pd.Series([1, 2, 3], index=pd.Index(["a", "b", "c"], name="carrier"))
+
+    filtered_plot = plotter._base_plot(data, x="carrier", y="value", query="value > 1")
+    assert isinstance(filtered_plot, so.Plot)
+
+
+def test_consistency_checks(ac_dc_network_r):
+    """Test plotting consistency checks"""
+    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+
+    # Should not raise an error with valid network
+    plotter._check_plotting_consistency()
+
+    # Test with missing carrier colors
+    with pytest.raises(ConsistencyError):
+        n = ac_dc_network_r.copy()
+        plotter = BasePlotTypeAccessor(n)
+        n.carriers.color = pd.Series()
+        plotter._check_plotting_consistency()
+
+
 def test_plot_methods(ac_dc_network_r):
     """Test main plotting methods don't raise errors"""
     plot = ac_dc_network_r.plot
@@ -122,200 +246,60 @@ def test_plot_methods(ac_dc_network_r):
     plot.area.transmission()
 
 
-def test_plot_methods_with_bus_carrier(ac_dc_network_r):
-    """Test plotting methods with bus_carrier filtering"""
-    plot = ac_dc_network_r.plot
+def test_time_aggregation_behavior(ac_dc_network_r):
+    """Test time aggregation behavior for different plotters"""
+    n = ac_dc_network_r
 
-    # Test with AC bus carrier
-    plot.bar.optimal_capacity(bus_carrier="AC")
-    plot.line.supply(bus_carrier="AC")
-    plot.area.energy_balance(bus_carrier="AC")
-
-    # Test with DC bus carrier
-    plot.bar.installed_capacity(bus_carrier="DC")
-    plot.line.withdrawal(bus_carrier="DC")
-    plot.area.transmission(bus_carrier="DC")
+    assert n.plot.bar._time_aggregation == "sum"
+    assert n.plot.line._time_aggregation is False
+    assert n.plot.area._time_aggregation is False
 
 
-def test_plot_methods_with_groupby(ac_dc_network_r):
-    """Test plotting methods with different groupby options"""
-    plot = ac_dc_network_r.plot
+def test_stacking_and_dodging(ac_dc_network_r):
+    """Test stacking and dodging options in bar plots"""
+    n = ac_dc_network_r
+    stacked_plot = n.plot.bar.supply(x="carrier", y="value", stacked=True)
+    assert isinstance(stacked_plot, so.Plot)
 
-    # Test single groupby
-    plot.bar.optimal_capacity(groupby=["carrier"])
-    plot.line.supply(groupby=["bus_carrier"])
-    plot.area.energy_balance(groupby=["carrier", "bus_carrier"])
-
-    # Test multiple groupby
-    plot.bar.installed_capacity(groupby=["carrier", "bus_carrier"])
-    plot.line.withdrawal(groupby=["carrier", "bus_carrier"])
-    plot.area.transmission(groupby=["bus_carrier"])
+    # Test dodged plot
+    dodged_plot = n.plot.bar.supply(x="carrier", y="value", dodged=True)
+    assert isinstance(dodged_plot, so.Plot)
 
 
-def test_plot_methods_with_aggregation(ac_dc_network_r):
-    """Test plotting methods with aggregation options"""
-    plot = ac_dc_network_r.plot
-
-    # Test time aggregation
-    plot.line.supply(aggregate_time="mean")
-    plot.area.withdrawal(aggregate_time="sum")
-
-    # Test component aggregation
-    plot.bar.optimal_capacity(aggregate_across_components=False)
-    plot.line.energy_balance(aggregate_across_components=True)
+def test_line_plot_resampling(ac_dc_network_r):
+    """Test resampling functionality in line plots"""
+    n = ac_dc_network_r
+    n.plot.line.supply(resample="1D", x="snapshot")
 
 
-def test_plot_methods_with_nice_names(ac_dc_network_r):
-    """Test plotting methods with nice names"""
-    plot = ac_dc_network_r.plot
+def test_plotter_default_x_values(ac_dc_network_r):
+    """Test static and dynamic default x-values for different plotters"""
+    n = ac_dc_network_r
 
-    # Test with nice names
-    plot.bar.optimal_capacity(nice_names=True)
-    plot.line.supply(nice_names=True)
-    plot.area.energy_balance(nice_names=True)
+    # Test class defaults
+    assert n.plot.bar._default_static_x == "carrier"
+    assert n.plot.bar._default_dynamic_x == "carrier"
 
-    # Test without nice names
-    plot.bar.installed_capacity(nice_names=False)
-    plot.line.withdrawal(nice_names=False)
-    plot.area.transmission(nice_names=False)
+    assert n.plot.line._default_static_x == "carrier"
+    assert n.plot.line._default_dynamic_x == "snapshot"
 
+    assert n.plot.area._default_static_x == "carrier"
+    assert n.plot.area._default_dynamic_x == "snapshot"
 
-def test_plot_methods_with_plot_kwargs(ac_dc_network_r):
-    """Test plotting methods with additional plot kwargs"""
-    plot = ac_dc_network_r.plot
+    # Test defaults for static plots
+    static_bar = n.plot.bar.optimal_capacity()
+    static_line = n.plot.line.optimal_capacity()
+    static_area = n.plot.area.optimal_capacity()
 
-    # Test bar plot kwargs
-    plot.bar.optimal_capacity(stacked=True, orientation="horizontal")
-    plot.bar.installed_capacity(stacked=False, orientation="vertical")
+    assert isinstance(static_bar, so.Plot)
+    assert isinstance(static_line, so.Plot)
+    assert isinstance(static_area, so.Plot)
 
-    # Test line plot kwargs
-    plot.line.supply(resample="h")  # Hourly resampling
-    plot.line.withdrawal(resample="D")  # Daily resampling
+    # Test defaults for dynamic plots
+    dynamic_bar = n.plot.bar.supply()
+    dynamic_line = n.plot.line.supply()
+    dynamic_area = n.plot.area.supply()
 
-    # Test area plot kwargs
-    plot.area.energy_balance(stacked=True)
-    plot.area.transmission(stacked=False)
-
-
-def test_base_plot_type_accessor_initialization(ac_dc_network_r):
-    """Test BasePlotTypeAccessor initialization"""
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
-
-    assert hasattr(accessor, "_network")
-    assert hasattr(accessor, "_statistics")
-    assert accessor._time_aggregation is False
-
-
-def test_to_long_format_series(ac_dc_network_r):
-    """Test _to_long_format with Series input"""
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
-
-    # Create test series with multiindex
-    index = pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], names=["carrier", "bus"])
-    series = pd.Series([10, 20], index=index)
-
-    result = accessor._to_long_format(series)
-
-    assert isinstance(result, pd.DataFrame)
-    assert set(result.columns) == {"carrier", "bus", "value"}
-
-
-def test_check_plotting_consistency(ac_dc_network_r):
-    """Test _check_plotting_consistency method"""
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
-
-    # Should not raise errors with valid network
-    accessor._check_plotting_consistency()
-
-
-def test_get_carrier_colors(ac_dc_network_r):
-    """Test _get_carrier_colors method"""
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
-
-    # Test with carrier data
-    colors = accessor._get_carrier_colors()
-
-    assert isinstance(colors, dict)
-    assert "wind" in colors
-    assert "gas" in colors
-    assert "-" in colors  # Test default gray color
-
-
-def test_get_carrier_labels(ac_dc_network_r):
-    """Test _get_carrier_labels method"""
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
-
-    # Test with nice names
-    labels = accessor._get_carrier_labels(nice_names=True)
-    assert isinstance(labels, dict)
-
-    # Test without nice names
-    labels = accessor._get_carrier_labels(nice_names=False)
-    assert labels == {}
-
-
-def test_create_base_plot(ac_dc_network_r):
-    """Test _create_base_plot method"""
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
-
-    # Test with simple data
-    data = pd.DataFrame(
-        {"carrier": ["wind", "gas"], "value": [10, 20], "bus_carrier": ["AC", "AC"]}
-    )
-
-    plot = accessor._create_base_plot(data, x="carrier", y="value")
-    assert isinstance(plot, so.Plot)
-
-
-def test_bar_plotter_plot(ac_dc_network_r):
-    """Test BarPlotter._plot method"""
-    plotter = BarPlotter(ac_dc_network_r)
-
-    # Test with simple data
-    data = pd.DataFrame({"carrier": ["wind", "gas"], "value": [10, 20]})
-
-    plot = plotter._base_plot(data)
-    assert plot is not None
-
-
-def test_line_plotter_plot(ac_dc_network_r):
-    """Test LinePlotter._plot method"""
-    plotter = LinePlotter(ac_dc_network_r)
-
-    # Test with time series data
-    data = pd.DataFrame(
-        {
-            "snapshot": pd.date_range("2023-01-01", periods=2),
-            "carrier": ["wind", "gas"],
-            "value": [10, 20],
-        }
-    )
-
-    plot = plotter._base_plot(data)
-    assert plot is not None
-
-
-def test_area_plotter_plot(ac_dc_network_r):
-    """Test AreaPlotter._plot method"""
-    plotter = AreaPlotter(ac_dc_network_r)
-
-    # Test with time series data
-    data = pd.DataFrame(
-        {
-            "snapshot": pd.date_range("2023-01-01", periods=2),
-            "carrier": ["wind", "gas"],
-            "value": [10, 20],
-        }
-    )
-
-    plot = plotter._base_plot(data)
-    assert plot is not None
-
-
-def test_plot_accessor_call(ac_dc_network_r):
-    """Test PlotAccessor.__call__ method"""
-    plot = ac_dc_network_r.plot
-
-    # Test map plotting
-    result = plot()
-    assert result is not None
+    assert isinstance(dynamic_bar, so.Plot)
+    assert isinstance(dynamic_line, so.Plot)
+    assert isinstance(dynamic_area, so.Plot)

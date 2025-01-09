@@ -225,7 +225,6 @@ class AbstractStatisticsAccessor(ABC):
             df = self._aggregate_components_concat_values(values, agg)
 
             d[c] = df
-
         df = self._aggregate_components_concat_data(d, is_one_component)
 
         if aggregate_across_components:
