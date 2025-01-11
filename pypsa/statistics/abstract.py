@@ -169,6 +169,7 @@ class AbstractStatisticsAccessor(ABC):
         aggregate_across_components: bool = False,
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
     ) -> pd.Series | pd.DataFrame:
         """
@@ -199,6 +200,7 @@ class AbstractStatisticsAccessor(ABC):
 
                 vals = self._filter_active_assets(n, c, vals)  # for multiinvest
                 vals = self._filter_bus_carrier(n, c, port, bus_carrier, vals)
+                vals = self._filter_carrier(n, c, carrier, vals)
 
                 if self._aggregate_components_skip_iteration(vals):
                     continue
@@ -287,3 +289,33 @@ class AbstractStatisticsAccessor(ABC):
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
         return obj.loc[ports.index[mask]]
+
+    def _filter_carrier(
+        self,
+        n: Network,
+        c: str,
+        carrier: str | Sequence[str] | None,
+        obj: Any,
+    ) -> Any:
+        """
+        Filter the DataFrame for components which have the specified carrier.
+        """
+        if carrier is None or "carrier" not in n.static(c):
+            return obj
+
+        idx = self._get_component_index(obj, c)
+        carriers = n.static(c).loc[idx, "carrier"]
+
+        if isinstance(carrier, str):
+            if carrier in carriers.unique():
+                mask = carriers == carrier
+            else:
+                mask = carriers.str.contains(carrier)
+        elif isinstance(carrier, Sequence):
+            mask = carriers.isin(carrier)
+        else:
+            raise ValueError(
+                f"Argument `carrier` must be a string or list, got {type(carrier)}"
+            )
+
+        return obj.loc[carriers.index[mask]]

@@ -1214,19 +1214,18 @@ class MapPlotter:
         s = n.statistics
 
         # Calculate energy balance
+        trans_carriers = get_transmission_carriers(n, bus_carrier=carrier).unique(
+            "carrier"
+        )
+        non_transmission_carriers = list(n.carriers.index.difference(trans_carriers))
         balance = s.energy_balance(
             bus_carrier=carrier,
-            groupby=s.groupers.get_bus_and_carrier,
+            groupby=["bus", "carrier"],
+            carrier=non_transmission_carriers,
             nice_names=False,
+            aggregate_across_components=True,
             kind=kind,
         )
-        transmission_carriers = get_transmission_carriers(n, bus_carrier=carrier)
-        if "Link" in balance.index.get_level_values("component"):
-            sub = balance.loc[["Link"]].drop(
-                transmission_carriers.unique(1), level="carrier", errors="ignore"
-            )
-            balance = pd.concat([balance.drop("Link"), sub])
-        balance = balance.groupby(["bus", "carrier"]).sum()
 
         # Calculate map bounds and scaling
         boundaries = boundaries or self.boundaries
@@ -1320,6 +1319,22 @@ class MapPlotter:
             )
 
         return self.ax.get_figure(), self.ax
+
+    @wraps(energy_balance)
+    def supply(self, *args: Any, **kwargs: Any) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plot supply map for a given carrier showing bus sizes and transmission flows.
+        This is equivalent to calling energy_balance() with kind="supply".
+        """
+        return self.energy_balance(*args, kind="supply", **kwargs)
+
+    @wraps(energy_balance)
+    def withdrawal(self, *args: Any, **kwargs: Any) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plot withdrawal map for a given carrier showing bus sizes and transmission flows.
+        This is equivalent to calling energy_balance() with kind="withdrawal".
+        """
+        return self.energy_balance(*args, kind="withdrawal", **kwargs)
 
 
 @deprecated_kwargs(
