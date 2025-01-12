@@ -70,7 +70,7 @@ class BasePlotTypeAccessor:
             if isinstance(data[col].dtype, object | str) and not isinstance(
                 data[col].dtype, CategoricalDtype
             ):
-                data[col] = data[col].astype("category")
+                data = data.assign(**{col: data[col].astype("category")})
 
         return data
 

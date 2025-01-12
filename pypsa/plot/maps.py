@@ -1121,44 +1121,7 @@ class MapPlotter:
 
     def _plot_statistics(
         self: MapPlotter,
-        data: dict[str, pd.DataFrame],
-        bus_carrier: str | None = None,
-        **kwargs: Any,
-    ) -> Any:
-        """Implement map plotting logic"""
-
-        bus_data = data["bus_data"]
-        branch_data = data["branch_data"]
-
-        # Handle transmission carriers separately
-        transmission_carriers = get_transmission_carriers(  # noqa: F841
-            self._network, bus_carrier=bus_carrier
-        ).unique(1)
-        bus_data = bus_data.query(
-            "not (carrier in @transmission_carriers and component == 'Link')"
-        )
-        bus_data = bus_data.set_index(["bus", "carrier"])
-
-        branch_data["color"] = branch_data["carrier"].map(self._network.carriers.color)
-        branch_data = branch_data.set_index(["component", "name"])
-
-        # Plot non-transmission data
-        self._plotter.draw_map(
-            bus_sizes=bus_data.groupby("bus")["value"].sum(),
-            line_widths=branch_data.value.get("Line", 0),
-            line_colors=branch_data.color.get("Line", "k"),
-            link_widths=branch_data.value.get("Link", 0),
-            link_colors=branch_data.color.get("Link", "k"),
-            transformer_widths=branch_data.get("Transformer", 0),
-            transformer_colors=branch_data.color.get("Transformer", "k"),
-            auto_scale_branches=False,
-        )
-
-        return plt.gcf()
-
-    def energy_balance(
-        self: MapPlotter,
-        carrier: str,
+        func: callable,
         ax: plt.Axes = None,
         projection: Any = None,
         geomap: bool = True,
@@ -1166,98 +1129,91 @@ class MapPlotter:
         geomap_colors: dict | bool | None = None,
         boundaries: list | tuple | None = None,
         title: str = "",
+        bus_carrier: str | None = None,
+        carrier: str | None = None,
+        transmission_flow: bool = False,
         bus_area_fraction: float = 0.02,
+        branch_area_fraction: float = 0.02,
         flow_area_fraction: float = 0.02,
         draw_legend_circles: bool = True,
-        draw_legend_arrows: bool = True,
+        draw_legend_lines: bool = True,
+        draw_legend_arrows: bool = False,
         draw_legend_patches: bool = True,
         legend_circles_kw: dict | None = None,
+        legend_lines_kw: dict | None = None,
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
+        bus_split_circles: bool = False,
         kind: str | None = None,
+        stats_kwargs: dict = {},
         **kwargs: Any,
-    ) -> tuple[plt.Figure, plt.Axes]:
-        """
-        Plot energy balance map for a given carrier showing bus sizes and transmission flows.
+    ) -> Any:
+        """Implement map plotting logic"""
 
-        Parameters
-        ----------
-        network : pypsa.Network
-            PyPSA network to plot
-        carrier : str, optional
-            Energy carrier to plot, by default "H2"
-        figsize : tuple, optional
-            Figure dimensions (width, height), by default (8, 8)
-        margin : float, optional
-            Margin around the map bounds, by default 0.1
-        bus_area_fraction : float, optional
-            Target fraction of map area for bus scaling, by default 0.02
-        flow_area_fraction : float, optional
-            Target fraction of map area for flow scaling, by default 0.02
-        draw_legend_circles : bool, optional
-            Whether to draw the bus size legend, by default True
-        draw_legend_arrows : bool, optional
-            Whether to draw the flow arrows legend, by default True
-        legend_circles_kw : dict, optional
-            Keyword arguments passed to the legend for circles, by default None
-        legend_arrows_kw : dict, optional
-            Keyword arguments passed to the legend for arrows, by default None
-        kwargs : dict, optional
-            Additional kwargs passed to network.plot(), by default None
+        n = self._n
+        boundaries = boundaries or self.boundaries
 
-        Returns
-        -------
-        tuple[plt.Figure, plt.Axes]
-            Matplotlib figure and axes objects
-        """
-        n = self.n
-        s = n.statistics
-
-        # Calculate energy balance
-        trans_carriers = get_transmission_carriers(n, bus_carrier=carrier).unique(
+        trans_carriers = get_transmission_carriers(n, bus_carrier=bus_carrier).unique(
             "carrier"
         )
-        non_transmission_carriers = list(n.carriers.index.difference(trans_carriers))
-        balance = s.energy_balance(
-            bus_carrier=carrier,
+        non_transmission_carriers = n.carriers.index.difference(trans_carriers)
+        bus_sizes = func(
+            bus_carrier=bus_carrier,
             groupby=["bus", "carrier"],
-            carrier=non_transmission_carriers,
+            carrier=list(non_transmission_carriers),
             nice_names=False,
             aggregate_across_components=True,
-            kind=kind,
+            **stats_kwargs,
+        )
+        bus_size_scaling_factor = self.scaling_factor_from_area_contribution(
+            bus_sizes, *self.boundaries, target_area_fraction=bus_area_fraction
         )
 
-        # Calculate map bounds and scaling
-        boundaries = boundaries or self.boundaries
-        bus_size_factor = MapPlotter.scaling_factor_from_area_contribution(
-            balance, *boundaries, target_area_fraction=bus_area_fraction
-        )
+        if transmission_flow:
+            branch_flows = n.statistics.transmission(groupby=False, bus_carrier=carrier)
+            branch_flows = MapPlotter.aggregate_flow_by_connection(
+                branch_flows, n.branches()
+            )
+            branch_flow_scaling_factor = self.scaling_factor_from_area_contribution(
+                branch_flows, *boundaries, target_area_fraction=flow_area_fraction
+            )
 
-        # Calculate flows
-        flow = s.transmission(groupby=False, bus_carrier=carrier)
-        flow = MapPlotter.aggregate_flow_by_connection(flow, n.branches())
-        flow_scaling_factor = self.scaling_factor_from_area_contribution(
-            flow, *boundaries, target_area_fraction=flow_area_fraction
-        )
-        flow_scaled = flow * flow_scaling_factor
+            branch_flow_scaled = branch_flows * branch_flow_scaling_factor
+            branch_widths_scaled = self.flow_to_width(branch_flow_scaled)
 
-        unit = balance.attrs["unit"]
-        if unit == "carrier dependent":
-            unit = ""
+        else:
+            branch_flow_scaled = {}
+            branch_widths = func(
+                comps=n.branch_components,
+                bus_carrier=bus_carrier,
+                groupby=False,
+                carrier=list(trans_carriers),
+                nice_names=False,
+            )
+            branch_widths_scaling_factor = self.scaling_factor_from_area_contribution(
+                branch_widths,
+                *self.boundaries,
+                target_area_fraction=branch_area_fraction,
+            )
+            branch_widths_scaled = branch_widths * branch_widths_scaling_factor
 
-        plot_args = dict(
-            bus_sizes=bus_size_factor * balance,
-            bus_split_circles=True,
-            line_widths=MapPlotter.flow_to_width(flow_scaled.get("Line", 0)),
-            link_widths=MapPlotter.flow_to_width(flow_scaled.get("Link", 0)),
-            line_flow=flow_scaled.get("Line"),
-            link_flow=flow_scaled.get("Link"),
-            auto_scale_branches=False,
+        branch_colors = (
+            n.branches().carrier[branch_widths_scaled.index].map(n.carriers.color)
         )
-        if kwargs:
-            plot_args.update(kwargs)
 
         self.draw_map(
+            bus_sizes=bus_sizes * bus_size_scaling_factor,
+            bus_split_circles=bus_split_circles,
+            line_flow=branch_flow_scaled.get("Line"),
+            line_widths=branch_widths_scaled.get("Line", 0),
+            line_colors=branch_colors.get("Line", "k"),
+            link_flow=branch_flow_scaled.get("Link"),
+            link_widths=branch_widths_scaled.get("Link", 0),
+            link_colors=branch_colors.get("Link", "k"),
+            transformer_flow=branch_flow_scaled.get("Transformer"),
+            transformer_widths=branch_widths_scaled.get("Transformer", 0),
+            transformer_colors=branch_colors.get("Transformer", "k"),
+            auto_scale_branches=False,
             ax=ax,
             projection=projection,
             geomap=geomap,
@@ -1265,33 +1221,61 @@ class MapPlotter:
             geomap_colors=geomap_colors,
             title=title,
             boundaries=boundaries,
-            **plot_args,
+            **kwargs,
         )
+
+        unit = bus_sizes.attrs["unit"]
+        if unit == "carrier dependent":
+            unit = ""
 
         # Add legends
         if draw_legend_circles:
             legend_representatives = get_legend_representatives(
-                balance, group_on_first_level=True, base_unit=unit
+                bus_sizes, group_on_first_level=True, base_unit=unit
             )
-            add_legend_semicircles(
-                self.ax,
-                [s * bus_size_factor for s, label in legend_representatives],
-                [label for s, label in legend_representatives],
-                legend_kw={
-                    "bbox_to_anchor": (0, 0.9),
-                    "loc": "lower left",
-                    "frameon": True,
-                    **(legend_circles_kw or {}),
-                },
-            )
+            if bus_split_circles:
+                add_legend_semicircles(
+                    self.ax,
+                    [
+                        s * bus_size_scaling_factor
+                        for s, label in legend_representatives
+                    ],
+                    [label for s, label in legend_representatives],
+                    legend_kw={
+                        "bbox_to_anchor": (0, 0.9),
+                        "loc": "lower left",
+                        "frameon": True,
+                        **(legend_circles_kw or {}),
+                    },
+                )
+            else:
+                add_legend_circles(
+                    self.ax,
+                    [
+                        s * bus_size_scaling_factor
+                        for s, label in legend_representatives
+                    ],
+                    [label for s, label in legend_representatives],
+                    legend_kw={
+                        "bbox_to_anchor": (0, 0.9),
+                        "loc": "lower left",
+                        "frameon": True,
+                        **(legend_circles_kw or {}),
+                    },
+                )
 
         if draw_legend_arrows:
+            if not transmission_flow:
+                raise ValueError(
+                    "Cannot draw arrow legend if transmission_flow is False. Use draw_legend_lines instead."
+                )
+
             legend_representatives = get_legend_representatives(
-                flow, n_significant=1, base_unit=unit
+                branch_flows, n_significant=1, base_unit=unit
             )
             add_legend_arrows(
                 self.ax,
-                [s * flow_scaling_factor for s, label in legend_representatives],
+                [s * branch_flow_scaling_factor for s, label in legend_representatives],
                 [label for s, label in legend_representatives],
                 legend_kw={
                     "bbox_to_anchor": (0, 0.9),
@@ -1301,8 +1285,31 @@ class MapPlotter:
                 },
             )
 
+        if draw_legend_lines:
+            if transmission_flow:
+                raise ValueError(
+                    "Cannot draw line legend if transmission_flow is True. Use draw_legend_arrows instead."
+                )
+            legend_representatives = get_legend_representatives(
+                branch_widths, n_significant=1, base_unit=unit
+            )
+            add_legend_lines(
+                self.ax,
+                [
+                    s * branch_widths_scaling_factor
+                    for s, label in legend_representatives
+                ],
+                [label for s, label in legend_representatives],
+                legend_kw={
+                    "bbox_to_anchor": (0, 0.9),
+                    "loc": "upper left",
+                    "frameon": True,
+                    **(legend_lines_kw or {}),
+                },
+            )
+
         if draw_legend_patches:
-            carriers = balance.index.get_level_values("carrier").unique()
+            carriers = bus_sizes.index.get_level_values("carrier").unique()
             colors = n.carriers.color[carriers]
             labels = n.carriers.nice_name[carriers]
             labels = labels.where(labels != "", carriers)
@@ -1318,23 +1325,119 @@ class MapPlotter:
                 },
             )
 
-        return self.ax.get_figure(), self.ax
+        return plt.gcf()
 
-    @wraps(energy_balance)
-    def supply(self, *args: Any, **kwargs: Any) -> tuple[plt.Figure, plt.Axes]:
+    def optimal_capacity(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
         """
-        Plot supply map for a given carrier showing bus sizes and transmission flows.
-        This is equivalent to calling energy_balance() with kind="supply".
-        """
-        return self.energy_balance(*args, kind="supply", **kwargs)
+        Plot the optimal capacity of each bus.
 
-    @wraps(energy_balance)
-    def withdrawal(self, *args: Any, **kwargs: Any) -> tuple[plt.Figure, plt.Axes]:
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
         """
-        Plot withdrawal map for a given carrier showing bus sizes and transmission flows.
-        This is equivalent to calling energy_balance() with kind="withdrawal".
+        return self._plot_statistics(
+            self.n.statistics.optimal_capacity,
+            **kwargs,
+        )
+
+    def energy_balance(
+        self: MapPlotter,
+        bus_carrier: str | None = None,
+        **kwargs: Any,
+    ) -> plt.Figure:
         """
-        return self.energy_balance(*args, kind="withdrawal", **kwargs)
+        Plot the optimal capacity of each bus.
+
+        Parameters
+        ----------
+        bus_carrier : str, optional
+            Energy carrier to plot, by default None
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.energy_balance,
+            bus_carrier=bus_carrier,
+            bus_split_circles=True,
+            transmission_flow=True,
+            draw_legend_arrows=True,
+            draw_legend_lines=False,
+            **kwargs,
+        )
+
+    def supply(
+        self: MapPlotter,
+        bus_carrier: str | None = None,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the supply of each bus.
+
+        Parameters
+        ----------
+        carrier : str, optional
+            Energy carrier to plot, by default None
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.supply,
+            bus_carrier=bus_carrier,
+            transmission_flow=True,
+            draw_legend_arrows=True,
+            draw_legend_lines=False,
+            kind="supply",
+            **kwargs,
+        )
+
+    def withdrawal(
+        self: MapPlotter,
+        bus_carrier: str | None = None,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the withdrawal of each bus.
+
+        Parameters
+        ----------
+        carrier : str, optional
+            Energy carrier to plot, by default None
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.withdrawal,
+            bus_carrier=bus_carrier,
+            transmission_flow=True,
+            draw_legend_arrows=True,
+            draw_legend_lines=False,
+            kind="withdrawal",
+            **kwargs,
+        )
 
 
 @deprecated_kwargs(
