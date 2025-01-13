@@ -25,6 +25,7 @@ from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
 from shapely import linestrings
 
+from pypsa.consistency import check_plotting_consistency
 from pypsa.constants import DEFAULT_EPSG
 from pypsa.geo import (
     compute_bbox,
@@ -713,6 +714,8 @@ class MapPlotter:
         plot_area = (x_max - x_min) * (y_max - y_min)
         target_total_circle_area = plot_area * target_area_fraction
         current_total_area = np.sum(np.abs(area_contributions))
+        if current_total_area == 0:
+            return 1
         return target_total_circle_area / current_total_area
 
     @staticmethod
@@ -1151,6 +1154,7 @@ class MapPlotter:
         """Implement map plotting logic"""
 
         n = self._n
+        check_plotting_consistency(n)
         boundaries = boundaries or self.boundaries
 
         trans_carriers = get_transmission_carriers(n, bus_carrier=bus_carrier).unique(
@@ -1201,7 +1205,8 @@ class MapPlotter:
             n.branches().carrier[branch_widths_scaled.index].map(n.carriers.color)
         )
 
-        self.draw_map(
+        # set internal defaults, which can be overwritten by kwargs
+        plot_args = dict(
             bus_sizes=bus_sizes * bus_size_scaling_factor,
             bus_split_circles=bus_split_circles,
             line_flow=branch_flow_scaled.get("Line"),
@@ -1214,6 +1219,11 @@ class MapPlotter:
             transformer_widths=branch_widths_scaled.get("Transformer", 0),
             transformer_colors=branch_colors.get("Transformer", "k"),
             auto_scale_branches=False,
+        )
+        if kwargs:
+            plot_args.update(kwargs)
+
+        self.draw_map(
             ax=ax,
             projection=projection,
             geomap=geomap,
@@ -1221,7 +1231,7 @@ class MapPlotter:
             geomap_colors=geomap_colors,
             title=title,
             boundaries=boundaries,
-            **kwargs,
+            **plot_args,
         )
 
         unit = bus_sizes.attrs["unit"]
@@ -1325,7 +1335,73 @@ class MapPlotter:
                 },
             )
 
-        return plt.gcf()
+        return self.ax.get_figure(), self.ax
+
+    def capex(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the capital expenditure of each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.capex,
+            **kwargs,
+        )
+
+    def installed_capex(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the capital expenditure of installed components at each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.installed_capex,
+            **kwargs,
+        )
+
+    def expanded_capex(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the capital expenditure of expanded components at each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.expanded_capex,
+            **kwargs,
+        )
 
     def optimal_capacity(
         self: MapPlotter,
@@ -1349,18 +1425,15 @@ class MapPlotter:
             **kwargs,
         )
 
-    def energy_balance(
+    def installed_capacity(
         self: MapPlotter,
-        bus_carrier: str | None = None,
         **kwargs: Any,
     ) -> plt.Figure:
         """
-        Plot the optimal capacity of each bus.
+        Plot the installed capacity of each bus.
 
         Parameters
         ----------
-        bus_carrier : str, optional
-            Energy carrier to plot, by default None
         kwargs : dict, optional
             Additional keyword arguments passed to the plot function
 
@@ -1370,12 +1443,95 @@ class MapPlotter:
             Matplotlib figure object
         """
         return self._plot_statistics(
-            self.n.statistics.energy_balance,
-            bus_carrier=bus_carrier,
-            bus_split_circles=True,
-            transmission_flow=True,
-            draw_legend_arrows=True,
-            draw_legend_lines=False,
+            self.n.statistics.installed_capacity,
+            **kwargs,
+        )
+
+    def expanded_capacity(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the expanded capacity of each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.expanded_capacity,
+            **kwargs,
+        )
+
+    def opex(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the operational expenditure of each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.opex,
+            **kwargs,
+        )
+
+    def revenue(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the revenue of each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.revenue,
+            **kwargs,
+        )
+
+    def market_value(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the market value of each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.market_value,
             **kwargs,
         )
 
@@ -1436,6 +1592,80 @@ class MapPlotter:
             draw_legend_arrows=True,
             draw_legend_lines=False,
             kind="withdrawal",
+            **kwargs,
+        )
+
+    def energy_balance(
+        self: MapPlotter,
+        bus_carrier: str | None = None,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the optimal capacity of each bus.
+
+        Parameters
+        ----------
+        bus_carrier : str, optional
+            Energy carrier to plot, by default None
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.energy_balance,
+            bus_carrier=bus_carrier,
+            bus_split_circles=True,
+            transmission_flow=True,
+            draw_legend_arrows=True,
+            draw_legend_lines=False,
+            **kwargs,
+        )
+
+    def capacity_factor(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the capacity factor of each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.capacity_factor,
+            **kwargs,
+        )
+
+    def curtailment(
+        self: MapPlotter,
+        **kwargs: Any,
+    ) -> plt.Figure:
+        """
+        Plot the curtailment of each bus.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keyword arguments passed to the plot function
+
+        Returns
+        -------
+        plt.Figure
+            Matplotlib figure object
+        """
+        return self._plot_statistics(
+            self.n.statistics.curtailment,
             **kwargs,
         )
 
@@ -1640,11 +1870,9 @@ class HandlerArrow(HandlerPatch):
             head_length=orig_handle._head_length * norm,
             length_includes_head=False,
             width=orig_handle._head_width * self.width_ratio * norm,
-            color=orig_handle.get_facecolor(),
-            **{
-                k: getattr(orig_handle, f"get_{k}")()
-                for k in ["edgecolor", "linewidth", "alpha"]
-            },
+            facecolor=orig_handle.get_facecolor(),
+            edgecolor=orig_handle.get_facecolor(),
+            **{k: getattr(orig_handle, f"get_{k}")() for k in ["linewidth", "alpha"]},
         )
         return [arrow]
 

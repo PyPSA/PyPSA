@@ -67,6 +67,20 @@ def _retrieve_if_not_local(
     return str(path)
 
 
+def _sanitize_ac_dc_meshed(n: Network) -> Network:
+    # TODO: make this function obsolete by adjusting the input files
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    n.carriers["color"] = ["red", "blue", "green"]
+    n.loads["carrier"] = "load"
+    n.lines["carrier"] = "AC"
+    n.links["carrier"] = "DC"
+    n.add("Carrier", "load", color="black")
+    n.add("Carrier", "AC", color="orange")
+    n.add("Carrier", "DC", color="purple")
+    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+    return n
+
+
 def ac_dc_meshed(
     update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
 ) -> Network:
@@ -86,19 +100,14 @@ def ac_dc_meshed(
     pypsa.Network
     """
     name = "ac-dc-meshed"
-    repofile = "examples/ac-dc-meshed/ac-dc-data.nc"
+    repofile = "examples/ac-dc-meshed/ac-dc-data/"
     path = _retrieve_if_not_local(
         name, repofile, update=update, from_master=from_master
     )
     n = Network(path)
     if remove_link_p_set:
         n.links_t.p_set = pd.DataFrame(index=n.snapshots)
-    # add missing carriers and colors
-    n.carriers["color"] = ["red", "blue", "green"]
-    n.loads["carrier"] = "load"
-    n.add("Carrier", "load", color="black")
-    n.add("Carrier", "AC", color="orange")
-    n.add("Carrier", "DC", color="purple")
+    n = _sanitize_ac_dc_meshed(n)
     return n
 
 

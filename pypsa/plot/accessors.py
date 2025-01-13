@@ -9,8 +9,7 @@ import seaborn.objects as so
 from pandas.api.types import CategoricalDtype
 
 from pypsa.consistency import (
-    check_for_missing_carrier_colors,
-    check_for_unknown_carriers,
+    check_plotting_consistency,
 )
 from pypsa.plot.maps import MapPlotter, plot
 from pypsa.statistics.expressions import StatisticsAccessor
@@ -73,11 +72,6 @@ class BasePlotTypeAccessor:
                 data = data.assign(**{col: data[col].astype("category")})
 
         return data
-
-    def _check_plotting_consistency(self: BasePlotTypeAccessor) -> None:
-        for c in self._network.iterate_components():
-            check_for_unknown_carriers(self._network, c, strict=True)
-        check_for_missing_carrier_colors(self._network, strict=True)
 
     def _get_carrier_colors(self) -> dict:
         """Get colors for carrier data with default gray colors"""
@@ -146,7 +140,7 @@ class BasePlotTypeAccessor:
         **kwargs: Any,
     ) -> so.Plot:
         """Plot method to be implemented by subclasses"""
-        self._check_plotting_consistency()
+        check_plotting_consistency(self._network)
         ldata = self._to_long_format(data)
         if query:
             ldata = ldata.query(query)
@@ -969,7 +963,7 @@ class PlotAccessor:
     """Main plot accessor providing access to different plot types"""
 
     _n: Network
-    maps: MapPlotter
+    map: MapPlotter
     bar: BarPlotter
     line: LinePlotter
     area: AreaPlotter
@@ -977,12 +971,12 @@ class PlotAccessor:
     def __init__(self: PlotAccessor, n: Network) -> None:
         self._n = n
         self._base = BasePlotTypeAccessor(n)
-        self.maps = MapPlotter(n)
+        self.map = MapPlotter(n)
         self.bar = BarPlotter(n)
         self.line = LinePlotter(n)
         self.area = AreaPlotter(n)
 
     @wraps(plot)
     def __call__(self: PlotAccessor, *args: Any, **kwargs: Any) -> Any:
-        """Default plot method (maps)"""
+        """Default plot method (map)"""
         return plot(self._n, *args, **kwargs)

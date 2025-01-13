@@ -148,6 +148,12 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
         )
 
 
+def check_plotting_consistency(n: Network, strict: bool = True) -> None:
+    for c in n.iterate_components():
+        check_for_unknown_carriers(n, c, strict=strict)
+    check_for_missing_carrier_colors(n, strict=strict)
+
+
 @deprecated_common_kwargs
 def check_for_zero_impedances(
     n: Network, component: Components, strict: bool = False

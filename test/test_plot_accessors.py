@@ -87,7 +87,7 @@ def test_plot_accessor_creation(ac_dc_network_r):
     assert hasattr(plot, "bar")
     assert hasattr(plot, "line")
     assert hasattr(plot, "area")
-    assert hasattr(plot, "maps")
+    assert hasattr(plot, "map")
 
     assert isinstance(plot.bar, BarPlotter)
     assert isinstance(plot.line, LinePlotter)
@@ -205,15 +205,12 @@ def test_consistency_checks(ac_dc_network_r):
     """Test plotting consistency checks"""
     plotter = BasePlotTypeAccessor(ac_dc_network_r)
 
-    # Should not raise an error with valid network
-    plotter._check_plotting_consistency()
-
     # Test with missing carrier colors
     with pytest.raises(ConsistencyError):
         n = ac_dc_network_r.copy()
         plotter = BasePlotTypeAccessor(n)
         n.carriers.color = pd.Series()
-        plotter._check_plotting_consistency()
+        plotter._base_plot(pd.DataFrame(), "carrier", "value")
 
 
 def test_plot_methods(ac_dc_network_r):

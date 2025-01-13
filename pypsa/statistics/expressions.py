@@ -427,6 +427,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             self.installed_capex(
                 comps=comps,
                 aggregate_groups=aggregate_groups,
+                aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
                 bus_carrier=bus_carrier,
