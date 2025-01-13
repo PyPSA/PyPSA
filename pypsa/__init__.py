@@ -17,6 +17,7 @@ from importlib.metadata import version
 
 from pypsa import (
     clustering,
+    common,
     components,
     contingency,
     descriptors,
@@ -27,7 +28,6 @@ from pypsa import (
     pf,
     plot,
     statistics,
-    utils,
 )
 from pypsa.networks import Network, SubNetwork
 
@@ -35,12 +35,11 @@ from pypsa.networks import Network, SubNetwork
 __version__ = version("pypsa")
 # e.g. "0.17.0" # TODO, in the network structure it should use the dev version
 match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
-assert match, f"Could not determine release_version of pypsa: {__version__}"
 release_version = match.group(0)
-assert not __version__.startswith("0.0"), "Could not determine version of pypsa."
 
 __all__ = [
     "clustering",
+    "common",
     "components",
     "contingency",
     "descriptors",
@@ -51,7 +50,6 @@ __all__ = [
     "pf",
     "plot",
     "statistics",
-    "utils",
     "Network",
     "SubNetwork",
 ]

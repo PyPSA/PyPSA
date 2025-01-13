@@ -13,8 +13,8 @@ import pandas as pd
 from numpy import r_
 from scipy.sparse import csr_matrix
 
+from pypsa.common import deprecated_common_kwargs
 from pypsa.pf import calculate_PTDF
-from pypsa.utils import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa import Network, SubNetwork

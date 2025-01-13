@@ -13,9 +13,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from pypsa.common import list_as_string
 from pypsa.definitions.components import ComponentType
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
-from pypsa.utils import list_as_string
 
 # TODO better path handeling, integrate custom components
 _components_path = Path(__file__).parent.parent / "data" / "components.csv"
