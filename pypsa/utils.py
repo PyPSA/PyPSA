@@ -230,6 +230,20 @@ def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Cal
     return custom_decorator
 
 
+def deprecated_namespace(func: Callable, previous_module: str) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        warnings.warn(
+            f"The namespace `{previous_module}.{func.__name__}` is deprecated and will be removed in a future version. "
+            f"Please use the new namespace `{func.__module__}.{func.__name__}` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def list_as_string(
     list_: Sequence | dict, prefix: str = "", style: str = "comma-seperated"
 ) -> str:

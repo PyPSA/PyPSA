@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.plot import (  # type: ignore[attr-defined]
+from pypsa.plot.maps import (  # type: ignore[attr-defined]
     add_legend_circles,
     add_legend_lines,
     add_legend_patches,
@@ -36,6 +36,14 @@ try:
     explore_deps_present = True
 except ImportError:
     explore_deps_present = False
+
+
+def test_deprecated_namespace(ac_dc_network):
+    from pypsa.plot import plot as plot_deprecated
+
+    with pytest.warns(DeprecationWarning):
+        plot_deprecated(ac_dc_network)
+    plt.close()
 
 
 @pytest.mark.parametrize("margin", (None, 0.1))

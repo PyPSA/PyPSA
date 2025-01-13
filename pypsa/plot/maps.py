@@ -1699,7 +1699,7 @@ class MapPlotter:
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
 )
-@wraps(MapPlotter.draw_map)
+@wraps(MapPlotter.draw_map, assigned=("__doc__", "__annotations__", "__type_params__"))
 def plot(
     n: Network,
     ax: plt.Axes = None,

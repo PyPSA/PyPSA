@@ -96,8 +96,8 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import explore, iplot  # type: ignore
 from pypsa.plot.accessors import PlotAccessor
+from pypsa.plot.maps import explore, iplot  # type: ignore
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 from pypsa.utils import as_index, deprecated_common_kwargs
