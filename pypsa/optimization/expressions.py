@@ -217,11 +217,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
+            attr = nominal_attrs[c]
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
-                query = f"~{nominal_attrs[c]}_extendable"
-                capacity = capacity + n.df(c).query(query)["p_nom"]
+                query = f"~{attr}_extendable"
+                capacity = capacity + n.df(c).query(query)[attr]
             efficiency = port_efficiency(n, c, port=port)[capacity.indexes[c]]
             res = capacity * efficiency
             if storage and (c == "StorageUnit"):
@@ -526,7 +527,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             attr = nominal_attrs[c]
             capacity = (
                 n.model.variables[f"{c}-{attr}"].rename({f"{c}-ext": c})
-                + n.df(c).query(f"~{attr}_extendable")["p_nom"]
+                + n.df(c).query(f"~{attr}_extendable")[attr]
             )
             idx = capacity.indexes[c]
             p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx])

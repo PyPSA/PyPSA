@@ -95,9 +95,31 @@ def apply_layouter(
 
     Examples
     --------
-    >>> coords = apply_layouter(n)
-    >>> apply_layouter(n, assign=True, layouter=nx.layout.spring_layout)
-
+    >>> import pypsa
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> x, y = apply_layouter(n, layouter=nx.circular_layout)
+    >>> x
+    London        1.000000
+    Norwich       0.766044
+    Norwich DC    0.173648
+    Manchester   -0.500000
+    Bremen       -0.939693
+    Bremen DC    -0.939693
+    Frankfurt    -0.500000
+    Norway        0.173648
+    Norway DC     0.766044
+    Name: x, dtype: float64
+    >>> y
+    London        1.986821e-08
+    Norwich       6.427876e-01
+    Norwich DC    9.848077e-01
+    Manchester    8.660254e-01
+    Bremen        3.420202e-01
+    Bremen DC    -3.420201e-01
+    Frankfurt    -8.660254e-01
+    Norway       -9.848077e-01
+    Norway DC    -6.427877e-01
+    Name: y, dtype: float64
     """
     G = n.graph()
 
