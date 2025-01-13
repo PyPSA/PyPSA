@@ -12,7 +12,7 @@ repos:
 # Run ruff to lint and format
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.8.1
+  rev: v0.8.6
   hooks:
     # Run the linter.
   - id: ruff
@@ -43,4 +43,3 @@ repos:
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
-

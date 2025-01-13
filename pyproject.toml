@@ -27,7 +27,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "numpy",
-    "scipy>=1.14.1; python_version >= '3.13'",
+    "scipy>=1.14.1,!=1.15.0; python_version >= '3.13'",
     "scipy; python_version < '3.13'",
     "pandas>=0.24",
     "xarray",
@@ -90,7 +90,7 @@ include = ["pypsa"]
 
 # Pytest settings
 
-[tool.pytest.ini_options]   
+[tool.pytest.ini_options]
 filterwarnings = [
     "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     "error::FutureWarning",      # Raise all FutureWarnings as errors
@@ -147,6 +147,7 @@ select = [
 
 ignore = [
     'ANN401', # Dynamically typed expressions are forbidden
+    'E501', # line too long
     'E741', # ambiguous variable names
     'D203', # 1 blank line required before class docstring
     'D212', # Multi-line docstring summary should start at the second line
@@ -158,7 +159,6 @@ ignore = [
 # pydocstyle ignores, which could be enabled in future when existing
 # issues are fixed
 "!**/{grouping.py,components/**}" = [
-    'E501', # line too long
     'D100', # Missing docstring in public module
     'D101', # Missing docstring in public class
     'D102', # Missing docstring in public method

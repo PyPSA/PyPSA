@@ -75,7 +75,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "PyPSA"
-copyright = "2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
+copyright = "2015-2025 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
 author = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
 
 # The version info for the project you're documenting, acts as replacement for

@@ -58,7 +58,14 @@ def get_switchable_as_dense(
 
     Examples
     --------
-    >>> get_switchable_as_dense(n, 'Generator', 'p_max_pu')
+    >>> import pypsa
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> get_switchable_as_dense(n, 'Generator', 'p_max_pu', n.snapshots[:2]) # doctest: +SKIP
+    Generator            Manchester Wind  Manchester Gas  Norway Wind  Norway Gas  Frankfurt Wind  Frankfurt Gas
+    snapshot
+    2015-01-01 00:00:00         0.930020             1.0     0.974583         1.0        0.559078            1.0
+    2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
+
     """
     sns = as_index(n, snapshots, "snapshots")
 
@@ -109,7 +116,11 @@ def get_switchable_as_iter(
 
     Examples
     --------
-    >>> get_switchable_as_iter(n, 'Generator', 'p_max_pu', snapshots)
+    >>> import pypsa
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> get_switchable_as_iter(n, 'Generator', 'p_max_pu', n.snapshots[:2]) # doctest: +ELLIPSIS
+    <generator object get_switchable_as_iter...
+
     """
     static = n.static(component)
     dynamic = n.dynamic(component)
@@ -166,8 +177,9 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
 
     Examples
     --------
-    >>> allocate_series_dataframes(n, {'Generator': ['p'],
-                                             'Load': ['p']})
+    >>> import pypsa
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> allocate_series_dataframes(n, {'Generator': ['p'], 'Load': ['p']})
     """
     for component, attributes in series.items():
         static = n.static(component)

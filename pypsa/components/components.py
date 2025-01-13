@@ -14,7 +14,7 @@ from typing import Any
 import pandas as pd
 
 from pypsa.components.abstract import Components
-from pypsa.components.types import ComponentTypeInfo
+from pypsa.components.types import ComponentType
 from pypsa.components.types import get as get_component_type
 from pypsa.definitions.structures import Dict
 
@@ -121,7 +121,7 @@ class Component:
     def __new__(
         cls,
         name: str | None = None,
-        ct: ComponentTypeInfo | None = None,
+        ctype: ComponentType | None = None,
         n: Any | None = None,
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
@@ -131,7 +131,7 @@ class Component:
         ind: None = None,
     ) -> Any:
         # Deprecation warnings
-        if (name and ct is not None) or (not name and ct is None):
+        if (name and ctype is not None) or (not name and ctype is None):
             msg = "One out of 'name' or 'ct' must be given."
             raise ValueError(msg)
         if list_name is not None or attrs is not None:
@@ -153,16 +153,16 @@ class Component:
             )
 
         if name:
-            ct_ = get_component_type(name)
+            ctype_ = get_component_type(name)
         else:
-            ct_ = ct  # type: ignore
+            ctype_ = ctype  # type: ignore
 
-        component_class = CLASS_MAPPING.get(ct_.name, None)
+        component_class = CLASS_MAPPING.get(ctype_.name, None)
         instance: Components
         if component_class is not None:
-            instance = component_class(ct=ct_)
+            instance = component_class(ctype=ctype_)
         else:
-            instance = GenericComponents(ct=ct_)
+            instance = GenericComponents(ctype=ctype_)
 
         if n is not None:
             instance.n = n

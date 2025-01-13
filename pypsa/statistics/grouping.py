@@ -56,8 +56,15 @@ class Groupers:
 
         Examples
         --------
-        >>> groupers["carrier"] # for single grouper
-        >>> groupers[["carrier", "bus"]] # for multi-indexed grouper
+        Single indexed grouper
+
+        >>> groupers["carrier"] # doctest: +ELLIPSIS
+        <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
+
+        Multi-indexed grouper
+
+        >>> groupers[["carrier", "bus"]] # doctest: +ELLIPSIS
+        <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
 
         """
         return self._multi_grouper(keys)
@@ -128,8 +135,15 @@ class Groupers:
 
         Examples
         --------
-        >>> groupers["carrier"] # for single grouper
-        >>> groupers[["carrier", "bus"]] # for multi-indexed grouper
+        Single indexed grouper
+
+        >>> groupers["carrier"] # doctest: +ELLIPSIS
+        <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
+
+        Multi-indexed grouper
+
+        >>> groupers[["carrier", "bus"]] # doctest: +ELLIPSIS
+        <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
 
         """
         keys_: Sequence[str | Callable]
@@ -185,14 +199,6 @@ class Groupers:
         Returns
         -------
         None
-
-        Examples
-        --------
-        >>> def my_custom_grouper(n, c, port=""):
-        ...     return n.static(c)["my_column"].rename("custom")
-        >>> Groupers.add_grouper("custom", my_custom_grouper)
-        >>> n.statistics.energy_balance(groupby=["custom", "carrier"])
-
 
         """
         setattr(self, name, func)

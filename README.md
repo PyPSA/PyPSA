@@ -227,7 +227,7 @@ or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 
 # Licence
 
-Copyright 2015-2024 [PyPSA
+Copyright 2015-2025 [PyPSA
 Developers](https://pypsa.readthedocs.io/en/latest/developers.html)
 
 PyPSA is licensed under the open source [MIT

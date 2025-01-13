@@ -18,7 +18,7 @@ import pandas as pd
 from pyproj import CRS
 
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentTypeInfo
+from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
 from pypsa.utils import equals
 
@@ -40,9 +40,20 @@ class ComponentsData:
     Dataclass to store all data of a Components object and used to separate data from
     logic.
 
+    Attributes
+    ----------
+    ctype : ComponentType
+        Component type information containing all default values and attributes.
+    n : Network | None
+        Network object to which the component might be attached.
+    static : pd.DataFrame
+        Static data of components.
+    dynamic : dict
+        Dynamic data of components.
+
     """
 
-    ct: ComponentTypeInfo
+    ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
     dynamic: dict
@@ -67,7 +78,7 @@ class Components(ComponentsData, ABC):
 
     def __init__(
         self,
-        ct: ComponentTypeInfo,
+        ctype: ComponentType,
         n: Network | None = None,
         names: str | int | Sequence[int | str] | None = None,
         suffix: str = "",
@@ -77,7 +88,7 @@ class Components(ComponentsData, ABC):
 
         Parameters
         ----------
-        ct : ComponentTypeInfo
+        ctype : ComponentType
             Component type information.
         n : Network, optional
             Network object to attach to, by default None.
@@ -96,8 +107,8 @@ class Components(ComponentsData, ABC):
                 "supported."
             )
             raise NotImplementedError(msg)
-        static, dynamic = self._get_data_containers(ct)
-        super().__init__(ct, n=None, static=static, dynamic=dynamic)
+        static, dynamic = self._get_data_containers(ctype)
+        super().__init__(ctype, n=None, static=static, dynamic=dynamic)
 
     def __repr__(self) -> str:
         """
@@ -121,8 +132,8 @@ class Components(ComponentsData, ABC):
         """
         num_components = len(self.static)
         if not num_components:
-            return f"Empty PyPSA {self.ct.name} Components\n"
-        text = f"PyPSA '{self.ct.name}' Components"
+            return f"Empty PyPSA {self.ctype.name} Components\n"
+        text = f"PyPSA '{self.ctype.name}' Components"
         text += "\n" + "-" * len(text) + "\n"
 
         # Add attachment status
@@ -146,13 +157,16 @@ class Components(ComponentsData, ABC):
         Examples
         --------
         >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
-        >>> print(c)
-        6 'Generator' Components
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators
+        PyPSA 'Generator' Components
+        ----------------------------
+        Attached to PyPSA Network 'AC-DC'
+        Components: 6
 
         """
         num_components = len(self.static)
-        text = f"{num_components} '{self.ct.name}' Components"
+        text = f"{num_components} '{self.ctype.name}' Components"
         return text
 
     def __getitem__(self, key: str) -> Any:
@@ -214,13 +228,13 @@ class Components(ComponentsData, ABC):
 
         """
         return (
-            equals(self.ct, other.ct)
+            equals(self.ctype, other.ctype)
             and equals(self.static, other.static)
             and equals(self.dynamic, other.dynamic)
         )
 
     @staticmethod
-    def _get_data_containers(ct: ComponentTypeInfo) -> tuple[pd.DataFrame, Dict]:
+    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict]:
         static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
         if ct.name == "Shape":
             crs = CRS.from_epsg(
@@ -258,7 +272,7 @@ class Components(ComponentsData, ABC):
         Get standard types of component.
 
         It is an alias for the `standard_types` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        :class:`pypsa.definitions.ComponentType`.
 
         Returns
         -------
@@ -266,82 +280,116 @@ class Components(ComponentsData, ABC):
             DataFrame with standard types of component.
 
         """
-        return self.ct.standard_types
+        return self.ctype.standard_types
 
     @property
     def name(self) -> str:
         """
-        Get name of component.
-
-        It is an alias for the `name` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        Name of component type.
 
         Returns
         -------
         str
             Name of component.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentType :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.name
+        'Generator'
+
         """
-        return self.ct.name
+        return self.ctype.name
 
     @property
     def list_name(self) -> str:
         """
-        Get list name of component.
-
-        E.g. 'generators' or 'lines', for the corresponding 'Generator' or 'Line'
-        component. It is an alias for the `list_name` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        List name of component type.
 
         Returns
-        -------
-        return self.ct.list_name
         -------
         str
             List name of component.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentType :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.list_name
+        'generators'
+
         """
-        return self.ct.list_name
+        return self.ctype.list_name
 
     @property
     def description(self) -> str:
         """
-        Get description of component.
-
-        It is an alias for the `description` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        Description of component.
 
         Returns
         -------
         str
             Description of component.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentType :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.description
+        'Power generator.'
+
         """
-        return self.ct.description
+        return self.ctype.description
 
     @property
     def category(self) -> str:
         """
-        Get category of component.
-
-        E.g. 'controllable_one_port'. It is an alias for the `category` attribute of
-        the underlying :class:`pypsa.definitions.ComponentTypeInfo`.
+        Category of component.
 
         Returns
         -------
         str
             Category of component.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentType :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.category
+        'controllable_one_port'
+
         """
-        return self.ct.category
+        return self.ctype.category
 
     @property
     def type(self) -> str:
         """
         Get category of component.
-
-        E.g. 'controllable_one_port'. It is an alias for the `category` attribute of
-        the underlying :class:`pypsa.definitions.ComponentTypeInfo`.
 
         .. note ::
             While not actively deprecated yet, :meth:`category` is the preferred method
@@ -352,16 +400,19 @@ class Components(ComponentsData, ABC):
         str
             Category of component.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentType :
+            This property directly references the same property in the
+            associated underlying class.
+
         """
-        return self.ct.category
+        return self.ctype.category
 
     @property
     def attrs(self) -> pd.DataFrame:
         """
-        Get default values of corresponding component type.
-
-        It is an alias for the `defaults` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        Default values of corresponding component type.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -373,16 +424,24 @@ class Components(ComponentsData, ABC):
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentType :
+            This property directly references the same property in the
+            associated underlying class.
+
+
         """
-        return self.ct.defaults
+        return self.ctype.defaults
 
     @property
     def defaults(self) -> pd.DataFrame:
         """
-        Get default values of corresponding component type.
+        Default values of corresponding component type.
 
-        It is an alias for the `defaults` attribute of the underlying
-        :class:`pypsa.definitions.ComponentTypeInfo`.
+        .. note::
+            While not actively deprecated yet, :meth:`defaults` is the preferred method
+            to access component attributes.
 
         Returns
         -------
@@ -390,8 +449,27 @@ class Components(ComponentsData, ABC):
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
 
+        See Also
+        --------
+        pypsa.definitions.ComponentType :
+            This property directly references the same property in the
+            associated underlying class.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.defaults.head() # doctest: +SKIP
+                     type unit default                                        description            status  static  varying              typ    dtype
+        attribute
+        name       string  NaN                                                Unique name  Input (required)    True    False    <class 'str'>   object
+        bus        string  NaN                 name of bus to which generator is attached  Input (required)    True    False    <class 'str'>   object
+        control    string  NaN      PQ  P,Q,V control strategy for PF, must be "PQ", "...  Input (optional)    True    False    <class 'str'>   object
+        type       string  NaN          Placeholder for generator type. Not yet implem...  Input (optional)    True    False    <class 'str'>   object
+        p_nom       float   MW     0.0          Nominal power for limits in optimization.  Input (optional)    True    False  <class 'float'>  float64
+
         """
-        return self.ct.defaults
+        return self.ctype.defaults
 
     def get(self, attribute_name: str, default: Any = None) -> Any:
         """
@@ -426,6 +504,13 @@ class Components(ComponentsData, ABC):
         -------
         bool
             True if component is attached to a Network, otherwise False.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.attached
+        True
 
         """
         return self.n is not None

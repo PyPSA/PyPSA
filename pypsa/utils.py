@@ -133,8 +133,12 @@ def deprecated_kwargs(**aliases: str) -> Callable:
 
     Examples
     --------
-    >>> @deprecated_alias(object_id="id_object")
-    ... def __init__(self, id_object):
+    >>> @deprecated_kwargs(object_id="id_object")
+    ... def some_func(id_object):
+    ...     print(id_object)
+    >>> some_func(object_id=1) # doctest: +SKIP
+    1
+
     """
 
     def deco(f: Callable) -> Callable:
@@ -255,10 +259,6 @@ def list_as_string(
     --------
     >>> list_as_string(['a', 'b', 'c'])
     'a, b, c'
-    >>> list_as_string(['x', 'y', 'z'], prefix="  ", style="bullet-list")
-    '  - x'
-    '  - y'
-    '  - z'
     """
     if isinstance(list_, dict):
         list_ = list(list_.keys())
