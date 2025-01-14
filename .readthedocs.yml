@@ -1,6 +1,6 @@
 version: 2
 sphinx:
-  configuration: docs/conf.py
+  configuration: doc/conf.py
 build:
   os: ubuntu-24.04
   tools:
@@ -16,4 +16,3 @@ python:
     - docs
     - dev
     - cartopy
-    - gurobipy
