@@ -323,7 +323,9 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         raise ImportError(install_message)
 
 
-def _convert_to_series(variable: dict | Sequence, index: pd.Index) -> pd.Series:
+def _convert_to_series(
+    variable: dict | Sequence | float | int, index: pd.Index
+) -> pd.Series:
     if isinstance(variable, dict):
         return pd.Series(variable)
     elif not isinstance(variable, pd.Series):

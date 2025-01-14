@@ -960,9 +960,12 @@ class AreaPlotter(BasePlotTypeAccessor):
 
 
 class PlotAccessor:
-    """Main plot accessor providing access to different plot types"""
+    """
+    Main plot accessor providing access to different plot types
+    """
 
     _n: Network
+    _base: BasePlotTypeAccessor
     map: MapPlotter
     bar: BarPlotter
     line: LinePlotter

@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -165,7 +165,7 @@ class AbstractStatisticsAccessor(ABC):
         func: Callable,
         agg: Callable | str = "sum",
         comps: Collection[str] | str | None = None,
-        groupby: str | Sequence[str] | Callable = "carrier",
+        groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         aggregate_across_components: bool = False,
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,

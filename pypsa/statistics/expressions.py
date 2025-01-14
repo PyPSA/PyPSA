@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -739,7 +739,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = "carrier",
+        groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
