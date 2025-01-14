@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.plot.maps import (  # type: ignore[attr-defined]
+from pypsa.plot.maps import (
     add_legend_circles,
     add_legend_lines,
     add_legend_patches,

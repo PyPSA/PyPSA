@@ -42,7 +42,7 @@ try:
 
 except ImportError:
     cartopy_present = False
-    GeoAxesSubplot = Any  # type: ignore
+    GeoAxesSubplot = Any
 
 
 pltly_present = True
