@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 
+from pypsa.common import deprecated_common_kwargs
 from pypsa.descriptors import OrderedGraph
-from pypsa.utils import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa import Network, SubNetwork

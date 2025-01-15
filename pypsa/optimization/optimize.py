@@ -16,6 +16,7 @@ import pandas as pd
 from linopy import Model, merge
 from linopy.solvers import available_solvers
 
+from pypsa.common import as_index
 from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import (
@@ -62,7 +63,6 @@ from pypsa.optimization.variables import (
     define_start_up_variables,
     define_status_variables,
 )
-from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     from pypsa import Network, SubNetwork

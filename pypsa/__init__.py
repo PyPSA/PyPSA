@@ -17,6 +17,7 @@ from importlib.metadata import version
 
 from pypsa import (
     clustering,
+    common,
     components,
     contingency,
     descriptors,
@@ -27,8 +28,8 @@ from pypsa import (
     pf,
     plot,
     statistics,
-    utils,
 )
+from pypsa.components.abstract import Components
 from pypsa.networks import Network, SubNetwork
 
 # e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
@@ -37,10 +38,10 @@ __version__ = version("pypsa")
 match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
 assert match, f"Could not determine release_version of pypsa: {__version__}"
 release_version = match.group(0)
-assert not __version__.startswith("0.0"), "Could not determine version of pypsa."
 
 __all__ = [
     "clustering",
+    "common",
     "components",
     "contingency",
     "descriptors",
@@ -51,7 +52,7 @@ __all__ = [
     "pf",
     "plot",
     "statistics",
-    "utils",
     "Network",
     "SubNetwork",
+    "Components",
 ]

@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 import pandas as pd
 
+from pypsa.common import pass_empty_series_if_keyerror
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
-from pypsa.utils import pass_empty_series_if_keyerror
 
 logger = logging.getLogger(__name__)
 

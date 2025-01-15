@@ -12,10 +12,10 @@ from weakref import ref
 
 from deprecation import deprecated
 
+from pypsa.common import equals, future_deprecation
 from pypsa.components.abstract import Components
-from pypsa.components.utils import as_components
+from pypsa.components.common import as_components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.utils import equals, future_deprecation
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -30,6 +30,7 @@ from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
+from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.components.abstract import SubNetworkComponents
 from pypsa.components.components import Component
 from pypsa.components.types import (
@@ -99,7 +100,6 @@ from pypsa.pf import (
 from pypsa.plot import explore, iplot, plot  # type: ignore
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
-from pypsa.utils import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
     import linopy
@@ -985,12 +985,11 @@ class Network:
         if isinstance(self.snapshots, pd.MultiIndex):
             if not periods_.isin(self.snapshots.unique("period")).all():
                 raise ValueError(
-                    "Not all investment periods are in level `period` " "of snapshots."
+                    "Not all investment periods are in level `period` of snapshots."
                 )
             if len(periods_) < len(self.snapshots.unique(level="period")):
                 raise NotImplementedError(
-                    "Investment periods do not equal first level "
-                    "values of snapshots."
+                    "Investment periods do not equal first level values of snapshots."
                 )
         else:
             # Convenience case:

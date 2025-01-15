@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.utils import (
+from pypsa.common import (
     as_index,
     deprecated_common_kwargs,
     deprecated_kwargs,
