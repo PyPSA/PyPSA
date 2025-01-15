@@ -40,22 +40,7 @@ from pypsa.components.types import (
 from pypsa.components.types import (
     get as get_component_type,
 )
-from pypsa.consistency import (
-    check_assets,
-    check_dtypes_,
-    check_for_disconnected_buses,
-    check_for_unknown_buses,
-    check_for_unknown_carriers,
-    check_for_zero_impedances,
-    check_for_zero_s_nom,
-    check_generators,
-    check_investment_periods,
-    check_nans_for_component_default_attrs,
-    check_shapes,
-    check_static_power_attributes,
-    check_time_series,
-    check_time_series_power_attributes,
-)
+from pypsa.consistency import consistency_check
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.definitions.components import ComponentsStore
 from pypsa.definitions.structures import Dict
@@ -264,6 +249,9 @@ class Network:
     get_switchable_as_dense = get_switchable_as_dense
     get_non_extendable_i = get_non_extendable_i
     get_active_assets = get_active_assets
+
+    # from pypsa.consistency
+    consistency_check = consistency_check
 
     # ----------------
     # Dunder methods
@@ -985,12 +973,11 @@ class Network:
         if isinstance(self.snapshots, pd.MultiIndex):
             if not periods_.isin(self.snapshots.unique("period")).all():
                 raise ValueError(
-                    "Not all investment periods are in level `period` " "of snapshots."
+                    "Not all investment periods are in level `period` of snapshots."
                 )
             if len(periods_) < len(self.snapshots.unique(level="period")):
                 raise NotImplementedError(
-                    "Investment periods do not equal first level "
-                    "values of snapshots."
+                    "Investment periods do not equal first level values of snapshots."
                 )
         else:
             # Convenience case:
@@ -1733,53 +1720,6 @@ class Network:
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
-
-    def consistency_check(
-        self, check_dtypes: bool = False, strict: bool = False
-    ) -> None:
-        """
-        Checks the network for consistency; e.g. that all components are
-        connected to existing buses and that no impedances are singular.
-
-        Prints warnings if anything is potentially inconsistent.
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.consistency_check()
-
-        """
-        self.calculate_dependent_values()
-
-        # TODO: Check for bidirectional links with efficiency < 1.
-        # TODO: Warn if any ramp limits are 0.
-
-        # Per component checks
-        for c in self.iterate_components():
-            # Checks all components
-            check_for_unknown_buses(self, c, strict)
-            check_for_unknown_carriers(self, c, strict)
-            check_time_series(self, c, strict)
-            check_static_power_attributes(self, c, strict)
-            check_time_series_power_attributes(self, c, strict)
-            check_nans_for_component_default_attrs(self, c, strict)
-            # Checks passive_branch_components
-            check_for_zero_impedances(self, c, strict)
-            # Checks transformers
-            check_for_zero_s_nom(c, strict)
-            # Checks generators and links
-            check_assets(self, c, strict)
-            # Checks generators
-            check_generators(c, strict)
-
-            if check_dtypes:
-                check_dtypes_(c, strict)
-
-        # Combined checks
-        check_for_disconnected_buses(self, strict)
-        check_investment_periods(self, strict)
-        check_shapes(self, strict)
 
 
 class SubNetwork:
