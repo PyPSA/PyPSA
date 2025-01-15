@@ -16,11 +16,11 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa import Components
 
 
 def get_active_assets(
-    n: Network,
+    c: Components,
     investment_period: int | str | Sequence | None = None,
 ) -> pd.Series:
     """
@@ -32,8 +32,8 @@ def get_active_assets(
 
     Parameters
     ----------
-    n : pypsa.Network
-        Network instance.
+    c : pypsa.Components
+        Components instance.
     investment_period : int, str, Sequence
         Investment period(s) to check for active within build year and lifetime. If
         none only the active attribute is considered and build year and lifetime are
@@ -47,15 +47,15 @@ def get_active_assets(
 
     """
     if investment_period is None:
-        return n.static.active
-    if not {"build_year", "lifetime"}.issubset(n.static):
-        return n.static.active
+        return c.static.active
+    if not {"build_year", "lifetime"}.issubset(c.static):
+        return c.static.active
 
     # Logical OR of active assets in all investment periods and
     # logical AND with active attribute
     active = {}
     for period in np.atleast_1d(investment_period):
-        if period not in n.n_save.investment_periods:
+        if period not in c.n_save.investment_periods:
             raise ValueError("Investment period not in `n.investment_periods`")
-        active[period] = n.static.eval("build_year <= @period < build_year + lifetime")
-    return pd.DataFrame(active).any(axis=1) & n.static.active
+        active[period] = c.static.eval("build_year <= @period < build_year + lifetime")
+    return pd.DataFrame(active).any(axis=1) & c.static.active

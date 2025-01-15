@@ -85,7 +85,7 @@ class ComponentsStore(dict):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(ComponentsStore, name):
-            msg = "'ComponentsStore' object attribute " f"'{name}' can not be set."
+            msg = f"'ComponentsStore' object attribute '{name}' can not be set."
             raise AttributeError(msg)
         self[name] = value
 
