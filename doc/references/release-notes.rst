@@ -47,9 +47,13 @@ Features
   :meth:`n.has_periods <pypsa.networks.Network.has_periods>` to simplified level access
   of the snapshots dimension. (https://github.com/PyPSA/PyPSA/pull/1113)
 
-* Consistency checks can now be run with the parameter ``strict``. If set to 
-  ``True``, the consistency check will raise an error if any of the checks fail.
-
+* Consistency checks can now be run with the parameter ``strict``, which will raise 
+  them as ``ConsistenyError``. Pass checks which should be strict in 
+  :meth:`n.consistency_check <pypsa.consistency.consistency_check>` as e.g.
+  ``strict=['unknown_buses']``. :meth:`n.optimize <pypsa.optimization.optimize.optimize>`
+  will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
+  https://github.com/PyPSA/PyPSA/pull/1112)
+  
 Bug fixes
 ---------
 
