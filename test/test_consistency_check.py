@@ -34,7 +34,7 @@ def consistent_n():
     return n
 
 
-@pytest.mark.parametrize("strict", [True, False])
+@pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
 @pytest.mark.skipif(os.name == "nt", reason="dtype confusing on Windows")
 def test_consistency(consistent_n, caplog, strict):
     if strict:
@@ -44,13 +44,13 @@ def test_consistency(consistent_n, caplog, strict):
         assert not caplog.records
 
 
-@pytest.mark.parametrize("strict", [True, False])
+@pytest.mark.parametrize("strict", [[], ["disconnected_buses"]])
 def test_missing_bus(consistent_n, caplog, strict):
     consistent_n.add("Bus", "three")
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [True, False])
+@pytest.mark.parametrize("strict", [[], ["assets"]])
 def test_infeasible_capacity_limits(consistent_n, caplog, strict):
     consistent_n.generators.loc["gen_one", ["p_nom_extendable", "committable"]] = (
         True,
@@ -59,14 +59,14 @@ def test_infeasible_capacity_limits(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [True, False])
+@pytest.mark.parametrize("strict", [[], ["static_power_attrs"]])
 def test_nans_in_capacity_limits(consistent_n, caplog, strict):
     consistent_n.generators.loc["gen_one", "p_nom_extendable"] = True
     consistent_n.generators.loc["gen_one", "p_nom_max"] = np.nan
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [True, False])
+@pytest.mark.parametrize("strict", [[], ["shapes"]])
 def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog, strict):
     n = ac_dc_network_shapes
     n.add(
@@ -79,13 +79,13 @@ def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog, strict):
     assert_log_or_error_in_consistency(ac_dc_network_shapes, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [True, False])
+@pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
 def test_unknown_carriers(consistent_n, caplog, strict):
     consistent_n.add("Generator", "wind", bus="hub", carrier="wind")
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
-@pytest.mark.parametrize("strict", [True, False])
+@pytest.mark.parametrize("strict", [[], ["generators"]])
 def test_inconsistent_e_sum_values(consistent_n, caplog, strict):
     """
     Test that the consistency check raises a warning if the e_sum_min is greater than e_sum_max.
@@ -94,3 +94,9 @@ def test_inconsistent_e_sum_values(consistent_n, caplog, strict):
         "Generator", "gen_two", bus="one", p_nom_max=10, e_sum_min=10, e_sum_max=5
     )
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
+def test_unknown_check():
+    n = pypsa.Network()
+    with pytest.raises(ValueError):
+        n.consistency_check(strict=["some_check"])

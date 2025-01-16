@@ -65,15 +65,14 @@ dev = [
 ]
 docs = [
     "numpydoc==1.8.0",
-    "sphinx==8.0.2",
+    "sphinx==8.1.3",
     "sphinx-book-theme==1.1.3",
-    "pydata-sphinx-theme==0.15.4",
+    "pydata-sphinx-theme==0.16.1",
     "sphinx-reredirects==0.1.5",
-    "nbsphinx==0.9.5",
-    "nbsphinx-link==1.3.0",
-    "scikit-learn==1.5.1",
-    "docutils==0.20.0", # Just temporarily until nbsphinx-link is updated (see https://github.com/vidartf/nbsphinx-link/issues/22)
-    "ipython==8.26.0",
+    "nbsphinx==0.9.6",
+    "nbsphinx-link==1.3.1",
+    "scikit-learn==1.6.1",
+    "ipython==8.31.0",
     "ipykernel==6.29.5",
 ]
 

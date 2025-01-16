@@ -24,6 +24,7 @@ from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
 from shapely import linestrings
 
+from pypsa.common import _convert_to_series, deprecated_kwargs
 from pypsa.components.abstract import Components
 from pypsa.consistency import check_plotting_consistency
 from pypsa.constants import DEFAULT_EPSG
@@ -32,7 +33,6 @@ from pypsa.geo import (
     get_projected_area_factor,
 )
 from pypsa.statistics import get_transmission_carriers
-from pypsa.utils import _convert_to_series, deprecated_kwargs
 
 cartopy_present = True
 try:

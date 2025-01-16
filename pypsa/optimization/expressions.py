@@ -14,6 +14,7 @@ import pandas as pd
 from linopy import LinearExpression, Variable
 from xarray import DataArray
 
+from pypsa.common import pass_none_if_keyerror
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     get_transmission_branches,
@@ -21,7 +22,6 @@ from pypsa.statistics import (
     port_efficiency,
 )
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
-from pypsa.utils import pass_none_if_keyerror
 
 logger = logging.getLogger(__name__)
 

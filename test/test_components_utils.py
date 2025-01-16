@@ -1,6 +1,6 @@
 import pytest
 
-from pypsa.components.utils import as_components
+from pypsa.components.common import as_components
 
 
 def test_as_components(ac_dc_network):

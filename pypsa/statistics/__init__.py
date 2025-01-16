@@ -2,6 +2,7 @@
 Statistics Accessor.
 """
 
+from pypsa.common import pass_empty_series_if_keyerror
 from pypsa.statistics.deprecated import (
     aggregate_timeseries,
     filter_active_assets,
@@ -17,7 +18,6 @@ from pypsa.statistics.expressions import (
     port_efficiency,
 )
 from pypsa.statistics.grouping import deprecated_groupers, groupers
-from pypsa.utils import pass_empty_series_if_keyerror
 
 # Backwards compatibility
 get_carrier = deprecated_groupers.get_carrier
