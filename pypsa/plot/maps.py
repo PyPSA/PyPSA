@@ -1133,7 +1133,7 @@ class MapPlotter:
         n = self.n
 
         self.init_axis(
-            ax=self.ax if ax is None else ax,
+            ax=ax,
             projection=projection,
             geomap=geomap,
             geomap_resolution=geomap_resolution,
