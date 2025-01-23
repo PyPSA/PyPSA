@@ -14,6 +14,8 @@ The PyPSA user meetings give further insight into the use of PyPSA in the energy
 
 Find the 1st PyPSA user meeting in 10/2022 `here <https://www.youtube.com/embed/fmwDxNpSMM4>`_.
 
+.. _academic-mentions:
+
 Universities and Research Institutes
 ====================================
 
@@ -29,7 +31,7 @@ Universities and Research Institutes
 
 * `TU Delft <https://www.tudelft.nl/>`_ in the Netherlands: multiple research papers: `doi:10.1016/j.eneco.2018.04.037 <https://doi.org/10.1016/j.eneco.2018.04.037>`_, `doi:10.1016/j.energy.2017.02.111 <https://doi.org/10.1016/j.energy.2017.02.111>`_
 
-* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022. In 2023, JRC used PyPSA for the study `"MODECO – Modelling study on the role of energy communities in the energy transition" <https://publications.jrc.ec.europa.eu/repository/bitstream/JRC132896/JRC132896_01.pdf>`_
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022. In 2023, JRC used PyPSA for the study `"MODECO – Modelling study on the role of energy communities in the energy transition" <https://publications.jrc.ec.europa.eu/repository/handle/JRC132896>`_ and in 2024 for the study `"Redispatch and Congestion Management" <https://publications.jrc.ec.europa.eu/repository/handle/JRC137685>`_
 
 * `Chalmers University <https://www.chalmers.se/>`_ in Sweden: research paper: `doi.org:10.1016/j.apenergy.2022.120016 <https://doi.org/10.1016/j.apenergy.2022.120016>`_
 
@@ -82,9 +84,11 @@ Universities and Research Institutes
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
 
-* The `International Energy Agency (IEA) <https://www.iea.org/>`_ uses PyPSA within their `Global Energy
+* `International Energy Agency (IEA) <https://www.iea.org/>`_ uses PyPSA within their `Global Energy
   and Climate Model
   <https://www.iea.org/reports/global-energy-and-climate-model>`_. A 2024 report `Managing the Seasonal Variability of Electricity Demand and Supply <https://www.iea.org/reports/managing-the-seasonal-variability-of-electricity-demand-and-supply>`_ used PyPSA to explore how seasonal variations in both demand and supply affect electricity system operations in various world regions in 2050.
+
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ in various studies (see :ref:`academic-mentions` for details).
 
 * `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
 
