@@ -54,6 +54,10 @@ Features
   will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
   https://github.com/PyPSA/PyPSA/pull/1112)
   
+
+`v0.32.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1>`__ (23th Januarary 2025)
+=======================================================================================
+
 Bug fixes
 ---------
 
@@ -61,7 +65,9 @@ Bug fixes
   energy balance calculation. Before the fix, the "Load" component was not
   considered. (https://github.com/PyPSA/PyPSA/pull/1110)
 
-* The optimize/expression module now correctly assigns contributions from branch components in the `withdrawal` and `supply` functions. Before, there was a wrong multiplication by -1 for branch components. 
+* The optimize/expression module now correctly assigns contributions from branch 
+  components in the `withdrawal` and `supply` functions. Before, there was a wrong 
+  multiplication by -1 for branch components. (https://github.com/PyPSA/PyPSA/pull/1123)
 
 `v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
 =======================================================================================
