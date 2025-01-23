@@ -61,6 +61,8 @@ Bug fixes
   energy balance calculation. Before the fix, the "Load" component was not
   considered. (https://github.com/PyPSA/PyPSA/pull/1110)
 
+* The optimize/expression module now correctly assigns contributions from branch components in the `withdrawal` and `supply` functions. Before, there was a wrong multiplication by -1 for branch components. 
+
 `v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
 =======================================================================================
 
