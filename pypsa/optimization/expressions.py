@@ -383,14 +383,15 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            # negative branch contributions are considered by the efficiency
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            sign = n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             coeffs = DataArray(efficiency * sign)
             if kind == "supply":
                 coeffs = coeffs.clip(min=0)
             elif kind == "withdrawal":
-                coeffs = coeffs.clip(max=0)
+                coeffs = -coeffs.clip(max=0)
             elif kind is not None:
                 raise ValueError(
                     f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
