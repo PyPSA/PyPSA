@@ -240,6 +240,8 @@ class BasePlotTypeAccessor:
         nice_names: bool = True,
         storage: bool = False,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -255,7 +257,8 @@ class BasePlotTypeAccessor:
             comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             storage=storage,
             nice_names=False,
         )
@@ -281,6 +284,8 @@ class BasePlotTypeAccessor:
         nice_names: bool = True,
         storage: bool = False,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -296,7 +301,8 @@ class BasePlotTypeAccessor:
             comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             storage=storage,
             nice_names=False,
         )
@@ -321,6 +327,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -337,7 +345,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -361,6 +370,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -377,7 +388,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -401,12 +413,24 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: str | None = None,
+        bus_carrier: str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
-        """Plot energy balance"""
+        """
+        Plot energy balance.
+
+        Parameters
+        ----------
+        carrier : str | None, optional
+            Filter by carrier
+        bus_carrier : str | None, optional
+            Filter by bus carrier
+        """
         x = x or self._default_dynamic_x  # Dynamic plot
         stats_opts = stats_opts or {}
+
         groupby, aggregate_across_components, aggregate_time = (
             self._derive_statistic_parameters(
                 x, y, color, col, row, stats_opts=stats_opts, support_snapshot=True
@@ -417,7 +441,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -441,6 +466,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -456,7 +483,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -480,6 +508,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -495,7 +525,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -519,6 +550,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -534,7 +567,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -558,6 +592,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -572,7 +608,8 @@ class BasePlotTypeAccessor:
         data = self._statistics.capex(
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -596,6 +633,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -611,7 +650,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -635,6 +675,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -650,7 +692,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -674,6 +717,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -689,7 +734,8 @@ class BasePlotTypeAccessor:
             comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -713,6 +759,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -728,7 +776,8 @@ class BasePlotTypeAccessor:
             comps=stats_opts.get("comps"),
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(
@@ -752,6 +801,8 @@ class BasePlotTypeAccessor:
         row: str | None = None,
         nice_names: bool = True,
         query: str | None = None,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
         stats_opts: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> so.Plot:
@@ -768,7 +819,8 @@ class BasePlotTypeAccessor:
             groupby=groupby,
             aggregate_time=aggregate_time,
             aggregate_across_components=aggregate_across_components,
-            bus_carrier=stats_opts.get("bus_carrier"),
+            carrier=stats_opts.get("carrier", carrier),
+            bus_carrier=stats_opts.get("bus_carrier", bus_carrier),
             nice_names=False,
         )
         return self._plot(

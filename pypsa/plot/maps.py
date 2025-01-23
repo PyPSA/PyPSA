@@ -327,6 +327,7 @@ class MapPlotter:
             self.x, self.y = apply_layouter(self.n, layouter, inplace=False)
         else:
             self.x, self.y = self.n.buses["x"], self.n.buses["y"]
+        self.crs = self.n.crs
 
     def set_boundaries(
         self: MapPlotter,
@@ -429,10 +430,14 @@ class MapPlotter:
             else:
                 self.ax = ax
 
+            # Transform bus positions to projection, track the new crs
             x, y, _ = self.ax.projection.transform_points(
                 network_projection, self.x.values, self.y.values
             ).T
-            self.x, self.y = pd.Series(x, self.x.index), pd.Series(y, self.y.index)
+            self.x_trans, self.y_trans = (
+                pd.Series(x, self.x.index),
+                pd.Series(y, self.y.index),
+            )
 
             if geomap_colors is not False:
                 if geomap_colors is None:
@@ -451,6 +456,7 @@ class MapPlotter:
             else:
                 self.ax = ax
             self.ax.axis(boundaries)
+            self.x_trans, self.y_trans = self.x, self.y
         self.ax.set_aspect("equal")
         self.ax.axis("off")
         self.ax.set_title(title)
@@ -575,7 +581,7 @@ class MapPlotter:
                 for i, ratio in ratios.items():
                     patches.append(
                         Wedge(
-                            (self.x.at[b_i], self.y.at[b_i]),
+                            (self.x_trans.at[b_i], self.y_trans.at[b_i]),
                             radius,
                             scope * start,
                             scope * (start + ratio),
@@ -597,7 +603,7 @@ class MapPlotter:
             radius = sizes.at[b_i] ** 0.5
             patches.append(
                 Circle(
-                    (self.x.at[b_i], self.y.at[b_i]),
+                    (self.x_trans.at[b_i], self.y_trans.at[b_i]),
                     radius,
                     facecolor=colors.at[b_i],
                     alpha=alpha,
@@ -701,12 +707,12 @@ class MapPlotter:
             segments: np.ndarray = np.asarray(
                 (
                     (
-                        c.static.bus0[idx].map(self.x),
-                        c.static.bus0[idx].map(self.y),
+                        c.static.bus0[idx].map(self.x_trans),
+                        c.static.bus0[idx].map(self.y_trans),
                     ),
                     (
-                        c.static.bus1[idx].map(self.x),
-                        c.static.bus1[idx].map(self.y),
+                        c.static.bus1[idx].map(self.x_trans),
+                        c.static.bus1[idx].map(self.y_trans),
                     ),
                 )
             ).transpose(2, 0, 1)
@@ -743,8 +749,8 @@ class MapPlotter:
         patches = []
         facecolors = []
         alphas = []
-        x0s, y0s = c.static.bus0.map(self.x), c.static.bus0.map(self.y)
-        x1s, y1s = c.static.bus1.map(self.x), c.static.bus1.map(self.y)
+        x0s, y0s = c.static.bus0.map(self.x_trans), c.static.bus0.map(self.y_trans)
+        x1s, y1s = c.static.bus1.map(self.x_trans), c.static.bus1.map(self.y_trans)
 
         for i in idx:
             x0, y0 = x0s[i], y0s[i]
@@ -878,10 +884,10 @@ class MapPlotter:
         idx = widths.index
         coords = pd.DataFrame(
             {
-                "x1": c.static.bus0[idx].map(self.x),
-                "y1": c.static.bus0[idx].map(self.y),
-                "x2": c.static.bus1[idx].map(self.x),
-                "y2": c.static.bus1[idx].map(self.y),
+                "x1": c.static.bus0[idx].map(self.x_trans),
+                "y1": c.static.bus0[idx].map(self.y_trans),
+                "x2": c.static.bus1[idx].map(self.x_trans),
+                "y2": c.static.bus1[idx].map(self.y_trans),
             }
         )
 
