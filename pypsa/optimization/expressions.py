@@ -391,6 +391,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if kind == "supply":
                 coeffs = coeffs.clip(min=0)
             elif kind == "withdrawal":
+                logger.warning(
+                    "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+                )
                 coeffs = -coeffs.clip(max=0)
             elif kind is not None:
                 raise ValueError(
