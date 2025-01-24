@@ -1,6 +1,8 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal as equal
 
+import pandas as pd
+
 import pypsa
 from pypsa.optimization.common import get_strongly_meshed_buses
 
