@@ -9,7 +9,10 @@
 
 old/
 
+# Ignore all jupyter notebooks, except those in the examples folder
 *.ipynb
+!/examples/notebooks/*.ipynb
+
 
 test/.cache/
 
@@ -21,7 +24,11 @@ test/results/*
 
 
 doc/_build/
-
+doc/_build_html
+doc/api/_source/
+doc/examples/*.nc
+sphinx_build_stderr.txt
+sphinx_build_stderr_filtered.txt
 # doc/img/
 
 build/
@@ -45,9 +52,13 @@ website/examples/*.py
 *.html
 
 .vscode
+.devcontainer
+
+.idea
 
 .coverage
 
 dev-scripts
+dev
 
 .venv

@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 
 import pytest
-from conftest import optimize
-
-APIS = ["linopy"]
 
 
-@pytest.mark.parametrize("api", APIS)
-def test_operational_limit_ac_dc_meshed(ac_dc_network, api):
-    n = ac_dc_network
+def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
+    n = ac_dc_network.copy()
 
     limit = 30_000
 
@@ -25,13 +20,12 @@ def test_operational_limit_ac_dc_meshed(ac_dc_network, api):
         constant=limit,
     )
 
-    optimize(n, api)
-    assert n.statistics.dispatch().loc[:, "gas"].sum().round(3) == limit
+    n.optimize()
+    assert n.statistics.energy_balance().loc[:, "gas"].sum().round(3) == limit
 
 
-@pytest.mark.parametrize("api", APIS)
-def test_operational_limit_storage_hvdc(storage_hvdc_network, api):
-    n = storage_hvdc_network
+def test_operational_limit_storage_hvdc(storage_hvdc_network):
+    n = storage_hvdc_network.copy()
 
     limit = 5_000
 
@@ -50,7 +44,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network, api):
     n.storage_units.p_nom_extendable = True
     n.storage_units.cyclic_state_of_charge = False
 
-    optimize(n, api)
+    n.optimize()
 
     soc_diff = (
         n.storage_units.state_of_charge_initial.sum()
@@ -72,11 +66,11 @@ def test_assign_all_duals(ac_dc_network, assign):
         transmission.sum() <= limit, name="GlobalConstraint-generation_limit"
     )
     m.add_constraints(
-        transmission.sum(dims="Link") <= limit,
+        transmission.sum(dim="Link") <= limit,
         name="GlobalConstraint-generation_limit_dynamic",
     )
 
-    n.optimize.solve_model(solver_name="glpk", assign_all_duals=assign)
+    n.optimize.solve_model(assign_all_duals=assign)
 
     assert ("generation_limit" in n.global_constraints.index) == assign
     assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign

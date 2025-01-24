@@ -1,31 +1,37 @@
-# -*- coding: utf-8 -*-
 """
 Graph helper functions, which are attached to network and sub_network.
 """
 
-__author__ = (
-    "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html"
-)
-__copyright__ = (
-    "Copyright 2015-2023 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
-    "MIT License"
-)
+from __future__ import annotations
 
-# Functions which will be attached to network and sub_network
+from collections.abc import Collection, Iterable
+from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 import scipy as sp
 
-from pypsa.descriptors import OrderedGraph, get_active_assets
+from pypsa.common import deprecated_common_kwargs
+from pypsa.descriptors import OrderedGraph
+
+if TYPE_CHECKING:
+    from pypsa import Network, SubNetwork
 
 
-def graph(network, branch_components=None, weight=None, inf_weight=False):
+@deprecated_common_kwargs
+def graph(
+    n: Network | SubNetwork,
+    branch_components: Collection[str] | None = None,
+    weight: str | None = None,
+    inf_weight: bool | float = False,
+    include_inactive: bool = True,
+) -> OrderedGraph:
     """
     Build NetworkX graph.
 
     Parameters
     ----------
-    network : Network|SubNetwork
+    n : Network|SubNetwork
 
     branch_components : [str]
         Components to use as branches. The default are
@@ -45,16 +51,18 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     graph : OrderedGraph
         NetworkX graph
     """
-    from pypsa import components
+    from pypsa import Network, SubNetwork
 
-    if isinstance(network, components.Network):
+    if isinstance(n, Network):
         if branch_components is None:
-            branch_components = network.branch_components
-        buses_i = network.buses.index
-    elif isinstance(network, components.SubNetwork):
+            branch_components = n.branch_components
+        else:
+            branch_components = set(branch_components)
+        buses_i = n.buses.index
+    elif isinstance(n, SubNetwork):
         if branch_components is None:
-            branch_components = network.network.passive_branch_components
-        buses_i = network.buses_i()
+            branch_components = n.n.passive_branch_components
+        buses_i = n.buses_i()
     else:
         raise TypeError("graph must be called with a Network or a SubNetwork")
 
@@ -64,10 +72,10 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     graph.add_nodes_from(buses_i)
 
     # Multigraph uses the branch type and name as key
-    def gen_edges():
-        for c in network.iterate_components(branch_components):
-            for branch in c.df.loc[
-                slice(None) if c.ind is None else c.ind
+    def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
+        for c in n.iterate_components(branch_components):
+            for branch in c.static.loc[
+                slice(None) if include_inactive else c.static.query("active").index
             ].itertuples():
                 if weight is None:
                     data = {}
@@ -85,9 +93,14 @@ def graph(network, branch_components=None, weight=None, inf_weight=False):
     return graph
 
 
+@deprecated_common_kwargs
 def adjacency_matrix(
-    network, branch_components=None, investment_period=None, busorder=None, weights=None
-):
+    n: Network | SubNetwork,
+    branch_components: Collection[str] | None = None,
+    investment_period: int | str | None = None,
+    busorder: pd.Index | None = None,
+    weights: pd.Series | None = None,
+) -> sp.sparse.coo_matrix:
     """
     Construct a sparse adjacency matrix (directed)
 
@@ -96,7 +109,7 @@ def adjacency_matrix(
     branch_components : iterable sublist of `branch_components`
        Buses connected by any of the selected branches are adjacent
        (default: branch_components (network) or passive_branch_components (sub_network))
-    busorder : pd.Index subset of network.buses.index
+    busorder : pd.Index subset of n.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
     weights : pd.Series or None (default)
@@ -109,18 +122,18 @@ def adjacency_matrix(
        Directed adjacency matrix
     """
 
-    from pypsa import components
+    from pypsa import Network, SubNetwork
 
-    if isinstance(network, components.Network):
+    if isinstance(n, Network):
         if branch_components is None:
-            branch_components = network.branch_components
+            branch_components = n.branch_components
         if busorder is None:
-            busorder = network.buses.index
-    elif isinstance(network, components.SubNetwork):
+            busorder = n.buses.index
+    elif isinstance(n, SubNetwork):
         if branch_components is None:
-            branch_components = network.network.passive_branch_components
+            branch_components = n.n.passive_branch_components
         if busorder is None:
-            busorder = network.buses_i()
+            busorder = n.buses_i()
     else:
         raise TypeError(" must be called with a Network or a SubNetwork")
 
@@ -129,24 +142,13 @@ def adjacency_matrix(
     bus0_inds = []
     bus1_inds = []
     weight_vals = []
-    for c in network.iterate_components(branch_components):
-        if c.ind is None:
-            if investment_period is None:
-                sel = slice(None)
-            else:
-                active = get_active_assets(network, c.name, investment_period)
-                sel = c.df.loc[active].index
-        elif investment_period is None:
-            sel = c.ind
-        else:
-            active = get_active_assets(
-                network, c.name, investment_period, network.snapshots
-            )
-            sel = c.ind & c.df.loc[active].index
+    for c in n.iterate_components(branch_components):
+        active = c.get_active_assets(investment_period)
+        sel = c.static[active].index
 
-        no_branches = len(c.df.loc[sel])
-        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
+        no_branches = len(c.static.loc[sel])
+        bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
         weight_vals.append(
             np.ones(no_branches) if weights is None else weights[c.name][sel].values
         )
@@ -163,7 +165,12 @@ def adjacency_matrix(
     )
 
 
-def incidence_matrix(network, branch_components=None, busorder=None):
+@deprecated_common_kwargs
+def incidence_matrix(
+    n: Network | SubNetwork,
+    branch_components: Collection[str] | None = None,
+    busorder: pd.Index | None = None,
+) -> sp.sparse.csr_matrix:
     """
     Construct a sparse incidence matrix (directed)
 
@@ -172,7 +179,7 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     branch_components : iterable sublist of `branch_components`
        Buses connected by any of the selected branches are adjacent
        (default: branch_components (network) or passive_branch_components (sub_network))
-    busorder : pd.Index subset of network.buses.index
+    busorder : pd.Index subset of n.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
 
@@ -181,34 +188,32 @@ def incidence_matrix(network, branch_components=None, busorder=None):
     incidence_matrix : sp.sparse.csr_matrix
        Directed incidence matrix
     """
-    from pypsa import components
+    from pypsa import Network, SubNetwork
 
-    if isinstance(network, components.Network):
+    if isinstance(n, Network):
         if branch_components is None:
-            branch_components = network.branch_components
+            branch_components = n.branch_components
         if busorder is None:
-            busorder = network.buses.index
-    elif isinstance(network, components.SubNetwork):
+            busorder = n.buses.index
+    elif isinstance(n, SubNetwork):
         if branch_components is None:
-            branch_components = network.network.passive_branch_components
+            branch_components = n.n.passive_branch_components
         if busorder is None:
-            busorder = network.buses_i()
+            busorder = n.buses_i()
     else:
-        raise TypeError(" must be called with a Network or a SubNetwork")
+        raise ValueError(
+            "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
+        )
 
     no_buses = len(busorder)
     no_branches = 0
     bus0_inds = []
     bus1_inds = []
-    for c in network.iterate_components(branch_components):
-        if c.ind is None:
-            sel = slice(None)
-            no_branches += len(c.df)
-        else:
-            sel = c.ind
-            no_branches += len(c.ind)
-        bus0_inds.append(busorder.get_indexer(c.df.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.df.loc[sel, "bus1"]))
+    for c in n.iterate_components(branch_components):
+        sel = c.static.query("active").index
+        no_branches += len(c.static.loc[sel])
+        bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
+        bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
     bus0_inds = np.concatenate(bus0_inds)
     bus1_inds = np.concatenate(bus1_inds)
 

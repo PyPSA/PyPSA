@@ -1,0 +1,34 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,Name of bus to which store is attached.,Input (required)
+type,string,n/a,n/a,Placeholder for store type. Not yet implemented.,Input (optional)
+carrier,string,n/a,,"Energy carrier of the Store, e.g. ""heat"" or ""gas"".",Input (optional)
+e_nom,float,MWh,0,Nominal energy capacity.,Input (optional)
+e_nom_mod,float,MWh,0,Nominal energy capacity of the store module.,Input (optional)
+e_nom_extendable,boolean,n/a,False,Switch to allow capacity e_nom to be extended in OPF.,Input (optional)
+e_nom_min,float,MWh,0,"If e_nom is extendable in OPF, set its minimum value.",Input (optional)
+e_nom_max,float,MWh,inf,"If e_nom is extendable in OPF, set its maximum value (e.g. limited by technical potential).",Input (optional)
+e_min_pu,static or series,per unit,0,Minimal value of e relative to e_nom for the OPF.,Input (optional)
+e_max_pu,static or series,per unit,1,Maximal value of e relative to e_nom for the OPF.,Input (optional)
+e_initial,float,MWh,0,Energy before the snapshots in the OPF.,Input (optional)
+e_initial_per_period,boolean,n/a,False,"Switch: if True, then at the beginning of each investment period e is set to e_initial ",Input (optional)
+e_cyclic,boolean,n/a,False,"Switch: if True, then e_initial is ignored and the initial energy is set to the final energy for the group of snapshots in the OPF.",Input (optional)
+e_cyclic_per_period,boolean,n/a,True,"Switch: if True, then the cyclic constraints are applied to each period (first snapshot level if multiindexed) separately.",Input (optional)
+p_set,static or series,MW,0,active power set point (for PF),Input (optional)
+q_set,static or series,MVar,0,reactive power set point (for PF),Input (optional)
+sign,float,n/a,1,power sign,Input (optional)
+marginal_cost,static or series,currency/MWh,0,Marginal cost applied to both charging and discharging of 1 MWh.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of applied to charging and discharging of 1 MWh.,Input (optional)
+marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
+capital_cost,float,currency/MWh,0,"Fixed period costs of extending e_nom by 1 MWh, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
+standing_loss,static or series,per unit,0,Losses per hour to energy.,Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
+build_year,int,year,0,build year,Input (optional)
+lifetime,float,years,inf,lifetime,Input (optional)
+p,series,MW,0,active power at bus (positive if net generation),Output
+q,series,MVar,0,reactive power (positive if net generation),Output
+e,series,MWh,0,Energy as calculated by the OPF.,Output
+e_nom_opt,float,MWh,0,Optimised nominal energy capacity outputed by OPF.,Output
+mu_upper,series,currency/MWh,0,Shadow price of upper e_nom limit,Output
+mu_lower,series,currency/MWh,0,Shadow price of lower e_nom limit,Output
+mu_energy_balance,series,currency/MWh,0,Shadow price of storage consistency equations,Output

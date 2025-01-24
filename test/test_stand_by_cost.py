@@ -1,21 +1,14 @@
-# -*- coding: utf-8 -*-
 import numpy as np
-import pytest
-from conftest import SUPPORTED_APIS, optimize
 from numpy.testing import assert_array_almost_equal as equal
 
 import pypsa
 
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_stand_by_cost(api):
+def test_stand_by_cost():
     """
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
-    if api == "pyomo":
-        pytest.skip("stand_by_cost not implemented for pyomo")
 
     n = pypsa.Network()
 
@@ -48,7 +41,7 @@ def test_stand_by_cost(api):
 
     n.add("Load", "load", bus="bus", p_set=[4000, 6000, 5000, 800])
 
-    optimize(n, api)
+    n.optimize()
 
     cost = (
         n.generators_t.p * n.generators.marginal_cost

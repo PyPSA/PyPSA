@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import pytest
 from numpy.testing import assert_almost_equal as almost_equal
 
@@ -31,17 +30,17 @@ def test_mga():
     n.add("Load", "load", bus="bus", p_set=100)
 
     # can only run MGA on solved networks
-    with pytest.raises(AssertionError):
-        n.optimize.optimize_mga(solver_name="glpk")
+    with pytest.raises(ValueError):
+        n.optimize.optimize_mga()
 
-    n.optimize(solver_name="glpk")
+    n.optimize()
 
     opt_capacity = n.generators.p_nom_opt
     opt_cost = (n.statistics.capex() + n.statistics.opex()).sum()
 
     weights = dict(Generator=dict(p_nom={"coal": 1}))
     slack = 0.05
-    n.optimize.optimize_mga(slack=0.05, weights=weights, solver_name="glpk")
+    n.optimize.optimize_mga(slack=0.05, weights=weights)
 
     mga_capacity = n.generators.p_nom_opt
     mga_cost = (n.statistics.capex() + n.statistics.opex()).sum()

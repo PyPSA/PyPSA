@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Tue Feb  1 13:13:59 2022.
 
@@ -14,8 +13,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.plot import add_legend_circles, add_legend_lines, add_legend_patches
-from pypsa.statistics import get_transmission_branches
+from pypsa.plot import (  # type: ignore[attr-defined]
+    add_legend_circles,
+    add_legend_lines,
+    add_legend_patches,
+    add_legend_semicircles,
+)
+from pypsa.statistics import get_transmission_branches, groupers
 
 try:
     import cartopy.crs as ccrs
@@ -23,6 +27,15 @@ try:
     cartopy_present = True
 except ImportError:
     cartopy_present = False
+
+
+try:
+    import folium  # noqa: F401
+    import mapclassify  # noqa: F401
+
+    explore_deps_present = True
+except ImportError:
+    explore_deps_present = False
 
 
 @pytest.mark.parametrize("margin", (None, 0.1))
@@ -54,7 +67,7 @@ def test_plot_on_axis_wo_geomap(ac_dc_network):
 def test_plot_on_axis_w_geomap(ac_dc_network):
     n = ac_dc_network
     fig, ax = plt.subplots()
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         n.plot(ax=ax, geomap=True)
         plt.close()
 
@@ -100,7 +113,8 @@ def test_plot_with_bus_cmap(ac_dc_network):
     n = ac_dc_network
 
     buses = n.buses.index
-    colors = pd.Series(np.random.rand(len(buses)), buses)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(buses)), buses)
     n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
@@ -109,7 +123,8 @@ def test_plot_with_line_cmap(ac_dc_network):
     n = ac_dc_network
 
     lines = n.lines.index
-    colors = pd.Series(np.random.rand(len(lines)), lines)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(lines)), lines)
     n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
@@ -140,7 +155,8 @@ def test_plot_line_subset(ac_dc_network):
     n = ac_dc_network
 
     lines = n.lines.index[:2]
-    colors = pd.Series(np.random.rand(len(lines)), lines)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(lines)), lines)
     n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
@@ -149,7 +165,8 @@ def test_plot_bus_subset(ac_dc_network):
     n = ac_dc_network
 
     buses = n.buses.index[:2]
-    colors = pd.Series(np.random.rand(len(buses)), buses)
+    rng = np.random.default_rng()  # Create a random number generator
+    colors = pd.Series(rng.random(size=len(buses)), buses)
     n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
@@ -171,7 +188,7 @@ def test_plot_from_statistics(ac_dc_network):
     n = ac_dc_network
     bus_carrier = "AC"
 
-    grouper = n.statistics.groupers.get_bus_and_carrier
+    grouper = groupers["bus", "carrier"]
     bus_sizes = n.statistics.installed_capacity(
         bus_carrier=bus_carrier, groupby=grouper, nice_names=False
     )
@@ -294,3 +311,25 @@ def test_plot_legend_circles_geomap(ac_dc_network):
     add_legend_circles(ax, [1, 0.5], ["reference A", "reference B"])
 
     plt.close()
+
+
+@pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
+def test_plot_legend_semicircles_geomap(ac_dc_network):
+    n = ac_dc_network
+
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
+    n.plot(ax=ax, geomap=True)
+
+    add_legend_semicircles(ax, [1, 0.5], ["reference A", "reference B"])
+
+    plt.close()
+
+
+@pytest.mark.skipif(
+    not explore_deps_present,
+    reason="Dependencies for n.explore() not installed: folium, mapclassify",
+)
+def test_network_explore(ac_dc_network):
+    n = ac_dc_network
+
+    n.explore()

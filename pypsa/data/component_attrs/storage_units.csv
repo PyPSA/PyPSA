@@ -1,0 +1,45 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,Name of bus to which storage unit is attached.,Input (required)
+control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
+type,string,n/a,n/a,Placeholder for storage unit type. Not yet implemented.,Input (optional)
+p_nom,float,MW,0,Nominal power for limits in OPF.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the storage unit module.,Input (optional)
+p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in OPF.,Input (optional)
+p_nom_min,float,MW,0,"If p_nom is extendable in OPF, set its minimum value.",Input (optional)
+p_nom_max,float,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
+p_min_pu,static or series,per unit,-1,The minimum output for each snapshot per unit of p_nom for the OPF (negative sign implies storing mode withdrawing power from bus).,Input (optional)
+p_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of p_nom for the OPF.,Input (optional)
+p_set,static or series,MW,0,active power set point (for PF),Input (optional)
+q_set,static or series,MVar,0,reactive power set point (for PF),Input (optional)
+sign,float,n/a,1,power sign,Input (optional)
+carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in OPF",Input (optional)
+spill_cost,static or series,currency/MWh,0,Cost of spilling 1 MWh.,Input (optional)
+marginal_cost,static or series,currency/MWh,0,Marginal cost of production of 1 MWh.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of production (discharge) of 1 MWh.,Input (optional)
+marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending p_nom by 1 MW, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
+build_year,int,year,0,build year,Input (optional)
+lifetime,float,years,inf,lifetime,Input (optional)
+state_of_charge_initial,float,MWh,0,State of charge before the snapshots in the OPF.,Input (optional)
+state_of_charge_initial_per_period,boolean,n/a,False,"Switch: if True, then state of charge at the beginning of an investment period is set to state_of_charge_initial",Input (optional)
+state_of_charge_set,static or series,MWh,NaN,State of charge set points for snapshots in the OPF.,Input (optional)
+cyclic_state_of_charge,boolean,n/a,False,"Switch: if True, then state_of_charge_initial is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the OPF (soc[-1] = soc[len(snapshots)-1]).",Input (optional)
+cyclic_state_of_charge_per_period,boolean,n/a,True,"Switch: if True, then the cyclic constraints are applied to each period (first snapshot level if multiindexed) separately.",Input (optional)
+max_hours,float,hours,1,Maximum state of charge capacity in terms of hours at full output capacity p_nom,Input (optional)
+efficiency_store,static or series,per unit,1,Efficiency of storage on the way into the storage.,Input (optional)
+efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)
+standing_loss,static or series,per unit,0,Losses per hour to state of charge.,Input (optional)
+inflow,static or series,MW,0,"Inflow to the state of charge, e.g. due to river inflow in hydro reservoir.",Input (optional)
+p,series,MW,0,active power at bus (positive if net generation),Output
+p_dispatch,series,MW,0,active power dispatch at bus,Output
+p_store,series,MW,0,active power charging at bus,Output
+q,series,MVar,0,reactive power (positive if net generation),Output
+state_of_charge,series,MWh,NaN,State of charge as calculated by the OPF.,Output
+spill,series,MW,0,Spillage for each snapshot.,Output
+p_nom_opt,float,MW,0,Optimised nominal power.,Output
+mu_upper,series,currency/MWh,0,Shadow price of upper p_nom limit,Output
+mu_lower,series,currency/MWh,0,Shadow price of lower p_nom limit,Output
+mu_state_of_charge_set,series,currency/MWh,0,Shadow price of fixed state of charge state_of_charge_set,Output
+mu_energy_balance,series,currency/MWh,0,Shadow price of storage consistency equations,Output

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Mon Jan 31 18:29:48 2022.
 
@@ -7,39 +6,28 @@ Created on Mon Jan 31 18:29:48 2022.
 """
 
 import os
-import sys
 
 import geopandas as gpd
 import numpy as np
-import pandapower as pp
-import pandapower.networks as pn
 import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
 import pypsa
-
-SUPPORTED_APIS = ["pyomo", "linopy", "native"]
-SOLVER_NAME = "glpk"
+from pypsa.constants import DEFAULT_EPSG
 
 
-@pytest.fixture(autouse=True)
-def skip_by_api_and_python_version(request):
-    if "api" in request.fixturenames:
-        api = request.getfixturevalue("api")
-        if sys.version_info[:2] == (3, 12) and api == "pyomo":
-            pytest.skip("PyPSA with Pyomo not supported on Python 3.12")
+def pytest_addoption(parser):
+    parser.addoption(
+        "--test-docs-build",
+        action="store_true",
+        default=False,
+        help="run sphinx build test",
+    )
 
 
-def optimize(n, api, *args, **kwargs):
-    if api == "linopy":
-        return n.optimize(solver_name=SOLVER_NAME, *args, **kwargs)
-    elif api == "pyomo":
-        return n.lopf(pyomo=True, solver_name=SOLVER_NAME, *args, **kwargs)
-    elif api == "native":
-        return n.lopf(pyomo=False, solver_name=SOLVER_NAME, *args, **kwargs)
-    else:
-        raise ValueError(f"api must be one of {SUPPORTED_APIS}")
+def pytest_configure(config):
+    config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
 
 
 @pytest.fixture(scope="function")
@@ -52,7 +40,11 @@ def scipy_network():
         "scigrid-with-load-gen-trafos",
     )
     n = pypsa.Network(csv_folder)
+    n.generators.control = "PV"
+    g = n.generators[n.generators.bus == "492"]
+    n.generators.loc[g.index, "control"] = "PQ"
     n.calculate_dependent_values()
+    n.determine_network_topology()
     return n
 
 
@@ -84,12 +76,13 @@ def ac_dc_network_r():
 
 
 @pytest.fixture(scope="module")
-def ac_dc_network_multiindexed(ac_dc_network):
+def ac_dc_network_mi(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.investment_periods = [2013]
     gens_i = n.generators.index
-    n.generators_t.p[gens_i] = np.random.rand(len(n.snapshots), len(gens_i))
+    rng = np.random.default_rng()  # Create a random number generator
+    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
     return n
 
 
@@ -111,11 +104,11 @@ def ac_dc_network_shapes(ac_dc_network):
     bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
 
     # Convert to GeoSeries
-    geo_series = gpd.GeoSeries(bboxes, crs="epsg:4326")
+    geo_series = gpd.GeoSeries(bboxes, crs=DEFAULT_EPSG)
 
-    n.madd(
+    n.add(
         "Shape",
-        names=geo_series.index,
+        name=geo_series.index,
         geometry=geo_series,
         idx=geo_series.index,
         component="Bus",
@@ -137,7 +130,28 @@ def storage_hvdc_network():
 
 
 @pytest.fixture(scope="module")
+def all_networks(
+    ac_dc_network,
+    ac_dc_network_r,
+    ac_dc_network_mi,
+    ac_dc_network_shapes,
+    storage_hvdc_network,
+):
+    return [
+        ac_dc_network,
+        ac_dc_network_r,
+        ac_dc_network_mi,
+        ac_dc_network_shapes,
+        storage_hvdc_network,
+    ]
+
+
+@pytest.fixture(scope="module")
 def pandapower_custom_network():
+    try:
+        import pandapower as pp
+    except ImportError:
+        pytest.skip("pandapower not installed")
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")
@@ -163,4 +177,8 @@ def pandapower_custom_network():
 
 @pytest.fixture(scope="module")
 def pandapower_cigre_network():
+    try:
+        import pandapower.networks as pn
+    except ImportError:
+        pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")

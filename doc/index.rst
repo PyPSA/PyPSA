@@ -14,69 +14,71 @@ PyPSA: Python for Power System Analysis
     :target: https://anaconda.org/conda-forge/pypsa
     :alt: Conda version
 
-.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI.yml/badge.svg
-    :target: https://github.com/pypsa/pypsa/actions/workflows/circumstances.yml
+.. image:: https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FPyPSA%2FPyPSA%2Fmaster%2Fpyproject.toml
+    :alt: Python Version from PEP 621 TOML
 
-.. image:: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml/badge.svg
-    :target: https://github.com/pypsa/pypsa/actions/workflows/CI-micromamba.yml
-
-.. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
-    :target: https://codecov.io/gh/PyPSA/PyPSA
+.. image:: https://github.com/PyPSA/PyPSA/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/PyPSA/PyPSA/actions/workflows/test.yml
+    :alt: Tests
 
 .. image:: https://readthedocs.org/projects/pypsa/badge/?version=latest
     :target: https://pypsa.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://img.shields.io/pypi/l/pypsa.svg
-    :target: License
-
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
-   :target: https://doi.org/10.5281/zenodo.3946412
-
-.. image:: https://badges.gitter.im/PyPSA/community.svg
-    :target: https://gitter.im/PyPSA/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
-    :alt: Chat on Gitter
-
 .. image:: https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg
     :target: https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master
     :alt: pre-commit.ci status
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-   :target: https://github.com/psf/black
-   :alt: Code style: black
+.. image:: https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr
+    :target: https://codecov.io/gh/PyPSA/PyPSA
+    :alt: Code coverage
+
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+    :alt: Ruff
+
+.. image:: https://img.shields.io/pypi/l/pypsa.svg
+    :target: LICENSE.txt
+    :alt: License
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg
+    :target: https://doi.org/10.5281/zenodo.3946412
+    :alt: Zenodo
+
+.. image:: https://img.shields.io/discord/911692131440148490?logo=discord
+    :target: https://discord.gg/AnuJBk23FU
+    :alt: Discord
 
 .. image:: https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg
-   :target: code_of_conduct.md
-   :alt: Contributor Covenant 2.1
+    :target: CODE_OF_CONDUCT.md
+    :alt: Contributor Covenant
 
 .. image:: https://img.shields.io/stackexchange/stackoverflow/t/pypsa
-   :target: https://stackoverflow.com/questions/tagged/pypsa
-   :alt: Stackoverflow
+    :target: https://stackoverflow.com/questions/tagged/pypsa
+    :alt: Stack Exchange questions
 
+| PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
-PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
+PyPSA is an open source toolbox for simulating and optimising modern power and
+energy systems that include features such as conventional generators with unit
+commitment, variable wind and solar generation, storage units, coupling to other
+energy sectors, and mixed alternating and direct current networks. PyPSA is
+designed to scale well with large networks and long time series.
 
-PyPSA is an open source toolbox for
-simulating and optimising modern power and energy systems that include features
-such as conventional generators and links with unit commitment, variable wind
-and solar generation, storage units, coupling to other energy sectors,
-and mixed alternating and direct current networks.  PyPSA is graph-based and designed
-to scale well with large networks and long time series.
-
-This project is maintained by the `Department of Digital Transformation in Energy Systems <https://tub-ensys.github.io>`_
-at the `Technical University of Berlin <https://www.tu.berlin>`_.
-Previous versions were developed by the Energy System Modelling
-group at the `Institute for
-Automation and Applied
-Informatics <https://www.iai.kit.edu/english/index.php>`_ at the
-`Karlsruhe Institute of
-Technology <http://www.kit.edu/english/index.php>`_ funded by the
-`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the
-`Renewable Energy Group
-<https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
-at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations
-for the `CoNDyNet project <https://fias.institute/en/projects/condynet/>`_, financed by the
-`German Federal Ministry for Education and Research (BMBF) <https://www.bmbf.de/en/index.html>`_ as part of the `Stromnetze Research Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
+This project is maintained by the `Department of Digital Transformation in
+Energy Systems <https://tub-ensys.github.io>`_ at the `Technical University of
+Berlin <https://www.tu.berlin>`_. Previous versions were developed by the Energy
+System Modelling group at the `Institute for Automation and Applied
+Informatics <https://www.iai.kit.edu/english/index.php>`_ at the `Karlsruhe
+Institute of Technology <http://www.kit.edu/english/index.php>`_ funded by the
+`Helmholtz Association <https://www.helmholtz.de/en/>`_, and by the `Renewable
+Energy
+Group <https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/>`_
+at `FIAS <https://fias.uni-frankfurt.de/>`_ to carry out simulations for the
+`CoNDyNet project <https://fias.institute/en/projects/condynet/>`_, financed by the `German Federal
+Ministry for Education and Research (BMBF) <https://www.bmbf.de/bmbf/en/>`_
+as part of the `Stromnetze Research
+Initiative <http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/>`_.
 
 
 Documentation
@@ -84,95 +86,90 @@ Documentation
 
 **Getting Started**
 
-* :doc:`introduction`
-* :doc:`installation`
-* :doc:`quick_start`
+* :doc:`/getting-started/introduction`
+* :doc:`/getting-started/installation`
+* :doc:`/getting-started/quick-start`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
    :caption: Getting Started
 
-   introduction
-   installation
-   quick_start
-
-
-**Examples**
-
-* :doc:`examples-basic`
-* :doc:`examples-lopf`
-* :doc:`examples-sector_coupling`
-* :doc:`examples-models`
-* :doc:`examples-other`
-
-.. toctree::
-   :hidden:
-   :maxdepth: 2
-   :caption: Examples
-
-
-   examples-basic
-   examples-lopf
-   examples-sector_coupling
-   examples-models
-   examples-other
-
-
+   getting-started/introduction
+   getting-started/installation
+   getting-started/quick-start
 
 **User Guide**
 
-* :doc:`design`
-* :doc:`components`
-* :doc:`import_export`
-* :doc:`power_flow`
-* :doc:`optimal_power_flow`
-* :doc:`contingency_analysis`
-* :doc:`plotting`
+* :doc:`/user-guide/design`
+* :doc:`/user-guide/components`
+* :doc:`/user-guide/import-export`
+* :doc:`/user-guide/power-flow`
+* :doc:`/user-guide/optimal-power-flow`
+* :doc:`/user-guide/contingency-analysis`
+* :doc:`/user-guide/plotting`
 
 .. toctree::
    :hidden:
    :maxdepth: 2
    :caption: User Guide
 
-   design
-   components
-   import_export
-   power_flow
-   optimal_power_flow
-   contingency_analysis
-   plotting
+   user-guide/design
+   user-guide/components
+   user-guide/import-export
+   user-guide/power-flow
+   user-guide/optimal-power-flow
+   user-guide/contingency-analysis
+   user-guide/plotting
 
+**Examples**
 
+* :doc:`/examples-index/lopf`
+* :doc:`/examples-index/sector-coupling`
+* :doc:`/examples-index/other`
+* :doc:`/examples-index/models`
 
+.. toctree::
+   :hidden:
+   :maxdepth: 2
+   :caption: Examples
 
-**Help & References**
+   examples-index/lopf
+   examples-index/sector-coupling
+   examples-index/other
+   examples-index/models
 
-* :doc:`release_notes`
-* :doc:`api_reference`
-* :doc:`troubleshooting`
-* :doc:`comparable_software`
-* :doc:`contributing`
-* :doc:`support`
-* :doc:`citing`
-* :doc:`unit_testing`
-* :doc:`mailing_list`
-* :doc:`users`
-* :doc:`developers`
+**Contributing & Support**
+
+* :doc:`/contributing/contributing`
+* :doc:`/contributing/support`
+* :doc:`/contributing/troubleshooting`
 
 .. toctree::
    :hidden:
    :maxdepth: 1
-   :caption: Help & References
+   :caption: Contributing & Support
 
-   release_notes
-   api_reference
-   troubleshooting
-   comparable_software
-   contributing
-   support
-   citing
-   unit_testing
-   mailing_list
-   users
-   developers
+   contributing/contributing
+   contributing/support
+   contributing/troubleshooting
+
+
+**References**
+
+* :doc:`/references/api-reference`
+* :doc:`/references/release-notes`
+* :doc:`/references/citing`
+* :doc:`/references/users`
+* :doc:`/references/developers`
+
+.. toctree::
+   :hidden:
+   :maxdepth: 1
+   :caption: References
+
+   references/api-reference
+   references/release-notes
+   references/citing
+   references/users
+   references/developers

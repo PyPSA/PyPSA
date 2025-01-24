@@ -1,49 +1,46 @@
-# -*- coding: utf-8 -*-
 import numpy as np
+import pandas as pd
+from numpy.testing import assert_array_almost_equal as almost_equal
 
 import pypsa
 
 
-def test_344():
+def test_890():
     """
-    Overridden multi-links but empty n.links.
+    See https://github.com/PyPSA/PyPSA/issues/890.
     """
-    override = pypsa.descriptors.Dict(
-        {k: v.copy() for k, v in pypsa.components.component_attrs.items()}
-    )
-    override["Link"].loc["bus2"] = [
-        "string",
-        np.nan,
-        np.nan,
-        "2nd bus",
-        "Input (optional)",
-    ]
-    override["Link"].loc["efficiency2"] = [
-        "static or series",
-        "per unit",
-        1.0,
-        "2nd bus efficiency",
-        "Input (optional)",
-    ]
-    override["Link"].loc["p2"] = ["series", "MW", 0.0, "2nd bus output", "Output"]
+    n = pypsa.examples.scigrid_de()
+    n.calculate_dependent_values()
 
-    network = pypsa.Network(override_component_attrs=override)
+    n.lines = n.lines.reindex(columns=n.components["Line"]["attrs"].index[1:])
+    n.lines["type"] = np.nan
+    n.buses = n.buses.reindex(columns=n.components["Bus"]["attrs"].index[1:])
+    n.buses["frequency"] = 50
 
-    network.add("Bus", "a")
-    network.add("Load", "a", bus="a", p_set=5)
-    network.add("Generator", "a", bus="a", p_nom=5)
+    n.set_investment_periods([2020, 2030])
 
-    network.lopf(pyomo=False)
+    weighting = pd.Series(1, n.buses.index)
+    busmap = n.cluster.busmap_by_kmeans(bus_weightings=weighting, n_clusters=50)
+    nc = n.cluster.cluster_by_busmap(busmap)
+
+    C = n.cluster.get_clustering_from_busmap(busmap)
+    nc = C.n
+
+    almost_equal(n.investment_periods, nc.investment_periods)
+    almost_equal(n.investment_period_weightings, nc.investment_period_weightings)
 
 
 def test_331():
+    """
+    See https://github.com/PyPSA/PyPSA/issues/331.
+    """
     n = pypsa.Network()
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=10)
     n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
-    n.lopf(pyomo=False)
+    n.optimize()
     n.add("Generator", "generator2", bus="bus", p_nom=5, marginal_cost=5)
-    n.lopf(pyomo=False)
+    n.optimize()
     assert "generator2" in n.generators_t.p
 
 
@@ -66,20 +63,13 @@ def test_nomansland_bus(caplog):
         "The following buses have no attached components" in caplog.text
     ), "warning is not working..."
 
-    try:
-        n.lopf(pyomo=False)
-    except:
-        print("to be fixed - unconnected bus throws error in non-pyomo version.")
-
-    try:
-        n.lopf(pyomo=True)
-    except:
-        print("to be fixed - unconnected bus throws error in pyomo version.")
+    n.optimize()
 
 
 def test_515():
     """
     Time-varying marginal costs removed.
+    See https://github.com/PyPSA/PyPSA/issues/515.
     """
     marginal_costs = [0, 10]
 
@@ -90,7 +80,7 @@ def test_515():
     n.add("Generator", "gen", bus="bus", p_nom=1, marginal_cost=marginal_costs)
     n.add("Load", "load", bus="bus", p_set=1)
 
-    n.lopf(pyomo=False)
+    n.optimize()
 
     assert n.objective == 10
 
@@ -98,9 +88,40 @@ def test_515():
 def test_779():
     """
     Importing from xarray dataset.
+    See https://github.com/PyPSA/PyPSA/issues/779.
     """
     n1 = pypsa.Network()
     n1.add("Bus", "bus")
     xarr = n1.export_to_netcdf()
     n2 = pypsa.Network()
     n2.import_from_netcdf(xarr)
+
+
+def test_multiport_assignment_defaults_single_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", "link", bus0="bus", bus1="bus2")
+    n.add("Link", "link2", bus0="bus", bus1="bus2", bus2="bus")
+    assert n.links.loc["link", "bus2"] == ""
+
+
+def test_multiport_assignment_defaults_multiple_add():
+    """
+    Add a single link to a network, then add a second link with additional
+    ports.
+
+    Check that the default values are assigned to the first link.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Bus", "bus2")
+    n.add("Link", ["link"], bus0="bus", bus1="bus2")
+    n.add("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus")
+    assert n.links.loc["link", "bus2"] == ""

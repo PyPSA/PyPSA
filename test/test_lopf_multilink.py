@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
 import pytest
-from conftest import SUPPORTED_APIS, optimize
 
 import pypsa
 
 
 @pytest.fixture
-def network():
+def n():
     n = pypsa.Network()
     n.set_snapshots(range(10))
 
@@ -157,7 +155,11 @@ def network():
     return n
 
 
-@pytest.mark.parametrize("api", SUPPORTED_APIS)
-def test_lopf(network, api):
-    status, condition = optimize(network, api)
+def test_attribution_assignment(n):
+    assert "bus2" in n.components["Link"]["attrs"].index
+    assert n.components["Link"]["attrs"].loc["bus2", "default"] == ""
+
+
+def test_optimize(n):
+    status, condition = n.optimize()
     assert status == "ok"

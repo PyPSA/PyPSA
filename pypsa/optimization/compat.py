@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# type: ignore
+# ruff: noqa
 """
 Use compatibility methods for optimization problem definition with Linopy.
 
@@ -7,9 +7,17 @@ This module intends to make the transition from the native pypsa
 optimization code to the linopy implementation easier.
 """
 
+from __future__ import annotations
+
 import linopy
+from deprecation import deprecated
 
 
+@deprecated(
+    deprecated_in="0.29",
+    removed_in="1.0",
+    details="Use native linopy syntax instead.",
+)
 def get_var(n, c, key):
     """
     Get variables directly from network.
@@ -17,6 +25,11 @@ def get_var(n, c, key):
     return n.model[f"{c}-{key}"]
 
 
+@deprecated(
+    deprecated_in="0.29",
+    removed_in="1.0",
+    details="Use native linopy syntax instead.",
+)
 def define_variables(
     n, lower, upper, name, attr="", axes=None, spec="", mask=None, **kwargs
 ):
@@ -32,6 +45,11 @@ def define_variables(
     )
 
 
+@deprecated(
+    deprecated_in="0.29",
+    removed_in="1.0",
+    details="Use native linopy syntax instead.",
+)
 def define_constraints(
     n, lhs, sense, rhs, name, attr="", axes=None, spec="", mask=None, **kwargs
 ):
@@ -46,6 +64,11 @@ def define_constraints(
     return n.model.add_constraints(lhs, sense, rhs, name=name, mask=mask, **kwargs)
 
 
+@deprecated(
+    deprecated_in="0.29",
+    removed_in="1.0",
+    details="Use native linopy syntax instead.",
+)
 def linexpr(*tuples, as_pandas=True, return_axes=False):
     """
     Define a linear expression.
@@ -56,6 +79,11 @@ def linexpr(*tuples, as_pandas=True, return_axes=False):
     return linopy.LinearExpression.from_tuples(*tuples)
 
 
+@deprecated(
+    deprecated_in="0.29",
+    removed_in="1.0",
+    details="Use native linopy syntax instead.",
+)
 def join_exprs(arr, **kwargs):
     """
     Sum over linear expression.

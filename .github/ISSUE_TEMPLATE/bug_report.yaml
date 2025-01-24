@@ -1,0 +1,69 @@
+name: Bug Report
+description: Create a report if something doesn't work quite right.
+labels: ["bug", "needs triage"]
+
+body:
+- type: markdown
+  attributes:
+    value: |
+      Thanks for taking the time to fill out this bug report!
+      Please do not post usage questions here. Ask them on the [PyPSA mailing list](https://groups.google.com/forum/#!forum/pypsa).
+
+- type: checkboxes
+  id: checks
+  attributes:
+    label: Version Checks (indicate both or one)
+    options:
+    - label: >
+        I have confirmed this bug exists on the lastest
+        [release](https://github.com/pypsa/pypsa/releases) of PyPSA.
+    - label: >
+        I have confirmed this bug exists on the current
+        [`master`](https://github.com/pypsa/pypsa/tree/master) branch of PyPSA.
+
+- type: textarea
+  id: problem
+  attributes:
+    label: Issue Description
+    description: >
+      Please provide a description of the issue.
+  validations:
+    required: true
+
+- type: textarea
+  id: example
+  validations:
+    required: true
+  attributes:
+    label: Reproducible Example
+    description: >
+      Please provide a minimal reproduciable example. See how to [craft minimal bug reports](https://matthewrocklin.com/minimal-bug-reports).
+    placeholder: >
+      import pypsa
+
+      n = pypsa.Network()
+
+    render: python
+
+- type: textarea
+  id: expected-behavior
+  validations:
+    required: true
+  attributes:
+    label: Expected Behavior
+    description: >
+      Please describe or show a code example of the expected behavior.
+
+- type: textarea
+  id: version
+  attributes:
+    label: Installed Versions
+    description: >
+      Please share information on your environment. Paste the output below.  For conda ``conda env export`` and for pip ``pip freeze``.
+    value: >
+      <details>
+
+      Replace this line.
+
+      </details>
+
