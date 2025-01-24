@@ -289,7 +289,7 @@ def create_model(
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
 
-    meshed_threshold = kwargs.get('meshed_threshold', 45)
+    meshed_threshold = kwargs.get("meshed_threshold", 45)
     meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
     weakly_meshed_buses = n.buses.index.difference(meshed_buses)
     if not meshed_buses.empty and not weakly_meshed_buses.empty:
