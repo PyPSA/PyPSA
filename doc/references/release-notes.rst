@@ -54,6 +54,13 @@ Features
   will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
   https://github.com/PyPSA/PyPSA/pull/1112)
   
+Bug fixes
+---------
+
+* The parameter threshold in function get_strong_meshed_buses was not considered
+  in the function it self. A kwargs check has been added for providing a own threshold.
+  E.g., get_strongly_meshed_buses (network, threshold=10)
+
 
 `v0.32.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1>`__ (23th Januarary 2025)
 =======================================================================================
