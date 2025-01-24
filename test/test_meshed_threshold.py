@@ -1,7 +1,4 @@
 
-import numpy as np
-from numpy.testing import assert_array_almost_equal as equal
-
 import pandas as pd
 
 import pypsa
@@ -19,15 +16,36 @@ def test_meshed_threshold():
 
     # power plant capacities (nominal powers in MW) in each country (not necessarily realistic)
     power_plant_p_nom = {
-        "Country1": {"Coal": 35000, "Wind": 3000, "Gas": 8000, "Oil": 2000,},
-        "Country2": {"Gas": 600,},
-        "Country3": {"Gas": 600,},
-        "Country4": {"Gas": 600,},
-        "Country5": {"Gas": 600,},
-        "Country6": {"Gas": 600,},
-        "Country7": {"Gas": 600,},
-        "Country8": {"Gas": 600,},
-        "Country9": {"Gas": 600,},
+        "Country1": {
+            "Coal": 35000,
+            "Wind": 3000,
+            "Gas": 8000,
+            "Oil": 2000,
+        },
+        "Country2": {
+            "Gas": 600,
+        },
+        "Country3": {
+            "Gas": 600,
+        },
+        "Country4": {
+            "Gas": 600,
+        },
+        "Country5": {
+            "Gas": 600,
+        },
+        "Country6": {
+            "Gas": 600,
+        },
+        "Country7": {
+            "Gas": 600,
+        },
+        "Country8": {
+            "Gas": 600,
+        },
+        "Country9": {
+            "Gas": 600,
+        },
     }
 
     # transmission capacities in MW (not necessarily realistic)
@@ -44,17 +62,25 @@ def test_meshed_threshold():
     }
 
     # country electrical loads in MW (not necessarily realistic)
-    loads = {"Country1": 42000, "Country2": 650, "Country3": 250, "Country4": 250,
-             "Country5": 250, "Country6": 250, "Country7": 250, "Country8": 250,
-             "Country9": 250}
+    loads = {
+        "Country1": 42000,
+        "Country2": 650,
+        "Country3": 250,
+        "Country4": 250,
+        "Country5": 250,
+        "Country6": 250,
+        "Country7": 250,
+        "Country8": 250,
+        "Country9": 250,
+    }
 
     network = pypsa.Network()
 
     network.add("carriers", "AC")
 
     countries = []
-    for i in range(1,10):
-        countries.extend(["Country"+str(i)])
+    for i in range(1, 10):
+        countries.extend(["Country" + str(i)])
 
     for country in countries:
         network.add("Bus", country)
@@ -90,13 +116,12 @@ def test_meshed_threshold():
                 p_min_pu=-1,
             )
 
-    expected_retCode = pd.Index([], name='Bus-meshed')
-    retCode = get_strongly_meshed_buses (network)
+    expected_retCode = pd.Index([], name="Bus-meshed")
+    retCode = get_strongly_meshed_buses(network)
 
     assert len(retCode) == len(expected_retCode)
 
-    expected_retCode = pd.Index(["Country1"], name='Bus-meshed')
-    retCode =  get_strongly_meshed_buses (network, threshold=10)
+    expected_retCode = pd.Index(["Country1"], name="Bus-meshed")
+    retCode = get_strongly_meshed_buses(network, threshold=10)
 
     assert len(retCode) == len(expected_retCode)
-
