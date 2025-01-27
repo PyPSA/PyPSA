@@ -585,7 +585,7 @@ def define_nodal_balance_constraints(
 
         #  drop non-existent multiport buses which are ''
         if column in ["bus" + i for i in additional_linkports(n)]:
-            cbuses = cbuses[cbuses != ""]
+            cbuses = cbuses[(cbuses != "") & cbuses.notnull()]
 
         expr = expr.sel({c: cbuses.index})
 

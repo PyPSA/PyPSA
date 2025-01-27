@@ -185,9 +185,11 @@ def optimize_transmission_expansion_iteratively(
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
 
+    n.validate(output_attrs=True)
+
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     ext_i = n.get_extendable_i("Line").copy()
-    typed_i = n.lines.query('type != ""').index
+    typed_i = n.lines[n.lines["type"].notna() & (n.lines["type"] != "")].index
     ext_untyped_i = ext_i.difference(typed_i)
     ext_typed_i = ext_i.intersection(typed_i)
     base_s_nom = (
@@ -213,7 +215,7 @@ def optimize_transmission_expansion_iteratively(
             / n.lines["s_nom_opt"].mean()
         )
         logger.info(
-            f"Mean square difference after iteration {iteration} is " f"{lines_err}"  # type: ignore
+            f"Mean square difference after iteration {iteration} is {lines_err}"  # type: ignore
         )
         return lines_err
 
@@ -492,7 +494,7 @@ def optimize_with_rolling_horizon(
         end = min(len(snapshots), start + horizon)
         sns = snapshots[start:end]
         logger.info(
-            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i+1}/{len(starting_points)})."
+            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i + 1}/{len(starting_points)})."
         )
 
         if i:
@@ -689,7 +691,7 @@ def optimize_and_run_non_linear_powerflow(
 
     Returns
     -------
-    Tuple[str, str, Dict]
+    Tuple[str, str, DynamicAttrsDict]
         A tuple containing:
         - optimization status
         - optimization condition

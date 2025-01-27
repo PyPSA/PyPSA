@@ -223,12 +223,18 @@ class Groupers:
 
         """
         static = n.static(c)
-        fall_back = pd.Series("", index=static.index)
+        fall_back = pd.Series(pd.NA, index=static.index)
         carrier_series = static.get("carrier", fall_back).rename("carrier")
         if nice_names:
-            carrier_series = carrier_series.replace(
-                n.carriers.nice_name[lambda ds: ds != ""]
-            ).replace("", "-")
+            carrier_series = (
+                carrier_series.replace(
+                    n.carriers.nice_name[
+                        n.carriers.nice_name.notnull()
+                    ]  # i[lambda ds: ds != ""]
+                )
+                .replace("", "-")
+                .fillna("-")
+            )
         return carrier_series
 
     def bus_carrier(

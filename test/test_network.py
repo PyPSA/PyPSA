@@ -41,7 +41,7 @@ def n_5bus_7sn():
     n = pypsa.Network()
     n_buses = 5
     n_snapshots = 7
-    n.add("Bus", [f"bus_{i} " for i in range(n_buses)])
+    n.add("Bus", [f"bus_{i}" for i in range(n_buses)])
     n.set_snapshots(range(n_snapshots))
     return n
 
@@ -166,6 +166,9 @@ def test_add_static_with_index(n_5bus, slicer):
 def test_add_varying_single(n_5bus_7sn):
     buses = n_5bus_7sn.buses.index
 
+    assert "p_set" in n_5bus_7sn.loads.columns
+    assert "p_set" not in n_5bus_7sn.loads_t.keys()
+
     # Add load component at every bus with time-dependent attribute p_set.
     p_set = rng.random(size=(len(n_5bus_7sn.snapshots)))
     n_5bus_7sn.add(
@@ -180,7 +183,7 @@ def test_add_varying_single(n_5bus_7sn):
     assert (n_5bus_7sn.loads.index == "load_1").all()
     assert (n_5bus_7sn.loads.bus == buses[0]).all()
     assert (n_5bus_7sn.loads_t.p_set.T == p_set).all().all()
-    assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
+    assert "p_set" not in n_5bus_7sn.loads.columns
 
     # Test different snapshots shape
     with pytest.raises(ValueError, match="for each snapshot"):
@@ -276,22 +279,30 @@ def test_add_overwrite_static(n_5bus, caplog):
 
 
 def test_add_overwrite_varying(n_5bus_7sn, caplog):
-    bus_names = [f"bus_{i} " for i in range(6)]
+    bus_names = [f"bus_{i}" for i in range(6)]
 
-    n_5bus_7sn.add("Bus", bus_names, p=[1] * 6)
-    assert (n_5bus_7sn.buses_t.p.iloc[:, :5] == 0).all().all()
-    assert (n_5bus_7sn.buses_t.p.iloc[:, 5] == 1).all().all()
+    assert (n_5bus_7sn.buses.v_mag_pu_set == 1).all()
+
+    n_5bus_7sn.add("Bus", bus_names, v_mag_pu_set=[2] * 6)
+    assert "v_mag_pu_set" not in n_5bus_7sn.buses_t.keys()
+    assert (n_5bus_7sn.buses.v_mag_pu_set.iloc[:5] == 1).any()
+    assert n_5bus_7sn.buses.v_mag_pu_set.loc["bus_5"] == 2
     assert caplog.records[-1].levelname == "WARNING"
 
-    n_5bus_7sn.add("Bus", bus_names[:5], p=[2] * 5, overwrite=True)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[5]] == 1).all().all()
+    n_5bus_7sn.add("Bus", bus_names[:5], v_mag_pu_set=[3] * 5, overwrite=True)
+    assert "v_mag_pu_set" not in n_5bus_7sn.buses_t.keys()
+    assert (n_5bus_7sn.buses.v_mag_pu_set.iloc[:5] == 3).any()
+    assert n_5bus_7sn.buses.v_mag_pu_set.loc["bus_5"] == 2
 
-    p = rng.random(size=(7, 5))
-    n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=False)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
-    n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=True)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == p).all().all()
+    v_mag_pu_set = np.full((7, 5), 4)
+    n_5bus_7sn.add("Bus", bus_names[:5], v_mag_pu_set=v_mag_pu_set, overwrite=False)
+    assert "v_mag_pu_set" not in n_5bus_7sn.buses_t.keys()
+    assert (n_5bus_7sn.buses.v_mag_pu_set.iloc[:5] == 3).any()
+    assert n_5bus_7sn.buses.v_mag_pu_set.loc["bus_5"] == 2
+
+    n_5bus_7sn.add("Bus", bus_names[:5], v_mag_pu_set=v_mag_pu_set, overwrite=True)
+    assert (n_5bus_7sn.buses_t.v_mag_pu_set == 4).all().all()
+    assert "v_mag_pu_set" not in n_5bus_7sn.buses.columns
 
 
 def test_multiple_add_defaults(n_5bus):

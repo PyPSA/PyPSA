@@ -14,9 +14,8 @@ from typing import Any
 import pandas as pd
 
 from pypsa.components.abstract import Components
+from pypsa.components.store import DynamicAttrsDict
 from pypsa.components.types import ComponentType
-from pypsa.components.types import get as get_component_type
-from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ class GenericComponents(Components):
     See Also
     --------
     pypsa.components.abstract.Components : Base class for all components.
-    pypsa.components.components.Generators : Generators components class.
+    pypsa.components.components_.Generators : Generators components class.
 
     """
 
@@ -76,7 +75,7 @@ class Generators(Components):
     See Also
     --------
     pypsa.components.abstract.Components : Base class for all components.
-    pypsa.components.components.GenericComponents : Generic components class.
+    pypsa.components.components_.GenericComponents : Generic components class.
 
     """
 
@@ -120,20 +119,16 @@ class Component:
     # ruff: noqa: D102
     def __new__(
         cls,
-        name: str | None = None,
-        ctype: ComponentType | None = None,
+        name: str,
         n: Any | None = None,
         static: pd.DataFrame | None = None,
-        dynamic: Dict | None = None,
+        dynamic: DynamicAttrsDict | None = None,
         list_name: str | None = None,
         attrs: pd.DataFrame | None = None,
         investment_periods: pd.Index | None = None,
         ind: None = None,
     ) -> Any:
         # Deprecation warnings
-        if (name and ctype is not None) or (not name and ctype is None):
-            msg = "One out of 'name' or 'ct' must be given."
-            raise ValueError(msg)
         if list_name is not None or attrs is not None:
             warnings.warn(
                 "Passing 'list_name' and 'attrs' is deprecated and they will be "
@@ -152,17 +147,14 @@ class Component:
                 "The 'investment_periods' attribute is deprecated. Pass 'n' instead."
             )
 
-        if name:
-            ctype_ = get_component_type(name)
-        else:
-            ctype_ = ctype  # type: ignore
+        ctype = ComponentType(name=name)
 
-        component_class = CLASS_MAPPING.get(ctype_.name, None)
+        component_class = CLASS_MAPPING.get(ctype.name, None)
         instance: Components
         if component_class is not None:
-            instance = component_class(ctype=ctype_)
+            instance = component_class(ctype=ctype, n=n)
         else:
-            instance = GenericComponents(ctype=ctype_)
+            instance = GenericComponents(ctype=ctype, n=n)
 
         if n is not None:
             instance.n = n

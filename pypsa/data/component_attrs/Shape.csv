@@ -1,0 +1,6 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+geometry,configurable,False,geometry,True,,,Geometry
+component,configurable,False,str,True,,,Component
+idx,configurable,False,str,True,,,Name of the component. Should be in component's index
+type,configurable,False,str,True,,,Type of geometry

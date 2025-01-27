@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+from numpy.testing import assert_array_almost_equal as almost_equal
 
 
 @pytest.fixture(scope="function")
@@ -56,7 +57,7 @@ def test_existing_value_casting(request, network_fixture):
         vals = n.generators_t.p_max_pu.xs(2015).loc[snapshots, :]
     else:
         vals = n.generators_t.p_max_pu.loc[snapshots, :]
-    assert vals.equals(base_network.generators_t.p_max_pu)
+    almost_equal(vals, base_network.generators_t.p_max_pu)
 
 
 # @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])

@@ -17,7 +17,6 @@ from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
 
-from pypsa import io
 from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
@@ -218,7 +217,7 @@ def aggregateoneport(
     static = static[to_aggregate]
     static = static.assign(bus=static.bus.map(busmap))
 
-    output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
+    output_columns = attrs.index[~attrs.dynamic & attrs.status.str.startswith("output")]
     columns = [c for c in static.columns if c not in output_columns]
 
     strategies = {**DEFAULT_ONE_PORT_STRATEGIES, **custom_strategies}
@@ -314,7 +313,7 @@ def aggregatebuses(
     c = "Bus"
     attrs = n.components[c]["attrs"]
 
-    output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
+    output_columns = attrs.index[~attrs.dynamic & attrs.status.str.startswith("output")]
     columns = [c for c in n.buses.columns if c not in output_columns]
 
     strategies = {**DEFAULT_BUS_STRATEGIES, **custom_strategies}
@@ -383,7 +382,7 @@ def aggregatelines(
     reverse_values = static.loc[reverse_order, ["bus1", "bus0"]].values
     static.loc[reverse_order, ["bus0", "bus1"]] = reverse_values
 
-    output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
+    output_columns = attrs.index[~attrs.dynamic & attrs.status.str.startswith("output")]
     columns = [c for c in static.columns if c not in output_columns]
 
     strategies = {**DEFAULT_LINE_STRATEGIES, **custom_strategies}
@@ -499,8 +498,8 @@ def get_clustering_from_busmap(
 
     clustered = n.__class__()
 
-    clustered.add("Bus", buses.index, **buses)
-    clustered.add("Line", lines.index, **lines)
+    clustered.add("Bus", buses.index, **buses, ignore_checks=True)
+    clustered.add("Line", lines.index, **lines, ignore_checks=True)
 
     # Carry forward global constraints to clustered n.
     clustered.global_constraints = n.global_constraints
@@ -514,8 +513,7 @@ def get_clustering_from_busmap(
                 n.investment_period_weightings.copy()
             )
         for attr, df in lines_t.items():
-            if not df.empty:
-                io._import_series_from_df(clustered, df, "Line", attr)
+            clustered.add("Line", df.columns, **{attr: df}, ignore_checks=True)
 
     one_port_components = n.one_port_components.copy()
 
@@ -534,8 +532,7 @@ def get_clustering_from_busmap(
         clustered.add("Generator", generators.index, **generators)
         if with_time:
             for attr, df in generators_dynamic.items():
-                if not df.empty:
-                    io._import_series_from_df(clustered, df, "Generator", attr)
+                clustered.add("Generator", df.columns, **{attr: df}, ignore_checks=True)
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
@@ -548,7 +545,7 @@ def get_clustering_from_busmap(
         )
         clustered.add(one_port, new_static.index, **new_static)
         for attr, df in new_dynamic.items():
-            io._import_series_from_df(clustered, df, one_port, attr)
+            clustered.add(one_port, df.columns, **{attr: df}, ignore_checks=True)
 
     # Collect remaining one ports
 
@@ -561,8 +558,7 @@ def get_clustering_from_busmap(
     if with_time:
         for c in n.iterate_components(one_port_components):
             for attr, df in c.dynamic.items():
-                if not df.empty:
-                    io._import_series_from_df(clustered, df, c.name, attr)
+                clustered.add(c.name, df.columns, **{attr: df}, ignore_checks=True)
 
     new_links = (
         n.links.assign(bus0=n.links.bus0.map(busmap), bus1=n.links.bus1.map(busmap))
@@ -586,8 +582,7 @@ def get_clustering_from_busmap(
 
     if with_time:
         for attr, df in n.links_t.items():
-            if not df.empty:
-                io._import_series_from_df(clustered, df, "Link", attr)
+            clustered.add("Link", df.columns, **{attr: df}, ignore_checks=True)
 
     clustered.add("Carrier", n.carriers.index, **n.carriers)
 

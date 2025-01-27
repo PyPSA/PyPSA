@@ -14,8 +14,6 @@ import pandas as pd
 from deprecation import deprecated
 from pandas.api.types import is_list_like
 
-from pypsa.definitions.structures import Dict
-
 if TYPE_CHECKING:
     from pypsa import Network
 
@@ -98,7 +96,7 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
         if not a.equals(b):
             return False
     # Iterators
-    elif isinstance(a, (dict | Dict)):
+    elif isinstance(a, (dict)):
         for k, v in a.items():
             if not equals(v, b[k]):
                 return False
@@ -204,7 +202,7 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     Callable
         A decorated function that renames 'a' to 'b'.
     """
-    return deprecated_kwargs(network="n")(f)
+    return deprecated_kwargs(network="n", c="component")(f)
 
 
 def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Callable:
@@ -307,3 +305,37 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         __import__(module_name)
     except ImportError:
         raise ImportError(install_message)
+
+
+def format_str_dtype(value: str) -> Any:
+    match value:
+        case None:
+            return None
+
+        case bool():
+            return value
+
+        case int() | float():
+            return int(value) if float(value).is_integer() else float(value)
+
+        case str():
+            # Handle empty string
+            if not value.strip():
+                return value
+
+            # Handle boolean strings
+            match value.lower():
+                case "true":
+                    return True
+                case "false":
+                    return False
+
+            # Handle numeric strings
+            try:
+                float_val = float(value)
+                return int(float_val) if float_val.is_integer() else float_val
+            except ValueError:
+                return value
+
+        case _:
+            return value

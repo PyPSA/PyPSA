@@ -1,0 +1,45 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+bus,required,False,str,True,,,Name of bus to which storage unit is attached.
+control,configurable,False,str,True,,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack""."
+type,configurable,False,str,True,,,Placeholder for storage unit type. Not yet implemented.
+p_nom,configurable,False,float,True,MW,0.0,Nominal power for limits in OPF.
+p_nom_mod,configurable,False,float,True,MW,0.0,Nominal power of the storage unit module.
+p_nom_extendable,configurable,False,bool,False,,False,Switch to allow capacity p_nom to be extended in OPF.
+p_nom_min,configurable,False,float,True,MW,0.0,"If p_nom is extendable in OPF, set its minimum value."
+p_nom_max,configurable,False,float,True,MW,inf,"If p_nom is extendable in OPF, set its maximum value (e.g. limited by potential)."
+p_min_pu,configurable,True,float,True,per unit,-1.0,The minimum output for each snapshot per unit of p_nom for the OPF (negative sign implies storing mode withdrawing power from bus).
+p_max_pu,configurable,True,float,True,per unit,1.0,The maximum output for each snapshot per unit of p_nom for the OPF.
+p_set,configurable,True,float,True,MW,0.0,active power set point (for PF)
+q_set,configurable,True,float,True,MVar,0.0,reactive power set point (for PF)
+sign,configurable,False,float,True,,1.0,power sign
+carrier,configurable,False,str,True,,,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in OPF"
+spill_cost,configurable,True,float,True,currency/MWh,0.0,Cost of spilling 1 MWh.
+marginal_cost,configurable,True,float,True,currency/MWh,0.0,Marginal cost of production of 1 MWh.
+marginal_cost_quadratic,configurable,True,float,True,currency/MWh,0.0,Quadratic marginal cost of production (discharge) of 1 MWh.
+marginal_cost_storage,configurable,True,float,True,currency/MWh/h,0.0,Marginal cost of energy storage of 1 MWh for one hour.
+capital_cost,configurable,False,float,True,currency/MW,0.0,"Fixed period costs of extending p_nom by 1 MW, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs)."
+active,configurable,False,bool,False,,True,Whether to consider the component in basic functionality or not
+build_year,configurable,False,int,True,year,0,build year
+lifetime,configurable,False,float,True,years,inf,lifetime
+state_of_charge_initial,configurable,False,float,True,MWh,0.0,State of charge before the snapshots in the OPF.
+state_of_charge_initial_per_period,configurable,False,bool,False,,False,"Switch: if True, then state of charge at the beginning of an investment period is set to state_of_charge_initial"
+state_of_charge_set,configurable,True,float,True,MWh,,State of charge set points for snapshots in the OPF.
+cyclic_state_of_charge,configurable,False,bool,False,,False,"Switch: if True, then state_of_charge_initial is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the OPF (soc[-1] = soc[len(snapshots)-1])."
+cyclic_state_of_charge_per_period,configurable,False,bool,False,,True,"Switch: if True, then the cyclic constraints are applied to each period (first snapshot level if multiindexed) separately."
+max_hours,configurable,False,float,True,hours,1.0,Maximum state of charge capacity in terms of hours at full output capacity p_nom
+efficiency_store,configurable,True,float,True,per unit,1.0,Efficiency of storage on the way into the storage.
+efficiency_dispatch,configurable,True,float,True,per unit,1.0,Efficiency of storage on the way out of the storage.
+standing_loss,configurable,True,float,True,per unit,0.0,Losses per hour to state of charge.
+inflow,configurable,True,float,True,MW,0.0,"Inflow to the state of charge, e.g. due to river inflow in hydro reservoir."
+p,output,True,float,True,MW,0.0,active power at bus (positive if net generation)
+p_dispatch,output,True,float,True,MW,0.0,active power dispatch at bus
+p_store,output,True,float,True,MW,0.0,active power charging at bus
+q,output,True,float,True,MVar,0.0,reactive power (positive if net generation)
+state_of_charge,output,True,float,True,MWh,,State of charge as calculated by the OPF.
+spill,output,True,float,True,MW,0.0,Spillage for each snapshot.
+p_nom_opt,output,False,float,True,MW,0.0,Optimised nominal power.
+mu_upper,output,True,float,True,currency/MWh,0.0,Shadow price of upper p_nom limit
+mu_lower,output,True,float,True,currency/MWh,0.0,Shadow price of lower p_nom limit
+mu_state_of_charge_set,output,True,float,True,currency/MWh,0.0,Shadow price of fixed state of charge state_of_charge_set
+mu_energy_balance,output,True,float,True,currency/MWh,0.0,Shadow price of storage consistency equations

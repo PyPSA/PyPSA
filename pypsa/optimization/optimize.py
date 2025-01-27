@@ -244,6 +244,8 @@ def create_model(
     -------
     linopy.model
     """
+    n.validate(output_attrs=True)
+
     sns = as_index(n, snapshots, "snapshots")
     n._linearized_uc = int(linearized_unit_commitment)
     n._multi_invest = int(multi_investment_periods)
@@ -363,7 +365,10 @@ def assign_solution(n: Network) -> None:
                     eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                     set_from_frame(n, c, f"p{i}", -df * eff)
                     n.dynamic(c)[f"p{i}"].loc[
-                        sns, n.links.index[n.links[f"bus{i}"] == ""]
+                        sns,
+                        n.links.index[
+                            (n.links[f"bus{i}"] == "") & n.links[f"bus{i}"].isna()
+                        ],
                     ] = float(n.components["Link"]["attrs"].loc[f"p{i}", "default"])
 
             else:

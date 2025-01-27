@@ -1,4 +1,0 @@
-attribute,type,unit,default,description,status
-name,string,n/a,n/a,Unique name based on order of sub-network in list of sub-networks.,Output
-carrier,string,n/a,AC,"Energy carrier: could be for example ""AC"" or ""DC"" (for electrical networks) or ""gas"" or ""heat"". The carrier is determined from the buses in sub_network.",Output
-slack_bus,string,n/a,n/a,Name of slack bus.,Output

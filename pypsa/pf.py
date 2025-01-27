@@ -20,6 +20,7 @@ from scipy.sparse import vstack as svstack
 from scipy.sparse.linalg import spsolve
 
 from pypsa.common import as_index, deprecated_common_kwargs
+from pypsa.components.store import DynamicAttrsDict
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import (
     additional_linkports,
@@ -133,7 +134,7 @@ def _network_prepare_and_run_pf(
     distribute_slack: bool = False,
     slack_weights: str = "p_set",
     **kwargs: Any,
-) -> Dict | None:
+) -> DynamicAttrsDict | None:
     if linear:
         sub_network_pf_fun: Callable = sub_network_lpf
         sub_network_prepare_fun: Callable = calculate_B_H
@@ -155,7 +156,9 @@ def _network_prepare_and_run_pf(
         for i in ["1"] + additional_linkports(n):
             eff_name = "efficiency" if i == "1" else f"efficiency{i}"
             efficiency = get_as_dense(n, "Link", eff_name, sns)
-            links = n.links.index[n.links[f"bus{i}"] != ""]
+            links = n.links.index[
+                (n.links[f"bus{i}"] != "") & n.links[f"bus{i}"].notnull()
+            ]
             n.links_t[f"p{i}"].loc[sns, links] = (
                 -n.links_t.p0.loc[sns, links] * efficiency.loc[sns, links]
             )
@@ -222,7 +225,7 @@ def network_pf(
     use_seed: bool = False,
     distribute_slack: bool = False,
     slack_weights: str = "p_set",
-) -> Dict:
+) -> DynamicAttrsDict:
     """
     Full non-linear power flow for generic network.
 
@@ -853,7 +856,7 @@ def apply_line_types(n: Network) -> None:
     """
     Calculate line electrical parameters x, r, b, g from standard types.
     """
-    lines_with_types_b = n.lines.type != ""
+    lines_with_types_b = n.lines.type.notnull()
     if lines_with_types_b.zsum() == 0:
         return
 
@@ -893,7 +896,7 @@ def apply_transformer_types(n: Network) -> None:
     """
     Calculate transformer electrical parameters x, r, b, g from standard types.
     """
-    trafos_with_types_b = n.transformers.type != ""
+    trafos_with_types_b = n.transformers.type.notnull()
     if trafos_with_types_b.zsum() == 0:
         return
 
@@ -998,7 +1001,9 @@ def calculate_dependent_values(n: Network) -> None:
     apply_transformer_types(n)
 
     n.lines["v_nom"] = n.lines.bus0.map(n.buses.v_nom)
-    n.lines.loc[n.lines.carrier == "", "carrier"] = n.lines.bus0.map(n.buses.carrier)
+    n.lines.loc[(n.lines.carrier == "") | n.lines.carrier.isna(), "carrier"] = (
+        n.lines.bus0.map(n.buses.carrier)
+    )
 
     n.lines["x_pu"] = n.lines.x / (n.lines.v_nom**2)
     n.lines["r_pu"] = n.lines.r / (n.lines.v_nom**2)
@@ -1021,9 +1026,13 @@ def calculate_dependent_values(n: Network) -> None:
     n.shunt_impedances["b_pu"] = n.shunt_impedances.b * n.shunt_impedances.v_nom**2
     n.shunt_impedances["g_pu"] = n.shunt_impedances.g * n.shunt_impedances.v_nom**2
 
-    n.links.loc[n.links.carrier == "", "carrier"] = n.links.bus0.map(n.buses.carrier)
+    n.links.loc[(n.links.carrier == "") | n.links.carrier.isna(), "carrier"] = (
+        n.links.bus0.map(n.buses.carrier)
+    )
 
-    n.stores.loc[n.stores.carrier == "", "carrier"] = n.stores.bus.map(n.buses.carrier)
+    n.stores.loc[(n.stores.carrier == "") | n.stores.carrier.isna(), "carrier"] = (
+        n.stores.bus.map(n.buses.carrier)
+    )
 
     update_linkports_component_attrs(n)
 

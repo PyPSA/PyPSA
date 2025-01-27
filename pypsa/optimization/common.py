@@ -64,6 +64,6 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     all_buses = pd.Series(
         hstack([ravel(c.static.filter(like="bus")) for c in n.iterate_components()])
     )
-    all_buses = all_buses[all_buses != ""]
+    all_buses = all_buses[all_buses.notnull() & all_buses != ""]
     counts = all_buses.value_counts()
     return counts.index[counts > 20].rename("Bus-meshed")

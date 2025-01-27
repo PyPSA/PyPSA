@@ -1,0 +1,7 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+co2_emissions,configurable,False,float,True,tonnes/MWh,0.0,Emissions in CO2-tonnes-equivalent per MWh of primary energy (e.g. methane has 0.2 tonnes_CO2/MWh_thermal).
+color,configurable,False,str,True,,,plotting color
+nice_name,configurable,False,str,True,,,More precise descriptive name
+max_growth,configurable,False,float,True,MW,inf,maximum new installed capacity per investment period
+max_relative_growth,configurable,False,float,True,MW,0.0,maximum capacity ratio for new installed capacity per investment period (in addition to max_growth)

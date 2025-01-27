@@ -1,0 +1,34 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+bus,required,False,str,True,,,Name of bus to which store is attached.
+type,configurable,False,str,True,,,Placeholder for store type. Not yet implemented.
+carrier,configurable,False,str,True,,,"Energy carrier of the Store, e.g. ""heat"" or ""gas""."
+e_nom,configurable,False,float,True,MWh,0.0,Nominal energy capacity.
+e_nom_mod,configurable,False,float,True,MWh,0.0,Nominal energy capacity of the store module.
+e_nom_extendable,configurable,False,bool,False,,False,Switch to allow capacity e_nom to be extended in OPF.
+e_nom_min,configurable,False,float,True,MWh,0.0,"If e_nom is extendable in OPF, set its minimum value."
+e_nom_max,configurable,False,float,True,MWh,inf,"If e_nom is extendable in OPF, set its maximum value (e.g. limited by technical potential)."
+e_min_pu,configurable,True,float,True,per unit,0.0,Minimal value of e relative to e_nom for the OPF.
+e_max_pu,configurable,True,float,True,per unit,1.0,Maximal value of e relative to e_nom for the OPF.
+e_initial,configurable,False,float,True,MWh,0.0,Energy before the snapshots in the OPF.
+e_initial_per_period,configurable,False,bool,False,,False,"Switch: if True, then at the beginning of each investment period e is set to e_initial "
+e_cyclic,configurable,False,bool,False,,False,"Switch: if True, then e_initial is ignored and the initial energy is set to the final energy for the group of snapshots in the OPF."
+e_cyclic_per_period,configurable,False,bool,False,,True,"Switch: if True, then the cyclic constraints are applied to each period (first snapshot level if multiindexed) separately."
+p_set,configurable,True,float,True,MW,0.0,active power set point (for PF)
+q_set,configurable,True,float,True,MVar,0.0,reactive power set point (for PF)
+sign,configurable,False,float,True,,1.0,power sign
+marginal_cost,configurable,True,float,True,currency/MWh,0.0,Marginal cost applied to both charging and discharging of 1 MWh.
+marginal_cost_quadratic,configurable,True,float,True,currency/MWh,0.0,Quadratic marginal cost of applied to charging and discharging of 1 MWh.
+marginal_cost_storage,configurable,True,float,True,currency/MWh/h,0.0,Marginal cost of energy storage of 1 MWh for one hour.
+capital_cost,configurable,False,float,True,currency/MWh,0.0,"Fixed period costs of extending e_nom by 1 MWh, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs)."
+standing_loss,configurable,True,float,True,per unit,0.0,Losses per hour to energy.
+active,configurable,False,bool,False,,True,Whether to consider the component in basic functionality or not
+build_year,configurable,False,int,True,year,0,build year
+lifetime,configurable,False,float,True,years,inf,lifetime
+p,output,True,float,True,MW,0.0,active power at bus (positive if net generation)
+q,output,True,float,True,MVar,0.0,reactive power (positive if net generation)
+e,output,True,float,True,MWh,0.0,Energy as calculated by the OPF.
+e_nom_opt,output,False,float,True,MWh,0.0,Optimised nominal energy capacity outputed by OPF.
+mu_upper,output,True,float,True,currency/MWh,0.0,Shadow price of upper e_nom limit
+mu_lower,output,True,float,True,currency/MWh,0.0,Shadow price of lower e_nom limit
+mu_energy_balance,output,True,float,True,currency/MWh,0.0,Shadow price of storage consistency equations

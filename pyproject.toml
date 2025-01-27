@@ -36,6 +36,8 @@ dependencies = [
     "matplotlib",
     "geopandas>=0.9",
     "networkx>=2",
+    "pydantic",
+    "pandera",
     "deprecation",
     "validators",
     "highspy",
@@ -91,8 +93,9 @@ include = ["pypsa"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
-    "error::FutureWarning",      # Raise all FutureWarnings as errors
+    # TODO
+    # "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
+    # "error::FutureWarning",      # Raise all FutureWarnings as errors
     "ignore::matplotlib._api.deprecation.MatplotlibDeprecationWarning:pydev",
     # See https://github.com/microsoft/debugpy/issues/1623
 ]

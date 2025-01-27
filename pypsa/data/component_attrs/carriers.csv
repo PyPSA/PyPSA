@@ -1,7 +1,0 @@
-attribute,type,unit,default,description,status
-name,string,n/a,n/a,Unique name,Input (required)
-co2_emissions,float,tonnes/MWh,0,Emissions in CO2-tonnes-equivalent per MWh of primary energy (e.g. methane has 0.2 tonnes_CO2/MWh_thermal).,Input (optional)
-color,string,n/a,n/a,plotting color,Input (optional)
-nice_name,string,n/a,n/a,More precise descriptive name,Input (optional)
-max_growth,float,MW,inf,maximum new installed capacity per investment period,Input (optional)
-max_relative_growth,float,MW,0,maximum capacity ratio for new installed capacity per investment period (in addition to max_growth),Input (optional)

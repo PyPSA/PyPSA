@@ -15,7 +15,7 @@ component_names = [
 @pytest.mark.parametrize("component_name", component_names)
 def test_alias_properties(ac_dc_network, component_name):
     n = ac_dc_network
-    ct = pypsa.components.types.get(component_name)
+    ct = pypsa.ComponentType(name=component_name)
     c = n.components[component_name]
 
     assert c.name == ct.name
@@ -50,4 +50,4 @@ def test_components_repr(ac_dc_network):
     n = ac_dc_network
     c = n.components.generators
 
-    assert repr(c).startswith("PyPSA 'Generator' Components")
+    assert repr(c).startswith("'Generator' Components")

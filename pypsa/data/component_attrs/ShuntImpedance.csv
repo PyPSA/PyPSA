@@ -1,0 +1,11 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+bus,required,False,str,True,,,name of bus to which generator is attached
+g,configurable,False,float,True,Siemens,0.0,Shunt conductivity.
+b,configurable,False,float,True,Siemens,0.0,Shunt susceptance.
+sign,configurable,False,float,True,,-1.0,power sign (sign convention so that g>0 withdraws p from bus)
+p,output,True,float,True,MW,0.0,active power at bus (positive if net load)
+q,output,True,float,True,MVar,0.0,reactive power (positive if net generation)
+g_pu,output,False,float,True,per unit,0.0,Calculated from g and bus.v_nom.
+b_pu,output,False,float,True,per unit,0.0,Calculated from b and bus.v_nom.
+active,configurable,False,bool,False,,True,Whether to consider the component in basic functionality or not
