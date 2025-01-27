@@ -35,7 +35,7 @@ from pypsa.components.abstract import Components
 from pypsa.components.types import ComponentType
 from pypsa.networks import Network, SubNetwork
 
-pd.set_option("future.no_silent_downcasting", True) # TODO
+pd.set_option("future.no_silent_downcasting", True)  # TODO
 
 # e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
 __version__ = version("pypsa")
