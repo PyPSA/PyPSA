@@ -1,0 +1,17 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+f_nom,required,False,float,True,Hz,50.0,Nominal frequency
+s_nom,required,False,float,True,MVA,0.0,Rated apparent power
+v_nom_0,required,False,float,True,kV,0.0,Nominal voltage on high voltage side
+v_nom_1,required,False,float,True,kV,0.0,Nominal voltage on low voltage side
+vsc,required,False,float,True,Percent,0.0,Short circuit voltage
+vscr,required,False,float,True,Percent,0.0,Real part of short circuit voltage
+pfe,required,False,float,True,kW,0.0,No load (open circuit) iron losses
+i0,required,False,float,True,Percent,0.0,No load (open circuit) current
+phase_shift,required,False,float,True,Degrees,0.0,Phase shift angle
+tap_side,required,False,int,True,,0,"Defines if tap changer is modelled at the primary 0 side (usually high-voltage) or the secondary 1 side (usually low voltage) (must be 0 or 1, defaults to 0)"
+tap_neutral,required,False,int,True,,0,"rated tap position, i.e. position at which the winding ratio corresponds to the ratio of the rated voltages"
+tap_min,required,False,int,True,,0,minimum tap position
+tap_max,required,False,int,True,,0,maximum tap position
+tap_step,required,False,float,True,Percent,0.0,tap step size in percentage of voltage change
+references,configurable,False,str,True,,,References for electrical parameters

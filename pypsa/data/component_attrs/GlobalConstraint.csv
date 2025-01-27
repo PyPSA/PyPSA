@@ -1,0 +1,8 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+type,configurable,False,str,True,,primary_energy,"Type of constraint (only ""primary energy"", i.e. limits on the usage of primary energy before generator conversion, is supported at the moment)"
+investment_period,configurable,False,float,True,,,"time period when the constraint is applied, if not specified, constraint is applied to all investment periods"
+carrier_attribute,configurable,False,str,True,,co2_emissions,"If the global constraint is connected with an energy carrier, name the associated carrier attribute. This must appear as a column in network.carriers."
+sense,configurable,False,str,True,,==,"Constraint sense; must be one of <=, == or >="
+constant,configurable,False,float,True,,0.0,"Constant for right-hand-side of constraint for optimisation period. For a CO2 constraint, this would be tonnes of CO2-equivalent emissions."
+mu,output,False,float,True,currency/constant,0.0,Shadow price of global constraint

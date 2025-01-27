@@ -28,6 +28,7 @@ def build_network(unit_size=10):
         p_nom_opt=0.5 * unit_size,
         p_nom_max=unit_size,
         p_nom_extendable=True,
+        ignore_checks=True,
     )
 
     n.add(
@@ -39,6 +40,7 @@ def build_network(unit_size=10):
         p_nom_opt=1.5 * unit_size,
         p_nom_max=2 * unit_size,
         p_nom_extendable=True,
+        ignore_checks=True,
     )
     n.add(
         "Link",
@@ -49,6 +51,7 @@ def build_network(unit_size=10):
         p_nom_opt=0.5 * unit_size,
         p_nom_max=0.8 * unit_size,
         p_nom_extendable=True,
+        ignore_checks=True,
     )
     n.add(
         "Link",
@@ -59,6 +62,7 @@ def build_network(unit_size=10):
         p_nom_opt=1.3 * unit_size,
         p_nom_max=1.5 * unit_size,
         p_nom_extendable=True,
+        ignore_checks=True,
     )
     n.add(
         "Link",
@@ -69,6 +73,7 @@ def build_network(unit_size=10):
         p_nom_opt=1.1 * unit_size,
         p_nom_max=1.5 * unit_size,
         p_nom_extendable=True,
+        ignore_checks=True,
     )
     n.add(
         "Link",
@@ -78,6 +83,7 @@ def build_network(unit_size=10):
         p_nom=0,
         p_nom_opt=1.5 * unit_size,
         p_nom_extendable=True,
+        ignore_checks=True,
     )
     return n
 

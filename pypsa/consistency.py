@@ -39,7 +39,10 @@ def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
 
 @deprecated_common_kwargs
 def check_for_unknown_buses(
-    n: Network, component: Components, strict: bool = False
+    n: Network,
+    component: Components,
+    df: pd.DataFrame | None = None,
+    strict: bool = False,
 ) -> None:
     """
     Check if buses are attached to component but are not defined in the network.
@@ -53,6 +56,8 @@ def check_for_unknown_buses(
         The network to check.
     component : pypsa.Component
         The component to check.
+    df : pd.DataFrame, optional
+        The dataframe to check. If None, the static dataframe of the component is used.
     strict : bool, optional
         If True, raise an error instead of logging a warning.
 
@@ -62,17 +67,22 @@ def check_for_unknown_buses(
                                       runs all consistency checks.
 
     """
-    for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.buses.index)
+    if df is None:
+        df_ = component.static
+    else:
+        df_ = df
+    for attr in _bus_columns(df_):
+        missing = ~df_[attr].astype(str).isin(n.buses.index)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
-            missing &= component.static[attr] != ""
+            missing &= (df_[attr] != "") & df_[attr].notna()
+
         if missing.any():
             _log_or_raise(
                 strict,
                 "The following %s have buses which are not defined:\n%s",
                 component.list_name,
-                component.static.index[missing],
+                df_.index[missing],
             )
 
 
@@ -249,7 +259,7 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
 
 
     """
-    for attr in component.attrs.index[component.attrs.varying & component.attrs.static]:
+    for attr in component.dynamic.keys():
         attr_df = component.dynamic[attr]
 
         diff = attr_df.columns.difference(component.static.index)
@@ -303,7 +313,7 @@ def check_static_power_attributes(
     """
     static_attrs = ["p_nom", "s_nom", "e_nom"]
     if component.name in n.all_components - {"TransformerType"}:
-        static_attr = component.attrs.query("static").index.intersection(static_attrs)
+        static_attr = component.attrs.index.intersection(static_attrs)
         if len(static_attr):
             attr = static_attr[0]
             bad = component.static[attr + "_max"] < component.static[attr + "_min"]
@@ -358,7 +368,7 @@ def check_time_series_power_attributes(
     """
     varying_attrs = ["p_max_pu", "e_max_pu"]
     if component.name in n.all_components - {"TransformerType"}:
-        varying_attr = component.attrs.query("varying").index.intersection(
+        varying_attr = component.attrs.query("dynamic").index.intersection(
             varying_attrs
         )
 
@@ -838,27 +848,34 @@ def consistency_check(
     # Per component checks
     for c in n.iterate_components():
         # Checks all components
-        check_for_unknown_buses(n, c, "unknown_buses" in strict)
-        check_for_unknown_carriers(n, c, "unkown_carriers" in strict)
-        check_time_series(n, c, "time_series" in strict)
-        check_static_power_attributes(n, c, "static_power_attrs" in strict)
-        check_time_series_power_attributes(n, c, "time_series_power_attrs" in strict)
+        check_for_unknown_buses(n, c, strict="unknown_buses" in strict)
+        check_for_unknown_carriers(n, c, strict="unkown_carriers" in strict)
+        check_time_series(n, c, strict="time_series" in strict)
+        check_static_power_attributes(n, c, strict="static_power_attrs" in strict)
+        check_time_series_power_attributes(
+            n, c, strict="time_series_power_attrs" in strict
+        )
         check_nans_for_component_default_attrs(
-            n, c, "nans_for_component_default_attrs" in strict
+            n, c, strict="nans_for_component_default_attrs" in strict
         )
         # Checks passive_branch_components
-        check_for_zero_impedances(n, c, "zero_impedances" in strict)
+        check_for_zero_impedances(n, c, strict="zero_impedances" in strict)
         # Checks transformers
-        check_for_zero_s_nom(c, "zero_s_nom" in strict)
+        check_for_zero_s_nom(c, strict="zero_s_nom" in strict)
         # Checks generators and links
-        check_assets(n, c, "assets" in strict)
+        check_assets(n, c, strict="assets" in strict)
         # Checks generators
-        check_generators(c, "generators" in strict)
+        check_generators(c, strict="generators" in strict)
 
         if check_dtypes:
-            check_dtypes_(c, "dtypes" in strict)
+            check_dtypes_(c, strict="dtypes" in strict)
 
     # Combined checks
-    check_for_disconnected_buses(n, "disconnected_buses" in strict)
-    check_investment_periods(n, "investment_periods" in strict)
-    check_shapes(n, "shapes" in strict)
+    check_for_disconnected_buses(n, strict="disconnected_buses" in strict)
+    check_investment_periods(n, strict="investment_periods" in strict)
+    check_shapes(n, strict="shapes" in strict)
+
+
+def validate(n: Network, output_attrs: bool = False) -> None:
+    for c in n.components:
+        c.validate(output_attrs=output_attrs)

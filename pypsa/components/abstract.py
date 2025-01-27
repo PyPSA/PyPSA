@@ -9,20 +9,21 @@ logic from other modules:
 from __future__ import annotations
 
 import logging
-from abc import ABC
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import geopandas as gpd
 import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field
 from pyproj import CRS
 
 from pypsa.common import equals
+from pypsa.components.addremove import add
 from pypsa.components.descriptors import get_active_assets
+from pypsa.components.store import DynamicAttrsDict
+from pypsa.components.types import ComponentType
+from pypsa.components.validation import validate
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentType
-from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,23 @@ if TYPE_CHECKING:
 # - snapshots, investment_periods
 
 
-@dataclass
-class ComponentsData:
+def _init_static_container(c: ComponentType) -> pd.DataFrame | gpd.GeoDataFrame:
+    if c.name == "Shape":
+        df = gpd.GeoDataFrame(columns=["geometry"], crs=CRS.from_epsg(DEFAULT_EPSG))
+    else:
+        df = pd.DataFrame()
+    df.index.name = c.name
+    return c.schema_static(df)
+
+
+def _init_dynamic_container(c: ComponentType) -> DynamicAttrsDict:
+    store = DynamicAttrsDict()
+    store._pypsa_component = c
+    store._default_snapshots = pd.Index(pd.Index([DEFAULT_TIMESTAMP]), name="snapshots")
+    return store
+
+
+class ComponentsData(BaseModel):
     """
     Dataclass for Components.
 
@@ -55,13 +71,25 @@ class ComponentsData:
 
     """
 
-    ctype: ComponentType
-    n: Network | None
-    static: pd.DataFrame
-    dynamic: dict
+    # Pydantic config
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    # Immutable attributes
+    ctype: Annotated[ComponentType, Field(frozen=True)]
+
+    # Mutable attributes
+    n: Annotated[Any, Field(default=None)]
+    static: Annotated[
+        pd.DataFrame | gpd.GeoDataFrame,
+        Field(default_factory=lambda data: _init_static_container(data["ctype"])),
+    ]
+    dynamic: Annotated[
+        DynamicAttrsDict,
+        Field(default_factory=lambda data: _init_dynamic_container(data["ctype"])),
+    ]
 
 
-class Components(ComponentsData, ABC):
+class Components(ComponentsData):
     """
     Components base class.
 
@@ -84,6 +112,12 @@ class Components(ComponentsData, ABC):
     # from pypsa.components.descriptors
     get_active_assets = get_active_assets
 
+    # from pypsa.components.addremove
+    add = add
+
+    # from pypsa.components.validation
+    validate = validate  # type: ignore # Overwrites deprecated BaseModel method
+
     def __init__(
         self,
         ctype: ComponentType,
@@ -103,20 +137,20 @@ class Components(ComponentsData, ABC):
         names : str, int, Sequence[int | str], optional
             Names of components to attach to, by default None.
         suffix : str, optional
-            Suffix to add to component names, by default "".
+            Suffix to add to component names, by default no suffix is added.
 
         """
         if names is not None:
             msg = "Adding components during initialisation is not yet supported."
             raise NotImplementedError(msg)
-        if n is not None:
-            msg = (
-                "Attaching components to Network during initialisation is not yet "
-                "supported."
-            )
-            raise NotImplementedError(msg)
-        static, dynamic = self._get_data_containers(ctype)
-        super().__init__(ctype, n=None, static=static, dynamic=dynamic)
+        # TODOS
+        # if n is not None:
+        #     msg = (
+        #         "Attaching components to Network during initialisation is not yet "
+        #         "supported."
+        #     )
+        #     raise NotImplementedError(msg)
+        super().__init__(ctype=ctype, n=n)
 
     def __repr__(self) -> str:
         """
@@ -132,17 +166,17 @@ class Components(ComponentsData, ABC):
         >>> import pypsa
         >>> c = pypsa.examples.ac_dc_meshed().components.generators
         >>> c
-        PyPSA 'Generator' Components
-        ----------------------------
+        'Generator' Components
+        ======================
         Attached to PyPSA Network 'AC-DC'
         Components: 6
 
         """
         num_components = len(self.static)
         if not num_components:
-            return f"Empty PyPSA {self.ctype.name} Components\n"
-        text = f"PyPSA '{self.ctype.name}' Components"
-        text += "\n" + "-" * len(text) + "\n"
+            return f"Empty {self.ctype.name} Components\n"
+        text = f"'{self.ctype.name}' Components"
+        text += "\n" + "=" * len(text) + "\n"
 
         # Add attachment status
         if self.attached:
@@ -167,8 +201,8 @@ class Components(ComponentsData, ABC):
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators
-        PyPSA 'Generator' Components
-        ----------------------------
+        'Generator' Components
+        ======================
         Attached to PyPSA Network 'AC-DC'
         Components: 6
 
@@ -241,38 +275,18 @@ class Components(ComponentsData, ABC):
             and equals(self.dynamic, other.dynamic)
         )
 
-    @staticmethod
-    def _get_data_containers(ct: ComponentType) -> tuple[pd.DataFrame, Dict]:
-        static_dtypes = ct.defaults.loc[ct.defaults.static, "dtype"].drop(["name"])
-        if ct.name == "Shape":
-            crs = CRS.from_epsg(
-                DEFAULT_EPSG
-            )  # if n is None else n.crs #TODO attach mechanism
-            static = gpd.GeoDataFrame(
-                {k: gpd.GeoSeries(dtype=d) for k, d in static_dtypes.items()},
-                columns=static_dtypes.index,
-                crs=crs,
-            )
-        else:
-            static = pd.DataFrame(
-                {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
-                columns=static_dtypes.index,
-            )
-        static.index.name = ct.name
+    @property
+    def snapshots(self) -> pd.Index:
+        """
+        Get snapshots of the component.
 
-        # # it's currently hard to imagine non-float series,
-        # but this could be generalised
-        dynamic = Dict()
-        snapshots = pd.Index(
-            [DEFAULT_TIMESTAMP]
-        )  # if n is None else n.snapshots #TODO attach mechanism
-        for k in ct.defaults.index[ct.defaults.varying]:
-            df = pd.DataFrame(index=snapshots, columns=[], dtype=float)
-            df.index.name = "snapshot"
-            df.columns.name = ct.name
-            dynamic[k] = df
+        Returns
+        -------
+        pd.Index
+            Snapshots of the component.
 
-        return static, dynamic
+        """
+        return self.n_save.snapshots
 
     @property
     def standard_types(self) -> pd.DataFrame | None:

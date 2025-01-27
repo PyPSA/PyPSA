@@ -15,9 +15,10 @@ import numpy as np
 import pandas as pd
 
 from pypsa.common import as_index, deprecated_common_kwargs
+from pypsa.components.common import as_components
 
 if TYPE_CHECKING:
-    from pypsa import Network, SubNetwork
+    from pypsa import Components, Network, SubNetwork
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +68,17 @@ def get_switchable_as_dense(
     2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
     """
+    c = as_components(n, component)
     sns = as_index(n, snapshots, "snapshots")
 
-    static = n.static(component)[attr]
+    if inds is None:
+        inds = c.static.index
+
+    # If the attribute is not in the static columns, it is already dynamic
+    if attr not in c.static.columns:
+        return c.dynamic[attr].loc[sns, inds]
+
+    static = c.static[attr]
     empty = pd.DataFrame(index=sns)
     dynamic = n.dynamic(component).get(attr, empty).loc[sns]
 
@@ -122,12 +131,15 @@ def get_switchable_as_iter(
     <generator object get_switchable_as_iter...
 
     """
-    static = n.static(component)
-    dynamic = n.dynamic(component)
+    c = as_components(n, component)
 
-    index = static.index
-    varying_i = dynamic[attr].columns
-    fixed_i = static.index.difference(varying_i)
+    # If the attribute is not in the static columns, it is already dynamic
+    if attr not in c.static.columns:
+        return c.dynamic[attr]
+
+    index = c.static.index
+    varying_i = c.dynamic[attr].columns
+    fixed_i = c.static.index.difference(varying_i)
 
     if inds is not None:
         inds = pd.Index(inds)
@@ -137,7 +149,7 @@ def get_switchable_as_iter(
 
     # Short-circuit only fixed
     if len(varying_i) == 0:
-        return repeat(static.loc[fixed_i, attr], len(snapshots))
+        return repeat(c.static.loc[fixed_i, attr], len(snapshots))
 
     def is_same_indices(i1: pd.Index, i2: pd.Index) -> bool:
         return len(i1) == len(i2) and (i1 == i2).all()
@@ -154,7 +166,7 @@ def get_switchable_as_iter(
 
     return (
         reindex_maybe(
-            static.loc[fixed_i, attr].append(dynamic[attr].loc[sn, varying_i])
+            c.static.loc[fixed_i, attr].append(c.dynamic[attr].loc[sn, varying_i])
         )
         for sn in snapshots
     )
@@ -203,7 +215,7 @@ def free_output_series_dataframes(
         attrs = n.components[component]["attrs"]
         dynamic = n.dynamic(component)
 
-        for attr in attrs.index[attrs["varying"] & (attrs["status"] == "Output")]:
+        for attr in attrs.index[attrs["varying"] & (attrs["status"] == "output")]:
             dynamic[attr] = pd.DataFrame(index=n.snapshots, columns=[])
 
 
@@ -256,16 +268,19 @@ def get_non_extendable_i(n: Network, c: str) -> pd.Index:
     return idx.rename(f"{c}-fix")
 
 
-def get_committable_i(n: Network, c: str) -> pd.Index:
+@deprecated_common_kwargs
+def get_committable_i(n: Network, component: str | Components) -> pd.Index:
     """
     Getter function.
 
     Get the index of commitable elements of a given component.
     """
-    if "committable" not in n.static(c):
+    c = as_components(n, component)
+
+    if "committable" not in c.static:
         idx = pd.Index([])
     else:
-        idx = n.static(c)[lambda ds: ds["committable"]].index
+        idx = c.static[lambda ds: ds["committable"]].index
     return idx.rename(f"{c}-com")
 
 

@@ -1,259 +1,355 @@
-"""
-Components types module.
-
-Contains module wide component types. Default types are loaded from the package data.
-Additional types can be added by the user.
-"""
-
 from __future__ import annotations
 
-from collections.abc import Sequence
-from pathlib import Path
+import logging
+import re
+from enum import Enum
+from typing import Annotated, Any
 
-import numpy as np
 import pandas as pd
+from deprecation import deprecated
+from pandera import Column, DataFrameSchema, Index
+from pydantic import BaseModel, ConfigDict, Field
 
-from pypsa.common import list_as_string
-from pypsa.definitions.components import ComponentType
-from pypsa.deprecations import COMPONENT_ALIAS_DICT
+from pypsa.common import format_str_dtype
+from pypsa.definitions.structures import Dict
 
-# TODO better path handeling, integrate custom components
-_components_path = Path(__file__).parent.parent / "data" / "components.csv"
-_attrs_path = Path(__file__).parent.parent / "data" / "component_attrs"
-_standard_types_path = Path(__file__).parent.parent / "data" / "standard_types"
-
-component_types_df = pd.read_csv(_components_path, index_col=0)
-default_components = component_types_df.index.to_list()
-
-all_components = {}
+logger = logging.getLogger(__name__)
 
 
-def add_component_type(
-    name: str,
-    list_name: str,
-    description: str,
-    category: str,
-    defaults_df: pd.DataFrame,
-    standard_types_df: pd.DataFrame | None = None,
-) -> None:
+def to_list_name(name: str) -> str:
     """
-    Add component type to package wide component types library.
+    Convert a component type name to its list name.
 
-    The function is used to add the package default components but can also be used to
-    add custom components, which then again can be used during the network creation.
+    It also works for custom component types. List names should not be defined
+    manually.
 
     Parameters
     ----------
     name : str
-        Name of the component type. Must be unique.
+        Component type name.
+
+    Returns
+    -------
+    str
+        Component type list name.
+
+    Examples
+    --------
+    >>> to_list_name("Generator")
+    'generators'
+    >>> to_list_name("StorageUnit")
+    'storage_units'
+
+    """
+    # Singular to Plural
+    if re.search("[sxz]$", name) or re.search("[^aeioudgkprt]h$", name):
+        name = re.sub("$", "es", name)
+    elif re.search("[aeiou]y$", name):
+        name = re.sub("y$", "ies", name)
+    else:
+        name = name + "s"
+
+    # CamelCase to snake_case
+    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)
+
+    return name.lower()
+
+
+def schema_input_static(data: dict) -> DataFrameSchema:
+    schema = {}
+
+    for name, row in data["defaults"][data["defaults"].status != "output"].iterrows():
+        if name == "name":
+            continue
+
+        schema[name] = Column(
+            row.type, default=format_str_dtype(row.default), nullable=row.nullable
+        )
+
+    return DataFrameSchema(
+        schema,
+        index=Index(str, name=data["name"]),
+        add_missing_columns=True,
+        # strict=True,
+        coerce=True,
+    )
+
+
+def schema_output_static(data: dict) -> DataFrameSchema:
+    return DataFrameSchema(
+        {
+            name: Column(
+                row.type, default=format_str_dtype(row.default), nullable=row.nullable
+            )
+            for name, row in data["defaults"][
+                (data["defaults"].status == "output")
+                & (data["defaults"].dynamic == False)
+            ]
+            .drop(index=["name"], errors="ignore")
+            .iterrows()
+        },
+        index=Index(str, name=data["name"]),
+        add_missing_columns=True,
+        # strict=True,
+        coerce=True,
+    )
+
+
+def schemas_input_dynamic(data: dict) -> Dict:
+    attrs = data["defaults"]
+    attrs = attrs[attrs.dynamic & (attrs.status != "output")]
+
+    return Dict(
+        {
+            name: DataFrameSchema(
+                columns={
+                    ".*": Column(
+                        row.type,
+                        default=format_str_dtype(row.default),
+                        nullable=row.nullable,
+                        regex=True,
+                    )
+                },
+                # add_missing_columns=True,
+                # strict=True,
+                coerce=True,
+            )
+            for name, row in attrs.iterrows()
+        }
+    )
+
+
+def schemas_output_dynamic(data: dict) -> Dict:
+    attrs = data["defaults"]
+    attrs = attrs[attrs.dynamic & (attrs.status == "output")]
+
+    return Dict(
+        {
+            name: DataFrameSchema(
+                columns={
+                    ".*": Column(
+                        row.type,
+                        default=format_str_dtype(row.default),
+                        nullable=row.nullable,
+                        regex=True,
+                    )
+                },
+                # add_missing_columns=True,
+                # strict=True,
+                coerce=True,
+            )
+            for name, row in attrs.iterrows()
+        }
+    )
+
+
+class ComponentTypeEnum(Enum):
+    # TODO Think about capitalization, since those are constants, but adds a third
+    # representation
+    SubNetwork = "SubNetwork"
+    Bus = "Bus"
+    Carrier = "Carrier"
+    GlobalConstraint = "GlobalConstraint"
+    Line = "Line"
+    LineType = "LineType"
+    Transformer = "Transformer"
+    TransformerType = "TransformerType"
+    Link = "Link"
+    Load = "Load"
+    Generator = "Generator"
+    StorageUnit = "StorageUnit"
+    Store = "Store"
+    ShuntImpedance = "ShuntImpedance"
+    Shape = "Shape"
+
+
+class ComponentType(BaseModel):
+    """
+    Dataclass for network component type.
+
+    Contains all information about a component type, such as its name and defaults
+    attributes. Two different types are for example 'Generator' and 'Carrier'.
+
+    Attributes
+    ----------
+    name : str
+        Name of component type, e.g. 'Generator'.
     list_name : str
-        List name of the component type.
+        Name of component type in list form, e.g. 'generators'.
     description : str
         Description of the component type.
     category : str
-        Category of the component type.
-    defaults_df : pandas.DataFrame
-        Default attributes of the component type. Pass as a DataFrame with the same
-        structure as the default components in `/pypsa/data/default_components/`.
-    standard_types_df : pandas.DataFrame, optional
-        Standard types of the component type.
-
-    Returns
-    -------
-    None
-
-    Examples
-    --------
-    >>> import pandas as pd
-    >>> import pypsa
-    >>> defaults_data = {
-    ...     "attribute": ["name", "attribute_a"],
-    ...     "type": ["string", "float"],
-    ...     "unit": ["n/a", "n/a"],
-    ...     "default": ["n/a", 1],
-    ...     "description": ["Unique name", "Some custom attribute"],
-    ...     "status": ["Input (required)", "Input (optional)"]
-    ... }
-    >>> defaults_df = pd.DataFrame(defaults_data)
-    >>> pypsa.components.types.add_component_type(
-    ...     name="CustomComponent",
-    ...     list_name="custom_components",
-    ...     description="A custom component example",
-    ...     category="custom",
-    ...     defaults_df=defaults_df,
-    ... )
-    >>> # Check created component type
-    >>> pypsa.components.types.get("custom_components")
-    'CustomComponent' Component Type
+        Category of the component type, e.g. 'passive_branch'.
+    defaults : pd.DataFrame
+        Default values for the component type.
+    standard_types : pd.DataFrame | None
+        Standard types for the component type.
 
     """
-    if name in all_components:
-        msg = f"Component type '{name}' already exists."
-        raise ValueError(msg)
 
-    # Format attributes
-    defaults_df["default"] = defaults_df.default.astype(object)
-    defaults_df["static"] = defaults_df["type"] != "series"
-    defaults_df["varying"] = defaults_df["type"].isin({"series", "static or series"})
-    defaults_df["typ"] = (
-        defaults_df["type"]
-        .map({"boolean": bool, "int": int, "string": str, "geometry": "geometry"})
-        .fillna(float)
+    # Pydantic config
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    # Immutable attributes
+    name: Annotated[str, Field(frozen=True)]
+    list_name: Annotated[
+        str, Field(frozen=True, default_factory=lambda data: to_list_name(data["name"]))
+    ]
+    description: Annotated[
+        str,
+        Field(
+            frozen=True,
+            default_factory=lambda data: _get_component_data(
+                data["name"], "description"
+            ),
+        ),
+    ]
+    category: Annotated[
+        str,
+        Field(
+            frozen=True,
+            default_factory=lambda data: _get_component_data(data["name"], "category"),
+        ),
+    ]
+    defaults: Annotated[
+        pd.DataFrame,
+        Field(
+            frozen=True,
+            default_factory=lambda data: _get_component_data(data["name"], "defaults"),
+        ),
+    ]
+    standard_types: Annotated[
+        pd.DataFrame | None,
+        Field(
+            frozen=True,
+            default_factory=lambda data: _get_component_data(
+                data["name"], "standard_types"
+            ),
+        ),
+    ]
+
+    # Validation schemas
+    schema_static: Annotated[
+        DataFrameSchema, Field(default_factory=schema_input_static)
+    ]
+    schemas_input_dynamic: Annotated[Dict, Field(default_factory=schemas_input_dynamic)]
+    schema_output_static: Annotated[
+        DataFrameSchema, Field(default_factory=schema_output_static)
+    ]
+    schemas_output_dynamic: Annotated[
+        Dict, Field(default_factory=schemas_output_dynamic)
+    ]
+
+    # Mutable attributes
+    custom_attrs: Annotated[
+        pd.DataFrame,
+        Field(default_factory=lambda data: data["defaults"].head(0)),
+    ]
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, ComponentType):
+            return NotImplemented
+
+        return (
+            self.name == other.name
+            and self.list_name == other.list_name
+            and self.description == other.description
+            and str(self.category) == str(other.category)
+            and self.defaults.equals(other.defaults)
+        )
+
+    def __repr__(self) -> str:
+        return f"'{self.name}' Component Type"
+
+    # @property  # TODO: Caching
+    # def schema_static(self) -> DataFrameSchema:
+    #     """
+    #     Pydantic schema for component type.
+
+    #     Returns
+    #     -------
+    #     DataFrameSchema
+    #         Pydantic schema for component type.
+
+    #     """
+    #     # TODO
+    #     # if static_attrs.at[k, "type"] == "string":
+    #     #     df[k] = df[k].replace({np.nan: ""})
+    #     # if static_attrs.at[k, "type"] == "int":
+    #     #     df[k] = df[k].fillna(0)
+    #     #         geometry = df[k].replace({"": None, np.nan: None})
+    #     # from shapely.geometry.base import BaseGeometry
+
+    #     # if geometry.apply(lambda x: isinstance(x, BaseGeometry)).all():
+    #     #     df[k] = gpd.GeoSeries(geometry)
+    #     # else:
+    #     #     df[k] = gpd.GeoSeries.from_wkt(geometry)
+
+    @property  # TODO: Caching
+    def static_attrs(self) -> set:
+        return set(self.defaults[~self.defaults.dynamic].index)
+
+    @property  # TODO: Caching
+    def dynamic_attrs(self) -> set:
+        return set(self.defaults[self.defaults.dynamic].index)
+
+    @property  # TODO: Caching
+    def required_attrs(self) -> set:
+        return set(self.defaults[self.defaults.requirement == "required"].index)
+
+    @property  # TODO: Caching
+    def configurable_attrs(self) -> set:
+        return set(self.defaults[self.defaults.requriement == "configurable"].index)
+
+    @property  # TODO: Caching
+    def optional_attrs(self) -> set:
+        return set(self.defaults[self.defaults.requriement == "optional"].index)
+
+    @property
+    @deprecated(
+        deprecated_in="0.32.0",
+        details="Use the 'category' attribute instead.",
     )
-    defaults_df["dtype"] = (
-        defaults_df["type"]
-        .map(
-            {
-                "boolean": np.dtype(bool),
-                "int": np.dtype(int),
-                "string": np.dtype("O"),
-            }
-        )
-        .fillna(np.dtype(float))
+    def type(self) -> str:
+        return self.category
+
+    @property
+    @deprecated(
+        deprecated_in="0.32.0",
+        details="Use the 'defaults' attribute instead.",
     )
-
-    bool_b = defaults_df.type == "boolean"
-    if bool_b.any():
-        defaults_df.loc[bool_b, "default"] = defaults_df.loc[bool_b, "default"].isin(
-            {True, "True"}
-        )
-
-    str_b = defaults_df.typ.apply(lambda x: x is str)
-    defaults_df.loc[str_b, "default"] = defaults_df.loc[str_b, "default"].fillna("")
-    for typ in (str, float, int):
-        typ_b = defaults_df.typ == typ
-        defaults_df.loc[typ_b, "default"] = defaults_df.loc[typ_b, "default"].astype(
-            typ
-        )
-
-    # Initialize Component
-    all_components[list_name] = ComponentType(
-        name=name,
-        list_name=list_name,
-        description=description,
-        category=category,
-        defaults=defaults_df,
-        standard_types=standard_types_df,
-    )
+    def attrs(self) -> pd.DataFrame:
+        return self.defaults
 
 
-def _load_default_component_types(
-    component_df: pd.DataFrame, attrs_path: Path, standard_types_path: Path
-) -> None:
-    """
-    Load default component types from package data.
-
-    Function is called during package import and should not be used otherwise.
-
-    Parameters
-    ----------
-    component_df : pandas.DataFrame
-        DataFrame which lists all default components. E.g. `/pypsa/data/components.csv`.
-    attrs_path : pathlib.Path
-        Path to the default attributes dir. E.g. `/pypsa/data/default_components/`.
-    standard_types_path : pathlib.Path
-        Path to the standard types dir. E.g. `/pypsa/data/standard_types/`.
-
-    """
-    for c_name, row in component_df.iterrows():
-        # Read in defaults attributes
-        attrs_file_path = attrs_path / f"{row.list_name}.csv"
-        if not attrs_file_path.exists():
-            msg = (
-                f"Could not find {attrs_path}. For each component, there must be a "
-                "corresponding file for its attributes."
-            )
-            raise FileNotFoundError(msg)
-        attrs = pd.read_csv(attrs_file_path, index_col=0, na_values="n/a")
-
-        # Read in standard types
-        types_paths = standard_types_path / f"{row.list_name}.csv"
-        if not types_paths.exists():
-            standard_types = None
-        else:
-            standard_types = pd.read_csv(types_paths, index_col=0)
-
-        add_component_type(
-            name=c_name,
-            list_name=row.list_name,
-            description=row.description,
-            category=row.category,
-            defaults_df=attrs,
-            standard_types_df=standard_types,
-        )
-
-
-def get(name: str) -> ComponentType:
-    """
-    Get component type instance from package wide component types library.
-
-    The function is used to get the package default components but can also be used to
-    get custom components. During network creation, the type instance is not needed but
-    to pass a component type name as a string to the network constructor, a custom
-    component must be added to the package wide component types library first.
-
-    Parameters
-    ----------
-    name : str
-        Name of the component type.
-
-    Returns
-    -------
-    pypsa.components.types.ComponentType
-        Component type instance.
-
-    Examples
-    --------
-    >>> import pypsa
-    >>> pypsa.components.types.get("Generator")
-    'Generator' Component Type
-
-    """
-    if name in COMPONENT_ALIAS_DICT:
-        name = COMPONENT_ALIAS_DICT[name]
+def _get_component_data(component: str, key: str) -> pd.DataFrame | str | None:
     try:
-        return all_components[name]
-    except KeyError:
+        cname = ComponentTypeEnum(component).value
+    except ValueError:
         msg = (
-            f"Component type '{name}' not found. If you use a custom component, make "
-            f"sure to have it added. Available types are: "
-            f"{list_as_string(all_components)}."
+            f"`{component}` is not a default component type. If you want to use a "
+            "custom component type, just provide data for all attributes."
         )
         raise ValueError(msg)
 
-
-def check_if_added(components: str | Sequence) -> None:
-    """
-    Check if components are registered package-wide.
-
-    Parameters
-    ----------
-    components : list of str
-        List of component type names.
-
-    Raises
-    ------
-    ValueError
-        If a component is not registered package-wide.
-
-    """
-    if np.isscalar(components):
-        components = [components]
-
-    # Make sure any custom components are registered package-wide
-    if not_registered := [
-        c_name for c_name in components if c_name not in all_components.keys()
-    ]:
-        msg = (
-            f"Network contains custom components which are not registered "
-            f"package-wide. Add them first: {not_registered}components_"
+    if key == "defaults":
+        return pd.read_csv(f"pypsa/data/component_attrs/{cname}.csv", index_col=0)
+    elif key == "standard_types":
+        try:
+            return pd.read_csv(f"pypsa/data/standard_types/{cname}.csv", index_col=0)
+        except FileNotFoundError:
+            return None
+    elif key == "description":
+        return str(
+            pd.read_csv("pypsa/data/components.csv", index_col=0).loc[
+                cname, "description"
+            ]
         )
+    elif key == "category":
+        return str(
+            pd.read_csv("pypsa/data/components.csv", index_col=0).loc[cname, "category"]
+        )
+    else:
+        msg = f"`{key}` is not a valid key."
         raise ValueError(msg)
-
-
-# Load default component types
-_load_default_component_types(
-    component_df=component_types_df,
-    attrs_path=_attrs_path,
-    standard_types_path=_standard_types_path,
-)

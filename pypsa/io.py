@@ -14,21 +14,18 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.request import urlretrieve
 
-from pypsa.common import check_optional_dependency, deprecated_common_kwargs
-
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
     from pathlib import Path
 
-import geopandas as gpd
 import numpy as np
 import pandas as pd
 import validators
 import xarray as xr
-from deprecation import deprecated
 from pyproj import CRS
 
+from pypsa.common import check_optional_dependency, deprecated_common_kwargs
 from pypsa.descriptors import update_linkports_component_attrs
 
 if TYPE_CHECKING:
@@ -587,11 +584,7 @@ def _export_to_exporter(
                 and pd.isnull(static[col]).all()
             ):
                 continue
-            if (
-                col in attrs.index
-                and static[col].dtype == attrs.at[col, "dtype"]
-                and (static[col] == attrs.at[col, "default"]).all()
-            ):
+            if col in attrs.index and (static[col] == attrs.at[col, "default"]).all():
                 continue
 
             col_export.append(col)
@@ -950,12 +943,28 @@ def _import_from_importer(
         if component == "Link":
             update_linkports_component_attrs(n, where=df)
 
-        n.add(component, df.index, **df)
+        if skip_time:
+            n.add(component, df.index, **df, ignore_checks=True)
+        else:
+            time_dict = {
+                attr: dyn_df.set_index(n.snapshots)
+                for attr, dyn_df in importer.get_series(list_name)
+            }
 
-        if not skip_time:
-            for attr, df in importer.get_series(list_name):
-                df.set_index(n.snapshots, inplace=True)
-                _import_series_from_df(n, df, component, attr)
+            # Cast existing static attribiutes to dynamic to handle the case where
+            # both static and dynamic data is stored
+            needs_upscaling = list(set(time_dict.keys()) & set(df.columns))
+            if needs_upscaling:
+                for attr in needs_upscaling:
+                    logger.info(
+                        "Transforming static attribute %s from static to dynamic since "
+                        " a component with dynamic data is being added.",
+                        attr,
+                    )
+                    time_dict[attr][df[attr].index] = df[attr].values
+                    df = df.drop(columns=attr)
+
+            n.add(component, df.index, **df, **time_dict, ignore_checks=True)
 
         logger.debug(getattr(n, list_name))
 
@@ -965,291 +974,6 @@ def _import_from_importer(
         f"Imported network {str(basename or n.name or '<unnamed>')} "
         f"has {', '.join(imported_components)}"
     )
-
-
-def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFrame:
-    """
-    Sort axis of DataFrame according to the order of attrs_list.
-
-    Attributes not in attrs_list are appended at the end. Attributes in the list but
-    not in the DataFrame are ignored.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        DataFrame to sort
-    attrs_list : list
-        List of attributes to sort by
-    axis : int
-        Axis to sort (0 for index, 1 for columns)
-
-    Returns
-    -------
-    pandas.DataFrame
-    """
-
-    df_cols_set = set(df.columns if axis == 1 else df.index)
-
-    existing_cols = [col for col in attrs_list if col in df_cols_set]
-    remaining_cols = list(df_cols_set - set(attrs_list))
-
-    return df.reindex(existing_cols + remaining_cols, axis=axis)
-
-
-@deprecated(
-    deprecated_in="0.29",
-    removed_in="1.0",
-    details="Use `n.add` instead. E.g. `n.add(class_name, df.index, **df)`.",
-)
-def import_components_from_dataframe(
-    n: Network, dataframe: pd.DataFrame, cls_name: str
-) -> None:
-    """
-    Import components from a pandas DataFrame.
-
-    This function is deprecated. Use :py:meth`pypsa.Network.add` instead. To get the
-    same behavior for importing components from a DataFrame, use
-    `n.add(cls_name, df.index, **df)`.
-
-    If columns are missing then defaults are used. If extra columns are added, these
-    are left in the resulting component dataframe.
-
-    Parameters
-    ----------
-    dataframe : pandas.DataFrame
-        A DataFrame whose index is the names of the components and
-        whose columns are the non-default attributes.
-    cls_name : string
-        Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
-
-    See Also
-    --------
-    pypsa.Network.madd
-    """
-    n.add(cls_name, dataframe.index, **dataframe)
-
-
-@deprecated(
-    deprecated_in="0.29",
-    removed_in="1.0",
-    details="Use `n.add` instead.",
-)
-def import_series_from_dataframe(
-    n: Network, dataframe: pd.DataFrame, cls_name: str, attr: str
-) -> None:
-    """
-    Import time series from a pandas DataFrame.
-
-    This function is deprecated. Use :py:meth:`pypsa.Network.add` instead, but it will
-    not work with the same data structure. To get a similar behavior, use
-    `n.dynamic(class_name)[attr] = df` but make sure that the index is aligned. Also note
-    that this is overwriting the attribute dataframe, not adding to it as before.
-    It is better to use :py:meth:`pypsa.Network.add` to import time series data.
-
-    Parameters
-    ----------
-    dataframe : pandas.DataFrame
-        A DataFrame whose index is ``n.snapshots`` and
-        whose columns are a subset of the relevant components.
-    cls_name : string
-        Name of class of component
-    attr : string
-        Name of time-varying series attribute
-
-    --------
-    """
-    _import_series_from_df(n, dataframe, cls_name, attr)
-
-
-def _import_components_from_df(
-    n: Network, df: pd.DataFrame, cls_name: str, overwrite: bool = False
-) -> None:
-    """
-    Import components from a pandas DataFrame.
-
-    If columns are missing then defaults are used.
-
-    If extra columns are added, these are left in the resulting component dataframe.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        A DataFrame whose index is the names of the components and
-        whose columns are the non-default attributes.
-    cls_name : string
-        Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
-    """
-    attrs = n.components[cls_name]["attrs"]
-
-    static_attrs = attrs[attrs.static].drop("name")
-    non_static_attrs = attrs[~attrs.static]
-
-    if cls_name == "Link":
-        update_linkports_component_attrs(n, where=df)
-
-    # Clean dataframe and ensure correct types
-    df = pd.DataFrame(df)
-    df.index = df.index.astype(str)
-
-    # Fill nan values with default values
-    df = df.fillna(attrs["default"].to_dict())
-
-    for k in static_attrs.index:
-        if k not in df.columns:
-            df[k] = static_attrs.at[k, "default"]
-        else:
-            if static_attrs.at[k, "type"] == "string":
-                df[k] = df[k].replace({np.nan: ""})
-            if static_attrs.at[k, "type"] == "int":
-                df[k] = df[k].fillna(0)
-            if df[k].dtype != static_attrs.at[k, "typ"]:
-                if static_attrs.at[k, "type"] == "geometry":
-                    geometry = df[k].replace({"": None, np.nan: None})
-                    from shapely.geometry.base import BaseGeometry
-
-                    if geometry.apply(lambda x: isinstance(x, BaseGeometry)).all():
-                        df[k] = gpd.GeoSeries(geometry)
-                    else:
-                        df[k] = gpd.GeoSeries.from_wkt(geometry)
-                else:
-                    df[k] = df[k].astype(static_attrs.at[k, "typ"])
-
-    # check all the buses are well-defined
-    # TODO use func from consistency checks
-    for attr in [attr for attr in df if attr.startswith("bus")]:
-        # allow empty buses for multi-ports
-        port = int(attr[-1]) if attr[-1].isdigit() else 0
-        mask = ~df[attr].isin(n.buses.index)
-        if port > 1:
-            mask &= df[attr].ne("")
-        missing = df.index[mask]
-        if len(missing) > 0:
-            logger.warning(
-                "The following %s have buses which are not defined:\n%s",
-                cls_name,
-                missing,
-            )
-
-    non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-    old_static = n.static(cls_name)
-    new_static = df.drop(non_static_attrs_in_df, axis=1)
-
-    # Handle duplicates
-    duplicated_components = old_static.index.intersection(new_static.index)
-    if len(duplicated_components) > 0:
-        if not overwrite:
-            logger.warning(
-                "The following %s are already defined and will be skipped "
-                "(use overwrite=True to overwrite): %s",
-                n.components[cls_name]["list_name"],
-                ", ".join(duplicated_components),
-            )
-            new_static = new_static.drop(duplicated_components)
-        else:
-            old_static = old_static.drop(duplicated_components)
-
-    # Concatenate to new dataframe
-    if not old_static.empty:
-        new_static = pd.concat((old_static, new_static), sort=False)
-
-    if cls_name == "Shape":
-        new_static = gpd.GeoDataFrame(new_static, crs=n.crs)
-
-    # Align index (component names) and columns (attributes)
-    new_static = _sort_attrs(new_static, attrs.index, axis=1)
-
-    new_static.index.name = cls_name
-    setattr(n, n.components[cls_name]["list_name"], new_static)
-
-    # Now deal with time-dependent properties
-
-    dynamic = n.dynamic(cls_name)
-
-    for k in non_static_attrs_in_df:
-        # If reading in outputs, fill the outputs
-        dynamic[k] = dynamic[k].reindex(
-            columns=new_static.index, fill_value=non_static_attrs.at[k, "default"]
-        )
-        if overwrite:
-            dynamic[k].loc[:, df.index] = df.loc[:, k].values
-        else:
-            new_components = df.index.difference(duplicated_components)
-            dynamic[k].loc[:, new_components] = df.loc[new_components, k].values
-
-    setattr(n, n.components[cls_name]["list_name"] + "_t", dynamic)
-
-
-def _import_series_from_df(
-    n: Network,
-    df: pd.DataFrame,
-    cls_name: str,
-    attr: str,
-    overwrite: bool = False,
-) -> None:
-    """
-    Import time series from a pandas DataFrame.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        A DataFrame whose index is ``n.snapshots`` and
-        whose columns are a subset of the relevant components.
-    cls_name : string
-        Name of class of component
-    attr : string
-        Name of time-varying series attribute
-    """
-    static = n.static(cls_name)
-    dynamic = n.dynamic(cls_name)
-    list_name = n.components[cls_name]["list_name"]
-
-    if not overwrite:
-        try:
-            df = df.drop(df.columns.intersection(dynamic[attr].columns), axis=1)
-        except KeyError:
-            pass  # Don't drop any columns if the data doesn't exist yet
-
-    df.columns.name = cls_name
-    df.index.name = "snapshot"
-
-    # Check if components exist in static df
-    diff = df.columns.difference(static.index)
-    if len(diff) > 0:
-        logger.warning(
-            f"Components {diff} for attribute {attr} of {cls_name} "
-            f"are not in main components dataframe {list_name}"
-        )
-
-    # Get all attributes for the component
-    attrs = n.components[cls_name]["attrs"]
-
-    # Add all unknown attributes to the dataframe without any checks
-    expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index
-    if attr not in expected_attrs:
-        if overwrite or attr not in dynamic:
-            dynamic[attr] = df
-        return
-
-    # Check if any snapshots are missing
-    diff = n.snapshots.difference(df.index)
-    if len(diff):
-        logger.warning(
-            f"Snapshots {diff} are missing from {attr} of {cls_name}."
-            f" Filling with default value '{attrs.loc[attr].default}'"
-        )
-        df = df.reindex(n.snapshots, fill_value=attrs.loc[attr].default)
-
-    if not attrs.loc[attr].static:
-        dynamic[attr] = dynamic[attr].reindex(
-            columns=df.columns.union(static.index),
-            fill_value=attrs.loc[attr].default,
-        )
-    else:
-        dynamic[attr] = dynamic[attr].reindex(
-            columns=(df.columns.union(dynamic[attr].columns))
-        )
-
-    dynamic[attr].loc[n.snapshots, df.columns] = df.loc[n.snapshots, df.columns]
 
 
 @deprecated_common_kwargs
@@ -1527,6 +1251,7 @@ def import_from_pypower_ppc(
             component,
             pdf[n.components[component]["list_name"]].index,
             **pdf[n.components[component]["list_name"]],
+            ignore_checks=True,
         )
 
     n.generators["control"] = n.generators.bus.map(n.buses["control"])
@@ -1741,7 +1466,12 @@ def import_from_pandapower_net(
         "Transformer",
         "ShuntImpedance",
     ]:
-        n.add(component_name, d[component_name].index, **d[component_name])
+        n.add(
+            component_name,
+            d[component_name].index,
+            **d[component_name],
+            ignore_checks=True,
+        )
 
     # amalgamate buses connected by closed switches
 

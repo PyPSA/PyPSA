@@ -142,6 +142,7 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
             for c in n.iterate_components()
             if "carrier" in c.static
             for carrier in c.static.carrier.unique()
+            if not pd.isna
         }
     )
     n.add("Carrier", carriers)

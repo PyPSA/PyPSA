@@ -3,7 +3,9 @@
 from typing import Any
 
 from pypsa.components.abstract import Components
-from pypsa.components.components import Component, Generators, GenericComponents
+from pypsa.components.components_ import Component, Generators, GenericComponents
+from pypsa.components.store import ComponentsStore
+from pypsa.components.types import ComponentType, ComponentTypeEnum
 
 
 def __getattr__(name: str) -> Any:
@@ -17,8 +19,11 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = [
-    "Component",
+    "ComponentType",
+    "ComponentTypeEnum",
+    "ComponentsStore",
     "Components",
     "GenericComponents",
     "Generators",
+    "Component",
 ]

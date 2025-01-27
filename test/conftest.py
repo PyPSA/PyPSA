@@ -82,7 +82,11 @@ def ac_dc_network_mi(ac_dc_network):
     n.investment_periods = [2013]
     gens_i = n.generators.index
     rng = np.random.default_rng()  # Create a random number generator
-    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
+    n.generators_t["p"] = pd.DataFrame(
+        rng.random(size=(len(n.snapshots), len(gens_i))),
+        index=n.snapshots,
+        columns=gens_i,
+    )
     return n
 
 

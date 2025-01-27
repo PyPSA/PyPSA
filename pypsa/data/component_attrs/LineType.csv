@@ -1,0 +1,10 @@
+attribute,status,dynamic,type,nullable,unit,default,description
+name,required,False,str,True,,,Unique name
+f_nom,required,False,float,True,Hz,50.0,Nominal frequency
+r_per_length,required,False,float,True,Ohm per km,0.0,Series resistance per length
+x_per_length,required,False,float,True,Ohm per km,0.0,Series resistance per length
+c_per_length,configurable,False,float,True,nF per km,0.0,Shunt capacitance per length
+i_nom,configurable,False,float,True,kA,0.0,Nominal current
+mounting,configurable,False,str,True,,ol,"Can be ""ol"" for overhead line or ""cs"" for cable"
+cross_section,configurable,False,float,True,mm2,0.0,Wire cross-section
+references,configurable,False,str,True,,,References for electrical parameters
