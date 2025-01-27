@@ -57,9 +57,24 @@ Features
 Bug fixes
 ---------
 
+* The parameter threshold in function get_strong_meshed_buses was not considered
+  in the function it self. A kwargs check has been added for providing a own threshold.
+  E.g., get_strongly_meshed_buses (network, threshold=10)
+
+
+`v0.32.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1>`__ (23th Januarary 2025)
+=======================================================================================
+
+Bug fixes
+---------
+
 * The expression module now correctly includes the "Load" component in the
   energy balance calculation. Before the fix, the "Load" component was not
   considered. (https://github.com/PyPSA/PyPSA/pull/1110)
+
+* The optimize/expression module now correctly assigns contributions from branch 
+  components in the `withdrawal` and `supply` functions. Before, there was a wrong 
+  multiplication by -1 for branch components. (https://github.com/PyPSA/PyPSA/pull/1123)
 
 `v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
 =======================================================================================

@@ -4,9 +4,9 @@ on:
   push:
     branches:
     - master
+    - release-branch-v*
   pull_request:
-    branches:
-    - master
+    branches: ['*']
   schedule:
   - cron: "0 5 * * *"
 
