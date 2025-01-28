@@ -329,9 +329,11 @@ class Network:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def __str__(self) -> str:
+        return f"PyPSA Network '{self.name}'" if self.name else "Unnamed PyPSA Network"
+
     def __repr__(self) -> str:
-        header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
-        header += "\n" + "-" * len(header)
+        header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
             for c in self.iterate_components()
@@ -1720,6 +1722,32 @@ class Network:
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
+
+    def rename_component_names(
+        self, component: str | Components, **kwargs: str
+    ) -> None:
+        """
+        Rename component names.
+
+        Rename components of component type and also update all cross-references of
+        the component in network.
+
+        Parameters
+        ----------
+        component : str or pypsa.Components
+            Component type or instance of pypsa.Components.
+        **kwargs
+            Mapping of old names to new names.
+
+        Returns
+        -------
+        None
+
+
+
+        """
+        c = as_components(self, component)
+        c.rename_component_names(**kwargs)
 
 
 class SubNetwork:
