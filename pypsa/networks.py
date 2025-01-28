@@ -1743,7 +1743,31 @@ class Network:
         -------
         None
 
+        Examples
+        --------
+        Define some network
+        >>> import pypsa
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", ["bus1"])
+        Index(['bus1'], dtype='object')
+        >>> n.add("Generator", ["gen1"], bus="bus1")
+        Index(['gen1'], dtype='object')
 
+        Now rename the bus component
+
+        >>> n.rename_component_names("Bus", bus1="bus2")
+
+        Which updates the bus components
+
+        >>> n.buses.index
+        Index(['bus2'], dtype='object', name='Bus')
+
+        and all references in the network
+
+        >>> n.generators.bus
+        Generator
+        gen1    bus2
+        Name: bus, dtype: object
 
         """
         c = as_components(self, component)
