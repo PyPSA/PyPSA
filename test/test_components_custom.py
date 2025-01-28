@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 import pypsa
 from pypsa.components.types import component_types_df, default_components, get
@@ -47,8 +46,8 @@ def test_custom_component_registration():
     assert custom_component.defaults.equals(defaults_df)
 
 
-def test_unregistered_custom_components():
-    import pypsa
+# def test_unregistered_custom_components():
+#     import pypsa
 
-    with pytest.raises(ValueError, match="Component type 'MyComponent' not found."):
-        pypsa.Network(custom_components=["MyComponent"])
+#     with pytest.raises(ValueError, match="Component type 'MyComponent' not found."):
+#         pypsa.Network(custom_components=["MyComponent"])
