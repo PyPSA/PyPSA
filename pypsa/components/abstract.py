@@ -569,6 +569,19 @@ class Components(ComponentsData, ABC):
         pd.Series
             Series with attribute names as index and units as values.
 
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.units.head() # doctest: +SKIP
+                       unit
+        attribute
+        p_nom            MW
+        p_nom_mod        MW
+        p_nom_min        MW
+        p_nom_max        MW
+        p_min_pu   per unit
+
         """
         return self.defaults.unit[self.defaults.unit.notnull()].to_frame()
 
@@ -582,6 +595,13 @@ class Components(ComponentsData, ABC):
         pd.Series
             Series with attribute names as index and port names as values.
 
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.lines
+        >>> c.ports
+        ['0', '1']
+
         """
         return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
 
@@ -594,6 +614,13 @@ class Components(ComponentsData, ABC):
         -------
         str
             Name of the nominal attribute of the component.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.nominal_attr
+        'p_nom'
 
         """
         # TODO: move to Component Specific class
