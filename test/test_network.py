@@ -464,6 +464,9 @@ def test_rename_component_names(use_component):
     else:
         n.rename_component_names("Bus", bus1="bus3")
 
+    with pytest.raises(ValueError):
+        n.rename_component_names("Bus", bus1=10)
+
     assert "bus1" not in n.c.buses.static.index
     assert "bus1" not in n.c.buses.dynamic.v_mag_pu_set.columns
     assert "bus2" in n.c.buses.static.index
@@ -478,3 +481,14 @@ def test_rename_component_names(use_component):
 
     assert "bus1" not in n.c.generators.static.bus.to_list()
     assert "bus3" in n.c.generators.static.bus.to_list()
+
+
+def test_components_repr(ac_dc_network):
+    n = ac_dc_network
+
+    assert repr(n).startswith("PyPSA Network 'AC-DC'")
+    assert len(repr(n)) > len(str(n))
+
+    n = pypsa.Network()
+    assert repr(n).startswith("Empty Unnamed PyPSA Network")
+    assert len(repr(n)) > len(str(n))

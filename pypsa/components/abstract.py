@@ -636,7 +636,7 @@ class Components(ComponentsData, ABC):
             return nominal_attr[self.ctype.name]
         except KeyError:
             msg = f"Component type '{self.ctype.name}' has no nominal attribute."
-            raise KeyError(msg)
+            raise AttributeError(msg)
 
     # TODO move
     def rename_component_names(self, **kwargs: str) -> None:
