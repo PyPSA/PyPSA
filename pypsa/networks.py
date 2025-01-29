@@ -34,9 +34,7 @@ from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.components.abstract import SubNetworkComponents
 from pypsa.components.components import Component
 from pypsa.components.types import (
-    check_if_added,
     component_types_df,
-    default_components,
 )
 from pypsa.components.types import (
     get as get_component_type,
@@ -262,7 +260,6 @@ class Network:
         import_name: str | Path = "",
         name: str = "",
         ignore_standard_types: bool = False,
-        custom_components: list[str] | None = None,
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
@@ -270,12 +267,10 @@ class Network:
         if override_components is not None or override_component_attrs is not None:
             msg = (
                 "The arguments `override_components` and `override_component_attrs` "
-                "are deprecated. Please use the #TODO"
+                "are deprecated. Please check the release notes: "
+                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0"
             )
             raise DeprecationWarning(msg)
-
-        if custom_components is None:
-            custom_components = []
 
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
@@ -307,7 +302,7 @@ class Network:
         # Define component sets
         self._initialize_component_sets()
 
-        self._initialize_components(custom_components=custom_components)
+        self._initialize_components()
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -398,8 +393,8 @@ class Network:
 
         self.all_components = set(component_types_df.index) - {"Network"}
 
-    def _initialize_components(self, custom_components: list) -> None:
-        components = component_types_df.index.to_list() + custom_components
+    def _initialize_components(self) -> None:
+        components = component_types_df.index.to_list()
 
         self.components = ComponentsStore()
         for c_name in components:
@@ -444,16 +439,6 @@ class Network:
 
         """
         return self.components
-
-    @property
-    def has_custom_components(self) -> bool:
-        """Check if network has custom components."""
-        return bool(set(self.components.keys()) - set(default_components))
-
-    @property
-    def custom_components(self) -> list[str]:
-        """List of custom components."""
-        return list(set(self.components.keys()) - set(default_components))
 
     @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
     def df(self, component_name: str) -> pd.DataFrame:
@@ -1449,14 +1434,8 @@ class Network:
             )
             snapshots_ = pd.Index([], name="snapshot")
 
-        # Check if custom components are registered
-        check_if_added(self.custom_components)
-
         # Setup new network
-        n = self.__class__(
-            ignore_standard_types=ignore_standard_types,
-            custom_components=list(self.components.keys()) + self.custom_components,
-        )
+        n = self.__class__(ignore_standard_types=ignore_standard_types)
 
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
@@ -1545,13 +1524,9 @@ class Network:
         else:
             time_i = slice(None)
 
-        # Check if custom components are registered
-        check_if_added(self.custom_components)
-
         # Setup new network
-        n = self.__class__(
-            custom_components=list(self.components.keys()) + self.custom_components
-        )
+        n = self.__class__()
+
         n.add(
             "Bus",
             pd.DataFrame(self.buses.loc[key]).assign(sub_network="").index,

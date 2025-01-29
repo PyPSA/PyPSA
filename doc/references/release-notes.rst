@@ -31,16 +31,19 @@ Features
 
   * This is an experimental feature, will be developed further and is not yet 
     recommended for general use. More features, documentation and examples will 
-    follow. Most users will not notice any changes. If you wanna play around with
-    it, you could do so for example via: ``c = n.components.generators``.
-  
-  * While the changes try to maintain full backwards compatibility, there may be some 
-    breaking changes or bugs, especially if you use custom components or custom 
-    component attributes in your network attributes in your network. 
-  
-  * Please report any issues and bugs you might encounter
-    via the `issue tracker <https://github.com/PyPSA/PyPSA/issues/new>`__ on 
-    GitHub.
+    follow. Most users will not notice any changes.
+
+* Deprecation of custom components (https://github.com/PyPSA/PyPSA/pull/1130)
+
+   * This version of PyPSA deprecates custom components. While we don't see many use 
+     cases for them, they might be added in an improved way in future again. For a 
+     potential reimplementation we would be happy to hear your use case and 
+     requirements via the `issue tracker <https://www.github.com/PyPSA/PyPSA/issues>`_.
+   
+   * If you don't know what this is or have never used the ``override_components``
+     and ``override_component_attrs`` arguments during Network initialisation, you can
+     safely ignore this deprecation.
+     
 
 * New network attributes :meth:`n.timesteps <pypsa.networks.Network.timesteps>`, 
   :meth:`n.periods <pypsa.networks.Network.periods>` and 
