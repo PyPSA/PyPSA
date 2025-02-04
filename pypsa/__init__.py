@@ -29,7 +29,7 @@ from pypsa import (
     plot,
     statistics,
 )
-from pypsa._config import (
+from pypsa._options import (
     describe_options,
     get_option,
     option_context,
