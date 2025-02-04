@@ -45,6 +45,11 @@ Features
      safely ignore this deprecation.
      
 
+* Added PyPSA options architecture via `pypsa.get_option`, `pypsa.set_option` and
+  `pypsa.describe_options`. This allows to set and get global options for PyPSA and
+  mimics the options setting behavior of pandas. Currently there are not many options
+  available, but this will be extended in future.
+
 * New network attributes :meth:`n.timesteps <pypsa.networks.Network.timesteps>`, 
   :meth:`n.periods <pypsa.networks.Network.periods>` and 
   :meth:`n.has_periods <pypsa.networks.Network.has_periods>` to simplified level access

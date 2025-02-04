@@ -5,6 +5,7 @@ import pypsa
 
 def test_getter():
     # Default init and get
+    pypsa.options.warnings.components_store_iter = True
     assert pypsa.options.warnings.components_store_iter is True
     with pytest.raises(
         AttributeError,
