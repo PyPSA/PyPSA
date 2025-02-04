@@ -72,3 +72,41 @@ def test_setter_method():
 
 def test_describe_method():
     pypsa.describe_options()
+
+
+def test_option_context():
+    """Test option_context functionality."""
+    # Basic usage
+    assert pypsa.options.warnings.components_store_iter is True
+    with pypsa.option_context("warnings.components_store_iter", False):
+        assert pypsa.options.warnings.components_store_iter is False
+    assert pypsa.options.warnings.components_store_iter is True
+
+    # Nested contexts
+    with pypsa.option_context("warnings.components_store_iter", False):
+        assert pypsa.options.warnings.components_store_iter is False
+        with pypsa.option_context("warnings.components_store_iter", True):
+            assert pypsa.options.warnings.components_store_iter is True
+        assert pypsa.options.warnings.components_store_iter is False
+
+    # Exception handling
+    with pytest.raises(ValueError):
+        with pypsa.option_context("warnings.components_store_iter", False):
+            raise ValueError()
+    assert pypsa.options.warnings.components_store_iter is True
+
+    # Invalid arguments
+    with pytest.raises(ValueError, match="Arguments must be paired"):
+        with pypsa.option_context("warnings.components_store_iter"):
+            pass
+
+    with pytest.raises(AttributeError):
+        with pypsa.option_context("invalid.option", True):
+            pass
+
+    # Different value types
+    test_values = [1, "test", None, 3.14, [1, 2, 3]]
+    for val in test_values:
+        with pypsa.option_context("warnings.components_store_iter", val):
+            assert pypsa.options.warnings.components_store_iter == val
+        assert pypsa.options.warnings.components_store_iter is True

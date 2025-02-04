@@ -45,8 +45,9 @@ Features
      safely ignore this deprecation.
      
 
-* Added PyPSA options architecture via `pypsa.get_option`, `pypsa.set_option` and
-  `pypsa.describe_options`. This allows to set and get global options for PyPSA and
+* Added PyPSA options architecture via :meth:`pypsa.get_option`, :meth:`pypsa.set_option`, 
+  :meth:`pypsa.describe_options` and :meth:`pypsa.option_context`.
+  This allows to set and get global options for PyPSA and
   mimics the options setting behavior of pandas. Currently there are not many options
   available, but this will be extended in future.
 

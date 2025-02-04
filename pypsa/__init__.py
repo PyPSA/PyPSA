@@ -29,7 +29,13 @@ from pypsa import (
     plot,
     statistics,
 )
-from pypsa._config import describe_options, get_option, options, set_option
+from pypsa._config import (
+    describe_options,
+    get_option,
+    option_context,
+    options,
+    set_option,
+)
 from pypsa.components.abstract import Components
 from pypsa.networks import Network, SubNetwork
 
@@ -45,6 +51,7 @@ __all__ = [
     "set_option",
     "get_option",
     "describe_options",
+    "option_context",
     "clustering",
     "common",
     "components",
