@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
 from deprecation import deprecated
 
+from pypsa._options import get_option
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 logger = logging.getLogger(__name__)
@@ -180,4 +182,26 @@ class ComponentsStore(dict):
         """
         Value iterator over components in store.
         """
+        if get_option("warnings.components_store_iter"):
+            warnings.warn(
+                "Iterating over `n.components` yields the values instead of the keys from "
+                "from now. This behavior might be breaking. Use `n.components.keys()` to "
+                "iterate over the keys. To suppress this warning set "
+                "`pypsa.options.warnings.components_store_iter = False`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return iter(self.values())
+
+    def __contains__(self, item: Any) -> bool:
+        """
+        Check if component is in store.
+        """
+        msg = (
+            "Checking if a component is in `n.components` using the 'in' operator "
+            "is deprecated. Use `item in n.components.keys()` to retain the old "
+            "behavior. But with v0.33.0 custom components are deprecated and "
+            "therefore keys in `n.components` never change. Check the release "
+            "notes for more information."
+        )
+        raise DeprecationWarning(msg)
