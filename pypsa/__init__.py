@@ -29,6 +29,7 @@ from pypsa import (
     plot,
     statistics,
 )
+from pypsa._config import describe_options, get_option, options, set_option
 from pypsa.components.abstract import Components
 from pypsa.networks import Network, SubNetwork
 
@@ -40,6 +41,10 @@ assert match, f"Could not determine release_version of pypsa: {__version__}"
 release_version = match.group(0)
 
 __all__ = [
+    "options",
+    "set_option",
+    "get_option",
+    "describe_options",
     "clustering",
     "common",
     "components",
