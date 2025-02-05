@@ -33,7 +33,7 @@ class OptionCategory:
     _option_docs: dict = {}
 
     def __init__(self) -> None:
-        self._options = {}
+        self._options: dict = {}
 
     def __getattr__(self, name: str) -> Any:
         if name not in self._valid_options:

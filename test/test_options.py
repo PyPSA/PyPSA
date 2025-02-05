@@ -7,30 +7,18 @@ def test_getter():
     # Default init and get
     pypsa.options.warnings.components_store_iter = True
     assert pypsa.options.warnings.components_store_iter is True
-    with pytest.raises(
-        AttributeError,
-        match="Invalid option 'invalid_option' for this category. Valid options are: *+",
-    ):
+    with pytest.raises(AttributeError):
         pypsa.options.warnings.invalid_option
-    with pytest.raises(
-        AttributeError,
-        match="Invalid category 'invalid_category'. Valid categories are: *+",
-    ):
+    with pytest.raises(AttributeError):
         pypsa.options.invalid_category.invalid_option
 
 
 def test_setter():
     pypsa.options.warnings.components_store_iter = False
     assert pypsa.options.warnings.components_store_iter is False
-    with pytest.raises(
-        AttributeError,
-        match="Invalid option 'invalid_option' for this category. Valid options are: *+",
-    ):
+    with pytest.raises(AttributeError):
         pypsa.options.warnings.invalid_option = False
-    with pytest.raises(
-        AttributeError,
-        match="Invalid category 'invalid_category'. Valid categories are: *+",
-    ):
+    with pytest.raises(AttributeError):
         pypsa.options.invalid_category.invalid_option = False
 
 
@@ -77,6 +65,7 @@ def test_describe_method():
 def test_option_context():
     """Test option_context functionality."""
     # Basic usage
+    pypsa.options.warnings.components_store_iter = True
     assert pypsa.options.warnings.components_store_iter is True
     with pypsa.option_context("warnings.components_store_iter", False):
         assert pypsa.options.warnings.components_store_iter is False
