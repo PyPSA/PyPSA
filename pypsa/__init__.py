@@ -34,7 +34,8 @@ from pypsa.common import check_for_update
 from pypsa.components.abstract import Components
 from pypsa.networks import Network, SubNetwork
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("PyPSA")
+
 # e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
 __version__ = version("pypsa")
 # e.g. "0.17.0" # TODO, in the network structure it should use the dev version
@@ -42,7 +43,11 @@ match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
 assert match, f"Could not determine release_version of pypsa: {__version__}"
 release_version = match.group(0)
 
-logger.info(check_for_update(__version__, "PyPSA", "pypsa"))
+# Log update message if available
+update_msg = check_for_update(release_version, "PyPSA", "pypsa")
+if update_msg:
+    logger.info(update_msg)
+
 __all__ = [
     "clustering",
     "common",
