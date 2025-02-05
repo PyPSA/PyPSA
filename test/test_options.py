@@ -77,6 +77,7 @@ def test_describe_method():
 def test_option_context():
     """Test option_context functionality."""
     # Basic usage
+    pypsa.options.warnings.components_store_iter = True
     assert pypsa.options.warnings.components_store_iter is True
     with pypsa.option_context("warnings.components_store_iter", False):
         assert pypsa.options.warnings.components_store_iter is False
