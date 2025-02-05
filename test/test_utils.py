@@ -1,4 +1,5 @@
 import warnings
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -6,6 +7,7 @@ import pytest
 
 from pypsa.common import (
     as_index,
+    check_for_update,
     deprecated_common_kwargs,
     deprecated_kwargs,
     equals,
@@ -168,3 +170,53 @@ def test_list_as_string():
     # Test empty lists
     assert list_as_string([]) == ""
     assert list_as_string([], style="bullet-list") == ""
+
+
+@pytest.fixture
+def mock_response():
+    """Create a mock response object."""
+
+    class MockResponse:
+        def __init__(self, data):
+            self._data = data
+
+        def read(self):
+            return f'{{"tag_name": "v{self._data}"}}'.encode()
+
+    return MockResponse
+
+
+@pytest.mark.parametrize(
+    "current,latest,expected_message",
+    [
+        # Test case format: (current_version, latest_version, expected_message)
+        (
+            "1.0.0",
+            "2.0.0",
+            "New version 2.0.0 available! (Current: 1.0.0)",
+        ),  # newer version
+        ("1.0.0", "1.0.0", ""),  # same version
+        ("2.0.0", "1.0.0", ""),  # current is newer
+        (
+            "1.2.2",
+            "1.2.3",
+            "New version 1.2.3 available! (Current: 1.2.2)",
+        ),  # minor update
+    ],
+)
+def test_check_for_update(mock_response, current, latest, expected_message):
+    """Test version comparison scenarios."""
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.return_value = mock_response(latest)
+
+        result = check_for_update(current, "test_owner", "test_repo")
+        assert result == expected_message
+
+
+def test_check_for_update_error_handling():
+    """Test error handling scenarios."""
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = Exception("Connection failed")
+
+        result = check_for_update("1.0.0", "test_owner", "test_repo")
+        assert result == ""

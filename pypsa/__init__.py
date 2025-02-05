@@ -12,6 +12,7 @@ __copyright__ = (
     "MIT License"
 )
 
+import logging
 import re
 from importlib.metadata import version
 
@@ -29,8 +30,11 @@ from pypsa import (
     plot,
     statistics,
 )
+from pypsa.common import check_for_update
 from pypsa.components.abstract import Components
 from pypsa.networks import Network, SubNetwork
+
+logger = logging.getLogger("PyPSA")
 
 # e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
 __version__ = version("pypsa")
@@ -38,6 +42,11 @@ __version__ = version("pypsa")
 match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
 assert match, f"Could not determine release_version of pypsa: {__version__}"
 release_version = match.group(0)
+
+# Log update message if available
+update_msg = check_for_update(release_version, "PyPSA", "pypsa")
+if update_msg:
+    logger.info(update_msg)
 
 __all__ = [
     "clustering",
