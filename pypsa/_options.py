@@ -33,7 +33,7 @@ class OptionCategory:
     _option_docs: dict = {}
 
     def __init__(self) -> None:
-        self._options = {}
+        self._options: dict = {}
 
     def __getattr__(self, name: str) -> Any:
         if name not in self._valid_options:
@@ -144,8 +144,8 @@ def get_option(option_name: str) -> Any:
     set_option : Set value for option
     describe_options : Print documentation for all options
 
-    Example
-    -------
+    Examples
+    --------
     >>> import pypsa
     >>> pypsa.get_option("warnings.components_store_iter")
     True
@@ -183,8 +183,8 @@ def set_option(option_name: str, value: Any) -> None:
     get_option : Get value for option
     describe_options : Print documentation for all options
 
-    Example
-    -------
+    Examples
+    --------
     >>> import pypsa
     >>> pypsa.set_option("warnings.components_store_iter", False)
 
@@ -205,17 +205,13 @@ def describe_options() -> None:
     """
     Print documentation for all options.
 
-    Returns:
-    -------
-    None
-
-    See Also:
+    See Also
     --------
     get_option : Get value for option
     set_option : Set value for option
 
-    Example:
-    -------
+    Examples
+    --------
     >>> import pypsa
     >>> pypsa.describe_options()
     PyPSA Options
@@ -248,8 +244,8 @@ def option_context(*args: Any) -> Generator[None, None, None]:
     set_option : Set value for option
     describe_options : Print documentation for all options
 
-    Example
-    -------
+    Examples
+    --------
     >>> import pypsa
     >>> with pypsa.option_context("warnings.components_store_iter", False):
     ...     # do something with temporary option value

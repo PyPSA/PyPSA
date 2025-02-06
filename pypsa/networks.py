@@ -918,9 +918,9 @@ class Network:
 
     @snapshot_weightings.setter
     def snapshot_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(
-            self.snapshots
-        ), "Weightings not defined for all snapshots."
+        assert df.index.equals(self.snapshots), (
+            "Weightings not defined for all snapshots."
+        )
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
             df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
@@ -1014,9 +1014,9 @@ class Network:
 
     @investment_period_weightings.setter
     def investment_period_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(
-            self.investment_periods
-        ), "Weightings not defined for all investment periods."
+        assert df.index.equals(self.investment_periods), (
+            "Weightings not defined for all investment periods."
+        )
         if isinstance(df, pd.Series):
             logger.info(
                 "Applying weightings to all columns of `investment_period_weightings`"
