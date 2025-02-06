@@ -52,16 +52,16 @@ def test_nomansland_bus(caplog):
     n.add("Generator", "generator1", bus="bus", p_nom=15, marginal_cost=10)
 
     n.consistency_check()
-    assert (
-        "The following buses have no attached components" not in caplog.text
-    ), "warning should not trigger..."
+    assert "The following buses have no attached components" not in caplog.text, (
+        "warning should not trigger..."
+    )
 
     n.add("Bus", "extrabus")
 
     n.consistency_check()
-    assert (
-        "The following buses have no attached components" in caplog.text
-    ), "warning is not working..."
+    assert "The following buses have no attached components" in caplog.text, (
+        "warning is not working..."
+    )
 
     n.optimize()
 
