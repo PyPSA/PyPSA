@@ -184,9 +184,9 @@ class ComponentsStore(dict):
         """
         if get_option("warnings.components_store_iter"):
             warnings.warn(
-                "Iterating over `n.components` yields the values instead of the keys from "
-                "from now. This behavior might be breaking. Use `n.components.keys()` to "
-                "iterate over the keys. To suppress this warning set "
+                "Iterating over `n.components` yields the values instead of keys from "
+                "v0.33.0. This behavior might be breaking. Use `n.components.keys()` "
+                "to iterate over the keys. To suppress this warning set "
                 "`pypsa.options.warnings.components_store_iter = False`.",
                 DeprecationWarning,
                 stacklevel=2,
