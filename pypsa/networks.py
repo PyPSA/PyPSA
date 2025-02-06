@@ -12,6 +12,7 @@ from weakref import ref
 
 from deprecation import deprecated
 
+from pypsa._options import option_context
 from pypsa.common import equals, future_deprecation
 from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
@@ -523,7 +524,8 @@ class Network:
         pandas.DataFrame
 
         """
-        return Dict({value.name: value.defaults for value in self.components})
+        with option_context("warnings.components_store_iter", False):
+            return Dict({value.name: value.defaults for value in self.components})
 
     # ----------------
     # Meta data
