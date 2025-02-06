@@ -2,28 +2,23 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: 
+.. .. warning:: 
   
-  The features listed below are not released yet, but will be part of the next release! 
-  To use the features already you have to install the ``master`` branch, e.g. 
-  ``pip install git+https://github.com/pypsa/pypsa``.
+..   The features listed below are not released yet, but will be part of the next release! 
+..   To use the features already you have to install the ``master`` branch, e.g. 
+..   ``pip install git+https://github.com/pypsa/pypsa``.
 
-* PyPSA `0.33` provides support for the recent Python 3.13 release and drops support 
-  for Python 3.9. While Python 3.9 still gets security updates until October 2025,
-  core dependencies of PyPSA are dropping support for Python 3.9 (e.g. `numpy`) and
-  active support is only provided for the most recent versions 
-  (see `endoflife.date <https://endoflife.date/python>`_). It is recommended to upgrade to the 
-  latest Python version if possible. Note that there might be some issues with
-  Windows and Python 3.13, which are not yet resolved. 
-  (https://github.com/PyPSA/PyPSA/pull/1099)
+`v0.33.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (7th February 2025)
+=======================================================================================
 
 Features
 --------
 
-* New component class structure (https://github.com/PyPSA/PyPSA/pull/1075)
+* New component class structure 
+  (https://github.com/PyPSA/PyPSA/pull/1075, https://github.com/PyPSA/PyPSA/pull/1130)
 
   * Major structural refactoring of how component data is stored and accessed. The new 
     structure adds an extra layer to move all component-specific data from the network 
@@ -32,6 +27,14 @@ Features
   * This is an experimental feature, will be developed further and is not yet 
     recommended for general use. More features, documentation and examples will 
     follow. Most users will not notice any changes.
+
+  * The new additional layer makes it easy to add new features. If you wanna play around
+    with the new components class, see the 
+    `Components class example <https://pypsa.readthedocs.io/en/latest/examples/experimental-components-class.html>`_ 
+    in the documentation. You will find an short introduction and some simple examples 
+    to show which other features could be added in the future. If you have any ideas, 
+    wishes, feedback or suggestions, please let us know via the 
+    `issue tracker <https://www.github.com/PyPSA/PyPSA/issues>`_.
 
 * Deprecation of custom components (https://github.com/PyPSA/PyPSA/pull/1130)
 
@@ -43,13 +46,22 @@ Features
    * If you don't know what this is or have never used the ``override_components``
      and ``override_component_attrs`` arguments during Network initialisation, you can
      safely ignore this deprecation.
-     
+
+* PyPSA `0.33` provides support for the recent Python 3.13 release and drops support 
+  for Python 3.9. While Python 3.9 still gets security updates until October 2025,
+  core dependencies of PyPSA are dropping support for Python 3.9 (e.g. `numpy`) and
+  active support is only provided for the most recent versions 
+  (see `endoflife.date <https://endoflife.date/python>`_). It is recommended to upgrade 
+  to the latest Python version if possible. Note that there might be some issues with
+  Windows and Python 3.13, which are not yet resolved. 
+  (https://github.com/PyPSA/PyPSA/pull/1099)
 
 * Added PyPSA options architecture via :meth:`pypsa.get_option`, :meth:`pypsa.set_option`, 
   :meth:`pypsa.describe_options` and :meth:`pypsa.option_context`.
   This allows to set and get global options for PyPSA and
   mimics the options setting behavior of pandas. Currently there are not many options
-  available, but this will be extended in future.
+  available, but this will be extended in future. 
+  (https://github.com/PyPSA/PyPSA/pull/1134)
 
 * New network attributes :meth:`n.timesteps <pypsa.networks.Network.timesteps>`, 
   :meth:`n.periods <pypsa.networks.Network.periods>` and 
@@ -62,6 +74,10 @@ Features
   ``strict=['unknown_buses']``. :meth:`n.optimize <pypsa.optimization.optimize.optimize>`
   will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
   https://github.com/PyPSA/PyPSA/pull/1112)
+
+* Doctests are now run with the unit tests. They allow to test the documentation 
+  examples, which will improve the quality of docstrings and documentation in future 
+  releases. (https://github.com/PyPSA/PyPSA/pull/1114)
   
 Bug fixes
 ---------
