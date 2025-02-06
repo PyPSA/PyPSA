@@ -57,7 +57,7 @@ Features
   will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
   https://github.com/PyPSA/PyPSA/pull/1112)
 
-* New example in the documentation showing how to implement balancing power constraints.
+* New example in the documentation showing how to implement reserve power constraints.
 
 Bug fixes
 ---------
