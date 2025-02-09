@@ -1,4 +1,3 @@
-
 """
 Statistics Accessor.
 """
@@ -936,11 +935,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             bus_carrier=bus_carrier,
             nice_names=nice_names,
         )
-        df = self._aggregate_components(
-            func, 
-            agg=aggregate_groups, 
-            **kwargs
-        )  # type: ignore
+        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)  # type: ignore
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
@@ -1097,7 +1092,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 efficiency = abs(efficiency)
             weights = get_weightings(n, c)
             try:
-                p = get_operation(n, c).abs() / efficiency * n.df(c).carrier.map(n.carriers.co2_emissions)
+                p = (
+                    get_operation(n, c).abs()
+                    / efficiency
+                    * n.df(c).carrier.map(n.carriers.co2_emissions)
+                )
             except:
                 p = get_operation(n, c).abs()
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
