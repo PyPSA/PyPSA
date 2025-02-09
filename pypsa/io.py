@@ -260,7 +260,7 @@ class ImporterHDF5(Importer):
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
-            self.ds = pd.HDFStore(path, mode="r")
+            self.ds = pd.HDFStore(Path(path), mode="r")
         self.index: dict = {}
 
     def get_attributes(self) -> dict:
@@ -366,7 +366,7 @@ class ImporterNetCDF(Importer):
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
-            self.ds = xr.open_dataset(path)
+            self.ds = xr.open_dataset(Path(path))
         else:
             self.ds = path
 
