@@ -52,7 +52,7 @@ cartopy = [
     "requests",
 ]
 gurobipy = ["gurobipy"]
-cloudpath = ["cloudpathlib[all]"]
+cloudpath = ["cloudpathlib"]
 dev = [
     "pytest", 
     "coverage",
