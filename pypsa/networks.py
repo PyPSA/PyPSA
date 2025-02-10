@@ -12,6 +12,7 @@ from weakref import ref
 
 from deprecation import deprecated
 
+from pypsa._options import option_context
 from pypsa.common import equals, future_deprecation
 from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
@@ -34,9 +35,7 @@ from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.components.abstract import SubNetworkComponents
 from pypsa.components.components import Component
 from pypsa.components.types import (
-    check_if_added,
     component_types_df,
-    default_components,
 )
 from pypsa.components.types import (
     get as get_component_type,
@@ -262,7 +261,6 @@ class Network:
         import_name: str | Path = "",
         name: str = "",
         ignore_standard_types: bool = False,
-        custom_components: list[str] | None = None,
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
@@ -270,12 +268,10 @@ class Network:
         if override_components is not None or override_component_attrs is not None:
             msg = (
                 "The arguments `override_components` and `override_component_attrs` "
-                "are deprecated. Please use the #TODO"
+                "are deprecated. Please check the release notes: "
+                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0"
             )
             raise DeprecationWarning(msg)
-
-        if custom_components is None:
-            custom_components = []
 
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
@@ -308,7 +304,7 @@ class Network:
         # Define component sets
         self._initialize_component_sets()
 
-        self._initialize_components(custom_components=custom_components)
+        self._initialize_components()
 
         if not ignore_standard_types:
             self.read_in_default_standard_types()
@@ -330,9 +326,11 @@ class Network:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def __str__(self) -> str:
+        return f"PyPSA Network '{self.name}'" if self.name else "Unnamed PyPSA Network"
+
     def __repr__(self) -> str:
-        header = "PyPSA Network" + (f" '{self.name}'" if self.name else "")
-        header += "\n" + "-" * len(header)
+        header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
             for c in self.iterate_components()
@@ -404,8 +402,8 @@ class Network:
 
         self.all_components = set(component_types_df.index) - {"Network"}
 
-    def _initialize_components(self, custom_components: list) -> None:
-        components = component_types_df.index.to_list() + custom_components
+    def _initialize_components(self) -> None:
+        components = component_types_df.index.to_list()
 
         self.components = ComponentsStore()
         for c_name in components:
@@ -450,16 +448,6 @@ class Network:
 
         """
         return self.components
-
-    @property
-    def has_custom_components(self) -> bool:
-        """Check if network has custom components."""
-        return bool(set(self.components.keys()) - set(default_components))
-
-    @property
-    def custom_components(self) -> list[str]:
-        """List of custom components."""
-        return list(set(self.components.keys()) - set(default_components))
 
     @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
     def df(self, component_name: str) -> pd.DataFrame:
@@ -542,7 +530,8 @@ class Network:
         pandas.DataFrame
 
         """
-        return Dict({value.name: value.defaults for value in self.components})
+        with option_context("warnings.components_store_iter", False):
+            return Dict({value.name: value.defaults for value in self.components})
 
     # ----------------
     # Meta data
@@ -935,9 +924,9 @@ class Network:
 
     @snapshot_weightings.setter
     def snapshot_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(
-            self.snapshots
-        ), "Weightings not defined for all snapshots."
+        assert df.index.equals(self.snapshots), (
+            "Weightings not defined for all snapshots."
+        )
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
             df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
@@ -1031,9 +1020,9 @@ class Network:
 
     @investment_period_weightings.setter
     def investment_period_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(
-            self.investment_periods
-        ), "Weightings not defined for all investment periods."
+        assert df.index.equals(self.investment_periods), (
+            "Weightings not defined for all investment periods."
+        )
         if isinstance(df, pd.Series):
             logger.info(
                 "Applying weightings to all columns of `investment_period_weightings`"
@@ -1455,14 +1444,8 @@ class Network:
             )
             snapshots_ = pd.Index([], name="snapshot")
 
-        # Check if custom components are registered
-        check_if_added(self.custom_components)
-
         # Setup new network
-        n = self.__class__(
-            ignore_standard_types=ignore_standard_types,
-            custom_components=list(self.components.keys()) + self.custom_components,
-        )
+        n = self.__class__(ignore_standard_types=ignore_standard_types)
 
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
@@ -1551,13 +1534,9 @@ class Network:
         else:
             time_i = slice(None)
 
-        # Check if custom components are registered
-        check_if_added(self.custom_components)
-
         # Setup new network
-        n = self.__class__(
-            custom_components=list(self.components.keys()) + self.custom_components
-        )
+        n = self.__class__()
+
         n.add(
             "Bus",
             pd.DataFrame(self.buses.loc[key]).assign(sub_network="").index,
@@ -1726,6 +1705,56 @@ class Network:
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
+
+    def rename_component_names(
+        self, component: str | Components, **kwargs: str
+    ) -> None:
+        """
+        Rename component names.
+
+        Rename components of component type and also update all cross-references of
+        the component in network.
+
+        Parameters
+        ----------
+        component : str or pypsa.Components
+            Component type or instance of pypsa.Components.
+        **kwargs
+            Mapping of old names to new names.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        Define some network
+        >>> import pypsa
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", ["bus1"])
+        Index(['bus1'], dtype='object')
+        >>> n.add("Generator", ["gen1"], bus="bus1")
+        Index(['gen1'], dtype='object')
+
+        Now rename the bus component
+
+        >>> n.rename_component_names("Bus", bus1="bus2")
+
+        Which updates the bus components
+
+        >>> n.buses.index
+        Index(['bus2'], dtype='object', name='Bus')
+
+        and all references in the network
+
+        >>> n.generators.bus
+        Generator
+        gen1    bus2
+        Name: bus, dtype: object
+
+        """
+        c = as_components(self, component)
+        c.rename_component_names(**kwargs)
 
 
 class SubNetwork:

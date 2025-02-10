@@ -492,3 +492,11 @@ correspond to the repository CSV files ``pypsa/data/components.csv`` and
 ``list_name``, ``description`` and ``type``. ``default_component_attrs`` is a special
 :meth:`Dict <pypsa.definitions.structures.Dict>` of pandas.DataFrame with the attribute
 properties for each component.  Just follow the formatting for the standard components.
+
+.. warning::
+
+   Version 0.33.0 of PyPSA, deprecates custom components. They most likely will be 
+   added in a different way in future again. If you rely on custom components,
+   please do not update to this version. For the reimplementation we would also be 
+   happy to hear your use case and requirements via the 
+   `issue tracker <https://www.github.com/PyPSA/PyPSA/issues>`_.
