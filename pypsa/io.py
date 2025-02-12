@@ -130,9 +130,12 @@ class Importer(ImpExper):
 
 
 class ImporterCSV(Importer):
-    def __init__(self, csv_folder_name: str | Path, encoding: str | None) -> None:
+    def __init__(
+        self, csv_folder_name: str | Path, encoding: str | None, quotechar: str
+    ) -> None:
         self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
+        self.quotechar = quotechar
 
         if not self.csv_folder_name.is_dir():
             msg = f"Directory {csv_folder_name} does not exist."
@@ -142,7 +145,9 @@ class ImporterCSV(Importer):
         fn = self.csv_folder_name.joinpath("network.csv")
         if not fn.is_file():
             return None
-        return dict(pd.read_csv(fn, encoding=self.encoding).iloc[0])
+        return dict(
+            pd.read_csv(fn, encoding=self.encoding, quotechar=self.quotechar).iloc[0]
+        )
 
     def get_meta(self) -> dict:
         fn = self.csv_folder_name.joinpath("meta.json")
@@ -156,7 +161,13 @@ class ImporterCSV(Importer):
         fn = self.csv_folder_name.joinpath("snapshots.csv")
         if not fn.is_file():
             return None
-        df = pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
+        df = pd.read_csv(
+            fn,
+            index_col=0,
+            encoding=self.encoding,
+            quotechar=self.quotechar,
+            parse_dates=True,
+        )
         # backwards-compatibility: level "snapshot" was rename to "timestep"
         if "snapshot" in df:
             df["snapshot"] = pd.to_datetime(df.snapshot)
@@ -168,12 +179,16 @@ class ImporterCSV(Importer):
         fn = self.csv_folder_name.joinpath("investment_periods.csv")
         if not fn.is_file():
             return None
-        return pd.read_csv(fn, index_col=0, encoding=self.encoding)
+        return pd.read_csv(
+            fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
+        )
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         fn = self.csv_folder_name.joinpath(list_name + ".csv")
         return (
-            pd.read_csv(fn, index_col=0, encoding=self.encoding)
+            pd.read_csv(
+                fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
+            )
             if fn.is_file()
             else None
         )
@@ -186,6 +201,7 @@ class ImporterCSV(Importer):
                     self.csv_folder_name.joinpath(fn.name),
                     index_col=0,
                     encoding=self.encoding,
+                    quotechar=self.quotechar,
                     parse_dates=True,
                 )
                 yield attr, df
@@ -630,6 +646,7 @@ def import_from_csv_folder(
     n: Network,
     csv_folder_name: str | Path,
     encoding: str | None = None,
+    quotechar: str = '"',
     skip_time: bool = False,
 ) -> None:
     """
@@ -645,6 +662,9 @@ def import_from_csv_folder(
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    quotechar : str, default '"'
+        Character used to denote the start and end of a quoted item. Quoted
+        items can include "," and it will be ignored
     skip_time : bool, default False
         Skip reading in time dependent attributes
 
@@ -653,7 +673,9 @@ def import_from_csv_folder(
     >>> n.import_from_csv_folder(csv_folder_name) # doctest: +SKIP
     """
     basename = Path(csv_folder_name).name
-    with ImporterCSV(csv_folder_name, encoding=encoding) as importer:
+    with ImporterCSV(
+        csv_folder_name, encoding=encoding, quotechar=quotechar
+    ) as importer:
         _import_from_importer(n, importer, basename=basename, skip_time=skip_time)
 
 
