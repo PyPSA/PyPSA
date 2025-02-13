@@ -48,6 +48,12 @@ def port_efficiency(
     n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
     ones = pd.Series(1, index=n.static(c_name).index)
+    if dynamic:
+        try:
+            etas = pd.Series(n.static(c_name).efficiency, index=n.static(c_name).index)
+        except:
+            etas = pd.Series(1, index=n.static(c_name).index)
+        ones = etas
     if port == "":
         efficiency = ones
     elif port == "0":
@@ -274,6 +280,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             self.opex,
             self.revenue,
             self.market_value,
+            self.carbon_emissions,
         ]
 
         res = {}
@@ -955,7 +962,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         If `bus_carrier` is given, only the revenue resulting from buses with carrier
         `bus_carrier` is considered.
 
-
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
 
@@ -968,7 +974,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         kind : str, optional
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
             If 'output' only the revenue of the output is considered. Defaults to None.
-
         """
 
         @pass_empty_series_if_keyerror
@@ -1048,4 +1053,67 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
+        return df
+
+    def carbon_emissions(
+        self,
+        comps: str | Sequence[str] | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = True,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+    ) -> pd.DataFrame:
+        """
+        Calculate the carbon emission of components in the network.
+
+        If `bus_carrier` is given, only the carbon emission resulting from buses with
+        carrier `bus_carrier` are calculated.
+
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        aggregate_time : str, bool, optional
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to
+            using snapshot weightings. With False the time series is given. Defaults to 'mean'.
+        """
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            # n.generators_t.p / n.generators.efficiency * n.generators.carrier.map(n.carriers.co2_emissions)
+            # p / n.generators.efficiency * n.generators.carrier.map(n.carriers.co2_emissions)
+            efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if not at_port:
+                efficiency = abs(efficiency)
+            weights = get_weightings(n, c)
+            try:
+                p = (
+                    get_operation(n, c).abs()
+                    / efficiency
+                    * n.df(c).carrier.map(n.carriers.co2_emissions)
+                )
+            except:
+                p = get_operation(n, c).abs()
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+
+        kwargs = dict(
+            comps=comps,
+            groupby=groupby,
+            aggregate_across_components=aggregate_across_components,
+            at_port=at_port,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+        )
+        df = self._aggregate_components(
+            func,
+            agg=aggregate_groups,
+            **kwargs,
+        )
+        df.attrs["name"] = "Carbon Emission"
+        df.attrs["unit"] = "carbon"
         return df
