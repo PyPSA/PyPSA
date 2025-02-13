@@ -69,6 +69,8 @@ Universities and Research Institutes
 
 * `Forschungszentrum Jülich <https://www.fz-juelich.de/>`_ (FZJ) for network calculations
 
+* `Forschungsstelle für Energiewirtschaft (FfE) <https://www.ffe.de/>`_ uses PyPSA for their `HyPTraDe <https://www.ffe.de/tools/hyptrade-global-hydrogen-modellkette/>`__ global hydrogen model chain.
+
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
 * `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
