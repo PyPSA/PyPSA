@@ -264,8 +264,8 @@ def test_parameters(ac_dc_network_r):
 
 def test_emissions_calculation(ac_dc_network):
     n = ac_dc_network
-    n.optimize(n.snapshots[:14])
-    n.statistics().round(1).T
+    n.optimize(n.snapshots)
+    #n.statistics().round(1).T
     # assert reloaded.meta == scipy_network.meta
     assert (
         n.statistics()["Carbon Emission"].sum()
