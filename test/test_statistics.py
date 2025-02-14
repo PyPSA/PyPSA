@@ -262,11 +262,8 @@ def test_parameters(ac_dc_network_r):
     # Test parameter representation
     isinstance(n.statistics.parameters, str)
 
-import pypsa
-
-
-def test_emissions_calculation():
-    n = pypsa.examples.ac_dc_meshed()
+def test_emissions_calculation(ac_dc_network):
+    n = ac_dc_network
     n.optimize(n.snapshots[:14])
     n.statistics().round(1).T
     # assert reloaded.meta == scipy_network.meta
