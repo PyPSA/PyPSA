@@ -2,14 +2,20 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa``.
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa``.
+
+* `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without extra 
+  cloud storage provider client libraries, these will be left to the user to install.
+
+* Fixed bugs with `import_from_netcdf` and `import_from_hdf5` not working when a URI is
+  passed as a string instead of a CloudPath object.
 
 `v0.33.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (7th February 2025)
 =======================================================================================
