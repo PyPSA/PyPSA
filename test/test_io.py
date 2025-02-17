@@ -45,6 +45,16 @@ def test_csv_io(scipy_network, tmpdir, meta):
     assert reloaded.meta == scipy_network.meta
 
 
+@pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
+def test_csv_io_quotes(scipy_network, tmpdir, meta, quotechar="'"):
+    fn = os.path.join(tmpdir, "csv_export")
+    scipy_network.meta = meta
+    scipy_network.export_to_csv_folder(fn, quotechar=quotechar)
+    imported = pypsa.Network()
+    imported.import_from_csv_folder(fn, quotechar=quotechar)
+    assert imported.meta == scipy_network.meta
+
+
 def test_csv_io_Path(scipy_network, tmpdir):
     fn = Path(os.path.join(tmpdir, "csv_export"))
     scipy_network.export_to_csv_folder(fn)
