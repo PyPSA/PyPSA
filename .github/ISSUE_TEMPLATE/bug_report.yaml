@@ -1,13 +1,14 @@
 name: Bug Report
 description: Create a report if something doesn't work quite right.
-labels: ["bug", "needs triage"]
+labels: ["needs triage"]
+type: "Bug"
 
 body:
 - type: markdown
   attributes:
     value: |
       Thanks for taking the time to fill out this bug report!
-      Please do not post usage questions here. Ask them on the [PyPSA mailing list](https://groups.google.com/forum/#!forum/pypsa).
+      Please do not post usage questions here. Ask them on the [PyPSA Discord server](https://discord.gg/AnuJBk23FU).
 
 - type: checkboxes
   id: checks
