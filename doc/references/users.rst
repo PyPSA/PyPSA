@@ -96,6 +96,8 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `ENTSO-E (European Network of Transmission System Operators for Electricity) <https://www.entsoe.eu/>`_ launched in collaboration with `Open Energy Transition <https://openenergytransition.org/>`_ a research and innovation project to develop a complementary open-source tool in PyPSA for `Scenario Building and Cost-Benefit Analysis within the TYNDP process <https://www.linkedin.com/posts/entso-e_energytransition-opensource-innovation-activity-7293296246813851649-2ynL>`_.
 
+* `The EU Agency for the Cooperation of Energy Regulators (ACER) <https://www.acer.europa.eu/>`_ is building a PyPSA solution for the `EU-wide flexibility assessment platform <https://www.acer.europa.eu/sites/default/files/documents/en/The_agency/Organisation/Expert_Groups/EG_Flexibility/Flexibility_EG_Open_Letter_2025.pdf>`_.
+
 * `Open Energy Transition <https://openenergytransition.org/>`_, a non-profit software company and environmental think tank: uses, develops and provides commercial support and training for PyPSA. List of projects: `https://openenergytransition.org/projects.html <https://openenergytransition.org/projects.html>`_
 
 * `RAND Europe <https://www.rand.org/randeurope.html>`_ used PyPSA in a 2024 report `The use of AI for improving energy security <https://www.rand.org/pubs/research_reports/RRA2907-2.html>`_ to explore the extent to which different AI applications can improve energy security in Europe.
