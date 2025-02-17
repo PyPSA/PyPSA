@@ -208,9 +208,12 @@ class ImporterCSV(Importer):
 
 
 class ExporterCSV(Exporter):
-    def __init__(self, csv_folder_name: Path | str, encoding: str | None) -> None:
+    def __init__(
+        self, csv_folder_name: Path | str, encoding: str | None, quotechar: str
+    ) -> None:
         self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
+        self.quotechar = quotechar
 
         # make sure directory exists
         if not self.csv_folder_name.is_dir():
@@ -222,7 +225,7 @@ class ExporterCSV(Exporter):
         df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
         fn = self.csv_folder_name.joinpath("network.csv")
         with fn.open("w"):
-            df.to_csv(fn, encoding=self.encoding)
+            df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_meta(self, meta: dict) -> None:
         fn = self.csv_folder_name.joinpath("meta.json")
@@ -235,22 +238,24 @@ class ExporterCSV(Exporter):
     def save_snapshots(self, snapshots: pd.Index) -> None:
         fn = self.csv_folder_name.joinpath("snapshots.csv")
         with fn.open("w"):
-            snapshots.to_csv(fn, encoding=self.encoding)
+            snapshots.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
         fn = self.csv_folder_name.joinpath("investment_periods.csv")
         with fn.open("w"):
-            investment_periods.to_csv(fn, encoding=self.encoding)
+            investment_periods.to_csv(
+                fn, encoding=self.encoding, quotechar=self.quotechar
+            )
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         fn = self.csv_folder_name.joinpath(list_name + ".csv")
         with fn.open("w"):
-            df.to_csv(fn, encoding=self.encoding)
+            df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
         with fn.open("w"):
-            df.to_csv(fn, encoding=self.encoding)
+            df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def remove_static(self, list_name: str) -> None:
         if fns := list(self.csv_folder_name.joinpath(list_name).glob("*.csv")):
@@ -512,6 +517,7 @@ def _export_to_exporter(
     n: Network,
     exporter: Exporter,
     basename: str | None = None,
+    quotechar: str = '"',
     export_standard_types: bool = False,
 ) -> None:
     """
@@ -663,8 +669,8 @@ def import_from_csv_folder(
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
     quotechar : str, default '"'
-        Character used to denote the start and end of a quoted item. Quoted
-        items can include "," and it will be ignored
+        String of length 1. Character used to denote the start and end of a
+        quoted item. Quoted items can include "," and it will be ignored
     skip_time : bool, default False
         Skip reading in time dependent attributes
 
@@ -684,6 +690,7 @@ def export_to_csv_folder(
     n: Network,
     csv_folder_name: str,
     encoding: str | None = None,
+    quotechar: str = '"',
     export_standard_types: bool = False,
 ) -> None:
     """
@@ -710,6 +717,8 @@ def export_to_csv_folder(
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    quotechar : str, default '"'
+        String of length 1. Character used to quote fields.
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the network).
@@ -720,7 +729,9 @@ def export_to_csv_folder(
     """
 
     basename = os.path.basename(csv_folder_name)
-    with ExporterCSV(csv_folder_name=csv_folder_name, encoding=encoding) as exporter:
+    with ExporterCSV(
+        csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
+    ) as exporter:
         _export_to_exporter(
             n,
             exporter,
