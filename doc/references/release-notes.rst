@@ -2,14 +2,14 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa``.
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa``.
 
 * `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without extra 
   cloud storage provider client libraries, these will be left to the user to install.
