@@ -89,6 +89,9 @@ Features
   will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
   https://github.com/PyPSA/PyPSA/pull/1112)
 
+* New example in the documentation showing how to implement reserve power constraints.
+  (https://github.com/PyPSA/PyPSA/pull/1133)
+
 * Doctests are now run with the unit tests. They allow to test the documentation 
   examples, which will improve the quality of docstrings and documentation in future 
   releases. (https://github.com/PyPSA/PyPSA/pull/1114)
