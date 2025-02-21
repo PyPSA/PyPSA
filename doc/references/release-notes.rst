@@ -2,14 +2,31 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa``.
+  The features listed below are not released yet, but will be part of the next release! 
+  To use the features already you have to install the ``master`` branch, e.g. 
+  ``pip install git+https://github.com/pypsa/pypsa``.
+
+Features
+--------
+
+* `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without extra 
+  cloud storage provider client libraries, these will be left to the user to install.
+
+* Added a ``quotechar`` parameter to :func:`io.import_from_csv_folder` and
+  :func:`io.export_to_csv_folder` to handle non-standard field quoting in CSV
+  import/export, aligning with :func:`pandas.read_csv` and
+  :func:`pandas.to_csv`.
+
+Bug fixes
+---------
+
+* :func:`import_from_netcdf` and :func:`import_from_hdf5` now work when a URI is
+  passed as a string instead of a CloudPath object.
 
 `v0.33.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (7th February 2025)
 =======================================================================================
@@ -82,6 +99,9 @@ Features
   ``strict=['unknown_buses']``. :meth:`n.optimize <pypsa.optimization.optimize.optimize>`
   will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
   https://github.com/PyPSA/PyPSA/pull/1112)
+
+* New example in the documentation showing how to implement reserve power constraints.
+  (https://github.com/PyPSA/PyPSA/pull/1133)
 
 * Doctests are now run with the unit tests. They allow to test the documentation 
   examples, which will improve the quality of docstrings and documentation in future 
@@ -2234,4 +2254,3 @@ Release process
   `zenodo <https://zenodo.org/>`_ to archive the release with its own DOI.
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Inform the PyPSA mailing list.
