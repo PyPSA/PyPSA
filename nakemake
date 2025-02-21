@@ -1,0 +1,252 @@
+[1mdiff --git a/test/test_plot_accessors.py b/test/test_plot_accessors.py[m
+[1mindex f67e0d69..cf0ce138 100644[m
+[1m--- a/test/test_plot_accessors.py[m
+[1m+++ b/test/test_plot_accessors.py[m
+[36m@@ -92,6 +92,44 @@[m [mdef test_plot_accessor_creation(ac_dc_network_r):[m
+     assert isinstance(plot.area, AreaPlotter)[m
+ [m
+ [m
+[32m+[m[32mdef test_process_data_for_stacking(ac_dc_network_r):[m
+[32m+[m[32m    """Test the _process_data_for_stacking method"""[m
+[32m+[m[32m    plotter = BasePlotTypeAccessor(ac_dc_network_r)[m
+[32m+[m
+[32m+[m[32m    # Test with positive and negative values[m
+[32m+[m[32m    data = pd.DataFrame([m
+[32m+[m[32m        {[m
+[32m+[m[32m            "carrier": ["a", "a", "b", "b"],[m
+[32m+[m[32m            "value": [1, -1, 2, -2],[m
+[32m+[m[32m        }[m
+[32m+[m[32m    )[m
+[32m+[m[32m    stacked_data = plotter._process_data_for_stacking(data, "carrier")[m
+[32m+[m[32m    assert len(stacked_data) == 6[m
+[32m+[m[32m    assert set(stacked_data["value"]) == {1, -1, 2, -2, -1, -2}[m
+[32m+[m
+[32m+[m[32m    # Test with only positive values[m
+[32m+[m[32m    data = pd.DataFrame([m
+[32m+[m[32m        {[m
+[32m+[m[32m            "carrier": ["a", "a", "b", "b"],[m
+[32m+[m[32m            "value": [1, 1, 2, 2],[m
+[32m+[m[32m        }[m
+[32m+[m[32m    )[m
+[32m+[m[32m    stacked_data = plotter._process_data_for_stacking(data, "carrier")[m
+[32m+[m[32m    assert len(stacked_data) == 6[m
+[32m+[m[32m    assert set(stacked_data["value"]) == {1, 2, -4, -2}[m
+[32m+[m
+[32m+[m[32m    # Test with only negative values[m
+[32m+[m[32m    data = pd.DataFrame([m
+[32m+[m[32m        {[m
+[32m+[m[32m            "carrier": ["a", "a", "b", "b"],[m
+[32m+[m[32m            "value": [-1, -1, -2, -2],[m
+[32m+[m[32m        }[m
+[32m+[m[32m    )[m
+[32m+[m[32m    stacked_data = plotter._process_data_for_stacking(data, "carrier")[m
+[32m+[m[32m    assert len(stacked_data) == 4[m
+[32m+[m[32m    assert set(stacked_data["value"]) == {-1, -2}[m
+[32m+[m
+[32m+[m
+ def test_plot_methods(ac_dc_network_r):[m
+     """Test main plotting methods don't raise errors"""[m
+     plot = ac_dc_network_r.plot[m
+[36m@@ -122,200 +160,6 @@[m [mdef test_plot_methods(ac_dc_network_r):[m
+     plot.area.transmission()[m
+ [m
+ [m
+[31m-def test_plot_methods_with_bus_carrier(ac_dc_network_r):[m
+[31m-    """Test plotting methods with bus_carrier filtering"""[m
+[31m-    plot = ac_dc_network_r.plot[m
+[31m-[m
+[31m-    # Test with AC bus carrier[m
+[31m-    plot.bar.optimal_capacity(bus_carrier="AC")[m
+[31m-    plot.line.supply(bus_carrier="AC")[m
+[31m-    plot.area.energy_balance(bus_carrier="AC")[m
+[31m-[m
+[31m-    # Test with DC bus carrier[m
+[31m-    plot.bar.installed_capacity(bus_carrier="DC")[m
+[31m-    plot.line.withdrawal(bus_carrier="DC")[m
+[31m-    plot.area.transmission(bus_carrier="DC")[m
+[31m-[m
+[31m-[m
+[31m-def test_plot_methods_with_groupby(ac_dc_network_r):[m
+[31m-    """Test plotting methods with different groupby options"""[m
+[31m-    plot = ac_dc_network_r.plot[m
+[31m-[m
+[31m-    # Test single groupby[m
+[31m-    plot.bar.optimal_capacity(groupby=["carrier"])[m
+[31m-    plot.line.supply(groupby=["bus_carrier"])[m
+[31m-    plot.area.energy_balance(groupby=["carrier", "bus_carrier"])[m
+[31m-[m
+[31m-    # Test multiple groupby[m
+[31m-    plot.bar.installed_capacity(groupby=["carrier", "bus_carrier"])[m
+[31m-    plot.line.withdrawal(groupby=["carrier", "bus_carrier"])[m
+[31m-    plot.area.transmission(groupby=["bus_carrier"])[m
+[31m-[m
+[31m-[m
+[31m-def test_plot_methods_with_aggregation(ac_dc_network_r):[m
+[31m-    """Test plotting methods with aggregation options"""[m
+[31m-    plot = ac_dc_network_r.plot[m
+[31m-[m
+[31m-    # Test time aggregation[m
+[31m-    plot.line.supply(aggregate_time="mean")[m
+[31m-    plot.area.withdrawal(aggregate_time="sum")[m
+[31m-[m
+[31m-    # Test component aggregation[m
+[31m-    plot.bar.optimal_capacity(aggregate_across_components=False)[m
+[31m-    plot.line.energy_balance(aggregate_across_components=True)[m
+[31m-[m
+[31m-[m
+[31m-def test_plot_methods_with_nice_names(ac_dc_network_r):[m
+[31m-    """Test plotting methods with nice names"""[m
+[31m-    plot = ac_dc_network_r.plot[m
+[31m-[m
+[31m-    # Test with nice names[m
+[31m-    plot.bar.optimal_capacity(nice_names=True)[m
+[31m-    plot.line.supply(nice_names=True)[m
+[31m-    plot.area.energy_balance(nice_names=True)[m
+[31m-[m
+[31m-    # Test without nice names[m
+[31m-    plot.bar.installed_capacity(nice_names=False)[m
+[31m-    plot.line.withdrawal(nice_names=False)[m
+[31m-    plot.area.transmission(nice_names=False)[m
+[31m-[m
+[31m-[m
+[31m-def test_plot_methods_with_plot_kwargs(ac_dc_network_r):[m
+[31m-    """Test plotting methods with additional plot kwargs"""[m
+[31m-    plot = ac_dc_network_r.plot[m
+[31m-[m
+[31m-    # Test bar plot kwargs[m
+[31m-    plot.bar.optimal_capacity(stacked=True, orientation="horizontal")[m
+[31m-    plot.bar.installed_capacity(stacked=False, orientation="vertical")[m
+[31m-[m
+[31m-    # Test line plot kwargs[m
+[31m-    plot.line.supply(resample="h")  # Hourly resampling[m
+[31m-    plot.line.withdrawal(resample="D")  # Daily resampling[m
+[31m-[m
+[31m-    # Test area plot kwargs[m
+[31m-    plot.area.energy_balance(stacked=True)[m
+[31m-    plot.area.transmission(stacked=False)[m
+[31m-[m
+[31m-[m
+[31m-def test_base_plot_type_accessor_initialization(ac_dc_network_r):[m
+[31m-    """Test BasePlotTypeAccessor initialization"""[m
+[31m-    accessor = BasePlotTypeAccessor(ac_dc_network_r)[m
+[31m-[m
+[31m-    assert hasattr(accessor, "_network")[m
+[31m-    assert hasattr(accessor, "_statistics")[m
+[31m-    assert accessor._time_aggregation is False[m
+[31m-[m
+[31m-[m
+[31m-def test_to_long_format_series(ac_dc_network_r):[m
+[31m-    """Test _to_long_format with Series input"""[m
+[31m-    accessor = BasePlotTypeAccessor(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Create test series with multiindex[m
+[31m-    index = pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], names=["carrier", "bus"])[m
+[31m-    series = pd.Series([10, 20], index=index)[m
+[31m-[m
+[31m-    result = accessor._to_long_format(series)[m
+[31m-[m
+[31m-    assert isinstance(result, pd.DataFrame)[m
+[31m-    assert set(result.columns) == {"carrier", "bus", "value"}[m
+[31m-[m
+[31m-[m
+[31m-def test_check_plotting_consistency(ac_dc_network_r):[m
+[31m-    """Test _check_plotting_consistency method"""[m
+[31m-    accessor = BasePlotTypeAccessor(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Should not raise errors with valid network[m
+[31m-    accessor._check_plotting_consistency()[m
+[31m-[m
+[31m-[m
+[31m-def test_get_carrier_colors(ac_dc_network_r):[m
+[31m-    """Test _get_carrier_colors method"""[m
+[31m-    accessor = BasePlotTypeAccessor(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Test with carrier data[m
+[31m-    colors = accessor._get_carrier_colors()[m
+[31m-[m
+[31m-    assert isinstance(colors, dict)[m
+[31m-    assert "wind" in colors[m
+[31m-    assert "gas" in colors[m
+[31m-    assert "-" in colors  # Test default gray color[m
+[31m-[m
+[31m-[m
+[31m-def test_get_carrier_labels(ac_dc_network_r):[m
+[31m-    """Test _get_carrier_labels method"""[m
+[31m-    accessor = BasePlotTypeAccessor(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Test with nice names[m
+[31m-    labels = accessor._get_carrier_labels(nice_names=True)[m
+[31m-    assert isinstance(labels, dict)[m
+[31m-[m
+[31m-    # Test without nice names[m
+[31m-    labels = accessor._get_carrier_labels(nice_names=False)[m
+[31m-    assert labels == {}[m
+[31m-[m
+[31m-[m
+[31m-def test_create_base_plot(ac_dc_network_r):[m
+[31m-    """Test _create_base_plot method"""[m
+[31m-    accessor = BasePlotTypeAccessor(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Test with simple data[m
+[31m-    data = pd.DataFrame([m
+[31m-        {"carrier": ["wind", "gas"], "value": [10, 20], "bus_carrier": ["AC", "AC"]}[m
+[31m-    )[m
+[31m-[m
+[31m-    plot = accessor._create_base_plot(data, x="carrier", y="value")[m
+[31m-    assert isinstance(plot, so.Plot)[m
+[31m-[m
+[31m-[m
+[31m-def test_bar_plotter_plot(ac_dc_network_r):[m
+[31m-    """Test BarPlotter._plot method"""[m
+[31m-    plotter = BarPlotter(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Test with simple data[m
+[31m-    data = pd.DataFrame({"carrier": ["wind", "gas"], "value": [10, 20]})[m
+[31m-[m
+[31m-    plot = plotter._base_plot(data)[m
+[31m-    assert plot is not None[m
+[31m-[m
+[31m-[m
+[31m-def test_line_plotter_plot(ac_dc_network_r):[m
+[31m-    """Test LinePlotter._plot method"""[m
+[31m-    plotter = LinePlotter(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Test with time series data[m
+[31m-    data = pd.DataFrame([m
+[31m-        {[m
+[31m-            "snapshot": pd.date_range("2023-01-01", periods=2),[m
+[31m-            "carrier": ["wind", "gas"],[m
+[31m-            "value": [10, 20],[m
+[31m-        }[m
+[31m-    )[m
+[31m-[m
+[31m-    plot = plotter._base_plot(data)[m
+[31m-    assert plot is not None[m
+[31m-[m
+[31m-[m
+[31m-def test_area_plotter_plot(ac_dc_network_r):[m
+[31m-    """Test AreaPlotter._plot method"""[m
+[31m-    plotter = AreaPlotter(ac_dc_network_r)[m
+[31m-[m
+[31m-    # Test with time series data[m
+[31m-    data = pd.DataFrame([m
+[31m-        {[m
+[31m-            "snapshot": pd.date_range("2023-01-01", periods=2),[m
+[31m-            "carrier": ["wind", "gas"],[m
+[31m-            "value": [10, 20],[m
+[31m-        }[m
+[31m-    )[m
+[31m-[m
+[31m-    plot = plotter._base_plot(data)[m
+[31m-    assert plot is not None[m
+[31m-[m
+[31m-[m
+[31m-def test_plot_accessor_call(ac_dc_network_r):[m
+[31m-    """Test PlotAccessor.__call__ method"""[m
+[32m+[m[32mdef test_plot_accessor_methods(ac_dc_network_r):[m
+[32m+[m[32m    """Test all plotting methods don't raise errors"""[m
+     plot = ac_dc_network_r.plot[m
+[31m-[m
+[31m-    # Test map plotting[m
+[31m-    result = plot()[m
+[31m-    assert result is not None[m
