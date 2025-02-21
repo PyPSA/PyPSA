@@ -2243,4 +2243,3 @@ Release process
   `zenodo <https://zenodo.org/>`_ to archive the release with its own DOI.
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Inform the PyPSA mailing list.
