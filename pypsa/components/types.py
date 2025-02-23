@@ -7,15 +7,14 @@ Additional types can be added by the user.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from pypsa.common import list_as_string
 from pypsa.definitions.components import ComponentType
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
-from pypsa.utils import list_as_string
 
 # TODO better path handeling, integrate custom components
 _components_path = Path(__file__).parent.parent / "data" / "components.csv"
@@ -218,35 +217,6 @@ def get(name: str) -> ComponentType:
             f"Component type '{name}' not found. If you use a custom component, make "
             f"sure to have it added. Available types are: "
             f"{list_as_string(all_components)}."
-        )
-        raise ValueError(msg)
-
-
-def check_if_added(components: str | Sequence) -> None:
-    """
-    Check if components are registered package-wide.
-
-    Parameters
-    ----------
-    components : list of str
-        List of component type names.
-
-    Raises
-    ------
-    ValueError
-        If a component is not registered package-wide.
-
-    """
-    if np.isscalar(components):
-        components = [components]
-
-    # Make sure any custom components are registered package-wide
-    if not_registered := [
-        c_name for c_name in components if c_name not in all_components.keys()
-    ]:
-        msg = (
-            f"Network contains custom components which are not registered "
-            f"package-wide. Add them first: {not_registered}components_"
         )
         raise ValueError(msg)
 

@@ -14,6 +14,7 @@ import pandas as pd
 from linopy import LinearExpression, Variable
 from xarray import DataArray
 
+from pypsa.common import pass_none_if_keyerror
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     get_transmission_branches,
@@ -21,7 +22,6 @@ from pypsa.statistics import (
     port_efficiency,
 )
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
-from pypsa.utils import pass_none_if_keyerror
 
 logger = logging.getLogger(__name__)
 
@@ -383,14 +383,18 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            # negative branch contributions are considered by the efficiency
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
-            sign = -1.0 if c in n.branch_components else n.df(c).get("sign", 1.0)
+            sign = n.df(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             coeffs = DataArray(efficiency * sign)
             if kind == "supply":
                 coeffs = coeffs.clip(min=0)
             elif kind == "withdrawal":
-                coeffs = coeffs.clip(max=0)
+                logger.warning(
+                    "The sign convention for withdrawal has changed: withdrawal values are now reported as positive numbers instead of negative numbers."
+                )
+                coeffs = -coeffs.clip(max=0)
             elif kind is not None:
                 raise ValueError(
                     f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."

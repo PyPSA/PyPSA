@@ -16,6 +16,7 @@ import pandas as pd
 from linopy import Model, merge
 from linopy.solvers import available_solvers
 
+from pypsa.common import as_index
 from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import (
@@ -62,7 +63,6 @@ from pypsa.optimization.variables import (
     define_start_up_variables,
     define_status_variables,
 )
-from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     from pypsa import Network, SubNetwork
@@ -215,6 +215,7 @@ def create_model(
     multi_investment_periods: bool = False,
     transmission_losses: int = 0,
     linearized_unit_commitment: bool = False,
+    consistency_check: bool = True,
     **kwargs: Any,
 ) -> Model:
     """
@@ -234,6 +235,8 @@ def create_model(
     transmission_losses : int, default 0
     linearized_unit_commitment : bool, default False
         Whether to optimise using the linearised unit commitment formulation or not.
+    consisteny_check : bool, default True
+        Whether to run the consistency check before building the model.
     **kwargs:
         Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
 
@@ -244,7 +247,8 @@ def create_model(
     sns = as_index(n, snapshots, "snapshots")
     n._linearized_uc = int(linearized_unit_commitment)
     n._multi_invest = int(multi_investment_periods)
-    n.consistency_check()
+    if consistency_check:
+        n.consistency_check()
 
     kwargs.setdefault("force_dim_names", True)
     n.model = Model(**kwargs)
@@ -285,7 +289,8 @@ def create_model(
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
 
-    meshed_buses = get_strongly_meshed_buses(n)
+    meshed_threshold = kwargs.get("meshed_threshold", 45)
+    meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
     weakly_meshed_buses = n.buses.index.difference(meshed_buses)
     if not meshed_buses.empty and not weakly_meshed_buses.empty:
         # Write constraint for buses many terms and for buses with a few terms
@@ -586,13 +591,14 @@ def optimize(
     n._multi_invest = int(multi_investment_periods)
     n._linearized_uc = linearized_unit_commitment
 
-    n.consistency_check()
+    n.consistency_check(strict=["unknown_buses"])
     m = create_model(
         n,
         sns,
         multi_investment_periods,
         transmission_losses,
         linearized_unit_commitment,
+        consistency_check=False,
         **model_kwargs,
     )
     if extra_functionality:

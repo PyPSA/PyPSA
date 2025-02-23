@@ -1,7 +1,9 @@
 """
 Abstract components module.
 
-Contains classes and logic relevant to all component types in PyPSA.
+Contains classes and properties relevant to all component types in PyPSA. Also imports
+logic from other modules:
+- components.types
 """
 
 from __future__ import annotations
@@ -18,10 +20,11 @@ import pandas as pd
 import xarray
 from pyproj import CRS
 
+from pypsa.common import equals
+from pypsa.components.descriptors import get_active_assets
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
-from pypsa.utils import equals
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +80,12 @@ class Components(ComponentsData, ABC):
 
     """
 
+    # Methods
+    # -------
+
+    # from pypsa.components.descriptors
+    get_active_assets = get_active_assets
+
     def __init__(
         self,
         ctype: ComponentType,
@@ -111,7 +120,7 @@ class Components(ComponentsData, ABC):
         static, dynamic = self._get_data_containers(ctype)
         super().__init__(ctype, n=None, static=static, dynamic=dynamic)
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         """
         Get string representation of component.
 
@@ -119,6 +128,25 @@ class Components(ComponentsData, ABC):
         -------
         str
             String representation of component.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> str(n.components.generators)
+        "PyPSA 'Generator' Components"
+
+        """
+        return f"PyPSA '{self.ctype.name}' Components"
+
+    def __repr__(self) -> str:
+        """
+        Get representation of component.
+
+        Returns
+        -------
+        str
+            Representation of component.
 
         Examples
         --------
@@ -133,41 +161,15 @@ class Components(ComponentsData, ABC):
         """
         num_components = len(self.static)
         if not num_components:
-            return f"Empty PyPSA {self.ctype.name} Components\n"
-        text = f"PyPSA '{self.ctype.name}' Components"
-        text += "\n" + "-" * len(text) + "\n"
+            return f"Empty {self}"
+        text = f"{self}\n" + "-" * len(str(self)) + "\n"
 
         # Add attachment status
         if self.attached:
-            network_name = f"'{self.n_save.name}'" if self.n_save.name else ""
-            text += f"Attached to PyPSA Network {network_name}\n"
+            text += f"Attached to {str(self.n)}\n"
 
         text += f"Components: {len(self.static)}"
 
-        return text
-
-    def __str__(self) -> str:
-        """
-        Get string representation of component.
-
-        Returns
-        -------
-        str
-            String representation of component.
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.components.generators
-        PyPSA 'Generator' Components
-        ----------------------------
-        Attached to PyPSA Network 'AC-DC'
-        Components: 6
-
-        """
-        num_components = len(self.static)
-        text = f"{num_components} '{self.ctype.name}' Components"
         return text
 
     def __getitem__(self, key: str) -> Any:
@@ -474,26 +476,32 @@ class Components(ComponentsData, ABC):
 
     @property
     def component_names(self) -> pd.Index:
+        """Unique names of the components."""
         return self.static.index.get_level_values(self.ctype.name).unique()
 
     @property
     def timesteps(self) -> pd.Index:
+        """Time steps of the network."""
         return self.n_save.timesteps
 
     @property
     def investment_periods(self) -> pd.Index:
+        """Investment periods of the network."""
         return self.n_save.investment_periods
 
     @property
     def has_investment_periods(self) -> bool:
+        """Indicator whether network has investment persios."""
         return self.n_save.has_investment_periods
 
     @property
     def scenarios(self) -> pd.Index:
+        """Scenarios of networks."""
         return self.n_save.scenarios
 
     @property
     def has_scenarios(self) -> bool:
+        """Indicator whether the network has scenarios."""
         return self.n_save.has_scenarios
 
     def get(self, attribute_name: str, default: Any = None) -> Any:
@@ -585,6 +593,7 @@ class Components(ComponentsData, ABC):
 
     @property
     def ds(self) -> xarray.Dataset:
+        """Create a xarray data array view of the component."""
         components = self.component_names
         xr_static = self.static.to_xarray()
         ds = xr_static.assign_coords(timestep=self.n_save.timesteps)
@@ -604,46 +613,145 @@ class Components(ComponentsData, ABC):
             ds[k] = da
         return ds
 
-    def get_active_assets(
-        self,
-        investment_period: int | str | Sequence | None = None,
-    ) -> pd.Series:
+    def units(self) -> pd.Series:
         """
-        Get active components mask of componen type in investment period(s).
-
-        A component is considered active when:
-        - it's active attribute is True
-        - it's build year + lifetime is smaller than the investment period (if given)
-
-        Parameters
-        ----------
-        investment_period : int, str, Sequence
-            Investment period(s) to check for active within build year and lifetime. If
-            none only the active attribute is considered and build year and lifetime are
-            ignored. If multiple periods are given the mask is True if component is
-            active in any of the given periods.
+        Get units of all attributes of components.
 
         Returns
         -------
         pd.Series
-            Boolean mask for active components
+            Series with attribute names as index and units as values.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.units.head() # doctest: +SKIP
+                       unit
+        attribute
+        p_nom            MW
+        p_nom_mod        MW
+        p_nom_min        MW
+        p_nom_max        MW
+        p_min_pu   per unit
 
         """
-        if investment_period is None:
-            return self.static.active
-        if not {"build_year", "lifetime"}.issubset(self.static):
-            return self.static.active
+        return self.defaults.unit[self.defaults.unit.notnull()].to_frame()
 
-        # Logical OR of active assets in all investment periods and
-        # logical AND with active attribute
-        active = {}
-        for period in np.atleast_1d(investment_period):
-            if period not in self.n_save.investment_periods:
-                raise ValueError("Investment period not in `n.investment_periods`")
-            active[period] = self.static.eval(
-                "build_year <= @period < build_year + lifetime"
-            )
-        return pd.DataFrame(active).any(axis=1) & self.static.active
+    @property
+    def ports(self) -> list:
+        """
+        Get ports of all components.
+
+        Returns
+        -------
+        pd.Series
+            Series with attribute names as index and port names as values.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.lines
+        >>> c.ports
+        ['0', '1']
+
+        """
+        return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
+
+    @property
+    def nominal_attr(self) -> str:
+        """
+        Get nominal attribute of component.
+
+        Returns
+        -------
+        str
+            Name of the nominal attribute of the component.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.nominal_attr
+        'p_nom'
+
+        """
+        # TODO: move to Component Specific class
+        nominal_attr = {
+            "Generator": "p_nom",
+            "Line": "s_nom",
+            "Transformer": "s_nom",
+            "Link": "p_nom",
+            "Store": "e_nom",
+            "StorageUnit": "p_nom",
+        }
+        try:
+            return nominal_attr[self.ctype.name]
+        except KeyError:
+            msg = f"Component type '{self.ctype.name}' has no nominal attribute."
+            raise AttributeError(msg)
+
+    # TODO move
+    def rename_component_names(self, **kwargs: str) -> None:
+        """
+        Rename component names.
+
+        Rename components and also update all cross-references of the component in
+        the network.
+
+        Parameters
+        ----------
+        **kwargs
+            Mapping of old names to new names.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        Define some network
+        >>> import pypsa
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", ["bus1"])
+        Index(['bus1'], dtype='object')
+        >>> n.add("Generator", ["gen1"], bus="bus1")
+        Index(['gen1'], dtype='object')
+        >>> c = n.c.buses
+
+        Now rename the bus
+
+        >>> c.rename_component_names(bus1="bus2")
+
+        Which updates the bus components
+
+        >>> c.static.index
+        Index(['bus2'], dtype='object', name='Bus')
+
+        and all references in the network
+
+        >>> n.generators.bus
+        Generator
+        gen1    bus2
+        Name: bus, dtype: object
+
+        """
+        if not all(isinstance(v, str) for v in kwargs.values()):
+            msg = "New names must be strings."
+            raise ValueError(msg)
+
+        # Rename component name definitions
+        self.static = self.static.rename(index=kwargs)
+        for k, v in self.dynamic.items():  # Modify in place
+            self.dynamic[k] = v.rename(columns=kwargs)
+
+        # Rename cross references in network (if attached to one)
+        if self.attached:
+            for c in self.n_save.components.values():
+                col_name = self.name.lower()  # TODO: Generalize
+                cols = [f"{col_name}{port}" for port in c.ports]
+                if cols and not c.static.empty:
+                    c.static[cols] = c.static[cols].replace(kwargs)
 
 
 class SubNetworkComponents:

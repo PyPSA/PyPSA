@@ -446,3 +446,49 @@ def test_components_referencing(ac_dc_network):
     assert id(ac_dc_network.buses) == id(ac_dc_network.components.buses.static)
     assert id(ac_dc_network.buses_t) == id(ac_dc_network.components.buses.dynamic)
     assert id(ac_dc_network.components.buses) == id(ac_dc_network.components.Bus)
+
+
+@pytest.mark.parametrize("use_component", [True, False])
+def test_rename_component_names(use_component):
+    n = pypsa.Network()
+    n.snapshots = [0, 1]
+
+    n.add("Bus", "bus1", v_mag_pu_set=[0.1, 0.2])
+    n.add("Bus", "bus2", v_mag_pu_set=[0.1, 0.2])
+    n.add("Line", "line1", bus0="bus1", bus1="bus2", s_max_pu=[0.1, 0.2])
+    n.add("Generator", "gen1", bus="bus1", p_min_pu=[0.1, 0.2])
+
+    if use_component:
+        c = n.c.buses
+        c.rename_component_names(bus1="bus3")
+    else:
+        n.rename_component_names("Bus", bus1="bus3")
+
+    with pytest.raises(ValueError):
+        n.rename_component_names("Bus", bus1=10)
+
+    assert "bus1" not in n.c.buses.static.index
+    assert "bus1" not in n.c.buses.dynamic.v_mag_pu_set.columns
+    assert "bus2" in n.c.buses.static.index
+    assert "bus2" in n.c.buses.dynamic.v_mag_pu_set.columns
+    assert "bus3" in n.c.buses.static.index
+    assert "bus3" in n.c.buses.dynamic.v_mag_pu_set.columns
+
+    assert "bus1" not in n.c.lines.static.bus0.to_list()
+    assert "bus1" not in n.c.lines.static.bus1.to_list()
+    assert "bus3" in n.c.lines.static.bus0.to_list()
+    assert "bus2" in n.c.lines.static.bus1.to_list()
+
+    assert "bus1" not in n.c.generators.static.bus.to_list()
+    assert "bus3" in n.c.generators.static.bus.to_list()
+
+
+def test_components_repr(ac_dc_network):
+    n = ac_dc_network
+
+    assert repr(n).startswith("PyPSA Network 'AC-DC'")
+    assert len(repr(n)) > len(str(n))
+
+    n = pypsa.Network()
+    assert repr(n).startswith("Empty Unnamed PyPSA Network")
+    assert len(repr(n)) > len(str(n))

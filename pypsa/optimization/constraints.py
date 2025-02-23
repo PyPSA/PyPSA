@@ -17,6 +17,7 @@ from numpy import inf, isfinite
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
+from pypsa.common import as_index
 from pypsa.descriptors import (
     additional_linkports,
     expand_series,
@@ -26,7 +27,6 @@ from pypsa.descriptors import (
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
-from pypsa.utils import as_index
 
 if TYPE_CHECKING:
     from xarray import DataArray

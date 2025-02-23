@@ -2,7 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [master]
+    branches:
+    - master
+    - release-branch-v*
   pull_request:
     branches: ['*']
   schedule:

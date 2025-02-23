@@ -14,7 +14,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from pypsa.utils import as_index, deprecated_common_kwargs
+from pypsa.common import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa import Network, SubNetwork

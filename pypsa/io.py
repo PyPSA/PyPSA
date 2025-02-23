@@ -14,7 +14,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.request import urlretrieve
 
-from pypsa.utils import check_optional_dependency, deprecated_common_kwargs
+from pypsa.common import check_optional_dependency, deprecated_common_kwargs
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -240,7 +240,7 @@ class ExporterCSV(Exporter):
         if fns := list(self.csv_folder_name.joinpath(list_name).glob("*.csv")):
             for fn in fns:
                 fn.unlink()
-            logger.warning(f'Stale csv file(s) {", ".join(fns)} removed')
+            logger.warning(f"Stale csv file(s) {', '.join(fns)} removed")
 
     def remove_series(self, list_name: str, attr: str) -> None:
         fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
