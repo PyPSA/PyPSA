@@ -298,7 +298,9 @@ def define_operational_constraints_for_committables(
             - (upper_p_ce - ramp_shut_down_ce) * (status_ce - start_up_ce)
         )
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-before", mask=active_ce)
+        n.model.add_constraints(
+            lhs, "<=", 0, name=f"{c}-com-p-before", mask=active_ce.iloc[1:]
+        )
 
         # dispatch limit for partly start up/shut down for t
         lhs = (
@@ -307,7 +309,9 @@ def define_operational_constraints_for_committables(
             + (upper_p_ce - ramp_start_up_ce) * start_up_ce
         )
         lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-current", mask=active_ce)
+        n.model.add_constraints(
+            lhs, "<=", 0, name=f"{c}-com-p-current", mask=active_ce.iloc[1:]
+        )
 
         # ramp up if committable is only partly active and some capacity is starting up
         lhs = (
@@ -319,7 +323,7 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active_ce
+            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active_ce.iloc[1:]
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
@@ -332,7 +336,7 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active_ce
+            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active_ce.iloc[1:]
         )
 
 
