@@ -273,6 +273,213 @@ class ExporterCSV(Exporter):
             fn.unlink()
 
 
+class ImporterExcel(Importer):
+    def __init__(self, excel_file_path: str | Path) -> None:
+        check_optional_dependency(
+            "openpyxl",
+            "Missing optional dependencies to use Excel files. Install them via "
+            "`pip install pypsa[excel]` or `conda install -c conda-forge pypsa[excel]`.",
+        )
+        self.excel_file_path = Path(excel_file_path)
+        if not self.excel_file_path.is_file():
+            msg = f"Excel file {excel_file_path} does not exist."
+            raise FileNotFoundError(msg)
+
+    def get_attributes(self) -> dict | None:
+        try:
+            df = pd.read_excel(self.excel_file_path, sheet_name="network")
+            return dict(df.iloc[0])
+        except (ValueError, KeyError):
+            return None
+
+    def get_meta(self) -> dict:
+        try:
+            df = pd.read_excel(self.excel_file_path, sheet_name="meta")
+            if not df.empty:
+                meta = {}
+                for _, row in df.iterrows():
+                    key = row["Key"]
+                    value = row["Value"]
+
+                    # Try to parse JSON strings back into dictionaries
+                    if isinstance(value, str):
+                        try:
+                            value = json.loads(value)
+                        except json.JSONDecodeError:
+                            pass
+
+                    meta[key] = value
+                return meta
+            return {}
+        except (ValueError, KeyError):
+            return {}
+
+    def get_crs(self) -> dict:
+        try:
+            df = pd.read_excel(self.excel_file_path, sheet_name="crs")
+            # Convert the crs dataframe to a dictionary
+            if not df.empty:
+                # Assuming first column is keys and second column is values
+                return dict(zip(df.iloc[:, 0], df.iloc[:, 1]))
+            return {}
+        except (ValueError, KeyError):
+            return {}
+
+    def get_snapshots(self) -> pd.Index:
+        try:
+            df = pd.read_excel(
+                self.excel_file_path,
+                sheet_name="snapshots",
+                index_col=0,
+                parse_dates=True,
+            )
+            # backwards-compatibility: level "snapshot" was rename to "timestep"
+            if "snapshot" in df:
+                df["snapshot"] = pd.to_datetime(df.snapshot)
+            if "timestep" in df:
+                df["timestep"] = pd.to_datetime(df.timestep)
+            return df
+        except (ValueError, KeyError):
+            return None
+
+    def get_investment_periods(self) -> pd.Series:
+        try:
+            return pd.read_excel(
+                self.excel_file_path, sheet_name="investment_periods", index_col=0
+            )
+        except (ValueError, KeyError):
+            return None
+
+    def get_static(self, list_name: str) -> pd.DataFrame:
+        try:
+            return pd.read_excel(
+                self.excel_file_path, sheet_name=list_name, index_col=0
+            )
+        except (ValueError, KeyError):
+            return None
+
+    def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        # Get all sheets that start with list_name-
+        excel_file = pd.ExcelFile(self.excel_file_path)
+        for sheet_name in excel_file.sheet_names:
+            if sheet_name.startswith(list_name + "-"):
+                attr = sheet_name[len(list_name) + 1 :]
+                df = pd.read_excel(
+                    self.excel_file_path,
+                    sheet_name=sheet_name,
+                    index_col=0,
+                    parse_dates=True,
+                )
+                yield attr, df
+
+
+class ExporterExcel(Exporter):
+    def __init__(self, excel_file_path: Path | str) -> None:
+        check_optional_dependency(
+            "openpyxl",
+            "Missing optional dependencies to use Excel files. Install them via "
+            "`pip install pypsa[excel]` or `conda install -c conda-forge pypsa[excel]`.",
+        )
+
+        self.excel_file_path = Path(excel_file_path)
+        # Create an empty Excel file if it doesn't exist
+        if not self.excel_file_path.exists():
+            logger.warning(f"Excel file {excel_file_path} does not exist, creating it")
+            with pd.ExcelWriter(self.excel_file_path, engine="openpyxl") as writer:
+                pd.DataFrame().to_excel(writer, sheet_name="_temp")
+
+        # Keep track of sheets to avoid overwriting
+        self.writer = None
+
+    def _get_writer(self) -> pd.ExcelWriter:
+        if self.writer is None:
+            # Use mode='a' to append to existing file
+            # Use if_sheet_exists='replace' to overwrite existing sheets
+            self.writer = pd.ExcelWriter(
+                self.excel_file_path,
+                engine="openpyxl",
+                mode="a" if self.excel_file_path.exists() else "w",
+                if_sheet_exists="replace",
+            )
+        return self.writer
+
+    def _save_writer(self) -> None:
+        if self.writer is not None:
+            self.writer.close()
+            self.writer = None
+
+    def save_attributes(self, attrs: dict) -> None:
+        name = attrs.pop("name")
+        df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
+        writer = self._get_writer()
+        df.to_excel(writer, sheet_name="network")
+        self._save_writer()
+
+    def save_meta(self, meta: dict) -> None:
+        # Convert meta dictionary to DataFrame with proper handling of nested dicts
+        meta_items = []
+        for key, value in meta.items():
+            # If value is a dict, serialize it as JSON
+            if isinstance(value, dict):
+                value = json.dumps(value)
+            meta_items.append([key, value])
+
+        df = pd.DataFrame(meta_items, columns=["Key", "Value"])
+        writer = self._get_writer()
+        df.to_excel(writer, sheet_name="meta", index=False)
+        self._save_writer()
+
+    def save_crs(self, crs: dict) -> None:
+        # Convert crs dictionary to DataFrame
+        df = pd.DataFrame(list(crs.items()), columns=["Key", "Value"])
+        writer = self._get_writer()
+        df.to_excel(writer, sheet_name="crs", index=False)
+        self._save_writer()
+
+    def save_snapshots(self, snapshots: pd.Index) -> None:
+        writer = self._get_writer()
+        snapshots.to_excel(writer, sheet_name="snapshots")
+        self._save_writer()
+
+    def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        writer = self._get_writer()
+        investment_periods.to_excel(writer, sheet_name="investment_periods")
+        self._save_writer()
+
+    def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        writer = self._get_writer()
+        df.to_excel(writer, sheet_name=list_name)
+        self._save_writer()
+
+    def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        sheet_name = f"{list_name}-{attr}"
+        writer = self._get_writer()
+        df.to_excel(writer, sheet_name=sheet_name)
+        self._save_writer()
+
+    def remove_static(self, list_name: str) -> None:
+        import openpyxl
+
+        # Load the Excel file
+        book = openpyxl.load_workbook(self.excel_file_path)
+        if list_name in book.sheetnames:
+            # Remove the sheet
+            del book[list_name]
+            book.save(self.excel_file_path)
+            logger.warning(f"Stale sheet {list_name} removed")
+
+    def remove_series(self, list_name: str, attr: str) -> None:
+        import openpyxl
+
+        sheet_name = f"{list_name}-{attr}"
+        book = openpyxl.load_workbook(self.excel_file_path)
+        if sheet_name in book.sheetnames:
+            # Remove the sheet
+            del book[sheet_name]
+            book.save(self.excel_file_path)
+            logger.warning(f"Stale sheet {sheet_name} removed")
+
+
 class ImporterHDF5(Importer):
     def __init__(self, path: str | pd.HDFStore) -> None:
         check_optional_dependency(
@@ -730,12 +937,95 @@ def export_to_csv_folder(
     Examples
     --------
     >>> n.export_to_csv_folder(csv_folder_name) # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_netcdf : Export to a netCDF file
+    export_to_hdf5 : Export to an HDF5 file
+    export_to_excel : Export to an Excel file
     """
 
     basename = os.path.basename(csv_folder_name)
     with ExporterCSV(
         csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
     ) as exporter:
+        _export_to_exporter(
+            n,
+            exporter,
+            basename=basename,
+            export_standard_types=export_standard_types,
+        )
+
+
+@deprecated_common_kwargs
+def import_from_excel(
+    n: Network,
+    excel_file_path: str | Path,
+    skip_time: bool = False,
+) -> None:
+    """
+    Import network data from an Excel file.
+    The Excel file must follow the standard form with appropriate sheets.
+
+    Parameters
+    ----------
+    excel_file_path : string or Path
+        Path to the Excel file
+    skip_time : bool, default False
+        Skip reading in time dependent attributes
+
+    Examples
+    --------
+    >>> n.import_from_excel(excel_file_path) # doctest: +SKIP
+    """
+    basename = Path(excel_file_path).stem
+    with ImporterExcel(excel_file_path) as importer:
+        _import_from_importer(n, importer, basename=basename, skip_time=skip_time)
+
+
+@deprecated_common_kwargs
+def export_to_excel(
+    n: Network,
+    excel_file_path: str | Path,
+    export_standard_types: bool = False,
+) -> None:
+    """
+    Export network and components to an Excel file.
+
+    It is recommended to only use the Excel format if needed and for small networks.
+    Excel files are not as efficient as other formats and can be slow to read/write.
+
+    Both static and series attributes of all components are exported, but only
+    if they have non-default values.
+
+    If ``excel_file_path`` does not already exist, it is created.
+
+    Static attributes are exported in one sheet per component,
+    e.g. a sheet named ``generators``.
+
+    Series attributes are exported in one sheet per component per
+    attribute, e.g. a sheet named ``generators-p_set``.
+
+    Parameters
+    ----------
+    excel_file_path : string or Path
+        Path to the Excel file to which to export.
+    export_standard_types : boolean, default False
+        If True, then standard types are exported too (upon reimporting you
+        should then set "ignore_standard_types" when initialising the network).
+
+    Examples
+    --------
+    >>> n.export_to_excel(excel_file_path) # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_netcdf : Export to a netCDF file
+    export_to_hdf5 : Export to an HDF5 file
+    export_to_csv_folder : Export to a folder of CSVs
+    """
+    basename = Path(excel_file_path).stem
+    with ExporterExcel(excel_file_path) as exporter:
         _export_to_exporter(
             n,
             exporter,
@@ -793,6 +1083,12 @@ def export_to_hdf5(
     Examples
     --------
     >>> n.export_to_hdf5(filename) # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_netcdf : Export to a netCDF file
+    export_to_csv_folder : Export to a folder of CSVs
+    export_to_excel : Export to an Excel file
     """
     kwargs.setdefault("complevel", 4)
 
@@ -876,6 +1172,12 @@ def export_to_netcdf(
     >>> import pypsa
     >>> n = pypsa.examples.ac_dc_meshed()
     >>> n.export_to_netcdf("my_file.nc") # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_hdf5 : Export to an HDF5 file
+    export_to_csv_folder : Export to a folder of CSVs
+    export_to_excel : Export to an Excel file
 
     """
     basename = os.path.basename(path) if path is not None else None
