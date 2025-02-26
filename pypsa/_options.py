@@ -192,7 +192,6 @@ def set_option(option_name: str, value: Any) -> None:
 
     >>> pypsa.options.warnings.components_store_iter = False
     """
-
     category, name = option_name.split(".")
     try:
         setattr(getattr(options, category), name, value)

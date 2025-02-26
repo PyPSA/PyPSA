@@ -586,7 +586,6 @@ def optimize(
         "optimal" or one of the codes listed in
         https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
     """
-
     sns = as_index(n, snapshots, "snapshots")
     n._multi_invest = int(multi_investment_periods)
     n._linearized_uc = linearized_unit_commitment

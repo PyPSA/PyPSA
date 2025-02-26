@@ -1,16 +1,14 @@
-"""
-This module contains functions for plotting PyPSA networks.
-"""
+"""Plotting package for PyPSA networks."""
 
 from pypsa.common import deprecated_namespace
-from pypsa.plot.maps import add_legend_arrows as _add_legend_arrows
-from pypsa.plot.maps import add_legend_circles as _add_legend_circles
-from pypsa.plot.maps import add_legend_lines as _add_legend_lines
-from pypsa.plot.maps import add_legend_patches as _add_legend_patches
-from pypsa.plot.maps import add_legend_semicircles as _add_legend_semicircles
-from pypsa.plot.maps import explore as _explore
-from pypsa.plot.maps import iplot as _iplot
-from pypsa.plot.maps import plot as _plot
+from pypsa.plot.statistics.maps import add_legend_arrows as _add_legend_arrows
+from pypsa.plot.statistics.maps import add_legend_circles as _add_legend_circles
+from pypsa.plot.statistics.maps import add_legend_lines as _add_legend_lines
+from pypsa.plot.statistics.maps import add_legend_patches as _add_legend_patches
+from pypsa.plot.statistics.maps import add_legend_semicircles as _add_legend_semicircles
+from pypsa.plot.statistics.maps import explore as _explore
+from pypsa.plot.statistics.maps import iplot as _iplot
+from pypsa.plot.statistics.maps import plot as _plot
 
 # Create wrapped versions
 plot = deprecated_namespace(_plot, "pypsa.plot")  # noqa: F811

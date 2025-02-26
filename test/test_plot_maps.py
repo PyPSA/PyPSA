@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.plot.maps import (
+from pypsa.plot.statistics.maps import (
     add_legend_circles,
     add_legend_lines,
     add_legend_patches,
@@ -344,93 +344,3 @@ def test_network_explore(ac_dc_network):
     n = ac_dc_network
 
     n.explore()
-
-
-def test_plot_statistics_capex(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.capex()
-    plt.close()
-
-
-def test_plot_statistics_installed_capex(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.installed_capex()
-    plt.close()
-
-
-def test_plot_statistics_expanded_capex(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.expanded_capex()
-    plt.close()
-
-
-def test_plot_statistics_optimal_capacity(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.optimal_capacity()
-    plt.close()
-
-
-def test_plot_statistics_installed_capacity(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.installed_capacity()
-    plt.close()
-
-
-def test_plot_statistics_expanded_capacity(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.expanded_capacity()
-    plt.close()
-
-
-def test_plot_statistics_opex(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.opex()
-    plt.close()
-
-
-def test_plot_statistics_revenue(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.revenue()
-    plt.close()
-
-
-def test_plot_statistics_market_value(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.market_value()
-    plt.close()
-
-
-def test_plot_statistics_supply(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.supply()
-    # Test with specific bus carrier
-    n.plot.map.supply(bus_carrier="AC")
-    plt.close()
-
-
-def test_plot_statistics_withdrawal(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.withdrawal()
-    # Test with specific bus carrier
-    n.plot.map.withdrawal(bus_carrier="AC")
-    plt.close()
-
-
-def test_plot_statistics_energy_balance(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.energy_balance()
-    # Test with specific bus carrier
-    n.plot.map.energy_balance(bus_carrier="AC")
-    plt.close()
-
-
-def test_plot_statistics_capacity_factor(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.capacity_factor()
-    plt.close()
-
-
-def test_plot_statistics_curtailment(ac_dc_network_r):
-    n = ac_dc_network_r
-    n.plot.map.curtailment()
-    plt.close()

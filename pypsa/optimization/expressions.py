@@ -208,7 +208,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-
         if storage:
             comps = ("Store", "StorageUnit")
         if bus_carrier and at_port is None:
@@ -322,7 +321,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-
         if comps is None:
             comps = self.n.branch_components
 
@@ -379,7 +377,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
-
         if (
             self.n.buses.carrier.unique().size > 1
             and groupby is None

@@ -1,6 +1,4 @@
-"""
-Functions for plotting networks.
-"""
+"""Maps plots based on statistics functions."""
 
 from __future__ import annotations
 
@@ -26,7 +24,7 @@ from shapely import linestrings
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
 from pypsa.components.abstract import Components
-from pypsa.consistency import check_plotting_consistency
+from pypsa.consistency import plotting_consistency_check
 from pypsa.constants import DEFAULT_EPSG
 from pypsa.geo import (
     compute_bbox,
@@ -145,6 +143,7 @@ def apply_layouter(
     Norway       -9.848077e-01
     Norway DC    -6.427877e-01
     Name: y, dtype: float64
+
     """
     G = n.graph()
 
@@ -163,9 +162,9 @@ def apply_layouter(
         return coordinates.x, coordinates.y
 
 
-class MapPlotter:
+class MapPlotGenerator:
     def __init__(
-        self: MapPlotter,
+        self,
         n: Network,
         layout: Callable[[nx.Graph], dict[Any, tuple[float, float]]] | None = None,
         boundaries: tuple[float, float, float, float] | None = None,
@@ -174,7 +173,7 @@ class MapPlotter:
         buses: pd.Index | None = None,
     ) -> None:
         """
-        Initialize MapPlotter instance.
+        Initialize MapPlotGenerator instance.
 
         Parameters
         ----------
@@ -190,8 +189,9 @@ class MapPlotter:
             Amount of random noise to add to node positions
         buses : pd.Index, optional
             Subset of buses to plot
+
         """
-        """Initialize MapPlotter instance.
+        """Initialize MapPlotGenerator instance.
 
         Parameters
         ----------
@@ -221,39 +221,39 @@ class MapPlotter:
             self.add_jitter(jitter)
 
     @property
-    def n(self: MapPlotter) -> Network:
+    def n(self) -> Network:
         return self._n
 
     @property
-    def x(self: MapPlotter) -> pd.Series:
+    def x(self) -> pd.Series:
         if self._x is None:
             self.set_layout()
         return self._x
 
     @x.setter
-    def x(self: MapPlotter, value: pd.Series) -> None:
+    def x(self, value: pd.Series) -> None:
         self._x = value
 
     @property
-    def y(self: MapPlotter) -> pd.Series:
+    def y(self) -> pd.Series:
         if self._y is None:
             self.set_layout()
         return self._y
 
     @y.setter
-    def y(self: MapPlotter, value: pd.Series) -> None:
+    def y(self, value: pd.Series) -> None:
         self._y = value
 
     @property
-    def margin(self: MapPlotter) -> float:
+    def margin(self) -> float:
         return self._margin
 
     @margin.setter
-    def margin(self: MapPlotter, value: float) -> None:
+    def margin(self, value: float) -> None:
         self._margin = value
 
     @property
-    def boundaries(self: MapPlotter) -> tuple[float, float, float, float]:
+    def boundaries(self) -> tuple[float, float, float, float]:
         if self._boundaries is None:
             self.set_boundaries(self._boundaries, self.margin, self._n.buses.index)
             assert self._boundaries is not None
@@ -261,7 +261,7 @@ class MapPlotter:
 
     @boundaries.setter
     def boundaries(
-        self: MapPlotter,
+        self,
         value: tuple[float, float, float, float] | None,
     ) -> None:
         if value is not None and len(value) != 4:
@@ -272,13 +272,13 @@ class MapPlotter:
 
     @property
     def ax(
-        self: MapPlotter,
+        self,
     ) -> Axes | GeoAxesSubplot | None:
         return self._ax
 
     @ax.setter
     def ax(
-        self: MapPlotter,
+        self,
         value: Axes | GeoAxesSubplot | None,
     ) -> None:
         if not cartopy_present:
@@ -290,16 +290,16 @@ class MapPlotter:
         self._ax = value
 
     @property
-    def area_factor(self: MapPlotter) -> float:
+    def area_factor(self) -> float:
         return self._area_factor
 
     @area_factor.setter
-    def area_factor(self: MapPlotter, value: float | int | None) -> None:
+    def area_factor(self, value: float | int | None) -> None:
         if value is not None and not isinstance(value, int | float):
             raise ValueError("area_factor must be a number")
         self._area_factor = float(value) if value is not None else 1.0
 
-    def set_layout(self: MapPlotter, layouter: Callable | None = None) -> None:
+    def set_layout(self, layouter: Callable | None = None) -> None:
         """
         Set the layout for node positions.
 
@@ -308,6 +308,7 @@ class MapPlotter:
         layouter : networkx.drawing.layout, optional
             Layout function to use. If None, uses planar layout if possible,
             otherwise Kamada-Kawai layout.
+
         """
         """Set the layout for node positions.
 
@@ -330,7 +331,7 @@ class MapPlotter:
         self.crs = self.n.crs
 
     def set_boundaries(
-        self: MapPlotter,
+        self,
         boundaries: tuple[float, float, float, float] | None = None,
         margin: float = 0.05,
         buses: pd.Index | None = None,
@@ -346,6 +347,7 @@ class MapPlotter:
             Margin around plot boundaries
         buses : pd.Index, optional
             Subset of buses to use for computing boundaries
+
         """
         """Set the plot boundaries.
 
@@ -370,7 +372,7 @@ class MapPlotter:
             self.boundaries = boundaries
 
     def init_axis(
-        self: MapPlotter,
+        self,
         ax: Axes | None = None,
         projection: Any = None,
         geomap: bool = True,
@@ -398,6 +400,7 @@ class MapPlotter:
             Plot boundaries as [xmin, xmax, ymin, ymax]
         title : str, default ""
             Plot title
+
         """
         # Ensure that boundaries are set
         if boundaries is None:
@@ -462,7 +465,7 @@ class MapPlotter:
         self.ax.set_title(title)
 
     def add_geomap_features(
-        self: MapPlotter,
+        self,
         resolution: Literal["10m", "50m", "110m"] = "50m",
         geomap_colors: dict = {
             "ocean": "lightblue",
@@ -484,6 +487,7 @@ class MapPlotter:
             - 'land': color for land areas
             - 'border': color for country borders
             - 'coastline': color for coastlines
+
         """
         """Add geographic features to the map using cartopy."""
         if not cartopy_present:
@@ -522,7 +526,7 @@ class MapPlotter:
             edgecolor=geomap_colors.get("coastline", "black"),
         )
 
-    def add_jitter(self: MapPlotter, jitter: float) -> tuple[pd.Series, pd.Series]:
+    def add_jitter(self, jitter: float) -> tuple[pd.Series, pd.Series]:
         """
         Add random jitter to data.
 
@@ -542,6 +546,7 @@ class MapPlotter:
             X data with added jitter.
         y_jittered : numpy.ndarray
             Y data with added jitter.
+
         """
         rng = np.random.default_rng()  # Create a random number generator
         self.x = self.x + rng.uniform(low=-jitter, high=jitter, size=len(self.x))
@@ -550,7 +555,7 @@ class MapPlotter:
         return self.x, self.y
 
     def get_multiindex_buses(
-        self: MapPlotter,
+        self,
         sizes: pd.Series,
         colors: pd.Series,
         alpha: float | pd.Series,
@@ -618,7 +623,7 @@ class MapPlotter:
         return pd.DataFrame(kwargs, index=index)
 
     def _flow_ds_from_arg(
-        self: MapPlotter,
+        self,
         flow: pd.Series | str | int | float | Callable | None,
         c_name: str,
     ) -> pd.Series | None:
@@ -636,6 +641,7 @@ class MapPlotter:
         -------
         pd.Series | None
             Converted flow data as Series, or None if flow was None
+
         """
         if isinstance(flow, pd.Series):
             return flow
@@ -656,7 +662,7 @@ class MapPlotter:
         return None
 
     def get_branch_collection(
-        self: MapPlotter,
+        self,
         c: Components,
         widths: float | pd.Series,
         colors: str | pd.Series,
@@ -692,7 +698,7 @@ class MapPlotter:
         return self._get_branch_collection_patches(c, widths, colors, alpha)
 
     def _get_branch_collection_lines(
-        self: MapPlotter,
+        self,
         c: Components,
         widths: pd.Series,
         colors: pd.Series,
@@ -736,7 +742,7 @@ class MapPlotter:
         )
 
     def _get_branch_collection_patches(
-        self: MapPlotter,
+        self,
         c: Components,
         widths: pd.Series,
         colors: pd.Series,
@@ -858,7 +864,7 @@ class MapPlotter:
         )
 
     def get_flow_collection(
-        self: MapPlotter,
+        self,
         c: Components,
         flow: pd.Series,
         widths: pd.Series,
@@ -880,6 +886,7 @@ class MapPlotter:
             Colors for the arrows
         alpha : float/Series
             Alpha values for the arrows
+
         """
         idx = widths.index
         coords = pd.DataFrame(
@@ -921,6 +928,7 @@ class MapPlotter:
         -------
         pd.Series
             Scaled values
+
         """
         plot_area = (x_max - x_min) * (y_max - y_min)
         target_total_circle_area = plot_area * target_area_fraction
@@ -958,11 +966,12 @@ class MapPlotter:
             Flow values
         width_factor : float
             Ratio between the flow width and and line width (default: 0.2)
+
         """
         return abs(flow) ** 0.5 * width_factor
 
     def draw_map(
-        self: MapPlotter,
+        self,
         ax: Axes | None = None,
         projection: Any = None,
         geomap: bool = True,
@@ -1135,6 +1144,7 @@ class MapPlotter:
                 - 'lines': Collection of line flows
                 - 'links': Collection of link flows
                 - 'transformers': Collection of transformer flows
+
         """
         n = self.n
 
@@ -1332,8 +1342,8 @@ class MapPlotter:
             "flows": flow_collections,
         }
 
-    def _plot_statistics(
-        self: MapPlotter,
+    def plot_statistics(
+        self,
         func: Callable,
         ax: Axes | None = None,
         projection: Any = None,
@@ -1362,9 +1372,8 @@ class MapPlotter:
         **kwargs: Any,
     ) -> tuple[Figure, Axes]:
         """Implement map plotting logic"""
-
         n = self._n
-        check_plotting_consistency(n)
+        plotting_consistency_check(n)
         boundaries = boundaries or self.boundaries
         (x_min, x_max, y_min, y_max) = boundaries
 
@@ -1386,7 +1395,7 @@ class MapPlotter:
 
         if transmission_flow:
             branch_flows = n.statistics.transmission(groupby=False, bus_carrier=carrier)
-            branch_flows = MapPlotter.aggregate_flow_by_connection(
+            branch_flows = MapPlotGenerator.aggregate_flow_by_connection(
                 branch_flows, n.branches()
             )
             branch_flow_scaling_factor = self.scaling_factor_from_area_contribution(
@@ -1546,377 +1555,6 @@ class MapPlotter:
 
         return self.ax.get_figure(), self.ax  # type: ignore
 
-    def capex(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the capital expenditure of each bus.
-
-        Parameters
-        ----------
-        **kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        """
-        Plot the capital expenditure of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.capex,
-            **kwargs,
-        )
-
-    def installed_capex(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the capital expenditure of installed components at each bus.
-
-        Parameters
-        ----------
-        **kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        """
-        Plot the capital expenditure of installed components at each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.installed_capex,
-            **kwargs,
-        )
-
-    def expanded_capex(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the capital expenditure of expanded components at each bus.
-
-        Parameters
-        ----------
-        **kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        """
-        Plot the capital expenditure of expanded components at each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.expanded_capex,
-            **kwargs,
-        )
-
-    def optimal_capacity(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the optimal capacity of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.optimal_capacity,
-            **kwargs,
-        )
-
-    def installed_capacity(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the installed capacity of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.installed_capacity,
-            **kwargs,
-        )
-
-    def expanded_capacity(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the expanded capacity of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.expanded_capacity,
-            **kwargs,
-        )
-
-    def opex(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the operational expenditure of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.opex,
-            **kwargs,
-        )
-
-    def revenue(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the revenue of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.revenue,
-            **kwargs,
-        )
-
-    def market_value(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the market value of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.market_value,
-            **kwargs,
-        )
-
-    def supply(
-        self: MapPlotter,
-        bus_carrier: str | None = None,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the supply of each bus.
-
-        Parameters
-        ----------
-        carrier : str, optional
-            Energy carrier to plot, by default None
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.supply,
-            bus_carrier=bus_carrier,
-            transmission_flow=True,
-            draw_legend_arrows=True,
-            draw_legend_lines=False,
-            kind="supply",
-            **kwargs,
-        )
-
-    def withdrawal(
-        self: MapPlotter,
-        bus_carrier: str | None = None,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the withdrawal of each bus.
-
-        Parameters
-        ----------
-        carrier : str, optional
-            Energy carrier to plot, by default None
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.withdrawal,
-            bus_carrier=bus_carrier,
-            transmission_flow=True,
-            draw_legend_arrows=True,
-            draw_legend_lines=False,
-            kind="withdrawal",
-            **kwargs,
-        )
-
-    def energy_balance(
-        self: MapPlotter,
-        bus_carrier: str | None = None,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the optimal capacity of each bus.
-
-        Parameters
-        ----------
-        bus_carrier : str, optional
-            Energy carrier to plot, by default None
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.energy_balance,
-            bus_carrier=bus_carrier,
-            bus_split_circles=True,
-            transmission_flow=True,
-            draw_legend_arrows=True,
-            draw_legend_lines=False,
-            **kwargs,
-        )
-
-    def capacity_factor(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the capacity factor of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.capacity_factor,
-            **kwargs,
-        )
-
-    def curtailment(
-        self: MapPlotter,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
-        """
-        Plot the curtailment of each bus.
-
-        Parameters
-        ----------
-        kwargs : dict, optional
-            Additional keyword arguments passed to the plot function
-
-        Returns
-        -------
-        plt.Figure
-            Matplotlib figure object
-        """
-        return self._plot_statistics(
-            self.n.statistics.curtailment,
-            **kwargs,
-        )
-
 
 @deprecated_kwargs(
     bus_norm="bus_cmap_norm",
@@ -1925,7 +1563,10 @@ class MapPlotter:
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
 )
-@wraps(MapPlotter.draw_map, assigned=("__doc__", "__annotations__", "__type_params__"))
+@wraps(
+    MapPlotGenerator.draw_map,
+    assigned=("__doc__", "__annotations__", "__type_params__"),
+)
 def plot(
     n: Network,
     ax: Axes | None = None,
@@ -1969,7 +1610,7 @@ def plot(
         geomap_resolution = geomap  # type: ignore
 
     # setup plotter
-    plotter = MapPlotter(
+    plotter = MapPlotGenerator(
         n,
         layouter,
         boundaries=boundaries,
@@ -2002,12 +1643,12 @@ class HandlerCircle(HandlerPatch):
 
     LEGEND_SCALE_FACTOR = 72
 
-    def __init__(self: HandlerCircle, scale_factor: float | None = None) -> None:
+    def __init__(self, scale_factor: float | None = None) -> None:
         super().__init__()
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
     def create_artists(
-        self: HandlerCircle,
+        self,
         legend: Legend,
         orig_handle: Circle,  # type: ignore
         xdescent: float,
@@ -2044,12 +1685,12 @@ class WedgeHandler(HandlerPatch):
 
     LEGEND_SCALE_FACTOR = 72
 
-    def __init__(self: WedgeHandler, scale_factor: float | int | None = None) -> None:
+    def __init__(self, scale_factor: float | int | None = None) -> None:
         super().__init__()
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
     def create_artists(
-        self: WedgeHandler,
+        self,
         legend: Legend,
         orig_handle: Wedge,  # type: ignore
         xdescent: float,
@@ -2085,7 +1726,7 @@ class HandlerArrow(HandlerPatch):
     LEGEND_SCALE_FACTOR = 72
 
     def __init__(
-        self: HandlerArrow, width_ratio: float = 0.2, scale_factor: float | None = None
+        self, width_ratio: float = 0.2, scale_factor: float | None = None
     ) -> None:
         """
         Parameters
@@ -2094,13 +1735,14 @@ class HandlerArrow(HandlerPatch):
             Ratio of arrow width to head width, by default 0.2
         scale_factor : float, optional
             Custom scaling factor for arrow size, by default None
+
         """
         super().__init__()
         self.width_ratio = width_ratio
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
     def create_artists(
-        self: HandlerArrow,
+        self,
         legend: Legend,
         orig_handle: FancyArrow,  # type: ignore
         xdescent: float,
@@ -2156,6 +1798,7 @@ def add_legend_lines(
         Keyword arguments passed to plt.Line2D
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
+
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
@@ -2210,6 +1853,7 @@ def add_legend_patches(
         Keyword arguments passed to matplotlib.patches.Patch
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
+
     """
     colors = np.atleast_1d(colors)
     labels = np.atleast_1d(labels)
@@ -2255,6 +1899,7 @@ def add_legend_circles(
         Keyword arguments passed to matplotlib.patches.Circle
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
+
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
@@ -2306,6 +1951,7 @@ def add_legend_semicircles(
         Keyword arguments passed to matplotlib.patches.Wedges
     legend_kw : defaults to {}
         Keyword arguments passed to ax.legend
+
     """
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
@@ -2358,6 +2004,7 @@ def add_legend_arrows(
         Keyword arguments passed to FancyArrow
     legend_kw : dict, optional
         Keyword arguments passed to ax.legend
+
     """
     sizes = np.atleast_1d(sizes) ** 0.5
     labels = np.atleast_1d(labels)
@@ -2501,6 +2148,7 @@ def get_legend_representatives(
     -------
     list
         List of tuples (scaled_value, unit) for each quantile
+
     """
     if series.empty:
         return []
@@ -2588,6 +2236,8 @@ def iplot(
 
     Parameters
     ----------
+    n : pypsa.Network
+        The network to plot.
     fig : dict, default None
         If not None, figure is built upon this fig.
     bus_colors : dict/pandas.Series
@@ -2608,7 +2258,7 @@ def iplot(
         Colors for the lines, defaults to 'rosybrown'.
     link_colors : str/pandas.Series
         Colors for the links, defaults to 'darkseagreen'.
-    transfomer_colors : str/pandas.Series
+    transformer_colors : str/pandas.Series
         Colors for the transfomer, defaults to 'orange'.
     line_widths : dict/pandas.Series
         Widths of lines, defaults to 1.5
@@ -2620,7 +2270,7 @@ def iplot(
         Text for lines, defaults to line names.
     link_text : pandas.Series
         Text for links, defaults to link names.
-    tranformer_text : pandas.Series
+    transformer_text : pandas.Series
         Text for transformers, defaults to transformer names.
     layouter : networkx.drawing.layout function, default None
         Layouting function from `networkx <https://networkx.github.io/>`_ which
@@ -2663,6 +2313,7 @@ def iplot(
     Returns
     -------
     fig: dictionary for plotly figure
+
     """
     if fig is None:
         fig = dict(data=[], layout={})
@@ -2871,6 +2522,7 @@ def explore(
     -------
     folium.Map
         A Folium map object with the PyPSA.Network components plotted.
+
     """
     try:
         import mapclassify  # noqa: F401

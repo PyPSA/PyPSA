@@ -87,7 +87,7 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
 
         Parameters
         ----------
-        arr :
+        arr : array-like
             Array to check
 
         Returns
