@@ -1009,7 +1009,6 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     None
 
     """
-
     sns_ = as_index(n, sns, "snapshots")
 
     m = n.model

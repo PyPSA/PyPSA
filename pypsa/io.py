@@ -727,7 +727,6 @@ def export_to_csv_folder(
     --------
     >>> n.export_to_csv_folder(csv_folder_name) # doctest: +SKIP
     """
-
     basename = os.path.basename(csv_folder_name)
     with ExporterCSV(
         csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
@@ -1020,7 +1019,6 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
     -------
     pandas.DataFrame
     """
-
     df_cols_set = set(df.columns if axis == 1 else df.index)
 
     existing_cols = [col for col in attrs_list if col in df_cols_set]

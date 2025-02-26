@@ -153,33 +153,6 @@ def check_for_unknown_carriers(
             )
 
 
-def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
-    """
-    Check if carriers are missing colors.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        The network to check.
-    strict : bool, optional
-        If True, raise an error instead of logging a warning.
-
-    """
-    missing_colors = n.carriers[n.carriers.color.isna() | n.carriers.color.eq("")]
-    if not missing_colors.empty:
-        _log_or_raise(
-            strict,
-            "The following carriers are missing colors:\n%s",
-            missing_colors.index,
-        )
-
-
-def check_plotting_consistency(n: Network, strict: bool = True) -> None:
-    for c in n.iterate_components():
-        check_for_unknown_carriers(n, c, strict=strict)
-    check_for_missing_carrier_colors(n, strict=strict)
-
-
 @deprecated_common_kwargs
 def check_for_zero_impedances(
     n: Network, component: Components, strict: bool = False
@@ -764,6 +737,27 @@ def check_nans_for_component_default_attrs(
             )
 
 
+def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
+    """
+    Check if carriers are missing colors.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    """
+    missing_colors = n.carriers[n.carriers.color.isna() | n.carriers.color.eq("")]
+    if not missing_colors.empty:
+        _log_or_raise(
+            strict,
+            "The following carriers are missing colors:\n%s",
+            missing_colors.index,
+        )
+
+
 def consistency_check(
     n: Network, check_dtypes: bool = False, strict: Sequence | None = None
 ) -> None:
@@ -890,3 +884,50 @@ def consistency_check(
     check_for_disconnected_buses(n, "disconnected_buses" in strict)
     check_investment_periods(n, "investment_periods" in strict)
     check_shapes(n, "shapes" in strict)
+
+
+def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> None:
+    """
+    Check network for consistency for plotting functions.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : list, optional
+        If some checks should raise an error instead of logging a warning, pass a list
+        of strings with the names of the checks to be strict about. If 'all' is passed,
+        all checks will be strict. The default is no strict checks.
+
+    Returns
+    -------
+    None
+
+    See Also
+    --------
+    pypsa.consistency.consistency_check : General consistency check method, which can be
+        runs all consistency checks.
+    pypsa.consistency.check_for_unknown_buses : Check if buses are attached to
+        component but are not defined in the network.
+    pypsa.consistency.check_for_unknown_carriers : Check if carriers are attached to
+        component but are not defined in the network.
+
+    """
+    if strict is None:
+        strict = []
+
+    strict_options = ["unknown_carriers", "missing_carrier_colors"]
+
+    if "all" in strict:
+        strict = strict_options
+
+    if not all(s in strict_options for s in strict):
+        raise ValueError(
+            f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
+            f"Valid options are {strict_options}. Please check the documentation for "
+            "more details on them."
+        )
+
+    for c in n.iterate_components():
+        check_for_unknown_carriers(n, c, strict="unknown_carriers" in strict)
+    check_for_missing_carrier_colors(n, strict="missing_carrier_colors" in strict)

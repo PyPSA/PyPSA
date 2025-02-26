@@ -74,7 +74,7 @@ class AbstractStatisticsAccessor(ABC):
     """
 
     def __init__(self, n: Network) -> None:
-        self.n = n
+        self.n = n  # TODO make internal
         self.groupers = deprecated_groupers
         self.parameters = Parameters()
 

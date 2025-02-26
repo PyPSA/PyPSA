@@ -4,21 +4,17 @@ import pytest
 
 import pypsa
 from pypsa.statistics import groupers
+from pypsa.statistics.expressions import StatisticsAccessor
 
 
-def test_default_unsolved(ac_dc_network):
-    df = ac_dc_network.statistics()
-    assert not df.empty
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_all_methods(ac_dc_network_r, stat_func):
+    df = getattr(ac_dc_network_r.statistics, stat_func)
+    assert not df().empty
 
 
 def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.capex()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.opex()
     assert not df.empty
 
     df = ac_dc_network_r.statistics.energy_balance()

@@ -364,7 +364,7 @@ new_grouper_access = {
 
 def deprecated_grouper(func: Callable) -> Callable:
     """
-    Decorator to deprecate old grouper methods with custom deprecation warning.
+    Deprecate old grouper methods with custom deprecation warning.
 
     Parameters
     ----------

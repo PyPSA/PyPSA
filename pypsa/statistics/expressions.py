@@ -155,10 +155,58 @@ class Parameters:
                 setattr(self, key, value)
 
 
+def preserve_methods(cls: Any) -> Any:
+    """
+    Class decorator to preserve the original methods of a class.
+
+    Stores original methods with a prefix "_original_" to allow for
+    unmodified access to the original methods in subclasses.
+    """
+    for method_name in cls._methods:
+        method = getattr(cls, method_name)
+        setattr(cls, f"_original_{method_name}", method)
+    return cls
+
+
+@preserve_methods
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """
     Accessor to calculate different statistical values.
     """
+
+    _methods = [
+        "capex",
+        "installed_capex",
+        "expanded_capex",
+        "optimal_capacity",
+        "installed_capacity",
+        "expanded_capacity",
+        "opex",
+        "supply",
+        "withdrawal",
+        "transmission",
+        "energy_balance",
+        "curtailment",
+        "capacity_factor",
+        "revenue",
+        "market_value",
+    ]
+
+    _original_capex: Callable
+    _original_installed_capex: Callable
+    _original_expanded_capex: Callable
+    _original_optimal_capacity: Callable
+    _original_installed_capacity: Callable
+    _original_expanded_capacity: Callable
+    _original_opex: Callable
+    _original_supply: Callable
+    _original_withdrawal: Callable
+    _original_transmission: Callable
+    _original_energy_balance: Callable
+    _original_curtailment: Callable
+    _original_capacity_factor: Callable
+    _original_revenue: Callable
+    _original_market_value: Callable
 
     def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
         return df.index
@@ -269,18 +317,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             kwargs.pop("aggregate_time")
 
         funcs: list[Callable] = [
-            self.optimal_capacity,
-            self.installed_capacity,
-            self.supply,
-            self.withdrawal,
-            self.energy_balance,
-            self.transmission,
-            self.capacity_factor,
-            self.curtailment,
-            self.capex,
-            self.opex,
-            self.revenue,
-            self.market_value,
+            self._original_optimal_capacity,
+            self._original_installed_capacity,
+            self._original_supply,
+            self._original_withdrawal,
+            self._original_energy_balance,
+            self._original_transmission,
+            self._original_capacity_factor,
+            self._original_curtailment,
+            self._original_capex,
+            self._original_opex,
+            self._original_revenue,
+            self._original_market_value,
         ]
 
         res = {}
@@ -413,7 +461,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure. Defaults to `capital_cost`.
         """
-        df = self.capex(
+        df = self._original_capex(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
@@ -424,7 +472,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             cost_attribute=cost_attribute,
         ).sub(
-            self.installed_capex(
+            self._original_installed_capex(
                 comps=comps,
                 aggregate_groups=aggregate_groups,
                 aggregate_across_components=aggregate_across_components,
@@ -466,7 +514,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-
         if storage:
             comps = ("Store", "StorageUnit")
         if bus_carrier and at_port is None:
@@ -522,7 +569,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-
         if storage:
             comps = ("Store", "StorageUnit")
         if bus_carrier and at_port is None:
@@ -574,7 +620,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        optimal = self.optimal_capacity(
+        optimal = self._original_optimal_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
@@ -584,7 +630,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             carrier=carrier,
             nice_names=nice_names,
         )
-        installed = self.installed_capacity(
+        installed = self._original_installed_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
@@ -679,7 +725,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        df = self.energy_balance(
+        df = self._original_energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
@@ -717,7 +763,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        df = self.energy_balance(
+        df = self._original_energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
@@ -965,7 +1011,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
-        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)  # type: ignore
+        capacity = self._original_optimal_capacity(
+            aggregate_groups=aggregate_groups, **kwargs
+        )
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
@@ -1085,7 +1133,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             carrier=carrier,
             nice_names=nice_names,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
+        df = self._original_revenue(**kwargs) / self._original_supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
