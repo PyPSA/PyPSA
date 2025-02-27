@@ -147,7 +147,11 @@ class ImporterCSV(Importer):
             return None
 
         dtypes = {"pypsa_version": str}
-        return dict(pd.read_csv(fn, encoding=self.encoding, dtype=dtypes, quotechar=self.quotechar).iloc[0])
+        return dict(
+            pd.read_csv(
+                fn, encoding=self.encoding, dtype=dtypes, quotechar=self.quotechar
+            ).iloc[0]
+        )
 
     def get_meta(self) -> dict:
         fn = self.csv_folder_name.joinpath("meta.json")
