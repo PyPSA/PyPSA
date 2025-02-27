@@ -1,0 +1,6 @@
+{
+  "path": "../../examples/notebooks/reserve-power.ipynb",
+  "extra-media": [
+    "../img/reserve-power-graph.png"
+  ]
+}

@@ -15,9 +15,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 
 **Where to go for help**
 
-* In case of code-related **questions**, please post on `stack overflow <https://stackoverflow.com/questions/tagged/pypsa>`_.
-* For non-programming related and more general questions please refer to the `mailing list <https://groups.google.com/group/pypsa>`_.
-* To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the `discord server <https://discord.gg/AnuJBk23FU>`_.
+* To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the `Discord server <https://discord.gg/AnuJBk23FU>`_.
 * For **troubleshooting**, please check the `troubleshooting <https://pypsa.readthedocs.io/en/latest/contributing/troubleshooting.html>`_ in the documentation.
 * For **guidelines to contribute** to PyPSA, stay right here.
 

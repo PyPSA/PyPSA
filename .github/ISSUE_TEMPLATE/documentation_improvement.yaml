@@ -1,6 +1,7 @@
 name: Documentation Improvement
 description: Report wrong or missing documentation
-labels: ["documentation", "needs triage"]
+labels: ["needs triage"]
+type: 'Docs'
 
 body:
 - type: textarea
