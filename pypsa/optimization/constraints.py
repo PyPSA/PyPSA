@@ -543,11 +543,33 @@ def define_nodal_balance_constraints(
 ) -> None:
     """
     Defines nodal balance constraints.
+
+    This function defines the core power balance constraints at each bus, ensuring
+    that at each bus and for each snapshot, the sum of generation, storage output,
+    and incoming branch flows equals the sum of load, storage input, and outgoing
+    branch flows.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network object containing components and their attributes
+    sns : pd.Index
+        Snapshots to consider for the constraints
+    transmission_losses : int, default 0
+        Whether to include transmission losses (if > 0, specifies the number of
+        tangents for piecewise linear loss approximation)
+    buses : Sequence | None, default None
+        Buses to consider, if None then all buses are considered
+    suffix : str, default ""
+        String to append to the constraint name, useful for separate constraints
+        for different groups of buses
     """
     m = n.model
     if buses is None:
         buses = n.buses.index
 
+    # Define components and their contributions to the nodal balance
+    # Format: [component name, variable attribute, bus column, sign]
     args = [
         ["Generator", "p", "bus", 1],
         ["Store", "p", "bus", 1],
@@ -561,11 +583,13 @@ def define_nodal_balance_constraints(
         ["Link", "p", "bus1", get_as_dense(n, "Link", "efficiency", sns)],
     ]
 
+    # Handle additional ports for links
     if not n.links.empty:
         for i in additional_linkports(n):
             eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
+    # Handle case when transmission losses are enabled
     if transmission_losses:
         args.extend(
             [
@@ -576,48 +600,54 @@ def define_nodal_balance_constraints(
             ]
         )
 
+    # Build LHS: sum of all generation, storage, and branch flows
     exprs = []
+    for c_name, attr, column, sign in args:
+        c_ = n.components[c_name]
 
-    for arg in args:
-        c, attr, column, sign = arg
-
-        if n.static(c).empty:
+        # Skip if component is empty
+        if c_.static.empty:
             continue
 
-        if "sign" in n.static(c):
-            # additional sign necessary for branches in reverse direction
-            sign = sign * n.static(c).sign
+        # Apply additional sign from component if present
+        if "sign" in c_.static.columns:
+            sign = sign * c_.static.sign
 
-        expr = DataArray(sign) * m[f"{c}-{attr}"]
-        cbuses = n.static(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
+        # Get variable and multiply by sign
+        expr = DataArray(sign) * m[f"{c_name}-{attr}"]
 
-        #  drop non-existent multiport buses which are ''
-        if column in ["bus" + i for i in additional_linkports(n)]:
+        # Filter only for buses of interest
+        cbuses = c_.static[column][lambda ds: ds.isin(buses)].rename("Bus")
+
+        # Drop non-existent multiport buses which are empty strings
+        if column in [f"bus{i}" for i in additional_linkports(n)]:
             cbuses = cbuses[cbuses != ""]
 
-        expr = expr.sel({c: cbuses.index})
+        # Select only relevant components and group by bus
+        expr = expr.sel({c_name: cbuses.index})
 
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(Bus=buses)
-    active = n.loads.query("active").index
-    rhs = (
-        (-get_as_dense(n, "Load", "p_set", sns, active) * n.loads.sign[active])
-        .T.groupby(n.loads.bus[active])
-        .sum()
-        .T.reindex(columns=buses, fill_value=0)
-    )
-    # the name for multi-index is getting lost by groupby before pandas 1.4.0
-    # TODO remove once we bump the required pandas version to >= 1.4.0
-    rhs.index.name = "snapshot"
 
-    empty_nodal_balance = (lhs.vars == -1).all("_term")
-    rhs = DataArray(rhs)
+    # Build RHS
+    active_loads = n.components["Load"].get_active_assets()
+    load_buses = n.components["Load"].static.bus
+
+    p_set = get_as_dense(n, "Load", "p_set", sns, active_loads.index)
+    load_sign = n.components["Load"].static.sign[active_loads.index]
+
+    # Group by bus and convert to xarray
+    rhs = (-p_set * load_sign).T.groupby(load_buses[active_loads.index]).sum().T
+    rhs = DataArray(rhs.reindex(columns=buses, fill_value=0))
+    rhs.name = "snapshot"  # Ensure name is preserved
+
+    # Handle case with empty buses in the LHS
+    empty_nodal_balance = (lhs.vars == -1).all("_term") if "_term" in lhs.dims else True
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
-
         mask = ~empty_nodal_balance
     else:
         mask = None
@@ -627,6 +657,7 @@ def define_nodal_balance_constraints(
         rhs = rhs.rename(Bus=f"Bus{suffix}")
         if mask is not None:
             mask = mask.rename(Bus=f"Bus{suffix}")
+
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
 
