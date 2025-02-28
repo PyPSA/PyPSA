@@ -101,33 +101,38 @@ def define_operational_constraints_for_extendables(
     attr : str
         name of the attribute, e.g. 'p'
     """
-    lhs_lower: DataArray | tuple
-    lhs_upper: DataArray | tuple
-
-    ext_i = n.get_extendable_i(c)
+    c_ = n.components[c]
+    ext_i = c_.get_extendable_i()
 
     if ext_i.empty:
         return
 
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
+    min_pu, max_pu = c_.get_bounds_pu(c, sns, ext_i, attr, as_xarray=True)
     dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
     capacity = n.model[f"{c}-{nominal_attrs[c]}"]
 
     active = get_activity_mask(n, c, sns, ext_i)
 
-    lhs_lower = (1, dispatch), (-min_pu, capacity)
-    lhs_upper = (1, dispatch), (-max_pu, capacity)
+    # Make use of mighty linopy's built-in lhs/rhs handling
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, ext_i)
-        lhs_lower += ((-1, loss),)
-        lhs_upper += ((1, loss),)
-
-    n.model.add_constraints(
-        lhs_lower, ">=", 0, name=f"{c}-ext-{attr}-lower", mask=active
-    )
-    n.model.add_constraints(
-        lhs_upper, "<=", 0, name=f"{c}-ext-{attr}-upper", mask=active
-    )
+        n.model.add_constraints(
+            dispatch - loss >= min_pu * capacity,
+            name=f"{c}-ext-{attr}-lower",
+            mask=active,
+        )
+        n.model.add_constraints(
+            dispatch + loss <= max_pu * capacity,
+            name=f"{c}-ext-{attr}-upper",
+            mask=active,
+        )
+    else:
+        n.model.add_constraints(
+            dispatch >= min_pu * capacity, name=f"{c}-ext-{attr}-lower", mask=active
+        )
+        n.model.add_constraints(
+            dispatch <= max_pu * capacity, name=f"{c}-ext-{attr}-upper", mask=active
+        )
 
 
 def define_operational_constraints_for_committables(
@@ -322,7 +327,7 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
     Sets capacity expansion constraints for extendable assets for a given
     component and a given attribute.
 
-    Note: As GLPK does not like inf values on the right-hand-side we as masking these out.
+    Note: As GLPK does not like inf values on the right-hand-side we mask these out.
 
     Parameters
     ----------
@@ -332,19 +337,21 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
     attr : str
         name of the attribute, e.g. 'p'
     """
-    ext_i = n.get_extendable_i(c)
+    c_ = n.components[c]
+    ext_i = c_.get_extendable_i()
 
     if ext_i.empty:
         return
 
     capacity = n.model[f"{c}-{attr}"]
-    lower = n.static(c)[attr + "_min"].reindex(ext_i)
-    upper = n.static(c)[attr + "_max"].reindex(ext_i)
+    lower = DataArray(c_.static[attr + "_min"].reindex(ext_i))
+    upper = DataArray(c_.static[attr + "_max"].reindex(ext_i))
+
+    n.model.add_constraints(capacity >= lower, name=f"{c}-ext-{attr}-lower")
+
+    # mask out infinite values for GLPK
     mask = upper != inf
-    n.model.add_constraints(capacity, ">=", lower, name=f"{c}-ext-{attr}-lower")
-    n.model.add_constraints(
-        capacity, "<=", upper, name=f"{c}-ext-{attr}-upper", mask=mask
-    )
+    n.model.add_constraints(capacity <= upper, name=f"{c}-ext-{attr}-upper", mask=mask)
 
 
 def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) -> None:
