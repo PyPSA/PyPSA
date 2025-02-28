@@ -438,3 +438,50 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     if where is None:
         where = n.links.columns
     return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
+
+
+@deprecated_common_kwargs
+def get_bounds_pu(
+    n: Network,
+    c: str,
+    sns: Sequence,
+    index: pd.Index | None = None,
+    attr: str | None = None,
+    as_xarray: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Getter function to retrieve the per unit bounds of a given component for
+    given snapshots and possible subset of elements (e.g. non-extendables).
+
+    .. warning::
+        This function is deprecated. Use `n.components[c].get_bounds_pu()` instead.
+
+    Parameters
+    ----------
+    n : Network
+        Network object
+    c : string
+        Component name, e.g. "Generator", "Line"
+    sns : pandas.Index/pandas.DateTimeIndex
+        Set of snapshots for the bounds
+    index : pd.Index, default None
+        Subset of the component elements. If None (default) bounds of all
+        elements are returned
+    attr : string, default None
+        Attribute name for the bounds, e.g. "p", "s", "p_store"
+    as_xarray : bool, default False
+        If True, return as xarray.DataArray
+
+    Returns
+    -------
+    min_pu, max_pu : tuple(pd.DataFrame, pd.DataFrame) or tuple(xr.DataArray, xr.DataArray)
+        Minimum and maximum per unit bounds
+    """
+    import warnings
+
+    warnings.warn(
+        "get_bounds_pu is deprecated. Use n.components[c].get_bounds_pu() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return n.components[c].get_bounds_pu(c, sns, index, attr, as_xarray)
