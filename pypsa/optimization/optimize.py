@@ -90,26 +90,26 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # constant for already done investment
     nom_attr = nominal_attrs.items()
     constant = 0
-    for c, attr in nom_attr:
-        ext_i = n.get_extendable_i(c)
-        cost = n.static(c)["capital_cost"][ext_i]
+    for c_name, attr in nom_attr:
+        ext_i = n.get_extendable_i(c_name)
+        cost = n.components[c_name].static["capital_cost"][ext_i]
         if cost.empty:
             continue
 
         if n._multi_invest:
             active = pd.concat(
                 {
-                    period: n.get_active_assets(c, period)[ext_i]
+                    period: n.components[c_name].get_active_assets(period)[ext_i]
                     for period in sns.unique("period")
                 },
                 axis=1,
             )
             cost = active @ period_weighting * cost
         else:
-            active = n.get_active_assets(c)[ext_i]
+            active = n.components[c_name].get_active_assets()[ext_i]
             cost = cost[active]
 
-        constant += (cost * n.static(c)[attr][ext_i]).sum()
+        constant += (cost * n.components[c_name].static[attr][ext_i]).sum()
 
     n.objective_constant = constant
     if constant != 0:
@@ -125,79 +125,83 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # marginal costs, marginal storage cost, and spill cost
     for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
-        for c, attr in lookup.query(cost_type).index:
+        for c_name, attr in lookup.query(cost_type).index:
             cost = (
-                get_as_dense(n, c, cost_type, sns)
+                get_as_dense(n, c_name, cost_type, sns)
                 .loc[:, lambda ds: (ds != 0).any()]
                 .mul(weighting, axis=0)
             )
             if cost.empty:
                 continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            operation = m[f"{c_name}-{attr}"].sel(
+                {"snapshot": sns, c_name: cost.columns}
+            )
             objective.append((operation * cost).sum())
 
     # marginal cost quadratic
-    for c, attr in lookup.query("marginal_cost").index:
-        if "marginal_cost_quadratic" in n.static(c):
+    for c_name, attr in lookup.query("marginal_cost").index:
+        if "marginal_cost_quadratic" in n.components[c_name].static.columns:
             cost = (
-                get_as_dense(n, c, "marginal_cost_quadratic", sns)
+                get_as_dense(n, c_name, "marginal_cost_quadratic", sns)
                 .loc[:, lambda ds: (ds != 0).any()]
                 .mul(weighting, axis=0)
             )
             if cost.empty:
                 continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            operation = m[f"{c_name}-{attr}"].sel(
+                {"snapshot": sns, c_name: cost.columns}
+            )
             objective.append((operation * operation * cost).sum())
             is_quadratic = True
 
     # stand-by cost
     comps = {"Generator", "Link"}
-    for c in comps:
-        com_i = get_committable_i(n, c)
+    for c_name in comps:
+        com_i = get_committable_i(n, c_name)
 
         if com_i.empty:
             continue
 
         stand_by_cost = (
-            get_as_dense(n, c, "stand_by_cost", sns, com_i)
+            get_as_dense(n, c_name, "stand_by_cost", sns, com_i)
             .loc[:, lambda ds: (ds != 0).any()]
             .mul(weighting, axis=0)
         )
-        stand_by_cost.columns.name = f"{c}-com"
-        status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
+        stand_by_cost.columns.name = f"{c_name}-com"
+        status = n.model.variables[f"{c_name}-status"].loc[:, stand_by_cost.columns]
         objective.append((status * stand_by_cost).sum())
 
     # investment
-    for c, attr in nominal_attrs.items():
-        ext_i = n.get_extendable_i(c)
-        cost = n.static(c)["capital_cost"][ext_i]
+    for c_name, attr in nominal_attrs.items():
+        ext_i = n.get_extendable_i(c_name)
+        cost = n.components[c_name].static["capital_cost"][ext_i]
         if cost.empty:
             continue
 
         if n._multi_invest:
             active = pd.concat(
                 {
-                    period: n.get_active_assets(c, period)[ext_i]
+                    period: n.components[c_name].get_active_assets(period)[ext_i]
                     for period in sns.unique("period")
                 },
                 axis=1,
             )
             cost = active @ period_weighting * cost
         else:
-            active = n.get_active_assets(c)[ext_i]
+            active = n.components[c_name].get_active_assets()[ext_i]
             cost = cost[active]
 
-        caps = m[f"{c}-{attr}"]
+        caps = m[f"{c_name}-{attr}"]
         objective.append((caps * cost).sum())
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
-    for c, attr in lookup.query("variable in @keys").index:
-        com_i = n.get_committable_i(c)
-        cost = n.static(c)[attr + "_cost"].reindex(com_i)
+    for c_name, attr in lookup.query("variable in @keys").index:
+        com_i = n.get_committable_i(c_name)
+        cost = n.components[c_name].static[attr + "_cost"].reindex(com_i)
 
         if cost.sum():
-            var = m[f"{c}-{attr}"]
+            var = m[f"{c_name}-{attr}"]
             objective.append((var * cost).sum())
 
     if not len(objective):
@@ -482,14 +486,20 @@ def post_processing(n: Network) -> None:
     for i in additional_linkports(n):
         ca.append(("Link", f"p{i}", f"bus{i}"))
 
-    def sign(c: str) -> int:
-        return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
+    def sign(c_name: str) -> int:
+        comp = n.components[c_name]
+        return (
+            comp.static.sign if "sign" in comp.static.columns else -1
+        )  # sign for 'Link'
 
     n.buses_t.p = (
         pd.concat(
             [
-                n.dynamic(c)[attr].mul(sign(c)).rename(columns=n.static(c)[group])
-                for c, attr, group in ca
+                n.components[c_name]
+                .dynamic[attr]
+                .mul(sign(c_name))
+                .rename(columns=n.components[c_name].static[group])
+                for c_name, attr, group in ca
             ],
             axis=1,
         )
@@ -722,10 +732,11 @@ class OptimizationAccessor:
         afterwards.
         """
         n = self.n
-        for c, attr in nominal_attrs.items():
-            ext_i = n.get_extendable_i(c)
-            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
-            n.static(c)[attr + "_extendable"] = False
+        for c_name, attr in nominal_attrs.items():
+            ext_i = n.get_extendable_i(c_name)
+            comp = n.components[c_name]
+            comp.static.loc[ext_i, attr] = comp.static.loc[ext_i, attr + "_opt"]
+            comp.static[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """
@@ -735,10 +746,12 @@ class OptimizationAccessor:
         starting point for power flow calculation (`Network.pf`).
         """
         n = self.n
-        for c in n.one_port_components:
-            n.dynamic(c).p_set = n.dynamic(c).p
-        for c in n.controllable_branch_components:
-            n.dynamic(c).p_set = n.dynamic(c).p0
+        for c_name in n.one_port_components:
+            comp = n.components[c_name]
+            comp.dynamic.p_set = comp.dynamic.p
+        for c_name in n.controllable_branch_components:
+            comp = n.components[c_name]
+            comp.dynamic.p_set = comp.dynamic.p0
 
     def add_load_shedding(
         self,
