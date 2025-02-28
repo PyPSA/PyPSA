@@ -11,7 +11,7 @@ import logging
 from abc import ABC
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import geopandas as gpd
 import numpy as np
@@ -22,6 +22,8 @@ from pyproj import CRS
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
+from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 from pypsa.utils import equals
 
 logger = logging.getLogger(__name__)
@@ -643,53 +645,163 @@ class Components(ComponentsData, ABC):
     def copy(self) -> Components:
         return copy.deepcopy(self)
 
+    @overload
+    def get_active_assets(
+        self,
+        investment_period: int | str | Sequence | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> xarray.DataArray: ...
+
+    @overload
+    def get_active_assets(
+        self,
+        investment_period: int | str | Sequence | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> pd.Series: ...
+
     def get_active_assets(
         self,
         investment_period: int | str | Sequence | None = None,
         as_xarray: bool = False,
-    ) -> pd.Series:
+    ) -> pd.Series | xarray.DataArray:
         """
-        Get active components mask of componen type in investment period(s).
+        Get active components mask of component type in investment period(s).
 
         A component is considered active when:
-        - it's active attribute is True
-        - it's build year + lifetime is smaller than the investment period (if given)
+        - its active attribute is True
+        - if an investment_period is provided and if build_year and lifetime exist in self.static,
+        the component is active in that period if:
+            build_year <= period < build_year + lifetime.
+        If multiple periods are given, the asset is active if it is active in any period.
+        If investment_period is None, only the active attribute is considered.
 
         Parameters
         ----------
-        investment_period : int, str, Sequence
-            Investment period(s) to check for active within build year and lifetime. If
-            none only the active attribute is considered and build year and lifetime are
-            ignored. If multiple periods are given the mask is True if component is
-            active in any of the given periods.
+        investment_period : int, str, Sequence, or None, optional
+            Investment period(s) to check for active status. If provided, build_year and lifetime
+            are used to determine activity. A ValueError is raised if any period is not in
+            self.n_save.investment_periods.
+        as_xarray : bool, default False
+            If True, the result is returned as an xarray.DataArray; otherwise as a pandas.Series.
 
         Returns
         -------
-        pd.Series
-            Boolean mask for active components
-
+        pd.Series or xarray.DataArray
+            Boolean mask for active components.
         """
-        # TODO: Rename method
+        # If no investment period is provided or build_year/lifetime information is missing,
+        # fall back to the basic active mask.
+        if investment_period is None or not {"build_year", "lifetime"}.issubset(
+            self.static.columns
+        ):
+            active_result = (
+                self.static.active
+                if hasattr(self.static, "active")
+                else pd.Series(True, index=self.static.index)
+            )
+        else:
+            raise NotImplementedError("Investment period not yet implemented.")
+            # active = {}
+            # # Ensure investment_period is iterable
+            # for period in np.atleast_1d(investment_period):
+            #     if period not in self.n_save.investment_periods:
+            #         raise ValueError("Investment period not in `n.investment_periods`")
+            #     active[period] = self.static.eval(
+            #         "build_year <= @period < build_year + lifetime"
+            #     )
+            # # Logical OR across all periods, then AND with the base active attribute
+            # active_result = pd.DataFrame(active).any(axis=1) & self.static.active
 
-        if not as_xarray:
-            raise NotImplementedError()
+        if as_xarray:
+            return (
+                active_result
+                if isinstance(active_result, xarray.DataArray)
+                else xarray.DataArray(active_result)
+            )
+        else:
+            return (
+                active_result
+                if isinstance(active_result, pd.Series)
+                else active_result.to_series()
+            )
 
-        if investment_period is None:
-            return self.ds.active
-        if not {"build_year", "lifetime"}.issubset(self.static):
-            return self.ds.active
+    @overload
+    def get_bounds_pu(
+        self,
+        c: str,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> tuple[xarray.DataArray, xarray.DataArray]: ...
 
-        # Logical OR of active assets in all investment periods and
-        # logical AND with active attribute
-        raise NotImplementedError("Investment periods are not yet implemented.")
-        # active = {}
-        # for period in np.atleast_1d(investment_period):
-        #     if period not in self.n_save.investment_periods:
-        #         raise ValueError("Investment period not in `n.investment_periods`")
-        #     active[period] = self.static.eval(
-        #         "build_year <= @period < build_year + lifetime"
-        #     )
-        # return pd.DataFrame(active).any(axis=1) & self.static.active
+    @overload
+    def get_bounds_pu(
+        self,
+        c: str,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
+    def get_bounds_pu(
+        self,
+        c: str,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Getter function to retrieve the per unit bounds of a given compoent for
+        given snapshots and possible subset of elements (e.g. non-extendables).
+        Depending on the attr you can further specify the bounds of the variable
+        you are looking at, e.g. p_store for storage units.
+
+        Parameters
+        ----------
+        c : string
+            Component name, e.g. "Generator", "Line".
+        sns : pandas.Index/pandas.DateTimeIndex
+            set of snapshots for the bounds
+        index : pd.Index, default None
+            Subset of the component elements. If None (default) bounds of all
+            elements are returned.
+        attr : string, default None
+            attribute name for the bounds, e.g. "p", "s", "p_store"
+        as_xarray : bool, default False
+            If True, return as xarray.DataArray
+
+        Returns
+        -------
+        min_pu, max_pu : tuple(pd.DataFrame, pd.DataFrame) or tuple(xr.DataArray, xr.DataArray) -> Minimum and maximum per unit bounds
+        """
+        min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
+        max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
+
+        max_pu = get_as_dense(self.n, c, max_pu_str, sns)
+
+        if c in self.n.passive_branch_components:
+            min_pu = -max_pu
+        elif c == "StorageUnit":
+            min_pu = pd.DataFrame(0, index=max_pu.index, columns=max_pu.columns)
+            if attr == "p_store":
+                max_pu = -get_as_dense(self.n, c, min_pu_str, sns, inds=index)
+            if attr == "state_of_charge":
+                max_pu = get_as_dense(self.n, c, "max_hours", sns, inds=index)
+        else:
+            min_pu = get_as_dense(self.n, c, min_pu_str, sns, inds=index)
+
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if as_xarray:
+            min_pu = xarray.DataArray(min_pu)
+            max_pu = xarray.DataArray(max_pu)
+
+        return min_pu, max_pu
 
 
 class SubNetworkComponents:

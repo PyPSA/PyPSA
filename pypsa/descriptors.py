@@ -22,6 +22,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# TODO move to components
+nominal_attrs = {
+    "Generator": "p_nom",
+    "Line": "s_nom",
+    "Transformer": "s_nom",
+    "Link": "p_nom",
+    "Store": "e_nom",
+    "StorageUnit": "p_nom",
+}
+
+
 class OrderedGraph(nx.MultiGraph):
     node_dict_factory = OrderedDict
     adjlist_dict_factory = OrderedDict
@@ -217,17 +228,6 @@ def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
     return 0 if s.empty else s.sum(*args, **kwargs)
 
 
-# Perhaps this should rather go into components.py
-nominal_attrs = {
-    "Generator": "p_nom",
-    "Line": "s_nom",
-    "Transformer": "s_nom",
-    "Link": "p_nom",
-    "Store": "e_nom",
-    "StorageUnit": "p_nom",
-}
-
-
 def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     """
     Helper function to quickly expand a series to a dataframe with according
@@ -346,55 +346,6 @@ def get_activity_mask(
         mask = mask.reindex(columns=index)
 
     return mask
-
-
-@deprecated_common_kwargs
-def get_bounds_pu(
-    n: Network,
-    c: str,
-    sns: Sequence,
-    index: pd.Index | None = None,
-    attr: str | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Getter function to retrieve the per unit bounds of a given compoent for
-    given snapshots and possible subset of elements (e.g. non-extendables).
-    Depending on the attr you can further specify the bounds of the variable
-    you are looking at, e.g. p_store for storage units.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    c : string
-        Component name, e.g. "Generator", "Line".
-    sns : pandas.Index/pandas.DateTimeIndex
-        set of snapshots for the bounds
-    index : pd.Index, default None
-        Subset of the component elements. If None (default) bounds of all
-        elements are returned.
-    attr : string, default None
-        attribute name for the bounds, e.g. "p", "s", "p_store"
-    """
-    min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
-    max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
-
-    max_pu = get_switchable_as_dense(n, c, max_pu_str, sns)
-    if c in n.passive_branch_components:
-        min_pu = -max_pu
-    elif c == "StorageUnit":
-        min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
-        if attr == "p_store":
-            max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
-        if attr == "state_of_charge":
-            max_pu = expand_series(n.static(c).max_hours, sns).T
-            min_pu = pd.DataFrame(0, *max_pu.axes)
-    else:
-        min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
-
-    if index is None:
-        return min_pu, max_pu
-    else:
-        return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
 def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:

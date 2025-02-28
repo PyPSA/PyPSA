@@ -63,10 +63,10 @@ def define_operational_constraints_for_non_extendables(
     if fix_i.empty:
         return
 
-    nominal_fix = n.static(c)[nominal_attrs[c]].reindex(fix_i)
-    min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
-    lower = min_pu.mul(nominal_fix)
-    upper = max_pu.mul(nominal_fix)
+    nominal_fix = c_.ds[nominal_attrs[c]].rename({c: fix_i.name})
+    min_pu, max_pu = c_.get_bounds_pu(c, sns, fix_i, attr, as_xarray=True)
+    lower = min_pu * nominal_fix
+    upper = max_pu * nominal_fix
 
     active = get_activity_mask(n, c, sns, fix_i)
 

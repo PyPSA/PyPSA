@@ -43,9 +43,12 @@ def define_operational_variables(
     if c.static.empty:
         return
 
-    active = c.get_active_assets(as_xarray=True)
-
-    n.model.add_variables(coords=active.coords, name=f"{c}-{attr}", mask=active)
+    active = c.get_active_assets()
+    coords = [
+        c.snapshots,
+        c.component_names.rename(component_name),
+    ]  # TODO check if rename is necessary
+    n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
 
 
 def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
