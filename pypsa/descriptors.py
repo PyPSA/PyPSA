@@ -67,22 +67,7 @@ def get_switchable_as_dense(
     2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
     """
-    sns = as_index(n, snapshots, "snapshots")
-
-    static = n.static(component)[attr]
-    empty = pd.DataFrame(index=sns)
-    dynamic = n.dynamic(component).get(attr, empty).loc[sns]
-
-    index = static.index
-    if inds is not None:
-        index = index.intersection(inds)
-
-    diff = index.difference(dynamic.columns)
-    static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
-    res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
-    res.index.name = sns.name
-    res.columns.name = component
-    return res
+    return n.components[component].as_dynamic(attr, snapshots, inds)
 
 
 @deprecated_common_kwargs

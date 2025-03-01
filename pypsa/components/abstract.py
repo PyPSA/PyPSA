@@ -15,12 +15,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 import xarray
 from pyproj import CRS
 
-from pypsa.common import equals
+from pypsa.common import as_index, equals
 from pypsa.components.descriptors import get_active_assets
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
@@ -119,6 +118,7 @@ class Components(ComponentsData, ABC):
             raise NotImplementedError(msg)
         static, dynamic = self._get_data_containers(ctype)
         super().__init__(ctype, n=None, static=static, dynamic=dynamic)
+        self._base_attr: str | None = None
 
     def __str__(self) -> str:
         """
@@ -480,6 +480,11 @@ class Components(ComponentsData, ABC):
         return self.static.index.get_level_values(self.ctype.name).unique()
 
     @property
+    def snapshots(self) -> pd.Index | pd.MultiIndex:
+        """Snapshots of the network."""
+        return self.n_save.snapshots
+
+    @property
     def timesteps(self) -> pd.Index:
         """Time steps of the network."""
         return self.n_save.timesteps
@@ -591,27 +596,124 @@ class Components(ComponentsData, ABC):
         """
         return self.dynamic
 
+    def as_dynamic(
+        self,
+        attr: str,
+        snapshots: Sequence | None = None,
+        inds: pd.Index | None = None,
+    ) -> pd.DataFrame:
+        """
+        Get an attribute as a dynamic DataFrame.
+
+        Return a Dataframe for a time-varying component attribute with values for
+        all non-time-varying components filled in with the default values for the
+        attribute.
+
+
+        Parameters
+        ----------
+        n : pypsa.Network
+        component : string
+            Component object name, e.g. 'Generator' or 'Link'
+        attr : string
+            Attribute name
+        snapshots : pandas.Index
+            Restrict to these snapshots rather than n.snapshots.
+        inds : pandas.Index
+            Restrict to these components rather than n.components.index
+
+        Returns
+        -------
+        pandas.DataFrame
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.as_dynamic('p_max_pu', n.snapshots[:2]) # doctest: +SKIP
+        Generator            Manchester Wind  Manchester Gas  Norway Wind  Norway Gas  Frankfurt Wind  Frankfurt Gas
+        snapshot
+        2015-01-01 00:00:00         0.930020             1.0     0.974583         1.0        0.559078            1.0
+        2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
+
+        """
+        sns = as_index(self.n_save, snapshots, "snapshots")
+        empty_static = pd.Series([])
+        static = self.static.get(attr, empty_static)
+        empty_dynamic = pd.DataFrame(index=sns)
+        dynamic = self.dynamic.get(attr, empty_dynamic).loc[sns]
+
+        index = static.index
+        if inds is not None:
+            index = index.intersection(inds)
+
+        diff = index.difference(dynamic.columns)
+        static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
+        res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
+        res.index.name = sns.name
+        res.columns.name = self.name
+        return res
+
+    def as_xarray(
+        self,
+        attr: str,
+        snapshots: Sequence | None = None,
+        inds: pd.Index | None = None,
+        overwrite_index_name: bool = True,
+    ) -> xarray.DataArray:
+        """
+        Get an attribute as a xarray DataArray.
+
+        Parameters
+        ----------
+        attr : str
+            Attribute name to retrieve
+        snapshots : Sequence | None, optional
+            Snapshots to include, by default None which uses all snapshots
+        inds : pd.Index | None, optional
+            Component indices to include, by default None which uses all indices
+        overwrite_index_name : bool, optional
+            If True, uses the name of `inds` as a new dimension name, by default False
+
+        Returns
+        -------
+        xarray.DataArray
+            The attribute data as an xarray DataArray with proper dimensions
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> n.components.generators.as_xarray('p_max_pu', n.snapshots[:2])
+
+        """
+        if attr in self.operational_attrs.keys():
+            attr = self.operational_attrs[attr]
+
+        if attr in self.dynamic.keys() or snapshots is not None:
+            res = xarray.DataArray(self.as_dynamic(attr, snapshots, inds))
+        else:
+            if inds is not None:
+                data = self.static[attr].reindex(inds)
+            else:
+                data = self.static[attr]
+            res = xarray.DataArray(data)
+
+        if overwrite_index_name and inds is not None and inds.name is not None:
+            res = res.rename({self.name: inds.name})
+
+        if self.has_scenarios:
+            res = res.unstack(self.name)
+        return res
+
     @property
     def ds(self) -> xarray.Dataset:
         """Create a xarray data array view of the component."""
-        components = self.component_names
-        xr_static = self.static.to_xarray()
-        ds = xr_static.assign_coords(timestep=self.n_save.timesteps)
-        if self.has_scenarios:
-            ds = ds.assign_coords(scenario=self.scenarios)
-        if self.has_investment_periods:
-            ds = ds.assign_coords(period=self.investment_periods)
-
-        for k, v in self.dynamic.items():
-            # Empty dfs must be handled separately, since stack will remove the index
-            if v.empty:
-                da = xarray.DataArray(np.nan, coords=ds.coords, dims=ds.dims)
-            else:
-                da = v.stack().to_xarray().reindex({self.name: components})  # add
-            if k in self.static:
-                da = da.fillna(self.static[k].to_xarray())
-            ds[k] = da
-        return ds
+        static_attrs = self.static.columns
+        dynamic_attrs = self.dynamic.keys()
+        attrs = set([*static_attrs, *dynamic_attrs])
+        data = {attr: self.as_xarray(attr) for attr in attrs}
+        return xarray.Dataset(data)
 
     def units(self) -> pd.Series:
         """
@@ -659,6 +761,61 @@ class Components(ComponentsData, ABC):
         return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
 
     @property
+    def base_attr(self) -> str:
+        """
+        Get the standard base attribute of the component.
+
+        Returns
+        -------
+        str
+            Base attribute name
+
+        """
+        if self._base_attr is None:
+            raise AttributeError("Base attribute not set.")
+        return self._base_attr
+
+    @property
+    def operational_attrs(self) -> dict[str, str]:
+        """
+        Get operational attributes of component for optimization.
+
+        Provides a dictionary of attribute patterns used in optimization constraints,
+        based on the component type. This makes constraint formulation more modular
+        by avoiding hardcoded attribute names.
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of operational attribute names
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.operational_attrs["min_pu"]
+        'p_min_pu'
+        >>> c.operational_attrs["max_pu"]
+        'p_max_pu'
+        >>> c.operational_attrs["nom"]
+        'p_nom'
+
+        """
+        base = self.base_attr
+
+        return {
+            "base": base,
+            "nom": f"{base}_nom",
+            "nom_extendable": f"{base}_nom_extendable",
+            "nom_min": f"{base}_nom_min",
+            "nom_max": f"{base}_nom_max",
+            "nom_set": f"{base}_nom_set",
+            "min_pu": f"{base}_min_pu",
+            "max_pu": f"{base}_max_pu",
+            "set": f"{base}_set",
+        }
+
+    @property
     def nominal_attr(self) -> str:
         """
         Get nominal attribute of component.
@@ -676,20 +833,7 @@ class Components(ComponentsData, ABC):
         'p_nom'
 
         """
-        # TODO: move to Component Specific class
-        nominal_attr = {
-            "Generator": "p_nom",
-            "Line": "s_nom",
-            "Transformer": "s_nom",
-            "Link": "p_nom",
-            "Store": "e_nom",
-            "StorageUnit": "p_nom",
-        }
-        try:
-            return nominal_attr[self.ctype.name]
-        except KeyError:
-            msg = f"Component type '{self.ctype.name}' has no nominal attribute."
-            raise AttributeError(msg)
+        return self.base_attr + "_nom"
 
     # TODO move
     def rename_component_names(self, **kwargs: str) -> None:

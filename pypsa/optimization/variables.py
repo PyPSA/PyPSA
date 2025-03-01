@@ -10,7 +10,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from pypsa.descriptors import get_activity_mask
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -132,24 +131,36 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     Defines the spillage variables for storage units.
     """
     c = "StorageUnit"
-    if n.static(c).empty:
+    component = n.components[c]
+
+    if component.static.empty:
         return
 
-    upper = get_as_dense(n, c, "inflow", sns)
-    if (upper.max() <= 0).all():
+    # Use component's operational attributes and as_xarray method
+    attrs = component.operational_attrs
+    upper = component.as_xarray(attrs["inflow"], sns)
+
+    if upper.max().item() <= 0:
         return
 
     active = get_activity_mask(n, c, sns).where(upper > 0, False)
-    n.model.add_variables(0, upper, name="StorageUnit-spill", mask=active)
+    n.model.add_variables(0, upper, name=f"{c}-{attrs['spill']}", mask=active)
 
 
 def define_loss_variables(n: Network, sns: Sequence, c: str) -> None:
     """
     Initializes variables for transmission losses.
     """
-    if n.static(c).empty or c not in n.passive_branch_components:
+    component = n.components[c]
+
+    if component.static.empty:
+        return
+
+    # Check if this is a passive branch component
+    attrs = component.operational_attrs
+    if not attrs.get("is_passive_branch", False):
         return
 
     active = get_activity_mask(n, c, sns)
-    coords = [sns, n.static(c).index.rename(c)]
+    coords = [sns, component.static.index.rename(c)]
     n.model.add_variables(0, coords=coords, name=f"{c}-loss", mask=active)
