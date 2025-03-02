@@ -712,17 +712,17 @@ class Components(ComponentsData, ABC):
         >>> n = pypsa.examples.ac_dc_meshed()
 
         # Get power output limits for generators for the first two snapshots
-        >>> n.components.generators.as_xarray('p_max_pu', n.snapshots[:2])
+        >>> limit = n.components.generators.as_xarray('p_max_pu', n.snapshots[:2])
 
         # Use operational attribute shorthand
-        >>> n.components.generators.as_xarray('max_pu', n.snapshots[:2])
+        >>> limit = n.components.generators.as_xarray('max_pu', n.snapshots[:2])
 
         # Get activity mask for lines
-        >>> n.components.lines.as_xarray('active')
+        >>> acitve = n.components.lines.as_xarray('active')
 
         # Get nominal capacity for specific generators
         >>> gens = pd.Index(['Manchester Wind', 'Norway Wind'], name='Generator')
-        >>> n.components.generators.as_xarray('p_nom', inds=gens)
+        >>> p_nom = n.components.generators.as_xarray('p_nom', inds=gens)
 
         """
         if attr in self.operational_attrs.keys():
