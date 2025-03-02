@@ -246,32 +246,34 @@ def define_operational_constraints_for_committables(
     )
 
     # min up time
-    mask = get_activity_mask(n, c, sns[1:], com_i)
-    expr = []
     min_up_time_i = com_i[min_up_time_set.astype(bool)]
     if not min_up_time_i.empty:
+        expr = []
         for g in min_up_time_i:
             su = start_up.loc[:, g]
             expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-up-time", mask=mask[min_up_time_i]
+            lhs, "<=", 0, name=f"{c}-com-up-time", mask=active[min_up_time_i].iloc[1:]
         )
 
     # min down time
-    expr = []
     min_down_time_i = com_i[min_down_time_set.astype(bool)]
     if not min_down_time_i.empty:
+        expr = []
         for g in min_down_time_i:
             su = shut_down.loc[:, g]
             expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 1, name=f"{c}-com-down-time", mask=mask[min_down_time_i]
+            lhs,
+            "<=",
+            1,
+            name=f"{c}-com-down-time",
+            mask=active[min_down_time_i].iloc[1:],
         )
-
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
     if initially_up.any():
@@ -290,58 +292,80 @@ def define_operational_constraints_for_committables(
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    cost_equal = all(
+    cost_equal = (
         n.static(c).loc[com_i, "start_up_cost"]
         == n.static(c).loc[com_i, "shut_down_cost"]
-    )
+    ).values
     # only valid additional constraints if start up costs equal to shut down costs
-    if n._linearized_uc and not cost_equal:
+    if n._linearized_uc and not cost_equal.all():
         logger.warning(
             "The linear relaxation of the unit commitment cannot be "
-            "tightened since the start up costs are not equal to the "
-            "shut down costs. Proceed with the linear relaxation "
-            "without the tightening by additional constraints. "
-            "This might result in a longer solving time."
+            "tightened for all generators since the start up costs "
+            "are not equal to the shut down costs. Proceed with the "
+            "linear relaxation without the tightening by additional "
+            "constraints for these. This might result in a longer "
+            "solving time."
         )
-    if n._linearized_uc and cost_equal:
+    if n._linearized_uc and cost_equal.any():
         # dispatch limit for partly start up/shut down for t-1
-        lhs = (
-            p.shift(snapshot=1)
-            - ramp_shut_down * status.shift(snapshot=1)
-            - (upper_p - ramp_shut_down) * (status - start_up)
-        )
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-before", mask=active)
+        p_ce = p.loc[:, cost_equal]
+        start_up_ce = start_up.loc[:, cost_equal]
+        status_ce = status.loc[:, cost_equal]
+        active_ce = active.loc[:, cost_equal]
 
-        # dispatch limit for partly start up/shut down for t
-        lhs = p - upper_p * status + (upper_p - ramp_start_up) * start_up
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-current", mask=active)
+        # parameters
+        upper_p_ce = upper_p.loc[:, cost_equal]
+        lower_p_ce = lower_p.loc[:, cost_equal]
+        ramp_shut_down_ce = ramp_shut_down.loc[cost_equal]
+        ramp_start_up_ce = ramp_start_up.loc[cost_equal]
+        ramp_up_limit_ce = ramp_up_limit.loc[cost_equal]
+        ramp_down_limit_ce = ramp_down_limit.loc[cost_equal]
 
-        # ramp up if committable is only partly active and some capacity is starting up
         lhs = (
-            p
-            - p.shift(snapshot=1)
-            - (lower_p + ramp_up_limit) * status
-            + lower_p * status.shift(snapshot=1)
-            + (lower_p + ramp_up_limit - ramp_start_up) * start_up
+            p_ce.shift(snapshot=1)
+            - ramp_shut_down_ce * status_ce.shift(snapshot=1)
+            - (upper_p_ce - ramp_shut_down_ce) * (status_ce - start_up_ce)
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active
+            lhs, "<=", 0, name=f"{c}-com-p-before", mask=active_ce.iloc[1:]
+        )
+
+        # dispatch limit for partly start up/shut down for t
+        lhs = (
+            p_ce
+            - upper_p_ce * status_ce
+            + (upper_p_ce - ramp_start_up_ce) * start_up_ce
+        )
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(
+            lhs, "<=", 0, name=f"{c}-com-p-current", mask=active_ce.iloc[1:]
+        )
+
+        # ramp up if committable is only partly active and some capacity is starting up
+        lhs = (
+            p_ce
+            - p_ce.shift(snapshot=1)
+            - (lower_p_ce + ramp_up_limit_ce) * status_ce
+            + lower_p_ce * status_ce.shift(snapshot=1)
+            + (lower_p_ce + ramp_up_limit_ce - ramp_start_up_ce) * start_up_ce
+        )
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(
+            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active_ce.iloc[1:]
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
         lhs = (
-            p.shift(snapshot=1)
-            - p
-            - ramp_shut_down * status.shift(snapshot=1)
-            + (ramp_shut_down - ramp_down_limit) * status
-            - (lower_p + ramp_down_limit - ramp_shut_down) * start_up
+            p_ce.shift(snapshot=1)
+            - p_ce
+            - ramp_shut_down_ce * status_ce.shift(snapshot=1)
+            + (ramp_shut_down_ce - ramp_down_limit_ce) * status_ce
+            - (lower_p_ce + ramp_down_limit_ce - ramp_shut_down_ce) * start_up_ce
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active
+            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active_ce.iloc[1:]
         )
 
 

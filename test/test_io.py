@@ -45,6 +45,16 @@ def test_csv_io(scipy_network, tmpdir, meta):
     assert reloaded.meta == scipy_network.meta
 
 
+@pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
+def test_csv_io_quotes(scipy_network, tmpdir, meta, quotechar="'"):
+    fn = os.path.join(tmpdir, "csv_export")
+    scipy_network.meta = meta
+    scipy_network.export_to_csv_folder(fn, quotechar=quotechar)
+    imported = pypsa.Network()
+    imported.import_from_csv_folder(fn, quotechar=quotechar)
+    assert imported.meta == scipy_network.meta
+
+
 def test_csv_io_Path(scipy_network, tmpdir):
     fn = Path(os.path.join(tmpdir, "csv_export"))
     scipy_network.export_to_csv_folder(fn)
@@ -278,20 +288,3 @@ def test_io_time_dependent_efficiencies(tmpdir):
     equal(m.generators_t.efficiency, n.generators_t.efficiency)
     equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
     equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
-
-
-def test_cloudpathlib_uses_pathlib_path_locally(scipy_network, tmpdir):
-    cloudpathlib = pytest.importorskip("cloudpathlib")
-    fn = cloudpathlib.AnyPath(tmpdir).joinpath("netcdf_export.nc")
-    assert isinstance(fn, Path)
-    assert not isinstance(fn, cloudpathlib.CloudPath)
-    scipy_network.export_to_netcdf(fn)
-
-
-def test_cloudpathlib_uri_schemes():
-    cloudpathlib = pytest.importorskip("cloudpathlib")
-    assert isinstance(cloudpathlib.AnyPath("s3://bucket/file"), cloudpathlib.S3Path)
-    assert isinstance(cloudpathlib.AnyPath("gs://bucket/file"), cloudpathlib.GSPath)
-    assert isinstance(
-        cloudpathlib.AnyPath("az://bucket/file"), cloudpathlib.AzureBlobPath
-    )

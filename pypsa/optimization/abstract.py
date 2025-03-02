@@ -213,7 +213,7 @@ def optimize_transmission_expansion_iteratively(
             / n.lines["s_nom_opt"].mean()
         )
         logger.info(
-            f"Mean square difference after iteration {iteration} is " f"{lines_err}"  # type: ignore
+            f"Mean square difference after iteration {iteration} is {lines_err}"  # type: ignore
         )
         return lines_err
 
@@ -492,7 +492,7 @@ def optimize_with_rolling_horizon(
         end = min(len(snapshots), start + horizon)
         sns = snapshots[start:end]
         logger.info(
-            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i+1}/{len(starting_points)})."
+            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i + 1}/{len(starting_points)})."
         )
 
         if i:
