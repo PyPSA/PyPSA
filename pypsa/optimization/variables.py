@@ -34,21 +34,26 @@ def define_operational_variables(
         name of the attribute, e.g. 'p'
     """
     c = n.components[c_name]
-    if not c.empty:
-        active = c.as_xarray("active", sns)
-        coords = active.coords
-        n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
+    if c.empty:
+        return
+
+    active = c.as_xarray("active", sns)
+    coords = active.coords
+    n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
 
 
-def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
-    com_i = n.get_committable_i(c)
+def define_status_variables(
+    n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
+) -> None:
+    c = n.components[c_name]
+    com_i = c.get_committable_i()
 
     if com_i.empty:
         return
 
-    active = get_activity_mask(n, c, sns, com_i)
-    coords = (sns, com_i)
-    is_binary = not n._linearized_uc
+    active = c.as_xarray("active", sns, com_i)
+    coords = active.coords
+    is_binary = not is_linearized
     kwargs = dict(upper=1, lower=0) if not is_binary else {}
     n.model.add_variables(
         coords=coords, name=f"{c}-status", mask=active, binary=is_binary, **kwargs
