@@ -11,10 +11,9 @@ from itertools import product, repeat
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
-import numpy as np
 import pandas as pd
 
-from pypsa.common import as_index, deprecated_common_kwargs
+from pypsa.common import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa import Network, SubNetwork
@@ -226,9 +225,10 @@ def get_extendable_i(n: Network, c: str) -> pd.Index:
     Getter function.
 
     Get the index of extendable elements of a given component.
+
+    Deprecated: Use n.components[c].get_extendable_i() instead.
     """
-    idx = n.static(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
-    return idx.rename(f"{c}-ext")
+    return n.components[c].get_extendable_i()
 
 
 def get_non_extendable_i(n: Network, c: str) -> pd.Index:
@@ -236,9 +236,10 @@ def get_non_extendable_i(n: Network, c: str) -> pd.Index:
     Getter function.
 
     Get the index of non-extendable elements of a given component.
+
+    Deprecated: Use n.components[c].get_non_extendable_i() instead.
     """
-    idx = n.static(c)[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
-    return idx.rename(f"{c}-fix")
+    return n.components[c].get_non_extendable_i()
 
 
 def get_committable_i(n: Network, c: str) -> pd.Index:
@@ -246,12 +247,10 @@ def get_committable_i(n: Network, c: str) -> pd.Index:
     Getter function.
 
     Get the index of commitable elements of a given component.
+
+    Deprecated: Use n.components[c].get_committable_i() instead.
     """
-    if "committable" not in n.static(c):
-        idx = pd.Index([])
-    else:
-        idx = n.static(c)[lambda ds: ds["committable"]].index
-    return idx.rename(f"{c}-com")
+    return n.components[c].get_committable_i()
 
 
 def get_active_assets(
@@ -278,7 +277,7 @@ def get_active_assets(
     pd.Series
         Boolean mask for active components
     """
-    return n.component(c).get_active_assets(investment_period=investment_period)
+    return n.components[c].get_active_assets(investment_period=investment_period)
 
 
 @deprecated_common_kwargs
@@ -306,31 +305,10 @@ def get_activity_mask(
         Set of snapshots for the mask. If None (default) all snapshots are returned.
     index : pd.Index, default None
         Subset of the component elements. If None (default) all components are returned.
+
+    Deprecated: Use n.components[c].get_activity_mask(sns, index) instead.
     """
-
-    sns_ = as_index(n, sns, "snapshots")
-
-    if getattr(n, "_multi_invest", False):
-        active_assets_per_period = {
-            period: get_active_assets(n, c, period) for period in n.investment_periods
-        }
-        mask = (
-            pd.concat(active_assets_per_period, axis=1)
-            .T.reindex(n.snapshots, level=0)
-            .loc[sns_]
-        )
-    else:
-        active_assets = get_active_assets(n, c)
-        mask = pd.DataFrame(
-            np.tile(active_assets, (len(sns_), 1)),
-            index=sns_,
-            columns=active_assets.index,
-        )
-
-    if index is not None:
-        mask = mask.reindex(columns=index)
-
-    return mask
+    return n.components[c].get_activity_mask(sns, index)
 
 
 @deprecated_common_kwargs
@@ -359,27 +337,10 @@ def get_bounds_pu(
         elements are returned.
     attr : string, default None
         attribute name for the bounds, e.g. "p", "s", "p_store"
+
+    Deprecated: Use n.components[c].get_bounds_pu(sns, index, attr) instead.
     """
-    min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
-    max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
-
-    max_pu = get_switchable_as_dense(n, c, max_pu_str, sns)
-    if c in n.passive_branch_components:
-        min_pu = -max_pu
-    elif c == "StorageUnit":
-        min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
-        if attr == "p_store":
-            max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
-        if attr == "state_of_charge":
-            max_pu = expand_series(n.static(c).max_hours, sns).T
-            min_pu = pd.DataFrame(0, *max_pu.axes)
-    else:
-        min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
-
-    if index is None:
-        return min_pu, max_pu
-    else:
-        return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
+    return n.components[c].get_bounds_pu(sns, index, attr)
 
 
 def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:

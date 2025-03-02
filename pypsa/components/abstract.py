@@ -20,7 +20,14 @@ import xarray
 from pyproj import CRS
 
 from pypsa.common import as_index, equals
-from pypsa.components.descriptors import get_active_assets
+from pypsa.components.descriptors import (
+    get_active_assets,
+    get_activity_mask,
+    get_bounds_pu,
+    get_committable_i,
+    get_extendable_i,
+    get_non_extendable_i,
+)
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
@@ -84,6 +91,11 @@ class Components(ComponentsData, ABC):
 
     # from pypsa.components.descriptors
     get_active_assets = get_active_assets
+    get_activity_mask = get_activity_mask
+    get_bounds_pu = get_bounds_pu
+    get_extendable_i = get_extendable_i
+    get_non_extendable_i = get_non_extendable_i
+    get_committable_i = get_committable_i
 
     def __init__(
         self,
@@ -509,6 +521,11 @@ class Components(ComponentsData, ABC):
         """Indicator whether the network has scenarios."""
         return self.n_save.has_scenarios
 
+    @property
+    def empty(self) -> bool:
+        """Check if component is empty."""
+        return self.static.empty
+
     def get(self, attribute_name: str, default: Any = None) -> Any:
         """
         Get attribute of component.
@@ -659,32 +676,53 @@ class Components(ComponentsData, ABC):
         attr: str,
         snapshots: Sequence | None = None,
         inds: pd.Index | None = None,
-        overwrite_index_name: bool = True,
     ) -> xarray.DataArray:
         """
         Get an attribute as a xarray DataArray.
 
+        Converts component data to a flexible xarray DataArray format, which is
+        particularly useful for optimization routines. The method provides several
+        conveniences:
+
+        1. Supports short attribute name aliases through the `operational_attrs` mapping
+           (e.g., "max_pu" instead of "p_max_pu")
+        2. Automatically handles both static and time-varying attributes
+        3. Creates activity masks with the special "active" attribute name
+        4. Properly handles scenarios if present in the network
+
         Parameters
         ----------
         attr : str
-            Attribute name to retrieve
+            Attribute name to retrieve, can be an operational shorthand (e.g., "max_pu")
+            or the full attribute name (e.g., "p_max_pu")
         snapshots : Sequence | None, optional
-            Snapshots to include, by default None which uses all snapshots
+            Snapshots to include. If None, uses all snapshots for time-varying data
+            or returns static data as-is
         inds : pd.Index | None, optional
-            Component indices to include, by default None which uses all indices
-        overwrite_index_name : bool, optional
-            If True, uses the name of `inds` as a new dimension name, by default False
+            Component indices to filter by. If None, includes all components
 
         Returns
         -------
         xarray.DataArray
-            The attribute data as an xarray DataArray with proper dimensions
+            The requested attribute data as an xarray DataArray with appropriate dimensions
 
         Examples
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
+
+        # Get power output limits for generators for the first two snapshots
         >>> n.components.generators.as_xarray('p_max_pu', n.snapshots[:2])
+
+        # Use operational attribute shorthand
+        >>> n.components.generators.as_xarray('max_pu', n.snapshots[:2])
+
+        # Get activity mask for lines
+        >>> n.components.lines.as_xarray('active')
+
+        # Get nominal capacity for specific generators
+        >>> gens = pd.Index(['Manchester Wind', 'Norway Wind'], name='Generator')
+        >>> n.components.generators.as_xarray('p_nom', inds=gens)
 
         """
         if attr in self.operational_attrs.keys():
@@ -692,15 +730,14 @@ class Components(ComponentsData, ABC):
 
         if attr in self.dynamic.keys() or snapshots is not None:
             res = xarray.DataArray(self.as_dynamic(attr, snapshots, inds))
+        elif attr == "active":
+            res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
         else:
             if inds is not None:
                 data = self.static[attr].reindex(inds)
             else:
                 data = self.static[attr]
             res = xarray.DataArray(data)
-
-        if overwrite_index_name and inds is not None and inds.name is not None:
-            res = res.rename({self.name: inds.name})
 
         if self.has_scenarios:
             res = res.unstack(self.name)
@@ -896,6 +933,62 @@ class Components(ComponentsData, ABC):
                 cols = [f"{col_name}{port}" for port in c.ports]
                 if cols and not c.static.empty:
                     c.static[cols] = c.static[cols].replace(kwargs)
+
+    @property
+    def extendables(self) -> pd.Index:
+        """
+        Get the index of extendable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of extendable elements.
+
+        """
+        index_name = self.name
+        extendable_col = self.operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[self.static[extendable_col]].index
+        return idx.rename(index_name)
+
+    @property
+    def fixed(self) -> pd.Index:
+        """
+        Get the index of non-extendable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of non-extendable elements.
+
+        """
+        index_name = self.name
+        extendable_col = self.operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[~self.static[extendable_col]].index
+        return idx.rename(index_name)
+
+    @property
+    def committables(self) -> pd.Index:
+        """
+        Get the index of committable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of committable elements.
+
+        """
+        index_name = self.name
+        if "committable" not in self.static:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[self.static["committable"]].index
+        return idx.rename(index_name)
 
 
 class SubNetworkComponents:

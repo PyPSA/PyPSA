@@ -17,7 +17,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -> None:
+def define_operational_variables(
+    n: Network, sns: Sequence, c_name: str, attr: str
+) -> None:
     """
     Initializes variables for power dispatch for a given component and a given
     attribute.
@@ -30,12 +32,12 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if n.static(c).empty:
-        return
-
-    active = get_activity_mask(n, c, sns)
-    coords = [sns, n.static(c).index.rename(c)]
-    n.model.add_variables(coords=coords, name=f"{c}-{attr}", mask=active)
+    c = n.components[c_name]
+    if not c.empty:
+        active = c.as_xarray("active", sns)
+        n.model.add_variables(
+            coords=active.coords, name=f"{c.name}-{attr}", mask=active
+        )
 
 
 def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
