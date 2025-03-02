@@ -62,36 +62,19 @@ def define_operational_constraints_for_non_extendables(
     if fix_i.empty:
         return
 
-    # Get the component and its operational attributes
-    component = n.components[c]
-    attrs = component.operational_attrs
-
-    # Get nominal capacity as xarray
-    nominal_fix = component.as_xarray(attrs["nom"], inds=fix_i)
-
-    # Get min_pu and max_pu using the component's as_xarray method
-    max_pu = component.as_xarray(attrs["max_pu"], snapshots=sns, inds=fix_i)
-
-    # If component is a passive branch, set min_pu to -max_pu
-    if attrs.get("is_passive_branch", False):
-        min_pu = -max_pu
-    else:
-        min_pu = component.as_xarray(attrs["min_pu"], snapshots=sns, inds=fix_i)
-
-    # Calculate absolute bounds directly with xarray objects
-    lower = min_pu * nominal_fix
-    upper = max_pu * nominal_fix
+    nominal_fix = n.static(c)[nominal_attrs[c]].reindex(fix_i)
+    min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
+    lower = min_pu.mul(nominal_fix)
+    upper = max_pu.mul(nominal_fix)
 
     active = get_activity_mask(n, c, sns, fix_i)
 
     dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
     dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-
-    if attrs.get("is_passive_branch", False) and transmission_losses:
+    if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, fix_i)
         dispatch_lower = (1, dispatch_lower), (-1, loss)
         dispatch_upper = (1, dispatch_upper), (1, loss)
-
     n.model.add_constraints(
         dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
     )
@@ -125,27 +108,15 @@ def define_operational_constraints_for_extendables(
     if ext_i.empty:
         return
 
-    # Get the component and its operational attributes
-    component = n.components[c]
-    attrs = component.operational_attrs
-
-    # Get min_pu and max_pu using the component's as_xarray method
-    max_pu = component.as_xarray(attrs["max_pu"], snapshots=sns, inds=ext_i)
-
-    # If component is a passive branch, set min_pu to -max_pu
-    if attrs.get("is_passive_branch", False):
-        min_pu = -max_pu
-    else:
-        min_pu = component.as_xarray(attrs["min_pu"], snapshots=sns, inds=ext_i)
-
+    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
     dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
-    capacity = n.model[f"{c}-{attrs['nom']}"]
+    capacity = n.model[f"{c}-{nominal_attrs[c]}"]
 
     active = get_activity_mask(n, c, sns, ext_i)
 
     lhs_lower = (1, dispatch), (-min_pu, capacity)
     lhs_upper = (1, dispatch), (-max_pu, capacity)
-    if attrs.get("is_passive_branch", False) and transmission_losses:
+    if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, ext_i)
         lhs_lower += ((-1, loss),)
         lhs_upper += ((1, loss),)
