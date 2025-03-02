@@ -261,9 +261,9 @@ def create_model(
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_variables(n, sns, c, attr)
-        define_status_variables(n, sns, c)
-        define_start_up_variables(n, sns, c)
-        define_shut_down_variables(n, sns, c)
+        define_status_variables(n, sns, c, linearized_unit_commitment)
+        define_start_up_variables(n, sns, c, linearized_unit_commitment)
+        define_shut_down_variables(n, sns, c, linearized_unit_commitment)
 
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")

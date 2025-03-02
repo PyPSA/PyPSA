@@ -174,18 +174,18 @@ def get_bounds_pu(
 def get_extendable_i(c: Components, rename_index: bool = True) -> pd.Index:
     """Get the index of extendable elements of this component."""
     idx = c.extendables
-    return idx.rename(idx.name + "_ext") if rename_index else idx
+    return idx.rename(idx.name + "-ext") if rename_index else idx
 
 
 # TODO: remove as soon as deprecated renaming is removed
 def get_non_extendable_i(c: Components, rename_index: bool = True) -> pd.Index:
     """Get the index of non-extendable elements of this component."""
     idx = c.fixed
-    return idx.rename(idx.name + "_fix") if rename_index else idx
+    return idx.rename(idx.name + "-fix") if rename_index else idx
 
 
 # TODO: remove as soon as deprecated renaming is removed
 def get_committable_i(c: Components, rename_index: bool = True) -> pd.Index:
     """Get the index of committable elements of this component."""
     idx = c.committables
-    return idx.rename(idx.name + "_com") if rename_index else idx
+    return idx.rename(idx.name + "-com") if rename_index else idx

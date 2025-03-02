@@ -655,12 +655,13 @@ class Components(ComponentsData, ABC):
 
         """
         sns = as_index(self.n_save, snapshots, "snapshots")
-        empty_static = pd.Series([])
+        index = self.static.index
+        empty_index = index[:0]  # keep index name and names
+        empty_static = pd.Series([], index=empty_index)
         static = self.static.get(attr, empty_static)
-        empty_dynamic = pd.DataFrame(index=sns)
+        empty_dynamic = pd.DataFrame(index=sns, columns=empty_index)
         dynamic = self.dynamic.get(attr, empty_dynamic).loc[sns]
 
-        index = static.index
         if inds is not None:
             index = index.intersection(inds)
 
@@ -668,7 +669,11 @@ class Components(ComponentsData, ABC):
         static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
         res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
         res.index.name = sns.name
-        res.columns.name = self.name
+        if self.has_scenarios:
+            res.columns.name = "Component"
+            res.columns.names = static.index.names
+        else:
+            res.columns.name = self.name
         return res
 
     def as_xarray(
@@ -728,10 +733,10 @@ class Components(ComponentsData, ABC):
         if attr in self.operational_attrs.keys():
             attr = self.operational_attrs[attr]
 
-        if attr in self.dynamic.keys() or snapshots is not None:
-            res = xarray.DataArray(self.as_dynamic(attr, snapshots, inds))
-        elif attr == "active":
+        if attr == "active":
             res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
+        elif attr in self.dynamic.keys() or snapshots is not None:
+            res = xarray.DataArray(self.as_dynamic(attr, snapshots, inds))
         else:
             if inds is not None:
                 data = self.static[attr].reindex(inds)
@@ -740,14 +745,17 @@ class Components(ComponentsData, ABC):
             res = xarray.DataArray(data)
 
         if self.has_scenarios:
-            res = res.unstack(self.name)
+            # untack the dimension that contains the scenarios
+            res = res.unstack(res.indexes["scenario"].name)
         return res
 
     @property
     def ds(self) -> xarray.Dataset:
         """Create a xarray data array view of the component."""
         static_attrs = self.static.columns
-        dynamic_attrs = self.dynamic.keys()
+        dynamic_attrs = [
+            attr for attr in self.dynamic.keys() if not self.dynamic[attr].empty
+        ]
         attrs = set([*static_attrs, *dynamic_attrs])
         data = {attr: self.as_xarray(attr) for attr in attrs}
         return xarray.Dataset(data)
