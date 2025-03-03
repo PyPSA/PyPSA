@@ -22,3 +22,4 @@ This section provides examples of open-source models using PyPSA:
 - `Japanese power system model <https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning>`_
 - `Chinese model for hydro power and storage <https://arxiv.org/abs/1810.10347>`_
 - `Rural district heating networks in Germany with piecewised linearised cost functions <https://github.com/TomKae00/Decarboruralareas/>`_
+- An open-source energy system model for South Korea `PyPSA-KR <https://energyinnovation.korea.ac.kr/research/code-and-data>`_
