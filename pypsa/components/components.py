@@ -144,7 +144,7 @@ class Loads(Components):
         super().__init__(*args, **kwargs)
         self._base_attr = "p"
 
-    def nominal_attr(self) -> None:
+    def nominal_attr(self) -> None:  # type: ignore
         """Get nominal attribute of component."""
         raise NotImplementedError("Nominal attribute not implemented for loads.")
 
