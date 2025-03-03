@@ -445,6 +445,10 @@ class ExporterExcel(Exporter):
             logger.warning(f"Stale sheet {sheet_name} removed")
 
     def finish(self) -> None:
+        # Remove temp sheet if it exists
+        if "_temp" in self.writer.book.sheetnames:
+            del self.writer.book["_temp"]
+        # Close writer
         if self.writer is not None:
             self.writer.close()
 
