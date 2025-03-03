@@ -2,31 +2,41 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: 
+.. .. warning:: 
   
-  The features listed below are not released yet, but will be part of the next release! 
-  To use the features already you have to install the ``master`` branch, e.g. 
-  ``pip install git+https://github.com/pypsa/pypsa``.
+..   The features listed below are not released yet, but will be part of the next release! 
+..   To use the features already you have to install the ``master`` branch, e.g. 
+..   ``pip install git+https://github.com/pypsa/pypsa``.
 
-Features
---------
+`v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (3rd March 2025)
+=======================================================================================
 
-* `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without extra 
-  cloud storage provider client libraries, these will be left to the user to install.
+Minor improvements
+------------------
 
 * Added a ``quotechar`` parameter to :func:`io.import_from_csv_folder` and
   :func:`io.export_to_csv_folder` to handle non-standard field quoting in CSV
   import/export, aligning with :func:`pandas.read_csv` and
-  :func:`pandas.to_csv`.
+  :func:`pandas.to_csv`. (https://github.com/PyPSA/PyPSA/pull/1143)
 
 Bug fixes
 ---------
 
+* `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without 
+  extra cloud storage provider client libraries, these will be left to the user to 
+  install. (https://github.com/PyPSA/PyPSA/pull/1139)
+
 * :func:`import_from_netcdf` and :func:`import_from_hdf5` now work when a URI is
   passed as a string instead of a CloudPath object.
+  (https://github.com/PyPSA/PyPSA/pull/1139)
+
+* Linearized unit commitment with equal startup and shutdown costs.
+  (https://github.com/PyPSA/PyPSA/pull/1157)
+
+* Fix pandas dtype warning. (https://github.com/PyPSA/PyPSA/pull/1151)
 
 `v0.33.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (7th February 2025)
 =======================================================================================
