@@ -16,7 +16,7 @@ except ImportError:
     tables_installed = False
 
 try:
-    import openpyxl  # noqa: F401
+    import xlsxwriter  # noqa: F401
 
     excel_installed = True
 except ImportError:

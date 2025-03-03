@@ -14,6 +14,16 @@ Upcoming Release
 Features
 --------
 
+* New supported file formats for import and export: Excel
+
+  * Use :meth:`n.import_from_excel <pypsa.io.import_from_excel>` and 
+    :meth:`n.export_to_excel <pypsa.io.export_to_excel>` to import and export Networks
+    from and to Excel files.
+     
+  * `openpyxl` and `python-calamine` are required dependencies for this feature, but
+    different engines can be passed. By default they are not installed, but can be
+    installed via ``pip install pypsa[excel]``.
+
 * `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without extra 
   cloud storage provider client libraries, these will be left to the user to install.
 

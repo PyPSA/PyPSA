@@ -321,7 +321,7 @@ class Network:
                 self.import_from_hdf5(import_name)
             elif str(import_name).endswith(".nc"):
                 self.import_from_netcdf(import_name)
-            elif str(import_name).endswith(".xlsx"):
+            elif str(import_name).endswith((".xls", ".xlsx", ".xlsm", ".xlsb")):
                 self.import_from_excel(import_name)
             elif isinstance(import_name, Path) and import_name.is_dir():
                 self.import_from_csv_folder(import_name)
