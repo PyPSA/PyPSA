@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
 import pandas as pd
+import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
@@ -472,6 +473,34 @@ class Components(ComponentsData, ABC):
         """
         return self.ctype.defaults
 
+    @property
+    def component_names(self) -> pd.Index:
+        return self.static.index.get_level_values(self.ctype.name).unique()
+
+    @property
+    def snapshots(self) -> pd.Index:
+        return self.n_save.snapshots
+
+    @property
+    def timesteps(self) -> pd.Index:
+        return self.n_save.timesteps
+
+    @property
+    def investment_periods(self) -> pd.Index:
+        return self.n_save.investment_periods
+
+    @property
+    def has_investment_periods(self) -> bool:
+        return self.n_save.has_investment_periods
+
+    @property
+    def scenarios(self) -> pd.Index:
+        return self.n_save.scenarios
+
+    @property
+    def has_scenarios(self) -> bool:
+        return self.n_save.has_scenarios
+
     def get(self, attribute_name: str, default: Any = None) -> Any:
         """
         Get attribute of component.
@@ -558,6 +587,29 @@ class Components(ComponentsData, ABC):
 
         """
         return self.dynamic
+
+    @property
+    def ds(self) -> xarray.Dataset:
+        ds = self.static.to_xarray().assign_coords(
+            snapshot=("snapshot", self.snapshots)
+        )
+
+        if not self.has_investment_periods:
+            # Only needed for single index, when dimension name is can not be different
+            # from the coordinate name (e.g. "snapshot" == "timestep")
+            ds = ds.assign_coords(timestep=("snapshot", self.timesteps))
+
+        for k, v in self.dynamic.items():
+            assert v.index.name == "snapshot"
+            # Empty dfs must be handled separately, since stack will remove the index
+            if v.empty:
+                da = xarray.DataArray(np.nan, coords=ds.coords, dims=ds.dims)
+            else:
+                da = v.stack().to_xarray().reindex({self.name: self.component_names})
+            if k in self.static:
+                da = da.fillna(self.static[k].to_xarray())
+            ds[k] = da
+        return ds
 
     @property
     def units(self) -> pd.Series:

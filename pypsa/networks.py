@@ -299,6 +299,9 @@ class Network:
             index=self.investment_periods, columns=cols
         )
 
+        self._scenarios: pd.Index = pd.Index([])
+        self._scenarios.name = "scenario"
+
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
@@ -761,9 +764,9 @@ class Network:
 
         """
         if "timestep" in self.snapshots.names:
-            return self.snapshots.get_level_values("timestep").unique()
+            return self.snapshots.get_level_values("timestep")
         else:
-            return self.snapshots
+            return self.snapshots.rename("timestep")
 
     @timesteps.setter
     def timesteps(self, timesteps: Sequence) -> None:
@@ -983,14 +986,12 @@ class Network:
                 "converting snapshots to a pandas.MultiIndex."
             )
             names = ["period", "timestep"]
-            for component in self.all_components:
-                dynamic = self.dynamic(component)
-
-                for k in dynamic.keys():
-                    dynamic[k] = pd.concat(
-                        {p: dynamic[k] for p in periods_}, names=names
+            for c in self.components:
+                for k in c.dynamic.keys():
+                    c.dynamic[k] = pd.concat(
+                        {p: c.dynamic[k] for p in periods_}, names=names
                     )
-                    dynamic[k].index.name = "snapshot"
+                    c.dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
                 [periods_, self.snapshots], names=names
@@ -1004,6 +1005,12 @@ class Network:
         self.investment_period_weightings = self.investment_period_weightings.reindex(
             self.periods, fill_value=1.0
         ).astype(float)
+
+    scenarios = property(
+        lambda self: self._scenarios,
+        lambda self, value: setattr(self, "_scenarios", value),
+        doc="Scenarios of the network for stochastic optimization.",
+    )
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -1033,6 +1040,13 @@ class Network:
                 {c: df for c in self._investment_period_weightings.columns}
             )
         self._investment_period_weightings = df
+
+    @property
+    def has_scenarios(self) -> bool:
+        """
+        Boolean indicating if the network has scenarios defined.
+        """
+        return len(self.scenarios) > 0
 
     def add(
         self,
