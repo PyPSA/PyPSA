@@ -56,10 +56,12 @@ from pypsa.io import (
     _import_components_from_df,
     _import_series_from_df,
     export_to_csv_folder,
+    export_to_excel,
     export_to_hdf5,
     export_to_netcdf,
     import_components_from_dataframe,
     import_from_csv_folder,
+    import_from_excel,
     import_from_hdf5,
     import_from_netcdf,
     import_from_pandapower_net,
@@ -213,6 +215,8 @@ class Network:
     # from pypsa.io
     import_from_csv_folder = import_from_csv_folder
     export_to_csv_folder = export_to_csv_folder
+    import_from_excel = import_from_excel
+    export_to_excel = export_to_excel
     import_from_hdf5 = import_from_hdf5
     export_to_hdf5 = export_to_hdf5
     import_from_netcdf = import_from_netcdf
@@ -311,10 +315,14 @@ class Network:
         if import_name:
             if not validators.url(str(import_name)):
                 import_name = Path(import_name)
+
+            # Read specified file
             if str(import_name).endswith(".h5"):
                 self.import_from_hdf5(import_name)
             elif str(import_name).endswith(".nc"):
                 self.import_from_netcdf(import_name)
+            elif str(import_name).endswith((".xls", ".xlsx", ".xlsm", ".xlsb")):
+                self.import_from_excel(import_name)
             elif isinstance(import_name, Path) and import_name.is_dir():
                 self.import_from_csv_folder(import_name)
             else:

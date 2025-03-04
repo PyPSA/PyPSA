@@ -935,8 +935,10 @@ def apply_transformer_types(n: Network) -> None:
     )
 
     # now set calculated values on live transformers
-    for attr in ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]:
-        n.transformers.loc[trafos_with_types_b, attr] = t[attr]
+    attrs = ["r", "x", "g", "b", "phase_shift", "s_nom", "tap_side", "tap_ratio"]
+    n.transformers.loc[trafos_with_types_b, attrs] = t[attrs].astype(
+        n.transformers[attrs].dtypes
+    )
 
     # TODO: status, rate_A
 
