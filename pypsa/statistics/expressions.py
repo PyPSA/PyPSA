@@ -782,26 +782,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Additional parameter
         --------------------
-        comps: str, list-like, optional
-            Set of components to consider. Defaults to all one-port and branch components. Available components are 'Generator', 'StorageUnit', 'Store', 'Load', 'Line', 'Transformer', 'Link'.
+        aggregate_bus: bool, optional
+            Whether to obtain the nodal or carrier-wise energy balance. Default is True, corresponding to the carrier-wise balance.
         aggregate_time : str, bool, optional
-            Type of aggregation when aggregating time series. In the time aggregation the snapshot weightings are considered.
-            If set to False we retrieve a DataFrame with the time series as columns.
-            Note that for energy bus_carriers using {'mean', 'sum'} aggregates the time series to MWh using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
-        aggregate_groups : str, callable, optional
-            Type of aggregation when aggregating using the groupby argument. The default is 'sum', but all valid arguments from pandas.aggregate? are allowed.
-        aggregate_across_components : bool, optional
-            New argument!! Whether to aggregate across components. If there are different components which would be grouped together due to the same index, this is avoided.  Default is False.
-        groupby : str, list-like, callable, optional
-            Determines how the components are grouped together. This can be a "string" or a list of strings, which are column names of the static DataFrame. If a callable is passed, it should have the arguments network and component name. Defaults to ['carrier' 'bus_carrier'].
-        at_port : bool, str, list-like, optional
-            Wether to consider all ports of a component. For one port components, there is always only one port but for example for links they can have multiple ports. If set to True, all ports are considered. If set to False, the first port ("bus"/"bus0") are not considered. Defaults to True.
-        bus_carrier : str, list-like, optional
-            Carrier of the bus to consider. If given, only the assets are considered which are connected to buses with carrier `bus_carrier`. Defaults to None, where all bus carriers are considered.
-        nice_names : bool, optional
-            Whether to use the nice names of the carrier. Nice names are defined in `n.carriers.nice_name`. Defaults to True.
-        kind : str, optional
-            Type of energy balance. Can be 'supply', 'withdrawal' or None. If 'supply' is chosen, only positive values are considered. If 'withdrawal' is chosen, only negative values are considered. Defaults to None where both are considered.
+            Type of aggregation when aggregating time series.
+            Note that for {'mean', 'sum'} the time series are aggregated to MWh
+            using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         n = self.n
 
