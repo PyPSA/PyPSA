@@ -760,8 +760,8 @@ class Components(ComponentsData, ABC):
         data = {attr: self.as_xarray(attr) for attr in attrs}
         return xarray.Dataset(data)
 
-      @property
-      def units(self) -> pd.Series:
+    @property
+    def units(self) -> pd.Series:
         """
         Get units of all attributes of components.
 
@@ -775,7 +775,7 @@ class Components(ComponentsData, ABC):
         >>> import pypsa
         >>> c = pypsa.examples.ac_dc_meshed().components.generators
         >>> c.units.head() # doctest: +SKIP
-                       unit
+                        unit
         attribute
         p_nom            MW
         p_nom_mod        MW
