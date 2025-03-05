@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs
 
@@ -220,6 +221,7 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
 
 
+@deprecated(details="#TODO new-opt deprecation")
 def get_extendable_i(n: Network, c: str) -> pd.Index:
     """
     Getter function.
@@ -231,6 +233,7 @@ def get_extendable_i(n: Network, c: str) -> pd.Index:
     return n.components[c].get_extendable_i()
 
 
+@deprecated(details="#TODO new-opt deprecation")
 def get_non_extendable_i(n: Network, c: str) -> pd.Index:
     """
     Getter function.
@@ -242,6 +245,7 @@ def get_non_extendable_i(n: Network, c: str) -> pd.Index:
     return n.components[c].get_non_extendable_i()
 
 
+@deprecated(details="#TODO new-opt deprecation")
 def get_committable_i(n: Network, c: str) -> pd.Index:
     """
     Getter function.

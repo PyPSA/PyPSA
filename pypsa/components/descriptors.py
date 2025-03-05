@@ -1,7 +1,9 @@
 """
-Abstract components module.
+Descriptors module of PyPSA components.
 
-Contains classes and logic relevant to all component types in PyPSA.
+Contains all descriptor functions which can be used as methods of the
+Components class. Descriptor functions only describe data and do not
+modify it.
 """
 
 from __future__ import annotations
