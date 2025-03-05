@@ -760,7 +760,8 @@ class Components(ComponentsData, ABC):
         data = {attr: self.as_xarray(attr) for attr in attrs}
         return xarray.Dataset(data)
 
-    def units(self) -> pd.Series:
+      @property
+      def units(self) -> pd.Series:
         """
         Get units of all attributes of components.
 

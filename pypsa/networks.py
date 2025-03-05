@@ -764,9 +764,9 @@ class Network:
 
         """
         if "timestep" in self.snapshots.names:
-            return self.snapshots.get_level_values("timestep").unique()
+            return self.snapshots.get_level_values("timestep")
         else:
-            return self.snapshots
+            return self.snapshots.rename("timestep")
 
     @timesteps.setter
     def timesteps(self, timesteps: Sequence) -> None:
@@ -986,14 +986,12 @@ class Network:
                 "converting snapshots to a pandas.MultiIndex."
             )
             names = ["period", "timestep"]
-            for component in self.all_components:
-                dynamic = self.dynamic(component)
-
-                for k in dynamic.keys():
-                    dynamic[k] = pd.concat(
-                        {p: dynamic[k] for p in periods_}, names=names
+            for c in self.components:
+                for k in c.dynamic.keys():
+                    c.dynamic[k] = pd.concat(
+                        {p: c.dynamic[k] for p in periods_}, names=names
                     )
-                    dynamic[k].index.name = "snapshot"
+                    c.dynamic[k].index.name = "snapshot"
 
             self._snapshots = pd.MultiIndex.from_product(
                 [periods_, self.snapshots], names=names
