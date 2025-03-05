@@ -986,7 +986,7 @@ class Network:
                 "converting snapshots to a pandas.MultiIndex."
             )
             names = ["period", "timestep"]
-            for c in self.components:
+            for c in self.components.values():
                 for k in c.dynamic.keys():
                     c.dynamic[k] = pd.concat(
                         {p: c.dynamic[k] for p in periods_}, names=names

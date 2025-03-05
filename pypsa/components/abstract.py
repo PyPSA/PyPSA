@@ -20,7 +20,16 @@ import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
-from pypsa.components.descriptors import get_active_assets
+from pypsa.components.array import as_dynamic, as_xarray
+from pypsa.components.descriptors import (
+    get_active_assets,
+    get_activity_mask,
+    get_bounds_pu,
+    get_committable_i,
+    get_extendable_i,
+    get_non_extendable_i,
+)
+from pypsa.components.transform import rename_component_names
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
@@ -82,8 +91,20 @@ class Components(ComponentsData, ABC):
     # Methods
     # -------
 
+    # from pypsa.components.array
+    as_xarray = as_xarray
+    as_dynamic = as_dynamic
+
     # from pypsa.components.descriptors
     get_active_assets = get_active_assets
+    get_activity_mask = get_activity_mask
+    get_bounds_pu = get_bounds_pu
+    get_extendable_i = get_extendable_i
+    get_non_extendable_i = get_non_extendable_i
+    get_committable_i = get_committable_i
+
+    # from pypsa.components.transform
+    rename_component_names = rename_component_names
 
     def __init__(
         self,
@@ -118,6 +139,7 @@ class Components(ComponentsData, ABC):
             raise NotImplementedError(msg)
         static, dynamic = self._get_data_containers(ctype)
         super().__init__(ctype, n=None, static=static, dynamic=dynamic)
+        self._base_attr: str | None = None
 
     def __str__(self) -> str:
         """
@@ -475,31 +497,43 @@ class Components(ComponentsData, ABC):
 
     @property
     def component_names(self) -> pd.Index:
+        """Unique names of the components."""
         return self.static.index.get_level_values(self.ctype.name).unique()
 
     @property
-    def snapshots(self) -> pd.Index:
+    def snapshots(self) -> pd.Index | pd.MultiIndex:
+        """Snapshots of the network."""
         return self.n_save.snapshots
 
     @property
     def timesteps(self) -> pd.Index:
+        """Time steps of the network."""
         return self.n_save.timesteps
 
     @property
     def investment_periods(self) -> pd.Index:
+        """Investment periods of the network."""
         return self.n_save.investment_periods
 
     @property
     def has_investment_periods(self) -> bool:
+        """Indicator whether network has investment persios."""
         return self.n_save.has_investment_periods
 
     @property
     def scenarios(self) -> pd.Index:
+        """Scenarios of networks."""
         return self.n_save.scenarios
 
     @property
     def has_scenarios(self) -> bool:
+        """Indicator whether the network has scenarios."""
         return self.n_save.has_scenarios
+
+    @property
+    def empty(self) -> bool:
+        """Check if component is empty."""
+        return self.static.empty
 
     def get(self, attribute_name: str, default: Any = None) -> Any:
         """
@@ -590,26 +624,14 @@ class Components(ComponentsData, ABC):
 
     @property
     def ds(self) -> xarray.Dataset:
-        ds = self.static.to_xarray().assign_coords(
-            snapshot=("snapshot", self.snapshots)
-        )
-
-        if not self.has_investment_periods:
-            # Only needed for single index, when dimension name is can not be different
-            # from the coordinate name (e.g. "snapshot" == "timestep")
-            ds = ds.assign_coords(timestep=("snapshot", self.timesteps))
-
-        for k, v in self.dynamic.items():
-            assert v.index.name == "snapshot"
-            # Empty dfs must be handled separately, since stack will remove the index
-            if v.empty:
-                da = xarray.DataArray(np.nan, coords=ds.coords, dims=ds.dims)
-            else:
-                da = v.stack().to_xarray().reindex({self.name: self.component_names})
-            if k in self.static:
-                da = da.fillna(self.static[k].to_xarray())
-            ds[k] = da
-        return ds
+        """Create a xarray data array view of the component."""
+        static_attrs = self.static.columns
+        dynamic_attrs = [
+            attr for attr in self.dynamic.keys() if not self.dynamic[attr].empty
+        ]
+        attrs = set([*static_attrs, *dynamic_attrs])
+        data = {attr: self.as_xarray(attr) for attr in attrs}
+        return xarray.Dataset(data)
 
     @property
     def units(self) -> pd.Series:
@@ -626,7 +648,7 @@ class Components(ComponentsData, ABC):
         >>> import pypsa
         >>> c = pypsa.examples.ac_dc_meshed().components.generators
         >>> c.units.head() # doctest: +SKIP
-                       unit
+                        unit
         attribute
         p_nom            MW
         p_nom_mod        MW
@@ -658,6 +680,61 @@ class Components(ComponentsData, ABC):
         return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
 
     @property
+    def base_attr(self) -> str:
+        """
+        Get the standard base attribute of the component.
+
+        Returns
+        -------
+        str
+            Base attribute name
+
+        """
+        if self._base_attr is None:
+            raise AttributeError("Base attribute not set.")
+        return self._base_attr
+
+    @property
+    def operational_attrs(self) -> dict[str, str]:
+        """
+        Get operational attributes of component for optimization.
+
+        Provides a dictionary of attribute patterns used in optimization constraints,
+        based on the component type. This makes constraint formulation more modular
+        by avoiding hardcoded attribute names.
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of operational attribute names
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.operational_attrs["min_pu"]
+        'p_min_pu'
+        >>> c.operational_attrs["max_pu"]
+        'p_max_pu'
+        >>> c.operational_attrs["nom"]
+        'p_nom'
+
+        """
+        base = self.base_attr
+
+        return {
+            "base": base,
+            "nom": f"{base}_nom",
+            "nom_extendable": f"{base}_nom_extendable",
+            "nom_min": f"{base}_nom_min",
+            "nom_max": f"{base}_nom_max",
+            "nom_set": f"{base}_nom_set",
+            "min_pu": f"{base}_min_pu",
+            "max_pu": f"{base}_max_pu",
+            "set": f"{base}_set",
+        }
+
+    @property
     def nominal_attr(self) -> str:
         """
         Get nominal attribute of component.
@@ -675,82 +752,63 @@ class Components(ComponentsData, ABC):
         'p_nom'
 
         """
-        # TODO: move to Component Specific class
-        nominal_attr = {
-            "Generator": "p_nom",
-            "Line": "s_nom",
-            "Transformer": "s_nom",
-            "Link": "p_nom",
-            "Store": "e_nom",
-            "StorageUnit": "p_nom",
-        }
-        try:
-            return nominal_attr[self.ctype.name]
-        except KeyError:
-            msg = f"Component type '{self.ctype.name}' has no nominal attribute."
-            raise AttributeError(msg)
+        return self.base_attr + "_nom"
 
-    # TODO move
-    def rename_component_names(self, **kwargs: str) -> None:
+    @property
+    def extendables(self) -> pd.Index:
         """
-        Rename component names.
-
-        Rename components and also update all cross-references of the component in
-        the network.
-
-        Parameters
-        ----------
-        **kwargs
-            Mapping of old names to new names.
+        Get the index of extendable elements of this component.
 
         Returns
         -------
-        None
-
-        Examples
-        --------
-        Define some network
-        >>> import pypsa
-        >>> n = pypsa.Network()
-        >>> n.add("Bus", ["bus1"])
-        Index(['bus1'], dtype='object')
-        >>> n.add("Generator", ["gen1"], bus="bus1")
-        Index(['gen1'], dtype='object')
-        >>> c = n.c.buses
-
-        Now rename the bus
-
-        >>> c.rename_component_names(bus1="bus2")
-
-        Which updates the bus components
-
-        >>> c.static.index
-        Index(['bus2'], dtype='object', name='Bus')
-
-        and all references in the network
-
-        >>> n.generators.bus
-        Generator
-        gen1    bus2
-        Name: bus, dtype: object
+        pd.Index
+            Index of extendable elements.
 
         """
-        if not all(isinstance(v, str) for v in kwargs.values()):
-            msg = "New names must be strings."
-            raise ValueError(msg)
+        index_name = self.name
+        extendable_col = self.operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return pd.Index([], name=index_name)
 
-        # Rename component name definitions
-        self.static = self.static.rename(index=kwargs)
-        for k, v in self.dynamic.items():  # Modify in place
-            self.dynamic[k] = v.rename(columns=kwargs)
+        idx = self.static.loc[self.static[extendable_col]].index
+        return idx.rename(index_name)
 
-        # Rename cross references in network (if attached to one)
-        if self.attached:
-            for c in self.n_save.components.values():
-                col_name = self.name.lower()  # TODO: Generalize
-                cols = [f"{col_name}{port}" for port in c.ports]
-                if cols and not c.static.empty:
-                    c.static[cols] = c.static[cols].replace(kwargs)
+    @property
+    def fixed(self) -> pd.Index:
+        """
+        Get the index of non-extendable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of non-extendable elements.
+
+        """
+        index_name = self.name
+        extendable_col = self.operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[~self.static[extendable_col]].index
+        return idx.rename(index_name)
+
+    @property
+    def committables(self) -> pd.Index:
+        """
+        Get the index of committable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of committable elements.
+
+        """
+        index_name = self.name
+        if "committable" not in self.static:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[self.static["committable"]].index
+        return idx.rename(index_name)
 
 
 class SubNetworkComponents:
