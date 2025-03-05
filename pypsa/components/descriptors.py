@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from pypsa.descriptors import expand_series
 
@@ -117,11 +118,32 @@ def get_activity_mask(
     return mask
 
 
+@overload
 def get_bounds_pu(
     c: Components,
     sns: Sequence,
     index: pd.Index | None = None,
     attr: str | None = None,
+    as_xarray: Literal[True] = True,
+) -> tuple[xr.DataArray, xr.DataArray]: ...
+
+
+@overload
+def get_bounds_pu(
+    c: Components,
+    sns: Sequence,
+    index: pd.Index | None = None,
+    attr: str | None = None,
+    as_xarray: Literal[False] = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
+
+def get_bounds_pu(
+    c: Components,
+    sns: Sequence,
+    index: pd.Index | None = None,
+    attr: str | None = None,
+    as_xarray: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Get per unit bounds of the component for given snapshots.
@@ -142,6 +164,8 @@ def get_bounds_pu(
         elements are returned.
     attr : string, default None
         Attribute name for the bounds, e.g. "p", "s", "p_store"
+    as_xarray : bool, default False
+        If True, return xarray DataArrays instead of pandas DataFrames.
 
     Returns
     -------
@@ -166,10 +190,15 @@ def get_bounds_pu(
     else:
         min_pu = c.as_dynamic(min_pu_str, sns)
 
-    if index is None:
-        return min_pu, max_pu
-    else:
-        return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
+    if index is not None:
+        min_pu = min_pu.reindex(columns=index)
+        max_pu = max_pu.reindex(columns=index)
+
+    if as_xarray:
+        min_pu = xr.DataArray(min_pu)
+        max_pu = xr.DataArray(max_pu)
+
+    return min_pu, max_pu
 
 
 # TODO: remove as soon as deprecated renaming is removed
