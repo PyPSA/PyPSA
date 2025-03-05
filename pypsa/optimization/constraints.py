@@ -18,6 +18,7 @@ from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
 from pypsa.common import as_index
+from pypsa.components.common import as_components
 from pypsa.descriptors import (
     additional_linkports,
     expand_series,
@@ -52,29 +53,35 @@ def define_operational_constraints_for_non_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+    transmission_losses : int
+        Whether to consider transmission losses
     """
-    dispatch_lower: DataArray | tuple
-    dispatch_upper: DataArray | tuple
-
-    fix_i = n.get_non_extendable_i(c)
-    fix_i = fix_i.difference(n.get_committable_i(c)).rename(fix_i.name)
+    component = as_components(n, c)
+    fix_i = component.fixed
+    fix_i = fix_i.difference(component.committables).rename(f"{fix_i.name}-fix")
 
     if fix_i.empty:
         return
 
-    nominal_fix = n.static(c)[nominal_attrs[c]].reindex(fix_i)
-    min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
-    lower = min_pu.mul(nominal_fix)
-    upper = max_pu.mul(nominal_fix)
+    nominal_fix = component.as_xarray(component.nominal_attr).rename(
+        {component.name: fix_i.name}
+    )
+    min_pu, max_pu = component.get_bounds_pu(sns, fix_i, attr, as_xarray=True)
 
-    active = get_activity_mask(n, c, sns, fix_i)
+    lower = min_pu * nominal_fix
+    upper = max_pu * nominal_fix
 
-    dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-    dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    active = component.as_xarray("active", sns, fix_i)
+
+    dispatch = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, fix_i)
-        dispatch_lower = (1, dispatch_lower), (-1, loss)
-        dispatch_upper = (1, dispatch_upper), (1, loss)
+        dispatch_lower = ((1, dispatch), (-1, loss))
+        dispatch_upper = ((1, dispatch), (1, loss))
+    else:
+        dispatch_lower = dispatch_upper = dispatch
+
     n.model.add_constraints(
         dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
     )
