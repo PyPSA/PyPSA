@@ -49,7 +49,7 @@ def port_efficiency(
 ) -> pd.Series | pd.DataFrame:
     ones = pd.Series(1, index=n.static(c_name).index)
     if dynamic:
-        if 'efficiency' in n.static(c_name).columns:
+        if "efficiency" in n.static(c_name).columns:
             etas = pd.Series(n.static(c_name).efficiency, index=n.static(c_name).index)
         else:
             etas = pd.Series(1, index=n.static(c_name).index)
