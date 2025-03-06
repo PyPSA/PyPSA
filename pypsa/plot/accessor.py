@@ -124,7 +124,8 @@ class StatisticsPlotter:
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.plot.installed_capacity.bar(x="carrier", y="value", color=None)
+        >>> n.plot.installed_capacity.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        <seaborn._core.plot.Plot object at 0x...>
 
         """
         # Get plotting kwargs
@@ -235,7 +236,8 @@ class StatisticsPlotter:
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.plot.installed_capacity.line(x="carrier", y="value", color=None)
+        >>> n.plot.installed_capacity.line(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        <seaborn._core.plot.Plot object at 0x...>
 
         """
         # Get plotting kwargs
@@ -348,7 +350,8 @@ class StatisticsPlotter:
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.plot.installed_capacity.line(x="carrier", y="value", color=None)
+        >>> n.plot.installed_capacity.area(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        <seaborn._core.plot.Plot object at 0x...>
 
         """
         # Get plotting kwargs

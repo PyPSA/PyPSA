@@ -226,17 +226,19 @@ class ChartGenerator(PlotsGenerator, ABC):
         stats_kwargs["aggregate_across_components"] = "component" not in args  # type: ignore
 
         # `aggregate_time` is only relevant for time series data
-        if method_name not in no_time_support:  # type: ignore
+        if method_name not in no_time_support:
             derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
             if derived_agg_time:
-                derived_agg_time = "sum"
-            stats_kwargs["aggregate_time"] = derived_agg_time  # type: ignore
+                # Convert to list since aggregate_time expects a list of strings
+                stats_kwargs["aggregate_time"] = ["sum"]
+            else:
+                stats_kwargs["aggregate_time"] = []
 
         return stats_kwargs
 
     def manage_parameters(
-        self, stats_name: str, stats_kwargs: {}, plot_kwargs: {}
-    ) -> (dict, dict):
+        self, stats_name: str, stats_kwargs: dict, plot_kwargs: dict
+    ) -> tuple[dict, dict]:
         # Filter kwargs based on different statistics functions signatures
 
         # Handle default values
