@@ -57,15 +57,13 @@ def define_operational_constraints_for_non_extendables(
         Whether to consider transmission losses
     """
     component = as_components(n, c)
-    fix_i = component.fixed
-    fix_i = fix_i.difference(component.committables).rename(f"{fix_i.name}-fix")
+    fix_i = component.get_non_extendable_i()
+    fix_i = fix_i.difference(component.get_committable_i()).rename(fix_i.name)
 
     if fix_i.empty:
         return
 
-    nominal_fix = component.as_xarray(component.nominal_attr).rename(
-        {component.name: fix_i.name}
-    )
+    nominal_fix = component.as_xarray(component.nominal_attr, inds=fix_i)
     min_pu, max_pu = component.get_bounds_pu(sns, fix_i, attr, as_xarray=True)
 
     lower = min_pu * nominal_fix
@@ -108,7 +106,7 @@ def define_operational_constraints_for_extendables(
         name of the attribute, e.g. 'p'
     """
     component = as_components(n, c)
-    ext_i = component.extendables.rename(f"{component.extendables.name}-ext")
+    ext_i = component.get_extendable_i()
     if ext_i.empty:
         return
 
@@ -360,14 +358,14 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
         name of the attribute, e.g. 'p'
     """
     component = as_components(n, c)
-    ext_i = component.extendables.rename(f"{component.extendables.name}-ext")
+    ext_i = component.get_extendable_i()
 
     if ext_i.empty:
         return
 
     capacity = n.model[f"{c}-{attr}"]
-    lower = component.as_xarray(attr + "_min").rename({component.name: ext_i.name})
-    upper = component.as_xarray(attr + "_max").rename({component.name: ext_i.name})
+    lower = component.as_xarray(attr + "_min", inds=ext_i)
+    upper = component.as_xarray(attr + "_max", inds=ext_i)
 
     n.model.add_constraints(capacity, ">=", lower, name=f"{c}-ext-{attr}-lower")
 
