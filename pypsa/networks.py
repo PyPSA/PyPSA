@@ -82,7 +82,7 @@ from pypsa.pf import (
     sub_network_pf,
 )
 from pypsa.plot.accessor import PlotAccessor
-from pypsa.plot.statistics.maps import explore, iplot
+from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 

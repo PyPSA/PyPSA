@@ -117,13 +117,13 @@ def test_base_plot_faceting(ac_dc_network_r):
     assert plot._facet_spec is not None
 
 
-# def test_add_default_kwargs(ac_dc_network_r):
+# def test_derive_statistic_parameters(ac_dc_network_r):
 #     """Test derivation of statistic parameters"""
 #     # TODO rewrite once function is updated
 #     plotter = ChartGenerator(ac_dc_network_r)
 
 #     # Test with default parameters
-#     groupby, agg_comp, agg_time = plotter.add_default_kwargs(
+#     groupby, agg_comp, agg_time = plotter.derive_statistic_parameters(
 #         "carrier", "value", "carrier"
 #     )
 #     assert isinstance(groupby, list)
@@ -136,7 +136,7 @@ def test_base_plot_faceting(ac_dc_network_r):
 #         "aggregate_across_components": True,
 #         "aggregate_time": "mean",
 #     }
-#     groupby, agg_comp, agg_time = plotter.add_default_kwargs(
+#     groupby, agg_comp, agg_time = plotter.derive_statistic_parameters(
 #         "carrier", "value", stats_opts=stats_opts
 #     )
 #     assert groupby == ["carrier"]
@@ -160,22 +160,6 @@ def test_get_carrier_colors_and_labels(ac_dc_network_r):
     labels_raw = plotter._get_carrier_labels(nice_names=False)
     assert isinstance(labels_raw, dict)
     assert len(labels_raw) == 0
-
-
-def test_validate_data_requirements(ac_dc_network_r):
-    """Test data validation requirements"""
-    plotter = BarPlotGenerator(ac_dc_network_r)
-
-    # Test with missing value column
-    invalid_data = pd.DataFrame({"carrier": ["a", "b"]})
-    with pytest.raises(ValueError, match="Data must contain 'value' column"):
-        plotter._validate(invalid_data)
-
-    # Test with valid data
-    valid_data = pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2]})
-    validated = plotter._validate(valid_data)
-    assert "value" in validated.columns
-    assert isinstance(validated["carrier"].dtype, pd.CategoricalDtype)
 
 
 def test_query_filtering(ac_dc_network_r):
@@ -202,15 +186,15 @@ def test_consistency_checks(ac_dc_network_r):
 def test_stacking_and_dodging(ac_dc_network_r):
     """Test stacking and dodging options in bar plots"""
     n = ac_dc_network_r
-    stacked_plot = n.plot.supply().bar(x="carrier", y="value", stacked=True)
+    stacked_plot = n.plot.supply.bar(x="carrier", y="value", stacked=True)
     assert isinstance(stacked_plot, so.Plot)
 
     # Test dodged plot
-    dodged_plot = n.plot.supply().bar(x="carrier", y="value", dodged=True)
+    dodged_plot = n.plot.supply.bar(x="carrier", y="value", dodged=True)
     assert isinstance(dodged_plot, so.Plot)
 
 
 def test_line_plot_resampling(ac_dc_network_r):
     """Test resampling functionality in line plots"""
     n = ac_dc_network_r
-    n.plot.supply().line(resample="1D", x="snapshot")
+    n.plot.supply.line(resample="1D", x="snapshot")

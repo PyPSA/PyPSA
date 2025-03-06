@@ -31,11 +31,10 @@ class PlotsGenerator(ABC):
         self._n = n
 
     @abstractmethod
-    def add_default_kwargs(
+    def derive_statistic_parameters(
         self,
         *args: str | None,
-        stats_kwargs: dict | None = None,  # make required
-        method_name: str | None = None,  # make required
+        method_name: str = "",  # make required
     ) -> dict[str, Any]:
         """Handle default statistics kwargs based on provided plot kwargs."""
         pass

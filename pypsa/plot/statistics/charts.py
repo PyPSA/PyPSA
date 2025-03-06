@@ -145,7 +145,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         **kwargs: Any,
     ) -> so.Plot:
         """Plot method to be implemented by subclasses."""
-        plotting_consistency_check(self._n)
+        plotting_consistency_check(self._n, strict="all")
         ldata = self._to_long_format(data)
         if query:
             ldata = ldata.query(query)
@@ -173,11 +173,10 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         return plot
 
-    def add_default_kwargs(
+    def derive_statistic_parameters(
         self,
         *args: str | None,
-        stats_kwargs: dict | None = None,  # make required
-        method_name: str | None = None,  # make required
+        method_name: str = "",  # make required
     ) -> dict[str, Any]:
         """
         Extract plotting specification rules including groupby columns and component aggregation.
@@ -186,8 +185,6 @@ class ChartGenerator(PlotsGenerator, ABC):
         ----------
         *args : tuple of (str | None)
             Arguments representing x, y, color, col, row parameters
-        stats_kwargs : dict, optional
-            Keyword arguments from statistics function which will be written over
         method_name : str, optional
             Name of the statistics function to allow for specific rules
 
@@ -218,19 +215,55 @@ class ChartGenerator(PlotsGenerator, ABC):
             if c not in filtered and c is not None:
                 filtered_cols.append(c)
 
-        if "groupby" not in stats_kwargs:  # type: ignore
-            stats_kwargs["groupby"] = list(set(filtered_cols))  # type: ignore
+        stats_kwargs = {}
 
-        if "aggregate_across_components" not in stats_kwargs:  # type: ignore
-            stats_kwargs["aggregate_across_components"] = "component" not in args  # type: ignore
+        # `groupby`
+        filtered_cols = list(set(filtered_cols))  # Remove duplicates
+        if filtered_cols:
+            stats_kwargs["groupby"] = filtered_cols
 
-        if "aggregate_time" not in stats_kwargs and method_name not in no_time_support:  # type: ignore
+        # `aggregate_across_components`
+        stats_kwargs["aggregate_across_components"] = "component" not in args  # type: ignore
+
+        # `aggregate_time` is only relevant for time series data
+        if method_name not in no_time_support:  # type: ignore
             derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
             if derived_agg_time:
                 derived_agg_time = "sum"
             stats_kwargs["aggregate_time"] = derived_agg_time  # type: ignore
 
-        return stats_kwargs  # type: ignore
+        return stats_kwargs
+
+    def manage_parameters(
+        self, stats_name: str, stats_kwargs: {}, plot_kwargs: {}
+    ) -> (dict, dict):
+        # Filter kwargs based on different statistics functions signatures
+
+        # Handle default values
+        if True and plot_kwargs["x"] is None:
+            plot_kwargs["x"] = "carrier"
+
+        # TODO static vs time series plot handling
+
+        if True and plot_kwargs["y"] is None:
+            plot_kwargs["y"] = "value"
+
+        # 'storage'
+        if stats_name not in ["optimal_capacity", "installed_capacity"]:
+            if stats_kwargs["storage"] is None:
+                stats_kwargs.pop("storage")
+            else:
+                msg = (
+                    f"Statistics method '{stats_name}' does not support 'storage' "
+                    f"parameter. Please remove it or use a different method."
+                )
+                raise ValueError(msg)
+        # Set default value
+        else:
+            if stats_kwargs["storage"] is None:
+                stats_kwargs["storage"] = False
+
+        return stats_kwargs, plot_kwargs
 
 
 class BarPlotGenerator(ChartGenerator):
@@ -250,8 +283,8 @@ class BarPlotGenerator(ChartGenerator):
     def plot(  # type: ignore
         self,
         data: pd.DataFrame,
-        x: str,  # Removed default
-        y: str = "value",
+        x: str,
+        y: str,
         color: str | None = None,
         col: str | None = None,
         row: str | None = None,

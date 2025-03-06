@@ -2181,6 +2181,7 @@ _open__mb_styles = [
     "stamen-watercolor",
 ]
 
+
 # This function was borne out of a breakout group at the October 2017
 # Munich Open Energy Modelling Initiative Workshop to hack together a
 # working example of plotly for networks, see:
