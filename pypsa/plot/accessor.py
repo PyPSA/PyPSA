@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-
 class StatisticsPlotter:
     """
     Create plots based on output of statistics functions.
