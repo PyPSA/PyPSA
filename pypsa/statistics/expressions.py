@@ -48,7 +48,7 @@ def port_efficiency(
     n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
     if dynamic:
-        if 'efficiency' in n.static(c_name).columns:
+        if "efficiency" in n.static(c_name).columns:
             etas = n.static(c_name).efficiency
         else:
             etas = pd.Series(1.0, index=n.static(c_name).index)
