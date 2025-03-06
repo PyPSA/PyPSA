@@ -359,19 +359,23 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
     attr : str
         name of the attribute, e.g. 'p'
     """
-    ext_i = n.get_extendable_i(c)
+    component = as_components(n, c)
+    ext_i = component.extendables.rename(f"{component.extendables.name}-ext")
 
     if ext_i.empty:
         return
 
     capacity = n.model[f"{c}-{attr}"]
-    lower = n.static(c)[attr + "_min"].reindex(ext_i)
-    upper = n.static(c)[attr + "_max"].reindex(ext_i)
-    mask = upper != inf
+    lower = component.as_xarray(attr + "_min").rename({component.name: ext_i.name})
+    upper = component.as_xarray(attr + "_max").rename({component.name: ext_i.name})
+
     n.model.add_constraints(capacity, ">=", lower, name=f"{c}-ext-{attr}-lower")
-    n.model.add_constraints(
-        capacity, "<=", upper, name=f"{c}-ext-{attr}-upper", mask=mask
-    )
+
+    is_finite = upper != inf
+    if is_finite.any():
+        n.model.add_constraints(
+            capacity, "<=", upper, name=f"{c}-ext-{attr}-upper", mask=is_finite
+        )
 
 
 def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) -> None:
