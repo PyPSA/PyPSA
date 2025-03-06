@@ -250,9 +250,6 @@ nbsphinx_prolog = """
 
 """
 
-nbsphinx_allow_errors = True
-
-
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements: dict = {
