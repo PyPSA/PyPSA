@@ -47,13 +47,14 @@ def get_weightings(n: Network, c: str) -> pd.Series:
 def port_efficiency(
     n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
-    ones = pd.Series(1, index=n.static(c_name).index)
     if dynamic:
         if 'efficiency' in n.static(c_name).columns:
-            etas = pd.Series(n.static(c_name).efficiency, index=n.static(c_name).index)
+            etas = n.static(c_name).efficiency
         else:
-            etas = pd.Series(1, index=n.static(c_name).index)
+            etas = pd.Series(1.0, index=n.static(c_name).index)
         ones = etas
+    else:
+        ones = pd.Series(1, index=n.static(c_name).index)
     if port == "":
         efficiency = ones
     elif port == "0":
@@ -1098,18 +1099,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             )
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        kwargs = dict(
+        df = self._aggregate_components(
+            func,
+            agg=aggregate_groups,
             comps=comps,
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
-        )
-        df = self._aggregate_components(
-            func,
-            agg=aggregate_groups,
-            **kwargs,
         )
         df.attrs["name"] = "Carbon Emission"
         df.attrs["unit"] = "carbon"
