@@ -262,11 +262,15 @@ def test_parameters(ac_dc_network_r):
     # Test parameter representation
     isinstance(n.statistics.parameters, str)
 
-def test_emissions_calculation(ac_dc_network):
-    n = ac_dc_network
+def test_emissions_calculation(ac_dc_network_r):
+    n = ac_dc_network_r
     n.optimize(n.snapshots)
     #n.statistics().round(1).T
     # assert reloaded.meta == scipy_network.meta
+    assert (
+        n.statistics.carbon_emissions().sum()
+        == n.global_constraints.constant["co2_limit"]
+    )
     assert (
         n.statistics()["Carbon Emission"].sum()
         == n.global_constraints.constant["co2_limit"]

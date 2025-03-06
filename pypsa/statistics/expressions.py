@@ -49,9 +49,9 @@ def port_efficiency(
 ) -> pd.Series | pd.DataFrame:
     ones = pd.Series(1, index=n.static(c_name).index)
     if dynamic:
-        try:
+        if 'efficiency' in n.static(c_name).columns:
             etas = pd.Series(n.static(c_name).efficiency, index=n.static(c_name).index)
-        except:
+        else:
             etas = pd.Series(1, index=n.static(c_name).index)
         ones = etas
     if port == "":
@@ -1090,14 +1090,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if not at_port:
                 efficiency = abs(efficiency)
             weights = get_weightings(n, c)
-            try:
-                p = (
-                    get_operation(n, c).abs()
-                    / efficiency
-                    * n.df(c).carrier.map(n.carriers.co2_emissions)
-                )
-            except:
-                p = get_operation(n, c).abs()
+            p = (
+                get_operation(n, c).abs()
+                / efficiency
+                * n.df(c).carrier.map(n.carriers.co2_emissions).fillna(0)
+            )
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         kwargs = dict(
