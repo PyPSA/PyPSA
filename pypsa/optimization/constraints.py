@@ -77,16 +77,16 @@ def define_operational_constraints_for_non_extendables(
 
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, fix_i)
-        dispatch_lower = ((1, dispatch), (-1, loss))
-        dispatch_upper = ((1, dispatch), (1, loss))
+        lhs_lower = dispatch - loss
+        lhs_upper = dispatch + loss
     else:
-        dispatch_lower = dispatch_upper = dispatch
+        lhs_lower = lhs_upper = dispatch
 
     n.model.add_constraints(
-        dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
+        lhs_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
     )
     n.model.add_constraints(
-        dispatch_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
+        lhs_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
     )
 
 
@@ -107,26 +107,23 @@ def define_operational_constraints_for_extendables(
     attr : str
         name of the attribute, e.g. 'p'
     """
-    lhs_lower: DataArray | tuple
-    lhs_upper: DataArray | tuple
-
-    ext_i = n.get_extendable_i(c)
-
+    component = as_components(n, c)
+    ext_i = component.extendables.rename(f"{component.extendables.name}-ext")
     if ext_i.empty:
         return
 
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
+    min_pu, max_pu = component.get_bounds_pu(sns, ext_i, attr, as_xarray=True)
     dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
     capacity = n.model[f"{c}-{nominal_attrs[c]}"]
+    active = component.as_xarray("active", sns, ext_i)
 
-    active = get_activity_mask(n, c, sns, ext_i)
+    lhs_lower = dispatch - min_pu * capacity
+    lhs_upper = dispatch - max_pu * capacity
 
-    lhs_lower = (1, dispatch), (-min_pu, capacity)
-    lhs_upper = (1, dispatch), (-max_pu, capacity)
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, ext_i)
-        lhs_lower += ((-1, loss),)
-        lhs_upper += ((1, loss),)
+        lhs_lower = lhs_lower - loss
+        lhs_upper = lhs_upper + loss
 
     n.model.add_constraints(
         lhs_lower, ">=", 0, name=f"{c}-ext-{attr}-lower", mask=active
