@@ -22,7 +22,6 @@ from pypsa.statistics.expressions import StatisticsAccessor
 if TYPE_CHECKING:
     from pypsa import Network
 
-# TODO fix removed nice_names=False
 
 
 class StatisticsPlotter:
