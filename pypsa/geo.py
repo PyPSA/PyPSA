@@ -5,16 +5,25 @@ Functionality to help with georeferencing and calculate distances/areas.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import ArrayLike
+
+from pypsa.constants import DEFAULT_EPSG
+
+if TYPE_CHECKING:
+    import cartopy.crs as ccrs
+    from cartopy.mpl.geoaxes import GeoAxes
+    from numpy.typing import ArrayLike
+
 
 logger = logging.getLogger(__name__)
 
 
 def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     """
-    Determines crow-flies distance between points in a and b.
+    Determine crow-flies distance between points in a and b.
 
     ie. distance[i] = crow-fly-distance between a[i] and b[i]
 
@@ -51,10 +60,10 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
 
     Parameters
     ----------
-    a : array/list of at most 2 dimensions
-        One dimension must be 2
-    b : array/list of at most 2 dimensions
-        One dimension must be 2
+    a : N x 2 - array of dtype float
+        Coordinates of first point, dimensions (N, 2)
+    b : array-like of at most 2 dimensions
+        Coordinates of second point, dimensions (M, 2)
 
     Returns
     -------
@@ -72,13 +81,29 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     """
 
     #
-    def ensure_dimensions(a: ArrayLike) -> np.ndarray:
+    def ensure_dimensions(a: np.ndarray | ArrayLike) -> np.ndarray:
+        """
+        Ensure correct shape for haversine calculation.
+
+        Parameters
+        ----------
+        arr : array-like
+            Array to check
+
+        Returns
+        -------
+        array:
+            N x 2 array
+
+        """
         a = np.asarray(a)
 
         if a.ndim == 1:
             a = a[np.newaxis, :]
 
-        assert a.shape[1] == 2, "Inputs to haversine have the wrong shape!"
+        if a.shape[1] != 2:
+            msg = "Array must have shape (N, 2)"
+            raise ValueError(msg)
 
         return a
 
@@ -86,3 +111,87 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     b = ensure_dimensions(b)
 
     return haversine_pts(a[np.newaxis, :], b[:, np.newaxis])
+
+
+def compute_bbox(
+    x: ArrayLike, y: ArrayLike, margin: float = 0
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    """
+    Compute bounding box for given x, y coordinates.
+
+    Also adds a margin around the bounding box, if desired. Defaults to 0.
+
+    Parameters
+    ----------
+    x, y : array-like
+        Arrays of x and y coordinates
+    margin : float, optional
+        Margin around the bounding box, by default 0
+
+    Returns
+    -------
+    tuple
+        Tuple of two tuples, representing the lower left (x1, y1) and upper right
+        (x2, y2) corners of the bounding box
+
+    """
+    # set margins
+    pos = np.asarray((x, y))
+    minxy, maxxy = np.nanmin(pos, axis=1), np.nanmax(pos, axis=1)
+    xy1 = minxy - margin * (maxxy - minxy)
+    xy2 = maxxy + margin * (maxxy - minxy)
+    return tuple(xy1), tuple(xy2)
+
+
+def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
+    """
+    Get cartopy projection from EPSG code or proj4 string.
+
+    If the projection is not found, a warning is issued and the default
+    PlateCarree projection is returned.
+
+    Parameters
+    ----------
+    crs : int | str
+        EPSG code or proj4 string
+
+    Returns
+    -------
+    projection : cartopy.crs.Projection
+        Cartopy projection object
+
+    """
+    import cartopy.crs as ccrs
+
+    try:
+        return ccrs.epsg(crs)
+    except ValueError:
+        pass
+
+    if crs != 4326 and not str(crs).endswith("4326"):
+        logger.warning(
+            "Could not find projection for '%s'. Falling back to latlong.", crs
+        )
+
+    return ccrs.PlateCarree()
+
+
+def get_projected_area_factor(
+    ax: GeoAxes, original_crs: int | str = DEFAULT_EPSG
+) -> float:
+    """
+    Get scale of current vs original projection in terms of area.
+
+    The default 'original crs' is assumed to be 4326, which translates
+    to the cartopy default cartopy.crs.PlateCarree()
+    """
+    if not hasattr(ax, "projection"):
+        return 1
+    x1, x2, y1, y2 = ax.get_extent()
+    pbounds = get_projection_from_crs(original_crs).transform_points(
+        ax.projection, np.array([x1, x2]), np.array([y1, y2])
+    )
+
+    return np.sqrt(
+        abs((x2 - x1) * (y2 - y1)) / abs((pbounds[0] - pbounds[1])[:2].prod())
+    )

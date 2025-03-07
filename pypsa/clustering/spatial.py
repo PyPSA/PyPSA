@@ -692,7 +692,6 @@ def kmeans_clustering(
     Clustering : named tuple
         A named tuple containing network, busmap and linemap
     """
-
     busmap = busmap_by_kmeans(n, bus_weightings, n_clusters, **kwargs)
 
     return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
@@ -748,7 +747,6 @@ def busmap_by_hac(
         Mapping of n.buses to clusters (indexed by
         non-negative integers).
     """
-
     if find_spec("sklearn") is None:
         raise ModuleNotFoundError(
             "Optional dependency 'sklearn' not found."
@@ -840,7 +838,6 @@ def hac_clustering(
     Clustering : named tuple
         A named tuple containing network, busmap and linemap
     """
-
     busmap = busmap_by_hac(
         n,
         n_clusters,
@@ -948,7 +945,6 @@ def greedy_modularity_clustering(
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
     """
-
     busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)
 
     return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)

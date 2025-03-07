@@ -5,8 +5,9 @@ Statistics Accessor.
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -14,10 +15,11 @@ if TYPE_CHECKING:
 import pandas as pd
 
 from pypsa.common import pass_empty_series_if_keyerror
-from pypsa.descriptors import nominal_attrs
+from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -153,10 +155,58 @@ class Parameters:
                 setattr(self, key, value)
 
 
+def preserve_methods(cls: Any) -> Any:
+    """
+    Class decorator to preserve the original methods of a class.
+
+    Stores original methods with a prefix "_original_" to allow for
+    unmodified access to the original methods in subclasses.
+    """
+    for method_name in cls._methods:
+        method = getattr(cls, method_name)
+        setattr(cls, f"_original_{method_name}", method)
+    return cls
+
+
+@preserve_methods
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """
     Accessor to calculate different statistical values.
     """
+
+    _methods = [
+        "capex",
+        "installed_capex",
+        "expanded_capex",
+        "optimal_capacity",
+        "installed_capacity",
+        "expanded_capacity",
+        "opex",
+        "supply",
+        "withdrawal",
+        "transmission",
+        "energy_balance",
+        "curtailment",
+        "capacity_factor",
+        "revenue",
+        "market_value",
+    ]
+
+    _original_capex: Callable
+    _original_installed_capex: Callable
+    _original_expanded_capex: Callable
+    _original_optimal_capacity: Callable
+    _original_installed_capacity: Callable
+    _original_expanded_capacity: Callable
+    _original_opex: Callable
+    _original_supply: Callable
+    _original_withdrawal: Callable
+    _original_transmission: Callable
+    _original_energy_balance: Callable
+    _original_curtailment: Callable
+    _original_capacity_factor: Callable
+    _original_revenue: Callable
+    _original_market_value: Callable
 
     def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
         return df.index
@@ -216,8 +266,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _aggregate_across_components(
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
-        index_wo_component = df.index.droplevel("component")
-        return df.groupby(index_wo_component).agg(agg)
+        levels = [l for l in df.index.names if l != "component"]
+        return df.groupby(level=levels).agg(agg)
+
+    def _aggregate_components_skip_iteration(
+        self, vals: pd.Series | pd.DataFrame
+    ) -> bool:
+        return vals.empty
 
     def __call__(
         self,
@@ -262,18 +317,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             kwargs.pop("aggregate_time")
 
         funcs: list[Callable] = [
-            self.optimal_capacity,
-            self.installed_capacity,
-            self.supply,
-            self.withdrawal,
-            self.energy_balance,
-            self.transmission,
-            self.capacity_factor,
-            self.curtailment,
-            self.capex,
-            self.opex,
-            self.revenue,
-            self.market_value,
+            self._original_optimal_capacity,
+            self._original_installed_capacity,
+            self._original_supply,
+            self._original_withdrawal,
+            self._original_energy_balance,
+            self._original_transmission,
+            self._original_capacity_factor,
+            self._original_curtailment,
+            self._original_capex,
+            self._original_opex,
+            self._original_revenue,
+            self._original_market_value,
         ]
 
         res = {}
@@ -298,6 +353,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -329,6 +385,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Capital Expenditure"
@@ -343,6 +400,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -372,6 +430,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Capital Expenditure Fixed"
@@ -386,6 +445,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -401,22 +461,25 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure. Defaults to `capital_cost`.
         """
-        df = self.capex(
+        df = self._original_capex(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             cost_attribute=cost_attribute,
         ).sub(
-            self.installed_capex(
+            self._original_installed_capex(
                 comps=comps,
                 aggregate_groups=aggregate_groups,
+                aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
                 bus_carrier=bus_carrier,
+                carrier=carrier,
                 nice_names=nice_names,
                 cost_attribute=cost_attribute,
             ),
@@ -434,6 +497,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
@@ -450,7 +514,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-
         if storage:
             comps = ("Store", "StorageUnit")
         if bus_carrier and at_port is None:
@@ -474,6 +537,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Optimal Capacity"
@@ -488,6 +552,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
@@ -504,7 +569,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-
         if storage:
             comps = ("Store", "StorageUnit")
         if bus_carrier and at_port is None:
@@ -528,6 +592,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Installed Capacity"
@@ -542,6 +607,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -554,22 +620,24 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
         """
-        optimal = self.optimal_capacity(
+        optimal = self._original_optimal_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
-        installed = self.installed_capacity(
+        installed = self._original_installed_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
@@ -587,6 +655,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -627,6 +696,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Operational Expenditure"
@@ -642,6 +712,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -654,7 +725,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        df = self.energy_balance(
+        df = self._original_energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
@@ -662,6 +733,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             kind="supply",
         )
@@ -678,6 +750,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -690,7 +763,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
-        df = self.energy_balance(
+        df = self._original_energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
@@ -698,6 +771,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             kind="withdrawal",
         )
@@ -711,9 +785,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = "carrier",
+        groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -754,6 +829,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Transmission"
@@ -769,6 +845,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
@@ -824,11 +901,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = "carrier dependent"
+        df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
     def curtailment(
@@ -840,6 +918,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -879,6 +958,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Curtailment"
@@ -894,6 +974,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -926,10 +1007,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
-        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)  # type: ignore
+        capacity = self._original_optimal_capacity(
+            aggregate_groups=aggregate_groups, **kwargs
+        )
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
@@ -944,6 +1028,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
@@ -1000,6 +1085,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Revenue"
@@ -1015,6 +1101,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1043,9 +1130,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
+        df = self._original_revenue(**kwargs) / self._original_supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df

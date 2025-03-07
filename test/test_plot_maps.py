@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pypsa.plot import (  # type: ignore[attr-defined]
+from pypsa.plot.maps import (
     add_legend_circles,
     add_legend_lines,
     add_legend_patches,
@@ -36,6 +36,14 @@ try:
     explore_deps_present = True
 except ImportError:
     explore_deps_present = False
+
+
+def test_deprecated_namespace(ac_dc_network):
+    from pypsa.plot import plot as plot_deprecated
+
+    with pytest.warns(DeprecationWarning):
+        plot_deprecated(ac_dc_network)
+    plt.close()
 
 
 @pytest.mark.parametrize("margin", (None, 0.1))
@@ -77,7 +85,7 @@ def test_plot_bus_circles(ac_dc_network):
 
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()
     bus_sizes[:] = 1
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
     n.plot(bus_sizes=bus_sizes, bus_colors=bus_colors, geomap=False)
     plt.close()
 
@@ -100,9 +108,7 @@ def test_plot_split_circles(ac_dc_network):
     n.loads.carrier = "load"
     load_sizes = -n.loads_t.p_set.mean().groupby([n.loads.bus, n.loads.carrier]).max()
     bus_sizes = pd.concat((gen_sizes, load_sizes)) / 1e3
-    bus_colors = pd.Series(
-        ["blue", "red", "green", "orange"], index=list(n.carriers.index) + ["load"]
-    )
+    bus_colors = n.carriers.color
     n.plot(
         bus_sizes=bus_sizes, bus_colors=bus_colors, bus_split_circles=True, geomap=False
     )
@@ -134,7 +140,7 @@ def test_plot_alpha(ac_dc_network):
 
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()
     bus_sizes[:] = 1
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
     n.plot(
         bus_sizes=bus_sizes,
         bus_colors=bus_colors,
@@ -172,7 +178,7 @@ def test_plot_bus_subset(ac_dc_network):
 
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()[:3]
     bus_sizes[:] = 1
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
     n.plot(
         bus_sizes=bus_sizes,
         bus_colors=bus_colors,
@@ -201,7 +207,7 @@ def test_plot_from_statistics(ac_dc_network):
 
     bus_scale = 5e-6
     branch_scale = 1e-4
-    bus_colors = pd.Series(["blue", "red", "green"], index=n.carriers.index)
+    bus_colors = n.carriers.color
 
     n.plot(
         bus_sizes=bus_sizes * bus_scale,
@@ -224,16 +230,19 @@ def test_plot_map_flow(ac_dc_network):
     n = ac_dc_network
 
     branches = n.branches()
-    flow = pd.Series(range(len(branches)), index=branches.index)
-    n.plot(flow=flow, geomap=False)
+    lines = branches.loc["Line"]
+    line_flow = pd.Series(range(len(lines)), index=lines.index)
+    links = branches.loc["Link"]
+    link_flow = pd.Series(range(len(links)), index=links.index)
+    n.plot(line_flow=line_flow, link_flow=link_flow, geomap=False)
     plt.close()
 
-    n.lines_t.p0.loc[:, flow.Line.index] = 0
-    n.lines_t.p0 += flow.Line
-    n.plot(flow="mean", geomap=False)
+    n.lines_t.p0.loc[:, line_flow.index] = 0
+    n.lines_t.p0 += line_flow
+    n.plot(line_flow="mean", geomap=False)
     plt.close()
 
-    n.plot(flow=n.snapshots[0], geomap=False)
+    n.plot(line_flow=n.snapshots[0], geomap=False)
     plt.close()
 
 
@@ -242,7 +251,9 @@ def test_plot_map_line_colorbar(ac_dc_network):
 
     norm = plt.Normalize(vmin=0, vmax=10)
 
-    n.plot(line_colors=n.lines.index.astype(int), line_cmap="viridis", line_norm=norm)
+    n.plot(
+        line_colors=n.lines.index.astype(int), line_cmap="viridis", line_cmap_norm=norm
+    )
 
     plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 
@@ -252,7 +263,7 @@ def test_plot_map_bus_colorbar(ac_dc_network):
 
     norm = plt.Normalize(vmin=0, vmax=10)
 
-    n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_norm=norm)
+    n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_cmap_norm=norm)
 
     plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 

@@ -23,7 +23,6 @@ def is_1d_list_like(x: Any) -> bool:
     bool
         True if x is a 1D list-like object.
     """
-
     if isinstance(x, np.ndarray):
         return x.ndim == 1
 

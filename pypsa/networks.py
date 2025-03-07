@@ -83,7 +83,8 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import explore, iplot, plot  # type: ignore
+from pypsa.plot.accessor import PlotAccessor
+from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 
@@ -234,7 +235,6 @@ class Network:
     pf = network_pf
 
     # from pypsa.plot
-    plot = plot
     iplot = iplot
     explore = explore
 
@@ -303,6 +303,7 @@ class Network:
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
         self.statistics: StatisticsAccessor = StatisticsAccessor(self)
+        self.plot: PlotAccessor = PlotAccessor(self)
 
         # Define component sets
         self._initialize_component_sets()
@@ -360,8 +361,12 @@ class Network:
 
     def __eq__(self, other: Any) -> bool:
         """Check for equality of two networks."""
-
-        ignore = [OptimizationAccessor, ClusteringAccessor, StatisticsAccessor]
+        ignore = [
+            OptimizationAccessor,
+            ClusteringAccessor,
+            StatisticsAccessor,
+            PlotAccessor,
+        ]
 
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
@@ -781,7 +786,6 @@ class Network:
         --------
         pypsa.networks.Network.timesteps : Getter method
         """
-
         msg = "Setting `timesteps` is not supported. Please set `snapshots` instead."
         raise NotImplementedError(msg)
 
@@ -824,7 +828,6 @@ class Network:
         pypsa.networks.Network.periods : Getter method
         pypsa.networks.Network.set_investment_periods : Setter method
         """
-
         self.set_investment_periods(periods)
 
     @property
@@ -867,7 +870,6 @@ class Network:
         pypsa.networks.Network.timesteps : Get the timestep level only.
 
         """
-
         return self.periods
 
     @investment_periods.setter
@@ -1426,7 +1428,6 @@ class Network:
         >>> network_copy = n.copy()
 
         """
-
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types, with_time]
         if all(arg is None or arg is False for arg in args):

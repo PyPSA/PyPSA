@@ -173,7 +173,6 @@ def rename_kwargs(
         A mapping of old argument names to new argument names.
 
     """
-
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
@@ -231,6 +230,20 @@ def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Cal
         return wrapper
 
     return custom_decorator
+
+
+def deprecated_namespace(func: Callable, previous_module: str) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        warnings.warn(
+            f"The namespace `{previous_module}.{func.__name__}` is deprecated and will be removed in a future version. "
+            f"Please use the new namespace `{func.__module__}.{func.__name__}` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def list_as_string(
@@ -310,6 +323,57 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         __import__(module_name)
     except ImportError:
         raise ImportError(install_message)
+
+
+def _convert_to_series(
+    variable: dict | Sequence | float | int, index: pd.Index
+) -> pd.Series:
+    if isinstance(variable, dict):
+        return pd.Series(variable)
+    elif not isinstance(variable, pd.Series):
+        return pd.Series(variable, index=index)
+    return variable
+
+
+def resample_timeseries(
+    df: pd.DataFrame, freq: str, numeric_columns: list[str] | None = None
+) -> pd.DataFrame:
+    """
+    Resample a DataFrame with proper handling of numeric and non-numeric columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to resample, must have a datetime index
+    freq : str
+        Frequency string for resampling (e.g. 'H' for hourly)
+    numeric_columns : list[str] | None
+        List of numeric column names to resample. If None, auto-detected.
+
+    Returns
+    -------
+    pd.DataFrame
+        Resampled DataFrame with numeric columns aggregated by mean
+        and non-numeric columns forward-filled
+    """
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df = df.set_index(pd.to_datetime(df.index))
+
+    if numeric_columns is None:
+        numeric_columns = df.select_dtypes(include=["int64", "float64"]).columns
+
+    # Handle duplicate indices by aggregating first
+    if not df.index.is_unique:
+        numeric_df = df[numeric_columns].groupby(level=0).mean()
+        non_numeric_df = df.drop(columns=numeric_columns).groupby(level=0).first()
+        df = pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
+
+    # Split into numeric and non-numeric columns
+    numeric_df = df[numeric_columns].resample(freq).mean()
+    non_numeric_df = df.drop(columns=numeric_columns).resample(freq).ffill()
+
+    # Combine the results
+    return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
 
 
 def check_pypsa_version(version_string: str) -> None:

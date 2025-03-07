@@ -260,7 +260,6 @@ def network_pf(
         values indicating number of iterations, convergence status, and
         iteration error for each snapshot (rows) and sub_network (columns)
     """
-
     return _network_prepare_and_run_pf(
         n,
         snapshots,
@@ -288,7 +287,6 @@ def newton_raphson_sparse(
     dfdx(x) should return a sparse Jacobian.  Terminate if error on norm
     of f(x) is < x_tol or there were more than lim_iter iterations.
     """
-
     slack_args = {"distribute_slack": distribute_slack, "slack_weights": slack_weights}
     converged = False
     n_iter = 0
@@ -348,7 +346,6 @@ def sub_network_pf_singlebus(
         Custom weights can be provided via a pandas.Series/dict
         that has the generators of the single bus as index/keys.
     """
-
     sns = as_index(sub_network.n, snapshots, "snapshots")
     n = sub_network.n
     logger.info(
@@ -464,7 +461,6 @@ def sub_network_pf(
     Tuple of three pandas.Series indicating number of iterations,
     remaining error, and convergence status for each snapshot
     """
-
     if not isinstance(slack_weights, (str | pd.Series | dict)):
         msg = (
             f"Type of 'slack_weights' must be string, pd.Series or dict. Got "
