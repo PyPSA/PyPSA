@@ -215,7 +215,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             if c not in filtered and c is not None:
                 filtered_cols.append(c)
 
-        stats_kwargs = {}
+        stats_kwargs: dict[str, str | bool | list] = {}
 
         # `groupby`
         filtered_cols = list(set(filtered_cols))  # Remove duplicates
@@ -230,9 +230,9 @@ class ChartGenerator(PlotsGenerator, ABC):
             derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
             if derived_agg_time:
                 # Convert to list since aggregate_time expects a list of strings
-                stats_kwargs["aggregate_time"] = ["sum"]
+                stats_kwargs["aggregate_time"] = "sum"
             else:
-                stats_kwargs["aggregate_time"] = []
+                stats_kwargs["aggregate_time"] = False
 
         return stats_kwargs
 
@@ -334,7 +334,7 @@ class LinePlotGenerator(ChartGenerator):
         # For time series data, ensure datetime index
         if "snapshot" in data.columns:
             try:
-                data["snapshot"] = pd.to_datetime(data["snapshot"])
+                data = data.assign(snapshot=pd.to_datetime(data["snapshot"]))
             except (ValueError, TypeError):
                 pass
         return data
@@ -389,7 +389,7 @@ class AreaPlotGenerator(ChartGenerator):
         # For time series data, ensure datetime index
         if "snapshot" in data.columns:
             try:
-                data["snapshot"] = pd.to_datetime(data["snapshot"])
+                data = data.assign(snapshot=pd.to_datetime(data["snapshot"]))
             except (ValueError, TypeError):
                 pass
         return data
