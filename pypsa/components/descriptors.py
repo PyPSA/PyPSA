@@ -148,10 +148,8 @@ def get_bounds_pu(
     """
     Get per unit bounds of the component for given snapshots.
 
-    Retrieve the per unit bounds of this component for given snapshots and
-    possibly a subset of elements (e.g. non-extendables).
-    Depending on the attr you can further specify the bounds of the variable
-    you are looking at, e.g. p_store for storage units.
+    This is a backward-compatible implementation that delegates to the component's
+    specific implementation if available.
 
     Parameters
     ----------
@@ -173,6 +171,11 @@ def get_bounds_pu(
         Tuple of (min_pu, max_pu) DataFrames.
 
     """
+    # If the component has a specialized implementation, use it
+    if hasattr(c, "get_bounds_pu") and callable(getattr(c, "get_bounds_pu")):
+        return c.get_bounds_pu(sns, index, attr, as_xarray)
+
+    # Legacy implementation (to be deprecated)
     min_pu_str = c.operational_attrs["min_pu"]
     max_pu_str = c.operational_attrs["max_pu"]
 

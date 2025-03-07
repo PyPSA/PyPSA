@@ -9,15 +9,18 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from pypsa.components.abstract import Components
 from pypsa.components.types import ComponentType
 from pypsa.components.types import get as get_component_type
 from pypsa.definitions.structures import Dict
+from pypsa.descriptors import expand_series
 from pypsa.geo import haversine_pts
 
 logger = logging.getLogger(__name__)
@@ -102,6 +105,49 @@ class Generators(Components):
         """
         super().__init__(*args, **kwargs)
         self._base_attr = "p"
+
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Get per unit bounds for generators.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "p"
+        as_xarray : bool, default False
+            If True, return xarray DataArrays instead of pandas DataFrames
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        min_pu_str = self.operational_attrs["min_pu"]
+        max_pu_str = self.operational_attrs["max_pu"]
+
+        min_pu = self.as_dynamic(min_pu_str, sns)
+        max_pu = self.as_dynamic(max_pu_str, sns)
+
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if as_xarray:
+            min_pu = xr.DataArray(min_pu)
+            max_pu = xr.DataArray(max_pu)
+
+        return min_pu, max_pu
 
 
 class Loads(Components):
@@ -188,6 +234,49 @@ class Links(Components):
         """
         super().__init__(*args, **kwargs)
         self._base_attr = "p"
+
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Get per unit bounds for links.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "p"
+        as_xarray : bool, default False
+            If True, return xarray DataArrays instead of pandas DataFrames
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        min_pu_str = self.operational_attrs["min_pu"]
+        max_pu_str = self.operational_attrs["max_pu"]
+
+        min_pu = self.as_dynamic(min_pu_str, sns)
+        max_pu = self.as_dynamic(max_pu_str, sns)
+
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if as_xarray:
+            min_pu = xr.DataArray(min_pu)
+            max_pu = xr.DataArray(max_pu)
+
+        return min_pu, max_pu
 
 
 class Lines(Components):
@@ -281,6 +370,48 @@ class Lines(Components):
             * 1_000
         )
 
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Get per unit bounds for lines.
+        For passive branch components, min_pu is the negative of max_pu.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "s"
+        as_xarray : bool, default False
+            If True, return xarray DataArrays instead of pandas DataFrames
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        max_pu_str = self.operational_attrs["max_pu"]
+        max_pu = self.as_dynamic(max_pu_str, sns)
+        min_pu = -max_pu  # Lines specific: min_pu is the negative of max_pu
+
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if as_xarray:
+            min_pu = xr.DataArray(min_pu)
+            max_pu = xr.DataArray(max_pu)
+
+        return min_pu, max_pu
+
 
 class Transformers(Components):
     """
@@ -321,6 +452,48 @@ class Transformers(Components):
         """
         super().__init__(*args, **kwargs)
         self._base_attr = "s"
+
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Get per unit bounds for transformers.
+        For passive branch components, min_pu is the negative of max_pu.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "s"
+        as_xarray : bool, default False
+            If True, return xarray DataArrays instead of pandas DataFrames
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        max_pu_str = self.operational_attrs["max_pu"]
+        max_pu = self.as_dynamic(max_pu_str, sns)
+        min_pu = -max_pu  # Transformers specific: min_pu is the negative of max_pu
+
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if as_xarray:
+            min_pu = xr.DataArray(min_pu)
+            max_pu = xr.DataArray(max_pu)
+
+        return min_pu, max_pu
 
 
 class StorageUnits(Components):
@@ -401,6 +574,57 @@ class StorageUnits(Components):
 
         return attrs
 
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Get per unit bounds for storage units.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "p", "p_store", "state_of_charge"
+        as_xarray : bool, default False
+            If True, return xarray DataArrays instead of pandas DataFrames
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        min_pu_str = self.operational_attrs["min_pu"]
+        max_pu_str = self.operational_attrs["max_pu"]
+
+        max_pu = self.as_dynamic(max_pu_str, sns)
+
+        if attr == "p_store":
+            max_pu = -self.as_dynamic(min_pu_str, sns)
+            min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
+        elif attr == "state_of_charge":
+            max_pu = expand_series(self.static.max_hours, sns).T
+            min_pu = pd.DataFrame(0, *max_pu.axes)
+        else:
+            min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
+
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if as_xarray:
+            min_pu = xr.DataArray(min_pu)
+            max_pu = xr.DataArray(max_pu)
+
+        return min_pu, max_pu
+
 
 class Stores(Components):
     """
@@ -441,6 +665,49 @@ class Stores(Components):
         """
         super().__init__(*args, **kwargs)
         self._base_attr = "e"
+
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Get per unit bounds for stores.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "e"
+        as_xarray : bool, default False
+            If True, return xarray DataArrays instead of pandas DataFrames
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        min_pu_str = self.operational_attrs["min_pu"]
+        max_pu_str = self.operational_attrs["max_pu"]
+
+        min_pu = self.as_dynamic(min_pu_str, sns)
+        max_pu = self.as_dynamic(max_pu_str, sns)
+
+        if index is not None:
+            min_pu = min_pu.reindex(columns=index)
+            max_pu = max_pu.reindex(columns=index)
+
+        if as_xarray:
+            min_pu = xr.DataArray(min_pu)
+            max_pu = xr.DataArray(max_pu)
+
+        return min_pu, max_pu
 
 
 CLASS_MAPPING = {
