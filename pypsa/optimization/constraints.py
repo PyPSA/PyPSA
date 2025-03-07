@@ -568,7 +568,9 @@ def define_nodal_balance_constraints(
     """
     m = n.model
     if buses is None:
-        buses = n.buses.index
+        buses = as_components(n, "Bus").static.index
+
+    links = as_components(n, "Link")
 
     args = [
         ["Generator", "p", "bus", 1],
@@ -580,12 +582,13 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus0", -1],
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
-        ["Link", "p", "bus1", get_as_dense(n, "Link", "efficiency", sns)],
+        ["Link", "p", "bus1", links.as_xarray("efficiency", sns)],
     ]
 
-    if not n.links.empty:
+    if not links.empty:
         for i in additional_linkports(n):
-            eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
+            eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
+            eff = links.as_xarray(eff_attr, sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
     if transmission_losses:
@@ -603,39 +606,51 @@ def define_nodal_balance_constraints(
     for arg in args:
         c, attr, column, sign = arg
 
-        if n.static(c).empty:
+        component = as_components(n, c)
+        if component.static.empty:
             continue
 
-        if "sign" in n.static(c):
-            # additional sign necessary for branches in reverse direction
-            sign = sign * n.static(c).sign
+        if "sign" in component.static:
+            sign = sign * component.static.sign
 
         expr = DataArray(sign) * m[f"{c}-{attr}"]
-        cbuses = n.static(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
+
+        cbuses = component.as_xarray(column).rename("Bus")
+        cbuses = cbuses[cbuses.isin(buses)]
+
+        if not cbuses.size:
+            continue
 
         #  drop non-existent multiport buses which are ''
         if column in ["bus" + i for i in additional_linkports(n)]:
             cbuses = cbuses[cbuses != ""]
 
-        expr = expr.sel({c: cbuses.index})
-
+        expr = expr.sel({c: cbuses[c].values})
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(Bus=buses)
-    active = n.loads.query("active").index
-    rhs = (
-        (-get_as_dense(n, "Load", "p_set", sns, active) * n.loads.sign[active])
-        .T.groupby(n.loads.bus[active])
-        .sum()
-        .T.reindex(columns=buses, fill_value=0)
-    )
-    # the name for multi-index is getting lost by groupby before pandas 1.4.0
-    # TODO remove once we bump the required pandas version to >= 1.4.0
-    rhs.index.name = "snapshot"
+
+    # Prepare the RHS
+    loads = as_components(n, "Load")
+    active_loads = loads.static.query("active").index
+
+    if len(active_loads) > 0:
+        load_values = -loads.as_xarray(
+            "p_set", sns, inds=active_loads
+        ) * loads.as_xarray("sign", inds=active_loads)
+        load_buses = loads.as_xarray("bus", inds=active_loads)
+        rhs = load_values.groupby(load_buses).sum()
+
+        # Reindex to include all buses with zeros for missing buses
+        rhs = rhs.reindex(bus=buses, fill_value=0).rename(bus="Bus")
+    else:
+        rhs = DataArray(
+            0, coords={"snapshot": sns, "Bus": buses}, dims=["snapshot", "Bus"]
+        )
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
-    rhs = DataArray(rhs)
+
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
@@ -646,9 +661,10 @@ def define_nodal_balance_constraints(
 
     if suffix:
         lhs = lhs.rename(Bus=f"Bus{suffix}")
-        rhs = rhs.rename(Bus=f"Bus{suffix}")
+        rhs = rhs.rename({"Bus": f"Bus{suffix}"})
         if mask is not None:
             mask = mask.rename(Bus=f"Bus{suffix}")
+
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
 

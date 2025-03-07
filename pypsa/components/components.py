@@ -379,6 +379,7 @@ class Lines(Components):
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Get per unit bounds for lines.
+
         For passive branch components, min_pu is the negative of max_pu.
 
         Parameters
@@ -462,6 +463,7 @@ class Transformers(Components):
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Get per unit bounds for transformers.
+
         For passive branch components, min_pu is the negative of max_pu.
 
         Parameters
