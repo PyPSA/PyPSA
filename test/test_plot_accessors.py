@@ -4,17 +4,17 @@ import seaborn.objects as so
 
 from pypsa.consistency import ConsistencyError
 from pypsa.plot.accessors import (
-    AreaPlotter,
-    BarPlotter,
-    BasePlotTypeAccessor,
-    LinePlotter,
+    AreaPlotAccessor,
+    BarPlotAccessor,
+    ChartPlotTypeAccessor,
+    LinePlotAccessor,
 )
 
 
 def test_to_long_format_static(ac_dc_network_r):
     """Test the _to_long_format method with optimal_capacity data."""
     # Create the accessor instance
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    accessor = ChartPlotTypeAccessor(ac_dc_network_r)
 
     # Get optimal capacity data from statistics
     data = ac_dc_network_r.statistics.optimal_capacity()
@@ -30,7 +30,7 @@ def test_to_long_format_static(ac_dc_network_r):
 def test_to_long_format_dynamic(ac_dc_network_r):
     """Test the _to_long_format method with installed_capacity data."""
     # Create the accessor instance
-    accessor = BasePlotTypeAccessor(ac_dc_network_r)
+    accessor = ChartPlotTypeAccessor(ac_dc_network_r)
 
     # Get installed capacity data from statistics
     data = ac_dc_network_r.statistics.energy_balance()
@@ -44,8 +44,8 @@ def test_to_long_format_dynamic(ac_dc_network_r):
 
 
 def test_bar_plotter_validation(ac_dc_network_r):
-    """Test BarPlotter validation logic"""
-    plotter = BarPlotter(ac_dc_network_r)
+    """Test BarPlotAccessor validation logic"""
+    plotter = BarPlotAccessor(ac_dc_network_r)
 
     # Test valid data
     valid_data = pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2]})
@@ -53,8 +53,8 @@ def test_bar_plotter_validation(ac_dc_network_r):
 
 
 def test_line_plotter_validation(ac_dc_network_r):
-    """Test LinePlotter validation logic"""
-    plotter = LinePlotter(ac_dc_network_r)
+    """Test LinePlotAccessor validation logic"""
+    plotter = LinePlotAccessor(ac_dc_network_r)
 
     # Test with snapshot column
     data = pd.DataFrame({"snapshot": ["2025-01-01", "2025-01-02"], "value": [1, 2]})
@@ -67,8 +67,8 @@ def test_line_plotter_validation(ac_dc_network_r):
 
 
 def test_area_plotter_validation(ac_dc_network_r):
-    """Test AreaPlotter validation logic"""
-    plotter = AreaPlotter(ac_dc_network_r)
+    """Test AreaPlotAccessor validation logic"""
+    plotter = AreaPlotAccessor(ac_dc_network_r)
 
     # Test with snapshot column
     data = pd.DataFrame({"snapshot": ["2025-01-01", "2025-01-02"], "value": [1, 2]})
@@ -89,14 +89,14 @@ def test_plot_accessor_creation(ac_dc_network_r):
     assert hasattr(plot, "area")
     assert hasattr(plot, "map")
 
-    assert isinstance(plot.bar, BarPlotter)
-    assert isinstance(plot.line, LinePlotter)
-    assert isinstance(plot.area, AreaPlotter)
+    assert isinstance(plot.bar, BarPlotAccessor)
+    assert isinstance(plot.line, LinePlotAccessor)
+    assert isinstance(plot.area, AreaPlotAccessor)
 
 
 def test_process_data_for_stacking(ac_dc_network_r):
     """Test the _process_data_for_stacking method"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
 
     # Test with positive and negative values
     data = pd.DataFrame(
@@ -112,7 +112,7 @@ def test_process_data_for_stacking(ac_dc_network_r):
 
 def test_base_plot_color_scale(ac_dc_network_r):
     """Test color scale application in base plot"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
     data = pd.Series([1, 2, 3], index=pd.Index(["a", "b", "c"], name="carrier"))
     plot = plotter._base_plot(data, x="carrier", y="value", color="carrier")
     assert isinstance(plot, so.Plot)
@@ -121,7 +121,7 @@ def test_base_plot_color_scale(ac_dc_network_r):
 
 def test_base_plot_faceting(ac_dc_network_r):
     """Test faceting functionality in base plot"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
     data = (
         pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2], "region": ["r1", "r2"]})
         .set_index(["carrier", "region"])
@@ -134,7 +134,7 @@ def test_base_plot_faceting(ac_dc_network_r):
 
 def test_derive_statistic_parameters(ac_dc_network_r):
     """Test derivation of statistic parameters"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
 
     # Test with default parameters
     groupby, agg_comp, agg_time = plotter._derive_statistic_parameters(
@@ -160,7 +160,7 @@ def test_derive_statistic_parameters(ac_dc_network_r):
 
 def test_get_carrier_colors_and_labels(ac_dc_network_r):
     """Test carrier colors and labels retrieval"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
 
     colors = plotter._get_carrier_colors()
     assert isinstance(colors, dict)
@@ -178,7 +178,7 @@ def test_get_carrier_colors_and_labels(ac_dc_network_r):
 
 def test_validate_data_requirements(ac_dc_network_r):
     """Test data validation requirements"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
 
     # Test with missing value column
     invalid_data = pd.DataFrame({"carrier": ["a", "b"]})
@@ -194,7 +194,7 @@ def test_validate_data_requirements(ac_dc_network_r):
 
 def test_query_filtering(ac_dc_network_r):
     """Test query filtering in plots"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
     data = pd.Series([1, 2, 3], index=pd.Index(["a", "b", "c"], name="carrier"))
 
     filtered_plot = plotter._base_plot(data, x="carrier", y="value", query="value > 1")
@@ -203,12 +203,12 @@ def test_query_filtering(ac_dc_network_r):
 
 def test_consistency_checks(ac_dc_network_r):
     """Test plotting consistency checks"""
-    plotter = BasePlotTypeAccessor(ac_dc_network_r)
+    plotter = ChartPlotTypeAccessor(ac_dc_network_r)
 
     # Test with missing carrier colors
     with pytest.raises(ConsistencyError):
         n = ac_dc_network_r.copy()
-        plotter = BasePlotTypeAccessor(n)
+        plotter = ChartPlotTypeAccessor(n)
         n.carriers.color = pd.Series()
         plotter._base_plot(pd.DataFrame(), "carrier", "value")
 

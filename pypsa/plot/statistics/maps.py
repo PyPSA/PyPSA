@@ -1,0 +1,368 @@
+from typing import TYPE_CHECKING, Any, Literal
+
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+
+from pypsa.consistency import check_plotting_consistency
+from pypsa.plot.maps import (
+    MapPlotter,
+    add_legend_arrows,
+    add_legend_circles,
+    add_legend_lines,
+    add_legend_patches,
+    add_legend_semicircles,
+    get_legend_representatives,
+)
+from pypsa.plot.statistics.base import StatisticsPlotAccessor
+from pypsa.statistics.expressions import get_transmission_carriers
+
+if TYPE_CHECKING:
+    from pypsa import Network
+
+
+class MapPlotAccessor(MapPlotter, StatisticsPlotAccessor):
+    """
+    Main statistics map plot accessor providing access to different plot types.
+
+    This class combines functionality from both StatisticsPlotAccessor and NetworkMapPlotter
+    to create geographic visualizations of network statistics.
+    """
+
+    # Configuration for special methods with custom plotting parameters
+    _INTERNAL_METHOD_CONFIG = {
+        "supply": {
+            "transmission_flow": True,
+            "draw_legend_arrows": True,
+            "draw_legend_lines": False,
+            "kind": "supply",
+        },
+        "withdrawal": {
+            "transmission_flow": True,
+            "draw_legend_arrows": True,
+            "draw_legend_lines": False,
+            "kind": "withdrawal",
+        },
+        "energy_balance": {
+            "bus_split_circles": True,
+            "transmission_flow": True,
+            "draw_legend_arrows": True,
+            "draw_legend_lines": False,
+        },
+    }
+
+    def __init__(self, n: "Network") -> None:
+        """
+        Initialize the MapPlotter with a PyPSA network.
+
+        Parameters
+        ----------
+        n : Network
+            PyPSA network object
+        """
+        # Initialize both parent classes
+        MapPlotter.__init__(self, n)
+        StatisticsPlotAccessor.__init__(self, n)
+
+    def _plot_statistics(
+        self,
+        method_name: str,
+        bus_carrier: str | None = None,
+        ax: Axes | None = None,
+        projection: Any = None,
+        geomap: bool = True,
+        geomap_resolution: Literal["10m", "50m", "110m"] = "50m",
+        geomap_colors: dict | bool | None = None,
+        boundaries: tuple[float, float, float, float] | None = None,
+        title: str = "",
+        carrier: str | None = None,
+        transmission_flow: bool = False,
+        bus_area_fraction: float = 0.02,
+        branch_area_fraction: float = 0.02,
+        flow_area_fraction: float = 0.02,
+        draw_legend_circles: bool = True,
+        draw_legend_lines: bool = True,
+        draw_legend_arrows: bool = False,
+        draw_legend_patches: bool = True,
+        legend_circles_kw: dict | None = None,
+        legend_lines_kw: dict | None = None,
+        legend_arrows_kw: dict | None = None,
+        legend_patches_kw: dict | None = None,
+        bus_split_circles: bool = False,
+        kind: str | None = None,
+        stats_kwargs: dict = {},
+        **kwargs: Any,
+    ) -> tuple[Figure, Axes]:
+        """
+        Plot network statistics on a map.
+
+        Parameters
+        ----------
+        method_name : str
+            Name of the statistics function to use for data
+        bus_carrier : str, optional
+            Filter by bus carrier
+        ax : Axes, optional
+            Matplotlib axes to plot on
+        projection : cartopy.crs.Projection, optional
+            Map projection to use
+        geomap : bool, default True
+            Whether to add geographic features
+        geomap_resolution : {'10m', '50m', '110m'}, default '50m'
+            Resolution of geographic features
+        geomap_colors : dict or bool, optional
+            Colors for geographic features
+        boundaries : tuple[float, float, float, float], optional
+            Plot boundaries as [xmin, xmax, ymin, ymax]
+        title : str, default ""
+            Plot title
+        carrier : str, optional
+            Filter by component carrier
+        transmission_flow : bool, default False
+            Whether to draw transmission flow arrows
+        bus_area_fraction : float, default 0.02
+            Fraction of plot area to be covered by bus circles
+        branch_area_fraction : float, default 0.02
+            Fraction of plot area to be covered by branch lines
+        flow_area_fraction : float, default 0.02
+            Fraction of plot area to be covered by flow arrows
+        draw_legend_circles : bool, default True
+            Whether to draw legend for bus circles
+        draw_legend_lines : bool, default True
+            Whether to draw legend for branch lines
+        draw_legend_arrows : bool, default False
+            Whether to draw legend for flow arrows
+        draw_legend_patches : bool, default True
+            Whether to draw legend for carriers
+        legend_circles_kw : dict, optional
+            Keyword arguments for circle legend
+        legend_lines_kw : dict, optional
+            Keyword arguments for line legend
+        legend_arrows_kw : dict, optional
+            Keyword arguments for arrow legend
+        legend_patches_kw : dict, optional
+            Keyword arguments for patch legend
+        bus_split_circles : bool, default False
+            Whether to split bus circles into positive and negative values
+        kind : str, optional
+            Kind of statistics to plot
+        stats_kwargs : dict, default {}
+            Additional arguments to pass to the statistics function
+        **kwargs : Any
+            Additional arguments to pass to draw_map
+
+        Returns
+        -------
+        tuple[Figure, Axes]
+            The figure and axes objects of the plot
+        """
+        func = getattr(self._statistics, method_name)
+        n = self._n
+        check_plotting_consistency(n)
+        boundaries = boundaries or self.boundaries
+        (x_min, x_max, y_min, y_max) = boundaries
+
+        # Get non-transmission carriers
+        trans_carriers = get_transmission_carriers(n, bus_carrier=bus_carrier).unique(
+            "carrier"
+        )
+        non_transmission_carriers = n.carriers.index.difference(trans_carriers)
+
+        # Get bus sizes from statistics function
+        bus_sizes = func(
+            bus_carrier=bus_carrier,
+            groupby=["bus", "carrier"],
+            carrier=list(non_transmission_carriers),
+            nice_names=False,
+            aggregate_across_components=True,
+            **stats_kwargs,
+        )
+
+        # Calculate scaling factors for visual elements
+        bus_size_scaling_factor = self.scaling_factor_from_area_contribution(
+            bus_sizes, x_min, x_max, y_min, y_max, bus_area_fraction
+        )
+
+        # Handle transmission flows or branch widths
+        if transmission_flow:
+            branch_flows = n.statistics.transmission(groupby=False, bus_carrier=carrier)
+            branch_flows = MapPlotAccessor.aggregate_flow_by_connection(
+                branch_flows, n.branches()
+            )
+            branch_flow_scaling_factor = self.scaling_factor_from_area_contribution(
+                branch_flows, x_min, x_max, y_min, y_max, flow_area_fraction
+            )
+
+            branch_flow_scaled = branch_flows * branch_flow_scaling_factor
+            branch_widths_scaled = self.flow_to_width(branch_flow_scaled)
+        else:
+            branch_flow_scaled = {}
+            branch_widths = func(
+                comps=n.branch_components,
+                bus_carrier=bus_carrier,
+                groupby=False,
+                carrier=list(trans_carriers),
+                nice_names=False,
+            )
+            branch_widths_scaling_factor = self.scaling_factor_from_area_contribution(
+                branch_widths, x_min, x_max, y_min, y_max, branch_area_fraction
+            )
+            branch_widths_scaled = branch_widths * branch_widths_scaling_factor
+
+        # Get branch colors from carrier colors
+        branch_colors = (
+            n.branches().carrier[branch_widths_scaled.index].map(n.carriers.color)
+        )
+
+        # Set default plot arguments
+        plot_args = dict(
+            bus_sizes=bus_sizes * bus_size_scaling_factor,
+            bus_split_circles=bus_split_circles,
+            line_flow=branch_flow_scaled.get("Line"),
+            line_widths=branch_widths_scaled.get("Line", 0),
+            line_colors=branch_colors.get("Line", "k"),
+            link_flow=branch_flow_scaled.get("Link"),
+            link_widths=branch_widths_scaled.get("Link", 0),
+            link_colors=branch_colors.get("Link", "k"),
+            transformer_flow=branch_flow_scaled.get("Transformer"),
+            transformer_widths=branch_widths_scaled.get("Transformer", 0),
+            transformer_colors=branch_colors.get("Transformer", "k"),
+            auto_scale_branches=False,
+        )
+
+        # Override with user-provided arguments
+        if kwargs:
+            plot_args.update(kwargs)
+
+        # Draw the map
+        self.draw_map(
+            ax=ax,
+            projection=projection,
+            geomap=geomap,
+            geomap_resolution=geomap_resolution,
+            geomap_colors=geomap_colors,
+            title=title,
+            boundaries=boundaries,
+            **plot_args,
+        )
+
+        # Get unit for legends
+        unit = bus_sizes.attrs.get("unit", "")
+        if unit == "carrier dependent":
+            unit = ""
+
+        # Add legends if requested
+        if draw_legend_circles and hasattr(self.ax, "figure"):
+            legend_representatives = get_legend_representatives(
+                bus_sizes, group_on_first_level=True, base_unit=unit
+            )
+
+            if legend_representatives:
+                if bus_split_circles:
+                    add_legend_semicircles(
+                        self.ax,
+                        [
+                            s * bus_size_scaling_factor
+                            for s, label in legend_representatives
+                        ],
+                        [label for s, label in legend_representatives],
+                        legend_kw={
+                            "bbox_to_anchor": (0, 0.9),
+                            "loc": "lower left",
+                            "frameon": True,
+                            **(legend_circles_kw or {}),
+                        },
+                    )
+                else:
+                    add_legend_circles(
+                        self.ax,
+                        [
+                            s * bus_size_scaling_factor
+                            for s, label in legend_representatives
+                        ],
+                        [label for s, label in legend_representatives],
+                        legend_kw={
+                            "bbox_to_anchor": (0, 0.9),
+                            "loc": "lower left",
+                            "frameon": True,
+                            **(legend_circles_kw or {}),
+                        },
+                    )
+
+        if draw_legend_arrows and hasattr(self.ax, "figure"):
+            if not transmission_flow:
+                raise ValueError(
+                    "Cannot draw arrow legend if transmission_flow is False. Use draw_legend_lines instead."
+                )
+
+            legend_representatives = get_legend_representatives(
+                branch_flows, n_significant=1, base_unit=unit
+            )
+
+            if legend_representatives:
+                add_legend_arrows(
+                    self.ax,
+                    [
+                        s * branch_flow_scaling_factor
+                        for s, label in legend_representatives
+                    ],
+                    [label for s, label in legend_representatives],
+                    legend_kw={
+                        "bbox_to_anchor": (0, 0.9),
+                        "loc": "upper left",
+                        "frameon": True,
+                        **(legend_arrows_kw or {}),
+                    },
+                )
+
+        if draw_legend_lines and hasattr(self.ax, "figure"):
+            if transmission_flow:
+                raise ValueError(
+                    "Cannot draw line legend if transmission_flow is True. Use draw_legend_arrows instead."
+                )
+
+            legend_representatives = get_legend_representatives(
+                branch_widths, n_significant=1, base_unit=unit
+            )
+
+            if legend_representatives:
+                add_legend_lines(
+                    self.ax,
+                    [
+                        s * branch_widths_scaling_factor
+                        for s, label in legend_representatives
+                    ],
+                    [label for s, label in legend_representatives],
+                    legend_kw={
+                        "bbox_to_anchor": (0, 0.9),
+                        "loc": "upper left",
+                        "frameon": True,
+                        **(legend_lines_kw or {}),
+                    },
+                )
+
+        if draw_legend_patches and hasattr(self.ax, "figure"):
+            carriers = bus_sizes.index.get_level_values("carrier").unique()
+            colors = n.carriers.color[carriers]
+            labels = n.carriers.nice_name[carriers]
+            labels = labels.where(labels != "", carriers)
+
+            add_legend_patches(
+                self.ax,
+                colors=colors,
+                labels=labels,
+                legend_kw={
+                    "bbox_to_anchor": (1, 1),
+                    "loc": "upper left",
+                    "frameon": False,
+                    **(legend_patches_kw or {}),
+                },
+            )
+
+        # Ensure ax has a figure (might be None if initialization failed)
+        if self.ax is None or not hasattr(self.ax, "figure"):
+            import matplotlib.pyplot as plt
+
+            fig = plt.gcf()
+            return fig, self.ax or plt.gca()
+
+        return self.ax.figure, self.ax
