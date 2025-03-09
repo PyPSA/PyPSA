@@ -23,7 +23,6 @@ from pypsa.descriptors import (
     additional_linkports,
     expand_series,
     get_activity_mask,
-    get_bounds_pu,
     nominal_attrs,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -150,7 +149,8 @@ def define_operational_constraints_for_committables(
     c : str
         name of the network component
     """
-    com_i = n.get_committable_i(c)
+    component = as_components(n, c)
+    com_i = component.get_committable_i()
 
     if com_i.empty:
         return
@@ -161,21 +161,23 @@ def define_operational_constraints_for_committables(
     shut_down = n.model[f"{c}-shut_down"]
     status_diff = status - status.shift(snapshot=1)
     p = reindex(n.model[f"{c}-p"], c, com_i)
-    active = get_activity_mask(n, c, sns, com_i)
+    active = component.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = DataArray(n.static(c)[nominal_attrs[c]].reindex(com_i))
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, com_i, "p"))
+    nominal = component.as_xarray(component.nominal_attr, inds=com_i)
+    min_pu, max_pu = component.get_bounds_pu(sns, com_i, "p", as_xarray=True)
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
-    min_up_time_set = n.static(c).min_up_time[com_i]
-    min_down_time_set = n.static(c).min_down_time[com_i]
-    ramp_up_limit = nominal * n.static(c).ramp_limit_up[com_i].fillna(1)
-    ramp_down_limit = nominal * n.static(c).ramp_limit_down[com_i].fillna(1)
-    ramp_start_up = nominal * n.static(c).ramp_limit_start_up[com_i]
-    ramp_shut_down = nominal * n.static(c).ramp_limit_shut_down[com_i]
-    up_time_before_set = n.static(c)["up_time_before"].reindex(com_i)
-    down_time_before_set = n.static(c)["down_time_before"].reindex(com_i)
+    min_up_time_set = component.as_xarray("min_up_time", inds=com_i)
+    min_down_time_set = component.as_xarray("min_down_time", inds=com_i)
+    ramp_up_limit = nominal * component.as_xarray("ramp_limit_up", inds=com_i).fillna(1)
+    ramp_down_limit = nominal * component.as_xarray(
+        "ramp_limit_down", inds=com_i
+    ).fillna(1)
+    ramp_start_up = nominal * component.as_xarray("ramp_limit_start_up", inds=com_i)
+    ramp_shut_down = nominal * component.as_xarray("ramp_limit_shut_down", inds=com_i)
+    up_time_before_set = component.as_xarray("up_time_before", inds=com_i)
+    down_time_before_set = component.as_xarray("down_time_before", inds=com_i)
     initially_up = up_time_before_set.astype(bool)
     initially_down = down_time_before_set.astype(bool)
 
@@ -183,7 +185,9 @@ def define_operational_constraints_for_committables(
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
         # get generators which are online until the first regarded snapshot
-        until_start_up = n.dynamic(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
+        until_start_up = component.as_dynamic(
+            "status", n.snapshots[:start_i][::-1], inds=com_i
+        )
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
         up_time_before_set = up_time_before.clip(upper=min_up_time_set)
@@ -207,14 +211,20 @@ def define_operational_constraints_for_committables(
 
     # state-transition constraint
     rhs = pd.DataFrame(0, sns, com_i)
-    rhs.loc[sns[0], initially_up] = -1
+    # Convert xarray boolean to list of indices for DataFrame indexing
+    initially_up_indices = com_i[initially_up.values]
+    if not initially_up_indices.empty:
+        rhs.loc[sns[0], initially_up_indices] = -1
+
     lhs = start_up - status_diff
     n.model.add_constraints(
         lhs, ">=", rhs, name=f"{c}-com-transition-start-up", mask=active
     )
 
     rhs = pd.DataFrame(0, sns, com_i)
-    rhs.loc[sns[0], initially_up] = 1
+    if not initially_up_indices.empty:
+        rhs.loc[sns[0], initially_up_indices] = 1
+
     lhs = shut_down + status_diff
     n.model.add_constraints(
         lhs, ">=", rhs, name=f"{c}-com-transition-shut-down", mask=active
@@ -226,7 +236,9 @@ def define_operational_constraints_for_committables(
         expr = []
         for g in min_up_time_i:
             su = start_up.loc[:, g]
-            expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
+            # Retrieve the minimum up time value for generator g and convert it to a scalar
+            up_time_value = min_up_time_set.sel({min_up_time_set.dims[0]: g}).item()
+            expr.append(su.rolling(snapshot=up_time_value).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
@@ -239,7 +251,10 @@ def define_operational_constraints_for_committables(
         expr = []
         for g in min_down_time_i:
             su = shut_down.loc[:, g]
-            expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
+            down_time_value = min_down_time_set.sel(
+                {min_down_time_set.dims[0]: g}
+            ).item()
+            expr.append(su.rolling(snapshot=down_time_value).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
@@ -252,25 +267,31 @@ def define_operational_constraints_for_committables(
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
     if initially_up.any():
-        must_stay_up = (min_up_time_set - up_time_before_set).clip(lower=0)
-        mask = (must_stay_up >= timesteps) & initially_up
+        must_stay_up = (min_up_time_set - up_time_before_set).clip(min=0)
+        mask_values = (must_stay_up.values >= timesteps) & initially_up.values
+        mask = pd.DataFrame(
+            mask_values, index=timesteps.index, columns=timesteps.columns
+        )
         name = f"{c}-com-status-min_up_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 1, name=name, mask=mask)
 
     # down time before
     if initially_down.any():
-        must_stay_down = (min_down_time_set - down_time_before_set).clip(lower=0)
-        mask = (must_stay_down >= timesteps) & initially_down
+        must_stay_down = (min_down_time_set - down_time_before_set).clip(min=0)
+        mask_values = (must_stay_down.values >= timesteps) & initially_down.values
+        mask = pd.DataFrame(
+            mask_values, index=timesteps.index, columns=timesteps.columns
+        )
         name = f"{c}-com-status-min_down_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    cost_equal = (
-        n.static(c).loc[com_i, "start_up_cost"]
-        == n.static(c).loc[com_i, "shut_down_cost"]
-    ).values
+    start_up_cost = component.as_xarray("start_up_cost", inds=com_i)
+    shut_down_cost = component.as_xarray("shut_down_cost", inds=com_i)
+    cost_equal = (start_up_cost == shut_down_cost).values
+
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and not cost_equal.all():
         logger.warning(
