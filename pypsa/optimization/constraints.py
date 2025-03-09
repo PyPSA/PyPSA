@@ -18,11 +18,11 @@ from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
 from pypsa.common import as_index
+from pypsa.components.common import as_components
 from pypsa.descriptors import (
     additional_linkports,
     expand_series,
     get_activity_mask,
-    get_bounds_pu,
     nominal_attrs,
 )
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from xarray import DataArray
 
     from pypsa import Network
+
+    ArgItem = list[str | int | float | DataArray]
 
 logger = logging.getLogger(__name__)
 
@@ -52,34 +54,38 @@ def define_operational_constraints_for_non_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+    transmission_losses : int
+        Whether to consider transmission losses
     """
-    dispatch_lower: DataArray | tuple
-    dispatch_upper: DataArray | tuple
-
-    fix_i = n.get_non_extendable_i(c)
-    fix_i = fix_i.difference(n.get_committable_i(c)).rename(fix_i.name)
+    component = as_components(n, c)
+    fix_i = component.get_non_extendable_i()
+    fix_i = fix_i.difference(component.get_committable_i()).rename(fix_i.name)
 
     if fix_i.empty:
         return
 
-    nominal_fix = n.static(c)[nominal_attrs[c]].reindex(fix_i)
-    min_pu, max_pu = get_bounds_pu(n, c, sns, fix_i, attr)
-    lower = min_pu.mul(nominal_fix)
-    upper = max_pu.mul(nominal_fix)
+    nominal_fix = component.as_xarray(component.nominal_attr, inds=fix_i)
+    min_pu, max_pu = component.get_bounds_pu(sns, fix_i, attr, as_xarray=True)
 
-    active = get_activity_mask(n, c, sns, fix_i)
+    lower = min_pu * nominal_fix
+    upper = max_pu * nominal_fix
 
-    dispatch_lower = reindex(n.model[f"{c}-{attr}"], c, fix_i)
-    dispatch_upper = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+    active = component.as_xarray("active", sns, fix_i)
+
+    dispatch = reindex(n.model[f"{c}-{attr}"], c, fix_i)
+
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, fix_i)
-        dispatch_lower = (1, dispatch_lower), (-1, loss)
-        dispatch_upper = (1, dispatch_upper), (1, loss)
+        lhs_lower = dispatch - loss
+        lhs_upper = dispatch + loss
+    else:
+        lhs_lower = lhs_upper = dispatch
+
     n.model.add_constraints(
-        dispatch_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
+        lhs_lower, ">=", lower, name=f"{c}-fix-{attr}-lower", mask=active
     )
     n.model.add_constraints(
-        dispatch_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
+        lhs_upper, "<=", upper, name=f"{c}-fix-{attr}-upper", mask=active
     )
 
 
@@ -100,26 +106,23 @@ def define_operational_constraints_for_extendables(
     attr : str
         name of the attribute, e.g. 'p'
     """
-    lhs_lower: DataArray | tuple
-    lhs_upper: DataArray | tuple
-
-    ext_i = n.get_extendable_i(c)
-
+    component = as_components(n, c)
+    ext_i = component.get_extendable_i()
     if ext_i.empty:
         return
 
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, ext_i, attr))
+    min_pu, max_pu = component.get_bounds_pu(sns, ext_i, attr, as_xarray=True)
     dispatch = reindex(n.model[f"{c}-{attr}"], c, ext_i)
     capacity = n.model[f"{c}-{nominal_attrs[c]}"]
+    active = component.as_xarray("active", sns, ext_i)
 
-    active = get_activity_mask(n, c, sns, ext_i)
+    lhs_lower = dispatch - min_pu * capacity
+    lhs_upper = dispatch - max_pu * capacity
 
-    lhs_lower = (1, dispatch), (-min_pu, capacity)
-    lhs_upper = (1, dispatch), (-max_pu, capacity)
     if c in n.passive_branch_components and transmission_losses:
         loss = reindex(n.model[f"{c}-loss"], c, ext_i)
-        lhs_lower += ((-1, loss),)
-        lhs_upper += ((1, loss),)
+        lhs_lower = lhs_lower - loss
+        lhs_upper = lhs_upper + loss
 
     n.model.add_constraints(
         lhs_lower, ">=", 0, name=f"{c}-ext-{attr}-lower", mask=active
@@ -146,7 +149,8 @@ def define_operational_constraints_for_committables(
     c : str
         name of the network component
     """
-    com_i = n.get_committable_i(c)
+    component = as_components(n, c)
+    com_i = component.get_committable_i()
 
     if com_i.empty:
         return
@@ -157,21 +161,23 @@ def define_operational_constraints_for_committables(
     shut_down = n.model[f"{c}-shut_down"]
     status_diff = status - status.shift(snapshot=1)
     p = reindex(n.model[f"{c}-p"], c, com_i)
-    active = get_activity_mask(n, c, sns, com_i)
+    active = component.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = DataArray(n.static(c)[nominal_attrs[c]].reindex(com_i))
-    min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, com_i, "p"))
+    nominal = component.as_xarray(component.nominal_attr, inds=com_i)
+    min_pu, max_pu = component.get_bounds_pu(sns, com_i, "p", as_xarray=True)
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
-    min_up_time_set = n.static(c).min_up_time[com_i]
-    min_down_time_set = n.static(c).min_down_time[com_i]
-    ramp_up_limit = nominal * n.static(c).ramp_limit_up[com_i].fillna(1)
-    ramp_down_limit = nominal * n.static(c).ramp_limit_down[com_i].fillna(1)
-    ramp_start_up = nominal * n.static(c).ramp_limit_start_up[com_i]
-    ramp_shut_down = nominal * n.static(c).ramp_limit_shut_down[com_i]
-    up_time_before_set = n.static(c)["up_time_before"].reindex(com_i)
-    down_time_before_set = n.static(c)["down_time_before"].reindex(com_i)
+    min_up_time_set = component.as_xarray("min_up_time", inds=com_i)
+    min_down_time_set = component.as_xarray("min_down_time", inds=com_i)
+    ramp_up_limit = nominal * component.as_xarray("ramp_limit_up", inds=com_i).fillna(1)
+    ramp_down_limit = nominal * component.as_xarray(
+        "ramp_limit_down", inds=com_i
+    ).fillna(1)
+    ramp_start_up = nominal * component.as_xarray("ramp_limit_start_up", inds=com_i)
+    ramp_shut_down = nominal * component.as_xarray("ramp_limit_shut_down", inds=com_i)
+    up_time_before_set = component.as_xarray("up_time_before", inds=com_i)
+    down_time_before_set = component.as_xarray("down_time_before", inds=com_i)
     initially_up = up_time_before_set.astype(bool)
     initially_down = down_time_before_set.astype(bool)
 
@@ -179,7 +185,9 @@ def define_operational_constraints_for_committables(
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
         # get generators which are online until the first regarded snapshot
-        until_start_up = n.dynamic(c).status.iloc[:start_i][::-1].reindex(columns=com_i)
+        until_start_up = component.as_dynamic(
+            "status", n.snapshots[:start_i][::-1], inds=com_i
+        )
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
         up_time_before_set = up_time_before.clip(upper=min_up_time_set)
@@ -203,14 +211,20 @@ def define_operational_constraints_for_committables(
 
     # state-transition constraint
     rhs = pd.DataFrame(0, sns, com_i)
-    rhs.loc[sns[0], initially_up] = -1
+    # Convert xarray boolean to list of indices for DataFrame indexing
+    initially_up_indices = com_i[initially_up.values]
+    if not initially_up_indices.empty:
+        rhs.loc[sns[0], initially_up_indices] = -1
+
     lhs = start_up - status_diff
     n.model.add_constraints(
         lhs, ">=", rhs, name=f"{c}-com-transition-start-up", mask=active
     )
 
     rhs = pd.DataFrame(0, sns, com_i)
-    rhs.loc[sns[0], initially_up] = 1
+    if not initially_up_indices.empty:
+        rhs.loc[sns[0], initially_up_indices] = 1
+
     lhs = shut_down + status_diff
     n.model.add_constraints(
         lhs, ">=", rhs, name=f"{c}-com-transition-shut-down", mask=active
@@ -222,7 +236,9 @@ def define_operational_constraints_for_committables(
         expr = []
         for g in min_up_time_i:
             su = start_up.loc[:, g]
-            expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
+            # Retrieve the minimum up time value for generator g and convert it to a scalar
+            up_time_value = min_up_time_set.sel({min_up_time_set.dims[0]: g}).item()
+            expr.append(su.rolling(snapshot=up_time_value).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
@@ -235,7 +251,10 @@ def define_operational_constraints_for_committables(
         expr = []
         for g in min_down_time_i:
             su = shut_down.loc[:, g]
-            expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
+            down_time_value = min_down_time_set.sel(
+                {min_down_time_set.dims[0]: g}
+            ).item()
+            expr.append(su.rolling(snapshot=down_time_value).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
@@ -248,25 +267,31 @@ def define_operational_constraints_for_committables(
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
     if initially_up.any():
-        must_stay_up = (min_up_time_set - up_time_before_set).clip(lower=0)
-        mask = (must_stay_up >= timesteps) & initially_up
+        must_stay_up = (min_up_time_set - up_time_before_set).clip(min=0)
+        mask_values = (must_stay_up.values >= timesteps) & initially_up.values
+        mask = pd.DataFrame(
+            mask_values, index=timesteps.index, columns=timesteps.columns
+        )
         name = f"{c}-com-status-min_up_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 1, name=name, mask=mask)
 
     # down time before
     if initially_down.any():
-        must_stay_down = (min_down_time_set - down_time_before_set).clip(lower=0)
-        mask = (must_stay_down >= timesteps) & initially_down
+        must_stay_down = (min_down_time_set - down_time_before_set).clip(min=0)
+        mask_values = (must_stay_down.values >= timesteps) & initially_down.values
+        mask = pd.DataFrame(
+            mask_values, index=timesteps.index, columns=timesteps.columns
+        )
         name = f"{c}-com-status-min_down_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    cost_equal = (
-        n.static(c).loc[com_i, "start_up_cost"]
-        == n.static(c).loc[com_i, "shut_down_cost"]
-    ).values
+    start_up_cost = component.as_xarray("start_up_cost", inds=com_i)
+    shut_down_cost = component.as_xarray("shut_down_cost", inds=com_i)
+    cost_equal = (start_up_cost == shut_down_cost).values
+
     # only valid additional constraints if start up costs equal to shut down costs
     if n._linearized_uc and not cost_equal.all():
         logger.warning(
@@ -355,19 +380,23 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
     attr : str
         name of the attribute, e.g. 'p'
     """
-    ext_i = n.get_extendable_i(c)
+    component = as_components(n, c)
+    ext_i = component.get_extendable_i()
 
     if ext_i.empty:
         return
 
     capacity = n.model[f"{c}-{attr}"]
-    lower = n.static(c)[attr + "_min"].reindex(ext_i)
-    upper = n.static(c)[attr + "_max"].reindex(ext_i)
-    mask = upper != inf
+    lower = component.as_xarray(attr + "_min", inds=ext_i)
+    upper = component.as_xarray(attr + "_max", inds=ext_i)
+
     n.model.add_constraints(capacity, ">=", lower, name=f"{c}-ext-{attr}-lower")
-    n.model.add_constraints(
-        capacity, "<=", upper, name=f"{c}-ext-{attr}-upper", mask=mask
-    )
+
+    is_finite = upper != inf
+    if is_finite.any():
+        n.model.add_constraints(
+            capacity, "<=", upper, name=f"{c}-ext-{attr}-upper", mask=is_finite
+        )
 
 
 def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) -> None:
@@ -562,9 +591,11 @@ def define_nodal_balance_constraints(
     """
     m = n.model
     if buses is None:
-        buses = n.buses.index
+        buses = as_components(n, "Bus").static.index
 
-    args = [
+    links = as_components(n, "Link")
+
+    args: list[ArgItem] = [
         ["Generator", "p", "bus", 1],
         ["Store", "p", "bus", 1],
         ["StorageUnit", "p_dispatch", "bus", 1],
@@ -574,12 +605,13 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus0", -1],
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
-        ["Link", "p", "bus1", get_as_dense(n, "Link", "efficiency", sns)],
+        ["Link", "p", "bus1", links.as_xarray("efficiency", sns)],
     ]
 
-    if not n.links.empty:
+    if not links.empty:
         for i in additional_linkports(n):
-            eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
+            eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
+            eff = links.as_xarray(eff_attr, sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
     if transmission_losses:
@@ -594,42 +626,52 @@ def define_nodal_balance_constraints(
 
     exprs = []
 
-    for arg in args:
-        c, attr, column, sign = arg
-
-        if n.static(c).empty:
+    for c, attr, column, sign in args:
+        component = as_components(n, c)
+        if component.static.empty:
             continue
 
-        if "sign" in n.static(c):
-            # additional sign necessary for branches in reverse direction
-            sign = sign * n.static(c).sign
+        if "sign" in component.static:
+            sign = sign * component.static.sign
 
         expr = DataArray(sign) * m[f"{c}-{attr}"]
-        cbuses = n.static(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
+
+        cbuses = component.as_xarray(column).rename("Bus")
+        cbuses = cbuses[cbuses.isin(buses)]
+
+        if not cbuses.size:
+            continue
 
         #  drop non-existent multiport buses which are ''
         if column in ["bus" + i for i in additional_linkports(n)]:
             cbuses = cbuses[cbuses != ""]
 
-        expr = expr.sel({c: cbuses.index})
-
+        expr = expr.sel({c: cbuses[c].values})
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum())
 
     lhs = merge(exprs, join="outer").reindex(Bus=buses)
-    active = n.loads.query("active").index
-    rhs = (
-        (-get_as_dense(n, "Load", "p_set", sns, active) * n.loads.sign[active])
-        .T.groupby(n.loads.bus[active])
-        .sum()
-        .T.reindex(columns=buses, fill_value=0)
-    )
-    # the name for multi-index is getting lost by groupby before pandas 1.4.0
-    # TODO remove once we bump the required pandas version to >= 1.4.0
-    rhs.index.name = "snapshot"
+
+    # Prepare the RHS
+    loads = as_components(n, "Load")
+    active_loads = loads.static.query("active").index
+
+    if len(active_loads) > 0:
+        load_values = -loads.as_xarray(
+            "p_set", sns, inds=active_loads
+        ) * loads.as_xarray("sign", inds=active_loads)
+        load_buses = loads.as_xarray("bus", inds=active_loads)
+        rhs = load_values.groupby(load_buses).sum()
+
+        # Reindex to include all buses with zeros for missing buses
+        rhs = rhs.reindex(bus=buses, fill_value=0).rename(bus="Bus")
+    else:
+        rhs = DataArray(
+            0, coords={"snapshot": sns, "Bus": buses}, dims=["snapshot", "Bus"]
+        )
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
-    rhs = DataArray(rhs)
+
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
             raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
@@ -640,9 +682,10 @@ def define_nodal_balance_constraints(
 
     if suffix:
         lhs = lhs.rename(Bus=f"Bus{suffix}")
-        rhs = rhs.rename(Bus=f"Bus{suffix}")
+        rhs = rhs.rename({"Bus": f"Bus{suffix}"})
         if mask is not None:
             mask = mask.rename(Bus=f"Bus{suffix}")
+
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
 
