@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
     from pypsa import Network
 
+    ArgItem = list[str | int | float | DataArray]
+
 logger = logging.getLogger(__name__)
 
 
@@ -572,7 +574,7 @@ def define_nodal_balance_constraints(
 
     links = as_components(n, "Link")
 
-    args = [
+    args: list[ArgItem] = [
         ["Generator", "p", "bus", 1],
         ["Store", "p", "bus", 1],
         ["StorageUnit", "p_dispatch", "bus", 1],
@@ -603,9 +605,7 @@ def define_nodal_balance_constraints(
 
     exprs = []
 
-    for arg in args:
-        c, attr, column, sign = arg
-
+    for c, attr, column, sign in args:
         component = as_components(n, c)
         if component.static.empty:
             continue

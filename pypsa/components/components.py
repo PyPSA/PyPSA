@@ -10,11 +10,12 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal, overload
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+from xarray import DataArray
 
 from pypsa.components.abstract import Components
 from pypsa.components.types import ComponentType
@@ -106,13 +107,31 @@ class Generators(Components):
         super().__init__(*args, **kwargs)
         self._base_attr = "p"
 
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> tuple[DataArray, DataArray]: ...
+
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for generators.
 
@@ -129,8 +148,8 @@ class Generators(Components):
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.DataFrame]
-            Tuple of (min_pu, max_pu) DataFrames.
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
         min_pu_str = self.operational_attrs["min_pu"]
@@ -235,13 +254,31 @@ class Links(Components):
         super().__init__(*args, **kwargs)
         self._base_attr = "p"
 
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> tuple[DataArray, DataArray]: ...
+
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for links.
 
@@ -258,8 +295,8 @@ class Links(Components):
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.DataFrame]
-            Tuple of (min_pu, max_pu) DataFrames.
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
         min_pu_str = self.operational_attrs["min_pu"]
@@ -370,13 +407,31 @@ class Lines(Components):
             * 1_000
         )
 
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> tuple[DataArray, DataArray]: ...
+
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for lines.
 
@@ -395,8 +450,8 @@ class Lines(Components):
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.DataFrame]
-            Tuple of (min_pu, max_pu) DataFrames.
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
         max_pu_str = self.operational_attrs["max_pu"]
@@ -454,13 +509,31 @@ class Transformers(Components):
         super().__init__(*args, **kwargs)
         self._base_attr = "s"
 
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> tuple[DataArray, DataArray]: ...
+
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for transformers.
 
@@ -479,8 +552,8 @@ class Transformers(Components):
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.DataFrame]
-            Tuple of (min_pu, max_pu) DataFrames.
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
         max_pu_str = self.operational_attrs["max_pu"]
@@ -576,13 +649,31 @@ class StorageUnits(Components):
 
         return attrs
 
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> tuple[DataArray, DataArray]: ...
+
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for storage units.
 
@@ -599,8 +690,8 @@ class StorageUnits(Components):
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.DataFrame]
-            Tuple of (min_pu, max_pu) DataFrames.
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
         min_pu_str = self.operational_attrs["min_pu"]
@@ -668,13 +759,31 @@ class Stores(Components):
         super().__init__(*args, **kwargs)
         self._base_attr = "e"
 
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[True] = True,
+    ) -> tuple[DataArray, DataArray]: ...
+
+    @overload
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+        as_xarray: Literal[False] = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
+
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for stores.
 
@@ -691,8 +800,8 @@ class Stores(Components):
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.DataFrame]
-            Tuple of (min_pu, max_pu) DataFrames.
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
         min_pu_str = self.operational_attrs["min_pu"]

@@ -173,7 +173,10 @@ def get_bounds_pu(
     """
     # If the component has a specialized implementation, use it
     if hasattr(c, "get_bounds_pu") and callable(getattr(c, "get_bounds_pu")):
-        return c.get_bounds_pu(sns, index, attr, as_xarray)
+        if as_xarray:
+            return c.get_bounds_pu(sns, index, attr, True)
+        else:
+            return c.get_bounds_pu(sns, index, attr, False)
 
     # Legacy implementation (to be deprecated)
     min_pu_str = c.operational_attrs["min_pu"]
