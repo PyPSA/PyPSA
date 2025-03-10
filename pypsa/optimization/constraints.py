@@ -410,33 +410,46 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
         name of the network component
     """
     m = n.model
+    component = as_components(n, c)
 
-    if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(n.static(c)):
+    if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(component.static.columns):
         return
 
-    ramp_limit_up = get_as_dense(n, c, "ramp_limit_up", sns)
-    ramp_limit_down = get_as_dense(n, c, "ramp_limit_down", sns)
+    ramp_limit_up = component.as_xarray("ramp_limit_up", sns)
+    ramp_limit_down = component.as_xarray("ramp_limit_down", sns)
 
-    if (ramp_limit_up.isnull().all() & ramp_limit_down.isnull().all()).all():
+    # Skip if there are no ramp limits defined or if all are set to 1 (no limit)
+    if (ramp_limit_up.isnull() & ramp_limit_down.isnull()).all():
         return
-    if (ramp_limit_up.eq(1).all() & ramp_limit_down.eq(1).all()).all():
+    if (ramp_limit_up == 1).all() and (ramp_limit_down == 1).all():
         return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
+    # TODO: Consider if "scenarios" should be interferring with the logic here
 
-    dynamic = n.dynamic(c)
-    attr = {"p", "p0"}.intersection(
-        dynamic
-    ).pop()  # dispatch for either one or two ports
+    attr = {"p", "p0"}.intersection(component.dynamic.keys()).pop()
     start_i = n.snapshots.get_loc(sns[0]) - 1
-    p_start = dynamic[attr].iloc[start_i]
+    p_start = component.dynamic[attr].iloc[start_i]
 
-    is_rolling_horizon = (sns[0] != n.snapshots[0]) and not p_start.empty
-    p = m[f"{c}-p"]
+    # Get the dispatch value from previous snapshot if not at beginning
+    is_rolling_horizon = sns[0] != n.snapshots[0] and not p_start.empty
+    p = m[f"{c}-{attr}"]
+
+    # Get different component groups for constraint application
+    com_i = component.get_committable_i()
+    fix_i = component.get_non_extendable_i()
+    fix_i = fix_i.difference(com_i).rename(fix_i.name)
+    ext_i = component.get_extendable_i()
+
+    # Auxiliary variables for constraint application
+    ext_dim = ext_i.name if ext_i.name else c
+    original_ext_i = ext_i.copy()
+    com_dim = com_i.name if com_i.name else c
+    original_com_i = com_i.copy()
 
     if is_rolling_horizon:
-        active = get_activity_mask(n, c, sns)
-        rhs_start = pd.DataFrame(0.0, index=sns, columns=n.static(c).index)
+        active = component.as_xarray("active", sns, fix_i)
+        rhs_start = pd.DataFrame(0.0, index=sns, columns=component.static.index)
         rhs_start.loc[sns[0]] = p_start
 
         def p_actual(idx: pd.Index) -> DataArray:
@@ -446,8 +459,8 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             return reindex(p, c, idx).shift(snapshot=1)
 
     else:
-        active = get_activity_mask(n, c, sns[1:])
-        rhs_start = pd.DataFrame(0, index=sns[1:], columns=n.static(c).index)
+        active = component.as_xarray("active", sns[1:], fix_i)
+        rhs_start = pd.DataFrame(0.0, index=sns[1:], columns=component.static.index)
         rhs_start.index.name = "snapshot"
 
         def p_actual(idx: pd.Index) -> DataArray:
@@ -456,127 +469,165 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
         def p_previous(idx: pd.Index) -> DataArray:
             return reindex(p, c, idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
-    com_i = n.get_committable_i(c)
-    fix_i = n.get_non_extendable_i(c)
-    fix_i = fix_i.difference(com_i).rename(fix_i.name)
-    ext_i = n.get_extendable_i(c)
+    rhs_start = DataArray(rhs_start)
 
-    # ----------------------------- Fixed Generators ----------------------------- #
+    # ----------------------------- Fixed Components ----------------------------- #
+    if not fix_i.empty:
+        ramp_limit_up_fix = ramp_limit_up.sel({c: fix_i}).rename({c: fix_i.name})
+        ramp_limit_down_fix = ramp_limit_down.sel({c: fix_i}).rename({c: fix_i.name})
+        rhs_start_fix = rhs_start.rename({c: fix_i.name})
+        p_nom = component.as_xarray(component.nominal_attr, inds=fix_i)
 
-    assets = n.static(c).reindex(fix_i)
+        # Ramp up constraints for fixed components
+        non_null_up = ~ramp_limit_up_fix.isnull().all()
+        if non_null_up.any():
+            lhs = p_actual(fix_i) - p_previous(fix_i)
+            rhs = (ramp_limit_up_fix * p_nom) + rhs_start_fix
+            mask = active & non_null_up
+            m.add_constraints(
+                lhs, "<=", rhs, name=f"{c}-fix-{attr}-ramp_limit_up", mask=mask
+            )
 
-    p_nom = n.static(c)[nominal_attrs[c]].reindex(fix_i)
+        # Ramp down constraints for fixed components
+        non_null_down = ~ramp_limit_down_fix.isnull().all()
+        if non_null_down.any():
+            lhs = p_actual(fix_i) - p_previous(fix_i)
+            rhs = (-ramp_limit_down_fix * p_nom) + rhs_start
+            mask = active & non_null_down
+            m.add_constraints(
+                lhs, ">=", rhs, name=f"{c}-fix-{attr}-ramp_limit_down", mask=mask
+            )
 
-    # fix up
-    if not ramp_limit_up[fix_i].isnull().all().all():
-        lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (ramp_limit_up * p_nom).reindex(
-            active.index, columns=fix_i
-        ) + rhs_start.reindex(columns=fix_i)
-        mask = active.reindex(columns=fix_i) & ~ramp_limit_up.isnull().reindex(
-            active.index, columns=fix_i
-        )
-        m.add_constraints(
-            lhs, "<=", rhs, name=f"{c}-fix-{attr}-ramp_limit_up", mask=mask
-        )
-
-    # fix down
-    if not ramp_limit_down[fix_i].isnull().all().all():
-        lhs = p_actual(fix_i) - p_previous(fix_i)
-        rhs = (-ramp_limit_down * p_nom).reindex(
-            active.index, columns=fix_i
-        ) + rhs_start.reindex(columns=fix_i)
-        mask = active.reindex(columns=fix_i) & ~ramp_limit_down.isnull().reindex(
-            active.index, columns=fix_i
-        )
-        m.add_constraints(
-            lhs, ">=", rhs, name=f"{c}-fix-{attr}-ramp_limit_down", mask=mask
-        )
-
-    # ----------------------------- Extendable Generators ----------------------------- #
-
-    assets = n.static(c).reindex(ext_i)
-
-    # ext up
-    if not ramp_limit_up[ext_i].isnull().all().all():
-        p_nom = m[f"{c}-p_nom"]
-        limit_pu = DataArray(ramp_limit_up.reindex(active.index, columns=ext_i))
-        lhs = p_actual(ext_i) - p_previous(ext_i) - limit_pu * p_nom
-        rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & ~ramp_limit_up.isnull().reindex(
-            active.index, columns=ext_i
-        )
-        m.add_constraints(
-            lhs, "<=", rhs, name=f"{c}-ext-{attr}-ramp_limit_up", mask=mask
+    # ----------------------------- Extendable Components ----------------------------- #
+    if not ext_i.empty:
+        # Redefine active mask over ext_i
+        active_ext = (
+            component.as_xarray("active", sns, ext_i)
+            if is_rolling_horizon
+            else component.as_xarray("active", sns[1:], ext_i)
         )
 
-    # ext down
-    if not ramp_limit_down[ext_i].isnull().all().all():
-        p_nom = m[f"{c}-p_nom"]
-        limit_pu = DataArray(ramp_limit_down.reindex(active.index, columns=ext_i))
-        lhs = p_actual(ext_i) - p_previous(ext_i) + limit_pu * p_nom
-        rhs = rhs_start.reindex(columns=ext_i)
-        mask = active.reindex(columns=ext_i) & ~ramp_limit_down.isnull().reindex(
-            active.index, columns=ext_i
-        )
-        m.add_constraints(
-            lhs, ">=", rhs, name=f"{c}-ext-{attr}-ramp_limit_down", mask=mask
-        )
+        ramp_limit_up_ext = ramp_limit_up.reindex(
+            {"snapshot": active_ext.coords["snapshot"].values, c: ext_i}
+        ).rename({c: ext_dim})
+        ramp_limit_down_ext = ramp_limit_down.reindex(
+            {"snapshot": active_ext.coords["snapshot"].values, c: ext_i}
+        ).rename({c: ext_dim})
+        rhs_start_ext = rhs_start.sel({c: ext_i}).rename({c: ext_dim})
 
-    # ----------------------------- Committable Generators ----------------------------- #
+        # For extendables, nominal capacity is a decision variable
+        p_nom_var = m[f"{c}-{component.nominal_attr}"]
 
-    assets = n.static(c).reindex(com_i)
+        if not ramp_limit_up_ext.isnull().all():
+            lhs = (
+                p_actual(original_ext_i)
+                - p_previous(original_ext_i)
+                - (ramp_limit_up_ext * p_nom_var)
+            )
+            mask = active_ext & (~ramp_limit_up_ext.isnull())
+            m.add_constraints(
+                lhs,
+                "<=",
+                rhs_start_ext,
+                name=f"{c}-ext-{attr}-ramp_limit_up",
+                mask=mask,
+            )
 
-    # com up
-    if not assets.ramp_limit_up.isnull().all():
-        limit_start = assets.eval("ramp_limit_start_up * p_nom").to_xarray()
-        limit_up = assets.eval("ramp_limit_up * p_nom").to_xarray()
-
-        status = m[f"{c}-status"].sel(snapshot=active.index)
-        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
-
-        lhs_tuple = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_start - limit_up, status_prev),
-            (-limit_start, status),
-        )
-
-        rhs = rhs_start.reindex(columns=com_i)
-        if is_rolling_horizon:
-            status_start = n.dynamic(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += (limit_up - limit_start) * status_start
-
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_up.notnull()
-        m.add_constraints(
-            lhs_tuple, "<=", rhs, name=f"{c}-com-{attr}-ramp_limit_up", mask=mask
-        )
-
-    # com down
-    if not assets.ramp_limit_down.isnull().all():
-        limit_shut = assets.eval("ramp_limit_shut_down * p_nom").to_xarray()
-        limit_down = assets.eval("ramp_limit_down * p_nom").to_xarray()
-
-        status = m[f"{c}-status"].sel(snapshot=active.index)
-        status_prev = m[f"{c}-status"].shift(snapshot=1).sel(snapshot=active.index)
-
-        lhs_tuple = (
-            (1, p_actual(com_i)),
-            (-1, p_previous(com_i)),
-            (limit_down - limit_shut, status),
-            (limit_shut, status_prev),
+        if not ramp_limit_down_ext.isnull().all():
+            lhs = (
+                p_actual(original_ext_i)
+                - p_previous(original_ext_i)
+                + (ramp_limit_down_ext * p_nom_var)
+            )
+            mask = active_ext & (~ramp_limit_down_ext.isnull())
+            m.add_constraints(
+                lhs,
+                ">=",
+                rhs_start_ext,
+                name=f"{c}-ext-{attr}-ramp_limit_down",
+                mask=mask,
+            )
+    # ----------------------------- Committable Components ----------------------------- #
+    if not com_i.empty:
+        # Redefine active mask over com_i and get parameters directly using component methods
+        active_com = (
+            component.as_xarray("active", sns, com_i)
+            if is_rolling_horizon
+            else component.as_xarray("active", sns[1:], com_i)
         )
 
-        rhs = rhs_start.reindex(columns=com_i)
-        if is_rolling_horizon:
-            status_start = n.dynamic(c)["status"][com_i].iloc[start_i]
-            rhs.loc[sns[0]] += -limit_shut * status_start
+        ramp_limit_up_com = ramp_limit_up.reindex(
+            {"snapshot": active_com.coords["snapshot"].values, c: com_i}
+        ).rename({c: com_dim})
+        ramp_limit_down_com = ramp_limit_down.reindex(
+            {"snapshot": active_com.coords["snapshot"].values, c: com_i}
+        ).rename({c: com_dim})
 
-        mask = active.reindex(columns=com_i) & assets.ramp_limit_down.notnull()
+        ramp_limit_start_up_com = component.as_xarray(
+            "ramp_limit_start_up", inds=com_i
+        ).rename({c: com_dim})
+        ramp_limit_shut_down_com = component.as_xarray(
+            "ramp_limit_shut_down", inds=com_i
+        ).rename({c: com_dim})
 
-        m.add_constraints(
-            lhs_tuple, ">=", rhs, name=f"{c}-com-{attr}-ramp_limit_down", mask=mask
-        )
+        p_nom_com = component.as_xarray(component.nominal_attr, inds=original_com_i)
+
+        # Transform rhs_start for committable components
+        rhs_start_com = rhs_start.sel({c: com_i}).rename({c: com_dim})
+
+        # com up
+        non_null_up = ~ramp_limit_up_com.isnull()
+        if non_null_up.any():
+            limit_start = p_nom_com * ramp_limit_start_up_com
+            limit_up = p_nom_com * ramp_limit_up_com
+
+            status = m[f"{c}-status"].sel(snapshot=active_com.coords["snapshot"].values)
+            status_prev = status.shift(snapshot=1)
+
+            lhs = (
+                p_actual(original_com_i)
+                - p_previous(original_com_i)
+                + (limit_start - limit_up) * status_prev
+                - limit_start * status
+            )
+
+            rhs = rhs_start_com.copy()
+            if is_rolling_horizon:
+                # TODO
+                status_start = component.dynamic.status.iloc[start_i]
+                rhs.loc[{"snapshot": sns[0]}] += (limit_up - limit_start) * status_start
+
+            mask = active_com & non_null_up
+            m.add_constraints(
+                lhs, "<=", rhs, name=f"{c}-com-{attr}-ramp_limit_up", mask=mask
+            )
+
+        # com down
+        non_null_down = ~ramp_limit_down_com.isnull()
+        if non_null_down.any():
+            limit_shut = p_nom_com * ramp_limit_shut_down_com
+            limit_down = p_nom_com * ramp_limit_down_com
+
+            status = m[f"{c}-status"].sel(snapshot=active_com.coords["snapshot"].values)
+            status_prev = status.shift(snapshot=1)
+
+            lhs = (
+                p_actual(original_com_i)
+                - p_previous(original_com_i)
+                + (limit_down - limit_shut) * status
+                + limit_shut * status_prev
+            )
+
+            rhs = rhs_start_com.copy()
+            if is_rolling_horizon:
+                # TODO
+                status_start = n.dynamic(c)["status"][com_i].iloc[start_i]
+                rhs.loc[sns[0]] += -limit_shut * status_start
+
+            mask = active_com & non_null_down
+            m.add_constraints(
+                lhs, ">=", rhs, name=f"{c}-com-{attr}-ramp_limit_down", mask=mask
+            )
 
 
 def define_nodal_balance_constraints(
