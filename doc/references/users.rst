@@ -83,6 +83,8 @@ Universities and Research Institutes
 
 * `South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS) <https://ait.ac.th/centre/smartscenter/>`_ at `Asian Institute of Technology <https://ait.ac.th/>`_  and `Department of Electrical and Electronic Engineering at International University of Business Agriculture and Technology (IUBAT), Dhaka <https://eee.iubat.edu/>`_ developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh `<https://doi.org/10.1016/j.ref.2024.100655>`_
 
+* `RISE Research Institutes of Sweden AB <https://www.ri.se/>`_ (RISE) for energy systems research in `RESILIENT project <https://resilient-project.github.io/>`_ and more.
+
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
 
