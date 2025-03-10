@@ -506,3 +506,42 @@ def test_dynamic_ramp_rates():
     assert (n.generators_t.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100
     assert (n.generators_t.p.diff().loc[6:, "gen1"]).max() <= 80
     assert (n.generators_t.p.diff().loc[6:, "gen1"]).min() >= -100
+
+
+def test_dynamic_ramp_rates_for_commitables():
+    """
+    This test checks that ramp rate constraints and unit commitment functionality runs through
+    """
+
+    n = pypsa.Network()
+
+    snapshots = range(0, 15)
+    n.set_snapshots(snapshots)
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=100)
+
+    # vary marginal price of gen1 to induce ramping
+    gen1_marginal = pd.Series(100, index=n.snapshots)
+    gen1_marginal[[4, 5, 6, 10, 11, 12]] = 200
+
+    static_ramp_up = 0.8
+    static_ramp_down = 1
+
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus",
+        p_nom=100,
+        committable=True,
+        p_min_pu=0.3,
+        p_max_pu=1,
+        ramp_limit_up=static_ramp_up * 1,
+        ramp_limit_down=static_ramp_down * 1,
+        marginal_cost=gen1_marginal,
+    )
+
+    n.add("Generator", "gen2", bus="bus", p_nom=100, marginal_cost=150)
+
+    status, _ = n.optimize(snapshots=n.snapshots)
+
+    assert status == "ok"
