@@ -376,6 +376,7 @@ def resample_timeseries(
     # Combine the results
     return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
 
+
 def check_pypsa_version(version_string: str) -> None:
     """
     Check if the installed PyPSA version was resolved correctly.
