@@ -73,7 +73,7 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv pip install --compile --system "$(ls dist/*.whl)[dev,hdf5]"
+        uv pip install --compile --system "$(ls dist/*.whl)[dev,hdf5,excel]"
 
 
     - name: Run unit tests # Also includes doctests

@@ -5,6 +5,7 @@ General utility functions for PyPSA.
 from __future__ import annotations
 
 import functools
+import logging
 import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
@@ -18,6 +19,8 @@ from pypsa.definitions.structures import Dict
 
 if TYPE_CHECKING:
     from pypsa import Network
+
+logger = logging.getLogger(__name__)
 
 
 def as_index(
@@ -372,3 +375,13 @@ def resample_timeseries(
 
     # Combine the results
     return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
+
+def check_pypsa_version(version_string: str) -> None:
+    """
+    Check if the installed PyPSA version was resolved correctly.
+    """
+    if version_string.startswith("0.0"):
+        logger.warning(
+            "The correct version of PyPSA could not be resolved. This is likely due to "
+            "a local clone without pulling tags. Please run `git fetch --tags`."
+        )

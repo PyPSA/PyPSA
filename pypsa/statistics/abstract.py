@@ -279,7 +279,7 @@ class AbstractStatisticsAccessor(ABC):
             if bus_carrier in n.buses.carrier.unique():
                 mask = port_carriers == bus_carrier
             else:
-                mask = port_carriers.str.contains(bus_carrier)
+                mask = port_carriers.str.contains(bus_carrier, regex=True)
         elif isinstance(bus_carrier, list):
             mask = port_carriers.isin(bus_carrier)
         else:
