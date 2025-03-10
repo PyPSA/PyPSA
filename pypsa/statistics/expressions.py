@@ -5,8 +5,9 @@ Statistics Accessor.
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -14,10 +15,11 @@ if TYPE_CHECKING:
 import pandas as pd
 
 from pypsa.common import pass_empty_series_if_keyerror
-from pypsa.descriptors import nominal_attrs
+from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -216,8 +218,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _aggregate_across_components(
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
-        index_wo_component = df.index.droplevel("component")
-        return df.groupby(index_wo_component).agg(agg)
+        levels = [l for l in df.index.names if l != "component"]
+        return df.groupby(level=levels).agg(agg)
+
+    def _aggregate_components_skip_iteration(
+        self, vals: pd.Series | pd.DataFrame
+    ) -> bool:
+        return vals.empty
 
     def __call__(
         self,
@@ -298,6 +305,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -329,6 +337,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Capital Expenditure"
@@ -343,6 +352,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -372,6 +382,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Capital Expenditure Fixed"
@@ -386,6 +397,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
@@ -408,15 +420,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             cost_attribute=cost_attribute,
         ).sub(
             self.installed_capex(
                 comps=comps,
                 aggregate_groups=aggregate_groups,
+                aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
                 bus_carrier=bus_carrier,
+                carrier=carrier,
                 nice_names=nice_names,
                 cost_attribute=cost_attribute,
             ),
@@ -434,6 +449,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
@@ -474,6 +490,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Optimal Capacity"
@@ -488,6 +505,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
@@ -528,6 +546,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Installed Capacity"
@@ -542,6 +561,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -561,6 +581,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         installed = self.installed_capacity(
@@ -570,6 +591,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
@@ -587,6 +609,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -627,6 +650,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Operational Expenditure"
@@ -642,6 +666,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -662,6 +687,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             kind="supply",
         )
@@ -678,6 +704,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -698,6 +725,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             kind="withdrawal",
         )
@@ -711,9 +739,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = "carrier",
+        groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -754,6 +783,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Transmission"
@@ -769,6 +799,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
@@ -824,11 +855,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = "carrier dependent"
+        df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
     def curtailment(
@@ -840,6 +872,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -879,6 +912,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Curtailment"
@@ -894,6 +928,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -926,6 +961,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
@@ -944,6 +980,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
@@ -1000,6 +1037,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df.attrs["name"] = "Revenue"
@@ -1015,6 +1053,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> pd.DataFrame:
         """
@@ -1043,6 +1082,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
         df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
