@@ -33,7 +33,7 @@ Features
 Bug fixes
 ---------
 
-* **Regression hotfix**: Fixed a critical bug in statistics functions for multi-investment networks where built years and lifetimes were not being correctly considered. In version `v0.32.0`, only components active in the first time period were being included in statistics calculations. The fix ensures all components are properly represented according to their respective built years and lifetimes across all investment periods.
+* **Regression hotfix**: Fixed a critical bug in statistics functions for multi-investment networks where built years and lifetimes were not being correctly considered. In version `v0.32.0`, only components active in the first time period were being included in statistics calculations. The fix ensures all components are properly represented according to their respective built years and lifetimes across all investment periods. (https://github.com/PyPSA/PyPSA/pull/1172)
 
 `v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (3rd March 2025)
 =======================================================================================
