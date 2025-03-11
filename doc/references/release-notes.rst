@@ -29,6 +29,12 @@ Features
   expression (regex), enabling more flexible filtering options. 
   (https://github.com/PyPSA/PyPSA/pull/1155)
 
+
+* The expressions function `n.optimize.expressions.capacity` now uses the absolute efficiency 
+  to calculate the capacity at link ports, unless a `bus_carrier` is defined or `at_port` is set to True. 
+  This is in line with the behavior of the statistics functions (`statistics.installed_capacity`, `statistics.optimal_capacity`). 
+  Before, the efficiency was allowed to be negative, which lead to inconsistent results.
+
 `v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (3rd March 2025)
 =======================================================================================
 
