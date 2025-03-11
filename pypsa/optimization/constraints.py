@@ -582,7 +582,11 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             limit_up = p_nom_com * ramp_limit_up_com
 
             status = m[f"{c}-status"].sel(snapshot=active_com.coords["snapshot"].values)
-            status_prev = status.shift(snapshot=1)
+            status_prev = (
+                m[f"{c}-status"]
+                .shift(snapshot=1)
+                .sel(snapshot=active_com.coords["snapshot"].values)
+            )
 
             lhs = (
                 p_actual(original_com_i)
@@ -609,7 +613,11 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             limit_down = p_nom_com * ramp_limit_down_com
 
             status = m[f"{c}-status"].sel(snapshot=active_com.coords["snapshot"].values)
-            status_prev = status.shift(snapshot=1)
+            status_prev = (
+                m[f"{c}-status"]
+                .shift(snapshot=1)
+                .sel(snapshot=active_com.coords["snapshot"].values)
+            )
 
             lhs = (
                 p_actual(original_com_i)
