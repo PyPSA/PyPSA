@@ -114,7 +114,7 @@ class Generators(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: Literal[True] = True,
-    ) -> tuple[DataArray, DataArray]: ...
+    ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
     @overload
     def get_bounds_pu(
@@ -131,7 +131,7 @@ class Generators(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray]:
         """
         Get per unit bounds for generators.
 
@@ -261,7 +261,7 @@ class Links(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: Literal[True] = True,
-    ) -> tuple[DataArray, DataArray]: ...
+    ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
     @overload
     def get_bounds_pu(
@@ -278,7 +278,7 @@ class Links(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray]:
         """
         Get per unit bounds for links.
 
@@ -414,7 +414,7 @@ class Lines(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: Literal[True] = True,
-    ) -> tuple[DataArray, DataArray]: ...
+    ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
     @overload
     def get_bounds_pu(
@@ -431,7 +431,7 @@ class Lines(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray]:
         """
         Get per unit bounds for lines.
 
@@ -516,7 +516,7 @@ class Transformers(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: Literal[True] = True,
-    ) -> tuple[DataArray, DataArray]: ...
+    ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
     @overload
     def get_bounds_pu(
@@ -533,7 +533,7 @@ class Transformers(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray]:
         """
         Get per unit bounds for transformers.
 
@@ -656,7 +656,7 @@ class StorageUnits(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: Literal[True] = True,
-    ) -> tuple[DataArray, DataArray]: ...
+    ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
     @overload
     def get_bounds_pu(
@@ -673,7 +673,7 @@ class StorageUnits(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray]:
         """
         Get per unit bounds for storage units.
 
@@ -766,7 +766,7 @@ class Stores(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: Literal[True] = True,
-    ) -> tuple[DataArray, DataArray]: ...
+    ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
     @overload
     def get_bounds_pu(
@@ -783,7 +783,7 @@ class Stores(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray]:
         """
         Get per unit bounds for stores.
 
