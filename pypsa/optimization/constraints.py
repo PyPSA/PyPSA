@@ -599,7 +599,10 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             if is_rolling_horizon:
                 # TODO
                 status_start = component.dynamic.status.iloc[start_i]
-                rhs.loc[{"snapshot": sns[0]}] += (limit_up - limit_start) * status_start
+                limit_diff = (limit_up - limit_start).isel(snapshot=0)
+                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
+                    limit_diff * status_start
+                )
 
             mask = active_com & non_null_up
             m.add_constraints(
@@ -629,8 +632,10 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
                 # TODO
-                status_start = n.dynamic(c)["status"][com_i].iloc[start_i]
-                rhs.loc[sns[0]] += -limit_shut * status_start
+                status_start = component.dynamic.status.iloc[start_i]
+                rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
+                    -limit_shut * status_start
+                )
 
             mask = active_com & non_null_down
             m.add_constraints(
