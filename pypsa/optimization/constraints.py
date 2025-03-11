@@ -425,7 +425,6 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
         return
 
     # ---------------- Check if ramping is at start of n.snapshots --------------- #
-    # TODO: Consider if "scenarios" should be interferring with the logic here
 
     attr = {"p", "p0"}.intersection(component.dynamic.keys()).pop()
     start_i = n.snapshots.get_loc(sns[0]) - 1
@@ -597,7 +596,6 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                # TODO
                 status_start = component.dynamic.status.iloc[start_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
                 rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
@@ -631,7 +629,6 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                # TODO
                 status_start = component.dynamic.status.iloc[start_i]
                 rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
                     -limit_shut * status_start
@@ -882,21 +879,27 @@ def define_fixed_operation_constraints(
     attr : str
         name of the attribute, e.g. 'p'
     """
-    if attr + "_set" not in n.dynamic(c):
+    component = as_components(n, c)
+    attr_set = f"{attr}_set"
+
+    if attr_set not in component.dynamic.keys():
         return
 
-    dim = f"{c}-{attr}_set_i"
-    fix = n.dynamic(c)[attr + "_set"].reindex(index=sns).rename_axis(columns=dim)
-    fix.index.name = "snapshot"  # still necessary: reindex loses the index name
+    fix = component.as_xarray(attr_set, sns)
 
-    if fix.empty:
-        return
+    if fix.size == 0:
+        return  # No constraints to add
 
-    active = get_activity_mask(n, c, sns, index=fix.columns)
-    mask = fix.notna() & active
+    active = component.as_xarray("active", sns, inds=fix.coords[c].values)
+    mask = (~fix.isnull() & (fix != 0)) & active
 
-    var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
-    n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set", mask=mask)
+    var = n.model[f"{c}-{attr}"]
+    fixed_values = mask.where(mask, drop=True)
+
+    filtered_var = var.sel({c: fixed_values.coords[c].values})
+    filtered_fix = fix.sel({c: fixed_values.coords[c].values})
+
+    n.model.add_constraints(filtered_var, "=", filtered_fix, name=f"{c}-" + attr_set)
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
