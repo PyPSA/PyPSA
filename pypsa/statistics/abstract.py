@@ -11,11 +11,12 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pypsa import Network
-
 import warnings
 
 import pandas as pd
+from deprecation import deprecated
 
+from pypsa._options import options
 from pypsa.statistics.grouping import deprecated_groupers, groupers
 
 logger = logging.getLogger(__name__)
@@ -36,36 +37,66 @@ class Parameters:
         set_parameters(**kwargs): Sets the values of the parameters based on the provided keyword arguments.
     """
 
-    PARAMETER_TYPES = {
-        "drop_zero": bool,
-        "nice_names": bool,
-        "round": int,
-    }
-
-    def __init__(self) -> None:
-        self.drop_zero = True
-        self.nice_names = True
-        self.round = 5
-
-    def __repr__(self) -> str:
-        param_str = ", ".join(
-            f"{key}={getattr(self, key)}" for key in self.PARAMETER_TYPES
+    @property
+    def drop_zero(self) -> bool:
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.drop_zero' instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        return f"Parameters({param_str})"
+        return options.get_option("params.statistics.drop_zero")
 
+    @drop_zero.setter
+    def drop_zero(self, value: bool) -> None:
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.drop_zero = ..' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        options.set_option("params.statistics.drop_zero", value)
+
+    @property
+    def nice_names(self) -> bool:
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.nice_names' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return options.get_option("params.statistics.nice_names")
+
+    @nice_names.setter
+    def nice_names(self, value: bool) -> None:
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.nice_names = ..' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        options.set_option("params.statistics.nice_names", value)
+
+    @property
+    def round(self) -> int:
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.round' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return options.get_option("params.statistics.round")
+
+    @round.setter
+    def round(self, value: int) -> None:
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.round = ..' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        options.set_option("params.statistics.round", value)
+
+    @deprecated(
+        details="Use the 'pypsa.options' module instead. E.g. 'pypsa.options.params.statistics.drop_zero = True'.",
+    )
     def set_parameters(self, **kwargs: Any) -> None:
         for key, value in kwargs.items():
-            expected_type = self.PARAMETER_TYPES.get(key)
-            if expected_type is None:
-                raise ValueError(
-                    f"Invalid parameter name: {key} \n Possible parameters are {list(self.PARAMETER_TYPES.keys())}"
-                )
-            elif not isinstance(value, expected_type):
-                raise ValueError(
-                    f"Invalid type for parameter {key}: expected {expected_type.__name__}, got {type(value).__name__}"
-                )
-            else:
-                setattr(self, key, value)
+            options.set_option(f"params.statistics.{key}", value)
 
 
 class AbstractStatisticsAccessor(ABC):
@@ -182,7 +213,7 @@ class AbstractStatisticsAccessor(ABC):
         if comps is None:
             comps = n.branch_components | n.one_port_components
         if nice_names is None:
-            nice_names = self.parameters.nice_names
+            nice_names = options.params.statistics.nice_names
         for c in comps:
             if n.static(c).empty:
                 continue
