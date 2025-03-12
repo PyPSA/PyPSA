@@ -51,12 +51,9 @@ Bug fixes
   Before, the efficiency was allowed to be negative, which lead to inconsistent results.
 
 
-<<<<<<< HEAD
-=======
 `v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.1>`__ (3rd March 2025)
 =======================================================================================
 
->>>>>>> 582e53cc (prepare release `v0.33.2`)
 Minor improvements
 ------------------
 
