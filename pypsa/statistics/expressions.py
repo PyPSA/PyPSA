@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 import pandas as pd
 
+from pypsa._options import options
 from pypsa.common import pass_empty_series_if_keyerror
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
@@ -106,53 +107,6 @@ def get_transmission_carriers(
     )
 
 
-class Parameters:
-    """
-    Container for all the parameters.
-
-    Attributes
-    ----------
-        drop_zero (bool): Flag indicating whether to drop zero values in statistic metrics.
-        nice_names (bool): Flag indicating whether to use nice names in statistic metrics.
-        round (int): Number of decimal places to round the values to in statistic metrics.
-
-    Methods
-    -------
-        set_parameters(**kwargs): Sets the values of the parameters based on the provided keyword arguments.
-    """
-
-    PARAMETER_TYPES = {
-        "drop_zero": bool,
-        "nice_names": bool,
-        "round": int,
-    }
-
-    def __init__(self) -> None:
-        self.drop_zero = True
-        self.nice_names = True
-        self.round = 5
-
-    def __repr__(self) -> str:
-        param_str = ", ".join(
-            f"{key}={getattr(self, key)}" for key in self.PARAMETER_TYPES
-        )
-        return f"Parameters({param_str})"
-
-    def set_parameters(self, **kwargs: Any) -> None:
-        for key, value in kwargs.items():
-            expected_type = self.PARAMETER_TYPES.get(key)
-            if expected_type is None:
-                raise ValueError(
-                    f"Invalid parameter name: {key} \n Possible parameters are {list(self.PARAMETER_TYPES.keys())}"
-                )
-            elif not isinstance(value, expected_type):
-                raise ValueError(
-                    f"Invalid type for parameter {key}: expected {expected_type.__name__}, got {type(value).__name__}"
-                )
-            else:
-                setattr(self, key, value)
-
-
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """
     Accessor to calculate different statistical values.
@@ -207,9 +161,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             return d[first_key]
         index_names = ["component"] + d[first_key].index.names
         df = pd.concat(d, names=index_names)
-        if self.parameters.round:
-            df = df.round(self.parameters.round)
-        if self.parameters.drop_zero:
+        if options.params.statistics.round:
+            df = df.round(options.params.statistics.round)
+        if options.params.statistics.drop_zero:
             df = df[df != 0]
         return df
 
