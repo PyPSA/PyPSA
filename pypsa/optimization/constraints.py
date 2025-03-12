@@ -879,27 +879,21 @@ def define_fixed_operation_constraints(
     attr : str
         name of the attribute, e.g. 'p'
     """
-    component = as_components(n, c)
-    attr_set = f"{attr}_set"
-
-    if attr_set not in component.dynamic.keys():
+    if attr + "_set" not in n.dynamic(c):
         return
 
-    fix = component.as_xarray(attr_set, sns)
+    dim = f"{c}-{attr}_set_i"
+    fix = n.dynamic(c)[attr + "_set"].reindex(index=sns).rename_axis(columns=dim)
+    fix.index.name = "snapshot"  # still necessary: reindex loses the index name
 
-    if fix.size == 0:
-        return  # No constraints to add
+    if fix.empty:
+        return
 
-    active = component.as_xarray("active", sns, inds=fix.coords[c].values)
-    mask = (~fix.isnull() & (fix != 0)) & active
+    active = get_activity_mask(n, c, sns, index=fix.columns)
+    mask = fix.notna() & active
 
-    var = n.model[f"{c}-{attr}"]
-    fixed_values = mask.where(mask, drop=True)
-
-    filtered_var = var.sel({c: fixed_values.coords[c].values})
-    filtered_fix = fix.sel({c: fixed_values.coords[c].values})
-
-    n.model.add_constraints(filtered_var, "=", filtered_fix, name=f"{c}-" + attr_set)
+    var = reindex(n.model[f"{c}-{attr}"], c, fix.columns)
+    n.model.add_constraints(var, "=", fix, name=f"{c}-{attr}_set", mask=mask)
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
