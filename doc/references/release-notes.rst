@@ -2,52 +2,21 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
 
-.. .. warning:: 
-  
-  The features listed below are not released yet, but will be part of the next release! 
-  To use the features already you have to install the ``master`` branch, e.g. 
-  ``pip install git+https://github.com/pypsa/pypsa``.
+`v0.32.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.2>`__ (12th March 2025)
+=======================================================================================
 
-* Consistency checks can now be run with the parameter ``strict``. If set to 
-  ``True``, the consistency check will raise an error if any of the checks fail.  
+Bug fixes
+---------
 
-Features
---------
+* **Regression hotfix**: Fixed a critical bug in statistics functions for 
+  multi-investment networks where built years and lifetimes were not being correctly 
+  considered. In version `v0.32.0`, only components active in the first time period were
+  being included in statistics calculations. The fix ensures all components are properly
+  represented according to their respective built years and lifetimes across all 
+  investment periods. (https://github.com/PyPSA/PyPSA/pull/1172)
 
-* New component class structure (https://github.com/PyPSA/PyPSA/pull/1075)
 
-  * Major structural refactoring of how component data is stored and accessed. The new 
-    structure adds an extra layer to move all component-specific data from the network 
-    class to a new component class.
-
-  * This is an experimental feature, will be developed further and is not yet 
-    recommended for general use. More features, documentation and examples will 
-    follow. Most users will not notice any changes. If you wanna play around with
-    it, you could do so for example via: ``c = n.components.generators``.
-  
-  * While the changes try to maintain full backwards compatibility, there may be some 
-    breaking changes or bugs, especially if you use custom components or custom 
-    component attributes in your network attributes in your network. 
-  
-  * Please report any issues and bugs you might encounter
-    via the `issue tracker <https://github.com/PyPSA/PyPSA/issues/new>`__ on 
-    GitHub.
-
-* New network attributes :meth:`n.timesteps <pypsa.networks.Network.timesteps>`, 
-  :meth:`n.periods <pypsa.networks.Network.periods>` and 
-  :meth:`n.has_periods <pypsa.networks.Network.has_periods>` to simplified level access
-  of the snapshots dimension. (https://github.com/PyPSA/PyPSA/pull/1113)
-
-* Consistency checks can now be run with the parameter ``strict``, which will raise 
-  them as ``ConsistenyError``. Pass checks which should be strict in 
-  :meth:`n.consistency_check <pypsa.consistency.consistency_check>` as e.g.
-  ``strict=['unknown_buses']``. :meth:`n.optimize <pypsa.optimization.optimize.optimize>`
-  will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
-  https://github.com/PyPSA/PyPSA/pull/1112)
-  
 
 `v0.32.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1>`__ (23th Januarary 2025)
 =======================================================================================
