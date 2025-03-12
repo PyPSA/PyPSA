@@ -245,14 +245,12 @@ class AbstractStatisticsAccessor(ABC):
         idx = self._get_component_index(obj, c)
         if not self.is_multi_indexed:
             mask = n.get_active_assets(c)
-            idx = mask.index[mask].intersection(idx)
-            return obj.loc[idx]
+            return obj.loc[mask.index[mask].intersection(idx)]
 
         per_period = {}
         for p in n.investment_periods:
             mask = n.get_active_assets(c, p)
-            idx = mask.index[mask].intersection(idx)
-            per_period[p] = obj.loc[idx]
+            per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
 
         return self._concat_periods(per_period, c)
 
