@@ -30,19 +30,29 @@ Features
   (https://github.com/PyPSA/PyPSA/pull/1155)
 
 
+`v0.33.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2>`__ (12th March 2025)
+=======================================================================================
+
 Bug fixes
 ---------
 
-* **Regression hotfix**: Fixed a critical bug in statistics functions for multi-investment networks where built years and lifetimes were not being correctly considered. In version `v0.32.0`, only components active in the first time period were being included in statistics calculations. The fix ensures all components are properly represented according to their respective built years and lifetimes across all investment periods. (https://github.com/PyPSA/PyPSA/pull/1172)
+* **Regression hotfix**: Fixed a critical bug in statistics functions for 
+  multi-investment networks where built years and lifetimes were not being correctly 
+  considered. In version ``v0.32.0``, only components active in the first time period were
+  being included in statistics calculations. The fix ensures all components are properly
+  represented according to their respective built years and lifetimes across all 
+  investment periods. This issue was patched in version ``0.33.2``. We also backported the 
+  fix to version ``0.32.2``. (https://github.com/PyPSA/PyPSA/pull/1172)
 
-* The expressions function `n.optimize.expressions.capacity` now uses the absolute efficiency 
-  to calculate the capacity at link ports, unless a `bus_carrier` is defined or `at_port` is set to True. 
-  This is in line with the behavior of the statistics functions (`statistics.installed_capacity`, `statistics.optimal_capacity`). 
+* The expressions function `n.optimize.expressions.capacity` now uses the absolute 
+  efficiency to calculate the capacity at link ports, unless a `bus_carrier` is defined
+  or `at_port` is set to True. This is in line with the behavior of the statistics 
+  functions (`statistics.installed_capacity`, `statistics.optimal_capacity`). 
   Before, the efficiency was allowed to be negative, which lead to inconsistent results.
 
-`v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (3rd March 2025)
-=======================================================================================
 
+`v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.1>`__ (3rd March 2025)
+=======================================================================================
 
 Minor improvements
 ------------------
@@ -154,6 +164,19 @@ Bug fixes
   in the function it self. A kwargs check has been added for providing a own threshold.
   E.g., get_strongly_meshed_buses (network, threshold=10)
 
+
+`v0.32.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.2>`__ (12th March 2025)
+=======================================================================================
+
+Bug fixes
+---------
+
+* Backported from version ``v0.33.2``: Fixed a critical bug in statistics functions for 
+  multi-investment networks where built years and lifetimes were not being correctly 
+  considered. In version ``v0.32.0``, only components active in the first time period were
+  being included in statistics calculations. The fix ensures all components are properly
+  represented according to their respective built years and lifetimes across all 
+  investment periods. (https://github.com/PyPSA/PyPSA/pull/1172)
 
 `v0.32.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1>`__ (23th Januarary 2025)
 =======================================================================================
