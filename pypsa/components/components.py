@@ -101,6 +101,93 @@ class Generators(Components):
 
         """
         super().__init__(*args, **kwargs)
+        self._base_attr = "p"
+
+
+class Loads(Components):
+    """
+    Loads components class.
+
+    This class is used for load components. All functionality specific to
+    loads is implemented here. Functionality for all components is implemented in
+    the abstract base class.
+
+    .. warning::
+        This class is under ongoing development and will be subject to changes.
+        It is not recommended to use this class outside of PyPSA.
+
+    See Also
+    --------
+    pypsa.components.abstract.Components : Base class for all components.
+    pypsa.components.components.GenericComponents : Generic components class.
+
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize Loads class.
+
+        See :class:`pypsa.components.abstract.Components` for more information.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments of base class.
+        kwargs : Any
+            Keyword arguments of base class.
+
+        Returns
+        -------
+        None
+
+        """
+        super().__init__(*args, **kwargs)
+        self._base_attr = "p"
+
+    def nominal_attr(self) -> None:  # type: ignore
+        """Get nominal attribute of component."""
+        raise NotImplementedError("Nominal attribute not implemented for loads.")
+
+
+class Links(Components):
+    """
+    Links components class.
+
+    This class is used for link components. All functionality specific to
+    links is implemented here. Functionality for all components is implemented in
+    the abstract base class.
+
+    .. warning::
+        This class is under ongoing development and will be subject to changes.
+        It is not recommended to use this class outside of PyPSA.
+
+    See Also
+    --------
+    pypsa.components.abstract.Components : Base class for all components.
+    pypsa.components.components.GenericComponents : Generic components class.
+
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize Links class.
+
+        See :class:`pypsa.components.abstract.Components` for more information.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments of base class.
+        kwargs : Any
+            Keyword arguments of base class.
+
+        Returns
+        -------
+        None
+
+        """
+        super().__init__(*args, **kwargs)
+        self._base_attr = "p"
 
 
 class Lines(Components):
@@ -124,7 +211,7 @@ class Lines(Components):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
-        Initialize Generators class.
+        Initialize Lines class.
 
         See :class:`pypsa.components.abstract.Components` for more information.
 
@@ -141,6 +228,7 @@ class Lines(Components):
 
         """
         super().__init__(*args, **kwargs)
+        self._base_attr = "s"
 
     def calculate_line_length(self) -> pd.Series:
         """
@@ -194,9 +282,175 @@ class Lines(Components):
         )
 
 
+class Transformers(Components):
+    """
+    Transformers components class.
+
+    This class is used for transformer components. All functionality specific to
+    transformers is implemented here. Functionality for all components is implemented in
+    the abstract base class.
+
+    .. warning::
+        This class is under ongoing development and will be subject to changes.
+        It is not recommended to use this class outside of PyPSA.
+
+    See Also
+    --------
+    pypsa.components.abstract.Components : Base class for all components.
+    pypsa.components.components.GenericComponents : Generic components class.
+
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize Transformers class.
+
+        See :class:`pypsa.components.abstract.Components` for more information.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments of base class.
+        kwargs : Any
+            Keyword arguments of base class.
+
+        Returns
+        -------
+        None
+
+        """
+        super().__init__(*args, **kwargs)
+        self._base_attr = "s"
+
+
+class StorageUnits(Components):
+    """
+    StorageUnits components class.
+
+    This class is used for storage unit components. All functionality specific to
+    storage units is implemented here. Functionality for all components is implemented
+    in the abstract base class.
+
+    .. warning::
+        This class is under ongoing development and will be subject to changes.
+        It is not recommended to use this class outside of PyPSA.
+
+    See Also
+    --------
+    pypsa.components.abstract.Components : Base class for all components.
+    pypsa.components.components.GenericComponents : Generic components class.
+
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize StorageUnits class.
+
+        See :class:`pypsa.components.abstract.Components` for more information.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments of base class.
+        kwargs : Any
+            Keyword arguments of base class.
+
+        Returns
+        -------
+        None
+
+        """
+        super().__init__(*args, **kwargs)
+        self._base_attr = "p"
+
+    @property
+    def operational_attrs(self) -> dict[str, str]:
+        """
+        Get operational attributes specific to storage units.
+
+        Extends the base implementation with storage-specific attributes.
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of operational attribute names
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.storage_hvdc()
+        >>> c = n.components.storage_units
+        >>> c.operational_attrs["store"]
+        'p_store'
+        >>> c.operational_attrs["state_of_charge"]
+        'state_of_charge'
+
+        """
+        # Get base operational attributes
+        attrs = super().operational_attrs
+
+        # Add storage-specific attributes
+        attrs.update(
+            {
+                "store": f"{self.base_attr}_store",
+                "state_of_charge": "state_of_charge",
+                "inflow": "inflow",
+                "spill": "spill",
+            }
+        )
+
+        return attrs
+
+
+class Stores(Components):
+    """
+    Stores components class.
+
+    This class is used for store components. All functionality specific to
+    stores is implemented here. Functionality for all components is implemented in
+    the abstract base class.
+
+    .. warning::
+        This class is under ongoing development and will be subject to changes.
+        It is not recommended to use this class outside of PyPSA.
+
+    See Also
+    --------
+    pypsa.components.abstract.Components : Base class for all components.
+    pypsa.components.components.GenericComponents : Generic components class.
+
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initialize Stores class.
+
+        See :class:`pypsa.components.abstract.Components` for more information.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments of base class.
+        kwargs : Any
+            Keyword arguments of base class.
+
+        Returns
+        -------
+        None
+
+        """
+        super().__init__(*args, **kwargs)
+        self._base_attr = "e"
+
+
 CLASS_MAPPING = {
     "Generator": Generators,
+    "Load": Loads,
+    "Link": Links,
     "Line": Lines,
+    "Transformer": Transformers,
+    "StorageUnit": StorageUnits,
+    "Store": Stores,
 }
 
 
