@@ -37,8 +37,8 @@ p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power fr
 p1,series,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
 p_nom_opt,float,MW,0,Optimised capacity for active power.,Output
 status,series,n/a,1.,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
-mu_lower,series,currency/MW,0.,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
-mu_upper,series,currency/MW,0.,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
-mu_p_set,series,currency/MWh,0.,Shadow price of fixed power transmission p_set,Output
-mu_ramp_limit_up,series,currency/MWh,0.,Shadow price of upper ramp up limit,Output
-mu_ramp_limit_down,series,currency/MWh,0.,Shadow price of lower ramp down limit,Output
+mu_lower,series,currency/MW,n/a,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MW,n/a,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
+mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power transmission p_set,Output
+mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output

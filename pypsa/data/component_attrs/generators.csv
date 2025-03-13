@@ -40,8 +40,8 @@ p,series,MW,0.,active power at bus (positive if net generation),Output
 q,series,MVar,0.,reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal power.,Output
 status,series,n/a,1,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
-mu_upper,series,currency/MWh,0.,Shadow price of upper p_nom limit,Output
-mu_lower,series,currency/MWh,0.,Shadow price of lower p_nom limit,Output
-mu_p_set,series,currency/MWh,0.,Shadow price of fixed power generation p_set,Output
-mu_ramp_limit_up,series,currency/MWh,0.,Shadow price of upper ramp up limit,Output
-mu_ramp_limit_down,series,currency/MWh,0.,Shadow price of lower ramp down limit,Output
+mu_upper,series,currency/MWh,n/a,Shadow price of upper p_nom limit,Output
+mu_lower,series,currency/MWh,n/a,Shadow price of lower p_nom limit,Output
+mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power generation p_set,Output
+mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
