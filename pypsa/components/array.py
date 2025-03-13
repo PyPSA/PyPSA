@@ -64,7 +64,7 @@ def as_dynamic(
     2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
     """
-    # Check if we are in a power flow calculation that requires special handling of p_set defaults
+    # Check if we are in a power flow calculation
     stack = inspect.stack()
     in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)
 
@@ -80,12 +80,12 @@ def as_dynamic(
         index = index.intersection(inds)
 
     diff = index.difference(dynamic.columns)
+    static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
+    res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
 
-    if attr == "p_set" and c.name != "Load" and not in_pf:
-        res = dynamic.reindex(columns=index)
-    else:
-        static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
-        res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
+    # power flow calculations in pf.py require a starting point for the algorithm, while p_set default is n/a
+    if attr == "p_set" and in_pf:
+        res = res.fillna(0)
 
     res.index.name = sns.name
     if c.has_scenarios:
