@@ -194,20 +194,6 @@ class ChartGenerator(PlotsGenerator, ABC):
             List of groupby columns and boolean for component aggregation
 
         """
-        # TODO Dynamic vs static default x must be handled in the plotter
-
-        no_time_support = [
-            "optimal_capacity",
-            "installed_capacity",
-            "capex",
-            "installed_capex",
-            "expanded_capacity",
-            "expanded_capex",
-        ]
-        if "snapshot" in args and method_name in no_time_support:
-            raise ValueError(
-                "'snapshot' level is not supported for this plot function."
-            )
 
         filtered = ["value", "component", "snapshot"]
         filtered_cols = []
@@ -223,10 +209,10 @@ class ChartGenerator(PlotsGenerator, ABC):
             stats_kwargs["groupby"] = filtered_cols
 
         # `aggregate_across_components`
-        stats_kwargs["aggregate_across_components"] = "component" not in args  # type: ignore
+        stats_kwargs["aggregate_across_components"] = "component" not in args
 
         # `aggregate_time` is only relevant for time series data
-        if method_name not in no_time_support:
+        if "snapshot" in args:
             derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
             if derived_agg_time:
                 # Convert to list since aggregate_time expects a list of strings
@@ -235,37 +221,6 @@ class ChartGenerator(PlotsGenerator, ABC):
                 stats_kwargs["aggregate_time"] = False
 
         return stats_kwargs
-
-    def manage_parameters(
-        self, stats_name: str, stats_kwargs: dict, plot_kwargs: dict
-    ) -> tuple[dict, dict]:
-        # Filter kwargs based on different statistics functions signatures
-
-        # Handle default values
-        if True and plot_kwargs["x"] is None:
-            plot_kwargs["x"] = "carrier"
-
-        # TODO static vs time series plot handling
-
-        if True and plot_kwargs["y"] is None:
-            plot_kwargs["y"] = "value"
-
-        # 'storage'
-        if stats_name not in ["optimal_capacity", "installed_capacity"]:
-            if stats_kwargs["storage"] is None:
-                stats_kwargs.pop("storage")
-            else:
-                msg = (
-                    f"Statistics method '{stats_name}' does not support 'storage' "
-                    f"parameter. Please remove it or use a different method."
-                )
-                raise ValueError(msg)
-        # Set default value
-        else:
-            if stats_kwargs["storage"] is None:
-                stats_kwargs["storage"] = False
-
-        return stats_kwargs, plot_kwargs
 
 
 class BarPlotGenerator(ChartGenerator):

@@ -48,17 +48,85 @@ class StatisticsPlotter:
         self._n = n
         self._stats_func = statistics_function
 
+    def _chart(
+        self,
+        chart_type: str,
+        plotter_class: type,
+        plot_kwargs: dict,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        storage: bool | None = None,
+        **kwargs: Any,
+    ) -> so.Plot:
+        """
+        Common chart generation method used by bar, line and area plots.
+
+        Parameters
+        ----------
+        chart_type : str
+            Type of chart ("bar", "line", or "area")
+        plotter_class : type
+            The plotter class to instantiate
+        plot_kwargs : dict
+            Dictionary of plotting parameters
+        carrier : Sequence[str] | str | None
+            Filter by carrier of components
+        bus_carrier : Sequence[str] | str | None
+            Filter by carrier of connected buses
+        storage : bool | None
+            Whether to include storage components
+        **kwargs : Any
+            Additional keyword arguments for the plot function
+
+        Returns
+        -------
+        seaborn.objects.Plot
+            Seaborn plot object
+        """
+        plotter = plotter_class(self._n)
+
+        # Apply schema to plotting kwargs
+        stats_name = self._stats_func.__name__
+        plot_kwargs = plotter.apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs
+        )
+
+        # Derive base statistics kwargs
+        stats_kwargs = plotter.derive_statistic_parameters(
+            plot_kwargs["x"],
+            plot_kwargs["y"],
+            plot_kwargs["color"],
+            plot_kwargs["col"],
+            plot_kwargs["row"],
+            method_name=self._stats_func.__name__,
+        )
+
+        # Add provided kwargs
+        stats_kwargs.update(
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            storage=storage,
+        )
+
+        # Apply schema to statistics kwargs
+        stats_kwargs = plotter.apply_parameter_schema(
+            stats_name, chart_type, stats_kwargs
+        )
+
+        # Get statistics data and return plot
+        data = self._stats_func(**stats_kwargs, nice_names=False)
+        return plotter.plot(data, **plot_kwargs, **kwargs)
+
     def bar(
         self,
         x: str | None = None,
-        y: str | None = None,
+        y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
         stacked: bool = False,
         dodged: bool = False,
         query: str | None = None,
-        # Statistics kwargs
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -73,12 +141,11 @@ class StatisticsPlotter:
 
         Parameters
         ----------
-        x : str, optional
+        x : str, default: None
             Data to show on x-axis. E.g. "carrier". Default depends on underlying
             statistics function.
-        y : str, optional
-            Data to show on y-axis. E.g. "value". Default depends on underlying
-            statistics function.
+        y : str, default: "value"
+            Data to show on y-axis. E.g. "value".
         color : str | None, default: "carrier"
             Data to show as color. Pass None to disable color mapping.
         col : str | None, default: None
@@ -126,52 +193,36 @@ class StatisticsPlotter:
         <seaborn._core.plot.Plot object at 0x...>
 
         """
-        # Get plotting kwargs
         plot_kwargs = {
-            k: v
-            for k, v in locals().items()
-            if k not in ["self", "storage", "carrier", "bus_carrier", "kwargs"]
+            "x": x,
+            "y": y,
+            "color": color,
+            "col": col,
+            "row": row,
+            "stacked": stacked,
+            "dodged": dodged,
+            "query": query,
+            "nice_names": nice_names,
         }
-
-        plotter = BarPlotGenerator(self._n)
-
-        # Derive base statistics kwargs
-        # (groupby, aggregate_across_components, aggregate_time)
-        stats_kwargs = plotter.derive_statistic_parameters(
-            x,
-            y,
-            color,
-            col,
-            row,
-            method_name=self._stats_func.__name__,
+        return self._chart(
+            "bar",
+            BarPlotGenerator,
+            plot_kwargs,
+            carrier,
+            bus_carrier,
+            storage,
+            **kwargs,
         )
-
-        # Add provided kwargs
-        stats_kwargs.update(
-            storage=storage,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-        )
-
-        # Check and adjust both kwargs according to matching schema
-        stats_kwargs, plot_kwargs = plotter.manage_parameters(
-            self._stats_func.__name__, stats_kwargs, plot_kwargs
-        )
-
-        # Get statistics datawith updated kwargs and return plot
-        data = self._stats_func(**stats_kwargs, nice_names=False)
-        return plotter.plot(data, **plot_kwargs, **kwargs)
 
     def line(
         self,
         x: str | None = None,
-        y: str | None = None,
+        y: str = "value",
         color: str | None = "carrier",
         col: str | None = None,
         row: str | None = None,
         resample: str | None = None,
         query: str | None = None,
-        # Statistics kwargs
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -186,13 +237,11 @@ class StatisticsPlotter:
 
         Parameters
         ----------
-        x : str, optional
+        x : str, default: None
             Data to show on x-axis. E.g. "carrier". Default depends on underlying
             statistics function.
-        y : str, optional
-            Data to show on y-axis. E.g. "value". Default depends on underlying
-            statistics function.
-        color : str | None, default: "carrier"
+        y : str, default: "value"
+            Data to show on y-axis. E.g. "value".
             Data to show as color. Pass None to disable color mapping.
         col : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
@@ -240,43 +289,28 @@ class StatisticsPlotter:
         """
         # Get plotting kwargs
         plot_kwargs = {
-            k: v
-            for k, v in locals().items()
-            if k not in ["self", "storage", "carrier", "bus_carrier", "kwargs"]
+            "x": x,
+            "y": y,
+            "color": color,
+            "col": col,
+            "row": row,
+            "resample": resample,
+            "query": query,
+            "nice_names": nice_names,
         }
-
-        plotter = LinePlotGenerator(self._n)
-
-        # Derive base statistics kwargs
-        # (groupby, aggregate_across_components, aggregate_time)
-        stats_kwargs = plotter.derive_statistic_parameters(
-            x,
-            y,
-            color,
-            col,
-            row,
-            method_name=self._stats_func.__name__,
+        return self._chart(
+            "line",
+            LinePlotGenerator,
+            plot_kwargs,
+            carrier,
+            bus_carrier,
+            storage,
+            **kwargs,
         )
-
-        # Add provided kwargs
-        stats_kwargs.update(
-            storage=storage,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-        )
-
-        # Check and adjust both kwargs according to matching schema
-        stats_kwargs, plot_kwargs = plotter.manage_parameters(
-            self._stats_func.__name__, stats_kwargs, plot_kwargs
-        )
-
-        # Get statistics datawith updated kwargs and return plot
-        data = self._stats_func(**stats_kwargs, nice_names=False)
-        return plotter.plot(data, **plot_kwargs, **kwargs)
 
     def area(
         self,
-        x: str = "carrier",
+        x: str | None = None,
         y: str = "value",
         color: str | None = None,
         col: str | None = None,
@@ -284,7 +318,6 @@ class StatisticsPlotter:
         stacked: bool = False,
         dodged: bool = False,
         query: str | None = None,
-        # Statistics kwargs
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
@@ -299,12 +332,11 @@ class StatisticsPlotter:
 
         Parameters
         ----------
-        x : str, optional
+        x : str, default: None
             Data to show on x-axis. E.g. "carrier". Default depends on underlying
             statistics function.
-        y : str, optional
-            Data to show on y-axis. E.g. "value". Default depends on underlying
-            statistics function.
+        y : str, default: "value"
+            Data to show on y-axis. E.g. "value".
         color : str | None, default: "carrier"
             Data to show as color. Pass None to disable color mapping.
         col : str | None, default: None
@@ -354,39 +386,25 @@ class StatisticsPlotter:
         """
         # Get plotting kwargs
         plot_kwargs = {
-            k: v
-            for k, v in locals().items()
-            if k not in ["self", "storage", "carrier", "bus_carrier", "kwargs"]
+            "x": x,
+            "y": y,
+            "color": color,
+            "col": col,
+            "row": row,
+            "stacked": stacked,
+            "dodged": dodged,
+            "query": query,
+            "nice_names": nice_names,
         }
-
-        plotter = AreaPlotGenerator(self._n)
-
-        # Derive base statistics kwargs
-        # (groupby, aggregate_across_components, aggregate_time)
-        stats_kwargs = plotter.derive_statistic_parameters(
-            x,
-            y,
-            color,
-            col,
-            row,
-            method_name=self._stats_func.__name__,
+        return self._chart(
+            "area",
+            AreaPlotGenerator,
+            plot_kwargs,
+            carrier,
+            bus_carrier,
+            storage,
+            **kwargs,
         )
-
-        # Add provided kwargs
-        stats_kwargs.update(
-            storage=storage,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-        )
-
-        # Check and adjust both kwargs according to matching schema
-        stats_kwargs, plot_kwargs = plotter.manage_parameters(
-            self._stats_func.__name__, stats_kwargs, plot_kwargs
-        )
-
-        # Get statistics datawith updated kwargs and return plot
-        data = self._stats_func(**stats_kwargs, nice_names=False)
-        return plotter.plot(data, **plot_kwargs, **kwargs)
 
     def map(
         self,
@@ -399,31 +417,45 @@ class StatisticsPlotter:
         title: str = "",
         bus_carrier: str | None = None,
         carrier: str | None = None,
-        transmission_flow: bool = False,
+        transmission_flow: bool | None = None,
         bus_area_fraction: float = 0.02,
         branch_area_fraction: float = 0.02,
         flow_area_fraction: float = 0.02,
         draw_legend_circles: bool = True,
-        draw_legend_lines: bool = True,
-        draw_legend_arrows: bool = False,
+        draw_legend_lines: bool | None = None,
+        draw_legend_arrows: bool | None = None,
         draw_legend_patches: bool = True,
         legend_circles_kw: dict | None = None,
         legend_lines_kw: dict | None = None,
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
-        bus_split_circles: bool = False,
+        bus_split_circles: bool | None = None,
         kind: str | None = None,
+        stats_kwargs: dict | None = None,
         # TODO: Additional stat kwargs needed?
         **kwargs: Any,
     ) -> tuple[Figure, Axes]:  # Store locals to pass same signature to plotter
-        local_vars = locals()
-        del local_vars["self"]
-        del local_vars["kwargs"]
+        if stats_kwargs is None:
+            stats_kwargs = {}
+
+        plot_kwargs = locals()
+        del plot_kwargs["self"]
+        del plot_kwargs["kwargs"]
 
         plotter = MapPlotGenerator(self._n)
-        return plotter.plot_statistics(
-            func=self._stats_func, stats_kwargs={}, **local_vars, **kwargs
+
+        helper = BarPlotGenerator(self._n)
+
+        # Apply schema to plotting kwargs
+        stats_name = self._stats_func.__name__
+        plot_kwargs = helper.apply_parameter_schema(stats_name, "map", plot_kwargs)
+
+        # Apply schema to statistics kwargs
+        plot_kwargs["stats_kwargs"] = helper.apply_parameter_schema(
+            stats_name, "map", plot_kwargs["stats_kwargs"]
         )
+
+        return plotter.plot_statistics(func=self._stats_func, **plot_kwargs, **kwargs)
 
 
 def _register_plotters(cls: type[PlotAccessor]) -> type[PlotAccessor]:

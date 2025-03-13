@@ -5,6 +5,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
+from pypsa.plot.statistics.schema import schema
+
 if TYPE_CHECKING:
     from pypsa import Network
 
@@ -38,3 +40,25 @@ class PlotsGenerator(ABC):
     ) -> dict[str, Any]:
         """Handle default statistics kwargs based on provided plot kwargs."""
         pass
+
+    def apply_parameter_schema(
+        self, stats_name: str, plot_name: str, kwargs: dict
+    ) -> dict:
+        to_remove = []
+        # Filter kwargs based on different statistics functions signatures
+        for param, value in kwargs.items():
+            if param not in schema[stats_name][plot_name]:
+                continue
+            if value is None:
+                kwargs[param] = schema[stats_name][plot_name][param]["default"]
+                if not schema[stats_name][plot_name][param]["allowed"]:
+                    to_remove.append(param)
+            else:
+                if not schema[stats_name][plot_name][param]["allowed"]:
+                    msg = f"Parameter {param} can not be used for {stats_name} {plot_name}."
+                    raise ValueError(msg)
+
+        for param in to_remove:
+            kwargs.pop(param)
+
+        return kwargs

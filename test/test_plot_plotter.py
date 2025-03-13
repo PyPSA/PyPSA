@@ -32,3 +32,13 @@ def test_area_plot(ac_dc_network_r, stat_func):
 
     with pytest.raises(TypeError):
         plotter().area()
+
+
+@pytest.mark.parametrize("stat_func", PlotAccessor._methods)
+def test_map_plot(ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.plot, stat_func)
+    plotter.area()
+    plt.close()
+
+    with pytest.raises(TypeError):
+        plotter().map()
