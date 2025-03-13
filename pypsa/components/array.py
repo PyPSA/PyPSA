@@ -7,6 +7,8 @@ DataArray for each variable.
 
 from __future__ import annotations
 
+import inspect
+import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -62,6 +64,10 @@ def as_dynamic(
     2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
     """
+    # Check if we are in a power flow calculation
+    stack = inspect.stack()
+    in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)
+
     sns = as_index(c.n_save, snapshots, "snapshots")
     index = c.static.index
     empty_index = index[:0]  # keep index name and names
@@ -76,6 +82,11 @@ def as_dynamic(
     diff = index.difference(dynamic.columns)
     static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
     res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
+
+    # power flow calculations in pf.py require a starting point for the algorithm, while p_set default is n/a
+    if attr == "p_set" and in_pf:
+        res = res.fillna(0)
+
     res.index.name = sns.name
     if c.has_scenarios:
         res.columns.name = "Component"
