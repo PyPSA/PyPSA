@@ -66,4 +66,6 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     )
     all_buses = all_buses[all_buses != ""]
     counts = all_buses.value_counts()
-    return counts.index[counts > threshold].rename("Bus-meshed")
+    results = counts.index[counts > threshold].rename("Bus-meshed")
+    results = results.sort_values()
+    return results
