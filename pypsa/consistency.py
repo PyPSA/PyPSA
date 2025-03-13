@@ -31,8 +31,9 @@ def _bus_columns(df: pd.DataFrame) -> pd.Index:
 
 
 def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
+    formatted_message = message % args if args else message
     if strict:
-        raise ConsistencyError(message % args)
+        raise ConsistencyError(formatted_message)
     else:
         logger.warning(message, *args)
 
@@ -150,6 +151,33 @@ def check_for_unknown_carriers(
                 component.list_name,
                 component.static.index[missing],
             )
+
+
+def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
+    """
+    Check if carriers are missing colors.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    """
+    missing_colors = n.carriers[n.carriers.color.isna() | n.carriers.color.eq("")]
+    if not missing_colors.empty:
+        _log_or_raise(
+            strict,
+            "The following carriers are missing colors:\n%s",
+            missing_colors.index,
+        )
+
+
+def check_plotting_consistency(n: Network, strict: bool = True) -> None:
+    for c in n.iterate_components():
+        check_for_unknown_carriers(n, c, strict=strict)
+    check_for_missing_carrier_colors(n, strict=strict)
 
 
 @deprecated_common_kwargs
