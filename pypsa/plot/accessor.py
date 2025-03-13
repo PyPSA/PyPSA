@@ -435,27 +435,117 @@ class StatisticsPlotter:
         # TODO: Additional stat kwargs needed?
         **kwargs: Any,
     ) -> tuple[Figure, Axes]:  # Store locals to pass same signature to plotter
-        if stats_kwargs is None:
-            stats_kwargs = {}
+        """
+        Plot statistics on a geographic map.
 
-        plot_kwargs = locals()
-        del plot_kwargs["self"]
-        del plot_kwargs["kwargs"]
+        This function builds upon any statistics function and creates a geographical
+        visualization based on its output. It uses the MapPlotGenerator to render the
+        network components with sizes and colors based on the statistics results.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes, optional
+            Axis to plot on. If None, creates a new figure and axis.
+        projection : cartopy.crs.Projection, optional
+            Map projection to use. If None and geomap is True, uses the network's CRS.
+        geomap : bool, default True
+            Whether to add geographic features with cartopy.
+        geomap_resolution : {'10m', '50m', '110m'}, default '50m'
+            Resolution of geographic features.
+        geomap_colors : dict or bool, optional
+            Colors for geographic features. If True, uses defaults. If a dict, keys
+            can include 'ocean', 'land', 'border', 'coastline'.
+        boundaries : tuple(float, float, float, float), optional
+            Plot boundaries as (xmin, xmax, ymin, ymax).
+        title : str, default ""
+            Plot title.
+        bus_carrier : str, optional
+            Filter by carrier of connected buses.
+        carrier : str, optional
+            Filter by carrier of components.
+        transmission_flow : bool, optional
+            Whether to plot transmission flows. If True, draws flow arrows instead of lines.
+        bus_area_fraction : float, default 0.02
+            Fraction of plot area to be covered by bus circles.
+        branch_area_fraction : float, default 0.02
+            Fraction of plot area to be covered by branch lines.
+        flow_area_fraction : float, default 0.02
+            Fraction of plot area to be covered by flow arrows.
+        draw_legend_circles : bool, default True
+            Whether to draw a legend for bus sizes.
+        draw_legend_lines : bool, optional
+            Whether to draw a legend for line widths. Only valid when transmission_flow is False.
+        draw_legend_arrows : bool, optional
+            Whether to draw a legend for flow arrows. Only valid when transmission_flow is True.
+        draw_legend_patches : bool, default True
+            Whether to draw a legend for carrier colors.
+        legend_circles_kw : dict, optional
+            Additional keyword arguments for the circles legend.
+        legend_lines_kw : dict, optional
+            Additional keyword arguments for the lines legend.
+        legend_arrows_kw : dict, optional
+            Additional keyword arguments for the arrows legend.
+        legend_patches_kw : dict, optional
+            Additional keyword arguments for the patches legend.
+        bus_split_circles : bool, optional
+            Whether to draw half circles for positive/negative values.
+        stats_kwargs : dict, optional
+            Additional keyword arguments for the statistics function.
+        **kwargs :
+            Additional keyword arguments passed to the MapPlotGenerator.draw_map method.
+
+        Returns
+        -------
+        tuple(matplotlib.figure.Figure, matplotlib.axes.Axes)
+            The figure and axes of the plot.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> fig, ax = n.plot.installed_capacity.map(geomap=True, title="Installed Capacity") # doctest: +ELLIPSIS
+        >>> isinstance(fig, matplotlib.figure.Figure)
+        True
+        >>> isinstance(ax, matplotlib.axes.Axes)
+        True
+        """
+        plot_kwargs = {
+            "ax": ax,
+            "projection": projection,
+            "geomap": geomap,
+            "geomap_resolution": geomap_resolution,
+            "geomap_colors": geomap_colors,
+            "boundaries": boundaries,
+            "title": title,
+            "bus_carrier": bus_carrier,
+            "carrier": carrier,
+            "transmission_flow": transmission_flow,
+            "bus_area_fraction": bus_area_fraction,
+            "branch_area_fraction": branch_area_fraction,
+            "flow_area_fraction": flow_area_fraction,
+            "draw_legend_circles": draw_legend_circles,
+            "draw_legend_lines": draw_legend_lines,
+            "draw_legend_arrows": draw_legend_arrows,
+            "draw_legend_patches": draw_legend_patches,
+            "legend_circles_kw": legend_circles_kw,
+            "legend_lines_kw": legend_lines_kw,
+            "legend_arrows_kw": legend_arrows_kw,
+            "legend_patches_kw": legend_patches_kw,
+            "bus_split_circles": bus_split_circles,
+        }
 
         plotter = MapPlotGenerator(self._n)
 
-        helper = BarPlotGenerator(self._n)
-
         # Apply schema to plotting kwargs
         stats_name = self._stats_func.__name__
-        plot_kwargs = helper.apply_parameter_schema(stats_name, "map", plot_kwargs)
+        plot_kwargs = plotter.apply_parameter_schema(stats_name, "map", plot_kwargs)
 
         # Apply schema to statistics kwargs
-        plot_kwargs["stats_kwargs"] = helper.apply_parameter_schema(
-            stats_name, "map", plot_kwargs["stats_kwargs"]
+        plot_kwargs["stats_kwargs"] = plotter.apply_parameter_schema(
+            stats_name, "map", stats_kwargs or {}
         )
 
-        return plotter.plot_statistics(func=self._stats_func, **plot_kwargs, **kwargs)
+        return plotter._plot_statistics(func=self._stats_func, **plot_kwargs, **kwargs)
 
 
 def _register_plotters(cls: type[PlotAccessor]) -> type[PlotAccessor]:
