@@ -130,9 +130,12 @@ class Importer(ImpExper):
 
 
 class ImporterCSV(Importer):
-    def __init__(self, csv_folder_name: str | Path, encoding: str | None) -> None:
+    def __init__(
+        self, csv_folder_name: str | Path, encoding: str | None, quotechar: str
+    ) -> None:
         self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
+        self.quotechar = quotechar
 
         if not self.csv_folder_name.is_dir():
             msg = f"Directory {csv_folder_name} does not exist."
@@ -142,7 +145,13 @@ class ImporterCSV(Importer):
         fn = self.csv_folder_name.joinpath("network.csv")
         if not fn.is_file():
             return None
-        return dict(pd.read_csv(fn, encoding=self.encoding).iloc[0])
+
+        dtypes = {"pypsa_version": str}
+        return dict(
+            pd.read_csv(
+                fn, encoding=self.encoding, dtype=dtypes, quotechar=self.quotechar
+            ).iloc[0]
+        )
 
     def get_meta(self) -> dict:
         fn = self.csv_folder_name.joinpath("meta.json")
@@ -156,7 +165,13 @@ class ImporterCSV(Importer):
         fn = self.csv_folder_name.joinpath("snapshots.csv")
         if not fn.is_file():
             return None
-        df = pd.read_csv(fn, index_col=0, encoding=self.encoding, parse_dates=True)
+        df = pd.read_csv(
+            fn,
+            index_col=0,
+            encoding=self.encoding,
+            quotechar=self.quotechar,
+            parse_dates=True,
+        )
         # backwards-compatibility: level "snapshot" was rename to "timestep"
         if "snapshot" in df:
             df["snapshot"] = pd.to_datetime(df.snapshot)
@@ -168,12 +183,16 @@ class ImporterCSV(Importer):
         fn = self.csv_folder_name.joinpath("investment_periods.csv")
         if not fn.is_file():
             return None
-        return pd.read_csv(fn, index_col=0, encoding=self.encoding)
+        return pd.read_csv(
+            fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
+        )
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         fn = self.csv_folder_name.joinpath(list_name + ".csv")
         return (
-            pd.read_csv(fn, index_col=0, encoding=self.encoding)
+            pd.read_csv(
+                fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
+            )
             if fn.is_file()
             else None
         )
@@ -186,15 +205,19 @@ class ImporterCSV(Importer):
                     self.csv_folder_name.joinpath(fn.name),
                     index_col=0,
                     encoding=self.encoding,
+                    quotechar=self.quotechar,
                     parse_dates=True,
                 )
                 yield attr, df
 
 
 class ExporterCSV(Exporter):
-    def __init__(self, csv_folder_name: Path | str, encoding: str | None) -> None:
+    def __init__(
+        self, csv_folder_name: Path | str, encoding: str | None, quotechar: str
+    ) -> None:
         self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
+        self.quotechar = quotechar
 
         # make sure directory exists
         if not self.csv_folder_name.is_dir():
@@ -206,7 +229,7 @@ class ExporterCSV(Exporter):
         df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
         fn = self.csv_folder_name.joinpath("network.csv")
         with fn.open("w"):
-            df.to_csv(fn, encoding=self.encoding)
+            df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_meta(self, meta: dict) -> None:
         fn = self.csv_folder_name.joinpath("meta.json")
@@ -219,22 +242,24 @@ class ExporterCSV(Exporter):
     def save_snapshots(self, snapshots: pd.Index) -> None:
         fn = self.csv_folder_name.joinpath("snapshots.csv")
         with fn.open("w"):
-            snapshots.to_csv(fn, encoding=self.encoding)
+            snapshots.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
         fn = self.csv_folder_name.joinpath("investment_periods.csv")
         with fn.open("w"):
-            investment_periods.to_csv(fn, encoding=self.encoding)
+            investment_periods.to_csv(
+                fn, encoding=self.encoding, quotechar=self.quotechar
+            )
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         fn = self.csv_folder_name.joinpath(list_name + ".csv")
         with fn.open("w"):
-            df.to_csv(fn, encoding=self.encoding)
+            df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
         with fn.open("w"):
-            df.to_csv(fn, encoding=self.encoding)
+            df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def remove_static(self, list_name: str) -> None:
         if fns := list(self.csv_folder_name.joinpath(list_name).glob("*.csv")):
@@ -246,6 +271,186 @@ class ExporterCSV(Exporter):
         fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
         if fn.exists():
             fn.unlink()
+
+
+class ImporterExcel(Importer):
+    def __init__(self, excel_file_path: str | Path, engine: str = "calamine") -> None:
+        if engine == "calamine":
+            check_optional_dependency(
+                "python_calamine",
+                "Missing optional dependencies to use Excel files. Install them via "
+                "`pip install pypsa[excel]`. If you passed any other engine, "
+                "make sure it is installed.",
+            )
+        excel_file_path = Path(excel_file_path)
+        if not excel_file_path.is_file():
+            msg = f"Excel file {excel_file_path} does not exist."
+            raise FileNotFoundError(msg)
+        self.engine = engine
+        self.sheets = pd.read_excel(
+            excel_file_path, sheet_name=None, engine=self.engine
+        )
+
+    def get_attributes(self) -> dict | None:
+        try:
+            return dict(self.sheets["network"].iloc[0])
+        except (ValueError, KeyError):
+            return None
+
+    def get_meta(self) -> dict:
+        try:
+            df = self.sheets["meta"]
+            if not df.empty:
+                meta = {}
+                for _, row in df.iterrows():
+                    key = row["Key"]
+                    value = row["Value"]
+
+                    # Try to parse JSON strings back into dictionaries
+                    if isinstance(value, str):
+                        try:
+                            value = json.loads(value)
+                        except json.JSONDecodeError:
+                            pass
+
+                    meta[key] = value
+                return meta
+            return {}
+        except (ValueError, KeyError):
+            return {}
+
+    def get_crs(self) -> dict:
+        try:
+            df = self.sheets["crs"]
+            if not df.empty:
+                # Assuming first column is keys and second column is values
+                return dict(zip(df.iloc[:, 0], df.iloc[:, 1]))
+            return {}
+        except (ValueError, KeyError):
+            return {}
+
+    def get_snapshots(self) -> pd.Index:
+        try:
+            df = self.sheets["snapshots"]
+            df = df.set_index(df.columns[0])
+            # backwards-compatibility: level "snapshot" was rename to "timestep"
+            if "snapshot" in df:
+                df["snapshot"] = pd.to_datetime(df.snapshot)
+            if "timestep" in df:
+                df["timestep"] = pd.to_datetime(df.timestep)
+            return df
+        except (ValueError, KeyError):
+            return None
+
+    def get_investment_periods(self) -> pd.Series:
+        try:
+            df = self.sheets["investment_periods"]
+            df = df.set_index(df.columns[0])
+            return df
+
+        except (ValueError, KeyError):
+            return None
+
+    def get_static(self, list_name: str) -> pd.DataFrame:
+        try:
+            df = self.sheets[list_name]
+            df = df.set_index(df.columns[0])
+            return df
+        except (ValueError, KeyError):
+            return None
+
+    def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        for sheet_name, df in self.sheets.items():
+            if sheet_name.startswith(list_name + "-"):
+                attr = sheet_name[len(list_name) + 1 :]
+                df = df.set_index(df.columns[0])
+                yield attr, df
+
+
+class ExporterExcel(Exporter):
+    def __init__(self, excel_file_path: Path | str, engine: str = "openpyxl") -> None:
+        if engine == "openpyxl":
+            check_optional_dependency(
+                "openpyxl",
+                "Missing optional dependencies to use Excel files. Install them via "
+                "`pip install pypsa[excel]`. If you passed any other engine, "
+                "make sure it is installed.",
+            )
+        self.engine = engine
+        self.excel_file_path = Path(excel_file_path)
+        # Create an empty Excel file if it doesn't exist
+        if not self.excel_file_path.exists():
+            logger.warning(f"Excel file {excel_file_path} does not exist, creating it")
+            with pd.ExcelWriter(self.excel_file_path, engine=self.engine) as writer:
+                pd.DataFrame().to_excel(writer, sheet_name="_temp")
+
+        # Keep track of sheets to avoid overwriting
+        self._writer = None
+
+    @property
+    def writer(self) -> pd.ExcelWriter:
+        if self._writer is None:
+            self._writer = pd.ExcelWriter(
+                self.excel_file_path,
+                engine=self.engine,
+                mode="a" if self.excel_file_path.exists() else "w",
+                if_sheet_exists="replace",
+            )
+        return self._writer
+
+    def save_attributes(self, attrs: dict) -> None:
+        name = attrs.pop("name")
+        df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
+        df.to_excel(self.writer, sheet_name="network")
+
+    def save_meta(self, meta: dict) -> None:
+        # Convert meta dictionary to DataFrame with proper handling of nested dicts
+        meta_items = []
+        for key, value in meta.items():
+            # If value is a dict, serialize it as JSON
+            if isinstance(value, dict):
+                value = json.dumps(value)
+            meta_items.append([key, value])
+
+        df = pd.DataFrame(meta_items, columns=["Key", "Value"])
+        df.to_excel(self.writer, sheet_name="meta", index=False)
+
+    def save_crs(self, crs: dict) -> None:
+        # Convert crs dictionary to DataFrame
+        df = pd.DataFrame(list(crs.items()), columns=["Key", "Value"])
+        df.to_excel(self.writer, sheet_name="crs", index=False)
+
+    def save_snapshots(self, snapshots: pd.Index) -> None:
+        snapshots.to_excel(self.writer, sheet_name="snapshots")
+
+    def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        investment_periods.to_excel(self.writer, sheet_name="investment_periods")
+
+    def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        df.to_excel(self.writer, sheet_name=list_name)
+
+    def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        sheet_name = f"{list_name}-{attr}"
+        df.to_excel(self.writer, sheet_name=sheet_name)
+
+    def remove_static(self, list_name: str) -> None:
+        if list_name in self.writer.book.sheetnames:
+            del self.writer.book[list_name]
+            logger.warning(f"Stale sheet {list_name} removed")
+
+    def remove_series(self, list_name: str, attr: str) -> None:
+        sheet_name = f"{list_name}-{attr}"
+        if sheet_name in self.writer.book.sheetnames:
+            del self.writer.book[sheet_name]
+            logger.warning(f"Stale sheet {sheet_name} removed")
+
+    def finish(self) -> None:
+        # Remove temp sheet if it exists
+        if "_temp" in self.writer.book.sheetnames:
+            del self.writer.book["_temp"]
+        # Close writer
+        if self.writer is not None:
+            self.writer.close()
 
 
 class ImporterHDF5(Importer):
@@ -260,7 +465,7 @@ class ImporterHDF5(Importer):
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
-            self.ds = pd.HDFStore(path, mode="r")
+            self.ds = pd.HDFStore(Path(path), mode="r")
         self.index: dict = {}
 
     def get_attributes(self) -> dict:
@@ -366,7 +571,7 @@ class ImporterNetCDF(Importer):
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
                 path = _retrieve_from_url(str(path))
-            self.ds = xr.open_dataset(path)
+            self.ds = xr.open_dataset(Path(path))
         else:
             self.ds = path
 
@@ -496,6 +701,7 @@ def _export_to_exporter(
     n: Network,
     exporter: Exporter,
     basename: str | None = None,
+    quotechar: str = '"',
     export_standard_types: bool = False,
 ) -> None:
     """
@@ -630,6 +836,7 @@ def import_from_csv_folder(
     n: Network,
     csv_folder_name: str | Path,
     encoding: str | None = None,
+    quotechar: str = '"',
     skip_time: bool = False,
 ) -> None:
     """
@@ -645,6 +852,9 @@ def import_from_csv_folder(
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    quotechar : str, default '"'
+        String of length 1. Character used to denote the start and end of a
+        quoted item. Quoted items can include "," and it will be ignored
     skip_time : bool, default False
         Skip reading in time dependent attributes
 
@@ -653,7 +863,9 @@ def import_from_csv_folder(
     >>> n.import_from_csv_folder(csv_folder_name) # doctest: +SKIP
     """
     basename = Path(csv_folder_name).name
-    with ImporterCSV(csv_folder_name, encoding=encoding) as importer:
+    with ImporterCSV(
+        csv_folder_name, encoding=encoding, quotechar=quotechar
+    ) as importer:
         _import_from_importer(n, importer, basename=basename, skip_time=skip_time)
 
 
@@ -662,6 +874,7 @@ def export_to_csv_folder(
     n: Network,
     csv_folder_name: str,
     encoding: str | None = None,
+    quotechar: str = '"',
     export_standard_types: bool = False,
 ) -> None:
     """
@@ -688,6 +901,8 @@ def export_to_csv_folder(
         Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
         standard encodings
         <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+    quotechar : str, default '"'
+        String of length 1. Character used to quote fields.
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the network).
@@ -695,10 +910,103 @@ def export_to_csv_folder(
     Examples
     --------
     >>> n.export_to_csv_folder(csv_folder_name) # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_netcdf : Export to a netCDF file
+    export_to_hdf5 : Export to an HDF5 file
+    export_to_excel : Export to an Excel file
     """
 
     basename = os.path.basename(csv_folder_name)
-    with ExporterCSV(csv_folder_name=csv_folder_name, encoding=encoding) as exporter:
+    with ExporterCSV(
+        csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
+    ) as exporter:
+        _export_to_exporter(
+            n,
+            exporter,
+            basename=basename,
+            export_standard_types=export_standard_types,
+        )
+
+
+@deprecated_common_kwargs
+def import_from_excel(
+    n: Network,
+    excel_file_path: str | Path,
+    skip_time: bool = False,
+    engine: str = "calamine",
+) -> None:
+    """
+    Import network data from an Excel file.
+    The Excel file must follow the standard form with appropriate sheets.
+
+    Parameters
+    ----------
+    excel_file_path : string or Path
+        Path to the Excel file
+    skip_time : bool, default False
+        Skip reading in time dependent attributes
+    engine : string, default "calamine"
+        The engine to use for reading the Excel file. See `pandas.read_excel
+        <https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html>`_
+
+    Examples
+    --------
+    >>> n.import_from_excel(excel_file_path) # doctest: +SKIP
+    """
+    basename = Path(excel_file_path).stem
+    with ImporterExcel(excel_file_path, engine=engine) as importer:
+        _import_from_importer(n, importer, basename=basename, skip_time=skip_time)
+
+
+@deprecated_common_kwargs
+def export_to_excel(
+    n: Network,
+    excel_file_path: str | Path,
+    export_standard_types: bool = False,
+    engine: str = "openpyxl",
+) -> None:
+    """
+    Export network and components to an Excel file.
+
+    It is recommended to only use the Excel format if needed and for small networks.
+    Excel files are not as efficient as other formats and can be slow to read/write.
+
+    Both static and series attributes of all components are exported, but only
+    if they have non-default values.
+
+    If ``excel_file_path`` does not already exist, it is created.
+
+    Static attributes are exported in one sheet per component,
+    e.g. a sheet named ``generators``.
+
+    Series attributes are exported in one sheet per component per
+    attribute, e.g. a sheet named ``generators-p_set``.
+
+    Parameters
+    ----------
+    excel_file_path : string or Path
+        Path to the Excel file to which to export.
+    export_standard_types : boolean, default False
+        If True, then standard types are exported too (upon reimporting you
+        should then set "ignore_standard_types" when initialising the network).
+    engine : string, default "openpyxl"
+        The engine to use for writing the Excel file. See `pandas.ExcelWriter
+        <https://pandas.pydata.org/docs/reference/api/pandas.ExcelWriter.html>`_
+
+    Examples
+    --------
+    >>> n.export_to_excel(excel_file_path) # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_netcdf : Export to a netCDF file
+    export_to_hdf5 : Export to an HDF5 file
+    export_to_csv_folder : Export to a folder of CSVs
+    """
+    basename = Path(excel_file_path).stem
+    with ExporterExcel(excel_file_path, engine=engine) as exporter:
         _export_to_exporter(
             n,
             exporter,
@@ -756,6 +1064,12 @@ def export_to_hdf5(
     Examples
     --------
     >>> n.export_to_hdf5(filename) # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_netcdf : Export to a netCDF file
+    export_to_csv_folder : Export to a folder of CSVs
+    export_to_excel : Export to an Excel file
     """
     kwargs.setdefault("complevel", 4)
 
@@ -839,6 +1153,12 @@ def export_to_netcdf(
     >>> import pypsa
     >>> n = pypsa.examples.ac_dc_meshed()
     >>> n.export_to_netcdf("my_file.nc") # doctest: +SKIP
+
+    See Also
+    --------
+    export_to_hdf5 : Export to an HDF5 file
+    export_to_csv_folder : Export to a folder of CSVs
+    export_to_excel : Export to an Excel file
 
     """
     basename = os.path.basename(path) if path is not None else None

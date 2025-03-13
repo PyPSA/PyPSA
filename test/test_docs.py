@@ -1,6 +1,7 @@
 import doctest
 import importlib
 import pkgutil
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -32,12 +33,13 @@ def test_sphinx_build(pytestconfig):
     # List of warnings to ignore during the build
     # (Warning message, number of subsequent lines to ignore)
     warnings_to_ignore = [
-        ("WARNING: cannot cache unpickable", 0),
-        ("DeprecationWarning: Jupyter is migrating its paths", 5),
-        ("RemovedInSphinx90Warning", 1),
-        ("DeprecationWarning: nodes.reprunicode", 1),
-        ("DeprecationWarning: The `docutils.utils.error_reporting` module is", 2),
-        ("UserWarning: resource_tracker", 1),
+        (r"WARNING: cannot cache unpickable", 0),
+        (r"DeprecationWarning: Jupyter is migrating its paths", 5),
+        (r"RemovedInSphinx90Warning", 1),
+        (r"DeprecationWarning: nodes.reprunicode", 1),
+        (r"DeprecationWarning: The `docutils.utils.error_reporting` module is", 2),
+        (r"UserWarning: resource_tracker", 1),
+        (r"WARNING: The the file [^ ]+ couldn't be copied\. Error:", 1),
     ]
 
     shutil.rmtree(build_dir, ignore_errors=True)
@@ -71,7 +73,7 @@ def test_sphinx_build(pytestconfig):
         while i < len(lines):
             # Check if the line contains any of the warnings to ignore
             for warning, ignore_lines in warnings_to_ignore:
-                if warning in lines[i]:
+                if re.search(warning, lines[i]):
                     # Skip current line and specified number of subsequent lines
                     i += ignore_lines + 1
                     break

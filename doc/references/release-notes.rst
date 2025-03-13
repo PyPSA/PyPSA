@@ -2,14 +2,81 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
+
+Features
+--------
+
+* New supported file formats for import and export: Excel
+
+  * Use :meth:`n.import_from_excel <pypsa.io.import_from_excel>` and 
+    :meth:`n.export_to_excel <pypsa.io.export_to_excel>` to import and export Networks
+    from and to Excel files.
+     
+  * `openpyxl` and `python-calamine` are required dependencies for this feature, but
+    different engines can be passed. By default they are not installed, but can be
+    installed via ``pip install pypsa[excel]``.
+
+
+* All statistics functions now interpret the bus_carrier argument as a regular 
+  expression (regex), enabling more flexible filtering options. 
+  (https://github.com/PyPSA/PyPSA/pull/1155)
+
+
+`v0.33.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2>`__ (12th March 2025)
+=======================================================================================
+
+Bug fixes
+---------
+
+* **Regression hotfix**: Fixed a critical bug in statistics functions for 
+  multi-investment networks where built years and lifetimes were not being correctly 
+  considered. In version ``v0.32.0``, only components active in the first time period were
+  being included in statistics calculations. The fix ensures all components are properly
+  represented according to their respective built years and lifetimes across all 
+  investment periods. This issue was patched in version ``0.33.2``. We also backported the 
+  fix to version ``0.32.2``. (https://github.com/PyPSA/PyPSA/pull/1172)
+
+* The expressions function `n.optimize.expressions.capacity` now uses the absolute 
+  efficiency to calculate the capacity at link ports, unless a `bus_carrier` is defined
+  or `at_port` is set to True. This is in line with the behavior of the statistics 
+  functions (`statistics.installed_capacity`, `statistics.optimal_capacity`). 
+  Before, the efficiency was allowed to be negative, which lead to inconsistent results.
+
+
+`v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.1>`__ (3rd March 2025)
+=======================================================================================
+
+Minor improvements
+------------------
+
+* Added a ``quotechar`` parameter to :func:`io.import_from_csv_folder` and
+  :func:`io.export_to_csv_folder` to handle non-standard field quoting in CSV
+  import/export, aligning with :func:`pandas.read_csv` and
+  :func:`pandas.to_csv`. (https://github.com/PyPSA/PyPSA/pull/1143)
+
+Bug fixes
+---------
+
+* `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without 
+  extra cloud storage provider client libraries, these will be left to the user to 
+  install. (https://github.com/PyPSA/PyPSA/pull/1139)
+
+* :func:`import_from_netcdf` and :func:`import_from_hdf5` now work when a URI is
+  passed as a string instead of a CloudPath object.
+  (https://github.com/PyPSA/PyPSA/pull/1139)
+
+* Linearized unit commitment with equal startup and shutdown costs.
+  (https://github.com/PyPSA/PyPSA/pull/1157)
+
+* Fix pandas dtype warning. (https://github.com/PyPSA/PyPSA/pull/1151)
 
 `v0.33.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (7th February 2025)
 =======================================================================================
@@ -83,6 +150,9 @@ Features
   will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
   https://github.com/PyPSA/PyPSA/pull/1112)
 
+* New example in the documentation showing how to implement reserve power constraints.
+  (https://github.com/PyPSA/PyPSA/pull/1133)
+
 * Doctests are now run with the unit tests. They allow to test the documentation 
   examples, which will improve the quality of docstrings and documentation in future 
   releases. (https://github.com/PyPSA/PyPSA/pull/1114)
@@ -94,6 +164,19 @@ Bug fixes
   in the function it self. A kwargs check has been added for providing a own threshold.
   E.g., get_strongly_meshed_buses (network, threshold=10)
 
+
+`v0.32.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.2>`__ (12th March 2025)
+=======================================================================================
+
+Bug fixes
+---------
+
+* Backported from version ``v0.33.2``: Fixed a critical bug in statistics functions for 
+  multi-investment networks where built years and lifetimes were not being correctly 
+  considered. In version ``v0.32.0``, only components active in the first time period were
+  being included in statistics calculations. The fix ensures all components are properly
+  represented according to their respective built years and lifetimes across all 
+  investment periods. (https://github.com/PyPSA/PyPSA/pull/1172)
 
 `v0.32.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1>`__ (23th Januarary 2025)
 =======================================================================================
@@ -2234,4 +2317,3 @@ Release process
   `zenodo <https://zenodo.org/>`_ to archive the release with its own DOI.
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Inform the PyPSA mailing list.

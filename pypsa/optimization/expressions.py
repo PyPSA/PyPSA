@@ -220,6 +220,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 query = f"~{nominal_attrs[c]}_extendable"
                 capacity = capacity + n.df(c).query(query)["p_nom"]
             efficiency = port_efficiency(n, c, port=port)[capacity.indexes[c]]
+            if not at_port:
+                efficiency = abs(efficiency)
             res = capacity * efficiency
             if storage and (c == "StorageUnit"):
                 res = res * n.df(c).max_hours

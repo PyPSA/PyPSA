@@ -59,6 +59,8 @@ Input and output methods
     ~pypsa.Network.merge
     ~pypsa.Network.import_from_csv_folder
     ~pypsa.Network.export_to_csv_folder
+    ~pypsa.Network.import_from_excel
+    ~pypsa.Network.export_to_excel
     ~pypsa.Network.import_from_hdf5
     ~pypsa.Network.export_to_hdf5
     ~pypsa.Network.import_from_netcdf
