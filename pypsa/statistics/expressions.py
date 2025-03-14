@@ -835,7 +835,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
         Calculate the ongoing operational costs.
 
-        Takes into account various operational parameters and theur costs, measured in
+        Takes into account various operational parameters and their costs, measured in
         the specified currency.
 
         Parameters
