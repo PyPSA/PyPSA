@@ -499,8 +499,6 @@ class StatisticsPlotter:
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig, ax = n.plot.installed_capacity.map(geomap=True, title="Installed Capacity")
-        >>> fig.show()  # doctest: +ELLIPSIS
-        <Figure size ... with 1 Axes>
         """
         plot_kwargs = {
             "ax": ax,
