@@ -86,9 +86,6 @@ connect to hydrogen (H2) buses:
 
     >>> n.statistics.opex(comps=["Link"], bus_carrier="H2")
 
-Similarly, to calculate the operational expenditure for all Link components, which 
-attend to the hydrogen (H2) bus:
-
 Statistic groupers
 ===================
 
