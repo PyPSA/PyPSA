@@ -187,7 +187,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             if legend_representatives:
                 if bus_split_circles:
                     add_legend_semicircles(
-                        self.ax,
+                        self.ax,  # type: ignore
                         [
                             s * bus_size_scaling_factor
                             for s, label in legend_representatives
@@ -202,7 +202,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                     )
                 else:
                     add_legend_circles(
-                        self.ax,
+                        self.ax,  # type: ignore
                         [
                             s * bus_size_scaling_factor
                             for s, label in legend_representatives
@@ -228,7 +228,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
             if legend_representatives:
                 add_legend_arrows(
-                    self.ax,
+                    self.ax,  # type: ignore
                     [
                         s * branch_flow_scaling_factor
                         for s, label in legend_representatives
@@ -254,7 +254,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
             if legend_representatives:
                 add_legend_lines(
-                    self.ax,
+                    self.ax,  # type: ignore
                     [
                         s * branch_widths_scaling_factor
                         for s, label in legend_representatives
@@ -275,7 +275,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             labels = labels.where(labels != "", carriers)
 
             add_legend_patches(
-                self.ax,
+                self.ax,  # type: ignore
                 colors=colors,
                 labels=labels,
                 legend_kw={
