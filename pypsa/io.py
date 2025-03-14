@@ -1150,8 +1150,6 @@ def export_to_netcdf(
 
     Examples
     --------
-    >>> import pypsa
-    >>> n = pypsa.examples.ac_dc_meshed()
     >>> n.export_to_netcdf("my_file.nc") # doctest: +SKIP
 
     See Also
@@ -1887,7 +1885,7 @@ def import_from_pandapower_net(
     --------
     >>> n.import_from_pandapower_net(net) # doctest: +SKIP
     OR
-    >>> import pypsa
+
     >>> import pandapower as pp # doctest: +SKIP
     >>> import pandapower.networks as pn # doctest: +SKIP
     >>> net = pn.create_cigre_network_mv(with_der='all') # doctest: +SKIP

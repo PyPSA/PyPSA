@@ -129,8 +129,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> str(n.components.generators)
         "PyPSA 'Generator' Components"
 
@@ -148,8 +146,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c = n.components.generators
         >>> c
         PyPSA 'Generator' Components
         ----------------------------
@@ -301,8 +298,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.name
         'Generator'
 
@@ -327,8 +322,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.list_name
         'generators'
 
@@ -353,8 +346,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.description
         'Power generator.'
 
@@ -379,8 +370,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.category
         'controllable_one_port'
 
@@ -458,8 +447,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.defaults.head() # doctest: +SKIP
                      type unit default                                        description            status  static  varying              typ    dtype
         attribute
@@ -508,8 +495,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.attached
         True
 
@@ -571,8 +556,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c = n.components.generators
         >>> c.units.head() # doctest: +SKIP
                        unit
         attribute
@@ -597,8 +581,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.lines
+        >>> c = n.components.lines
         >>> c.ports
         ['0', '1']
 
@@ -617,8 +600,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c = n.components.generators
         >>> c.nominal_attr
         'p_nom'
 
@@ -658,7 +640,7 @@ class Components(ComponentsData, ABC):
         Examples
         --------
         Define some network
-        >>> import pypsa
+
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
         Index(['bus1'], dtype='object')

@@ -1,6 +1,4 @@
-"""
-Statistics Accessor.
-"""
+"""Statistics Accessor."""
 
 from __future__ import annotations
 
@@ -34,6 +32,7 @@ class Parameters:
     Methods
     -------
         set_parameters(**kwargs): Sets the values of the parameters based on the provided keyword arguments.
+
     """
 
     PARAMETER_TYPES = {
@@ -42,18 +41,18 @@ class Parameters:
         "round": int,
     }
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa
         self.drop_zero = True
         self.nice_names = True
         self.round = 5
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa
         param_str = ", ".join(
             f"{key}={getattr(self, key)}" for key in self.PARAMETER_TYPES
         )
         return f"Parameters({param_str})"
 
-    def set_parameters(self, **kwargs: Any) -> None:
+    def set_parameters(self, **kwargs: Any) -> None:  # noqa
         for key, value in kwargs.items():
             expected_type = self.PARAMETER_TYPES.get(key)
             if expected_type is None:
@@ -69,11 +68,10 @@ class Parameters:
 
 
 class AbstractStatisticsAccessor(ABC):
-    """
-    Abstract accessor to calculate different statistical values.
-    """
+    """Abstract accessor to calculate different statistical values."""
 
     def __init__(self, n: Network) -> None:
+        """Initialize the statistics accessor."""
         self.n = n
         self.groupers = deprecated_groupers
         self.parameters = Parameters()
@@ -110,15 +108,23 @@ class AbstractStatisticsAccessor(ABC):
 
     @property
     def is_multi_indexed(self) -> bool:
+        """
+        Check if the snapshots are multi-indexed.
+
+        Returns
+        -------
+        bool
+            True if the snapshots are multi-indexed, False otherwise.
+
+        """
+        # TODO could be moved to Network
         return isinstance(self.n.snapshots, pd.MultiIndex)
 
     @classmethod
     def _aggregate_timeseries(
         cls, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
     ) -> Any:
-        """
-        Calculate the weighted sum or average of a DataFrame or Series.
-        """
+        """Calculate the weighted sum or average of a DataFrame or Series."""
         if not agg:
             return obj.T if isinstance(obj, pd.DataFrame) else obj
 
@@ -171,9 +177,7 @@ class AbstractStatisticsAccessor(ABC):
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
     ) -> pd.Series | pd.DataFrame:
-        """
-        Apply a function and group the result for a collection of components.
-        """
+        """Apply a function and group the result for a collection of components."""
         d = {}
         n = self.n
 
@@ -237,9 +241,7 @@ class AbstractStatisticsAccessor(ABC):
         return False
 
     def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
-        """
-        For static values iterate over periods and concat values.
-        """
+        """For static values iterate over periods and concat values."""
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
         idx = self._get_component_index(obj, c)
@@ -262,10 +264,7 @@ class AbstractStatisticsAccessor(ABC):
         bus_carrier: str | Sequence[str] | None,
         obj: Any,
     ) -> Any:
-        """
-        Filter the DataFrame for components which are connected to a bus with
-        carrier `bus_carrier`.
-        """
+        """Filter for components which are connected to bus with `bus_carrier`."""
         if bus_carrier is None:
             return obj
 
