@@ -146,7 +146,6 @@ def get_option(option_name: str) -> Any:
 
     Examples
     --------
-    >>> import pypsa
     >>> pypsa.get_option("warnings.components_store_iter")
     True
 
@@ -185,7 +184,6 @@ def set_option(option_name: str, value: Any) -> None:
 
     Examples
     --------
-    >>> import pypsa
     >>> pypsa.set_option("warnings.components_store_iter", False)
 
     or
@@ -212,7 +210,6 @@ def describe_options() -> None:
 
     Examples
     --------
-    >>> import pypsa
     >>> pypsa.describe_options()
     PyPSA Options
     =============
@@ -246,7 +243,6 @@ def option_context(*args: Any) -> Generator[None, None, None]:
 
     Examples
     --------
-    >>> import pypsa
     >>> with pypsa.option_context("warnings.components_store_iter", False):
     ...     # do something with temporary option value
     ...     print(pypsa.get_option("warnings.components_store_iter"))

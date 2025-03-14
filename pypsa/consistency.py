@@ -764,12 +764,6 @@ def consistency_check(
     ------
     ConsistencyError : If any of the checks fail and strict mode is activated.
 
-    Examples
-    --------
-    >>> import pypsa
-    >>> n = pypsa.examples.ac_dc_meshed()
-    >>> n.consistency_check()
-
     See Also
     --------
     pypsa.consistency.check_for_unknown_buses : Check if buses are attached to
