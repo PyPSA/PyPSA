@@ -52,7 +52,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         """
         return {}
 
-    def _plot_statistics(
+    def plot(
         self,
         func: Callable,
         bus_carrier: str | None = None,
@@ -77,7 +77,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
         bus_split_circles: bool = False,
-        stats_kwargs: dict = {},
+        stats_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes]:
         """
@@ -101,7 +101,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             carrier=list(non_transmission_carriers),
             nice_names=False,
             aggregate_across_components=True,
-            **stats_kwargs,
+            **(stats_kwargs or {}),
         )
 
         # Calculate scaling factors for visual elements
@@ -129,6 +129,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 groupby=False,
                 carrier=list(trans_carriers),
                 nice_names=False,
+                **(stats_kwargs or {}),
             )
             branch_widths_scaling_factor = self.scaling_factor_from_area_contribution(
                 branch_widths, x_min, x_max, y_min, y_max, branch_area_fraction

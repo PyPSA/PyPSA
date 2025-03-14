@@ -53,9 +53,7 @@ class StatisticsPlotter:
         chart_type: str,
         plotter_class: type,
         plot_kwargs: dict,
-        carrier: Sequence[str] | str | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
-        storage: bool | None = None,
+        stats_kwargs: dict,
         **kwargs: Any,
     ) -> so.Plot:
         """
@@ -69,12 +67,8 @@ class StatisticsPlotter:
             The plotter class to instantiate
         plot_kwargs : dict
             Dictionary of plotting parameters
-        carrier : Sequence[str] | str | None
-            Filter by carrier of components
-        bus_carrier : Sequence[str] | str | None
-            Filter by carrier of connected buses
-        storage : bool | None
-            Whether to include storage components
+        stats_kwargs : dict
+            Dictionary of parameters for the statistics function
         **kwargs : Any
             Additional keyword arguments for the plot function
 
@@ -92,7 +86,7 @@ class StatisticsPlotter:
         )
 
         # Derive base statistics kwargs
-        stats_kwargs = plotter.derive_statistic_parameters(
+        base_stats_kwargs = plotter.derive_statistic_parameters(
             plot_kwargs["x"],
             plot_kwargs["y"],
             plot_kwargs["color"],
@@ -102,11 +96,7 @@ class StatisticsPlotter:
         )
 
         # Add provided kwargs
-        stats_kwargs.update(
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-            storage=storage,
-        )
+        stats_kwargs.update(base_stats_kwargs)
 
         # Apply schema to statistics kwargs
         stats_kwargs = plotter.apply_parameter_schema(
@@ -204,13 +194,16 @@ class StatisticsPlotter:
             "query": query,
             "nice_names": nice_names,
         }
+        stats_kwargs = {
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "storage": storage,
+        }
         return self._chart(
             "bar",
             BarPlotGenerator,
             plot_kwargs,
-            carrier,
-            bus_carrier,
-            storage,
+            stats_kwargs,
             **kwargs,
         )
 
@@ -298,13 +291,16 @@ class StatisticsPlotter:
             "query": query,
             "nice_names": nice_names,
         }
+        stats_kwargs = {
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "storage": storage,
+        }
         return self._chart(
             "line",
             LinePlotGenerator,
             plot_kwargs,
-            carrier,
-            bus_carrier,
-            storage,
+            stats_kwargs,
             **kwargs,
         )
 
@@ -396,13 +392,16 @@ class StatisticsPlotter:
             "query": query,
             "nice_names": nice_names,
         }
+        stats_kwargs = {
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "storage": storage,
+        }
         return self._chart(
             "area",
             AreaPlotGenerator,
             plot_kwargs,
-            carrier,
-            bus_carrier,
-            storage,
+            stats_kwargs,
             **kwargs,
         )
 
@@ -430,6 +429,7 @@ class StatisticsPlotter:
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
         bus_split_circles: bool | None = None,
+        storage: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes]:
         """
@@ -486,6 +486,10 @@ class StatisticsPlotter:
             Additional keyword arguments for the patches legend.
         bus_split_circles : bool, optional
             Whether to draw half circles for positive/negative values.
+        storage : bool, optional
+            Whether to show storage capacity in capacity plots. Only valid when
+            chosen statistics function supports it (e.g. `optimal_capacity`,
+            `installed_capacity`).
         **kwargs :
             Additional keyword arguments passed to the MapPlotGenerator.draw_map method.
 
@@ -532,11 +536,16 @@ class StatisticsPlotter:
         plot_kwargs = plotter.apply_parameter_schema(stats_name, "map", plot_kwargs)
 
         # Apply schema to statistics kwargs
-        plot_kwargs["stats_kwargs"] = plotter.apply_parameter_schema(
-            stats_name, "map", {}
+        stats_kwargs = plotter.apply_parameter_schema(
+            stats_name, "map", {"storage": storage}
         )
 
-        return plotter._plot_statistics(func=self._stats_func, **plot_kwargs, **kwargs)
+        # Note that instead of passing the data to the plotter, we pass the
+        # statistics function. This gives the map plotter the ability to
+        # determine the data for buses and branches itself.
+        return plotter.plot(
+            func=self._stats_func, **plot_kwargs, stats_kwargs=stats_kwargs, **kwargs
+        )
 
 
 def _register_plotters(cls: type[PlotAccessor]) -> type[PlotAccessor]:
