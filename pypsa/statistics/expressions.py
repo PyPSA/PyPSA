@@ -1183,7 +1183,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         This method computes the energy balance across various network components, where
         positive values represent supply and negative values represent withdrawal. Units
-        depend on the regarded bus carrier.
+        are inherited from the respective bus carriers.
 
         Parameters
         ----------
