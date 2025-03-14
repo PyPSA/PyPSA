@@ -80,7 +80,7 @@ you can use:
     >>> n.statistics.capex(aggregate_groups='sum')
 
 Similarly, to calculate the operational expenditure for all Link components, which 
-attend to the hydrogen (H2) bus:
+connect to hydrogen (H2) buses:
 
 .. doctest::
 
