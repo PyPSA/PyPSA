@@ -430,11 +430,8 @@ class StatisticsPlotter:
         legend_arrows_kw: dict | None = None,
         legend_patches_kw: dict | None = None,
         bus_split_circles: bool | None = None,
-        kind: str | None = None,
-        stats_kwargs: dict | None = None,
-        # TODO: Additional stat kwargs needed?
         **kwargs: Any,
-    ) -> tuple[Figure, Axes]:  # Store locals to pass same signature to plotter
+    ) -> tuple[Figure, Axes]:
         """
         Plot statistics on a geographic map.
 
@@ -489,8 +486,6 @@ class StatisticsPlotter:
             Additional keyword arguments for the patches legend.
         bus_split_circles : bool, optional
             Whether to draw half circles for positive/negative values.
-        stats_kwargs : dict, optional
-            Additional keyword arguments for the statistics function.
         **kwargs :
             Additional keyword arguments passed to the MapPlotGenerator.draw_map method.
 
@@ -503,11 +498,9 @@ class StatisticsPlotter:
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> fig, ax = n.plot.installed_capacity.map(geomap=True, title="Installed Capacity") # doctest: +ELLIPSIS
-        >>> isinstance(fig, matplotlib.figure.Figure)
-        True
-        >>> isinstance(ax, matplotlib.axes.Axes)
-        True
+        >>> fig, ax = n.plot.installed_capacity.map(geomap=True, title="Installed Capacity")
+        >>> fig.show()  # doctest: +ELLIPSIS
+        <Figure size ... with 1 Axes>
         """
         plot_kwargs = {
             "ax": ax,
@@ -542,7 +535,7 @@ class StatisticsPlotter:
 
         # Apply schema to statistics kwargs
         plot_kwargs["stats_kwargs"] = plotter.apply_parameter_schema(
-            stats_name, "map", stats_kwargs or {}
+            stats_name, "map", {}
         )
 
         return plotter._plot_statistics(func=self._stats_func, **plot_kwargs, **kwargs)
