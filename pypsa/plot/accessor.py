@@ -96,8 +96,8 @@ class StatisticsPlotter:
             plot_kwargs["x"],
             plot_kwargs["y"],
             plot_kwargs["color"],
-            plot_kwargs["col"],
-            plot_kwargs["row"],
+            plot_kwargs["facet_col"],
+            plot_kwargs["facet_row"],
             method_name=self._stats_func.__name__,
         )
 
@@ -122,8 +122,8 @@ class StatisticsPlotter:
         x: str | None = None,
         y: str = "value",
         color: str | None = "carrier",
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         stacked: bool = False,
         dodged: bool = False,
         query: str | None = None,
@@ -148,10 +148,10 @@ class StatisticsPlotter:
             Data to show on y-axis. E.g. "value".
         color : str | None, default: "carrier"
             Data to show as color. Pass None to disable color mapping.
-        col : str | None, default: None
+        facet_col : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
             :class:`seaborn.objects.Plot.facet` for more information.
-        row : str | None, default: None
+        facet_row : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
             :class:`seaborn.objects.Plot.facet` for more information.
         stacked : bool, default: False
@@ -197,8 +197,8 @@ class StatisticsPlotter:
             "x": x,
             "y": y,
             "color": color,
-            "col": col,
-            "row": row,
+            "facet_col": facet_col,
+            "facet_row": facet_row,
             "stacked": stacked,
             "dodged": dodged,
             "query": query,
@@ -219,8 +219,8 @@ class StatisticsPlotter:
         x: str | None = None,
         y: str = "value",
         color: str | None = "carrier",
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         resample: str | None = None,
         query: str | None = None,
         nice_names: bool = True,
@@ -243,10 +243,10 @@ class StatisticsPlotter:
         y : str, default: "value"
             Data to show on y-axis. E.g. "value".
             Data to show as color. Pass None to disable color mapping.
-        col : str | None, default: None
+        facet_col : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
             :class:`seaborn.objects.Plot.facet` for more information.
-        row : str | None, default: None
+        facet_row : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
             :class:`seaborn.objects.Plot.facet` for more information.
         resample : str | None, default: None
@@ -292,8 +292,8 @@ class StatisticsPlotter:
             "x": x,
             "y": y,
             "color": color,
-            "col": col,
-            "row": row,
+            "facet_col": facet_col,
+            "facet_row": facet_row,
             "resample": resample,
             "query": query,
             "nice_names": nice_names,
@@ -313,8 +313,8 @@ class StatisticsPlotter:
         x: str | None = None,
         y: str = "value",
         color: str | None = None,
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         stacked: bool = False,
         dodged: bool = False,
         query: str | None = None,
@@ -339,10 +339,10 @@ class StatisticsPlotter:
             Data to show on y-axis. E.g. "value".
         color : str | None, default: "carrier"
             Data to show as color. Pass None to disable color mapping.
-        col : str | None, default: None
+        facet_col : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
             :class:`seaborn.objects.Plot.facet` for more information.
-        row : str | None, default: None
+        facet_row : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
             :class:`seaborn.objects.Plot.facet` for more information.
         stacked : bool, default: False
@@ -389,8 +389,8 @@ class StatisticsPlotter:
             "x": x,
             "y": y,
             "color": color,
-            "col": col,
-            "row": row,
+            "facet_col": facet_col,
+            "facet_row": facet_row,
             "stacked": stacked,
             "dodged": dodged,
             "query": query,

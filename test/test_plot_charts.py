@@ -112,7 +112,7 @@ def test_base_plot_faceting(ac_dc_network_r):
         .set_index(["carrier", "region"])
         .value
     )
-    plot = plotter._base_plot(data, x="carrier", y="value", col="region")
+    plot = plotter._base_plot(data, x="carrier", y="value", facet_col="region")
     assert isinstance(plot, so.Plot)
     assert plot._facet_spec is not None
 

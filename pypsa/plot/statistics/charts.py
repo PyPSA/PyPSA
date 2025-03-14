@@ -28,8 +28,8 @@ class ChartGenerator(PlotsGenerator, ABC):
         x: str = "carrier",
         y: str = "value",
         color: str | None = None,
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         nice_names: bool = True,
         resample: str | None = None,
         query: str | None = None,
@@ -137,8 +137,8 @@ class ChartGenerator(PlotsGenerator, ABC):
         x: str,
         y: str,
         color: str | None = None,
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         stacked: bool = False,
         nice_names: bool = True,
         query: str | None = None,
@@ -163,12 +163,12 @@ class ChartGenerator(PlotsGenerator, ABC):
                 labels = self._get_carrier_labels(nice_names=nice_names)
                 plot = plot.scale(labels=so.Nominal(labels))
 
-        # Apply faceting if col/row specified
-        if col is not None:
-            plot = plot.facet(col=col)
-        if row is not None:
-            plot = plot.facet(row=row)
-        if col is not None or row is not None:
+        # Apply faceting if facet_col/facet_row specified
+        if facet_col is not None:
+            plot = plot.facet(col=facet_col)
+        if facet_row is not None:
+            plot = plot.facet(row=facet_row)
+        if facet_col is not None or facet_row is not None:
             plot = plot.share(x=False, y=False)
 
         return plot
@@ -184,7 +184,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         Parameters
         ----------
         *args : tuple of (str | None)
-            Arguments representing x, y, color, col, row parameters
+            Arguments representing x, y, color, facet_col, facet_row parameters
         method_name : str, optional
             Name of the statistics function to allow for specific rules
 
@@ -243,8 +243,8 @@ class BarPlotGenerator(ChartGenerator):
         x: str,
         y: str,
         color: str | None = None,
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         nice_names: bool = True,
         stacked: bool = False,
         dodged: bool = False,
@@ -257,8 +257,8 @@ class BarPlotGenerator(ChartGenerator):
             x=x,
             y=y,
             color=color,
-            col=col,
-            row=row,
+            facet_col=facet_col,
+            facet_row=facet_row,
             stacked=stacked,
             nice_names=nice_names,
             query=query,
@@ -300,8 +300,8 @@ class LinePlotGenerator(ChartGenerator):
         x: str = "carrier",
         y: str = "value",
         color: str | None = None,
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         nice_names: bool = True,
         resample: str | None = None,
         query: str | None = None,
@@ -320,8 +320,8 @@ class LinePlotGenerator(ChartGenerator):
             x=x,
             y=y,
             color=color,
-            col=col,
-            row=row,
+            facet_col=facet_col,
+            facet_row=facet_row,
             nice_names=nice_names,
             query=query,
             **kwargs,
@@ -355,8 +355,8 @@ class AreaPlotGenerator(ChartGenerator):
         x: str,  # Removed default
         y: str = "value",
         color: str | None = None,
-        col: str | None = None,
-        row: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
         nice_names: bool = True,
         stacked: bool = True,
         dodged: bool = False,
@@ -371,8 +371,8 @@ class AreaPlotGenerator(ChartGenerator):
             x=x,
             y="value",
             color=color,
-            col=col,
-            row=row,
+            facet_col=facet_col,
+            facet_row=facet_row,
             stacked=stacked,
             nice_names=nice_names,
             query=query,
