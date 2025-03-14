@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import seaborn.objects as so
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 
 from pypsa.plot.maps import plot
 from pypsa.plot.statistics import (
@@ -434,7 +434,7 @@ class StatisticsPlotter:
         bus_split_circles: bool | None = None,
         storage: bool | None = None,
         **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
+    ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """
         Plot statistics on a geographic map.
 

@@ -4,7 +4,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 
 from pypsa.consistency import plotting_consistency_check
 from pypsa.plot.maps import (
@@ -80,7 +80,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         bus_split_circles: bool = False,
         stats_kwargs: dict | None = None,
         **kwargs: Any,
-    ) -> tuple[Figure, Axes]:
+    ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """Plot network statistics on a map."""
         n = self._n
         plotting_consistency_check(n)
