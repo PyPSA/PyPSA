@@ -89,8 +89,10 @@ def apply_layouter(
     inplace: Literal[True, False] = False,
 ) -> Any:
     """
-    Automatically generate bus coordinates for the network graph according to a
-    layouting function from `networkx <https://networkx.github.io/>`_.
+    Automatically generate bus coordinates for the network graph.
+
+    Layouting function from `networkx <https://networkx.github.io/>`_ is used to
+    determine the coordinates of the buses in the network.
 
     Parameters
     ----------
@@ -160,6 +162,8 @@ def apply_layouter(
 
 
 class MapPlotter:
+    """Class to plot a PyPSA network on a map."""
+
     def __init__(
         self,
         n: Network,
@@ -219,38 +223,46 @@ class MapPlotter:
 
     @property
     def n(self) -> Network:
+        """Get the network object."""
         return self._n
 
     @property
     def x(self) -> pd.Series:
+        """Get the x-coordinates of the buses."""
         if self._x is None:
             self.set_layout()
         return self._x
 
     @x.setter
     def x(self, value: pd.Series) -> None:
+        """Set the x-coordinates of the buses."""
         self._x = value
 
     @property
     def y(self) -> pd.Series:
+        """Get the y-coordinates of the buses."""
         if self._y is None:
             self.set_layout()
         return self._y
 
     @y.setter
     def y(self, value: pd.Series) -> None:
+        """Set the y-coordinates of the buses."""
         self._y = value
 
     @property
     def margin(self) -> float:
+        """Get the margin around the plot boundaries."""
         return self._margin
 
     @margin.setter
     def margin(self, value: float) -> None:
+        """Set the margin around the plot boundaries."""
         self._margin = value
 
     @property
     def boundaries(self) -> tuple[float, float, float, float]:
+        """Get the plot boundaries."""
         if self._boundaries is None:
             self.set_boundaries(self._boundaries, self.margin, self._n.buses.index)
             assert self._boundaries is not None
@@ -261,6 +273,7 @@ class MapPlotter:
         self,
         value: tuple[float, float, float, float] | None,
     ) -> None:
+        """Set the plot boundaries."""
         if value is not None and len(value) != 4:
             raise ValueError(
                 "Boundaries must be a sequence of 4 values (xmin, xmax, ymin, ymax)"
@@ -271,6 +284,7 @@ class MapPlotter:
     def ax(
         self,
     ) -> Axes | GeoAxesSubplot | None:
+        """Get the axis for plotting."""
         return self._ax
 
     @ax.setter
@@ -278,6 +292,7 @@ class MapPlotter:
         self,
         value: Axes | GeoAxesSubplot | None,
     ) -> None:
+        """Set the axis for plotting."""
         if not cartopy_present:
             axis_type = (Axes,)
         else:
@@ -288,10 +303,12 @@ class MapPlotter:
 
     @property
     def area_factor(self) -> float:
+        """Get the area factor for scaling."""
         return self._area_factor
 
     @area_factor.setter
     def area_factor(self, value: float | int | None) -> None:
+        """Set the area factor for scaling."""
         if value is not None and not isinstance(value, int | float):
             raise ValueError("area_factor must be a number")
         self._area_factor = float(value) if value is not None else 1.0
@@ -558,6 +575,27 @@ class MapPlotter:
         alpha: float | pd.Series,
         split_circles: bool,
     ) -> list[Wedge]:
+        """
+        Create patches for buses with multi-indexed size data.
+
+        Parameters
+        ----------
+        sizes : pd.Series
+            Series with multi-index where first level represents buses
+            and second level represents components/carriers.
+        colors : pd.Series
+            Series with colors for each component/carrier.
+        alpha : float | pd.Series
+            Transparency value(s) for the patches.
+        split_circles : bool
+            Whether to split the circles into halves for positive/negative values.
+
+        Returns
+        -------
+        list[Wedge]
+            List of Wedge patches representing the buses.
+
+        """
         # We are drawing pies to show all the different shares
         patches = []
         for b_i in sizes.index.unique(level=0):
@@ -600,6 +638,24 @@ class MapPlotter:
         colors: pd.Series,
         alpha: float | pd.Series,
     ) -> list[Circle]:
+        """
+        Create patches for buses with single-indexed size data.
+
+        Parameters
+        ----------
+        sizes : pd.Series
+            Series with bus indices representing sizes of buses.
+        colors : pd.Series
+            Series with colors for each bus.
+        alpha : float | pd.Series
+            Transparency value(s) for the patches.
+
+        Returns
+        -------
+        list[Circle]
+            List of Circle patches representing the buses.
+
+        """
         patches = []
         for b_i in sizes.index[(sizes != 0) & ~sizes.isna()]:
             radius = sizes.at[b_i] ** 0.5
@@ -631,7 +687,7 @@ class MapPlotter:
         ----------
         flow : Series|str|int|float|callable|None
             Flow data to convert
-        component_name : str
+        c_name : str
             Name of the network component
 
         Returns
@@ -702,9 +758,7 @@ class MapPlotter:
         alpha: pd.Series,
         geometry: pd.Series,
     ) -> LineCollection:
-        """
-        Create a LineCollection for a single branch component.
-        """
+        """Create a LineCollection for a single branch component."""
         idx = widths.index
         if not geometry:
             segments: np.ndarray = np.asarray(
@@ -745,9 +799,7 @@ class MapPlotter:
         colors: pd.Series,
         alpha: pd.Series,
     ) -> PatchCollection:
-        """
-        Create a PatchCollection of polygons representing lines with widths in data units.
-        """
+        """Create a PatchCollection of polygons representing lines with widths."""
         idx = widths.index
         patches = []
         facecolors = []
@@ -803,9 +855,7 @@ class MapPlotter:
         area_factor: float,
         alpha: float | int = 1,
     ) -> PatchCollection:
-        """
-        Helper function to generate arrows from flow data.
-        """
+        """Helper function to generate arrows from flow data."""
         # this funtion is used for diplaying arrows representing the network flow
         data = pd.DataFrame(
             {
@@ -907,12 +957,14 @@ class MapPlotter:
         target_area_fraction: float = 0.1,
     ) -> float:
         """
-        Scale series for plotting so that the total area of all area contributions
+        Scale series for plotting.
+
+        Makes sure that the total area of all area contributions
         takes up approximately the specified fraction of the plot area.
 
         Parameters
         ----------
-        area_contribution : pd.Series
+        area_contributions : pd.Series
             Series containing the balance values for each bus
         x_min, x_max : float
             The x-axis extent of the plot
@@ -938,6 +990,25 @@ class MapPlotter:
     def aggregate_flow_by_connection(
         flow: pd.Series, branches: pd.DataFrame
     ) -> pd.Series:
+        """
+        Aggregate flow values by bus connections irrespective of direction.
+
+        This method aggregates flow values from different branch components between
+        the same pair of buses, ensuring consistent directional representation.
+
+        Parameters
+        ----------
+        flow : pd.Series
+            Series containing flow values indexed by branch components
+        branches : pd.DataFrame
+            DataFrame with bus0 and bus1 columns defining connections
+
+        Returns
+        -------
+        pd.Series
+            Aggregated flow values with consistent direction
+
+        """
         if flow.empty:
             return flow
         connected_buses = branches.loc[flow.index, ["bus0", "bus1"]]
@@ -1006,126 +1077,131 @@ class MapPlotter:
         auto_scale_branches: bool = True,
     ) -> dict:
         """
-            Plot the network buses and lines using matplotlib and cartopy.
+        Plot the network buses and lines using matplotlib and cartopy.
 
         Parameters
         ----------
-            n : pypsa.Network
-                Network to plot
-            layouter : networkx.drawing.layout, default None
-                Layouting function from `networkx <https://networkx.github.io/>`_ which
-                overrules coordinates given in ``n.buses[['x', 'y']]``. See
-                `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
-                of available options.
-            boundaries : list/tuple, default None
-                Boundaries of the plot in format [x1, x2, y1, y2]
-            margin : float, defaults to 0.05
-                Margin at the sides as proportion of distance between max/min x, y
-                Will be ignored if boundaries are given.
-            ax : matplotlib.pyplot.Axes, defaults to None
-                Axis to plot on. Defaults to plt.gca() if geomap is False, otherwise
-                to plt.axes(projection=projection).
-            geomap: bool/str, default True
-                Switch to use Cartopy and draw geographical features.
-                If string is passed, it will be used as a resolution argument,
-                valid options are '10m', '50m' and '110m'.
-            projection: cartopy.crs.Projection, defaults to None
-                Define the projection of your geomap, only valid if cartopy is
-                installed. If None (default) is passed the projection for cartopy
-                is set to cartopy.crs.PlateCarree
-            geomap_colors : dict/bool, default None
-                Specify colors to paint land and sea areas in.
-                If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
-                If no dictionary is provided, colors are white.
-                If False, no geographical features are plotted.
-            title : string, default ""
-                Graph title
-            jitter : float, default None
-                Amount of random noise to add to bus positions to distinguish
-                overlapping buses
-            branch_components : list, default n.branch_components
-                Branch components to be plotted
-            bus_sizes : float/dict/pandas.Series
-                Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
-                the function will draw pies for each bus (first index level) with
-                segments of different color (second index level). Such a Series is ob-
-                tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
-            bus_split_circles : bool, default False
-                Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
-                If set to true, the upper half circle per bus then includes all positive values
-                of the series, the lower half circle all negative values. Defaults to False.
-            bus_colors : str/dict/pandas.Series
-                Colors for the buses, defaults to "cadetblue". If bus_sizes is a
-                pandas.Series with a Multiindex, bus_colors defaults to the
-                n.carriers['color'] column.
-            bus_cmap : mcolors.Colormap/str
-                If bus_colors are floats, this color map will assign the colors
-            bus_cmap_norm : plt.Normalize
-                The norm applied to the bus_cmap
-            bus_alpha : float/dict/pandas.Series
-                Adds alpha channel to buses, defaults to 1
-            geometry :
-                # TODO
-            auto_scale_branches : bool
-                Whether to auto scale the flow and branch sizes. If true, the function
-                uses a rough auto-scaling when plotting flows as well as it creates
-                a LineCollection with widths in data units. If false, the function
-                does not scale the flow and branch sizes and creates a PatchCollection
-                with widths in display units. The latter is useful for plotting
-                consistent branch widths and flows in different zoom levels.
+        n : pypsa.Network
+            Network to plot
+        layouter : networkx.drawing.layout, default None
+            Layouting function from `networkx <https://networkx.github.io/>`_ which
+            overrules coordinates given in ``n.buses[['x', 'y']]``. See
+            `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+            of available options.
+        boundaries : list/tuple, default None
+            Boundaries of the plot in format [x1, x2, y1, y2]
+        margin : float, defaults to 0.05
+            Margin at the sides as proportion of distance between max/min x, y
+            Will be ignored if boundaries are given.
+        ax : matplotlib.pyplot.Axes, defaults to None
+            Axis to plot on. Defaults to plt.gca() if geomap is False, otherwise
+            to plt.axes(projection=projection).
+        geomap: bool/str, default True
+            Switch to use Cartopy and draw geographical features.
+            If string is passed, it will be used as a resolution argument,
+            valid options are '10m', '50m' and '110m'.
+        geomap_resolution : str, default '50m'
+            Resolution of the geomap, only valid if cartopy is installed.
+            Valid options are '10m', '50m' and '110m'.
+        projection: cartopy.crs.Projection, defaults to None
+            Define the projection of your geomap, only valid if cartopy is
+            installed. If None (default) is passed the projection for cartopy
+            is set to cartopy.crs.PlateCarree
+        geomap_colors : dict/bool, default None
+            Specify colors to paint land and sea areas in.
+            If True, it defaults to `{'ocean': 'lightblue', 'land': 'whitesmoke'}`.
+            If no dictionary is provided, colors are white.
+            If False, no geographical features are plotted.
+        title : string, default ""
+            Graph title
+        jitter : float, default None
+            Amount of random noise to add to bus positions to distinguish
+            overlapping buses
+        branch_components : list, default n.branch_components
+            Branch components to be plotted
+        bus_sizes : float/dict/pandas.Series
+            Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
+            the function will draw pies for each bus (first index level) with
+            segments of different color (second index level). Such a Series is ob-
+            tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum()
+        bus_split_circles : bool, default False
+            Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+            If set to true, the upper half circle per bus then includes all positive values
+            of the series, the lower half circle all negative values. Defaults to False.
+        bus_colors : str/dict/pandas.Series
+            Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+            pandas.Series with a Multiindex, bus_colors defaults to the
+            n.carriers['color'] column.
+        bus_cmap : mcolors.Colormap/str
+            If bus_colors are floats, this color map will assign the colors
+        bus_cmap_norm : plt.Normalize
+            The norm applied to the bus_cmap
+        bus_alpha : float/dict/pandas.Series
+            Adds alpha channel to buses, defaults to 1
+        geometry : bool, default False
+            Whether to use the geometry column of the branch components
+        flow : Callable
+            Function to calculate the flow for each branch component.
+        auto_scale_branches : bool
+            Whether to auto scale the flow and branch sizes. If true, the function
+            uses a rough auto-scaling when plotting flows as well as it creates
+            a LineCollection with widths in data units. If false, the function
+            does not scale the flow and branch sizes and creates a PatchCollection
+            with widths in display units. The latter is useful for plotting
+            consistent branch widths and flows in different zoom levels.
 
-            Additional Parameters
-            ---------------------
-            line_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
-                Flow to be for each line branch. If an element of
-                n.snapshots is given, the flow at this timestamp will be
-                displayed. If an aggregation function is given, is will be applied
-                to the total network flow via pandas.DataFrame.agg (accepts also
-                function names). Otherwise flows can be specified by passing a pandas
-                Series. Use the corresponding width argument to adjust size of the
-                flow arrows.
-            line_colors : str/pandas.Series
-                Colors for the lines, defaults to 'rosybrown'.
-            line_cmap : mcolors.Colormap/str|dict
-                If line_colors are floats, this color map will assign the colors.
-            line_cmap_norm : plt.Normalize
-                The norm applied to the line_cmap.
-            line_alpha : str/pandas.Series
-                Alpha for the lines, defaults to 1.
-            line_widths : dict/pandas.Series
-                Widths of lines, defaults to 1.5
-            link_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
-                Flow to be for each link branch. See line_flow for more information.
-            link_colors : str/pandas.Series
-                Colors for the links, defaults to 'darkseagreen'.
-            link_cmap : mcolors.Colormap/str|dict
-                If link_colors are floats, this color map will assign the colors.
-            link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
-                The norm applied to the link_cmap.
-            link_alpha : str/pandas.Series
-                Alpha for the links, defaults to 1.
-            link_widths : dict/pandas.Series
-                Widths of links, defaults to 1.5
-            transformer_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
-                Flow to be for each transformer branch. See line_flow for more information.
-            transformer_colors : str/pandas.Series
-                Colors for the transfomer, defaults to 'orange'.
-            transformer_cmap : mcolors.Colormap/str|dict
-                If transformer_colors are floats, this color map will assign the colors.
-            transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
-                The norm applied to the transformer_cmap.
-            transformer_alpha : str/pandas.Series
-                Alpha for the transfomer, defaults to 1.
-            transformer_widths : dict/pandas.Series
-                Widths of transformer, defaults to 1.5
+        Additional Parameters
+        ---------------------
+        line_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+            Flow to be for each line branch. If an element of
+            n.snapshots is given, the flow at this timestamp will be
+            displayed. If an aggregation function is given, is will be applied
+            to the total network flow via pandas.DataFrame.agg (accepts also
+            function names). Otherwise flows can be specified by passing a pandas
+            Series. Use the corresponding width argument to adjust size of the
+            flow arrows.
+        line_colors : str/pandas.Series
+            Colors for the lines, defaults to 'rosybrown'.
+        line_cmap : mcolors.Colormap/str|dict
+            If line_colors are floats, this color map will assign the colors.
+        line_cmap_norm : plt.Normalize
+            The norm applied to the line_cmap.
+        line_alpha : str/pandas.Series
+            Alpha for the lines, defaults to 1.
+        line_widths : dict/pandas.Series
+            Widths of lines, defaults to 1.5
+        link_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+            Flow to be for each link branch. See line_flow for more information.
+        link_colors : str/pandas.Series
+            Colors for the links, defaults to 'darkseagreen'.
+        link_cmap : mcolors.Colormap/str|dict
+            If link_colors are floats, this color map will assign the colors.
+        link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
+            The norm applied to the link_cmap.
+        link_alpha : str/pandas.Series
+            Alpha for the links, defaults to 1.
+        link_widths : dict/pandas.Series
+            Widths of links, defaults to 1.5
+        transformer_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
+            Flow to be for each transformer branch. See line_flow for more information.
+        transformer_colors : str/pandas.Series
+            Colors for the transfomer, defaults to 'orange'.
+        transformer_cmap : mcolors.Colormap/str|dict
+            If transformer_colors are floats, this color map will assign the colors.
+        transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+            The norm applied to the transformer_cmap.
+        transformer_alpha : str/pandas.Series
+            Alpha for the transfomer, defaults to 1.
+        transformer_widths : dict/pandas.Series
+            Widths of transformer, defaults to 1.5
 
-            .. deprecated:: 0.28.0
-                `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow`
-                    instead. The argument will be passed to all branches.
-                `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated,
-                    use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and
-                    `transformer_cmap_norm` instead.
-                `color_geomap` is deprecated, use `geomap_colors` instead.
+        .. deprecated:: 0.28.0
+            `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow`
+                instead. The argument will be passed to all branches.
+            `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated,
+                use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and
+                `transformer_cmap_norm` instead.
+            `color_geomap` is deprecated, use `geomap_colors` instead.
 
         Returns
         -------
@@ -1351,7 +1427,7 @@ class MapPlotter:
     MapPlotter.draw_map,
     assigned=("__doc__", "__annotations__", "__type_params__"),
 )
-def plot(
+def plot(  # noqa: D103
     n: Network,
     ax: Axes | None = None,
     layouter: Callable | None = None,
@@ -1428,6 +1504,7 @@ class HandlerCircle(HandlerPatch):
     LEGEND_SCALE_FACTOR = 72
 
     def __init__(self, scale_factor: float | None = None) -> None:
+        """Initialize the HandlerCircle."""
         super().__init__()
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
@@ -1442,6 +1519,7 @@ class HandlerCircle(HandlerPatch):
         fontsize: float,
         trans: Any,
     ) -> list[Circle]:
+        """Create the artists for the legend."""
         fig = legend.get_figure()
         if fig is None:
             raise ValueError("Legend must be placed on a figure. No figure found.")
@@ -1470,6 +1548,7 @@ class WedgeHandler(HandlerPatch):
     LEGEND_SCALE_FACTOR = 72
 
     def __init__(self, scale_factor: float | int | None = None) -> None:
+        """Initialize the WedgeHandler."""
         super().__init__()
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
 
@@ -1484,6 +1563,7 @@ class WedgeHandler(HandlerPatch):
         fontsize: float,
         trans: Any,
     ) -> list[Wedge]:
+        """Create the artists for the legend."""
         fig = legend.get_figure()
         if fig is None:
             raise ValueError("Legend must be placed on a figure. No figure found.")
@@ -1513,6 +1593,8 @@ class HandlerArrow(HandlerPatch):
         self, width_ratio: float = 0.2, scale_factor: float | None = None
     ) -> None:
         """
+        Initialize the HandlerArrow.
+
         Parameters
         ----------
         width_ratio : float, optional
@@ -1536,6 +1618,7 @@ class HandlerArrow(HandlerPatch):
         fontsize: float,
         trans: Any,
     ) -> list[FancyArrow]:
+        """Create the artists for the legend."""
         fig = legend.get_figure()
         if fig is None:
             raise ValueError("Legend must be placed on a figure. No figure found.")
@@ -1572,6 +1655,7 @@ def add_legend_lines(
     Parameters
     ----------
     ax : matplotlib ax
+        Matplotlib axis to add the legend to.
     sizes : list-like, float
         Size of the line reference; for example [3, 2, 1]
     labels : list-like, str
@@ -1629,6 +1713,7 @@ def add_legend_patches(
     Parameters
     ----------
     ax : matplotlib ax
+        Matplotlib axis to add the legend to.
     colors : list-like, float
         Color of the patch; for example ["r", "g", "b"]
     labels : list-like, str
@@ -1675,10 +1760,13 @@ def add_legend_circles(
     Parameters
     ----------
     ax : matplotlib ax
+        Matplotlib axis to add the legend to.
     sizes : list-like, float
         Size of the reference circle; for example [3, 2, 1]
     labels : list-like, str
         Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
+    srid : int, defaults to DEFAULT_EPSG
+        Spatial reference ID for area correction
     patch_kw : defaults to {}
         Keyword arguments passed to matplotlib.patches.Circle
     legend_kw : defaults to {}
@@ -1727,10 +1815,13 @@ def add_legend_semicircles(
     Parameters
     ----------
     ax : matplotlib ax
+        Matplotlib axis to add the legend to.
     sizes : list-like, float
         Size of the reference circle; for example [3, 2, 1]
     labels : list-like, str
         Label of the reference circle; for example ["30 GW", "20 GW", "10 GW"]
+    srid : int, default 4326
+        Spatial reference ID for area correction
     patch_kw : defaults to {}
         Keyword arguments passed to matplotlib.patches.Wedges
     legend_kw : defaults to {}
@@ -1778,12 +1869,17 @@ def add_legend_arrows(
     Parameters
     ----------
     ax : matplotlib ax
+        Matplotlib axis to add the legend to.
     sizes : list-like, float
         Size of the reference arrows; for example [3, 2, 1]
     labels : list-like, str
         Label of the reference arrows; for example ["30 GW", "20 GW", "10 GW"]
+    srid : int, default 4326
+        Spatial reference ID for area correction
     colors : str/list-like, default 'b'
         Color(s) of the arrows
+    arrow_to_tail_width : float, default 0.15
+        Ratio of arrow width to tail width
     patch_kw : dict, optional
         Keyword arguments passed to FancyArrow
     legend_kw : dict, optional
@@ -1853,8 +1949,10 @@ def round_to_significant_digits(x: float, n: int = 2) -> int | float:
 
 def scaled_legend_label(value: float, base_unit: str = "MWh") -> str:
     """
-    Scale a value to an appropriate unit and return the scaled value and new unit.
-    Ensures scaled values >= 1 are integers.
+    Scale a value to an appropriate unit for legend labels.
+
+    This function scales the value to a more human-readable format. Ensures scaled
+    values >= 1 are integers.
     """
     unit_scales = {
         "": 1,  # base
@@ -1913,8 +2011,9 @@ def get_legend_representatives(
     group_on_first_level: bool = False,
 ) -> list[tuple[int | float, str]]:
     """
-    Get representative values from a numeric series for legend visualization,
-    with automatic unit scaling. Values >= 1 are returned as integers.
+    Get representative values from a numeric series for legend visualization.
+
+    Automatic unit scaling is applied. Values >= 1 are returned as integers.
 
     Parameters
     ----------
@@ -1927,6 +2026,9 @@ def get_legend_representatives(
         Number of significant figures to round to
     base_unit : str
         Base unit of the values (default: "MWh")
+    group_on_first_level : bool
+        If True, group the series by the first level of the index
+        before calculating the maximum value
 
     Returns
     -------
@@ -1976,7 +2078,7 @@ _open__mb_styles = [
 # function below.
 
 
-def as_branch_series(
+def as_branch_series(  # noqa
     ser: pd.Series | dict | list, arg: str, c_name: str, n: Network
 ) -> pd.Series:
     ser = pd.Series(ser, index=n.static(c_name).index)

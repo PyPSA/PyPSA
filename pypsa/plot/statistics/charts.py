@@ -194,7 +194,6 @@ class ChartGenerator(PlotsGenerator, ABC):
             List of groupby columns and boolean for component aggregation
 
         """
-
         filtered = ["value", "component", "snapshot"]
         filtered_cols = []
         for c in args:  # Iterate through the args tuple

@@ -103,8 +103,7 @@ SCHEMA: dict = {
 
 def _combine_schemas() -> dict:
     """
-    Combines the default schema with the specific schema to create a complete schema
-    for all statistics and plot type combinations.
+    Combine the default schema with the specific schema for statistics and plot types.
 
     Parameters
     ----------
@@ -123,6 +122,7 @@ def _combine_schemas() -> dict:
     >>> combined_schema = _combine_schemas()
     >>> print(combined_schema) # doctest: +ELLIPSIS
     {'capex': {'line': {'x': {'default': 'carrier', 'allowed': True}, 'bus_split_...
+
     """
     combined_schema: dict = {}
     plot_types = ["line", "area", "bar", "map"]

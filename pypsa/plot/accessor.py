@@ -76,6 +76,7 @@ class StatisticsPlotter:
         -------
         seaborn.objects.Plot
             Seaborn plot object
+
         """
         plotter = plotter_class(self._n)
 
@@ -235,6 +236,8 @@ class StatisticsPlotter:
             statistics function.
         y : str, default: "value"
             Data to show on y-axis. E.g. "value".
+            Data to show as color. Pass None to disable color mapping.
+        color : str | None, default: "carrier"
             Data to show as color. Pass None to disable color mapping.
         facet_col : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
@@ -503,6 +506,7 @@ class StatisticsPlotter:
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
         >>> fig, ax = n.plot.installed_capacity.map(geomap=True, title="Installed Capacity")
+
         """
         plot_kwargs = {
             "ax": ax,

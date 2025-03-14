@@ -1,3 +1,5 @@
+"""Maps plots based on statistics functions."""
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -37,6 +39,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         ----------
         n : Network
             PyPSA network object
+
         """
         # Initialize both parent classes
         PlotsGenerator.__init__(self, n)
@@ -47,9 +50,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         *args: str | None,
         method_name: str = "",  # make required
     ) -> dict[str, Any]:
-        """
-        Handle default statistics kwargs based on provided plot kwargs.
-        """
+        """Handle default statistics kwargs based on provided plot kwargs."""
         return {}
 
     def plot(
@@ -80,9 +81,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         stats_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes]:
-        """
-        Plot network statistics on a map.
-        """
+        """Plot network statistics on a map."""
         n = self._n
         plotting_consistency_check(n)
         boundaries = boundaries or self.boundaries
