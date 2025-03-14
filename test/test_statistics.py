@@ -4,21 +4,17 @@ import pytest
 
 import pypsa
 from pypsa.statistics import groupers
+from pypsa.statistics.expressions import StatisticsAccessor
 
 
-def test_default_unsolved(ac_dc_network):
-    df = ac_dc_network.statistics()
-    assert not df.empty
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_all_methods(ac_dc_network_r, stat_func):
+    df = getattr(ac_dc_network_r.statistics, stat_func)
+    assert not df().empty
 
 
 def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.capex()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.opex()
     assert not df.empty
 
     df = ac_dc_network_r.statistics.energy_balance()
@@ -217,35 +213,16 @@ def test_transmission_carriers(ac_dc_network_r):
     assert "AC" in df.unique(1)
 
 
-def test_groupers(ac_dc_network_r):
+def test_carrier_selection(ac_dc_network_r):
     n = ac_dc_network_r
-    c = "Generator"
+    df = n.statistics(carrier="AC")
+    assert not df.empty
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
 
-    grouper = groupers.carrier(n, c)
-    assert isinstance(grouper, pd.Series)
-
-    grouper = groupers.bus_carrier(n, c)
-    assert isinstance(grouper, pd.Series)
-
-    grouper = groupers["bus", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["bus", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["country", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["carrier", "bus_carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["bus", "carrier", "bus_carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
+    df = n.statistics(carrier=["AC"])
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
 
 
 def test_parameters(ac_dc_network_r):
