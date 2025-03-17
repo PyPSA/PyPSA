@@ -158,7 +158,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # pydocstyle ignores, which could be enabled in future when existing
 # issues are fixed
-"!**/{grouping.py,components/**}" = [
+"!**/{grouping.py,components/**,statistics/**}" = [
     'D100', # Missing docstring in public module
     'D101', # Missing docstring in public class
     'D102', # Missing docstring in public method

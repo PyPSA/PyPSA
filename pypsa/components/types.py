@@ -64,7 +64,7 @@ def add_component_type(
     Examples
     --------
     >>> import pandas as pd
-    >>> import pypsa
+
     >>> defaults_data = {
     ...     "attribute": ["name", "attribute_a"],
     ...     "type": ["string", "float"],
@@ -203,7 +203,6 @@ def get(name: str) -> ComponentType:
 
     Examples
     --------
-    >>> import pypsa
     >>> pypsa.components.types.get("Generator")
     'Generator' Component Type
 

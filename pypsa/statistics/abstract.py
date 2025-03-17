@@ -1,6 +1,4 @@
-"""
-Statistics Accessor.
-"""
+"""Statistics Accessor."""
 
 from __future__ import annotations
 
@@ -35,10 +33,11 @@ class Parameters:
     Methods
     -------
         set_parameters(**kwargs): Sets the values of the parameters based on the provided keyword arguments.
+
     """
 
     @property
-    def drop_zero(self) -> bool:
+    def drop_zero(self) -> bool:  # noqa: D102
         warnings.warn(
             "Use 'pypsa.options.params.statistics.drop_zero' instead.",
             DeprecationWarning,
@@ -47,7 +46,7 @@ class Parameters:
         return options.get_option("params.statistics.drop_zero")
 
     @drop_zero.setter
-    def drop_zero(self, value: bool) -> None:
+    def drop_zero(self, value: bool) -> None:  # noqa: D102
         warnings.warn(
             "Use 'pypsa.options.params.statistics.drop_zero = ..' instead.",
             DeprecationWarning,
@@ -56,7 +55,7 @@ class Parameters:
         options.set_option("params.statistics.drop_zero", value)
 
     @property
-    def nice_names(self) -> bool:
+    def nice_names(self) -> bool:  # noqa: D102
         warnings.warn(
             "Use 'pypsa.options.params.statistics.nice_names' instead.",
             DeprecationWarning,
@@ -65,7 +64,7 @@ class Parameters:
         return options.get_option("params.statistics.nice_names")
 
     @nice_names.setter
-    def nice_names(self, value: bool) -> None:
+    def nice_names(self, value: bool) -> None:  # noqa: D102
         warnings.warn(
             "Use 'pypsa.options.params.statistics.nice_names = ..' instead.",
             DeprecationWarning,
@@ -74,7 +73,7 @@ class Parameters:
         options.set_option("params.statistics.nice_names", value)
 
     @property
-    def round(self) -> int:
+    def round(self) -> int:  # noqa: D102
         warnings.warn(
             "Use 'pypsa.options.params.statistics.round' instead.",
             DeprecationWarning,
@@ -83,7 +82,7 @@ class Parameters:
         return options.get_option("params.statistics.round")
 
     @round.setter
-    def round(self, value: int) -> None:
+    def round(self, value: int) -> None:  # noqa: D102
         warnings.warn(
             "Use 'pypsa.options.params.statistics.round = ..' instead.",
             DeprecationWarning,
@@ -94,17 +93,16 @@ class Parameters:
     @deprecated(
         details="Use the 'pypsa.options' module instead. E.g. 'pypsa.options.params.statistics.drop_zero = True'.",
     )
-    def set_parameters(self, **kwargs: Any) -> None:
+    def set_parameters(self, **kwargs: Any) -> None:  # noqa: D102
         for key, value in kwargs.items():
             options.set_option(f"params.statistics.{key}", value)
 
 
 class AbstractStatisticsAccessor(ABC):
-    """
-    Abstract accessor to calculate different statistical values.
-    """
+    """Abstract accessor to calculate different statistical values."""
 
     def __init__(self, n: Network) -> None:
+        """Initialize the statistics accessor."""
         self.n = n
         self.groupers = deprecated_groupers
         self.parameters = Parameters()
@@ -141,15 +139,23 @@ class AbstractStatisticsAccessor(ABC):
 
     @property
     def is_multi_indexed(self) -> bool:
+        """
+        Check if the snapshots are multi-indexed.
+
+        Returns
+        -------
+        bool
+            True if the snapshots are multi-indexed, False otherwise.
+
+        """
+        # TODO could be moved to Network
         return isinstance(self.n.snapshots, pd.MultiIndex)
 
     @classmethod
     def _aggregate_timeseries(
         cls, obj: Any, weights: pd.Series, agg: str | Callable | bool = "sum"
     ) -> Any:
-        """
-        Calculate the weighted sum or average of a DataFrame or Series.
-        """
+        """Calculate the weighted sum or average of a DataFrame or Series."""
         if not agg:
             return obj.T if isinstance(obj, pd.DataFrame) else obj
 
@@ -202,9 +208,7 @@ class AbstractStatisticsAccessor(ABC):
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
     ) -> pd.Series | pd.DataFrame:
-        """
-        Apply a function and group the result for a collection of components.
-        """
+        """Apply a function and group the result for a collection of components."""
         d = {}
         n = self.n
 
@@ -268,9 +272,7 @@ class AbstractStatisticsAccessor(ABC):
         return False
 
     def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
-        """
-        For static values iterate over periods and concat values.
-        """
+        """For static values iterate over periods and concat values."""
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
         idx = self._get_component_index(obj, c)
@@ -293,10 +295,7 @@ class AbstractStatisticsAccessor(ABC):
         bus_carrier: str | Sequence[str] | None,
         obj: Any,
     ) -> Any:
-        """
-        Filter the DataFrame for components which are connected to a bus with
-        carrier `bus_carrier`.
-        """
+        """Filter for components which are connected to bus with `bus_carrier`."""
         if bus_carrier is None:
             return obj
 

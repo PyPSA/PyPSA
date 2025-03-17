@@ -99,8 +99,6 @@ class ComponentsStore(dict):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components
         PyPSA Components Store
         ======================
@@ -146,8 +144,6 @@ class ComponentsStore(dict):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators
         PyPSA 'Generator' Components
         ----------------------------

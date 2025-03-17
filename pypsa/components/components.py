@@ -161,7 +161,6 @@ class Lines(Components):
 
         Examples
         --------
-        >>> import pypsa
         >>> c = pypsa.examples.scigrid_de().c.lines
         >>> ds = c.calculate_line_length()
         >>> ds.head()
