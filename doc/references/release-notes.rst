@@ -29,6 +29,8 @@ Features
   expression (regex), enabling more flexible filtering options. 
   (https://github.com/PyPSA/PyPSA/pull/1155)
 
+* All statistics function have a new argument ``carrier`` to filter by carriers.
+
 Minor improvements
 ------------------
 
