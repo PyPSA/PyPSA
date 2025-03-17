@@ -23,6 +23,93 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class MethodHandlerWrapper:
+    """
+    Decorator to wrap a method with a handler class.
+
+    This decorator wraps any method with a handler class that is used to
+    process the method's return value. The handler class must be a callable with
+    the same signature as the method to guarantee compatibility. It also must be
+    initialized with the method as its first argument. If so, the API is only extended
+    and not changed. The handler class can be used as a drop-in replacement for the
+    method.
+
+    Needs to be used as a callable decorator, i.e. with parentheses:
+    >>> class MyHandlerClass:
+    ...     def __init__(self, bound_method: Callable) -> None:
+    ...         self.bound_method = bound_method
+    ...     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
+    ...         return self.bound_method(*args, **kwargs)
+
+    >>> @MethodHandlerWrapper(handler_class=MyHandlerClass)
+    ... def my_method(self, *args, **kwargs):
+    ...     pass
+
+    """
+
+    def __init__(
+        self,
+        func: Callable | None = None,
+        *,
+        handler_class: Any = None,
+        inject_attrs: dict[str, str] | None = None,
+    ) -> None:
+        """
+        Initialize the decorator.
+
+        Parameters
+        ----------
+        func : Callable, optional
+            The statistic method to wrap.
+        handler_class : Type, optional
+            The handler class to use for wrapping the method. It should be callable
+            with same signature as the method to guarantee compatibility.
+        inject_attrs : dict[str, str], optional
+            A mapping of instance attributes to be passed to the handler class
+            as keyword arguments. The keys are the names of the attributes to be
+            passed, and the values are the names of the attributes in the handler
+            class. If None, no attributes are passed. Pass only strings, not
+            attributes of the instance.
+        """
+        self.func = func
+        self.handler_class = handler_class
+        self.inject_attrs = inject_attrs or {}
+
+    def __call__(self, func: Callable | None = None) -> MethodHandlerWrapper:
+        """Call the decorator with the function to wrap."""
+        if func is not None:
+            self.func = func
+            return self
+        return self
+
+    def __get__(self, obj: Any, objtype: Any = None) -> Any:
+        """Bind method to an object instance."""
+        if obj is None:
+            return self
+
+        if self.func is None:
+            raise TypeError("Method has not been set correctly in MethodHandlerWrapper")
+
+        # Create a bound method wrapper
+        bound_method = self.func.__get__(obj, objtype)
+
+        # Prepare additional arguments from instance attributes, if any
+        handler_kwargs = {}
+        for key, value in self.inject_attrs.items():
+            if hasattr(obj, value):
+                handler_kwargs[key] = getattr(obj, value)
+            else:
+                msg = (
+                    f"Attribute '{key}' not found in the object instance. "
+                    f"Please ensure it is set before using the decorator."
+                )
+                raise AttributeError(msg)
+
+        # Create a callable instance with the bound method and optional attributes
+        wrapper = self.handler_class(bound_method, **handler_kwargs)
+        return wrapper
+
+
 def as_index(
     n: Network, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
@@ -232,6 +319,20 @@ def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Cal
     return custom_decorator
 
 
+def deprecated_namespace(func: Callable, previous_module: str) -> Callable:
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        warnings.warn(
+            f"The namespace `{previous_module}.{func.__name__}` is deprecated and will be removed in a future version. "
+            f"Please use the new namespace `{func.__module__}.{func.__name__}` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def list_as_string(
     list_: Sequence | dict, prefix: str = "", style: str = "comma-seperated"
 ) -> str:
@@ -309,6 +410,57 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         __import__(module_name)
     except ImportError:
         raise ImportError(install_message)
+
+
+def _convert_to_series(
+    variable: dict | Sequence | float | int, index: pd.Index
+) -> pd.Series:
+    if isinstance(variable, dict):
+        return pd.Series(variable)
+    elif not isinstance(variable, pd.Series):
+        return pd.Series(variable, index=index)
+    return variable
+
+
+def resample_timeseries(
+    df: pd.DataFrame, freq: str, numeric_columns: list[str] | None = None
+) -> pd.DataFrame:
+    """
+    Resample a DataFrame with proper handling of numeric and non-numeric columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to resample, must have a datetime index
+    freq : str
+        Frequency string for resampling (e.g. 'H' for hourly)
+    numeric_columns : list[str] | None
+        List of numeric column names to resample. If None, auto-detected.
+
+    Returns
+    -------
+    pd.DataFrame
+        Resampled DataFrame with numeric columns aggregated by mean
+        and non-numeric columns forward-filled
+    """
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df = df.set_index(pd.to_datetime(df.index))
+
+    if numeric_columns is None:
+        numeric_columns = df.select_dtypes(include=["int64", "float64"]).columns
+
+    # Handle duplicate indices by aggregating first
+    if not df.index.is_unique:
+        numeric_df = df[numeric_columns].groupby(level=0).mean()
+        non_numeric_df = df.drop(columns=numeric_columns).groupby(level=0).first()
+        df = pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
+
+    # Split into numeric and non-numeric columns
+    numeric_df = df[numeric_columns].resample(freq).mean()
+    non_numeric_df = df.drop(columns=numeric_columns).resample(freq).ffill()
+
+    # Combine the results
+    return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
 
 
 def check_pypsa_version(version_string: str) -> None:

@@ -24,10 +24,23 @@ Features
     different engines can be passed. By default they are not installed, but can be
     installed via ``pip install pypsa[excel]``.
 
+* Statistics module
 
-* All statistics functions now interpret the bus_carrier argument as a regular 
-  expression (regex), enabling more flexible filtering options. 
-  (https://github.com/PyPSA/PyPSA/pull/1155)
+  * All statistics functions now interpret the bus_carrier argument as a regular 
+    expression (regex), enabling more flexible filtering options. 
+    (https://github.com/PyPSA/PyPSA/pull/1155)
+
+  * All statistics functions have a new argument ``carrier`` to filter by carriers.
+    (https://github.com/PyPSA/PyPSA/pull/1176)
+
+  * All statistics functions have two new arguments ``drop_zero`` and ``round`` to
+    control the output. ``drop_zero`` drops all rows with zero values and ``round``
+    rounds the output to the specified number of decimal places. Those settings have been
+    used before already via the statistics parameters, but are deprecated now. Use the
+    new arguments or the module level settings instead (to set them globally). E.g. 
+    ``pypsa.options.params.statistics.nice_names = False``. List all available parameter 
+    settings via ``pypsa.options.params.describe()``. 
+    (https://github.com/PyPSA/PyPSA/pull/1173)
 
 Minor improvements
 ------------------
