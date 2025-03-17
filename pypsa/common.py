@@ -23,6 +23,65 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class MethodHandlerWrapper:
+    """
+    Decorator to wrap a method with a handler class.
+
+    This decorator wraps any method with a handler class that is used to
+    process the method's return value. The handler class must be a callable with
+    the same signature as the method to guarantee compatibility. It also must be
+    initialized with the method as its first argument. If so, the API is only extended
+    and not changed. The handler class can be used as a drop-in replacement for the
+    method.
+
+    """
+
+    def __init__(
+        self, func: Callable | None = None, *, handler_class: Any = None
+    ) -> None:
+        """
+        Initialize the decorator.
+
+        Parameters
+        ----------
+        func : Callable, optional
+            The statistic method to wrap.
+        handler_class : Type, optional
+            The handler class to use for wrapping the method. It should be callable
+            with same signature as the method to guarantee compatibility.
+        """
+        self.func = func
+        self.handler_class = handler_class
+
+        # Allow for both decorator styles: @wrapper or @wrapper(handler_class=...)
+        if func is not None:
+            self.__name__ = func.__name__
+            self.__doc__ = func.__doc__
+
+    def __call__(self, func: Callable | None = None) -> MethodHandlerWrapper:
+        """Support using the decorator with or without arguments."""
+        if func is not None:
+            # Called as @MethodHandlerWrapper
+            self.func = func
+            self.__name__ = func.__name__
+            self.__doc__ = func.__doc__
+            return self
+        # Called with arguments: @MethodHandlerWrapper(handler_class=...)
+        return self
+
+    def __get__(self, obj: Any, objtype: Any = None) -> Any:
+        """Bind method to an object instance."""
+        if obj is None:
+            return self
+
+        # Create a bound method wrapper
+        bound_method = self.func.__get__(obj, objtype)
+
+        # Create a callable instance with the bound method
+        wrapper = self.handler_class(bound_method)
+        return wrapper
+
+
 def as_index(
     n: Network, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:

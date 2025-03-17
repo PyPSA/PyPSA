@@ -316,7 +316,6 @@ def get_activity_mask(
     index : pd.Index, default None
         Subset of the component elements. If None (default) all components are returned.
     """
-
     sns_ = as_index(n, sns, "snapshots")
 
     if getattr(n, "_multi_invest", False):
@@ -413,7 +412,6 @@ def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
     Any : Updated string or original value if not a string.
 
     """
-
     if not isinstance(s, str) or len(s) == 1:
         return s
     return s.replace(j, str(i)).replace("required", "optional")
@@ -436,7 +434,6 @@ def update_linkports_component_attrs(
         or identifiers. If None, no filtering is applied and additional link
         ports are considered for all connectors.
     """
-
     ports = additional_linkports(n, where)
     ports.sort(reverse=True)
     c = "Link"
@@ -481,3 +478,38 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     if where is None:
         where = n.links.columns
     return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
+
+
+def bus_carrier_unit(n: Network, bus_carrier: str | Sequence[str] | None) -> str:
+    """
+    Determine the unit associated with a specific bus carrier in the network.
+
+    Parameters
+    ----------
+    n (Network): The network object containing buses and their attributes.
+    bus_carrier (str): The carrier type of the bus to query.
+
+    Returns
+    -------
+    str: The unit associated with the specified bus carrier. If no bus carrier is provided,
+         returns "carrier dependent".
+
+    Raises
+    ------
+    ValueError: If the specified bus carrier is not found in the network or if multiple units
+                are found for the specified bus carrier.
+    """
+    if bus_carrier is None:
+        return "carrier dependent"
+
+    if isinstance(bus_carrier, str):
+        bus_carrier = [bus_carrier]
+
+    not_included = set(bus_carrier) - set(n.buses.carrier.unique())
+    if not_included:
+        raise ValueError(f"Bus carriers {not_included} not in network")
+    unit = n.buses[n.buses.carrier.isin(bus_carrier)].unit.unique()
+    if len(unit) > 1:
+        logger.warning(f"Multiple units found for carrier {bus_carrier}: {unit}")
+        return "carrier dependent"
+    return unit.item()

@@ -1,4 +1,4 @@
-"""Statistics Accessor."""
+"""Statistics package for PyPSA networks."""
 
 from pypsa.common import pass_empty_series_if_keyerror
 from pypsa.statistics.deprecated import (

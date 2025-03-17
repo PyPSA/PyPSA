@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -13,11 +13,12 @@ if TYPE_CHECKING:
 import pandas as pd
 
 from pypsa._options import options
-from pypsa.common import pass_empty_series_if_keyerror
-from pypsa.descriptors import nominal_attrs
+from pypsa.common import MethodHandlerWrapper, pass_empty_series_if_keyerror
+from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 logger = logging.getLogger(__name__)
+warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -97,8 +98,70 @@ def get_transmission_carriers(
     )
 
 
+class StatisticHandler:
+    """
+    Statistic method handler.
+
+    This class wraps a statistic method and provides a callable instance. To the get
+    the statistic output as a DataFrame, call the instance with the desired arguments.
+    """
+
+    def __init__(self, bound_method: Callable) -> None:
+        """
+        Initialize the statistic handler.
+
+        Parameters
+        ----------
+        bound_method : Callable
+            The bound method/ underlying statistic function to call.
+
+        """
+        self.bound_method = bound_method
+        self.__name__ = bound_method.__name__
+        self.__doc__ = bound_method.__doc__
+
+    def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
+        return self.bound_method(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        """
+        Return the string representation of the statistic handler.
+
+        Returns
+        -------
+        str
+            String representation of the statistic handler
+
+        Examples
+        --------
+        >>> handler = StatisticHandler(lambda x: x)
+        >>> handler
+        StatisticHandler(<lambda>)
+
+        """
+        return f"StatisticHandler({self.__name__})"
+
+
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """Accessor to calculate different statistical values."""
+
+    _methods = [
+        "capex",
+        "installed_capex",
+        "expanded_capex",
+        "optimal_capacity",
+        "installed_capacity",
+        "expanded_capacity",
+        "opex",
+        "supply",
+        "withdrawal",
+        "transmission",
+        "energy_balance",
+        "curtailment",
+        "capacity_factor",
+        "revenue",
+        "market_value",
+    ]
 
     def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
         return df.index
@@ -174,8 +237,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _aggregate_across_components(
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
-        index_wo_component = df.index.droplevel("component")
-        return df.groupby(index_wo_component).agg(agg)
+        levels = [l for l in df.index.names if l != "component"]
+        return df.groupby(level=levels).agg(agg)
+
+    def _aggregate_components_skip_iteration(
+        self, vals: pd.Series | pd.DataFrame
+    ) -> bool:
+        return vals.empty
 
     def __call__(
         self,
@@ -184,6 +252,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -218,6 +287,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -271,6 +343,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
+                carrier=carrier,
                 bus_carrier=bus_carrier,
                 nice_names=nice_names,
                 drop_zero=drop_zero,
@@ -281,6 +354,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -288,6 +362,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -321,6 +396,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -368,6 +446,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -377,6 +456,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def installed_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -384,6 +464,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -414,6 +495,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -468,6 +552,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -477,6 +562,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def expanded_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -484,6 +570,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -514,6 +601,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -558,6 +648,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -567,8 +658,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             self.installed_capex(
                 comps=comps,
                 aggregate_groups=aggregate_groups,
+                aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
+                carrier=carrier,
                 bus_carrier=bus_carrier,
                 nice_names=nice_names,
                 drop_zero=drop_zero,
@@ -581,6 +674,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def optimal_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -588,6 +682,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -621,6 +716,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -678,6 +776,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -687,6 +786,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def installed_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -694,6 +794,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -727,6 +828,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -789,6 +893,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -798,6 +903,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def expanded_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -805,6 +911,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -837,6 +944,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -872,6 +982,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -883,6 +994,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -894,6 +1006,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def opex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -902,6 +1015,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -934,6 +1048,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -993,6 +1110,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -1002,6 +1120,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def supply(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1010,6 +1129,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1041,6 +1161,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1085,6 +1208,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -1095,6 +1219,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def withdrawal(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1103,6 +1228,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1134,6 +1260,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1179,6 +1308,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -1189,14 +1319,16 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def transmission(
         self,
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = "carrier",
+        groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1228,6 +1360,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1286,6 +1421,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -1295,6 +1431,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def energy_balance(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1303,6 +1440,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
         at_port: bool | str | Sequence[str] = True,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1337,6 +1475,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1414,6 +1555,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -1421,9 +1563,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
 
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = "carrier dependent"
+        df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def curtailment(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1432,6 +1575,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1464,6 +1608,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1519,6 +1666,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -1528,6 +1676,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MWh"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def capacity_factor(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1536,6 +1685,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         at_port: bool | str | Sequence[str] = False,
         groupby: str | Sequence[str] | Callable = "carrier",
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1565,6 +1715,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1616,18 +1769,20 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
         )
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
-        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)  # type: ignore
+        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def revenue(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1636,6 +1791,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1669,6 +1825,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1739,6 +1898,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
@@ -1748,6 +1908,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def market_value(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1756,6 +1917,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -1788,6 +1950,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1833,12 +1998,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
+            carrier=carrier,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
         )
-        df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
+        df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
