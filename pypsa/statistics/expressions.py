@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 import pandas as pd
 
 from pypsa._options import options
-from pypsa.common import pass_empty_series_if_keyerror
+from pypsa.common import MethodHandlerWrapper, pass_empty_series_if_keyerror
 from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
@@ -98,20 +98,50 @@ def get_transmission_carriers(
     )
 
 
-def preserve_methods(cls: Any) -> Any:
+class StatisticHandler:
     """
-    Class decorator to preserve the original methods of a class.
+    Statistic method handler.
 
-    Stores original methods with a prefix "_original_" to allow for
-    unmodified access to the original methods in subclasses.
+    This class wraps a statistic method and provides a callable instance. To the get
+    the statistic output as a DataFrame, call the instance with the desired arguments.
     """
-    for method_name in cls._methods:
-        method = getattr(cls, method_name)
-        setattr(cls, f"_original_{method_name}", method)
-    return cls
+
+    def __init__(self, bound_method: Callable) -> None:
+        """
+        Initialize the statistic handler.
+
+        Parameters
+        ----------
+        bound_method : Callable
+            The bound method/ underlying statistic function to call.
+
+        """
+        self.bound_method = bound_method
+        self.__name__ = bound_method.__name__
+        self.__doc__ = bound_method.__doc__
+
+    def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
+        return self.bound_method(*args, **kwargs)
+
+    def __repr__(self) -> str:
+        """
+        Return the string representation of the statistic handler.
+
+        Returns
+        -------
+        str
+            String representation of the statistic handler
+
+        Examples
+        --------
+        >>> handler = StatisticHandler(lambda x: x)
+        >>> handler
+        StatisticHandler(<lambda>)
+
+        """
+        return f"StatisticHandler({self.__name__})"
 
 
-@preserve_methods
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """Accessor to calculate different statistical values."""
 
@@ -132,22 +162,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "revenue",
         "market_value",
     ]
-
-    _original_capex: Callable
-    _original_installed_capex: Callable
-    _original_expanded_capex: Callable
-    _original_optimal_capacity: Callable
-    _original_installed_capacity: Callable
-    _original_expanded_capacity: Callable
-    _original_opex: Callable
-    _original_supply: Callable
-    _original_withdrawal: Callable
-    _original_transmission: Callable
-    _original_energy_balance: Callable
-    _original_curtailment: Callable
-    _original_capacity_factor: Callable
-    _original_revenue: Callable
-    _original_market_value: Callable
 
     def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
         return df.index
@@ -307,18 +321,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 DeprecationWarning,
             )
         funcs: list[Callable] = [
-            self._original_optimal_capacity,
-            self._original_installed_capacity,
-            self._original_supply,
-            self._original_withdrawal,
-            self._original_energy_balance,
-            self._original_transmission,
-            self._original_capacity_factor,
-            self._original_curtailment,
-            self._original_capex,
-            self._original_opex,
-            self._original_revenue,
-            self._original_market_value,
+            self.optimal_capacity,
+            self.installed_capacity,
+            self.supply,
+            self.withdrawal,
+            self.energy_balance,
+            self.transmission,
+            self.capacity_factor,
+            self.curtailment,
+            self.capex,
+            self.opex,
+            self.revenue,
+            self.market_value,
         ]
 
         res = {}
@@ -340,6 +354,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -441,6 +456,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def installed_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -546,6 +562,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def expanded_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -625,7 +642,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        df = self._original_capex(
+        df = self.capex(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
@@ -638,7 +655,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
             cost_attribute=cost_attribute,
         ).sub(
-            self._original_installed_capex(
+            self.installed_capex(
                 comps=comps,
                 aggregate_groups=aggregate_groups,
                 aggregate_across_components=aggregate_across_components,
@@ -657,6 +674,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def optimal_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -768,6 +786,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def installed_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -884,6 +903,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def expanded_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -956,7 +976,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        optimal = self._original_optimal_capacity(
+        optimal = self.optimal_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
@@ -968,7 +988,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        installed = self._original_installed_capacity(
+        installed = self.installed_capacity(
             comps=comps,
             aggregate_groups=aggregate_groups,
             aggregate_across_components=aggregate_across_components,
@@ -986,6 +1006,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def opex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1099,6 +1120,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def supply(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1179,7 +1201,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        df = self._original_energy_balance(
+        df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
@@ -1197,6 +1219,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def withdrawal(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1278,7 +1301,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        df = self._original_energy_balance(
+        df = self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
             aggregate_groups=aggregate_groups,
@@ -1296,6 +1319,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def transmission(
         self,
         comps: Collection[str] | str | None = None,
@@ -1407,6 +1431,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def energy_balance(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1541,6 +1566,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def curtailment(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1650,6 +1676,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MWh"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def capacity_factor(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1749,14 +1776,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
-        capacity = self._original_optimal_capacity(
-            aggregate_groups=aggregate_groups, **kwargs
-        )
+        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def revenue(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1882,6 +1908,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
+    @MethodHandlerWrapper(handler_class=StatisticHandler)
     def market_value(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1977,7 +2004,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        df = self._original_revenue(**kwargs) / self._original_supply(**kwargs)
+        df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df

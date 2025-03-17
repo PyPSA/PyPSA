@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from pypsa.common import (
+    MethodHandlerWrapper,
     as_index,
     check_pypsa_version,
     deprecated_common_kwargs,
@@ -14,6 +15,118 @@ from pypsa.common import (
     list_as_string,
     rename_kwargs,
 )
+
+
+def test_decorator_with_arguments():
+    """Test the decorator when used with arguments: @MethodHandlerWrapper(handler_class=...)"""
+
+    class ResultHandler:
+        def __init__(self, method):
+            self.method = method
+
+        def __call__(self, *args, **kwargs):
+            result = self.method(*args, **kwargs)
+            return f"Processed: {result}"
+
+    class TestClass:
+        def __init__(self, value=10):
+            self.value = value
+
+        @MethodHandlerWrapper(handler_class=ResultHandler)
+        def method_with_decorator_args(self, x):
+            """Test method with decorator args"""
+            return self.value + x
+
+    test_instance = TestClass()
+    result = test_instance.method_with_decorator_args(5)
+    assert result == "Processed: 15"
+
+
+def test_decorator_without_arguments():
+    """Test the decorator when used without arguments: @MethodHandlerWrapper"""
+
+    class ResultHandler:
+        def __init__(self, method):
+            self.method = method
+
+        def __call__(self, *args, **kwargs):
+            result = self.method(*args, **kwargs)
+            return f"Processed: {result}"
+
+    wrapper = MethodHandlerWrapper(handler_class=ResultHandler)
+
+    class TestClass:
+        def __init__(self, value=10):
+            self.value = value
+
+        @wrapper
+        def method_with_simple_decorator(self, x):
+            """Test method with simple decorator"""
+            return self.value + x
+
+    test_instance = TestClass()
+    result = test_instance.method_with_simple_decorator(5)
+    assert result == "Processed: 15"
+
+
+def test_class_method_access():
+    """Test accessing the decorated method at the class level"""
+
+    class ResultHandler:
+        def __init__(self, method):
+            self.method = method
+
+        def __call__(self, *args, **kwargs):
+            result = self.method(*args, **kwargs)
+            return f"Processed: {result}"
+
+    class TestClass:
+        def __init__(self, value=10):
+            self.value = value
+
+        @MethodHandlerWrapper(handler_class=ResultHandler)
+        def method(self, x):
+            return self.value + x
+
+    # Should return the wrapper itself, not the handler instance
+    assert isinstance(TestClass.method, MethodHandlerWrapper)
+
+
+def test_docstring_preservation():
+    """Test that the decorator preserves the original method's docstring"""
+
+    class ResultHandler:
+        def __init__(self, method):
+            self.method = method
+
+        def __call__(self, *args, **kwargs):
+            return self.method(*args, **kwargs)
+
+    class TestClass:
+        @MethodHandlerWrapper(handler_class=ResultHandler)
+        def method_with_doc(self, x):
+            """This is a test docstring"""
+            return x
+
+    assert TestClass.method_with_doc.__doc__ == "This is a test docstring"
+
+
+def test_name_preservation():
+    """Test that the decorator preserves the original method's name"""
+
+    class ResultHandler:
+        def __init__(self, method):
+            self.method = method
+
+        def __call__(self, *args, **kwargs):
+            return self.method(*args, **kwargs)
+
+    class TestClass:
+        @MethodHandlerWrapper(handler_class=ResultHandler)
+        def test_method_name(self, x):
+            return x
+
+    assert TestClass.test_method_name.__name__ == "test_method_name"
 
 
 @pytest.mark.parametrize(
