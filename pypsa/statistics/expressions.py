@@ -518,8 +518,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         component  carrier
         Generator  gas        2.120994e+07
                    wind       6.761698e+05
-        Line       -          1.653634e+04
-        Link       -          1.476534e+03
+        Line       AC         1.653634e+04
+        Link       DC         1.476534e+03
         dtype: float64
 
         """
@@ -847,8 +847,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         component  carrier
         Generator  gas        150000.0
                    wind          290.0
-        Line       -          160000.0
-        Link       -            4000.0
+        Line       AC         160000.0
+        Link       DC           4000.0
         dtype: float64
 
         """
@@ -1374,7 +1374,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
 
         >>> n.statistics.transmission()
-        Series([], dtype: float64)
+        Series([], dtype: object)
 
         """
         n = self.n
@@ -1620,7 +1620,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
 
         >>> n.statistics.curtailment()
-        Series([], dtype: float64)
+        Series([], Name: generators, dtype: float64)
 
         """
 

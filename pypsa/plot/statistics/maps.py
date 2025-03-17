@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
+import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
@@ -102,6 +103,13 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             aggregate_across_components=True,
             **(stats_kwargs or {}),
         )
+        if bus_sizes.empty:
+            # TODO: this fallback case should be handled in the statistics function
+            bus_sizes = (
+                pd.DataFrame({"bus": [], "carrier": [], "value": []})
+                .set_index(["bus", "carrier"])
+                .value
+            )
 
         # Calculate scaling factors for visual elements
         bus_size_scaling_factor = self.scaling_factor_from_area_contribution(
