@@ -170,6 +170,37 @@ class OptionsNode:
             else:
                 child.describe_options(path)
 
+    def describe(self) -> None:
+        """
+        Print documentation for all options.
+
+        This is a convenience method to call describe_options() without a prefix.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> pypsa.options.describe()
+        PyPSA Options
+        =============
+        params.statistics.drop_zero:
+            Default: True
+            Description: Default value for the 'drop_zero' parameter in statistics module.
+        params.statistics.nice_names:
+            Default: True
+            Description: Default value for the 'nice_names' parameter in statistics module.
+        params.statistics.round:
+            Default: 5
+            Description: Default value for the 'round' parameter in statistics module.
+        warnings.components_store_iter:
+            Default: True
+            Description: Some Description
+
+        """
+        self.describe_options()
+
 
 options = OptionsNode()
 
@@ -216,14 +247,14 @@ options._add_option("warnings.components_store_iter", True, "Some Description")
 
 # Parameters category
 options._add_option(
-    "params.statistics.drop_zero",
-    True,
-    "Default value for the 'drop_zero' parameter in statistics module.",
-)
-options._add_option(
     "params.statistics.nice_names",
     True,
     "Default value for the 'nice_names' parameter in statistics module.",
+)
+options._add_option(
+    "params.statistics.drop_zero",
+    True,
+    "Default value for the 'drop_zero' parameter in statistics module.",
 )
 options._add_option(
     "params.statistics.round",

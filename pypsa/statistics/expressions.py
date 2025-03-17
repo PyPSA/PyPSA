@@ -147,10 +147,28 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             return d[first_key]
         index_names = ["component"] + d[first_key].index.names
         df = pd.concat(d, names=index_names)
-        if options.params.statistics.round:
-            df = df.round(options.params.statistics.round)
-        if options.params.statistics.drop_zero:
+        return df
+
+    def _apply_option_kwargs(
+        self,
+        df: pd.DataFrame,
+        nice_names: bool | None,
+        drop_zero: bool | None,
+        round: int | None,
+    ) -> pd.DataFrame:
+        # nice_names_ = (
+        #     options.params.statistics.nice_names if nice_names is None else nice_names
+        # )
+        # TODO move nice names here and drop from groupers
+        round_ = options.params.statistics.round if round is None else round
+        drop_zero_ = (
+            options.params.statistics.drop_zero if drop_zero is None else drop_zero
+        )
+        if round_ is not None:
+            df = df.round(round_)
+        if drop_zero_ is not None:
             df = df[df != 0]
+
         return df
 
     def _aggregate_across_components(
@@ -168,6 +186,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         aggregate_time: None = None,
     ) -> pd.DataFrame:
         """
@@ -202,7 +222,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
         aggregate_time : None
             Deprecated. Use dedicated functions for individual statistics instead.
 
@@ -243,6 +273,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 at_port=at_port,
                 bus_carrier=bus_carrier,
                 nice_names=nice_names,
+                drop_zero=drop_zero,
+                round=round,
             )
             res[df.attrs["name"]] = df
         index = pd.Index(set.union(*[set(df.index) for df in res.values()]))
@@ -258,6 +290,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """
@@ -291,7 +325,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -326,6 +370,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Capital Expenditure"
         df.attrs["unit"] = "currency"
@@ -340,6 +386,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """
@@ -370,7 +418,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -412,6 +470,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Capital Expenditure Fixed"
         df.attrs["unit"] = "currency"
@@ -426,6 +486,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """
@@ -456,7 +518,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -488,6 +560,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
             cost_attribute=cost_attribute,
         ).sub(
             self.installed_capex(
@@ -497,6 +571,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 at_port=at_port,
                 bus_carrier=bus_carrier,
                 nice_names=nice_names,
+                drop_zero=drop_zero,
+                round=round,
                 cost_attribute=cost_attribute,
             ),
             fill_value=0,
@@ -514,6 +590,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         storage: bool = False,
     ) -> pd.DataFrame:
         """
@@ -547,7 +625,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -592,6 +680,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Optimal Capacity"
         df.attrs["unit"] = "MW"
@@ -606,6 +696,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         storage: bool = False,
     ) -> pd.DataFrame:
         """
@@ -639,7 +731,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -689,6 +791,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Installed Capacity"
         df.attrs["unit"] = "MW"
@@ -703,6 +807,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the expanded capacity of the network components in MW.
@@ -735,7 +841,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Returns
         -------
@@ -758,6 +874,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         installed = self.installed_capacity(
             comps=comps,
@@ -767,6 +885,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
         df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
@@ -784,6 +904,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the ongoing operational costs.
@@ -816,7 +938,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -863,6 +995,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Operational Expenditure"
         df.attrs["unit"] = "currency"
@@ -878,6 +1012,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the supply of components in the network.
@@ -909,7 +1045,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -941,6 +1087,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
             kind="supply",
         )
         df.attrs["name"] = "Supply"
@@ -957,6 +1105,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the withdrawal of components in the network.
@@ -988,7 +1138,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -1021,6 +1181,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
             kind="withdrawal",
         )
         df.attrs["name"] = "Withdrawal"
@@ -1037,6 +1199,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the transmission of branch components in the network.
@@ -1068,7 +1232,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -1114,6 +1288,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Transmission"
         df.attrs["unit"] = "carrier dependent"
@@ -1129,6 +1305,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
         """
@@ -1163,7 +1341,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -1228,6 +1416,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
 
         df.attrs["name"] = "Energy Balance"
@@ -1244,6 +1434,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the curtailment of components in the network in MWh.
@@ -1276,7 +1468,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -1319,6 +1521,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Curtailment"
         df.attrs["unit"] = "MWh"
@@ -1334,6 +1538,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the capacity factor of components in the network.
@@ -1363,7 +1569,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -1402,6 +1618,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)  # type: ignore
@@ -1420,6 +1638,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
         kind: str | None = None,
     ) -> pd.DataFrame:
         """
@@ -1453,7 +1673,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -1511,6 +1741,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df.attrs["name"] = "Revenue"
         df.attrs["unit"] = "currency"
@@ -1526,6 +1758,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the market value of components in the network.
@@ -1558,7 +1792,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
         nice_names : bool | None, default=None
-            Whether to use carrier nice names defined in n.carriers.nice_name.
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
 
         Additional Parameters
         ---------------------
@@ -1591,6 +1835,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             at_port=at_port,
             bus_carrier=bus_carrier,
             nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
         )
         df = self.revenue(**kwargs) / self.supply(**kwargs)  # type: ignore
         df.attrs["name"] = "Market Value"

@@ -186,6 +186,10 @@ class AbstractStatisticsAccessor(ABC):
         pass
 
     @abstractmethod
+    def _apply_option_kwargs(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+    @abstractmethod
     def _aggregate_across_components(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
@@ -207,6 +211,8 @@ class AbstractStatisticsAccessor(ABC):
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.Series | pd.DataFrame:
         """Apply a function and group the result for a collection of components."""
         d = {}
@@ -217,6 +223,7 @@ class AbstractStatisticsAccessor(ABC):
         if comps is None:
             comps = n.branch_components | n.one_port_components
         if nice_names is None:
+            # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
         for c in comps:
             if n.static(c).empty:
@@ -262,6 +269,12 @@ class AbstractStatisticsAccessor(ABC):
             d[c] = df
 
         df = self._aggregate_components_concat_data(d, is_one_component)
+        df = self._apply_option_kwargs(
+            df,
+            drop_zero=drop_zero,
+            round=round,
+            nice_names=nice_names,  # TODO: nice_names does not have effect here
+        )
 
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)
