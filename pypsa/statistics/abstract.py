@@ -338,9 +338,7 @@ class AbstractStatisticsAccessor(ABC):
         carrier: str | Sequence[str] | None,
         obj: Any,
     ) -> Any:
-        """
-        Filter the DataFrame for components which have the specified carrier.
-        """
+        """Filter the DataFrame for components which have the specified carrier."""
         if carrier is None or "carrier" not in n.static(c):
             return obj
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Callable, Collection, Sequence
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -98,6 +98,20 @@ def get_transmission_carriers(
     )
 
 
+def preserve_methods(cls: Any) -> Any:
+    """
+    Class decorator to preserve the original methods of a class.
+
+    Stores original methods with a prefix "_original_" to allow for
+    unmodified access to the original methods in subclasses.
+    """
+    for method_name in cls._methods:
+        method = getattr(cls, method_name)
+        setattr(cls, f"_original_{method_name}", method)
+    return cls
+
+
+@preserve_methods
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """Accessor to calculate different statistical values."""
 
@@ -224,6 +238,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
@@ -258,6 +273,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -311,6 +329,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
+                carrier=carrier,
                 bus_carrier=bus_carrier,
                 nice_names=nice_names,
                 drop_zero=drop_zero,
@@ -328,8 +347,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -362,6 +381,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -409,8 +431,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -426,8 +448,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -457,6 +479,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -511,8 +536,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -528,8 +553,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -559,6 +584,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -603,8 +631,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -616,8 +644,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
-                bus_carrier=bus_carrier,
                 carrier=carrier,
+                bus_carrier=bus_carrier,
                 nice_names=nice_names,
                 drop_zero=drop_zero,
                 round=round,
@@ -636,8 +664,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -670,6 +698,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -727,8 +758,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -744,8 +775,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -778,6 +809,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -840,8 +874,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -857,8 +891,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -890,6 +924,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -925,8 +962,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -937,8 +974,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -957,8 +994,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -990,6 +1027,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1049,8 +1089,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1067,8 +1107,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1099,6 +1139,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1143,8 +1186,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1162,8 +1205,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1194,6 +1237,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1239,8 +1285,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1258,8 +1304,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         at_port: bool | str | Sequence[str] = False,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1290,6 +1336,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1348,8 +1397,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1366,8 +1415,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
         at_port: bool | str | Sequence[str] = True,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1401,6 +1450,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1478,8 +1530,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1497,8 +1549,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1530,6 +1582,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1585,8 +1640,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1603,8 +1658,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         at_port: bool | str | Sequence[str] = False,
         groupby: str | Sequence[str] | Callable = "carrier",
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1633,6 +1688,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1684,8 +1742,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             aggregate_across_components=aggregate_across_components,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1707,8 +1765,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1741,6 +1799,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1811,8 +1872,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
@@ -1829,8 +1890,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
-        bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
@@ -1862,6 +1923,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
         bus_carrier : str | Sequence[str] | None, default=None
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s).
@@ -1907,8 +1971,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
-            bus_carrier=bus_carrier,
             carrier=carrier,
+            bus_carrier=bus_carrier,
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
