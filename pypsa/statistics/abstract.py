@@ -9,11 +9,12 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pypsa import Network
-
 import warnings
 
 import pandas as pd
+from deprecation import deprecated
 
+from pypsa._options import options
 from pypsa.statistics.grouping import deprecated_groupers, groupers
 
 logger = logging.getLogger(__name__)
@@ -35,36 +36,66 @@ class Parameters:
 
     """
 
-    PARAMETER_TYPES = {
-        "drop_zero": bool,
-        "nice_names": bool,
-        "round": int,
-    }
-
-    def __init__(self) -> None:  # noqa
-        self.drop_zero = True
-        self.nice_names = True
-        self.round = 5
-
-    def __repr__(self) -> str:  # noqa
-        param_str = ", ".join(
-            f"{key}={getattr(self, key)}" for key in self.PARAMETER_TYPES
+    @property
+    def drop_zero(self) -> bool:  # noqa: D102
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.drop_zero' instead.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        return f"Parameters({param_str})"
+        return options.get_option("params.statistics.drop_zero")
 
-    def set_parameters(self, **kwargs: Any) -> None:  # noqa
+    @drop_zero.setter
+    def drop_zero(self, value: bool) -> None:  # noqa: D102
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.drop_zero = ..' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        options.set_option("params.statistics.drop_zero", value)
+
+    @property
+    def nice_names(self) -> bool:  # noqa: D102
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.nice_names' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return options.get_option("params.statistics.nice_names")
+
+    @nice_names.setter
+    def nice_names(self, value: bool) -> None:  # noqa: D102
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.nice_names = ..' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        options.set_option("params.statistics.nice_names", value)
+
+    @property
+    def round(self) -> int:  # noqa: D102
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.round' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return options.get_option("params.statistics.round")
+
+    @round.setter
+    def round(self, value: int) -> None:  # noqa: D102
+        warnings.warn(
+            "Use 'pypsa.options.params.statistics.round = ..' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        options.set_option("params.statistics.round", value)
+
+    @deprecated(
+        details="Use the 'pypsa.options' module instead. E.g. 'pypsa.options.params.statistics.drop_zero = True'.",
+    )
+    def set_parameters(self, **kwargs: Any) -> None:  # noqa: D102
         for key, value in kwargs.items():
-            expected_type = self.PARAMETER_TYPES.get(key)
-            if expected_type is None:
-                raise ValueError(
-                    f"Invalid parameter name: {key} \n Possible parameters are {list(self.PARAMETER_TYPES.keys())}"
-                )
-            elif not isinstance(value, expected_type):
-                raise ValueError(
-                    f"Invalid type for parameter {key}: expected {expected_type.__name__}, got {type(value).__name__}"
-                )
-            else:
-                setattr(self, key, value)
+            options.set_option(f"params.statistics.{key}", value)
 
 
 class AbstractStatisticsAccessor(ABC):
@@ -155,6 +186,10 @@ class AbstractStatisticsAccessor(ABC):
         pass
 
     @abstractmethod
+    def _apply_option_kwargs(self, *args: Any, **kwargs: Any) -> Any:
+        pass
+
+    @abstractmethod
     def _aggregate_across_components(self, *args: Any, **kwargs: Any) -> Any:
         pass
 
@@ -176,6 +211,8 @@ class AbstractStatisticsAccessor(ABC):
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = True,
+        drop_zero: bool | None = None,
+        round: int | None = None,
     ) -> pd.Series | pd.DataFrame:
         """Apply a function and group the result for a collection of components."""
         d = {}
@@ -186,7 +223,8 @@ class AbstractStatisticsAccessor(ABC):
         if comps is None:
             comps = n.branch_components | n.one_port_components
         if nice_names is None:
-            nice_names = self.parameters.nice_names
+            # TODO move to _apply_option_kwargs
+            nice_names = options.params.statistics.nice_names
         for c in comps:
             if n.static(c).empty:
                 continue
@@ -231,6 +269,12 @@ class AbstractStatisticsAccessor(ABC):
             d[c] = df
 
         df = self._aggregate_components_concat_data(d, is_one_component)
+        df = self._apply_option_kwargs(
+            df,
+            drop_zero=drop_zero,
+            round=round,
+            nice_names=nice_names,  # TODO: nice_names does not have effect here
+        )
 
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)

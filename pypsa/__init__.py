@@ -29,11 +29,8 @@ from pypsa import (
     statistics,
 )
 from pypsa._options import (
-    describe_options,
-    get_option,
     option_context,
     options,
-    set_option,
 )
 from pypsa.common import check_pypsa_version
 from pypsa.components.abstract import Components
@@ -46,6 +43,11 @@ match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
 assert match, f"Could not determine release_version of pypsa: {__version__}"
 release_version = match.group(0)
 check_pypsa_version(__version__)
+
+# Module access to options
+describe_options = options.describe_options
+get_option = options.get_option
+set_option = options.set_option
 
 __all__ = [
     "options",

@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 from deprecation import deprecated
 
-from pypsa._options import get_option
+from pypsa._options import options
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 logger = logging.getLogger(__name__)
@@ -178,7 +178,7 @@ class ComponentsStore(dict):
         """
         Value iterator over components in store.
         """
-        if get_option("warnings.components_store_iter"):
+        if options.get_option("warnings.components_store_iter"):
             warnings.warn(
                 "Iterating over `n.components` yields the values instead of keys from "
                 "v0.33.0. This behavior might be breaking. Use `n.components.keys()` "

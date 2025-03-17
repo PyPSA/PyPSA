@@ -112,6 +112,17 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return res[first_key].loc[first_key]
         return ln.merge(list(res.values()), dim="group")
 
+    def _apply_option_kwargs(
+        self,
+        expr: LinearExpression,
+        nice_names: bool | None,
+        drop_zero: bool | None,
+        round: int | None,
+    ) -> LinearExpression:
+        # Expressions only support nice_names right now which applied elsewhere
+        # TODO
+        return expr
+
     def _aggregate_across_components(
         self, expr: LinearExpression, agg: Callable | str
     ) -> LinearExpression:
