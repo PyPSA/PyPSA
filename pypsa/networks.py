@@ -147,7 +147,6 @@ class Network:
 
     Examples
     --------
-    >>> import pypsa
     >>> nw1 = pypsa.Network("network.nc") # doctest: +SKIP
     >>> nw2 = pypsa.Network("/my/folder") # doctest: +SKIP
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc") # doctest: +SKIP
@@ -1088,9 +1087,6 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-
         Add a single component:
 
         >>> n.add("Bus", "my_bus_0")
@@ -1287,8 +1283,6 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.remove("Line", "0")
         >>> n.remove("Line", ["1","2"])
         """
@@ -1423,8 +1417,6 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> network_copy = n.copy()
 
         """
@@ -1527,8 +1519,6 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> sub_network_0 = n[n.buses.sub_network == "0"]
 
         """
@@ -1732,7 +1722,7 @@ class Network:
         Examples
         --------
         Define some network
-        >>> import pypsa
+
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
         Index(['bus1'], dtype='object')

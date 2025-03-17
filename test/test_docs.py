@@ -6,9 +6,19 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
+
+# Warning: Keep in sync with settings in doc/conf.py
+doctest_globals = {
+    "numpy": np,
+    "pandas": pd,
+    "pypsa": pypsa,
+    "n": pypsa.examples.ac_dc_meshed(),
+}
 
 modules = [
     importlib.import_module(name)
@@ -19,8 +29,20 @@ modules = [
 
 @pytest.mark.parametrize("module", modules)
 def test_doctest(module):
-    failed, _ = doctest.testmod(module)
-    assert failed == 0, f"{failed} doctest(s) failed in module {module.__name__}"
+    finder = doctest.DocTestFinder()
+    runner = doctest.DocTestRunner()
+    tests = finder.find(module)
+
+    failures = 0
+    for test in tests:
+        # Create a fresh copy of the globals for each test
+        test_globals = dict(doctest_globals)
+        test.globs.update(test_globals)
+
+        # Run the test
+        failures += runner.run(test).failed
+
+    assert failures == 0, f"{failures} doctest(s) failed in module {module.__name__}"
 
 
 @pytest.mark.test_sphinx_build

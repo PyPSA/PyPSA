@@ -193,14 +193,8 @@ def test_inactive_exclusion_in_static(ac_dc_network_r):
     df = n.statistics()
     assert "Line" in df.index.unique(0)
 
-    df = n.statistics(aggregate_time=False)
-    assert "Line" in df.index.unique(0)
-
     n.lines["active"] = False
     df = n.statistics()
-    assert "Line" not in df.index.unique(0)
-
-    df = n.statistics(aggregate_time=False)
     assert "Line" not in df.index.unique(0)
 
     n.lines["active"] = True
@@ -223,18 +217,3 @@ def test_carrier_selection(ac_dc_network_r):
     df = n.statistics(carrier=["AC"])
     assert "Line" in df.index.unique(0)
     assert list(df.index.unique(1)) == ["AC"]
-
-
-def test_parameters(ac_dc_network_r):
-    n = ac_dc_network_r
-    target = n.statistics.capex(nice_names=False).round(2)
-    n.statistics.set_parameters(nice_names=False, round=2)
-    df = n.statistics.capex()
-    assert np.allclose(df, target)
-    with pytest.raises(ValueError):
-        # Test setting not existing parameters
-        n.statistics.set_parameters(groupby=False)
-        # Test setting wrong dtype of parameter
-        n.statistics.set_parameters(round="one")
-    # Test parameter representation
-    isinstance(n.statistics.parameters, str)
