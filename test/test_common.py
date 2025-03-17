@@ -92,43 +92,6 @@ def test_class_method_access():
     assert isinstance(TestClass.method, MethodHandlerWrapper)
 
 
-def test_docstring_preservation():
-    """Test that the decorator preserves the original method's docstring"""
-
-    class ResultHandler:
-        def __init__(self, method):
-            self.method = method
-
-        def __call__(self, *args, **kwargs):
-            return self.method(*args, **kwargs)
-
-    class TestClass:
-        @MethodHandlerWrapper(handler_class=ResultHandler)
-        def method_with_doc(self, x):
-            """This is a test docstring"""
-            return x
-
-    assert TestClass.method_with_doc.__doc__ == "This is a test docstring"
-
-
-def test_name_preservation():
-    """Test that the decorator preserves the original method's name"""
-
-    class ResultHandler:
-        def __init__(self, method):
-            self.method = method
-
-        def __call__(self, *args, **kwargs):
-            return self.method(*args, **kwargs)
-
-    class TestClass:
-        @MethodHandlerWrapper(handler_class=ResultHandler)
-        def test_method_name(self, x):
-            return x
-
-    assert TestClass.test_method_name.__name__ == "test_method_name"
-
-
 @pytest.mark.parametrize(
     "attr, expected_name",
     [

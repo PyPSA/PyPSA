@@ -121,6 +121,14 @@ def test_no_time_aggregation(ac_dc_network_r):
     assert isinstance(df, pd.DataFrame)
 
 
+def test_carrier_selection(ac_dc_network_r):
+    df = ac_dc_network_r.statistics(groupby=False, carrier="gas")
+    assert not df.empty
+
+    df = ac_dc_network_r.statistics(groupby=False, carrier=["gas", "wind"])
+    assert not df.empty
+
+
 def test_bus_carrier_selection(ac_dc_network_r):
     df = ac_dc_network_r.statistics(groupby=False, bus_carrier="AC")
     assert not df.empty
