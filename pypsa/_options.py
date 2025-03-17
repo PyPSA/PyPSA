@@ -53,7 +53,7 @@ class Option:
 class OptionsNode:
     def __init__(self, name: str = "") -> None:
         self._name = name
-        self._children: dict[str, OptionsNode | Option] = {}
+        self._children: dict[str, Any] = {}
 
     def __getattr__(self, name: str) -> Any:
         if name not in self._children:
@@ -182,7 +182,7 @@ class OptionsNode:
 
         Examples
         --------
-        >>> pypsa.options.describe()
+        >>> pypsa.options.describe() # doctest: +ELLIPSIS
         PyPSA Options
         =============
         params.statistics.drop_zero:
@@ -194,9 +194,7 @@ class OptionsNode:
         params.statistics.round:
             Default: 5
             Description: Default value for the 'round' parameter in statistics module.
-        warnings.components_store_iter:
-            Default: True
-            Description: Some Description
+        ...
 
         """
         self.describe_options()
