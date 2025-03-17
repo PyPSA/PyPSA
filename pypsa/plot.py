@@ -185,7 +185,6 @@ def plot(
     bus_collection, branch_collection1, ... : tuple of Collections
         Collections for buses and branches.
     """
-
     if margin is None:
         logger.warning(
             "The `margin` argument does support None value anymore. "
@@ -1092,7 +1091,6 @@ def iplot(
     -------
     fig: dictionary for plotly figure
     """
-
     if mapbox_parameters is None:
         mapbox_parameters = {}
 

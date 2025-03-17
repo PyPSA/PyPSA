@@ -173,7 +173,6 @@ def rename_kwargs(
         A mapping of old argument names to new argument names.
 
     """
-
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
