@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import numpy as np
 import pandas as pd
-import seaborn.objects as so
+import seaborn as sns
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from pandas.api.types import CategoricalDtype
 
 from pypsa.consistency import (
@@ -16,6 +20,140 @@ from pypsa.plot.statistics.base import PlotsGenerator
 
 if TYPE_CHECKING:
     pass
+
+
+def facet_iter(
+    g: sns.FacetGrid,
+    df: pd.DataFrame,
+    facet_row: str | None,
+    facet_col: str | None,
+    split_by_sign: bool = False,
+) -> Iterator[tuple[Axes, pd.DataFrame]]:
+    """
+    Generator function that yields (axis, filtered_data) for each facet in a FacetGrid.
+
+    Parameters
+    ----------
+    g : seaborn.FacetGrid
+        The FacetGrid instance to use
+    df : pandas.DataFrame
+        The DataFrame to filter for each facet
+    facet_row : str, optional
+        Column name used for creating row facets
+    facet_col : str, optional
+        Column name used for creating column facets
+    split_by_sign : bool, optional
+        Whether to split the data by sign (positive/negative) for the y-axis
+        Default is False.
+
+    Yields
+    ------
+    tuple : (axis, filtered_data)
+        - axis: The matplotlib Axes object for the current facet
+        - filtered_data: DataFrame filtered for the current facet
+
+    """
+    # Get the facet values
+    row_vals = g.row_names if g.row_names else [None]
+    col_vals = g.col_names if g.col_names else [None]
+
+    for i, row_val in enumerate(row_vals):
+        for j, col_val in enumerate(col_vals):
+            # Get the axis for this facet
+            if g.axes.ndim == 1:
+                ax = g.axes[i if len(g.axes) > 1 else j]
+            else:
+                ax = g.axes[i, j]
+
+            # Filter the data for this specific facet
+            facet_data = df.copy()
+            if facet_row is not None and row_val is not None:
+                facet_data = facet_data[facet_data[facet_row] == row_val]
+            if facet_col is not None and col_val is not None:
+                facet_data = facet_data[facet_data[facet_col] == col_val]
+
+            # Skip if no data
+            if not facet_data.values.size:
+                continue
+
+            if split_by_sign:
+                for clip in [{"lower": 0}, {"upper": 0}]:
+                    yield ax, facet_data.assign(value=facet_data["value"].clip(**clip))
+            else:
+                # Yield the axis and the filtered data
+                yield ax, facet_data
+
+
+def map_dataframe_pandas_plot(
+    g: sns.FacetGrid,
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    color: str | None,
+    facet_row: str | None,
+    facet_col: str | None,
+    stacked: bool,
+    kind: str = "area",
+    **kwargs: Any,
+) -> sns.FacetGrid:
+    """
+    Handle the creation of area or bar plots for FacetGrid.
+
+    Parameters
+    ----------
+    g : seaborn.FacetGrid
+        The FacetGrid instance to use
+    df : pandas.DataFrame
+        The DataFrame in long format to plot
+    x : str
+        Column name to use for x-axis
+    y : str
+        Column name to use for y-axis
+    color : str, optional
+        Column name to use for color encoding
+    facet_row : str, optional
+        Column name used for creating row facets
+    facet_col : str, optional
+        Column name used for creating column facets
+    stacked : bool
+        Whether to create stacked charts
+    kind : str, optional
+        Kind of plot to create ('area' or 'bar')
+    **kwargs : additional keyword arguments
+        Passed to plotting function
+
+    """
+    # Store the color palette from FacetGrid for consistent colors
+    color_order = g.hue_names if hasattr(g, "hue_names") else None
+
+    split_by_sign = df["value"].min() < 0 and df["value"].max() > 0
+
+    for ax, facet_data in facet_iter(g, df, facet_row, facet_col, split_by_sign):
+        if color is not None:
+            # Pivot data to have x as index, color as columns, and y as values
+            pivoted = facet_data.pivot(index=x, columns=color, values=y)
+
+            # Ensure columns are ordered according to the hue order
+            if color_order:
+                # Get only the columns that exist in this facet
+                available_cols = [c for c in color_order if c in pivoted.columns]
+                if available_cols:  # Only reorder if we have columns
+                    pivoted = pivoted[available_cols]
+
+            # Plot with pandas - no legend to avoid duplicates
+            pivoted.plot(kind=kind, ax=ax, stacked=stacked, legend=False, **kwargs)
+        else:
+            # Simple case: just plot y vs x (no color grouping)
+            facet_data.plot(
+                kind=kind, x=x, y=y, ax=ax, stacked=stacked, legend=False, **kwargs
+            )
+
+        # Sort out the supporting information
+        g._update_legend_data(ax)
+
+    g._finalize_grid([x, y])
+
+    return g
 
 
 class ChartGenerator(PlotsGenerator, ABC):
@@ -34,7 +172,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         resample: str | None = None,
         query: str | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to return final plot."""
         pass
 
@@ -92,48 +230,10 @@ class ChartGenerator(PlotsGenerator, ABC):
             return dict(names[names != ""])
         return {}
 
-    def _process_data_for_stacking(
-        self,
-        data: pd.DataFrame,
-        stacked_dim: str,
-    ) -> pd.DataFrame:
-        """
-        Process data to correctly stack positive and negative values.
-
-        In the default seaborn implementation, stacking is done by adding the contributions
-        on top of each other. This means that negative values are added on top of positive
-        values. In our case, we want negative values to be stacked on the negative side of
-        the x/y-axis. This function firstly sorts the values of the data and then assigns a
-        new negative contribution equal to the sum of all positive values. This new negative
-        contribution is drawn as a transparent block. This way, the negative values are
-        stacked on the negative side of the x/y-axis.
-        """
-        if stacked_dim not in data.columns:
-            raise ValueError(f"Column {stacked_dim} not found in data")
-
-        # Get the sum of all positive values
-        remaining_columns = [
-            c for c in data.columns if c != "value" and c != stacked_dim
-        ]
-        if not remaining_columns:
-            return data
-
-        balancing_contribution = (
-            data[data["value"] > 0]
-            .drop(columns=stacked_dim)
-            .groupby(remaining_columns, as_index=False)
-            .agg({"value": "sum"})
-            .assign(**{stacked_dim: ""})
-            .assign(value=lambda x: -x["value"])
-        )
-
-        return pd.concat(
-            [data[data["value"] > 0], balancing_contribution, data[data["value"] < 0]]
-        )
-
     def _base_plot(
         self,
         data: pd.DataFrame,
+        kind: str,
         x: str,
         y: str,
         color: str | None = None,
@@ -143,35 +243,81 @@ class ChartGenerator(PlotsGenerator, ABC):
         nice_names: bool = True,
         query: str | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to be implemented by subclasses."""
         plotting_consistency_check(self._n, strict="all")
         ldata = self._to_long_format(data)
         if query:
             ldata = ldata.query(query)
-        if stacked and color is not None:
-            ldata = self._process_data_for_stacking(ldata, color)
         ldata = self._validate(ldata)
 
-        plot = so.Plot(ldata, x=x, y=y, color=color, **kwargs)
+        # Always use FacetGrid for consistency
+        g = sns.FacetGrid(
+            ldata,
+            row=facet_row,
+            col=facet_col,
+            hue=color,
+        )
 
-        # Apply color scale if using carrier colors
-        if color in ["carrier", "bus_carrier"]:
-            colors = self._get_carrier_colors()
-            plot = plot.scale(color=so.Nominal(colors))
-            if nice_names:
-                labels = self._get_carrier_labels(nice_names=nice_names)
-                plot = plot.scale(labels=so.Nominal(labels))
+        # Handle special case for area and bar plots
+        if kind == "area":
+            g = map_dataframe_pandas_plot(
+                g,
+                ldata,
+                x,
+                y,
+                color,
+                facet_row,
+                facet_col,
+                stacked,
+                kind="area",
+                **kwargs,
+            )
+        elif kind == "bar":
+            g = map_dataframe_pandas_plot(
+                g,
+                ldata,
+                x,
+                y,
+                color,
+                facet_row,
+                facet_col,
+                stacked,
+                kind="bar",
+                **kwargs,
+            )
+        # Other plot types remain the same
+        elif kind == "scatter":
+            g.map_dataframe(sns.scatterplot, x=x, y=y, **kwargs)
+        elif kind == "line":
+            g.map_dataframe(sns.lineplot, x=x, y=y, **kwargs)
+        elif kind == "bar":
+            g.map_dataframe(sns.barplot, x=x, y=y, **kwargs)
+        elif kind == "box":
+            g.map_dataframe(sns.boxplot, x=x, y=y, **kwargs)
+        elif kind == "violin":
+            g.map_dataframe(sns.violinplot, x=x, y=y, **kwargs)
+        elif kind == "histogram":
+            if y is None:
+                g.map_dataframe(sns.histplot, x=x, **kwargs)
+            else:
+                g.map_dataframe(sns.histplot, x=x, y=y, **kwargs)
+        else:
+            raise ValueError(f"Unsupported plot type: {kind}")
 
-        # Apply faceting if facet_col/facet_row specified
-        if facet_col is not None:
-            plot = plot.facet(col=facet_col)
-        if facet_row is not None:
-            plot = plot.facet(row=facet_row)
-        if facet_col is not None or facet_row is not None:
-            plot = plot.share(x=False, y=False)
+        # Add legend if color is specified (for non-area plots, area plots handle this separately)
+        if color is not None:
+            g.add_legend()
 
-        return plot
+        # Get the figure and axes from the FacetGrid
+        fig = g.fig
+        ax = g.axes  # This will be a 2D array of axes objects
+
+        # If there's only one subplot, return the single Axes object for convenience
+        if ax.size == 1:
+            ax = ax.flat[0]
+
+        return fig, ax, g
 
     def derive_statistic_parameters(
         self,
@@ -246,13 +392,13 @@ class BarPlotGenerator(ChartGenerator):
         facet_row: str | None = None,
         nice_names: bool = True,
         stacked: bool = False,
-        dodged: bool = False,
         query: str | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Implement bar plotting logic with seaborn.objects."""
-        plot = self._base_plot(
+        return self._base_plot(
             data,
+            kind="bar",
             x=x,
             y=y,
             color=color,
@@ -262,16 +408,6 @@ class BarPlotGenerator(ChartGenerator):
             nice_names=nice_names,
             query=query,
             **kwargs,
-        )
-
-        transforms = []
-        if stacked:
-            transforms.append(so.Stack())
-        if dodged:
-            transforms.append(so.Dodge())
-
-        return plot.add(so.Bar(), *transforms).label(
-            x=self._to_title(x), y=self._to_title(y)
         )
 
 
@@ -305,7 +441,7 @@ class LinePlotGenerator(ChartGenerator):
         resample: str | None = None,
         query: str | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Implement line plotting logic with seaborn.objects."""
         # Determine x-axis column
         if isinstance(data, pd.DataFrame) and set(data.columns).issubset(
@@ -314,8 +450,9 @@ class LinePlotGenerator(ChartGenerator):
             if resample:
                 data = data.T.resample(resample).mean().T
 
-        plot = self._base_plot(
+        return self._base_plot(
             data,
+            kind="line",
             x=x,
             y=y,
             color=color,
@@ -325,8 +462,6 @@ class LinePlotGenerator(ChartGenerator):
             query=query,
             **kwargs,
         )
-
-        return plot.add(so.Line()).label(x=self._to_title(x), y=self._to_title(y))
 
 
 class AreaPlotGenerator(ChartGenerator):
@@ -358,17 +493,17 @@ class AreaPlotGenerator(ChartGenerator):
         facet_row: str | None = None,
         nice_names: bool = True,
         stacked: bool = True,
-        dodged: bool = False,
         query: str | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Implement area plotting logic with seaborn.objects."""
         stacked = stacked if stacked is not None else self._default_stacked
 
-        plot = self._base_plot(
+        return self._base_plot(
             data,
+            kind="area",
             x=x,
-            y="value",
+            y=y,
             color=color,
             facet_col=facet_col,
             facet_row=facet_row,
@@ -376,12 +511,4 @@ class AreaPlotGenerator(ChartGenerator):
             nice_names=nice_names,
             query=query,
             **kwargs,
-        )
-
-        transforms = []
-        if stacked:
-            transforms.append(so.Stack())
-
-        return plot.add(so.Area(), *transforms).label(
-            x=self._to_title(x), y=self._to_title(y)
         )
