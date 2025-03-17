@@ -74,6 +74,9 @@ class MethodHandlerWrapper:
         if obj is None:
             return self
 
+        if self.func is None:
+            raise TypeError("Method has not been set correctly in MethodHandlerWrapper")
+
         # Create a bound method wrapper
         bound_method = self.func.__get__(obj, objtype)
 
