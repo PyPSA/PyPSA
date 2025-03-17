@@ -121,7 +121,6 @@ def adjacency_matrix(
     adjacency_matrix : sp.sparse.coo_matrix
        Directed adjacency matrix
     """
-
     from pypsa import Network, SubNetwork
 
     if isinstance(n, Network):

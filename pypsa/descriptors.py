@@ -316,7 +316,6 @@ def get_activity_mask(
     index : pd.Index, default None
         Subset of the component elements. If None (default) all components are returned.
     """
-
     sns_ = as_index(n, sns, "snapshots")
 
     if getattr(n, "_multi_invest", False):
@@ -413,7 +412,6 @@ def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
     Any : Updated string or original value if not a string.
 
     """
-
     if not isinstance(s, str) or len(s) == 1:
         return s
     return s.replace(j, str(i)).replace("required", "optional")
@@ -436,7 +434,6 @@ def update_linkports_component_attrs(
         or identifiers. If None, no filtering is applied and additional link
         ports are considered for all connectors.
     """
-
     ports = additional_linkports(n, where)
     ports.sort(reverse=True)
     c = "Link"

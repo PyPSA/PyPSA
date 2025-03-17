@@ -917,7 +917,6 @@ def export_to_csv_folder(
     export_to_hdf5 : Export to an HDF5 file
     export_to_excel : Export to an Excel file
     """
-
     basename = os.path.basename(csv_folder_name)
     with ExporterCSV(
         csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
@@ -1305,7 +1304,6 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
     -------
     pandas.DataFrame
     """
-
     df_cols_set = set(df.columns if axis == 1 else df.index)
 
     existing_cols = [col for col in attrs_list if col in df_cols_set]

@@ -401,7 +401,6 @@ def test_single_add_network_static(ac_dc_network, n_5bus):
     THEN    the first network should now contain its original buses and
     also the buses in the second network
     """
-
     n = ac_dc_network.merge(n_5bus, with_time=False)
     new_buses = set(n.buses.index)
     assert new_buses.issuperset(n_5bus.buses.index)

@@ -184,7 +184,6 @@ def optimize_transmission_expansion_iteratively(
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
-
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     ext_i = n.get_extendable_i("Line").copy()
     typed_i = n.lines.query('type != ""').index
