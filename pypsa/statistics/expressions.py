@@ -528,8 +528,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
-
         >>> n.statistics.installed_capex().sort_index()
         component  carrier
         Generator  gas        2.120994e+07
@@ -749,7 +747,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.optimal_capacity()
         Series([], dtype: float64)
 
@@ -861,7 +858,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.installed_capacity().sort_index()
         component  carrier
         Generator  gas        150000.0
@@ -971,7 +967,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.expanded_capacity()
         Series([], dtype: float64)
 
@@ -1084,7 +1079,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.opex()
         Series([], dtype: float64)
 
@@ -1296,7 +1290,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.withdrawal()
         Series([], dtype: float64)
 
@@ -1396,7 +1389,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.transmission()
         Series([], dtype: object)
 
@@ -1516,7 +1508,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.energy_balance()
         Series([], dtype: float64)
 
@@ -1644,7 +1635,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.curtailment()
         Series([], Name: generators, dtype: float64)
 
@@ -1751,7 +1741,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.capacity_factor()
         Series([], dtype: float64)
 
@@ -1864,7 +1853,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.revenue()
         Series([], dtype: float64)
 
@@ -1986,7 +1974,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
-
         >>> n.statistics.market_value()
         Series([], dtype: float64)
 

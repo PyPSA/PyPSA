@@ -117,6 +117,18 @@ def test_no_time_aggregation(ac_dc_network_r):
     assert isinstance(df, pd.DataFrame)
 
 
+def test_carrier_selection(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics(carrier="AC")
+    assert not df.empty
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
+
+    df = n.statistics(carrier=["AC"])
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
+
+
 def test_bus_carrier_selection(ac_dc_network_r):
     df = ac_dc_network_r.statistics(groupby=False, bus_carrier="AC")
     assert not df.empty
@@ -205,15 +217,3 @@ def test_transmission_carriers(ac_dc_network_r):
     n.lines["carrier"] = "AC"
     df = pypsa.statistics.get_transmission_carriers(ac_dc_network_r)
     assert "AC" in df.unique(1)
-
-
-def test_carrier_selection(ac_dc_network_r):
-    n = ac_dc_network_r
-    df = n.statistics(carrier="AC")
-    assert not df.empty
-    assert "Line" in df.index.unique(0)
-    assert list(df.index.unique(1)) == ["AC"]
-
-    df = n.statistics(carrier=["AC"])
-    assert "Line" in df.index.unique(0)
-    assert list(df.index.unique(1)) == ["AC"]

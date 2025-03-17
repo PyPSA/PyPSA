@@ -34,10 +34,25 @@ class MethodHandlerWrapper:
     and not changed. The handler class can be used as a drop-in replacement for the
     method.
 
+    Needs to be used as a callable decorator, i.e. with parentheses:
+    >>> class MyHandlerClass:
+    ...     def __init__(self, bound_method: Callable) -> None:
+    ...         self.bound_method = bound_method
+    ...     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
+    ...         return self.bound_method(*args, **kwargs)
+
+    >>> @MethodHandlerWrapper(handler_class=MyHandlerClass)
+    ... def my_method(self, *args, **kwargs):
+    ...     pass
+
     """
 
     def __init__(
-        self, func: Callable | None = None, *, handler_class: Any = None
+        self,
+        func: Callable | None = None,
+        *,
+        handler_class: Any = None,
+        inject_attrs: dict[str, str] | None = None,
     ) -> None:
         """
         Initialize the decorator.
@@ -49,24 +64,22 @@ class MethodHandlerWrapper:
         handler_class : Type, optional
             The handler class to use for wrapping the method. It should be callable
             with same signature as the method to guarantee compatibility.
+        inject_attrs : dict[str, str], optional
+            A mapping of instance attributes to be passed to the handler class
+            as keyword arguments. The keys are the names of the attributes to be
+            passed, and the values are the names of the attributes in the handler
+            class. If None, no attributes are passed. Pass only strings, not
+            attributes of the instance.
         """
         self.func = func
         self.handler_class = handler_class
-
-        # Allow for both decorator styles: @wrapper or @wrapper(handler_class=...)
-        if func is not None:
-            self.__name__ = func.__name__
-            self.__doc__ = func.__doc__
+        self.inject_attrs = inject_attrs or {}
 
     def __call__(self, func: Callable | None = None) -> MethodHandlerWrapper:
-        """Support using the decorator with or without arguments."""
+        """Call the decorator with the function to wrap."""
         if func is not None:
-            # Called as @MethodHandlerWrapper
             self.func = func
-            self.__name__ = func.__name__
-            self.__doc__ = func.__doc__
             return self
-        # Called with arguments: @MethodHandlerWrapper(handler_class=...)
         return self
 
     def __get__(self, obj: Any, objtype: Any = None) -> Any:
@@ -80,8 +93,20 @@ class MethodHandlerWrapper:
         # Create a bound method wrapper
         bound_method = self.func.__get__(obj, objtype)
 
-        # Create a callable instance with the bound method
-        wrapper = self.handler_class(bound_method)
+        # Prepare additional arguments from instance attributes, if any
+        handler_kwargs = {}
+        for key, value in self.inject_attrs.items():
+            if hasattr(obj, value):
+                handler_kwargs[key] = getattr(obj, value)
+            else:
+                msg = (
+                    f"Attribute '{key}' not found in the object instance. "
+                    f"Please ensure it is set before using the decorator."
+                )
+                raise AttributeError(msg)
+
+        # Create a callable instance with the bound method and optional attributes
+        wrapper = self.handler_class(bound_method, **handler_kwargs)
         return wrapper
 
 

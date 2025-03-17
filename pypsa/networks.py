@@ -364,8 +364,7 @@ class Network:
             OptimizationAccessor,
             ClusteringAccessor,
             StatisticsAccessor,
-            PlotAccessor,
-        ]
+        ]  # TODO acc plot accessor
 
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
