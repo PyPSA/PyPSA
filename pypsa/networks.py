@@ -234,8 +234,17 @@ class Network:
     pf = network_pf
 
     # from pypsa.plot
-    iplot = iplot
-    explore = explore
+    @deprecated(
+        details="Use `n.plot.iplot()` as a drop-in replacement instead.",
+    )
+    def iplot(self, *args: Any, **kwargs: Any) -> Any:
+        return iplot(self, *args, **kwargs)
+
+    @deprecated(
+        details="Use `n.plot.explore()` as a drop-in replacement instead.",
+    )
+    def explore(self, *args: Any, **kwargs: Any) -> Any:
+        return explore(self, *args, **kwargs)
 
     # from pypsa.contingency
     lpf_contingency = network_lpf_contingency

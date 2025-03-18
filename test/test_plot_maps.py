@@ -51,7 +51,7 @@ def test_deprecated_namespace(ac_dc_network):
 @pytest.mark.skipif(os.name == "nt", reason="tcl_findLibrary on Windows")
 def test_plot_standard_params_wo_geomap(ac_dc_network, margin, jitter):
     n = ac_dc_network
-    n.plot(geomap=False, margin=margin, jitter=jitter)
+    n.plot.map(geomap=False, margin=margin, jitter=jitter)
     plt.close()
 
 
@@ -60,14 +60,14 @@ def test_plot_standard_params_wo_geomap(ac_dc_network, margin, jitter):
 @pytest.mark.parametrize("jitter", (None, 1))
 def test_plot_standard_params_w_geomap(ac_dc_network, margin, jitter):
     n = ac_dc_network
-    n.plot(geomap=True, margin=margin, jitter=jitter)
+    n.plot.map(geomap=True, margin=margin, jitter=jitter)
     plt.close()
 
 
 def test_plot_on_axis_wo_geomap(ac_dc_network):
     n = ac_dc_network
     fig, ax = plt.subplots()
-    n.plot(ax=ax, geomap=False)
+    n.plot.map(ax=ax, geomap=False)
     plt.close()
 
 
@@ -76,7 +76,7 @@ def test_plot_on_axis_w_geomap(ac_dc_network):
     n = ac_dc_network
     fig, ax = plt.subplots()
     with pytest.raises(ValueError):
-        n.plot(ax=ax, geomap=True)
+        n.plot.map(ax=ax, geomap=True)
         plt.close()
 
 
@@ -86,17 +86,17 @@ def test_plot_bus_circles(ac_dc_network):
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()
     bus_sizes[:] = 1
     bus_colors = n.carriers.color
-    n.plot(bus_sizes=bus_sizes, bus_colors=bus_colors, geomap=False)
+    n.plot.map(bus_sizes=bus_sizes, bus_colors=bus_colors, geomap=False)
     plt.close()
 
     # Retrieving the colors from carriers also should work
     n.carriers["color"] = bus_colors
-    n.plot(bus_sizes=bus_sizes)
+    n.plot.map(bus_sizes=bus_sizes)
     plt.close()
 
     # Retrieving the colors from carriers also should work
     n.carriers["color"] = bus_colors
-    n.plot(bus_sizes=bus_sizes)
+    n.plot.map(bus_sizes=bus_sizes)
     plt.close()
 
 
@@ -109,7 +109,7 @@ def test_plot_split_circles(ac_dc_network):
     load_sizes = -n.loads_t.p_set.mean().groupby([n.loads.bus, n.loads.carrier]).max()
     bus_sizes = pd.concat((gen_sizes, load_sizes)) / 1e3
     bus_colors = n.carriers.color
-    n.plot(
+    n.plot.map(
         bus_sizes=bus_sizes, bus_colors=bus_colors, bus_split_circles=True, geomap=False
     )
     plt.close()
@@ -121,7 +121,7 @@ def test_plot_with_bus_cmap(ac_dc_network):
     buses = n.buses.index
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(buses)), buses)
-    n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
+    n.plot.map(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
 
@@ -131,7 +131,7 @@ def test_plot_with_line_cmap(ac_dc_network):
     lines = n.lines.index
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(lines)), lines)
-    n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
+    n.plot.map(line_colors=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
 
@@ -141,7 +141,7 @@ def test_plot_alpha(ac_dc_network):
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()
     bus_sizes[:] = 1
     bus_colors = n.carriers.color
-    n.plot(
+    n.plot.map(
         bus_sizes=bus_sizes,
         bus_colors=bus_colors,
         geomap=False,
@@ -153,7 +153,7 @@ def test_plot_alpha(ac_dc_network):
 
     # Retrieving the colors from carriers also should work
     n.carriers["color"] = bus_colors
-    n.plot(bus_sizes=bus_sizes)
+    n.plot.map(bus_sizes=bus_sizes)
     plt.close()
 
 
@@ -163,7 +163,7 @@ def test_plot_line_subset(ac_dc_network):
     lines = n.lines.index[:2]
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(lines)), lines)
-    n.plot(line_colors=colors, line_cmap="coolwarm", geomap=False)
+    n.plot.map(line_colors=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
 
@@ -173,13 +173,13 @@ def test_plot_bus_subset(ac_dc_network):
     buses = n.buses.index[:2]
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(buses)), buses)
-    n.plot(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
+    n.plot.map(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
     bus_sizes = n.generators.groupby(["bus", "carrier"]).p_nom.mean()[:3]
     bus_sizes[:] = 1
     bus_colors = n.carriers.color
-    n.plot(
+    n.plot.map(
         bus_sizes=bus_sizes,
         bus_colors=bus_colors,
         geomap=False,
@@ -209,7 +209,7 @@ def test_plot_from_statistics(ac_dc_network):
     branch_scale = 1e-4
     bus_colors = n.carriers.color
 
-    n.plot(
+    n.plot.map(
         bus_sizes=bus_sizes * bus_scale,
         bus_alpha=0.8,
         bus_colors=bus_colors,
@@ -222,7 +222,7 @@ def test_plot_from_statistics(ac_dc_network):
 def test_plot_layouter(ac_dc_network):
     n = ac_dc_network
 
-    n.plot(layouter=nx.layout.planar_layout, geomap=False)
+    n.plot.map(layouter=nx.layout.planar_layout, geomap=False)
     plt.close()
 
 
@@ -234,15 +234,15 @@ def test_plot_map_flow(ac_dc_network):
     line_flow = pd.Series(range(len(lines)), index=lines.index)
     links = branches.loc["Link"]
     link_flow = pd.Series(range(len(links)), index=links.index)
-    n.plot(line_flow=line_flow, link_flow=link_flow, geomap=False)
+    n.plot.map(line_flow=line_flow, link_flow=link_flow, geomap=False)
     plt.close()
 
     n.lines_t.p0.loc[:, line_flow.index] = 0
     n.lines_t.p0 += line_flow
-    n.plot(line_flow="mean", geomap=False)
+    n.plot.map(line_flow="mean", geomap=False)
     plt.close()
 
-    n.plot(line_flow=n.snapshots[0], geomap=False)
+    n.plot.map(line_flow=n.snapshots[0], geomap=False)
     plt.close()
 
 
@@ -251,7 +251,7 @@ def test_plot_map_line_colorbar(ac_dc_network):
 
     norm = plt.Normalize(vmin=0, vmax=10)
 
-    n.plot(
+    n.plot.map(
         line_colors=n.lines.index.astype(int), line_cmap="viridis", line_cmap_norm=norm
     )
 
@@ -263,7 +263,7 @@ def test_plot_map_bus_colorbar(ac_dc_network):
 
     norm = plt.Normalize(vmin=0, vmax=10)
 
-    n.plot(bus_colors=n.buses.x, bus_cmap="viridis", bus_cmap_norm=norm)
+    n.plot.map(bus_colors=n.buses.x, bus_cmap="viridis", bus_cmap_norm=norm)
 
     plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 
@@ -272,7 +272,7 @@ def test_plot_legend_lines(ac_dc_network):
     n = ac_dc_network
 
     fig, ax = plt.subplots()
-    n.plot(ax=ax, geomap=False)
+    n.plot.map(ax=ax, geomap=False)
 
     add_legend_lines(
         ax,
@@ -289,7 +289,7 @@ def test_plot_legend_patches(ac_dc_network):
     n = ac_dc_network
 
     fig, ax = plt.subplots()
-    n.plot(ax=ax, geomap=False)
+    n.plot.map(ax=ax, geomap=False)
 
     add_legend_patches(
         ax,
@@ -305,7 +305,7 @@ def test_plot_legend_circles_no_geomap(ac_dc_network):
     n = ac_dc_network
 
     fig, ax = plt.subplots()
-    n.plot(ax=ax, geomap=False)
+    n.plot.map(ax=ax, geomap=False)
 
     add_legend_circles(ax, 1, "reference size")
 
@@ -317,7 +317,7 @@ def test_plot_legend_circles_geomap(ac_dc_network):
     n = ac_dc_network
 
     fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
-    n.plot(ax=ax, geomap=True)
+    n.plot.map(ax=ax, geomap=True)
 
     add_legend_circles(ax, [1, 0.5], ["reference A", "reference B"])
 
@@ -329,7 +329,7 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
     n = ac_dc_network
 
     fig, ax = plt.subplots(subplot_kw={"projection": ccrs.PlateCarree()})
-    n.plot(ax=ax, geomap=True)
+    n.plot.map(ax=ax, geomap=True)
 
     add_legend_semicircles(ax, [1, 0.5], ["reference A", "reference B"])
 
@@ -338,9 +338,9 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
 
 @pytest.mark.skipif(
     not explore_deps_present,
-    reason="Dependencies for n.explore() not installed: folium, mapclassify",
+    reason="Dependencies for n.plot.explore() not installed: folium, mapclassify",
 )
 def test_network_explore(ac_dc_network):
     n = ac_dc_network
 
-    n.explore()
+    n.plot.explore()
