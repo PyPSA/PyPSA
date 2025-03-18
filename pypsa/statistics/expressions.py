@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import functools
 import logging
 import warnings
 from collections.abc import Callable, Collection, Sequence
@@ -117,27 +116,6 @@ class StatisticHandler(StatisticPlotter):
 
     """
 
-    def __init__(self, bound_method: Callable, n: Network) -> None:
-        """
-        Initialize the statistic handler.
-
-        Parameters
-        ----------
-        bound_method : Callable
-            The bound method/ underlying statistic function to call.
-        n : Network
-            The network object to use for the statistic calculation.
-
-        """
-        self._bound_method = bound_method
-        self._n = n
-
-        # Use docstring and signature from the bound method
-        functools.update_wrapper(self, bound_method)
-
-    def _bound_method(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        raise NotImplementedError("This method should be overridden.")
-
     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
         return self._bound_method(*args, **kwargs)
 
@@ -157,7 +135,7 @@ class StatisticHandler(StatisticPlotter):
         StatisticHandler(<lambda>)
 
         """
-        return f"StatisticHandler({self.__name__})"
+        return f"StatisticHandler({self._bound_method.__name__})"
 
 
 class StatisticsAccessor(AbstractStatisticsAccessor):

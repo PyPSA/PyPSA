@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from abc import ABC
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 import seaborn.objects as so
@@ -18,7 +18,7 @@ from pypsa.plot.statistics import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from pypsa import Network
 
 
 class StatisticPlotter(ABC):
@@ -30,13 +30,20 @@ class StatisticPlotter(ABC):
     are performed to validated the arguments.
     """
 
-    @abstractmethod
-    def _bound_method(
-        self,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
-        pass
+    def __init__(self, bound_method: Callable, n: Network) -> None:
+        """
+        Initialize the statistic handler.
+
+        Parameters
+        ----------
+        bound_method : Callable
+            The bound method/ underlying statistic function to call.
+        n : Network
+            The network object to use for the statistic calculation.
+
+        """
+        self._bound_method = bound_method
+        self._n = n
 
     def _chart(
         self,
