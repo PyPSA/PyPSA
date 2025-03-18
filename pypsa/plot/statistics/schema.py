@@ -97,6 +97,7 @@ SCHEMA: dict = {
         "area": {"x": "snapshot"},
     },
     "energy_balance": {
+        "plot": {"kind": "area"},
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot"},
         "map": {
