@@ -15,6 +15,18 @@ from pypsa.statistics.expressions import StatisticsAccessor
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.statistics, stat_func)
+    plot = plotter()
+
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-simple.png")
+
+    plt.close()
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     plot = plotter.plot.bar()
