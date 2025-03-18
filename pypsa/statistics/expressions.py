@@ -103,7 +103,7 @@ def get_transmission_carriers(
     )
 
 
-class StatisticHandler(StatisticPlotter):
+class StatisticHandler:
     """
     Statistic method handler.
 
@@ -115,6 +115,22 @@ class StatisticHandler(StatisticPlotter):
     pypsa.common.MethodHandlerWrapper
 
     """
+
+    def __init__(self, bound_method: Callable, n: Network) -> None:
+        """
+        Initialize the statistic handler.
+
+        Parameters
+        ----------
+        bound_method : Callable
+            The bound method/ underlying statistic function to call.
+        n : Network
+            The network object to use for the statistic calculation.
+
+        """
+        self._bound_method = bound_method
+        self._n = n
+        self.plot = StatisticPlotter(n=n, bound_method=bound_method)
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
         return self._bound_method(*args, **kwargs)
