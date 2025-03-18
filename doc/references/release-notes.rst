@@ -47,6 +47,8 @@ Minor improvements
 
 * Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed buses. (https://github.com/PyPSA/PyPSA/pull/1174)
 
+* Added warning for consistent legend circle and semicirle sizes when combining plots on a geographical axis.
+
 `v0.33.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2>`__ (12th March 2025)
 =======================================================================================
 

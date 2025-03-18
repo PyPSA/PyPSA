@@ -10,6 +10,7 @@ Functions for plotting networks.
 from __future__ import annotations
 
 import logging
+import warnings
 
 import geopandas as gpd
 import matplotlib.colors as mcolors
@@ -717,6 +718,11 @@ def add_legend_circles(
     """
     Add a legend for reference circles.
 
+    .. warning::
+        When combining ``n.plot()`` with other plots on a geographical axis,
+        ensure ``n.plot()`` is called first or the final axis extent is set initially
+        (``ax.set_extent(boundaries, crs=crs)``) for consistent legend circle sizes.
+
     Parameters
     ----------
     ax : matplotlib ax
@@ -741,6 +747,12 @@ def add_legend_circles(
         raise ValueError(msg)
 
     if hasattr(ax, "projection"):
+        warnings.warn(
+            "When combining n.plot() with other plots on a geographical axis, "
+            "ensure n.plot() is called first or the final axis extent is set initially "
+            "(ax.set_extent(boundaries, crs=crs)) for consistent legend circle sizes.",
+            UserWarning,
+        )
         area_correction = projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
 
@@ -758,6 +770,11 @@ def add_legend_semicircles(
 ):
     """
     Add a legend for reference semi-circles.
+
+    .. warning::
+        When combining ``n.plot()`` with other plots on a geographical axis,
+        ensure ``n.plot()`` is called first or the final axis extent is set initially
+        (``ax.set_extent(boundaries, crs=crs)``) for consistent legend semicircle sizes.
 
     Parameters
     ----------
@@ -777,6 +794,12 @@ def add_legend_semicircles(
     assert len(sizes) == len(labels), "Sizes and labels must have the same length."
 
     if hasattr(ax, "projection"):
+        warnings.warn(
+            "When combining n.plot() with other plots on a geographical axis, "
+            "ensure n.plot() is called first or the final axis extent is set initially "
+            "(ax.set_extent(boundaries, crs=crs)) for consistent legend semicircle sizes.",
+            UserWarning,
+        )
         area_correction = projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
 
