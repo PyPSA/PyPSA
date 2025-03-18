@@ -851,13 +851,23 @@ def define_modular_constraints(n: Network, c: str, attr: str) -> None:
         name of the variable, e.g. 'n_opt'
     """
     m = n.model
-    mod_i = n.static(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
+    component = as_components(n, c)
+
+    ext_attr = f"{attr}_extendable"
+    mod_attr = f"{attr}_mod"
+
+    # Mask components that are both extendable and have a positive modular capacity
+    mask = component.static[ext_attr] & (component.static[mod_attr] > 0)
+    mod_i = component.static.index[mask]
 
     if (mod_i).empty:
         return
 
-    modularity = m.variables[f"{c}-n_mod"]
-    modular_capacity = n.static(c)[f"{attr}_mod"].loc[mod_i]
+    # Get modular capacity values
+    modular_capacity = component.as_xarray(mod_attr, inds=mod_i)
+
+    # Get variables
+    modularity = m[f"{c}-n_mod"]
     capacity = m.variables[f"{c}-{attr}"].loc[mod_i]
 
     con = capacity - modularity * modular_capacity.values == 0
