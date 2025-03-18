@@ -106,7 +106,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, res: dict[str, LinearExpression], is_one_component: bool
     ) -> LinearExpression:
         if res == {}:
-            return LinearExpression(None, self.n.model)
+            return LinearExpression(None, self._n.model)
         if is_one_component:
             first_key = next(iter(res))
             return res[first_key].loc[first_key]
@@ -137,10 +137,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         # TODO: move function to better place to avoid circular imports
         from pypsa.optimization.optimize import lookup
 
-        m = self.n.model
+        m = self._n.model
 
         if c == "Load":
-            return LinearExpression(self.n.get_switchable_as_dense(c, "p_set"), m)
+            return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             assert set(["p_store", "p_dispatch"]) <= set(attr)
@@ -391,7 +391,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         if (
-            self.n.buses.carrier.unique().size > 1
+            self._n.buses.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
         ):

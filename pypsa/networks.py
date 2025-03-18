@@ -364,6 +364,7 @@ class Network:
             OptimizationAccessor,
             ClusteringAccessor,
             StatisticsAccessor,
+            PlotAccessor,
         ]  # TODO acc plot accessor
 
         if isinstance(other, self.__class__):

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
+
+from pypsa.plot.statistics.plotter import StatisticPlotter
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -17,8 +20,11 @@ from pypsa.common import MethodHandlerWrapper, pass_empty_series_if_keyerror
 from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
+if TYPE_CHECKING:
+    from pypsa import Network
+
+
 logger = logging.getLogger(__name__)
-warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -98,15 +104,20 @@ def get_transmission_carriers(
     )
 
 
-class StatisticHandler:
+class StatisticHandler(StatisticPlotter):
     """
     Statistic method handler.
 
     This class wraps a statistic method and provides a callable instance. To the get
     the statistic output as a DataFrame, call the instance with the desired arguments.
+
+    See Also
+    --------
+    pypsa.common.MethodHandlerWrapper
+
     """
 
-    def __init__(self, bound_method: Callable) -> None:
+    def __init__(self, bound_method: Callable, n: Network) -> None:
         """
         Initialize the statistic handler.
 
@@ -114,14 +125,21 @@ class StatisticHandler:
         ----------
         bound_method : Callable
             The bound method/ underlying statistic function to call.
+        n : Network
+            The network object to use for the statistic calculation.
 
         """
-        self.bound_method = bound_method
-        self.__name__ = bound_method.__name__
-        self.__doc__ = bound_method.__doc__
+        self._bound_method = bound_method
+        self._n = n
+
+        # Use docstring and signature from the bound method
+        functools.update_wrapper(self, bound_method)
+
+    def _bound_method(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
+        raise NotImplementedError("This method should be overridden.")
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
-        return self.bound_method(*args, **kwargs)
+        return self._bound_method(*args, **kwargs)
 
     def __repr__(self) -> str:
         """
@@ -134,7 +152,7 @@ class StatisticHandler:
 
         Examples
         --------
-        >>> handler = StatisticHandler(lambda x: x)
+        >>> handler = StatisticHandler(lambda x: x,n=n)
         >>> handler
         StatisticHandler(<lambda>)
 
@@ -354,7 +372,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -456,7 +474,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def installed_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -528,6 +546,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
+
         >>> n.statistics.installed_capex().sort_index()
         component  carrier
         Generator  gas        2.120994e+07
@@ -560,7 +580,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def expanded_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -637,7 +657,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Generator  gas       -2.120994e+07
                    wind      -6.761698e+05
         ...
-        dtype: float64
 
         """
         df = self.capex(
@@ -672,7 +691,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def optimal_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -747,6 +766,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.optimal_capacity()
         Series([], dtype: float64)
 
@@ -783,7 +803,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def installed_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -858,6 +878,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.installed_capacity().sort_index()
         component  carrier
         Generator  gas        150000.0
@@ -899,7 +920,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def expanded_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -967,6 +988,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.expanded_capacity()
         Series([], dtype: float64)
 
@@ -1001,7 +1023,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def opex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1079,6 +1101,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.opex()
         Series([], dtype: float64)
 
@@ -1114,7 +1137,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def supply(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1213,7 +1236,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def withdrawal(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1312,7 +1335,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def transmission(
         self,
         comps: Collection[str] | str | None = None,
@@ -1393,7 +1416,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: object)
 
         """
-        n = self.n
+        n = self._n
 
         if comps is None:
             comps = n.branch_components
@@ -1423,7 +1446,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def energy_balance(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1512,7 +1535,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        n = self.n
+        n = self._n
 
         if (
             n.buses.carrier.unique().size > 1
@@ -1557,7 +1580,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def curtailment(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1666,7 +1689,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MWh"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def capacity_factor(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1771,7 +1794,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "p.u."
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def revenue(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1896,7 +1919,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def market_value(
         self,
         comps: str | Sequence[str] | None = None,

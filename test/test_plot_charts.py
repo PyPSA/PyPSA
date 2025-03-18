@@ -186,15 +186,15 @@ def test_consistency_checks(ac_dc_network_r):
 def test_stacking_and_dodging(ac_dc_network_r):
     """Test stacking and dodging options in bar plots"""
     n = ac_dc_network_r
-    stacked_plot = n.plot.supply.bar(x="carrier", y="value", stacked=True)
+    stacked_plot = n.statistics.supply.bar(x="carrier", y="value", stacked=True)
     assert isinstance(stacked_plot, so.Plot)
 
     # Test dodged plot
-    dodged_plot = n.plot.supply.bar(x="carrier", y="value", dodged=True)
+    dodged_plot = n.statistics.supply.bar(x="carrier", y="value", dodged=True)
     assert isinstance(dodged_plot, so.Plot)
 
 
 def test_line_plot_resampling(ac_dc_network_r):
     """Test resampling functionality in line plots"""
     n = ac_dc_network_r
-    n.plot.supply.line(resample="1D", x="snapshot")
+    n.statistics.supply.line(resample="1D", x="snapshot")
