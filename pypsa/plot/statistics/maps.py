@@ -19,8 +19,6 @@ from pypsa.plot.maps import (
 )
 from pypsa.plot.statistics.base import PlotsGenerator
 
-# from pypsa.statistics.expressions import get_transmission_carriers
-
 if TYPE_CHECKING:
     from pypsa import Network
 
@@ -90,12 +88,14 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         (x_min, x_max, y_min, y_max) = boundaries
 
         # Get non-transmission carriers
-        # TODO Solve
-        # trans_carriers = get_transmission_carriers(n, bus_carrier=bus_carrier).unique(
-        #     "carrier"
-        # )
-        non_transmission_carriers = n.carriers.index  # .difference(trans_carriers)
-        trans_carriers: list = []
+        # TODO solve circular import by refactoring to descriptors.py
+        from pypsa.statistics.expressions import get_transmission_carriers
+
+        trans_carriers = get_transmission_carriers(n, bus_carrier=bus_carrier).unique(
+            "carrier"
+        )
+        non_transmission_carriers = n.carriers.index.difference(trans_carriers)
+
         # Get bus sizes from statistics function
         bus_sizes = func(
             bus_carrier=bus_carrier,

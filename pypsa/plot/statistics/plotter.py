@@ -177,7 +177,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        >>> n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
         <seaborn._core.plot.Plot object at 0x...>
 
         """
@@ -276,7 +276,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.line(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        >>> n.statistics.installed_capacity.plot.line(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
         <seaborn._core.plot.Plot object at 0x...>
 
         """
@@ -376,7 +376,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.area(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        >>> n.statistics.installed_capacity.plot.area(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
         <seaborn._core.plot.Plot object at 0x...>
 
         """
@@ -502,7 +502,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> fig, ax = n.statistics.installed_capacity.map(geomap=True, title="Installed Capacity")
+        >>> fig, ax = n.statistics.installed_capacity.plot.map(geomap=True, title="Installed Capacity")
 
         """
         plot_kwargs = {

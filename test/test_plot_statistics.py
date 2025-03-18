@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
@@ -13,30 +15,45 @@ from pypsa.statistics.expressions import StatisticsAccessor
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_bar_plot(ac_dc_network_r, stat_func):
+def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plotter.bar()
+    plot = plotter.plot.bar()
+
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-bar.png")
+
     plt.close()
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_line_plot(ac_dc_network_r, stat_func):
+def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plotter.line()
+    plot = plotter.plot.line()
+
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-line.png")
     plt.close()
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_area_plot(ac_dc_network_r, stat_func):
+def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plotter.area()
+    plot = plotter.plot.area()
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-area.png")
     plt.close()
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_map_plot(ac_dc_network_r, stat_func):
+def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plotter.area()
+    plot = plotter.plot.area()
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-map.png")
     plt.close()
 
 
@@ -216,15 +233,15 @@ def test_consistency_checks(ac_dc_network_r):
 def test_stacking_and_dodging(ac_dc_network_r):
     """Test stacking and dodging options in bar plots"""
     n = ac_dc_network_r
-    stacked_plot = n.statistics.supply.bar(x="carrier", y="value", stacked=True)
+    stacked_plot = n.statistics.supply.plot.bar(x="carrier", y="value", stacked=True)
     assert isinstance(stacked_plot, so.Plot)
 
     # Test dodged plot
-    dodged_plot = n.statistics.supply.bar(x="carrier", y="value", dodged=True)
+    dodged_plot = n.statistics.supply.plot.bar(x="carrier", y="value", dodged=True)
     assert isinstance(dodged_plot, so.Plot)
 
 
 def test_line_plot_resampling(ac_dc_network_r):
     """Test resampling functionality in line plots"""
     n = ac_dc_network_r
-    n.statistics.supply.line(resample="1D", x="snapshot")
+    n.statistics.supply.plot.line(resample="1D", x="snapshot")
