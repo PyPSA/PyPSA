@@ -95,7 +95,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         #     "carrier"
         # )
         non_transmission_carriers = n.carriers.index  # .difference(trans_carriers)
-        trans_carriers = []
+        trans_carriers: list = []
         # Get bus sizes from statistics function
         bus_sizes = func(
             bus_carrier=bus_carrier,

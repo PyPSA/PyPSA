@@ -29,7 +29,7 @@ class PlotAccessor:
         details="Use `n.plot.map()` as a drop-in replacement instead.",
     )
     @functools.wraps(plot)
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:  # type: ignore
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Legacy plot method."""
         return plot(self.n, *args, **kwargs)
 

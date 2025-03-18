@@ -335,9 +335,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         if comps is None:
-            comps = self.n.branch_components
+            comps = self._n.branch_components
 
-        transmission_branches = get_transmission_branches(self.n, bus_carrier)
+        transmission_branches = get_transmission_branches(self._n, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
