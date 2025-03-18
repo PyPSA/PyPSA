@@ -895,7 +895,7 @@ def define_fixed_operation_constraints(
 
     var = n.model[f"{c}-{attr}"]
 
-    n.model.add_constraints(var, "=", fix, name=f"{c}-test5" + attr_set, mask=mask)
+    n.model.add_constraints(var, "=", fix, name=f"{c}-" + attr_set, mask=mask)
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
