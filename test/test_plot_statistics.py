@@ -1,5 +1,6 @@
 import hashlib
 import pickle
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -12,6 +13,7 @@ from pypsa.plot.statistics.charts import (
     BarPlotGenerator,
     LinePlotGenerator,
 )
+from pypsa.statistics import StatisticsAccessor
 
 PLOT_HASHES = {
     "capex": {
@@ -128,91 +130,91 @@ def get_object_hash(obj):
     return hashlib.md5(pickled_obj).hexdigest()
 
 
-# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-# def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
-#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-#     plot = plotter.plot()
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.statistics, stat_func)
+    plot = plotter.plot()
 
-#     plot_hash = get_object_hash(plot)
-#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
-#         f"Plot hash mismatch for {stat_func}. If this is expected, "
-#         "update the PLOT_HASHES dictionary."
-#     )
+    plot_hash = get_object_hash(plot)
+    assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+        f"Plot hash mismatch for {stat_func}. If this is expected, "
+        "update the PLOT_HASHES dictionary."
+    )
 
-#     if pytestconfig.getoption("--save-plots"):
-#         Path("test_plots_output").mkdir(exist_ok=True)
-#         plot.save("test_plots_output/" + stat_func + "-simple.png")
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-simple.png")
 
-#     plt.close()
-
-
-# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-# def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
-#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-#     plot = plotter.plot.bar()
-
-#     plot_hash = get_object_hash(plot)
-#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
-#         f"Plot hash mismatch for {stat_func}. If this is expected, "
-#         "update the PLOT_HASHES dictionary."
-#     )
-
-#     if pytestconfig.getoption("--save-plots"):
-#         Path("test_plots_output").mkdir(exist_ok=True)
-#         plot.save("test_plots_output/" + stat_func + "-bar.png")
-
-#     plt.close()
+    plt.close()
 
 
-# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-# def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
-#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-#     plot = plotter.plot.line()
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.statistics, stat_func)
+    plot = plotter.plot.bar()
 
-#     plot_hash = get_object_hash(plot)
-#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
-#         f"Plot hash mismatch for {stat_func}. If this is expected, "
-#         "update the PLOT_HASHES dictionary."
-#     )
+    plot_hash = get_object_hash(plot)
+    assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+        f"Plot hash mismatch for {stat_func}. If this is expected, "
+        "update the PLOT_HASHES dictionary."
+    )
 
-#     if pytestconfig.getoption("--save-plots"):
-#         Path("test_plots_output").mkdir(exist_ok=True)
-#         plot.save("test_plots_output/" + stat_func + "-line.png")
-#     plt.close()
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-bar.png")
 
-
-# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-# def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
-#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-#     plot = plotter.plot.area()
-
-#     plot_hash = get_object_hash(plot)
-#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
-#         f"Plot hash mismatch for {stat_func}. If this is expected, "
-#         "update the PLOT_HASHES dictionary."
-#     )
-
-#     if pytestconfig.getoption("--save-plots"):
-#         Path("test_plots_output").mkdir(exist_ok=True)
-#         plot.save("test_plots_output/" + stat_func + "-area.png")
-#     plt.close()
+    plt.close()
 
 
-# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-# def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
-#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-#     plot = plotter.plot.area()
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.statistics, stat_func)
+    plot = plotter.plot.line()
 
-#     plot_hash = get_object_hash(plot)
-#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
-#         f"Plot hash mismatch for {stat_func}. If this is expected, "
-#         "update the PLOT_HASHES dictionary."
-#     )
+    plot_hash = get_object_hash(plot)
+    assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+        f"Plot hash mismatch for {stat_func}. If this is expected, "
+        "update the PLOT_HASHES dictionary."
+    )
 
-#     if pytestconfig.getoption("--save-plots"):
-#         Path("test_plots_output").mkdir(exist_ok=True)
-#         plot.save("test_plots_output/" + stat_func + "-map.png")
-#     plt.close()
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-line.png")
+    plt.close()
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.statistics, stat_func)
+    plot = plotter.plot.area()
+
+    plot_hash = get_object_hash(plot)
+    assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+        f"Plot hash mismatch for {stat_func}. If this is expected, "
+        "update the PLOT_HASHES dictionary."
+    )
+
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-area.png")
+    plt.close()
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.statistics, stat_func)
+    plot = plotter.plot.area()
+
+    plot_hash = get_object_hash(plot)
+    assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+        f"Plot hash mismatch for {stat_func}. If this is expected, "
+        "update the PLOT_HASHES dictionary."
+    )
+
+    if pytestconfig.getoption("--save-plots"):
+        Path("test_plots_output").mkdir(exist_ok=True)
+        plot.save("test_plots_output/" + stat_func + "-map.png")
+    plt.close()
 
 
 def test_to_long_format_static(ac_dc_network_r):
