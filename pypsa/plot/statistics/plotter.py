@@ -11,12 +11,8 @@ import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
-from pypsa.plot.statistics import (
-    AreaPlotGenerator,
-    BarPlotGenerator,
-    LinePlotGenerator,
-    MapPlotGenerator,
-)
+from pypsa.plot.statistics.charts import ChartGenerator
+from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import apply_parameter_schema
 
 if TYPE_CHECKING:
@@ -140,7 +136,7 @@ class StatisticPlotter(ABC):
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
-        return plotter.plot(data, **plot_kwargs, **kwargs)
+        return plotter.plot(data, kind=chart_type, **plot_kwargs, **kwargs)
 
     def bar(
         self,
@@ -231,7 +227,7 @@ class StatisticPlotter(ABC):
         }
         return self._chart(
             "bar",
-            BarPlotGenerator,
+            ChartGenerator,
             plot_kwargs,
             stats_kwargs,
             **kwargs,
@@ -244,7 +240,6 @@ class StatisticPlotter(ABC):
         color: str | None = "carrier",
         facet_col: str | None = None,
         facet_row: str | None = None,
-        resample: str | None = None,
         query: str | None = None,
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
@@ -274,10 +269,6 @@ class StatisticPlotter(ABC):
         facet_row : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
             :class:`seaborn.objects.Plot.facet` for more information.
-        resample : str | None, default: None
-            Resampling frequency. If specified, the data is resampled to the given
-            frequency. See :class:`pandas.DataFrame.resample` for more information.
-            Aggregation is done by taking the mean.
         query : str | None, default: None
             Pandas query string to filter the data before plotting. E.g. "value > 0".
         nice_names : bool, default: True
@@ -318,7 +309,6 @@ class StatisticPlotter(ABC):
             "color": color,
             "facet_col": facet_col,
             "facet_row": facet_row,
-            "resample": resample,
             "query": query,
             "nice_names": nice_names,
         }
@@ -330,7 +320,7 @@ class StatisticPlotter(ABC):
         }
         return self._chart(
             "line",
-            LinePlotGenerator,
+            ChartGenerator,
             plot_kwargs,
             stats_kwargs,
             **kwargs,
@@ -426,7 +416,7 @@ class StatisticPlotter(ABC):
         }
         return self._chart(
             "area",
-            AreaPlotGenerator,
+            ChartGenerator,
             plot_kwargs,
             stats_kwargs,
             **kwargs,

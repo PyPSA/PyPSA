@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from pandas.api.types import CategoricalDtype
 
 from pypsa.consistency import (
     plotting_consistency_check,
@@ -28,8 +27,6 @@ def facet_iter(
     facet_row: str | None,
     facet_col: str | None,
     split_by_sign: bool = False,
-    sharex: bool = True,
-    sharey: bool = True,
 ) -> Iterator[tuple[Axes, pd.DataFrame]]:
     """
     Generator function that yields (axis, filtered_data) for each facet in a FacetGrid.
@@ -47,10 +44,6 @@ def facet_iter(
     split_by_sign : bool, optional
         Whether to split the data by sign (positive/negative) for the y-axis
         Default is False.
-    sharex : bool, optional
-        Whether to share x-axis across columns. Default is True.
-    sharey : bool, optional
-        Whether to share y-axis across rows. Default is True.
 
     Yields
     ------
@@ -153,9 +146,7 @@ def map_dataframe_pandas_plot(
         else:
             x_var, y_var = x, y
 
-        for ax, facet_data in facet_iter(
-            g, df, facet_row, facet_col, split_by_sign, sharex, sharey
-        ):
+        for ax, facet_data in facet_iter(g, df, facet_row, facet_col, split_by_sign):
             # Pivot data to have x as index, color as columns, and y as values
             if color is None:
                 pivoted = facet_data.set_index(x_var)[[y_var]]
@@ -194,23 +185,6 @@ def map_dataframe_pandas_plot(
 class ChartGenerator(PlotsGenerator, ABC):
     """Base class for generating charts based on statistics functions."""
 
-    @abstractmethod
-    def plot(
-        self,
-        data: pd.DataFrame,
-        x: str = "carrier",
-        y: str = "value",
-        color: str | None = None,
-        facet_col: str | None = None,
-        facet_row: str | None = None,
-        nice_names: bool = True,
-        resample: str | None = None,
-        query: str | None = None,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
-        """Plot method to return final plot."""
-        pass
-
     def _to_title(self, s: str) -> str:
         """Convert string to title case."""
         return s.replace("_", " ").title()
@@ -219,13 +193,6 @@ class ChartGenerator(PlotsGenerator, ABC):
         """Validate data has required columns and types."""
         if "value" not in data.columns:
             raise ValueError("Data must contain 'value' column")
-
-        # Convert object columns to category for better performance
-        for col in data.columns:
-            if isinstance(data[col].dtype, object | str) and not isinstance(
-                data[col].dtype, CategoricalDtype
-            ):
-                data = data.assign(**{col: data[col].astype("category")})
 
         return data
 
@@ -251,7 +218,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         return df
 
-    def _base_plot(
+    def plot(
         self,
         data: pd.DataFrame,
         kind: Literal["area", "bar", "scatter", "line", "box", "violin", "histogram"],
@@ -437,161 +404,3 @@ class ChartGenerator(PlotsGenerator, ABC):
                 stats_kwargs["aggregate_time"] = False
 
         return stats_kwargs
-
-
-class BarPlotGenerator(ChartGenerator):
-    """Bar plot-specific implementation."""
-
-    _default_orientation: ClassVar[str] = "vertical"
-    _default_statChartGenerator = "carrier"
-    _default_dynamic_x: ClassVar[str] = "carrier"
-    time_aggregation: ClassVar[str | bool] = "sum"
-
-    def _validate(self: BarPlotGenerator, data: pd.DataFrame) -> pd.DataFrame:
-        """Implement bar-specific data validation."""
-        if data.index.nlevels < 1:
-            raise ValueError("Data must have at least one index level for bar plots")
-        return data
-
-    def plot(  # type: ignore
-        self,
-        data: pd.DataFrame,
-        x: str,
-        y: str,
-        color: str | None = None,
-        facet_col: str | None = None,
-        facet_row: str | None = None,
-        nice_names: bool = True,
-        stacked: bool = False,
-        query: str | None = None,
-        sharex: bool | None = None,
-        sharey: bool | None = None,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
-        """Implement bar plotting logic with seaborn.objects."""
-        return self._base_plot(
-            data,
-            kind="bar",
-            x=x,
-            y=y,
-            color=color,
-            facet_col=facet_col,
-            facet_row=facet_row,
-            stacked=stacked,
-            nice_names=nice_names,
-            query=query,
-            sharex=sharex,
-            sharey=sharey,
-            **kwargs,
-        )
-
-
-class LinePlotGenerator(ChartGenerator):
-    """Line plot-specific implementation."""
-
-    _default_resample: ClassVar[str | None] = None
-    _default_static_x: ClassVar[str] = "carrier"
-    _default_dynamic_x: ClassVar[str] = "snapshot"
-    time_aggregation: ClassVar[str | bool] = False
-
-    def _validate(self: LinePlotGenerator, data: pd.DataFrame) -> pd.DataFrame:
-        """Implement data validation for line plots."""
-        # For time series data, ensure datetime index
-        if "snapshot" in data.columns:
-            try:
-                data = data.assign(snapshot=pd.to_datetime(data["snapshot"]))
-            except (ValueError, TypeError):
-                pass
-        return data
-
-    def plot(
-        self,
-        data: pd.DataFrame,
-        x: str = "carrier",
-        y: str = "value",
-        color: str | None = None,
-        facet_col: str | None = None,
-        facet_row: str | None = None,
-        nice_names: bool = True,
-        resample: str | None = None,
-        query: str | None = None,
-        sharex: bool | None = None,
-        sharey: bool | None = None,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
-        """Implement line plotting logic with seaborn.objects."""
-        # Determine x-axis column
-        if isinstance(data, pd.DataFrame) and set(data.columns).issubset(
-            self._n.snapshots
-        ):
-            if resample:
-                data = data.T.resample(resample).mean().T
-
-        return self._base_plot(
-            data,
-            kind="line",
-            x=x,
-            y=y,
-            color=color,
-            facet_col=facet_col,
-            facet_row=facet_row,
-            nice_names=nice_names,
-            query=query,
-            sharex=sharex,
-            sharey=sharey,
-            **kwargs,
-        )
-
-
-class AreaPlotGenerator(ChartGenerator):
-    """Area plot-specific implementation."""
-
-    _default_resample: ClassVar[str | None] = None
-    _default_stacked: ClassVar[bool] = True
-    _default_static_x: ClassVar[str] = "carrier"
-    _default_dynamic_x: ClassVar[str] = "snapshot"
-    time_aggregation: ClassVar[str | bool] = False
-
-    def _validate(self: AreaPlotGenerator, data: pd.DataFrame) -> pd.DataFrame:
-        """Implement data validation for area plots."""
-        # For time series data, ensure datetime index
-        if "snapshot" in data.columns:
-            try:
-                data = data.assign(snapshot=pd.to_datetime(data["snapshot"]))
-            except (ValueError, TypeError):
-                pass
-        return data
-
-    def plot(  # type: ignore
-        self,
-        data: pd.DataFrame,
-        x: str,  # Removed default
-        y: str = "value",
-        color: str | None = None,
-        facet_col: str | None = None,
-        facet_row: str | None = None,
-        nice_names: bool = True,
-        stacked: bool = True,
-        query: str | None = None,
-        sharex: bool | None = None,
-        sharey: bool | None = None,
-        **kwargs: Any,
-    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
-        """Implement area plotting logic with seaborn.objects."""
-        stacked = stacked if stacked is not None else self._default_stacked
-
-        return self._base_plot(
-            data,
-            kind="area",
-            x=x,
-            y=y,
-            color=color,
-            facet_col=facet_col,
-            facet_row=facet_row,
-            stacked=stacked,
-            nice_names=nice_names,
-            query=query,
-            sharex=sharex,
-            sharey=sharey,
-            **kwargs,
-        )

@@ -7,11 +7,7 @@ import pytest
 import seaborn as sns
 
 from pypsa.consistency import ConsistencyError
-from pypsa.plot.statistics.charts import (
-    AreaPlotGenerator,
-    BarPlotGenerator,
-    LinePlotGenerator,
-)
+from pypsa.plot.statistics.charts import ChartGenerator
 
 PLOT_HASHES = {
     "capex": {
@@ -218,7 +214,7 @@ def get_object_hash(obj):
 def test_to_long_format_static(ac_dc_network_r):
     """Test the _to_long_format method with optimal_capacity data."""
     # Create the accessor instance
-    accessor = BarPlotGenerator(ac_dc_network_r)
+    accessor = ChartGenerator(ac_dc_network_r)
 
     # Get optimal capacity data from statistics
     data = ac_dc_network_r.statistics.optimal_capacity()
@@ -234,7 +230,7 @@ def test_to_long_format_static(ac_dc_network_r):
 def test_to_long_format_dynamic(ac_dc_network_r):
     """Test the _to_long_format method with installed_capacity data."""
     # Create the accessor instance
-    accessor = BarPlotGenerator(ac_dc_network_r)
+    accessor = ChartGenerator(ac_dc_network_r)
 
     # Get installed capacity data from statistics
     data = ac_dc_network_r.statistics.energy_balance()
@@ -247,73 +243,27 @@ def test_to_long_format_dynamic(ac_dc_network_r):
     assert set(long_data.columns) == {"component", "carrier", "bus_carrier", "value"}
 
 
-def test_bar_plotter_validation(ac_dc_network_r):
-    """Test BarPlotGenerator validation logic"""
-    plotter = BarPlotGenerator(ac_dc_network_r)
+def test_derive_statistic_parameters(ac_dc_network_r):
+    """Test derivation of statistic parameters"""
+    # TODO rewrite once function is updated
+    plotter = ChartGenerator(ac_dc_network_r)
 
-    # Test valid data
-    valid_data = pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2]})
-    assert plotter._validate(valid_data).equals(valid_data)
+    # Test with default parameters
+    stats_kwargs = plotter.derive_statistic_parameters("carrier", "value", "carrier")
+    assert stats_kwargs["groupby"] == ["carrier"]
+    assert stats_kwargs["aggregate_across_components"]
 
-
-def test_line_plotter_validation(ac_dc_network_r):
-    """Test LinePlotGenerator validation logic"""
-    plotter = LinePlotGenerator(ac_dc_network_r)
-
-    # Test with snapshot column
-    data = pd.DataFrame({"snapshot": ["2025-01-01", "2025-01-02"], "value": [1, 2]})
-    validated = plotter._validate(data)
-    assert pd.api.types.is_datetime64_any_dtype(validated["snapshot"])
-
-    # Test without snapshot column
-    data = pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2]})
-    assert plotter._validate(data).equals(data)
-
-
-def test_area_plotter_validation(ac_dc_network_r):
-    """Test AreaPlotGenerator validation logic"""
-    plotter = AreaPlotGenerator(ac_dc_network_r)
-
-    # Test with snapshot column
-    data = pd.DataFrame({"snapshot": ["2025-01-01", "2025-01-02"], "value": [1, 2]})
-    validated = plotter._validate(data)
-    assert pd.api.types.is_datetime64_any_dtype(validated["snapshot"])
-
-    # Test without snapshot column
-    data = pd.DataFrame({"carrier": ["a", "b"], "value": [1, 2]})
-    assert plotter._validate(data).equals(data)
-
-
-# def test_derive_statistic_parameters(ac_dc_network_r):
-#     """Test derivation of statistic parameters"""
-#     # TODO rewrite once function is updated
-#     plotter = ChartGenerator(ac_dc_network_r)
-
-#     # Test with default parameters
-#     groupby, agg_comp, agg_time = plotter.derive_statistic_parameters(
-#         "carrier", "value", "carrier"
-#     )
-#     assert isinstance(groupby, list)
-#     assert isinstance(agg_comp, bool)
-#     assert isinstance(agg_time, bool | str)
-
-#     # Test with custom parameters
-#     stats_opts = {
-#         "groupby": ["carrier"],
-#         "aggregate_across_components": True,
-#         "aggregate_time": "mean",
-#     }
-#     groupby, agg_comp, agg_time = plotter.derive_statistic_parameters(
-#         "carrier", "value", stats_opts=stats_opts
-#     )
-#     assert groupby == ["carrier"]
-#     assert agg_comp is True
-#     assert agg_time == "mean"
+    # Test with default parameters
+    stats_kwargs = plotter.derive_statistic_parameters(
+        "carrier", "value", "bus_carrier"
+    )
+    assert set(stats_kwargs["groupby"]) == {"bus_carrier", "carrier"}
+    assert stats_kwargs["aggregate_across_components"]
 
 
 def test_get_carrier_colors_and_labels(ac_dc_network_r):
     """Test carrier colors and labels retrieval"""
-    plotter = BarPlotGenerator(ac_dc_network_r)
+    plotter = ChartGenerator(ac_dc_network_r)
 
     colors = plotter.get_carrier_colors()
     assert isinstance(colors, dict)
@@ -331,12 +281,10 @@ def test_get_carrier_colors_and_labels(ac_dc_network_r):
 
 def test_query_filtering(ac_dc_network_r):
     """Test query filtering in plots"""
-    plotter = BarPlotGenerator(ac_dc_network_r)
+    plotter = ChartGenerator(ac_dc_network_r)
     data = pd.Series([1, 2, 3], index=pd.Index(["a", "b", "c"], name="carrier"))
 
-    fig, ax, g = plotter._base_plot(
-        data, "bar", x="carrier", y="value", query="value > 1"
-    )
+    fig, ax, g = plotter.plot(data, "bar", x="carrier", y="value", query="value > 1")
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
@@ -344,14 +292,14 @@ def test_query_filtering(ac_dc_network_r):
 
 def test_consistency_checks(ac_dc_network_r):
     """Test plotting consistency checks"""
-    plotter = BarPlotGenerator(ac_dc_network_r)
+    plotter = ChartGenerator(ac_dc_network_r)
 
     # Test with missing carrier colors
     with pytest.raises(ConsistencyError):
         n = ac_dc_network_r.copy()
-        plotter = BarPlotGenerator(n)
+        plotter = ChartGenerator(n)
         n.carriers.color = pd.Series()
-        plotter._base_plot(data=pd.DataFrame(), kind="area", x="carrier", y="value")
+        plotter.plot(data=pd.DataFrame(), kind="area", x="carrier", y="value")
 
 
 def test_stacking(ac_dc_network_r):
@@ -361,9 +309,3 @@ def test_stacking(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
-
-
-def test_line_plot_resampling(ac_dc_network_r):
-    """Test resampling functionality in line plots"""
-    n = ac_dc_network_r
-    n.statistics.supply.plot.line(resample="1D", x="snapshot")
