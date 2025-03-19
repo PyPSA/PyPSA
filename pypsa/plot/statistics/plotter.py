@@ -70,8 +70,7 @@ class StatisticPlotter(ABC):
 
         Examples
         --------
-        >>> n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
-        <seaborn._core.plot.Plot object at 0x...>
+        >>> fig, ax, g = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function
@@ -207,8 +206,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
-        <seaborn._core.plot.Plot object at 0x...>
+        >>> fig, ax, g = n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
 
         """
         plot_kwargs = {
@@ -306,8 +304,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.plot.line(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
-        <seaborn._core.plot.Plot object at 0x...>
+        >>> fig, ax, g = n.statistics.installed_capacity.plot.line(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
 
         """
         # Get plotting kwargs
@@ -403,8 +400,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.plot.area(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
-        <seaborn._core.plot.Plot object at 0x...>
+        >>> fig, ax, g = n.statistics.installed_capacity.plot.area(x="carrier", y="value") # doctest: +ELLIPSIS
 
         """
         # Get plotting kwargs

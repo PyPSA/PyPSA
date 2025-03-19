@@ -157,7 +157,12 @@ def map_dataframe_pandas_plot(
             g, df, facet_row, facet_col, split_by_sign, sharex, sharey
         ):
             # Pivot data to have x as index, color as columns, and y as values
-            pivoted = facet_data.pivot(index=x_var, columns=color, values=y_var)
+            if color is None:
+                pivoted = facet_data.set_index(x_var)[[y_var]]
+                color_dict = None
+            else:
+                pivoted = facet_data.pivot(index=x_var, columns=color, values=y_var)
+                color_dict = palette
 
             # Ensure columns are ordered according to the hue order
             if color_order:
@@ -168,7 +173,12 @@ def map_dataframe_pandas_plot(
 
             # Plot with pandas - no legend to avoid duplicates
             pivoted.plot(
-                kind=kind, ax=ax, stacked=stacked, legend=False, color=palette, **kwargs
+                kind=kind,
+                ax=ax,
+                stacked=stacked,
+                legend=False,
+                color=color_dict,
+                **kwargs,
             )
 
             g._update_legend_data(ax)
