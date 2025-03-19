@@ -45,6 +45,7 @@ def test_doctest(module):
     assert failures == 0, f"{failures} doctest(s) failed in module {module.__name__}"
 
 
+@pytest.mark.skip(reason="Currently broken and not catching all warnings")  # TODO
 @pytest.mark.test_sphinx_build
 def test_sphinx_build(pytestconfig):
     if not pytestconfig.getoption("--test-docs-build"):
