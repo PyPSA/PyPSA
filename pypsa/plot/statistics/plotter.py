@@ -6,7 +6,8 @@ from abc import ABC
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
-import seaborn.objects as so
+import numpy as np
+import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
@@ -48,7 +49,10 @@ class StatisticPlotter(ABC):
 
     def __call__(
         self, kind: str | None = None
-    ) -> so.Plot | tuple[Figure | SubFigure | Any, Axes | Any]:
+    ) -> (
+        tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
+        | tuple[Figure | SubFigure | Any, Axes | Any]
+    ):
         """
         Create simple visualization of the statistic.
 
@@ -89,7 +93,7 @@ class StatisticPlotter(ABC):
         plot_kwargs: dict,
         stats_kwargs: dict,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """
         Common chart generation method used by bar, line and area plots.
 
@@ -108,8 +112,8 @@ class StatisticPlotter(ABC):
 
         Returns
         -------
-        seaborn.objects.Plot
-            Seaborn plot object
+        tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
+            The figure, axes and FacetGrid of the plot.
 
         """
         plotter = plotter_class(self._n)
@@ -152,7 +156,7 @@ class StatisticPlotter(ABC):
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """
         Plot statistics as bar plot.
 
@@ -199,8 +203,8 @@ class StatisticPlotter(ABC):
 
         Returns
         -------
-        seaborn.objects.Plot
-            Seaborn plot object.
+        tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
+            The figure, axes and FacetGrid of the plot.
 
         Examples
         --------
@@ -247,7 +251,7 @@ class StatisticPlotter(ABC):
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """
         Plot statistics as line plot.
 
@@ -297,8 +301,8 @@ class StatisticPlotter(ABC):
 
         Returns
         -------
-        seaborn.objects.Plot
-            Seaborn plot object.
+        tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
+            The figure, axes and FacetGrid of the plot.
 
         Examples
         --------
@@ -346,7 +350,7 @@ class StatisticPlotter(ABC):
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool | None = None,
         **kwargs: Any,
-    ) -> so.Plot:
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """
         Plot statistics as area plot.
 
@@ -393,8 +397,8 @@ class StatisticPlotter(ABC):
 
         Returns
         -------
-        seaborn.objects.Plot
-            Seaborn plot object.
+        tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
+            The figure, axes and FacetGrid of the plot.
 
         Examples
         --------
