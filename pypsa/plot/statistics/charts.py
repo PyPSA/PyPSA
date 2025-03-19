@@ -160,7 +160,7 @@ def map_dataframe_pandas_plot(
     for ax, facet_data in facet_iter(
         g, df, facet_row, facet_col, split_by_sign, sharex, sharey
     ):
-        if color != x and color != y:
+        if color != x and color != y and color is not None:
             # Pivot data to have x as index, color as columns, and y as values
             pivoted = facet_data.pivot(index=x_var, columns=color, values=y_var)
 
@@ -355,7 +355,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         # Set axis labels
         # Get unit for legends
-        label = data.attrs["name"]
+        label = data.attrs.get("name", "Value")
         unit = data.attrs.get("unit", "")
         if unit != "carrier dependent":
             label += f"[{unit}]"

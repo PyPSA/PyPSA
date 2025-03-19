@@ -15,7 +15,11 @@ if TYPE_CHECKING:
 import pandas as pd
 
 from pypsa._options import options
-from pypsa.common import MethodHandlerWrapper, pass_empty_series_if_keyerror
+from pypsa.common import (
+    MethodHandlerWrapper,
+    deprecated_kwargs,
+    pass_empty_series_if_keyerror,
+)
 from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
@@ -1224,7 +1228,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
-            kind="supply",
+            direction="supply",
         )
         df.attrs["name"] = "Supply"
         df.attrs["unit"] = "carrier dependent"
@@ -1323,7 +1327,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
-            kind="withdrawal",
+            direction="withdrawal",
         )
         df.attrs["name"] = "Withdrawal"
         df.attrs["unit"] = "carrier dependent"
@@ -1441,6 +1445,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(kind="direction")
     def energy_balance(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1454,7 +1459,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        kind: str | None = None,
+        direction: str | None = None,
     ) -> pd.DataFrame:
         """
         Calculate energy balance of components in network.
@@ -1510,7 +1515,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
-        kind : str | None, default=None
+        direction : str | None, default=None
             Type of energy balance to calculate:
             - 'supply': Only consider positive values (energy production)
             - 'withdrawal': Only consider negative values (energy consumption)
@@ -1546,13 +1551,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             p = sign * n.dynamic(c)[f"p{port}"]
-            if kind == "supply":
+            if direction == "supply":
                 p = p.clip(lower=0)
-            elif kind == "withdrawal":
+            elif direction == "withdrawal":
                 p = -p.clip(upper=0)
-            elif kind is not None:
+            elif direction is not None:
                 logger.warning(
-                    "Argument 'kind' is not recognized. Falling back to energy balance."
+                    "Argument 'direction' is not recognized. Falling back to energy balance."
                 )
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -1789,6 +1794,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(kind="direction")
     def revenue(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1802,7 +1808,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        kind: str | None = None,
+        direction: str | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the revenue of components in the network in given currency.
@@ -1857,7 +1863,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
-        kind : str, optional, default=None
+        direction : str, optional, default=None
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
             If 'output' only the revenue of the output is considered. Defaults to None.
 
@@ -1883,14 +1889,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values
-            if kind is not None:
-                if kind == "input":
+            if direction is not None:
+                if direction == "input":
                     df = df.clip(upper=0)
-                elif kind == "output":
+                elif direction == "output":
                     df = df.clip(lower=0)
                 else:
                     raise ValueError(
-                        f"Argument 'kind' must be 'input', 'output' or None, got {kind}"
+                        f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
                     )
             revenue = df * prices
             weights = get_weightings(n, c)

@@ -16,6 +16,7 @@ from pypsa.plot.statistics import (
     LinePlotGenerator,
     MapPlotGenerator,
 )
+from pypsa.plot.statistics.schema import apply_parameter_schema
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -44,6 +45,43 @@ class StatisticPlotter(ABC):
         """
         self._bound_method = bound_method
         self._n = n
+
+    def __call__(
+        self, kind: str | None = None
+    ) -> so.Plot | tuple[Figure | SubFigure | Any, Axes | Any]:
+        """
+        Create simple visualization of the statistic.
+
+        This function builds up on any statistics function and allows for a simple
+        exploration without any further arguments. If a fine grained control is
+        needed, the plot functions should be used directly (e.g. `.plot.bar()` instead
+        of `.plot(kind="bar")`).
+
+        Parameters
+        ----------
+        kind : str | None, default: None
+            Type of chart ("bar", "line", "area", "map"). If None, the default per
+            statistics function, defined in the schema, is used.
+
+        Returns
+        -------
+        tuple[Figure | SubFigure | Any, Axes | Any]
+            The figure and axes of the plot.
+
+        Examples
+        --------
+        >>> n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
+        <seaborn._core.plot.Plot object at 0x...>
+
+        """
+        # Get the correct plot function
+        if kind not in ["bar", "line", "area", "map", None]:
+            raise ValueError(f"Unknown plot type '{kind}'.")
+        # Apply schema to kind kwarg
+        stats_name = self._bound_method.__name__
+        kind_ = apply_parameter_schema(stats_name, "plot", {"kind": kind})["kind"]
+        plot_func = getattr(self, kind_)
+        return plot_func()
 
     def _chart(
         self,
@@ -79,9 +117,7 @@ class StatisticPlotter(ABC):
 
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = plotter.apply_parameter_schema(
-            stats_name, chart_type, plot_kwargs
-        )
+        plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
 
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
@@ -97,9 +133,7 @@ class StatisticPlotter(ABC):
         stats_kwargs.update(base_stats_kwargs)
 
         # Apply schema to statistics kwargs
-        stats_kwargs = plotter.apply_parameter_schema(
-            stats_name, chart_type, stats_kwargs
-        )
+        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
@@ -173,7 +207,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        >>> n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
         <seaborn._core.plot.Plot object at 0x...>
 
         """
@@ -272,7 +306,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.line(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        >>> n.statistics.installed_capacity.plot.line(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
         <seaborn._core.plot.Plot object at 0x...>
 
         """
@@ -369,7 +403,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.statistics.installed_capacity.area(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
+        >>> n.statistics.installed_capacity.plot.area(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
         <seaborn._core.plot.Plot object at 0x...>
 
         """
@@ -495,7 +529,7 @@ class StatisticPlotter(ABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> fig, ax = n.statistics.installed_capacity.map(geomap=True, title="Installed Capacity")
+        >>> fig, ax = n.statistics.installed_capacity.plot.map(geomap=True, title="Installed Capacity")
 
         """
         plot_kwargs = {
@@ -527,12 +561,10 @@ class StatisticPlotter(ABC):
 
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = plotter.apply_parameter_schema(stats_name, "map", plot_kwargs)
+        plot_kwargs = apply_parameter_schema(stats_name, "map", plot_kwargs)
 
         # Apply schema to statistics kwargs
-        stats_kwargs = plotter.apply_parameter_schema(
-            stats_name, "map", {"storage": storage}
-        )
+        stats_kwargs = apply_parameter_schema(stats_name, "map", {"storage": storage})
 
         # Note that instead of passing the data to the plotter, we pass the
         # statistics function. This gives the map plotter the ability to

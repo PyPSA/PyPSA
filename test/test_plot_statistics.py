@@ -1,3 +1,6 @@
+import hashlib
+import pickle
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
@@ -9,6 +12,207 @@ from pypsa.plot.statistics.charts import (
     BarPlotGenerator,
     LinePlotGenerator,
 )
+
+PLOT_HASHES = {
+    "capex": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "installed_capex": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "expanded_capex": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "optimal_capacity": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "installed_capacity": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "expanded_capacity": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "opex": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "supply": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "withdrawal": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "transmission": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "energy_balance": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "curtailment": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "capacity_factor": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "revenue": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+    "market_value": {
+        "plot": "xxx",
+        "bar": "xxx",
+        "line": "xxx",
+        "area": "xxx",
+        "map": "xxx",
+    },
+}
+
+
+def get_object_hash(obj):
+    """Generate a hash for any picklable Python object."""
+    pickled_obj = pickle.dumps(obj)
+    return hashlib.md5(pickled_obj).hexdigest()
+
+
+# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+# def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
+#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
+#     plot = plotter.plot()
+
+#     plot_hash = get_object_hash(plot)
+#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+#         f"Plot hash mismatch for {stat_func}. If this is expected, "
+#         "update the PLOT_HASHES dictionary."
+#     )
+
+#     if pytestconfig.getoption("--save-plots"):
+#         Path("test_plots_output").mkdir(exist_ok=True)
+#         plot.save("test_plots_output/" + stat_func + "-simple.png")
+
+#     plt.close()
+
+
+# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+# def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
+#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
+#     plot = plotter.plot.bar()
+
+#     plot_hash = get_object_hash(plot)
+#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+#         f"Plot hash mismatch for {stat_func}. If this is expected, "
+#         "update the PLOT_HASHES dictionary."
+#     )
+
+#     if pytestconfig.getoption("--save-plots"):
+#         Path("test_plots_output").mkdir(exist_ok=True)
+#         plot.save("test_plots_output/" + stat_func + "-bar.png")
+
+#     plt.close()
+
+
+# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+# def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
+#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
+#     plot = plotter.plot.line()
+
+#     plot_hash = get_object_hash(plot)
+#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+#         f"Plot hash mismatch for {stat_func}. If this is expected, "
+#         "update the PLOT_HASHES dictionary."
+#     )
+
+#     if pytestconfig.getoption("--save-plots"):
+#         Path("test_plots_output").mkdir(exist_ok=True)
+#         plot.save("test_plots_output/" + stat_func + "-line.png")
+#     plt.close()
+
+
+# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+# def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
+#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
+#     plot = plotter.plot.area()
+
+#     plot_hash = get_object_hash(plot)
+#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+#         f"Plot hash mismatch for {stat_func}. If this is expected, "
+#         "update the PLOT_HASHES dictionary."
+#     )
+
+#     if pytestconfig.getoption("--save-plots"):
+#         Path("test_plots_output").mkdir(exist_ok=True)
+#         plot.save("test_plots_output/" + stat_func + "-area.png")
+#     plt.close()
+
+
+# @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+# def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
+#     plotter = getattr(ac_dc_network_r.statistics, stat_func)
+#     plot = plotter.plot.area()
+
+#     plot_hash = get_object_hash(plot)
+#     assert plot_hash == PLOT_HASHES[stat_func]["plot"], (
+#         f"Plot hash mismatch for {stat_func}. If this is expected, "
+#         "update the PLOT_HASHES dictionary."
+#     )
+
+#     if pytestconfig.getoption("--save-plots"):
+#         Path("test_plots_output").mkdir(exist_ok=True)
+#         plot.save("test_plots_output/" + stat_func + "-map.png")
+#     plt.close()
 
 
 def test_to_long_format_static(ac_dc_network_r):
@@ -111,18 +315,18 @@ def test_get_carrier_colors_and_labels(ac_dc_network_r):
     """Test carrier colors and labels retrieval"""
     plotter = BarPlotGenerator(ac_dc_network_r)
 
-    colors = plotter._get_carrier_colors()
+    colors = plotter.get_carrier_colors()
     assert isinstance(colors, dict)
     assert "-" in colors
     assert None in colors
 
-    labels = plotter._get_carrier_labels()
-    assert isinstance(labels, dict)
+    labels = plotter.get_carrier_labels()
+    assert isinstance(labels, pd.Series)
 
     # Test with nice_names=False
-    labels_raw = plotter._get_carrier_labels(nice_names=False)
-    assert isinstance(labels_raw, dict)
-    assert len(labels_raw) == 0
+    labels_raw = plotter.get_carrier_labels(nice_names=False)
+    assert isinstance(labels_raw, pd.Series)
+    assert (labels_raw.index.values == labels.values).all()
 
 
 def test_query_filtering(ac_dc_network_r):
