@@ -40,6 +40,13 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     See Also
     --------
     haversine : Matrix of distances between all pairs in a and b
+
+    Examples
+    --------
+    >>> a = np.array([[10.1, 52.6], [10.8, 52.1]])
+    >>> b = np.array([[10.8, 52.1], [-34, 56.]])
+    >>> haversine_pts(a, b)
+    array([  73.15416698, 2903.73511621])
     """
     lon0, lat0 = np.deg2rad(np.asarray(a, dtype=float)).T
     lon1, lat1 = np.deg2rad(np.asarray(b, dtype=float)).T
@@ -134,6 +141,13 @@ def compute_bbox(
         Tuple of two tuples, representing the lower left (x1, y1) and upper right
         (x2, y2) corners of the bounding box
 
+    Examples
+    --------
+    >>> x = np.array([1, 2, 3])
+    >>> y = np.array([4, 5, 6])
+    >>> compute_bbox(x, y)
+    ((1, 4), (3, 6))
+
     """
     # set margins
     pos = np.asarray((x, y))
@@ -160,6 +174,25 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
     projection : cartopy.crs.Projection
         Cartopy projection object
 
+    Examples
+    --------
+    >>> get_projection_from_crs(4326)
+    <Projected CRS: +proj=eqc +ellps=WGS84 +a=6378137.0 +lon_0=0.0 +to ...>
+    Name: unknown
+    Axis Info [cartesian]:
+    - E[east]: Easting (unknown)
+    - N[north]: Northing (unknown)
+    - h[up]: Ellipsoidal height (metre)
+    Area of Use:
+    - undefined
+    Coordinate Operation:
+    - name: unknown
+    - method: Equidistant Cylindrical
+    Datum: Unknown based on WGS 84 ellipsoid
+    - Ellipsoid: WGS 84
+    - Prime Meridian: Greenwich
+    <BLANKLINE>
+
     """
     import cartopy.crs as ccrs
 
@@ -184,6 +217,17 @@ def get_projected_area_factor(
 
     The default 'original crs' is assumed to be 4326, which translates
     to the cartopy default cartopy.crs.PlateCarree()
+
+    Examples
+    --------
+    >>> import cartopy.crs as ccrs
+    >>> import matplotlib.pyplot as plt
+    >>> fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Mercator()})
+    >>> ax.set_extent([-10, 10, 40, 60], crs=ccrs.PlateCarree())
+    >>> area_factor = get_projected_area_factor(ax)
+    >>> area_factor
+    140056.26937534288
+
     """
     if not hasattr(ax, "projection"):
         return 1
