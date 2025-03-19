@@ -150,10 +150,10 @@ def test_consistency_checks(ac_dc_network_r):
         plotter._base_plot(data=pd.DataFrame(), kind="area", x="carrier", y="value")
 
 
-def test_stacking_and_dodging(ac_dc_network_r):
-    """Test stacking and dodging options in bar plots"""
+def test_stacking(ac_dc_network_r):
+    """Test stacking options in bar plots"""
     n = ac_dc_network_r
-    fig, ax, g = n.plot.supply.bar(x="carrier", y="value", stacked=True)
+    fig, ax, g = n.statistics.supply.plot.bar(x="carrier", y="value", stacked=True)
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
@@ -162,4 +162,4 @@ def test_stacking_and_dodging(ac_dc_network_r):
 def test_line_plot_resampling(ac_dc_network_r):
     """Test resampling functionality in line plots"""
     n = ac_dc_network_r
-    n.plot.supply.line(resample="1D", x="snapshot")
+    n.statistics.supply.plot.line(resample="1D", x="snapshot")

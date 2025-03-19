@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
+
+import pandas as pd
 
 from pypsa.plot.statistics.schema import schema
 
@@ -84,3 +87,28 @@ class PlotsGenerator(ABC):
             kwargs.pop(param)
 
         return kwargs
+
+    def get_carrier_colors(
+        self, carriers: Sequence | None = None, nice_names: bool = True
+    ) -> dict:
+        """Get colors for carrier data with default gray colors."""
+        if carriers is None:
+            carriers = self._n.carriers.index
+        colors = self._n.carriers.color[carriers]
+        if nice_names:
+            labels = self.get_carrier_labels(carriers=carriers, nice_names=nice_names)
+            colors = colors.rename(labels)
+        default_colors = {"-": "gray", None: "gray"}
+        return {**default_colors, **colors}
+
+    def get_carrier_labels(
+        self, carriers: Sequence | None = None, nice_names: bool = True
+    ) -> pd.Series:
+        """Get mapping of carrier names to nice names if requested."""
+        if carriers is None:
+            carriers = self._n.carriers.index
+        if nice_names:
+            names = self._n.carriers.nice_name[carriers]
+            return names.where(names != "", carriers)
+        else:
+            return pd.Series(carriers, index=carriers)

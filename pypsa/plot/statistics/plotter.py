@@ -102,7 +102,7 @@ class StatisticPlotter(ABC):
         )
 
         # Get statistics data and return plot
-        data = self._bound_method(**stats_kwargs, nice_names=False)
+        data = self._bound_method(**stats_kwargs)
         return plotter.plot(data, **plot_kwargs, **kwargs)
 
     def bar(
@@ -113,7 +113,6 @@ class StatisticPlotter(ABC):
         facet_col: str | None = None,
         facet_row: str | None = None,
         stacked: bool = False,
-        dodged: bool = False,
         query: str | None = None,
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
@@ -144,9 +143,6 @@ class StatisticPlotter(ABC):
             :class:`seaborn.objects.Plot.facet` for more information.
         stacked : bool, default: False
             Whether to stack the bars. See :class:`seaborn.objects.Stack` for more
-        dodged : bool, default: False
-            Whether to doge the bars. See :class:`seaborn.objects.Doge` for more
-            information.
         query : str | None, default: None
             Pandas query string to filter the data before plotting. E.g. "value > 0".
         nice_names : bool, default: True
@@ -188,7 +184,6 @@ class StatisticPlotter(ABC):
             "facet_col": facet_col,
             "facet_row": facet_row,
             "stacked": stacked,
-            "dodged": dodged,
             "query": query,
             "nice_names": nice_names,
         }
@@ -196,6 +191,7 @@ class StatisticPlotter(ABC):
             "carrier": carrier,
             "bus_carrier": bus_carrier,
             "storage": storage,
+            "nice_names": nice_names,
         }
         return self._chart(
             "bar",
@@ -295,6 +291,7 @@ class StatisticPlotter(ABC):
             "carrier": carrier,
             "bus_carrier": bus_carrier,
             "storage": storage,
+            "nice_names": nice_names,
         }
         return self._chart(
             "line",
@@ -312,7 +309,6 @@ class StatisticPlotter(ABC):
         facet_col: str | None = None,
         facet_row: str | None = None,
         stacked: bool = False,
-        dodged: bool = False,
         query: str | None = None,
         nice_names: bool = True,
         carrier: Sequence[str] | str | None = None,
@@ -343,9 +339,6 @@ class StatisticPlotter(ABC):
             :class:`seaborn.objects.Plot.facet` for more information.
         stacked : bool, default: False
             Whether to stack the bars. See :class:`seaborn.objects.Stack` for more
-        dodged : bool, default: False
-            Whether to doge the bars. See :class:`seaborn.objects.Doge` for more
-            information.
         query : str | None, default: None
             Pandas query string to filter the data before plotting. E.g. "value > 0".
         nice_names : bool, default: True
@@ -388,7 +381,6 @@ class StatisticPlotter(ABC):
             "facet_col": facet_col,
             "facet_row": facet_row,
             "stacked": stacked,
-            "dodged": dodged,
             "query": query,
             "nice_names": nice_names,
         }
@@ -396,6 +388,7 @@ class StatisticPlotter(ABC):
             "carrier": carrier,
             "bus_carrier": bus_carrier,
             "storage": storage,
+            "nice_names": nice_names,
         }
         return self._chart(
             "area",

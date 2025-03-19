@@ -81,6 +81,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         legend_patches_kw: dict | None = None,
         bus_split_circles: bool = False,
         stats_kwargs: dict | None = None,
+        nice_names: bool = True,
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """Plot network statistics on a map."""
@@ -279,13 +280,12 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         if draw_legend_patches and hasattr(self.ax, "figure"):
             carriers = bus_sizes.index.get_level_values("carrier").unique()
-            colors = n.carriers.color[carriers]
-            labels = n.carriers.nice_name[carriers]
-            labels = labels.where(labels != "", carriers)
+            colors = self.get_carrier_colors(carriers, nice_names=False)
+            labels = self.get_carrier_labels(carriers, nice_names=nice_names)
 
             add_legend_patches(
                 self.ax,  # type: ignore
-                colors=colors,
+                colors=[colors[c] for c in carriers],
                 labels=labels,
                 legend_kw={
                     "bbox_to_anchor": (1, 1),

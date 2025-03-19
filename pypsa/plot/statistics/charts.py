@@ -28,6 +28,8 @@ def facet_iter(
     facet_row: str | None,
     facet_col: str | None,
     split_by_sign: bool = False,
+    sharex: bool = True,
+    sharey: bool = True,
 ) -> Iterator[tuple[Axes, pd.DataFrame]]:
     """
     Generator function that yields (axis, filtered_data) for each facet in a FacetGrid.
@@ -45,6 +47,10 @@ def facet_iter(
     split_by_sign : bool, optional
         Whether to split the data by sign (positive/negative) for the y-axis
         Default is False.
+    sharex : bool, optional
+        Whether to share x-axis across columns. Default is True.
+    sharey : bool, optional
+        Whether to share y-axis across rows. Default is True.
 
     Yields
     ------
@@ -68,9 +74,17 @@ def facet_iter(
             # Filter the data for this specific facet
             facet_data = df.copy()
             if facet_row is not None and row_val is not None:
-                facet_data = facet_data[facet_data[facet_row] == row_val]
+                mask = facet_data[facet_row] == row_val
+                if sharey:
+                    facet_data.loc[~mask, "value"] = 0
+                else:
+                    facet_data = facet_data[mask]
             if facet_col is not None and col_val is not None:
-                facet_data = facet_data[facet_data[facet_col] == col_val]
+                mask = facet_data[facet_col] == col_val
+                if sharex:
+                    facet_data.loc[~mask, "value"] = 0
+                else:
+                    facet_data = facet_data[mask]
 
             # Skip if no data
             if not facet_data.values.size:
@@ -93,7 +107,10 @@ def map_dataframe_pandas_plot(
     facet_row: str | None,
     facet_col: str | None,
     stacked: bool,
+    palette: dict | None = None,
     kind: str = "area",
+    sharex: bool = True,
+    sharey: bool = True,
     **kwargs: Any,
 ) -> sns.FacetGrid:
     """
@@ -117,8 +134,14 @@ def map_dataframe_pandas_plot(
         Column name used for creating column facets
     stacked : bool
         Whether to create stacked charts
+    palette : dict, optional
+        Color palette to use for the plot
     kind : str, optional
         Kind of plot to create ('area' or 'bar')
+    sharex : bool, optional
+        Whether to share x-axis across columns. Default is True.
+    sharey : bool, optional
+        Whether to share y-axis across rows. Default is True.
     **kwargs : additional keyword arguments
         Passed to plotting function
 
@@ -128,10 +151,18 @@ def map_dataframe_pandas_plot(
 
     split_by_sign = df["value"].min() < 0 and df["value"].max() > 0
 
-    for ax, facet_data in facet_iter(g, df, facet_row, facet_col, split_by_sign):
-        if color is not None:
+    if kind == "bar" and x == "value":
+        kind = "barh"
+        x_var, y_var = y, x
+    else:
+        x_var, y_var = x, y
+
+    for ax, facet_data in facet_iter(
+        g, df, facet_row, facet_col, split_by_sign, sharex, sharey
+    ):
+        if color != x and color != y:
             # Pivot data to have x as index, color as columns, and y as values
-            pivoted = facet_data.pivot(index=x, columns=color, values=y)
+            pivoted = facet_data.pivot(index=x_var, columns=color, values=y_var)
 
             # Ensure columns are ordered according to the hue order
             if color_order:
@@ -141,15 +172,27 @@ def map_dataframe_pandas_plot(
                     pivoted = pivoted[available_cols]
 
             # Plot with pandas - no legend to avoid duplicates
-            pivoted.plot(kind=kind, ax=ax, stacked=stacked, legend=False, **kwargs)
-        else:
-            # Simple case: just plot y vs x (no color grouping)
-            facet_data.plot(
-                kind=kind, x=x, y=y, ax=ax, stacked=stacked, legend=False, **kwargs
+            pivoted.plot(
+                kind=kind, ax=ax, stacked=stacked, legend=False, color=palette, **kwargs
             )
 
-        # Sort out the supporting information
-        g._update_legend_data(ax)
+            g._update_legend_data(ax)
+        else:
+            # Simple case: just plot y vs x (no color grouping)
+            if color is not None:
+                colors = facet_data[color].map(palette)
+            else:
+                colors = None
+            facet_data.plot(
+                kind=kind,
+                x=x_var,
+                y=y_var,
+                ax=ax,
+                stacked=stacked,
+                legend=False,
+                color=colors,
+                **kwargs,
+            )
 
     g._finalize_grid([x, y])
 
@@ -216,20 +259,6 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         return df
 
-    def _get_carrier_colors(self) -> dict:
-        """Get colors for carrier data with default gray colors."""
-        colors = self._n.carriers.color.copy()
-        # Always include default gray colors
-        default_colors = {"-": "gray", None: "gray", "": "#00000000"}
-        return {**default_colors, **colors}
-
-    def _get_carrier_labels(self, nice_names: bool = True) -> dict:
-        """Get mapping of carrier names to nice names if requested."""
-        if nice_names:
-            names = self._n.carriers.nice_name
-            return dict(names[names != ""])
-        return {}
-
     def _base_plot(
         self,
         data: pd.DataFrame,
@@ -242,6 +271,8 @@ class ChartGenerator(PlotsGenerator, ABC):
         stacked: bool = False,
         nice_names: bool = True,
         query: str | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to be implemented by subclasses."""
@@ -250,13 +281,22 @@ class ChartGenerator(PlotsGenerator, ABC):
         if query:
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
+        palette = self.get_carrier_colors(nice_names=nice_names)
+
+        # set shared axis to the one where "value" is plotted
+        if sharex is None:
+            sharex = x == "value"
+        if sharey is None:
+            sharey = y == "value"
 
         # Always use FacetGrid for consistency
         g = sns.FacetGrid(
             ldata,
             row=facet_row,
             col=facet_col,
-            hue=color,
+            palette=palette,
+            sharex=sharex,
+            sharey=sharey,
         )
 
         # Handle special case for area and bar plots
@@ -271,6 +311,9 @@ class ChartGenerator(PlotsGenerator, ABC):
                 facet_col,
                 stacked,
                 kind="area",
+                palette=palette,
+                sharex=sharex,
+                sharey=sharey,
                 **kwargs,
             )
         elif kind == "bar":
@@ -284,30 +327,42 @@ class ChartGenerator(PlotsGenerator, ABC):
                 facet_col,
                 stacked,
                 kind="bar",
+                palette=palette,
+                sharex=sharex,
+                sharey=sharey,
                 **kwargs,
             )
         # Other plot types remain the same
         elif kind == "scatter":
-            g.map_dataframe(sns.scatterplot, x=x, y=y, **kwargs)
+            g.map_dataframe(sns.scatterplot, x=x, y=y, hue=color, **kwargs)
         elif kind == "line":
-            g.map_dataframe(sns.lineplot, x=x, y=y, **kwargs)
-        elif kind == "bar":
-            g.map_dataframe(sns.barplot, x=x, y=y, **kwargs)
+            g.map_dataframe(sns.lineplot, x=x, y=y, hue=color, **kwargs)
         elif kind == "box":
-            g.map_dataframe(sns.boxplot, x=x, y=y, **kwargs)
+            g.map_dataframe(sns.boxplot, x=x, y=y, hue=color, **kwargs)
         elif kind == "violin":
-            g.map_dataframe(sns.violinplot, x=x, y=y, **kwargs)
+            g.map_dataframe(sns.violinplot, x=x, y=y, hue=color, **kwargs)
         elif kind == "histogram":
             if y is None:
-                g.map_dataframe(sns.histplot, x=x, **kwargs)
+                g.map_dataframe(sns.histplot, x=x, hue=color, **kwargs)
             else:
-                g.map_dataframe(sns.histplot, x=x, y=y, **kwargs)
+                g.map_dataframe(sns.histplot, x=x, y=y, hue=color, **kwargs)
         else:
             raise ValueError(f"Unsupported plot type: {kind}")
 
         # Add legend if color is specified (for non-area plots, area plots handle this separately)
         if color is not None:
             g.add_legend()
+
+        # Set axis labels
+        # Get unit for legends
+        label = data.attrs["name"]
+        unit = data.attrs.get("unit", "")
+        if unit != "carrier dependent":
+            label += f"[{unit}]"
+        if x == "value":
+            g.set_axis_labels(x_var=label)
+        elif y == "value":
+            g.set_axis_labels(y_var=label)
 
         # Get the figure and axes from the FacetGrid
         fig = g.fig
@@ -393,6 +448,8 @@ class BarPlotGenerator(ChartGenerator):
         nice_names: bool = True,
         stacked: bool = False,
         query: str | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Implement bar plotting logic with seaborn.objects."""
@@ -407,6 +464,8 @@ class BarPlotGenerator(ChartGenerator):
             stacked=stacked,
             nice_names=nice_names,
             query=query,
+            sharex=sharex,
+            sharey=sharey,
             **kwargs,
         )
 
@@ -440,6 +499,8 @@ class LinePlotGenerator(ChartGenerator):
         nice_names: bool = True,
         resample: str | None = None,
         query: str | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Implement line plotting logic with seaborn.objects."""
@@ -460,6 +521,8 @@ class LinePlotGenerator(ChartGenerator):
             facet_row=facet_row,
             nice_names=nice_names,
             query=query,
+            sharex=sharex,
+            sharey=sharey,
             **kwargs,
         )
 
@@ -494,6 +557,8 @@ class AreaPlotGenerator(ChartGenerator):
         nice_names: bool = True,
         stacked: bool = True,
         query: str | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Implement area plotting logic with seaborn.objects."""
@@ -510,5 +575,7 @@ class AreaPlotGenerator(ChartGenerator):
             stacked=stacked,
             nice_names=nice_names,
             query=query,
+            sharex=sharex,
+            sharey=sharey,
             **kwargs,
         )
