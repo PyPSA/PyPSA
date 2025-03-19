@@ -780,7 +780,7 @@ def add_legend_semicircles(
         area_correction = projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
 
-    radius = [np.sign(s) * np.abs(s) ** 0.5 for s in sizes]
+    radius = [np.sign(s) * np.abs(s * 2) ** 0.5 for s in sizes]
     handles = [
         Wedge((0, -r / 2), r=r, theta1=0, theta2=180, **patch_kw) for r in radius
     ]
