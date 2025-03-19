@@ -52,6 +52,7 @@ class PlotsGenerator(ABC):
         if nice_names:
             labels = self.get_carrier_labels(carriers=carriers, nice_names=nice_names)
             colors = colors.rename(labels)
+        colors = colors[~colors.index.duplicated(keep="first")]
         default_colors = {"-": "gray", None: "gray"}
         return {**default_colors, **colors}
 

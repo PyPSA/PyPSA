@@ -96,8 +96,6 @@ def map_dataframe_pandas_plot(
     stacked: bool,
     palette: dict | None = None,
     kind: str = "area",
-    sharex: bool = True,
-    sharey: bool = True,
     **kwargs: Any,
 ) -> sns.FacetGrid:
     """
@@ -227,7 +225,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         color: str | None = None,
         facet_col: str | None = None,
         facet_row: str | None = None,
-        stacked: bool = False,
+        stacked: bool = True,
         nice_names: bool = True,
         query: str | None = None,
         sharex: bool | None = None,
@@ -311,8 +309,6 @@ class ChartGenerator(PlotsGenerator, ABC):
                 stacked,
                 kind="bar",
                 palette=palette,
-                sharex=sharex,
-                sharey=sharey,
                 **kwargs,
             )
         # Other plot types remain the same
