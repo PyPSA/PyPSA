@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, ClassVar
+from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import numpy as np
 import pandas as pd
@@ -75,16 +75,10 @@ def facet_iter(
             facet_data = df.copy()
             if facet_row is not None and row_val is not None:
                 mask = facet_data[facet_row] == row_val
-                if sharey:
-                    facet_data.loc[~mask, "value"] = 0
-                else:
-                    facet_data = facet_data[mask]
+                facet_data = facet_data[mask]
             if facet_col is not None and col_val is not None:
                 mask = facet_data[facet_col] == col_val
-                if sharex:
-                    facet_data.loc[~mask, "value"] = 0
-                else:
-                    facet_data = facet_data[mask]
+                facet_data = facet_data[mask]
 
             # Skip if no data
             if not facet_data.values.size:
@@ -146,21 +140,22 @@ def map_dataframe_pandas_plot(
         Passed to plotting function
 
     """
-    # Store the color palette from FacetGrid for consistent colors
-    color_order = g.hue_names if hasattr(g, "hue_names") else None
+    custom_case = color not in [x, y, facet_col, facet_row, None] or kind == "area"
+    if custom_case:
+        # Store the color palette from FacetGrid for consistent colors
+        color_order = g.hue_names if hasattr(g, "hue_names") else None
 
-    split_by_sign = df["value"].min() < 0 and df["value"].max() > 0
+        split_by_sign = df["value"].min() < 0 and df["value"].max() > 0
 
-    if kind == "bar" and x == "value":
-        kind = "barh"
-        x_var, y_var = y, x
-    else:
-        x_var, y_var = x, y
+        if kind == "bar" and x == "value":
+            kind = "barh"
+            x_var, y_var = y, x
+        else:
+            x_var, y_var = x, y
 
-    for ax, facet_data in facet_iter(
-        g, df, facet_row, facet_col, split_by_sign, sharex, sharey
-    ):
-        if color != x and color != y and color is not None:
+        for ax, facet_data in facet_iter(
+            g, df, facet_row, facet_col, split_by_sign, sharex, sharey
+        ):
             # Pivot data to have x as index, color as columns, and y as values
             pivoted = facet_data.pivot(index=x_var, columns=color, values=y_var)
 
@@ -177,24 +172,11 @@ def map_dataframe_pandas_plot(
             )
 
             g._update_legend_data(ax)
-        else:
-            # Simple case: just plot y vs x (no color grouping)
-            if color is not None:
-                colors = facet_data[color].map(palette)
-            else:
-                colors = None
-            facet_data.plot(
-                kind=kind,
-                x=x_var,
-                y=y_var,
-                ax=ax,
-                stacked=stacked,
-                legend=False,
-                color=colors,
-                **kwargs,
-            )
+        g._finalize_grid([x, y])
 
-    g._finalize_grid([x, y])
+    elif kind == "bar":
+        palette = palette if color is not None else None
+        g.map_dataframe(sns.barplot, x=x, y=y, hue=color, palette=palette, **kwargs)
 
     return g
 
@@ -262,7 +244,7 @@ class ChartGenerator(PlotsGenerator, ABC):
     def _base_plot(
         self,
         data: pd.DataFrame,
-        kind: str,
+        kind: Literal["area", "bar", "scatter", "line", "box", "violin", "histogram"],
         x: str,
         y: str,
         color: str | None = None,
@@ -273,6 +255,18 @@ class ChartGenerator(PlotsGenerator, ABC):
         query: str | None = None,
         sharex: bool | None = None,
         sharey: bool | None = None,
+        height: float = 3,
+        aspect: float = 1,
+        row_order: Sequence[str] | None = None,
+        col_order: Sequence[str] | None = None,
+        hue_order: Sequence[str] | None = None,
+        hue_kws: dict[str, Any] | None = None,
+        despine: bool = True,
+        margin_titles: bool = False,
+        xlim: tuple[float, float] | None = None,
+        ylim: tuple[float, float] | None = None,
+        subplot_kws: dict[str, Any] | None = None,
+        gridspec_kws: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to be implemented by subclasses."""
@@ -297,6 +291,18 @@ class ChartGenerator(PlotsGenerator, ABC):
             palette=palette,
             sharex=sharex,
             sharey=sharey,
+            height=height,
+            aspect=aspect,
+            row_order=row_order,
+            col_order=col_order,
+            hue_order=hue_order,
+            hue_kws=hue_kws,
+            despine=despine,
+            margin_titles=margin_titles,
+            xlim=xlim,
+            ylim=ylim,
+            subplot_kws=subplot_kws,
+            gridspec_kws=gridspec_kws,
         )
 
         # Handle special case for area and bar plots
