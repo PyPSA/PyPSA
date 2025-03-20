@@ -1,0 +1,90 @@
+capacity_factor:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 506ed30fe94d02e10fdd2987e9c70a8b
+capex:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: f0ddf91b9f0a70fc47e67e74656892db
+curtailment:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: b91acb59465f47f0094a70a14087dfcc
+energy_balance:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 027704254c63e38fef1bebbe343bf27e
+expanded_capacity:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 9c3fe3b397391ed4e8974ae0d480193e
+expanded_capex:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 34ecede921af3efccb71fbcb3d8fcf0a
+installed_capacity:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: c3a2d2a58e0f246e48a074c8b5eaa10b
+installed_capex:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 635430d0fb0980220a32b7481979deda
+market_value:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: c355d05787eb97c7d1c2575db56e0db5
+opex:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 176f2bec8141b38a003c4f8787e4fb7e
+optimal_capacity:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: c0c3a984b4724d7f129ad3e08e86c8be
+revenue:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 3e4ed2f777f38f5661dfa0c2726153f6
+supply:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 63458782fb36b9875838470c5f683f40
+transmission:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 3b466ef702d5568a6c57c5337881615c
+withdrawal:
+  area: xxx
+  bar: xxx
+  line: xxx
+  map: xxx
+  plot: 43f6f2783ec8446557b08e248d34871f

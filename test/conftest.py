@@ -31,6 +31,12 @@ def pytest_addoption(parser):
         default=False,
         help="save plots instead of showing them",
     )
+    parser.addoption(
+        "--update-plot-hashes",
+        action="store_true",
+        default=False,
+        help="update plot hashes instead of comparing them",
+    )
 
 
 def pytest_configure(config):

@@ -246,6 +246,23 @@ def test_plot_map_flow(ac_dc_network):
     plt.close()
 
 
+def test_plot_transmission_flow(ac_dc_network):
+    n = ac_dc_network
+
+    branches = n.branches()
+    lines = branches.loc["Line"]
+    line_flow = pd.Series(range(len(lines)), index=lines.index)
+    links = branches.loc["Link"]
+    link_flow = pd.Series(range(len(links)), index=links.index)
+    n.plot(
+        line_flow=line_flow,
+        link_flow=link_flow,
+        transmission_flow=True,
+        geomap=False,
+    )
+    plt.close()
+
+
 def test_plot_map_line_colorbar(ac_dc_network):
     n = ac_dc_network
 
