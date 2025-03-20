@@ -1,5 +1,5 @@
 import hashlib
-import pickle
+import io
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -12,125 +12,25 @@ from pypsa.consistency import ConsistencyError
 from pypsa.plot.statistics.charts import ChartGenerator
 from pypsa.statistics.expressions import StatisticsAccessor
 
-PLOT_HASHES = {
-    "capex": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "installed_capex": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "expanded_capex": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "optimal_capacity": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "installed_capacity": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "expanded_capacity": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "opex": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "supply": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "withdrawal": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "transmission": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "energy_balance": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "curtailment": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "capacity_factor": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "revenue": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-    "market_value": {
-        "plot": "xxx",
-        "bar": "xxx",
-        "line": "xxx",
-        "area": "xxx",
-        "map": "xxx",
-    },
-}
+
+@pytest.fixture(scope="module")
+def validation_hashes():
+    """Load plot hashes from a YAML file."""
+    with open("test/data/plot_hashes.yaml") as file:
+        return yaml.safe_load(file)
 
 
 def get_object_hash(obj):
     """Generate a hash for any picklable Python object."""
-    pickled_obj = pickle.dumps(obj)
-    return hashlib.md5(pickled_obj).hexdigest()
+    buf = io.BytesIO()
+    obj[0].savefig(buf, format="png", dpi=100)
 
+    buf.seek(0)
+    plot_data = buf.getvalue()
+    plot_hash = hashlib.md5(plot_data).hexdigest()
+    buf.close()
 
-def load_plot_hashes():
-    """Load plot hashes from a YAML file."""
-    with open("test/data/plot_hashes.yaml") as file:
-        return yaml.safe_load(file)
+    return plot_hash
 
 
 def save_plot_hashes(plot_hashes):
@@ -140,22 +40,19 @@ def save_plot_hashes(plot_hashes):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_simple_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     plot = plotter.plot()
 
     if not pytestconfig.getoption("--update-plot-hashes"):
         hash_ = get_object_hash(plot)
-        validation_hashes = load_plot_hashes()
         assert hash_ == validation_hashes[stat_func]["plot"], (
             f"Plot hash mismatch for {stat_func}. If this is expected, "
             "update the PLOT_HASHES dictionary."
         )
     else:
-        plot_hashes = load_plot_hashes()
-        plot_hashes[stat_func]["plot"] = get_object_hash(plot)
-        save_plot_hashes(plot_hashes)
-        print(f"Updated plot hash for {stat_func}.")
+        validation_hashes[stat_func]["plot"] = get_object_hash(plot)
+        save_plot_hashes(validation_hashes)
 
     if pytestconfig.getoption("--save-plots"):
         Path("test_plots_output").mkdir(exist_ok=True)
@@ -165,22 +62,19 @@ def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_bar_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     plot = plotter.plot.bar()
 
     if not pytestconfig.getoption("--update-plot-hashes"):
         hash_ = get_object_hash(plot)
-        validation_hashes = load_plot_hashes()
-        assert hash_ == validation_hashes[stat_func]["plot"], (
+        assert hash_ == validation_hashes[stat_func]["bar"], (
             f"Plot hash mismatch for {stat_func}. If this is expected, "
             "update the PLOT_HASHES dictionary."
         )
     else:
-        plot_hashes = load_plot_hashes()
-        plot_hashes[stat_func]["plot"] = get_object_hash(plot)
-        save_plot_hashes(plot_hashes)
-        print(f"Updated plot hash for {stat_func}.")
+        validation_hashes[stat_func]["bar"] = get_object_hash(plot)
+        save_plot_hashes(validation_hashes)
 
     if pytestconfig.getoption("--save-plots"):
         Path("test_plots_output").mkdir(exist_ok=True)
@@ -190,22 +84,19 @@ def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_line_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     plot = plotter.plot.line()
 
     if not pytestconfig.getoption("--update-plot-hashes"):
         hash_ = get_object_hash(plot)
-        validation_hashes = load_plot_hashes()
-        assert hash_ == validation_hashes[stat_func]["plot"], (
+        assert hash_ == validation_hashes[stat_func]["line"], (
             f"Plot hash mismatch for {stat_func}. If this is expected, "
             "update the PLOT_HASHES dictionary."
         )
     else:
-        plot_hashes = load_plot_hashes()
-        plot_hashes[stat_func]["plot"] = get_object_hash(plot)
-        save_plot_hashes(plot_hashes)
-        print(f"Updated plot hash for {stat_func}.")
+        validation_hashes[stat_func]["line"] = get_object_hash(plot)
+        save_plot_hashes(validation_hashes)
 
     if pytestconfig.getoption("--save-plots"):
         Path("test_plots_output").mkdir(exist_ok=True)
@@ -214,22 +105,19 @@ def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_area_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     plot = plotter.plot.area()
 
     if not pytestconfig.getoption("--update-plot-hashes"):
         hash_ = get_object_hash(plot)
-        validation_hashes = load_plot_hashes()
-        assert hash_ == validation_hashes[stat_func]["plot"], (
+        assert hash_ == validation_hashes[stat_func]["area"], (
             f"Plot hash mismatch for {stat_func}. If this is expected, "
             "update the PLOT_HASHES dictionary."
         )
     else:
-        plot_hashes = load_plot_hashes()
-        plot_hashes[stat_func]["plot"] = get_object_hash(plot)
-        save_plot_hashes(plot_hashes)
-        print(f"Updated plot hash for {stat_func}.")
+        validation_hashes[stat_func]["area"] = get_object_hash(plot)
+        save_plot_hashes(validation_hashes)
 
     if pytestconfig.getoption("--save-plots"):
         Path("test_plots_output").mkdir(exist_ok=True)
@@ -238,22 +126,19 @@ def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_map_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     plot = plotter.plot.area()
 
     if not pytestconfig.getoption("--update-plot-hashes"):
         hash_ = get_object_hash(plot)
-        validation_hashes = load_plot_hashes()
-        assert hash_ == validation_hashes[stat_func]["plot"], (
+        assert hash_ == validation_hashes[stat_func]["map"], (
             f"Plot hash mismatch for {stat_func}. If this is expected, "
             "update the PLOT_HASHES dictionary."
         )
     else:
-        plot_hashes = load_plot_hashes()
-        plot_hashes[stat_func]["plot"] = get_object_hash(plot)
-        save_plot_hashes(plot_hashes)
-        print(f"Updated plot hash for {stat_func}.")
+        validation_hashes[stat_func]["map"] = get_object_hash(plot)
+        save_plot_hashes(validation_hashes)
 
     if pytestconfig.getoption("--save-plots"):
         Path("test_plots_output").mkdir(exist_ok=True)

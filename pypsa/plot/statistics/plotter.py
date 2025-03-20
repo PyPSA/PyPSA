@@ -112,6 +112,13 @@ class StatisticPlotter(ABC):
             The figure, axes and FacetGrid of the plot.
 
         """
+        if any(["aggregate_time", "aggregate_across_components", "groupby"] in kwargs):
+            msg = (
+                "'aggregate_time', 'aggregate_across_components', and 'groupby' "
+                "can not be set and are automatically derived from the plot kwargs."
+            )
+            raise ValueError(msg)
+
         plotter = plotter_class(self._n)
 
         # Apply schema to plotting kwargs

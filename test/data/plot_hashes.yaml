@@ -1,90 +1,90 @@
 capacity_factor:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 506ed30fe94d02e10fdd2987e9c70a8b
+  area: 13cde708eeca59c6db9ec050d46b4c7b
+  bar: 75595f263c9dd27675cec192f34deb08
+  line: 2975be3b86df38aded832f172eeb13d8
+  map: 13cde708eeca59c6db9ec050d46b4c7b
+  plot: 75595f263c9dd27675cec192f34deb08
 capex:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: f0ddf91b9f0a70fc47e67e74656892db
+  area: e007e68130ca1d77c5e4b420bc25874a
+  bar: 83ee42edd127f38d66d47ad08bd13d29
+  line: 09aab721d18812b041ea9d9f11744313
+  map: e007e68130ca1d77c5e4b420bc25874a
+  plot: 83ee42edd127f38d66d47ad08bd13d29
 curtailment:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: b91acb59465f47f0094a70a14087dfcc
+  area: 625f9b3a6a3c2c8c5d32fb3ce3f10ea3
+  bar: 896dbd35b7a4bb5c618183252820dc2b
+  line: a1fff31af38acbbf5f3a90986f37b2ba
+  map: 625f9b3a6a3c2c8c5d32fb3ce3f10ea3
+  plot: 896dbd35b7a4bb5c618183252820dc2b
 energy_balance:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 027704254c63e38fef1bebbe343bf27e
+  area: 4ae8d360982622f5fc8c8e20d4df89fb
+  bar: 77d088843823b4e97e70c130ad9c66e8
+  line: e8f8ddce26a1473e22d2789c431664cc
+  map: 4ae8d360982622f5fc8c8e20d4df89fb
+  plot: 4ae8d360982622f5fc8c8e20d4df89fb
 expanded_capacity:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 9c3fe3b397391ed4e8974ae0d480193e
+  area: 270eaa037764327a825f166c1abecf6c
+  bar: b2293b381b9644f647b9bfaec7468c7d
+  line: fcc85bc9d6d5ad4b6cc90dcdec62d242
+  map: 270eaa037764327a825f166c1abecf6c
+  plot: b2293b381b9644f647b9bfaec7468c7d
 expanded_capex:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 34ecede921af3efccb71fbcb3d8fcf0a
+  area: ba39b13755d46724509dffbe099d1a77
+  bar: 785e60d57fb9351cc9c1356f3c8f44c1
+  line: f1f9710cc44f59d4cfc6b4d5edfa9733
+  map: ba39b13755d46724509dffbe099d1a77
+  plot: 785e60d57fb9351cc9c1356f3c8f44c1
 installed_capacity:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: c3a2d2a58e0f246e48a074c8b5eaa10b
+  area: e7131918371943fff14f9c2eab9f5953
+  bar: d8cd094e2478fdde1c360d61edd8e6e5
+  line: 37484aeb25eda30525e5fd64f5672db5
+  map: e7131918371943fff14f9c2eab9f5953
+  plot: d8cd094e2478fdde1c360d61edd8e6e5
 installed_capex:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 635430d0fb0980220a32b7481979deda
+  area: 980245e72e6f7ffe3da29a93cd437089
+  bar: 35a813379fb5c41ff5496425f92f918e
+  line: 4ddcd2eee08b89b2052d369d9cac1c9c
+  map: 980245e72e6f7ffe3da29a93cd437089
+  plot: 35a813379fb5c41ff5496425f92f918e
 market_value:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: c355d05787eb97c7d1c2575db56e0db5
+  area: b376515cbc1a7d64ce7f5cd8f5f59d82
+  bar: 77b310f8793721cfd518f0f7fd126272
+  line: a22a75ada977adf81730fe603ef8aa4f
+  map: b376515cbc1a7d64ce7f5cd8f5f59d82
+  plot: 77b310f8793721cfd518f0f7fd126272
 opex:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 176f2bec8141b38a003c4f8787e4fb7e
+  area: b859622c049409385ec2de661c9ebcef
+  bar: ea1719cee1b638c8faf384d6ea3fa8fa
+  line: 40c876aaa5df7e4cd3f737bcb9ef0ee6
+  map: b859622c049409385ec2de661c9ebcef
+  plot: ea1719cee1b638c8faf384d6ea3fa8fa
 optimal_capacity:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: c0c3a984b4724d7f129ad3e08e86c8be
+  area: d42f0ca877359a92f7137d6370db8644
+  bar: 59ef643c60d6def58480d9e8e031aa51
+  line: cd47c5b200dec3a078e1e3043e7d0581
+  map: d42f0ca877359a92f7137d6370db8644
+  plot: 59ef643c60d6def58480d9e8e031aa51
 revenue:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 3e4ed2f777f38f5661dfa0c2726153f6
+  area: 3884471f6d3c25ca929b44207a4c7605
+  bar: 2f6b7d9626f24d7d8f46f682a45b8a2d
+  line: 49f11a72885794b62d3a89170ef695d7
+  map: 3884471f6d3c25ca929b44207a4c7605
+  plot: 2f6b7d9626f24d7d8f46f682a45b8a2d
 supply:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 63458782fb36b9875838470c5f683f40
+  area: 542d6fa54fbd0c187803168d7e02720b
+  bar: c190282036d73ee5094899c987919619
+  line: 48a35ed8f997d7a178aaacc25cd6bb7b
+  map: 542d6fa54fbd0c187803168d7e02720b
+  plot: c190282036d73ee5094899c987919619
 transmission:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 3b466ef702d5568a6c57c5337881615c
+  area: f0f683c4a24e8dbd9b46f3e47825cf5f
+  bar: 6d3617cb5a3b2458f157d61786eb6939
+  line: 735c9d46ca9b39b3cc38dedff1e02efa
+  map: f0f683c4a24e8dbd9b46f3e47825cf5f
+  plot: 6d3617cb5a3b2458f157d61786eb6939
 withdrawal:
-  area: xxx
-  bar: xxx
-  line: xxx
-  map: xxx
-  plot: 43f6f2783ec8446557b08e248d34871f
+  area: ae4a18701796e384c853aae0045e49e5
+  bar: 65b94e250f8058e29c291ee3639585a7
+  line: 19c60976a91ac458627f02b507309ece
+  map: ae4a18701796e384c853aae0045e49e5
+  plot: 65b94e250f8058e29c291ee3639585a7
