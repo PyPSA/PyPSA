@@ -33,7 +33,6 @@ allowed value list for each statistics/ plot combination.
 
 SCHEMA_DEFAULTS: dict = {
     # Defaults for required parameters
-    "x": "carrier",
     "bus_split_circles": False,
     "transmission_flow": False,
     "draw_legend_arrows": False,

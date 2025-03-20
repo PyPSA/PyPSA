@@ -84,8 +84,9 @@ class StatisticPlotter(ABC):
 
     def _chart(
         self,
-        chart_type: str,
-        plotter_class: type,
+        chart_type: Literal[
+            "area", "bar", "scatter", "line", "box", "violin", "histogram"
+        ],
         plot_kwargs: dict,
         stats_kwargs: dict,
         **kwargs: Any,
@@ -97,8 +98,6 @@ class StatisticPlotter(ABC):
         ----------
         chart_type : str
             Type of chart ("bar", "line", or "area")
-        plotter_class : type
-            The plotter class to instantiate
         plot_kwargs : dict
             Dictionary of plotting parameters
         stats_kwargs : dict
@@ -119,7 +118,7 @@ class StatisticPlotter(ABC):
             )
             raise ValueError(msg)
 
-        plotter = plotter_class(self._n)
+        plotter = ChartGenerator(self._n)
 
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
@@ -132,7 +131,7 @@ class StatisticPlotter(ABC):
             plot_kwargs["color"],
             plot_kwargs["facet_col"],
             plot_kwargs["facet_row"],
-            method_name=self._bound_method.__name__,
+            method_name=stats_name,
         )
 
         # Add provided kwargs
@@ -147,8 +146,8 @@ class StatisticPlotter(ABC):
 
     def bar(
         self,
-        x: str | None = None,
-        y: str = "value",
+        x: str = "value",
+        y: str = "carrier",
         color: str | None = "carrier",
         facet_col: str | None = None,
         facet_row: str | None = None,
@@ -158,6 +157,20 @@ class StatisticPlotter(ABC):
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
+        height: float = 4,
+        aspect: float = 1,
+        row_order: Sequence[str] | None = None,
+        col_order: Sequence[str] | None = None,
+        hue_order: Sequence[str] | None = None,
+        hue_kws: dict[str, Any] | None = None,
+        despine: bool = True,
+        margin_titles: bool = False,
+        xlim: tuple[float, float] | None = None,
+        ylim: tuple[float, float] | None = None,
+        subplot_kws: dict[str, Any] | None = None,
+        gridspec_kws: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """
@@ -200,6 +213,40 @@ class StatisticPlotter(ABC):
             Whether to include storage components in the statistics. Can only be used
             when chosen statistics function supports it (e.g. `optimal_capacity`,
             `installed_capacity`). Default is False for those functions.
+        sharex : bool | None, default: None
+            Whether to share x axes across all facets. If None, will be True when x is "value".
+        sharey : bool | None, default: None
+            Whether to share y axes across all facets. If None, will be True when y is "value".
+        height : float, default: 3
+            Height (in inches) of each facet.
+        aspect : float, default: 2
+            Aspect ratio of each facet, so that aspect * height gives the width.
+        row_order : Sequence[str] | None, default: None
+            Order to organize the rows of the grid. If None, the order is determined by
+            the data.
+        col_order : Sequence[str] | None, default: None
+            Order to organize the columns of the grid. If None, the order is determined by
+            the data.
+        hue_order : Sequence[str] | None, default: None
+            Order for the levels of the hue variable. If None, the order is determined by
+            the data.
+        hue_kws : dict[str, Any] | None, default: None
+            Other keyword arguments to be passed to the function that maps the hue semantic.
+        despine : bool, default: True
+            Remove the top and right spines from the plots.
+        margin_titles : bool, default: False
+            Whether to place the row/column titles in the margins, rather than centered
+            over the grid.
+        xlim : tuple[float, float] | None, default: None
+            Limits for the x axis. If None, uses the default xlim.
+        ylim : tuple[float, float] | None, default: None
+            Limits for the y axis. If None, uses the default ylim.
+        subplot_kws : dict[str, Any] | None, default: None
+            Dictionary of keyword arguments for the subplots. Passed to the underlying
+            function.
+        gridspec_kws : dict[str, Any] | None, default: None
+            Dictionary of keyword arguments passed to the gridspec module for creating
+            the grid for the figure.
         **kwargs: Any
             Additional keyword arguments for the plot function. These are passed to
             the seaborn plot object (:class:`seaborn.objects.Plot`).
@@ -225,6 +272,20 @@ class StatisticPlotter(ABC):
             "stacked": stacked,
             "query": query,
             "nice_names": nice_names,
+            "sharex": sharex,
+            "sharey": sharey,
+            "height": height,
+            "aspect": aspect,
+            "row_order": row_order,
+            "col_order": col_order,
+            "hue_order": hue_order,
+            "hue_kws": hue_kws,
+            "despine": despine,
+            "margin_titles": margin_titles,
+            "xlim": xlim,
+            "ylim": ylim,
+            "subplot_kws": subplot_kws,
+            "gridspec_kws": gridspec_kws,
         }
         stats_kwargs = {
             "carrier": carrier,
@@ -234,7 +295,6 @@ class StatisticPlotter(ABC):
         }
         return self._chart(
             "bar",
-            ChartGenerator,
             plot_kwargs,
             stats_kwargs,
             **kwargs,
@@ -252,6 +312,20 @@ class StatisticPlotter(ABC):
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
+        height: float = 3,
+        aspect: float = 2,
+        row_order: Sequence[str] | None = None,
+        col_order: Sequence[str] | None = None,
+        hue_order: Sequence[str] | None = None,
+        hue_kws: dict[str, Any] | None = None,
+        despine: bool = True,
+        margin_titles: bool = False,
+        xlim: tuple[float, float] | None = None,
+        ylim: tuple[float, float] | None = None,
+        subplot_kws: dict[str, Any] | None = None,
+        gridspec_kws: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """
@@ -293,6 +367,40 @@ class StatisticPlotter(ABC):
             Whether to include storage components in the statistics. Can only be used
             when chosen statistics function supports it (e.g. `optimal_capacity`,
             `installed_capacity`). Default is False for those functions.
+        sharex : bool | None, default: None
+            Whether to share x axes across all facets. If None, will be True when x is "value".
+        sharey : bool | None, default: None
+            Whether to share y axes across all facets. If None, will be True when y is "value".
+        height : float, default: 3
+            Height (in inches) of each facet.
+        aspect : float, default: 2
+            Aspect ratio of each facet, so that aspect * height gives the width.
+        row_order : Sequence[str] | None, default: None
+            Order to organize the rows of the grid. If None, the order is determined by
+            the data.
+        col_order : Sequence[str] | None, default: None
+            Order to organize the columns of the grid. If None, the order is determined by
+            the data.
+        hue_order : Sequence[str] | None, default: None
+            Order for the levels of the hue variable. If None, the order is determined by
+            the data.
+        hue_kws : dict[str, Any] | None, default: None
+            Other keyword arguments to be passed to the function that maps the hue semantic.
+        despine : bool, default: True
+            Remove the top and right spines from the plots.
+        margin_titles : bool, default: False
+            Whether to place the row/column titles in the margins, rather than centered
+            over the grid.
+        xlim : tuple[float, float] | None, default: None
+            Limits for the x axis. If None, uses the default xlim.
+        ylim : tuple[float, float] | None, default: None
+            Limits for the y axis. If None, uses the default ylim.
+        subplot_kws : dict[str, Any] | None, default: None
+            Dictionary of keyword arguments for the subplots. Passed to the underlying
+            function.
+        gridspec_kws : dict[str, Any] | None, default: None
+            Dictionary of keyword arguments passed to the gridspec module for creating
+            the grid for the figure.
         **kwargs: Any
             Additional keyword arguments for the plot function. These are passed to
             the seaborn plot object (:class:`seaborn.objects.Plot`).
@@ -318,6 +426,20 @@ class StatisticPlotter(ABC):
             "facet_row": facet_row,
             "query": query,
             "nice_names": nice_names,
+            "sharex": sharex,
+            "sharey": sharey,
+            "height": height,
+            "aspect": aspect,
+            "row_order": row_order,
+            "col_order": col_order,
+            "hue_order": hue_order,
+            "hue_kws": hue_kws,
+            "despine": despine,
+            "margin_titles": margin_titles,
+            "xlim": xlim,
+            "ylim": ylim,
+            "subplot_kws": subplot_kws,
+            "gridspec_kws": gridspec_kws,
         }
         stats_kwargs = {
             "carrier": carrier,
@@ -327,7 +449,6 @@ class StatisticPlotter(ABC):
         }
         return self._chart(
             "line",
-            ChartGenerator,
             plot_kwargs,
             stats_kwargs,
             **kwargs,
@@ -335,9 +456,9 @@ class StatisticPlotter(ABC):
 
     def area(
         self,
-        x: str | None = None,
+        x: str | None = "snapshot",
         y: str = "value",
-        color: str | None = None,
+        color: str | None = "carrier",
         facet_col: str | None = None,
         facet_row: str | None = None,
         stacked: bool = True,
@@ -346,6 +467,20 @@ class StatisticPlotter(ABC):
         carrier: Sequence[str] | str | None = None,
         bus_carrier: Sequence[str] | str | None = None,
         storage: bool | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
+        height: float = 3,
+        aspect: float = 2,
+        row_order: Sequence[str] | None = None,
+        col_order: Sequence[str] | None = None,
+        hue_order: Sequence[str] | None = None,
+        hue_kws: dict[str, Any] | None = None,
+        despine: bool = True,
+        margin_titles: bool = False,
+        xlim: tuple[float, float] | None = None,
+        ylim: tuple[float, float] | None = None,
+        subplot_kws: dict[str, Any] | None = None,
+        gridspec_kws: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """
@@ -384,13 +519,47 @@ class StatisticPlotter(ABC):
             Filter by carrier of connected buses. If specified, only considers assets
             connected to buses with the given carrier(s). More information can be found
             in the documentation of the statistics functions.
-        **kwargs: Any
-            Additional keyword arguments for the plot function. These are passed to
-            the seaborn plot object (:class:`seaborn.objects.Plot`).
         storage: bool | None, default: None
             Whether to include storage components in the statistics. Can only be used
             when chosen statistics function supports it (e.g. `optimal_capacity`,
             `installed_capacity`). Default is False for those functions.
+        sharex : bool | None, default: None
+            Whether to share x axes across all facets. If None, will be True when x is "value".
+        sharey : bool | None, default: None
+            Whether to share y axes across all facets. If None, will be True when y is "value".
+        height : float, default: 3
+            Height (in inches) of each facet.
+        aspect : float, default: 2
+            Aspect ratio of each facet, so that aspect * height gives the width.
+        row_order : Sequence[str] | None, default: None
+            Order to organize the rows of the grid. If None, the order is determined by
+            the data.
+        col_order : Sequence[str] | None, default: None
+            Order to organize the columns of the grid. If None, the order is determined by
+            the data.
+        hue_order : Sequence[str] | None, default: None
+            Order for the levels of the hue variable. If None, the order is determined by
+            the data.
+        hue_kws : dict[str, Any] | None, default: None
+            Other keyword arguments to be passed to the function that maps the hue semantic.
+        despine : bool, default: True
+            Remove the top and right spines from the plots.
+        margin_titles : bool, default: False
+            Whether to place the row/column titles in the margins, rather than centered
+            over the grid.
+        xlim : tuple[float, float] | None, default: None
+            Limits for the x axis. If None, uses the default xlim.
+        ylim : tuple[float, float] | None, default: None
+            Limits for the y axis. If None, uses the default ylim.
+        subplot_kws : dict[str, Any] | None, default: None
+            Dictionary of keyword arguments for the subplots. Passed to the underlying
+            function.
+        gridspec_kws : dict[str, Any] | None, default: None
+            Dictionary of keyword arguments passed to the gridspec module for creating
+            the grid for the figure.
+        **kwargs: Any
+            Additional keyword arguments for the plot function. These are passed to
+            the seaborn plot object (:class:`seaborn.objects.Plot`).
 
         Returns
         -------
@@ -414,6 +583,20 @@ class StatisticPlotter(ABC):
             "stacked": stacked,
             "query": query,
             "nice_names": nice_names,
+            "sharex": sharex,
+            "sharey": sharey,
+            "height": height,
+            "aspect": aspect,
+            "row_order": row_order,
+            "col_order": col_order,
+            "hue_order": hue_order,
+            "hue_kws": hue_kws,
+            "despine": despine,
+            "margin_titles": margin_titles,
+            "xlim": xlim,
+            "ylim": ylim,
+            "subplot_kws": subplot_kws,
+            "gridspec_kws": gridspec_kws,
         }
         stats_kwargs = {
             "carrier": carrier,
@@ -423,7 +606,6 @@ class StatisticPlotter(ABC):
         }
         return self._chart(
             "area",
-            ChartGenerator,
             plot_kwargs,
             stats_kwargs,
             **kwargs,

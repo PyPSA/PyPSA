@@ -96,6 +96,7 @@ def map_dataframe_pandas_plot(
     stacked: bool,
     palette: dict | None = None,
     kind: str = "area",
+    ylim: tuple[float, float] | None = None,
     **kwargs: Any,
 ) -> sns.FacetGrid:
     """
@@ -123,10 +124,8 @@ def map_dataframe_pandas_plot(
         Color palette to use for the plot
     kind : str, optional
         Kind of plot to create ('area' or 'bar')
-    sharex : bool, optional
-        Whether to share x-axis across columns. Default is True.
-    sharey : bool, optional
-        Whether to share y-axis across rows. Default is True.
+    ylim : tuple, optional
+        Y-axis limits for the plot
     **kwargs : additional keyword arguments
         Passed to plotting function
 
@@ -153,12 +152,21 @@ def map_dataframe_pandas_plot(
                 pivoted = facet_data.pivot(index=x_var, columns=color, values=y_var)
                 color_dict = palette
 
+            # Special case of duplicate indices, e.g. carriers in groupers, but not plotted
+            if not pivoted.index.is_unique:
+                pivoted = pivoted.groupby(level=0).sum()
+
             # Ensure columns are ordered according to the hue order
             if color_order:
                 # Get only the columns that exist in this facet
                 available_cols = [c for c in color_order if c in pivoted.columns]
                 if available_cols:  # Only reorder if we have columns
                     pivoted = pivoted[available_cols]
+
+            # Weird behavior in pandas plotting, have to correct the ylim if None
+            # https://github.com/pandas-dev/pandas/blob/c0371cedf3a9682596481dab87b43653a48da186/pandas/plotting/_matplotlib/core.py#L1817
+            if y == "value" and ylim is None and len(list(ax.get_shared_y_axes())) == 0:
+                ax._shared_axes["y"].join(ax, ax)
 
             # Plot with pandas - no legend to avoid duplicates
             pivoted.plot(
@@ -169,7 +177,6 @@ def map_dataframe_pandas_plot(
                 color=color_dict,
                 **kwargs,
             )
-
             g._update_legend_data(ax)
         g._finalize_grid([x, y])
 
@@ -231,7 +238,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         sharex: bool | None = None,
         sharey: bool | None = None,
         height: float = 3,
-        aspect: float = 1,
+        aspect: float = 2,
         row_order: Sequence[str] | None = None,
         col_order: Sequence[str] | None = None,
         hue_order: Sequence[str] | None = None,
@@ -292,9 +299,8 @@ class ChartGenerator(PlotsGenerator, ABC):
                 facet_col,
                 stacked,
                 kind="area",
+                ylim=ylim,
                 palette=palette,
-                sharex=sharex,
-                sharey=sharey,
                 **kwargs,
             )
         elif kind == "bar":
@@ -308,6 +314,7 @@ class ChartGenerator(PlotsGenerator, ABC):
                 facet_col,
                 stacked,
                 kind="bar",
+                ylim=ylim,
                 palette=palette,
                 **kwargs,
             )
@@ -337,7 +344,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         label = data.attrs.get("name", "Value")
         unit = data.attrs.get("unit", "")
         if unit != "carrier dependent":
-            label += f"[{unit}]"
+            label += f" [{unit}]"
         if x == "value":
             g.set_axis_labels(x_var=label)
         elif y == "value":
