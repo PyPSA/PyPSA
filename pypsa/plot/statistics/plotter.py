@@ -111,7 +111,10 @@ class StatisticPlotter(ABC):
             The figure, axes and FacetGrid of the plot.
 
         """
-        if any(["aggregate_time", "aggregate_across_components", "groupby"] in kwargs):
+        if any(
+            key in kwargs
+            for key in ["aggregate_time", "aggregate_across_components", "groupby"]
+        ):
             msg = (
                 "'aggregate_time', 'aggregate_across_components', and 'groupby' "
                 "can not be set and are automatically derived from the plot kwargs."
@@ -304,7 +307,7 @@ class StatisticPlotter(ABC):
         self,
         x: str | None = None,
         y: str = "value",
-        color: str | None = "carrier",
+        color: str | None = None,
         facet_col: str | None = None,
         facet_row: str | None = None,
         query: str | None = None,
@@ -456,9 +459,9 @@ class StatisticPlotter(ABC):
 
     def area(
         self,
-        x: str | None = "snapshot",
+        x: str | None = None,
         y: str = "value",
-        color: str | None = "carrier",
+        color: str | None = None,
         facet_col: str | None = None,
         facet_row: str | None = None,
         stacked: bool = True,

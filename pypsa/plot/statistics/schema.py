@@ -33,6 +33,7 @@ allowed value list for each statistics/ plot combination.
 
 SCHEMA_DEFAULTS: dict = {
     # Defaults for required parameters
+    "x": "carrier",
     "bus_split_circles": False,
     "transmission_flow": False,
     "draw_legend_arrows": False,
@@ -54,26 +55,35 @@ SCHEMA_ADDITIONAL_PARAMETERS: dict = {
 }
 
 SCHEMA: dict = {
-    "capex": {},
-    "installed_capex": {},
-    "expanded_capex": {},
+    "capex": {
+        "area": {"x": "carrier", "y": "value", "color": None},
+    },
+    "installed_capex": {
+        "line": {"x": "carrier", "y": "value", "color": None},
+        "area": {"x": "carrier", "y": "value", "color": None},
+    },
+    "expanded_capex": {
+        "area": {"x": "carrier", "y": "value", "color": None},
+    },
     "optimal_capacity": {
         "line": {"storage": False},
-        "area": {"storage": False},
+        "area": {"x": "carrier", "y": "value", "color": None, "storage": False},
         "plot": {"storage": False},
     },
     "installed_capacity": {
         "line": {"storage": False},
-        "area": {"storage": False},
+        "area": {"x": "carrier", "y": "value", "color": None, "storage": False},
         "plot": {"storage": False},
     },
-    "expanded_capacity": {},
+    "expanded_capacity": {
+        "area": {"x": "carrier", "y": "value", "color": None},
+    },
     "opex": {
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
     },
     "supply": {
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
         "map": {
             "transmission_flow": True,
             "draw_legend_arrows": True,
@@ -83,7 +93,7 @@ SCHEMA: dict = {
     },
     "withdrawal": {
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
         "map": {
             "transmission_flow": True,
             "draw_legend_arrows": True,
@@ -93,12 +103,12 @@ SCHEMA: dict = {
     },
     "transmission": {
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
     },
     "energy_balance": {
         "plot": {"kind": "area"},
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
         "map": {
             "bus_split_circles": True,
             "transmission_flow": True,
@@ -108,19 +118,19 @@ SCHEMA: dict = {
     },
     "curtailment": {
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
     },
     "capacity_factor": {
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
     },
     "revenue": {
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
     },
     "market_value": {
         "line": {"x": "snapshot"},
-        "area": {"x": "snapshot"},
+        "area": {"x": "snapshot", "color": "carrier"},
     },
 }
 
