@@ -280,9 +280,9 @@ class Groupers:
         bus = f"bus{port}"
         return n.static(c)[bus].rename("bus")
 
-    def country(self, n: Network, c: str, port: str = "") -> pd.Series:
+    def location(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
-        Grouper method to group by the country of the components corresponding bus.
+        Grouper method to group by the location of the components corresponding bus.
 
         Parameters
         ----------
@@ -296,11 +296,11 @@ class Groupers:
         Returns
         -------
         pd.Series
-            Series with the country of the components corresponding bus.
+            Series with the location of the components corresponding bus.
 
         """
         bus = f"bus{port}"
-        return n.static(c)[bus].map(n.buses.country).rename("country")
+        return n.static(c)[bus].map(n.buses.location).rename("location")
 
     def unit(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
@@ -351,12 +351,14 @@ new_grouper_access = {
     "get_bus_carrier": ".bus_carrier",
     "get_bus": ".bus",
     "get_country": ".country",
+    "get_location": ".location",
     "get_unit": ".unit",
     "get_name": ".name",
     "get_bus_and_carrier": '["bus", "carrier"]',
     "get_bus_unit_and_carrier": '["bus", "unit", "carrier"]',
     "get_name_bus_and_carrier": '["name", "bus", "carrier"]',
     "get_country_and_carrier": '["country", "carrier"]',
+    "get_location_and_carrier": '["location", "carrier"]',
     "get_bus_and_carrier_and_bus_carrier": '["bus", "carrier", "bus_carrier"]',
     "get_carrier_and_bus_carrier": '["carrier", "bus_carrier"]',
 }

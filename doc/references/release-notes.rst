@@ -49,6 +49,8 @@ Minor improvements
 
 * Added warning for consistent legend circle and semicirle sizes when combining plots on a geographical axis.
 
+* Added descriptive attribute "location" to Buses. This attribute does not influence the optimisation model but can be used for aggregation in the statistics module.
+
 Bug fixes
 ---------
 
