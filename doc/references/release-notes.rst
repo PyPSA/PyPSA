@@ -49,6 +49,8 @@ Minor improvements
 
 * Added warning for consistent legend circle and semicirle sizes when combining plots on a geographical axis.
 
+* Add new statistic ``n.statistics.system_cost()`` to calculate the total system cost from capital and operational expenditures.
+
 Bug fixes
 ---------
 
