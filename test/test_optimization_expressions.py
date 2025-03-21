@@ -18,6 +18,7 @@ GROUPER_PARAMETERS = [
 KWARGS_PARAMETERS = [
     {"at_port": True},
     {"bus_carrier": "AC"},
+    {"carrier": "AC"},
     {"nice_names": True},
     {"aggregate_across_components": True},
 ]

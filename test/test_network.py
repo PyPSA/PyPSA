@@ -388,7 +388,13 @@ def test_copy_snapshots(all_networks):
 
         copied_n = n.copy(snapshots=n.snapshots[:5])
         n.set_snapshots(n.snapshots[:5])
-        assert copied_n == n
+        try:
+            assert copied_n == n
+        except AssertionError:
+            from deepdiff import DeepDiff
+
+            differences = DeepDiff(copied_n, n)
+            raise AssertionError(f"DeepDiff: {differences}")
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):

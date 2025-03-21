@@ -121,7 +121,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, res: dict[str, LinearExpression], is_one_component: bool
     ) -> LinearExpression:
         if res == {}:
-            return LinearExpression(None, self.n.model)
+            return LinearExpression(None, self._n.model)
         if is_one_component:
             first_key = next(iter(res))
             return res[first_key].loc[first_key]
@@ -152,10 +152,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         # TODO: move function to better place to avoid circular imports
         from pypsa.optimization.optimize import lookup
 
-        m = self.n.model
+        m = self._n.model
 
         if c == "Load":
-            return LinearExpression(self.n.get_switchable_as_dense(c, "p_set"), m)
+            return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
             assert set(["p_store", "p_dispatch"]) <= set(attr)
@@ -171,6 +171,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         cost_attribute: str = "capital_cost",
         include_non_extendable: bool = True,
@@ -204,6 +205,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
@@ -215,6 +217,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         storage: bool = False,
         nice_names: bool | None = None,
         include_non_extendable: bool = True,
@@ -239,11 +242,12 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
+            attr = nominal_attrs[c]
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
-                query = f"~{nominal_attrs[c]}_extendable"
-                capacity = capacity + n.df(c).query(query)["p_nom"]
+                query = f"~{attr}_extendable"
+                capacity = capacity + n.df(c).query(query)[attr]
             efficiency = port_efficiency(n, c, port=port)[capacity.indexes[c]]
             if not at_port:
                 efficiency = abs(efficiency)
@@ -260,6 +264,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
@@ -272,6 +277,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -310,6 +316,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
@@ -322,6 +329,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -342,9 +350,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         if comps is None:
-            comps = self.n.branch_components
+            comps = self._n.branch_components
 
-        transmission_branches = get_transmission_branches(self.n, bus_carrier)
+        transmission_branches = get_transmission_branches(self._n, bus_carrier)
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
@@ -363,6 +371,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
@@ -375,6 +384,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> LinearExpression:
@@ -396,7 +406,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
         if (
-            self.n.buses.carrier.unique().size > 1
+            self._n.buses.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
         ):
@@ -435,6 +445,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
@@ -447,6 +458,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -467,6 +479,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             kind="supply",
         )
@@ -480,6 +493,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -500,6 +514,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
             kind="withdrawal",
         )
@@ -513,6 +528,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -540,7 +556,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             attr = nominal_attrs[c]
             capacity = (
                 n.model.variables[f"{c}-{attr}"].rename({f"{c}-ext": c})
-                + n.df(c).query(f"~{attr}_extendable")["p_nom"]
+                + n.df(c).query(f"~{attr}_extendable")[attr]
             )
             idx = capacity.indexes[c]
             p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx])
@@ -559,6 +575,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             groupby=groupby,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )
 
@@ -571,6 +588,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         at_port: bool | str | Sequence[str] = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         bus_carrier: str | Sequence[str] | None = None,
+        carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
         """
@@ -604,5 +622,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             aggregate_across_components=aggregate_across_components,
             at_port=at_port,
             bus_carrier=bus_carrier,
+            carrier=carrier,
             nice_names=nice_names,
         )

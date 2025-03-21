@@ -103,9 +103,19 @@ class AbstractStatisticsAccessor(ABC):
 
     def __init__(self, n: Network) -> None:
         """Initialize the statistics accessor."""
-        self.n = n
+        self._n = n
         self.groupers = deprecated_groupers
         self.parameters = Parameters()
+
+    @property
+    def n(self) -> Network:
+        """Get the network instance."""
+        warnings.warn(
+            "Accessing the network instance via `n` is deprecated. Use the network instance directly.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._n
 
     def set_parameters(self, **kwargs: Any) -> None:
         """
@@ -149,7 +159,7 @@ class AbstractStatisticsAccessor(ABC):
 
         """
         # TODO could be moved to Network
-        return isinstance(self.n.snapshots, pd.MultiIndex)
+        return isinstance(self._n.snapshots, pd.MultiIndex)
 
     @classmethod
     def _aggregate_timeseries(
@@ -217,7 +227,7 @@ class AbstractStatisticsAccessor(ABC):
     ) -> pd.Series | pd.DataFrame:
         """Apply a function and group the result for a collection of components."""
         d = {}
-        n = self.n
+        n = self._n
 
         if is_one_component := isinstance(comps, str):
             comps = [comps]
