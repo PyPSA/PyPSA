@@ -248,3 +248,11 @@ def test_groupers(ac_dc_network_r):
     grouper = groupers["bus", "carrier", "bus_carrier"](n, c)
     assert isinstance(grouper, list)
     assert all(isinstance(ds, pd.Series) for ds in grouper)
+
+
+def test_system_cost(ac_dc_network_r):
+    n = ac_dc_network_r
+    capex = n.statistics.capex().sum()
+    opex = n.statistics.opex().sum()
+    system_cost = n.statistics.system_cost().sum()
+    assert system_cost == capex + opex
