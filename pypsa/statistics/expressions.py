@@ -1194,8 +1194,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         >>> n.statistics.system_cost()
         Series([], dtype: float64)
-        """
 
+        """
         capex = self.capex(
             comps=comps,
             aggregate_groups=aggregate_groups,
