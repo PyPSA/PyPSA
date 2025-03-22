@@ -280,6 +280,28 @@ class Groupers:
         bus = f"bus{port}"
         return n.static(c)[bus].rename("bus")
 
+    def country(self, n: Network, c: str, port: str = "") -> pd.Series:
+        """
+        Grouper method to group by the country of the components corresponding bus.
+
+        Parameters
+        ----------
+        n : Network
+            PyPSA network instance.
+        c : str
+            Components type name. E.g. "Generator", "StorageUnit", etc.
+        port : str, optional
+            Port of corresponding bus, which should be used.
+
+        Returns
+        -------
+        pd.Series
+            Series with the country of the components corresponding bus.
+
+        """
+        bus = f"bus{port}"
+        return n.static(c)[bus].map(n.buses.country).rename("country")
+
     def location(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
         Grouper method to group by the location of the components corresponding bus.
