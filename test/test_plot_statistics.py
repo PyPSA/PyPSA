@@ -1,149 +1,57 @@
-import hashlib
-import io
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
 import seaborn as sns
-import yaml
 
 from pypsa.consistency import ConsistencyError
 from pypsa.plot.statistics.charts import ChartGenerator
 from pypsa.statistics.expressions import StatisticsAccessor
 
 
-@pytest.fixture(scope="module")
-def validation_hashes():
-    """Load plot hashes from a YAML file."""
-    with open("test/data/plot_hashes.yaml") as file:
-        return yaml.safe_load(file)
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+@pytest.mark.mpl_image_compare(tolerance=10)
+def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
+    plotter = getattr(ac_dc_network_r.statistics, stat_func)
+    fig, _, _ = plotter.plot()
 
-
-def get_object_hash(obj):
-    """Generate a hash for any picklable Python object."""
-    buf = io.BytesIO()
-    obj[0].savefig(buf, format="png", dpi=100)
-
-    buf.seek(0)
-    plot_data = buf.getvalue()
-    plot_hash = hashlib.md5(plot_data).hexdigest()
-    buf.close()
-
-    return plot_hash
-
-
-def save_plot_hashes(plot_hashes):
-    """Save plot hashes to a YAML file."""
-    with open("test/data/plot_hashes.yaml", "w") as file:
-        yaml.dump(plot_hashes, file)
+    return fig
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_simple_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
+@pytest.mark.mpl_image_compare(tolerance=10)
+def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plot = plotter.plot()
+    fig, _, _ = plotter.plot.bar()
 
-    if not pytestconfig.getoption("--update-plot-hashes"):
-        hash_ = get_object_hash(plot)
-        assert hash_ == validation_hashes[stat_func]["plot"], (
-            f"Plot hash mismatch for {stat_func}. If this is expected, "
-            "update the PLOT_HASHES dictionary."
-        )
-    else:
-        validation_hashes[stat_func]["plot"] = get_object_hash(plot)
-        save_plot_hashes(validation_hashes)
-
-    if pytestconfig.getoption("--save-plots"):
-        Path("test_plots_output").mkdir(exist_ok=True)
-        plot.save("test_plots_output/" + stat_func + "-simple.png")
-
-    plt.close()
+    return fig
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_bar_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
+@pytest.mark.mpl_image_compare(tolerance=10)
+def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plot = plotter.plot.bar()
+    fig, _, _ = plotter.plot.line()
 
-    if not pytestconfig.getoption("--update-plot-hashes"):
-        hash_ = get_object_hash(plot)
-        assert hash_ == validation_hashes[stat_func]["bar"], (
-            f"Plot hash mismatch for {stat_func}. If this is expected, "
-            "update the PLOT_HASHES dictionary."
-        )
-    else:
-        validation_hashes[stat_func]["bar"] = get_object_hash(plot)
-        save_plot_hashes(validation_hashes)
-
-    if pytestconfig.getoption("--save-plots"):
-        Path("test_plots_output").mkdir(exist_ok=True)
-        plot.save("test_plots_output/" + stat_func + "-bar.png")
-
-    plt.close()
+    return fig
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_line_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
+@pytest.mark.mpl_image_compare(tolerance=10)
+def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plot = plotter.plot.line()
+    fig, _, _ = plotter.plot.area()
 
-    if not pytestconfig.getoption("--update-plot-hashes"):
-        hash_ = get_object_hash(plot)
-        assert hash_ == validation_hashes[stat_func]["line"], (
-            f"Plot hash mismatch for {stat_func}. If this is expected, "
-            "update the PLOT_HASHES dictionary."
-        )
-    else:
-        validation_hashes[stat_func]["line"] = get_object_hash(plot)
-        save_plot_hashes(validation_hashes)
-
-    if pytestconfig.getoption("--save-plots"):
-        Path("test_plots_output").mkdir(exist_ok=True)
-        plot.save("test_plots_output/" + stat_func + "-line.png")
-    plt.close()
+    return fig
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_area_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
+@pytest.mark.mpl_image_compare(tolerance=10)
+def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plot = plotter.plot.area()
 
-    if not pytestconfig.getoption("--update-plot-hashes"):
-        hash_ = get_object_hash(plot)
-        assert hash_ == validation_hashes[stat_func]["area"], (
-            f"Plot hash mismatch for {stat_func}. If this is expected, "
-            "update the PLOT_HASHES dictionary."
-        )
-    else:
-        validation_hashes[stat_func]["area"] = get_object_hash(plot)
-        save_plot_hashes(validation_hashes)
+    fig, _ = plotter.plot.map()
 
-    if pytestconfig.getoption("--save-plots"):
-        Path("test_plots_output").mkdir(exist_ok=True)
-        plot.save("test_plots_output/" + stat_func + "-area.png")
-    plt.close()
-
-
-@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-def test_map_plot(pytestconfig, validation_hashes, ac_dc_network_r, stat_func):
-    plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    plot = plotter.plot.area()
-
-    if not pytestconfig.getoption("--update-plot-hashes"):
-        hash_ = get_object_hash(plot)
-        assert hash_ == validation_hashes[stat_func]["map"], (
-            f"Plot hash mismatch for {stat_func}. If this is expected, "
-            "update the PLOT_HASHES dictionary."
-        )
-    else:
-        validation_hashes[stat_func]["map"] = get_object_hash(plot)
-        save_plot_hashes(validation_hashes)
-
-    if pytestconfig.getoption("--save-plots"):
-        Path("test_plots_output").mkdir(exist_ok=True)
-        plot.save("test_plots_output/" + stat_func + "-map.png")
-    plt.close()
+    return fig
 
 
 def test_to_long_format_static(ac_dc_network_r):

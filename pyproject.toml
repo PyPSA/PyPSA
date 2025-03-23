@@ -53,7 +53,8 @@ excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dev = [
-    "pytest", 
+    "pytest",
+    "pytest-mpl", 
     "coverage",
     "pypower",
     "pandapower>=2.14.11; python_version < '3.13'",

@@ -34,7 +34,6 @@ try:
     import cartopy
     import cartopy.mpl.geoaxes
     from cartopy.mpl.geoaxes import GeoAxesSubplot
-
 except ImportError:
     cartopy_present = False
     GeoAxesSubplot = Any
