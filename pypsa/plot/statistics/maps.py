@@ -84,6 +84,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """Plot network statistics on a map."""
         n = self._n
+        colors = self.get_carrier_colors()
         plotting_consistency_check(n)
         boundaries = boundaries or self.boundaries
         (x_min, x_max, y_min, y_max) = boundaries
@@ -147,14 +148,13 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             branch_widths_scaled = branch_widths * branch_widths_scaling_factor
 
         # Get branch colors from carrier colors
-        branch_colors = (
-            n.branches().carrier[branch_widths_scaled.index].map(n.carriers.color)
-        )
+        branch_colors = n.branches().carrier[branch_widths_scaled.index].map(colors)
 
         # Set default plot arguments
         plot_args = dict(
             bus_sizes=bus_sizes * bus_size_scaling_factor,
             bus_split_circles=bus_split_circles,
+            bus_colors=colors,
             line_flow=branch_flow_scaled.get("Line"),
             line_widths=branch_widths_scaled.get("Line", 0),
             line_colors=branch_colors.get("Line", "k"),
