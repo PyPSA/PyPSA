@@ -1248,7 +1248,10 @@ class MapPlotter:
                     "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
                     "`transformer_flow` instead. Multiindex Series are not supported anymore."
                 )
-                raise ValueError(msg)
+                warnings.warn(msg, DeprecationWarning, 2)
+                line_flow = flow.get("Line")
+                link_flow = flow.get("Link")
+                transformer_flow = flow.get("Transformer")
             warnings.warn(
                 "The `flow` argument is deprecated and will be removed in a future "
                 "version. Use `line_flow`, `link_flow` and `transformer_flow` instead. The "
@@ -1837,7 +1840,7 @@ def add_legend_semicircles(
         area_correction = get_projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
 
-    radius = [np.sign(s) * np.abs(s) ** 0.5 for s in sizes]
+    radius = [np.sign(s) * np.abs(s * 2) ** 0.5 for s in sizes]
     handles = [
         Wedge((0, -r / 2), r=r, theta1=0, theta2=180, **patch_kw) for r in radius
     ]
