@@ -1291,14 +1291,6 @@ class MapPlotter:
                 logger.warning("Cartopy needs to be installed to use `geomap=True`.")
                 geomap = False
 
-        if not geomap and hasattr(self.ax, "projection"):
-            msg = "The axis has a projection, but `geomap` is set to False"
-            raise ValueError(msg)
-
-        if geomap and not cartopy_present:
-            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-            geomap = False
-
         # Check if bus_sizes is a MultiIndex
         multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
             bus_sizes.index, pd.MultiIndex
