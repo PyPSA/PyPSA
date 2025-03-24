@@ -12,6 +12,7 @@ import linopy as ln
 import numpy as np
 import pandas as pd
 from linopy import LinearExpression, Variable
+from packaging import version
 from xarray import DataArray
 
 from pypsa.common import pass_none_if_keyerror
@@ -23,10 +24,24 @@ from pypsa.statistics import (
 )
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
-logger = logging.getLogger(__name__)
-
 if TYPE_CHECKING:
     from pypsa import Network
+logger = logging.getLogger(__name__)
+
+
+USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
+
+
+def check_if_empty(expr: LinearExpression) -> bool:
+    """
+    Check if the expression is empty.
+    This is a workaround for the issue that linopy does not support
+    the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
+    """
+    if USE_EMPTY_PROPERTY:
+        return expr.empty
+    else:
+        return expr.empty()
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -128,7 +143,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
     ) -> LinearExpression:
         if agg != "sum":
             raise ValueError(f"Aggregation method {agg} not supported.")
-        if expr.empty():
+        if check_if_empty(expr):
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
         return expr.groupby(group).sum()

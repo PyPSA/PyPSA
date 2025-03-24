@@ -51,6 +51,8 @@ Minor improvements
 
 * Add new statistic ``n.statistics.system_cost()`` to calculate the total system cost from capital and operational expenditures.
 
+* Added descriptive attribute "location" to Buses. This attribute does not influence the optimisation model but can be used for aggregation in the statistics module.
+
 Bug fixes
 ---------
 

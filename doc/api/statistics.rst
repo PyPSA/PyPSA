@@ -43,4 +43,5 @@ Grouping
     ~pypsa.statistics.grouping.Groupers.name
     ~pypsa.statistics.grouping.Groupers.bus
     ~pypsa.statistics.grouping.Groupers.country
+    ~pypsa.statistics.grouping.Groupers.location
     ~pypsa.statistics.grouping.Groupers.unit
