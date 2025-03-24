@@ -4,21 +4,17 @@ import pytest
 
 import pypsa
 from pypsa.statistics import groupers
+from pypsa.statistics.expressions import StatisticsAccessor
 
 
-def test_default_unsolved(ac_dc_network):
-    df = ac_dc_network.statistics()
-    assert not df.empty
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_all_methods(ac_dc_network_r, stat_func):
+    df = getattr(ac_dc_network_r.statistics, stat_func)
+    assert not df().empty
 
 
 def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.capex()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.opex()
     assert not df.empty
 
     df = ac_dc_network_r.statistics.energy_balance()
@@ -94,8 +90,8 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
 def test_net_and_gross_revenue(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.revenue(aggregate_time="sum")
-    revenue_out = n.statistics.revenue(aggregate_time="sum", kind="output")
-    revenue_in = n.statistics.revenue(aggregate_time="sum", kind="input")
+    revenue_out = n.statistics.revenue(aggregate_time="sum", direction="output")
+    revenue_in = n.statistics.revenue(aggregate_time="sum", direction="input")
     revenue = revenue_in.add(revenue_out, fill_value=0)
     comps = ["Generator", "Line", "Link"]
     assert np.allclose(revenue[comps], target[comps])
@@ -104,8 +100,8 @@ def test_net_and_gross_revenue(ac_dc_network_r):
 def test_supply_withdrawal(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.energy_balance()
-    supply = n.statistics.energy_balance(kind="supply")
-    withdrawal = n.statistics.energy_balance(kind="withdrawal")
+    supply = n.statistics.energy_balance(direction="supply")
+    withdrawal = n.statistics.energy_balance(direction="withdrawal")
     energy_balance = supply.sub(withdrawal, fill_value=0)
     assert np.allclose(energy_balance.reindex(target.index), target)
 
@@ -122,11 +118,15 @@ def test_no_time_aggregation(ac_dc_network_r):
 
 
 def test_carrier_selection(ac_dc_network_r):
-    df = ac_dc_network_r.statistics(groupby=False, carrier="gas")
+    n = ac_dc_network_r
+    df = n.statistics(carrier="AC")
     assert not df.empty
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
 
-    df = ac_dc_network_r.statistics(groupby=False, carrier=["gas", "wind"])
-    assert not df.empty
+    df = n.statistics(carrier=["AC"])
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
 
 
 def test_bus_carrier_selection(ac_dc_network_r):
@@ -217,34 +217,3 @@ def test_transmission_carriers(ac_dc_network_r):
     n.lines["carrier"] = "AC"
     df = pypsa.statistics.get_transmission_carriers(ac_dc_network_r)
     assert "AC" in df.unique(1)
-
-
-def test_groupers(ac_dc_network_r):
-    n = ac_dc_network_r
-    c = "Generator"
-
-    grouper = groupers.carrier(n, c)
-    assert isinstance(grouper, pd.Series)
-
-    grouper = groupers.bus_carrier(n, c)
-    assert isinstance(grouper, pd.Series)
-
-    grouper = groupers["bus", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["bus", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["country", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["carrier", "bus_carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["bus", "carrier", "bus_carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)

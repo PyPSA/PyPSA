@@ -415,6 +415,25 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
 def _convert_to_series(
     variable: dict | Sequence | float | int, index: pd.Index
 ) -> pd.Series:
+    """
+    Convert a variable to a pandas Series with the given index.
+
+    Parameters
+    ----------
+    variable : dict | Sequence | float | int
+        The variable to convert.
+    index : pd.Index
+        The index to use for the Series.
+
+    Examples
+    --------
+    >>> _convert_to_series([1, 2, 3], pd.Index(['a', 'b', 'c']))
+    a    1
+    b    2
+    c    3
+    dtype: int64
+
+    """
     if isinstance(variable, dict):
         return pd.Series(variable)
     elif not isinstance(variable, pd.Series):
