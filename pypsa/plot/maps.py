@@ -1251,16 +1251,6 @@ class MapPlotter:
                 line_flow = flow.get("Line")
                 link_flow = flow.get("Link")
                 transformer_flow = flow.get("Transformer")
-            warnings.warn(
-                "The `flow` argument is deprecated and will be removed in a future "
-                "version. Use `line_flow`, `link_flow` and `transformer_flow` instead. The "
-                "argument will be passed to all branches. Multiindex Series are not supported anymore.",
-                DeprecationWarning,
-                2,
-            )
-            line_flow = flow
-            link_flow = flow
-            transformer_flow = flow
 
         # Deprecation errors
         if isinstance(line_widths, pd.Series) and isinstance(
@@ -1374,6 +1364,9 @@ class MapPlotter:
             data = self._dataframe_from_arguments(
                 c.static.index, widths=widths, colors=colors, alpha=alpha, flow=flow
             )
+            if data.empty:
+                continue
+
             data["colors"] = _apply_cmap(data.colors, cmap, cmap_norm)
 
             branch_coll = self.get_branch_collection(
