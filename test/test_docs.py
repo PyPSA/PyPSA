@@ -29,7 +29,7 @@ modules = [
 
 
 @pytest.mark.skipif(
-    sys.version_info >= (3, 10),
+    sys.version_info == (3, 10),
     reason="Doctest fail until linopy supports numpy 2 on all python versions",
 )
 @pytest.mark.parametrize("module", modules)
