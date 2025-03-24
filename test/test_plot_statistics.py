@@ -11,7 +11,7 @@ from pypsa.statistics.expressions import StatisticsAccessor
 # Set random seed for reproducibility
 np.random.seed(42)  # noqa: NPY002
 
-plt.rcParams["figure.figsize"] = [10, 6]
+plt.rcParams["figure.figsize"] = [8, 6]
 plt.rcParams["figure.dpi"] = 100
 
 
