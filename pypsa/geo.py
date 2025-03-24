@@ -146,7 +146,7 @@ def compute_bbox(
     >>> x = np.array([1, 2, 3])
     >>> y = np.array([4, 5, 6])
     >>> compute_bbox(x, y)
-    ((1, 4), (3, 6))
+    ((np.int64(1), np.int64(4)), (np.int64(3), np.int64(6)))
 
     """
     # set margins
@@ -226,7 +226,7 @@ def get_projected_area_factor(
     >>> ax.set_extent([-10, 10, 40, 60], crs=ccrs.PlateCarree())
     >>> area_factor = get_projected_area_factor(ax)
     >>> area_factor
-    140056.26937534288
+    np.float64(140056.26937534288)
 
     """
     if not hasattr(ax, "projection"):

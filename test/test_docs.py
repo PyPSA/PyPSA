@@ -4,6 +4,7 @@ import pkgutil
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +28,10 @@ modules = [
 ]
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 10),
+    reason="Doctest fail until linopy supports numpy 2 on all python versions",
+)
 @pytest.mark.parametrize("module", modules)
 def test_doctest(module):
     finder = doctest.DocTestFinder()
