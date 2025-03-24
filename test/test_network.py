@@ -350,6 +350,8 @@ def test_equality_behavior(all_networks):
         deep_copy.name = "new_name"
         assert n != deep_copy
 
+        assert n != "other_type"
+
 
 @pytest.mark.skipif(
     sys.platform == "win32",
