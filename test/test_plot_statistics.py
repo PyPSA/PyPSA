@@ -13,7 +13,7 @@ np.random.seed(42)  # noqa: NPY002
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=20)
+@pytest.mark.mpl_image_compare(tolerance=20, kwargs={"dpi": 100})
 def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot()
@@ -22,7 +22,7 @@ def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=20)
+@pytest.mark.mpl_image_compare(tolerance=20, kwargs={"dpi": 100})
 def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot.bar()
@@ -31,7 +31,7 @@ def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=20)
+@pytest.mark.mpl_image_compare(tolerance=20, kwargs={"dpi": 100})
 def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot.line()
@@ -40,7 +40,7 @@ def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=20)
+@pytest.mark.mpl_image_compare(tolerance=20, kwargs={"dpi": 100})
 def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot.area()
@@ -49,7 +49,7 @@ def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=20)
+@pytest.mark.mpl_image_compare(tolerance=20, kwargs={"dpi": 100})
 def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
 
