@@ -99,6 +99,7 @@ class and currently included are, grouping by ..
 * :meth:`name <pypsa.statistics.grouping.Groupers.name>`
 * :meth:`bus <pypsa.statistics.grouping.Groupers.bus>`
 * :meth:`country <pypsa.statistics.grouping.Groupers.country>`
+* :meth:`location <pypsa.statistics.grouping.Groupers.location>`
 * :meth:`unit <pypsa.statistics.grouping.Groupers.unit>`
 * A list of registered groupers can be accessed via
     :meth:`pypsa.statistics.groupers.list_groupers <pypsa.statistics.grouping.Groupers.list_groupers>`
@@ -148,6 +149,7 @@ bus and carrier:
     ~pypsa.statistics.grouping.Groupers.name
     ~pypsa.statistics.grouping.Groupers.bus
     ~pypsa.statistics.grouping.Groupers.country
+    ~pypsa.statistics.grouping.Groupers.location
     ~pypsa.statistics.grouping.Groupers.unit
 
 
