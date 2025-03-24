@@ -11,13 +11,14 @@ from pypsa.statistics.expressions import StatisticsAccessor
 # Set random seed for reproducibility
 np.random.seed(42)  # noqa: NPY002
 
+plt.rcdefaults()
 plt.rcParams["figure.figsize"] = [8, 6]
 plt.rcParams["figure.dpi"] = 100
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
-def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_simple_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot()
 
@@ -26,7 +27,7 @@ def test_simple_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
-def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_bar_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot.bar()
 
@@ -35,7 +36,7 @@ def test_bar_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
-def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_line_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot.line()
 
@@ -44,7 +45,7 @@ def test_line_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
-def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_area_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
     fig, _, _ = plotter.plot.area()
 
@@ -53,7 +54,7 @@ def test_area_plot(pytestconfig, ac_dc_network_r, stat_func):
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
-def test_map_plot(pytestconfig, ac_dc_network_r, stat_func):
+def test_map_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
 
     fig, _ = plotter.plot.map()
