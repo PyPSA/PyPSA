@@ -96,6 +96,9 @@ filterwarnings = [
     "ignore::matplotlib._api.deprecation.MatplotlibDeprecationWarning:pydev",
     # See https://github.com/microsoft/debugpy/issues/1623
 ]
+markers = [
+    "mpl_image_compare",
+]
 
 # Coverage settings
 
