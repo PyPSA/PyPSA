@@ -20,36 +20,28 @@ plt.rcParams["figure.dpi"] = 100
 @pytest.mark.mpl_image_compare(tolerance=20)
 def test_simple_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot()
-
-    return fig
+    plotter.plot()
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
 def test_bar_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.bar()
-
-    return fig
+    plotter.plot.bar()
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
 def test_line_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.line()
-
-    return fig
+    plotter.plot.line()
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=20)
 def test_area_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.area()
-
-    return fig
+    plotter.plot.area()
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -57,9 +49,7 @@ def test_area_plot(ac_dc_network_r, stat_func):
 def test_map_plot(ac_dc_network_r, stat_func):
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
 
-    fig, _ = plotter.plot.map()
-
-    return fig
+    plotter.plot.map()
 
 
 def test_to_long_format_static(ac_dc_network_r):

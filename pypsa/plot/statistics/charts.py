@@ -21,6 +21,17 @@ if TYPE_CHECKING:
     pass
 
 
+CHART_TYPES = [
+    "area",
+    "bar",
+    "scatter",
+    "line",
+    "box",
+    "violin",
+    "histogram",
+]
+
+
 def facet_iter(
     g: sns.FacetGrid,
     df: pd.DataFrame,

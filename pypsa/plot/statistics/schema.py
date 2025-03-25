@@ -31,9 +31,13 @@ Both dictionaries are combined to create a final schema which has a default and 
 allowed value list for each statistics/ plot combination.
 """
 
+from pypsa.plot.statistics.charts import CHART_TYPES
+
 SCHEMA_DEFAULTS: dict = {
     # Defaults for required parameters
     "x": "carrier",
+    "y": "value",
+    "color": "carrier",
     "bus_split_circles": False,
     "transmission_flow": False,
     "draw_legend_arrows": False,
@@ -47,6 +51,12 @@ SCHEMA_DEFAULTS: dict = {
     "direction": None,
 }
 
+SCHEMA_METHOD_DEFAULTS: dict = {
+    "area": {"x": "carrier", "y": "value", "color": None},
+    "line": {"x": "carrier", "y": "value", "color": None},
+    "bar": {"x": "value", "y": "carrier", "color": "carrier"},
+}
+
 SCHEMA_ADDITIONAL_PARAMETERS: dict = {
     "optimal_capacity": ["storage"],
     "installed_capacity": ["storage"],
@@ -55,30 +65,22 @@ SCHEMA_ADDITIONAL_PARAMETERS: dict = {
 }
 
 SCHEMA: dict = {
-    "capex": {
-        "area": {"x": "carrier", "y": "value", "color": None},
-    },
-    "installed_capex": {
-        "line": {"x": "carrier", "y": "value", "color": None},
-        "area": {"x": "carrier", "y": "value", "color": None},
-    },
-    "expanded_capex": {
-        "area": {"x": "carrier", "y": "value", "color": None},
-    },
+    "capex": {},
+    "installed_capex": {},
+    "expanded_capex": {},
     "optimal_capacity": {
         "line": {"storage": False},
-        "area": {"x": "carrier", "y": "value", "color": None, "storage": False},
+        "area": {"storage": False},
         "plot": {"storage": False},
     },
     "installed_capacity": {
         "line": {"storage": False},
-        "area": {"x": "carrier", "y": "value", "color": None, "storage": False},
+        "area": {"storage": False},
         "plot": {"storage": False},
     },
-    "expanded_capacity": {
-        "area": {"x": "carrier", "y": "value", "color": None},
-    },
+    "expanded_capacity": {},
     "opex": {
+        "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
     },
     "supply": {
@@ -146,7 +148,7 @@ def _combine_schemas() -> dict:
 
     """
     combined_schema: dict = {}
-    plot_types = ["line", "area", "bar", "map", "plot"]
+    plot_types = ["map", "plot"] + CHART_TYPES
 
     additional_parameters = {
         value
@@ -171,6 +173,14 @@ def _combine_schemas() -> dict:
                 # Allow if additional parameters selection again
                 if param in SCHEMA_ADDITIONAL_PARAMETERS.get(stat_name, []):
                     combined_schema[stat_name][plot_type][param]["allowed"] = True
+
+            if plot_type in SCHEMA_METHOD_DEFAULTS:
+                # Add method defaults
+                for param, default_value in SCHEMA_METHOD_DEFAULTS[plot_type].items():
+                    combined_schema[stat_name][plot_type][param] = {
+                        "default": default_value,
+                        "allowed": True,
+                    }
 
             # Override with specific values from SCHEMA
             sub_schema = SCHEMA[stat_name].get(plot_type, {})
