@@ -24,6 +24,20 @@ Features
     different engines can be passed. By default they are not installed, but can be
     installed via ``pip install pypsa[excel]``.
 
+* New plotting library
+
+  * You can now create plots on any PyPSA statistic. Try them with:
+
+    * :meth:`n.statistics.energy_balance.plot() <pypsa.plot.statistics.plotter.StatisticPlotter.__call__>` to get the pre defined default plot
+    * :meth:`n.statistics.energy_balance.plot.bar() <pypsa.plot.statistics.plotter.StatisticPlotter.bar>` to get a bar plot
+    * :meth:`n.statistics.energy_balance.plot.line() <pypsa.plot.statistics.plotter.StatisticPlotter.line>` to get a line plot
+    * :meth:`n.statistics.energy_balance.plot.area() <pypsa.plot.statistics.plotter.StatisticPlotter.area>` to get a area plot
+    * :meth:`n.statistics.energy_balance.plot.map() <pypsa.plot.statistics.plotter.StatisticPlotter.map>` to get a map plot
+
+  * ``n.plot()``  was moved to ``n.plot.map()``
+
+  * ``n.explore()`` was moved to ``n.plot.explore()`` and ``n.iplot()`` was moved to ``n.plot.iplot()``
+
 * Statistics module
 
   * All statistics functions now interpret the bus_carrier argument as a regular 
@@ -45,16 +59,22 @@ Features
 Minor improvements
 ------------------
 
-* Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed buses. (https://github.com/PyPSA/PyPSA/pull/1174)
+* Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed 
+  buses. (https://github.com/PyPSA/PyPSA/pull/1174)
 
-* Added warning for consistent legend circle and semicirle sizes when combining plots on a geographical axis.
+* Added warning for consistent legend circle and semicirle sizes when combining plots 
+  on a geographical axis.
 
-* Added descriptive attribute "location" to Buses. This attribute does not influence the optimisation model but can be used for aggregation in the statistics module.
+* Added descriptive attribute "location" to Buses. This attribute does not influence
+  the optimisation model but can be used for aggregation in the statistics module.
+  (https://github.com/PyPSA/PyPSA/pull/1182)
 
 Bug fixes
 ---------
 
-* Fixed ``pypsa.plot.add_legend_semicircles()`` circle sizing to be consistent with ``n.plot(bus_sizes=..., bus_split_circles=True)`` argument.
+* Fixed ``pypsa.plot.add_legend_semicircles()`` circle sizing to be consistent with 
+  ``n.plot(bus_sizes=..., bus_split_circles=True)`` argument. 
+  (https://github.com/PyPSA/PyPSA/pull/1179)
 
 `v0.33.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2>`__ (12th March 2025)
 =======================================================================================
