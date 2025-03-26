@@ -38,8 +38,8 @@ SCHEMA_DEFAULTS: dict = {
     "x": "carrier",
     "y": "value",
     "color": "carrier",
-    "height": 3.0,
-    "aspect": 2.0,
+    "height": 4,
+    "aspect": 1,
     "bus_split_circles": False,
     "transmission_flow": False,
     "draw_legend_arrows": False,
@@ -54,8 +54,8 @@ SCHEMA_DEFAULTS: dict = {
 }
 
 SCHEMA_METHOD_DEFAULTS: dict = {
-    "area": {"x": "carrier", "y": "value", "color": None},
-    "line": {"x": "carrier", "y": "value", "color": None},
+    "area": {"x": "carrier", "y": "value", "color": None, "height": 3, "aspect": 2},
+    "line": {"x": "carrier", "y": "value", "color": None, "height": 3, "aspect": 2},
     "bar": {"x": "value", "y": "carrier", "color": "carrier"},
 }
 
