@@ -46,9 +46,8 @@ class StatisticPlotter(ABC):
 
         for chart_type in CHART_TYPES:
             func = partial(self._chart, chart_type=chart_type)
-            func = update_wrapper(func, self._chart)
-            func.__name__ = f"{self._bound_method.__name__}_{chart_type}"
-            func.__doc__ = func.__doc__.replace("chart_type", chart_type)
+            func = update_wrapper(func, self._chart)  # type: ignore
+            func.__doc__ = func.__doc__.replace("chart_type", chart_type)  # type: ignore
             setattr(self, chart_type, func)
 
     def __call__(
@@ -92,9 +91,7 @@ class StatisticPlotter(ABC):
 
     def _chart(  # noqa: D417
         self,
-        chart_type: Literal[
-            "area", "bar", "scatter", "line", "box", "violin", "histogram"
-        ],
+        chart_type: str,
         x: str | None = None,
         y: str | None = None,
         color: str | None = None,
@@ -277,7 +274,7 @@ class StatisticPlotter(ABC):
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
-        return plotter.plot(data, kind=chart_type, **plot_kwargs, **kwargs)
+        return plotter.plot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
 
     def map(
         self,
