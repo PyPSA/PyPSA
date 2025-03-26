@@ -226,7 +226,11 @@ def define_operational_constraints_for_committables(
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-up-time", mask=DataArray(active[min_up_time_i]).sel(snapshot=sns[1:]),
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-up-time",
+            mask=DataArray(active[min_up_time_i]).sel(snapshot=sns[1:]),
         )
 
     # min down time
@@ -299,7 +303,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-p-before", mask=active_ce,
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-p-before",
+            mask=active_ce,
         )
 
         # dispatch limit for partly start up/shut down for t
@@ -310,7 +318,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-p-current", mask=active_ce,
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-p-current",
+            mask=active_ce,
         )
 
         # ramp up if committable is only partly active and some capacity is starting up
@@ -323,7 +335,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active_ce,
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-partly-start-up",
+            mask=active_ce,
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
@@ -336,7 +352,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active_ce,
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-partly-shut-down",
+            mask=active_ce,
         )
 
 
