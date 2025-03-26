@@ -93,3 +93,61 @@ def test_iplot_stacked_parameter(ac_dc_network_r):
     # Test stacked=False
     fig2 = n.statistics.installed_capacity.iplot.bar(stacked=False)
     assert isinstance(fig2, go.Figure)
+
+
+def test_iplot_category_orders(ac_dc_network_r):
+    """Test creating a plot with specified category orders."""
+    n = ac_dc_network_r
+
+    # Create plot with specified orders if applicable columns exist
+    carriers = n.carriers.index.unique().tolist()
+    buses = n.buses.index.unique().tolist()
+    countries = n.buses.country.unique().tolist()
+
+    # Create plot with the available orders
+    fig = n.statistics.installed_capacity.iplot.bar(
+        facet_row="bus",
+        facet_col="country",
+        color="carrier",
+        color_order=carriers,
+        row_order=buses,
+        col_order=countries,
+    )
+    assert isinstance(fig, go.Figure)
+
+
+def test_iplot_unstacked_area_plot(ac_dc_network_r):
+    """Test creating an unstacked area plot."""
+    n = ac_dc_network_r
+    fig = n.statistics.supply.iplot.area(stacked=False)
+    assert isinstance(fig, go.Figure)
+
+
+def test_iplot_sharex_sharey(ac_dc_network_r):
+    """Test sharex and sharey parameters for faceted plots."""
+    n = ac_dc_network_r
+    fig1 = n.statistics.installed_capacity.iplot.bar(
+        facet_col="country",
+        facet_row="bus_carrier",
+        sharex=False,
+        sharey=True,
+    )
+
+    # Test with sharex=True, sharey=False
+    fig2 = n.statistics.installed_capacity.iplot.bar(
+        facet_col="country",
+        facet_row="bus_carrier",
+        sharex=True,
+        sharey=False,
+    )
+
+    assert isinstance(fig1, go.Figure)
+    assert isinstance(fig2, go.Figure)
+
+    # For sharex=False, the xaxes should not match
+    if "xaxis2" in fig1.layout:
+        assert fig1.layout.xaxis.matches is None or not fig1.layout.xaxis.matches
+
+    # For sharey=False, the yaxes should not match
+    if "yaxis2" in fig2.layout:
+        assert fig2.layout.yaxis.matches is None or not fig2.layout.yaxis.matches
