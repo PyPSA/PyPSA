@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -237,7 +237,7 @@ class ChartGenerator(PlotsGenerator, ABC):
     def plot(
         self,
         data: pd.DataFrame,
-        kind: Literal["area", "bar", "scatter", "line", "box", "violin", "histogram"],
+        kind: str,
         x: str,
         y: str,
         color: str | None = None,
@@ -373,7 +373,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
     def derive_statistic_parameters(
         self,
-        *args: str | None,
+        *args: Any,
         method_name: str = "",  # make required
     ) -> dict[str, Any]:
         """
