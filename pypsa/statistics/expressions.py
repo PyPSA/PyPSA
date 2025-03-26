@@ -135,7 +135,6 @@ class StatisticHandler:
         self._bound_method = bound_method
         self._n = n
         self.plot = StatisticPlotter(n=n, bound_method=bound_method)
-        # Create iplot accessor with same methods as plot
         self.iplot = StatisticIPlotter(n=n, bound_method=bound_method)
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
