@@ -142,6 +142,10 @@ def map_dataframe_pandas_plot(
 
     """
     custom_case = color not in [x, y, facet_col, facet_row, None] or kind == "area"
+
+    if kind == "bar":
+        kwargs.setdefault("lw", 0)
+
     if custom_case:
         # Store the color palette from FacetGrid for consistent colors
         color_order = g.hue_names if hasattr(g, "hue_names") else None
