@@ -81,7 +81,7 @@ class StatisticPlotter(ABC):
 
         """
         # Get the correct plot function
-        if kind not in ["bar", "line", "area", "map", None]:
+        if kind not in CHART_TYPES + ["map", None]:
             raise ValueError(f"Unknown plot type '{kind}'.")
         # Apply schema to kind kwarg
         stats_name = self._bound_method.__name__
