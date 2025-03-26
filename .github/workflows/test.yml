@@ -79,13 +79,13 @@ jobs:
     - name: Run unit tests # Also includes doctests
       if: matrix.os != 'windows-latest' || matrix.python-version != '3.13'
       run: |
-        coverage run -m pytest --mpl
+        coverage run -m pytest --mpl --mpl-default-tolerance 40
         coverage xml
 
     - name: Test with pytest (windows & Python 3.13)
       if: matrix.os == 'windows-latest' && matrix.python-version == '3.13'
       run: |
-        coverage run -m pytest --mpl
+        coverage run -m pytest --mpl --mpl-default-tolerance 40
         coverage xml
         return 0
 

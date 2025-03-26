@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,17 @@ from pypsa.plot.statistics.base import PlotsGenerator
 
 if TYPE_CHECKING:
     pass
+
+
+CHART_TYPES = [
+    "area",
+    "bar",
+    "scatter",
+    "line",
+    "box",
+    "violin",
+    "histogram",
+]
 
 
 def facet_iter(
@@ -131,6 +142,7 @@ def map_dataframe_pandas_plot(
 
     """
     custom_case = color not in [x, y, facet_col, facet_row, None] or kind == "area"
+
     if custom_case:
         # Store the color palette from FacetGrid for consistent colors
         color_order = g.hue_names if hasattr(g, "hue_names") else None
@@ -226,7 +238,7 @@ class ChartGenerator(PlotsGenerator, ABC):
     def plot(
         self,
         data: pd.DataFrame,
-        kind: Literal["area", "bar", "scatter", "line", "box", "violin", "histogram"],
+        kind: str,
         x: str,
         y: str,
         color: str | None = None,
@@ -362,7 +374,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
     def derive_statistic_parameters(
         self,
-        *args: str | None,
+        *args: Any,
         method_name: str = "",  # make required
     ) -> dict[str, Any]:
         """
