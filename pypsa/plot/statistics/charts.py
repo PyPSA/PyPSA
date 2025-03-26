@@ -396,7 +396,7 @@ class ChartGenerator(PlotsGenerator, ABC):
     def iplot(
         self,
         data: pd.DataFrame,
-        kind: Literal["area", "bar", "line"],
+        kind: str,
         x: str,
         y: str,
         color: str | None = None,
@@ -405,6 +405,8 @@ class ChartGenerator(PlotsGenerator, ABC):
         stacked: bool = True,
         nice_names: bool = True,
         query: str | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
         height: int = 500,
         width: int = 800,
         row_order: Sequence[str] | None = None,
@@ -552,6 +554,11 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         # Update layout
         fig.update_layout(template="plotly_white", margin=dict(l=50, r=50, t=50, b=50))
+
+        if not sharex and sharex is not None:
+            fig.update_xaxes(matches=None)
+        if not sharey and sharey is not None:
+            fig.update_yaxes(matches=None)
 
         return fig
 

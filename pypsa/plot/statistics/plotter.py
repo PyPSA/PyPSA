@@ -443,14 +443,22 @@ class StatisticIPlotter(ABC):
         self._bound_method = bound_method
         self._n = n
 
-    def __call__(self, kind: str | None = None) -> go.Figure:
+        for chart_type in CHART_TYPES:
+            func = partial(self._chart, chart_type=chart_type)
+            func = update_wrapper(func, self._chart)
+            func.__doc__ = func.__doc__.replace("chart_type", chart_type)
+            setattr(self, chart_type, func)
+
+    def __call__(
+        self, kind: str | None = None
+    ) -> tuple[go.Figure, go.Figure | np.ndarray]:
         """
-        Create simple interactive visualization of the statistic.
+        Create simple visualization of the statistic.
 
         This function builds up on any statistics function and allows for a simple
         exploration without any further arguments. If a fine grained control is
-        needed, the plot functions should be used directly (e.g. `.iplot.bar()` instead
-        of `.iplot(kind="bar")`).
+        needed, the plot functions should be used directly (e.g. `.plot.bar()` instead
+        of `.plot(kind="bar")`).
 
         Parameters
         ----------
@@ -460,12 +468,12 @@ class StatisticIPlotter(ABC):
 
         Returns
         -------
-        plotly.graph_objects.Figure
-            The interactive figure.
+        tuple[Figure | SubFigure | Any, Axes | Any]
+            The figure and axes of the plot.
 
         Examples
         --------
-        >>> fig = n.statistics.optimal_capacity.iplot(kind="bar")
+        >>> fig = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function
@@ -477,35 +485,144 @@ class StatisticIPlotter(ABC):
         plot_func = getattr(self, kind_)
         return plot_func()
 
-    def _chart(
+    def _chart(  # noqa: D417
         self,
-        chart_type: Literal[
-            "area", "bar", "scatter", "line", "box", "violin", "histogram"
-        ],
-        plot_kwargs: dict,
-        stats_kwargs: dict,
+        chart_type: str,
+        x: str | None = None,
+        y: str | None = None,
+        color: str | None = None,
+        facet_col: str | None = None,
+        facet_row: str | None = None,
+        stacked: bool = True,
+        query: str | None = None,
+        nice_names: bool = True,
+        carrier: Sequence[str] | str | None = None,
+        bus_carrier: Sequence[str] | str | None = None,
+        storage: bool | None = None,
+        sharex: bool | None = None,
+        sharey: bool | None = None,
+        height: int = 500,
+        width: int = 800,
+        row_order: Sequence[str] | None = None,
+        col_order: Sequence[str] | None = None,
+        color_order: Sequence[str] | None = None,
+        color_discrete_map: dict[str, str] | None = None,
+        range_x: list[float] | None = None,
+        range_y: list[float] | None = None,
+        labels: dict[str, str] | None = None,
+        title: str | None = None,
         **kwargs: Any,
     ) -> go.Figure:
         """
-        Common chart generation method used by bar, line and area plots.
+        Plot statistics as interactive chart.
+
+        This function builds up on any statistics function and creates an interactive chart
+        plot based on its output. Plotly is used to create the plot.
 
         Parameters
         ----------
-        chart_type : str
-            Type of chart ("bar", "line", or "area")
-        plot_kwargs : dict
-            Dictionary of plotting parameters
-        stats_kwargs : dict
-            Dictionary of parameters for the statistics function
-        **kwargs : Any
-            Additional keyword arguments for the plot function
+        x : str, default: None
+            Data to show on x-axis. E.g. "carrier". Default depends on underlying
+            statistics function.
+        y : str, default: "value"
+            Data to show on y-axis. E.g. "value".
+        color : str | None, default: "carrier"
+            Data to show as color. Pass None to disable color mapping.
+        facet_col : str | None, default: None
+            Whether to create subplots with conditional subsets of the data.
+        facet_row : str | None, default: None
+            Whether to create subplots with conditional subsets of the data.
+        stacked : bool, default: False
+            Whether to stack the bars or areas.
+        query : str | None, default: None
+            Pandas query string to filter the data before plotting. E.g. "value > 0".
+        nice_names : bool, default: True
+            Whether to use nice names for components, as defined in
+            ``c.static.nice_names.``
+        carrier: Sequence[str] | str | None, default: None
+            Filter by carrier of components. If specified, only considers assets with
+            the given carrier(s). More information can be found in the
+            documentation of the statistics functions.
+        bus_carrier: Sequence[str] | str | None, default: None
+            Filter by carrier of connected buses. If specified, only considers assets
+            connected to buses with the given carrier(s). More information can be found
+            in the documentation of the statistics functions.
+        storage: bool | None, default: None
+            Whether to include storage components in the statistics. Can only be used
+            when chosen statistics function supports it (e.g. `optimal_capacity`,
+            `installed_capacity`). Default is False for those functions.
+        sharex : bool | None, default: None
+            Whether to share x axes across all facets. If None, will be True when x is "value".
+        sharey : bool | None, default: None
+            Whether to share y axes across all facets. If None, will be True when y is "value".
+        height : int, default: 500
+            Height of the plot in pixels.
+        width : int, default: 800
+            Width of the plot in pixels.
+        row_order : Sequence[str] | None, default: None
+            Order to organize the rows of the grid. If None, the order is determined by
+            the data.
+        col_order : Sequence[str] | None, default: None
+            Order to organize the columns of the grid. If None, the order is determined by
+            the data.
+        color_order : Sequence[str] | None, default: None
+            Order for the levels of the color variable. If None, the order is determined by
+            the data.
+        color_discrete_map : dict[str, str] | None, default: None
+            Mapping from discrete values to colors. If None, uses the default carrier colors.
+        range_x : list[float] | None, default: None
+            Limits for the x axis. If None, uses the default x range.
+        range_y : list[float] | None, default: None
+            Limits for the y axis. If None, uses the default y range.
+        labels : dict[str, str] | None, default: None
+            Dictionary of axis labels to override the default labels.
+        title : str | None, default: None
+            Title of the plot. If None, uses the statistics function name.
+        **kwargs: Any
+            Additional keyword arguments for the plot function. These are passed to
+            the Plotly Express function.
 
         Returns
         -------
         plotly.graph_objects.Figure
-            The interactive figure.
+            The interactive Plotly figure.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> n = pypsa.examples.ac_dc_meshed()
+        >>> fig = n.statistics.installed_capacity.iplot.bar(x="carrier", y="value", color="carrier") # doctest: +ELLIPSIS
 
         """
+        plot_kwargs = {
+            "x": x,
+            "y": y,
+            "color": color,
+            "facet_col": facet_col,
+            "facet_row": facet_row,
+            "stacked": stacked,
+            "query": query,
+            "nice_names": nice_names,
+            "sharex": sharex,
+            "sharey": sharey,
+            "height": height,
+            "width": width,
+            "row_order": row_order,
+            "col_order": col_order,
+            "color_order": color_order,
+            "color_discrete_map": color_discrete_map,
+            "range_x": range_x,
+            "range_y": range_y,
+            "labels": labels,
+            "title": title,
+        }
+        stats_kwargs = {
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "storage": storage,
+            "nice_names": nice_names,
+        }
+
         if any(
             key in kwargs
             for key in ["aggregate_time", "aggregate_across_components", "groupby"]
@@ -540,382 +657,4 @@ class StatisticIPlotter(ABC):
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
-        return plotter.iplot(data, kind=chart_type, **plot_kwargs, **kwargs)
-
-    def bar(
-        self,
-        x: str = "value",
-        y: str = "carrier",
-        color: str | None = "carrier",
-        facet_col: str | None = None,
-        facet_row: str | None = None,
-        stacked: bool = True,
-        query: str | None = None,
-        nice_names: bool = True,
-        carrier: Sequence[str] | str | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
-        storage: bool | None = None,
-        height: int = 500,
-        width: int = 800,
-        row_order: Sequence[str] | None = None,
-        col_order: Sequence[str] | None = None,
-        color_order: Sequence[str] | None = None,
-        color_discrete_map: dict[str, str] | None = None,
-        range_x: list[float] | None = None,
-        range_y: list[float] | None = None,
-        labels: dict[str, str] | None = None,
-        title: str | None = None,
-        **kwargs: Any,
-    ) -> go.Figure:
-        """
-        Plot statistics as interactive bar plot.
-
-        This function builds up on any statistics function and creates an interactive bar plot
-        based on its output. Plotly is used to create the plot.
-
-        Parameters
-        ----------
-        x : str, default: "value"
-            Data to show on x-axis. E.g. "carrier".
-        y : str, default: "carrier"
-            Data to show on y-axis. E.g. "value".
-        color : str | None, default: "carrier"
-            Data to show as color. Pass None to disable color mapping.
-        facet_col : str | None, default: None
-            Whether to create subplots with conditional subsets of the data.
-        facet_row : str | None, default: None
-            Whether to create subplots with conditional subsets of the data.
-        stacked : bool, default: True
-            Whether to stack the bars.
-        query : str | None, default: None
-            Pandas query string to filter the data before plotting. E.g. "value > 0".
-        nice_names : bool, default: True
-            Whether to use nice names for components, as defined in
-            ``c.static.nice_names.``
-        carrier: Sequence[str] | str | None, default: None
-            Filter by carrier of components. If specified, only considers assets with
-            the given carrier(s).
-        bus_carrier: Sequence[str] | str | None, default: None
-            Filter by carrier of connected buses. If specified, only considers assets
-            connected to buses with the given carrier(s).
-        storage: bool | None, default: None
-            Whether to include storage components in the statistics.
-        height : int, default: 500
-            Height (in pixels) of the figure.
-        width : int, default: 800
-            Width (in pixels) of the figure.
-        row_order : Sequence[str] | None, default: None
-            Order to organize the rows of the grid.
-        col_order : Sequence[str] | None, default: None
-            Order to organize the columns of the grid.
-        color_order : Sequence[str] | None, default: None
-            Order for the levels of the color variable.
-        color_discrete_map : dict[str, str] | None, default: None
-            Mapping of color values to colors.
-        range_x : list[float] | None, default: None
-            Limits for the x axis.
-        range_y : list[float] | None, default: None
-            Limits for the y axis.
-        labels : dict[str, str] | None, default: None
-            Dictionary mapping variable names to their display names.
-        title : str | None, default: None
-            Plot title.
-        **kwargs: Any
-            Additional keyword arguments for the plot function.
-
-        Returns
-        -------
-        plotly.graph_objects.Figure
-            The interactive bar plot.
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> fig = n.statistics.installed_capacity.iplot.bar(x="carrier", y="value", color=None)
-
-        """
-        plot_kwargs = {
-            "x": x,
-            "y": y,
-            "color": color,
-            "facet_col": facet_col,
-            "facet_row": facet_row,
-            "stacked": stacked,
-            "query": query,
-            "nice_names": nice_names,
-            "height": height,
-            "width": width,
-            "row_order": row_order,
-            "col_order": col_order,
-            "color_order": color_order,
-            "color_discrete_map": color_discrete_map,
-            "range_x": range_x,
-            "range_y": range_y,
-            "labels": labels,
-            "title": title,
-        }
-        stats_kwargs = {
-            "carrier": carrier,
-            "bus_carrier": bus_carrier,
-            "storage": storage,
-            "nice_names": nice_names,
-        }
-        return self._chart(
-            "bar",
-            plot_kwargs,
-            stats_kwargs,
-            **kwargs,
-        )
-
-    def line(
-        self,
-        x: str | None = None,
-        y: str = "value",
-        color: str | None = None,
-        facet_col: str | None = None,
-        facet_row: str | None = None,
-        query: str | None = None,
-        nice_names: bool = True,
-        carrier: Sequence[str] | str | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
-        storage: bool | None = None,
-        height: int = 500,
-        width: int = 800,
-        row_order: Sequence[str] | None = None,
-        col_order: Sequence[str] | None = None,
-        color_order: Sequence[str] | None = None,
-        color_discrete_map: dict[str, str] | None = None,
-        range_x: list[float] | None = None,
-        range_y: list[float] | None = None,
-        labels: dict[str, str] | None = None,
-        title: str | None = None,
-        **kwargs: Any,
-    ) -> go.Figure:
-        """
-        Plot statistics as interactive line plot.
-
-        This function builds up on any statistics function and creates an interactive line plot
-        based on its output. Plotly is used to create the plot.
-
-        Parameters
-        ----------
-        x : str | None, default: None
-            Data to show on x-axis. E.g. "carrier". Default depends on underlying
-            statistics function.
-        y : str, default: "value"
-            Data to show on y-axis. E.g. "value".
-        color : str | None, default: None
-            Data to show as color. Pass None to disable color mapping.
-        facet_col : str | None, default: None
-            Whether to create subplots with conditional subsets of the data.
-        facet_row : str | None, default: None
-            Whether to create subplots with conditional subsets of the data.
-        query : str | None, default: None
-            Pandas query string to filter the data before plotting. E.g. "value > 0".
-        nice_names : bool, default: True
-            Whether to use nice names for components, as defined in
-            ``c.static.nice_names.``
-        carrier: Sequence[str] | str | None, default: None
-            Filter by carrier of components. If specified, only considers assets with
-            the given carrier(s).
-        bus_carrier: Sequence[str] | str | None, default: None
-            Filter by carrier of connected buses. If specified, only considers assets
-            connected to buses with the given carrier(s).
-        storage: bool | None, default: None
-            Whether to include storage components in the statistics.
-        height : int, default: 500
-            Height (in pixels) of the figure.
-        width : int, default: 800
-            Width (in pixels) of the figure.
-        row_order : Sequence[str] | None, default: None
-            Order to organize the rows of the grid.
-        col_order : Sequence[str] | None, default: None
-            Order to organize the columns of the grid.
-        color_order : Sequence[str] | None, default: None
-            Order for the levels of the color variable.
-        color_discrete_map : dict[str, str] | None, default: None
-            Mapping of color values to colors.
-        range_x : list[float] | None, default: None
-            Limits for the x axis.
-        range_y : list[float] | None, default: None
-            Limits for the y axis.
-        labels : dict[str, str] | None, default: None
-            Dictionary mapping variable names to their display names.
-        title : str | None, default: None
-            Plot title.
-        **kwargs: Any
-            Additional keyword arguments for the plot function.
-
-        Returns
-        -------
-        plotly.graph_objects.Figure
-            The interactive line plot.
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> fig = n.statistics.installed_capacity.iplot.line(x="carrier", y="value", color=None)
-
-        """
-        # Get plotting kwargs
-        plot_kwargs = {
-            "x": x,
-            "y": y,
-            "color": color,
-            "facet_col": facet_col,
-            "facet_row": facet_row,
-            "query": query,
-            "nice_names": nice_names,
-            "height": height,
-            "width": width,
-            "row_order": row_order,
-            "col_order": col_order,
-            "color_order": color_order,
-            "color_discrete_map": color_discrete_map,
-            "range_x": range_x,
-            "range_y": range_y,
-            "labels": labels,
-            "title": title,
-        }
-        stats_kwargs = {
-            "carrier": carrier,
-            "bus_carrier": bus_carrier,
-            "storage": storage,
-            "nice_names": nice_names,
-        }
-        return self._chart(
-            "line",
-            plot_kwargs,
-            stats_kwargs,
-            **kwargs,
-        )
-
-    def area(
-        self,
-        x: str | None = None,
-        y: str = "value",
-        color: str | None = None,
-        facet_col: str | None = None,
-        facet_row: str | None = None,
-        stacked: bool = True,
-        query: str | None = None,
-        nice_names: bool = True,
-        carrier: Sequence[str] | str | None = None,
-        bus_carrier: Sequence[str] | str | None = None,
-        storage: bool | None = None,
-        height: int = 500,
-        width: int = 800,
-        row_order: Sequence[str] | None = None,
-        col_order: Sequence[str] | None = None,
-        color_order: Sequence[str] | None = None,
-        color_discrete_map: dict[str, str] | None = None,
-        range_x: list[float] | None = None,
-        range_y: list[float] | None = None,
-        labels: dict[str, str] | None = None,
-        title: str | None = None,
-        **kwargs: Any,
-    ) -> go.Figure:
-        """
-        Plot statistics as interactive area plot.
-
-        This function builds up on any statistics function and creates an interactive area plot
-        based on its output. Plotly is used to create the plot.
-
-        Parameters
-        ----------
-        x : str | None, default: None
-            Data to show on x-axis. E.g. "carrier". Default depends on underlying
-            statistics function.
-        y : str, default: "value"
-            Data to show on y-axis. E.g. "value".
-        color : str | None, default: None
-            Data to show as color. Pass None to disable color mapping.
-        facet_col : str | None, default: None
-            Whether to create subplots with conditional subsets of the data.
-        facet_row : str | None, default: None
-            Whether to create subplots with conditional subsets of the data.
-        stacked : bool, default: True
-            Whether to stack the areas.
-        query : str | None, default: None
-            Pandas query string to filter the data before plotting. E.g. "value > 0".
-        nice_names : bool, default: True
-            Whether to use nice names for components, as defined in
-            ``c.static.nice_names.``
-        carrier: Sequence[str] | str | None, default: None
-            Filter by carrier of components. If specified, only considers assets with
-            the given carrier(s).
-        bus_carrier: Sequence[str] | str | None, default: None
-            Filter by carrier of connected buses. If specified, only considers assets
-            connected to buses with the given carrier(s).
-        storage: bool | None, default: None
-            Whether to include storage components in the statistics.
-        height : int, default: 500
-            Height (in pixels) of the figure.
-        width : int, default: 800
-            Width (in pixels) of the figure.
-        row_order : Sequence[str] | None, default: None
-            Order to organize the rows of the grid.
-        col_order : Sequence[str] | None, default: None
-            Order to organize the columns of the grid.
-        color_order : Sequence[str] | None, default: None
-            Order for the levels of the color variable.
-        color_discrete_map : dict[str, str] | None, default: None
-            Mapping of color values to colors.
-        range_x : list[float] | None, default: None
-            Limits for the x axis.
-        range_y : list[float] | None, default: None
-            Limits for the y axis.
-        labels : dict[str, str] | None, default: None
-            Dictionary mapping variable names to their display names.
-        title : str | None, default: None
-            Plot title.
-        **kwargs: Any
-            Additional keyword arguments for the plot function.
-
-        Returns
-        -------
-        plotly.graph_objects.Figure
-            The interactive area plot.
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> fig = n.statistics.installed_capacity.iplot.area(x="carrier", y="value")
-
-        """
-        # Get plotting kwargs
-        plot_kwargs = {
-            "x": x,
-            "y": y,
-            "color": color,
-            "facet_col": facet_col,
-            "facet_row": facet_row,
-            "stacked": stacked,
-            "query": query,
-            "nice_names": nice_names,
-            "height": height,
-            "width": width,
-            "row_order": row_order,
-            "col_order": col_order,
-            "color_order": color_order,
-            "color_discrete_map": color_discrete_map,
-            "range_x": range_x,
-            "range_y": range_y,
-            "labels": labels,
-            "title": title,
-        }
-        stats_kwargs = {
-            "carrier": carrier,
-            "bus_carrier": bus_carrier,
-            "storage": storage,
-            "nice_names": nice_names,
-        }
-        return self._chart(
-            "area",
-            plot_kwargs,
-            stats_kwargs,
-            **kwargs,
-        )
+        return plotter.iplot(data, chart_type, **plot_kwargs, **kwargs)
