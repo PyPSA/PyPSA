@@ -38,6 +38,8 @@ SCHEMA_DEFAULTS: dict = {
     "x": "carrier",
     "y": "value",
     "color": "carrier",
+    "height": 3.0,
+    "aspect": 2.0,
     "bus_split_circles": False,
     "transmission_flow": False,
     "draw_legend_arrows": False,
