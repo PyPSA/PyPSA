@@ -226,7 +226,11 @@ def define_operational_constraints_for_committables(
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-up-time", mask=active[min_up_time_i].iloc[1:]
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-up-time",
+            mask=DataArray(active[min_up_time_i]).sel(snapshot=sns[1:]),
         )
 
     # min down time
@@ -243,7 +247,7 @@ def define_operational_constraints_for_committables(
             "<=",
             1,
             name=f"{c}-com-down-time",
-            mask=active[min_down_time_i].iloc[1:],
+            mask=DataArray(active[min_down_time_i]).sel(snapshot=sns[1:]),
         )
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
@@ -282,7 +286,7 @@ def define_operational_constraints_for_committables(
         p_ce = p.loc[:, cost_equal]
         start_up_ce = start_up.loc[:, cost_equal]
         status_ce = status.loc[:, cost_equal]
-        active_ce = active.loc[:, cost_equal]
+        active_ce = DataArray(active.loc[:, cost_equal]).sel(snapshot=sns[1:])
 
         # parameters
         upper_p_ce = upper_p.loc[:, cost_equal]
@@ -299,7 +303,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-p-before", mask=active_ce.iloc[1:]
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-p-before",
+            mask=active_ce,
         )
 
         # dispatch limit for partly start up/shut down for t
@@ -310,7 +318,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-p-current", mask=active_ce.iloc[1:]
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-p-current",
+            mask=active_ce,
         )
 
         # ramp up if committable is only partly active and some capacity is starting up
@@ -323,7 +335,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active_ce.iloc[1:]
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-partly-start-up",
+            mask=active_ce,
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
@@ -336,7 +352,11 @@ def define_operational_constraints_for_committables(
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active_ce.iloc[1:]
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-partly-shut-down",
+            mask=active_ce,
         )
 
 
