@@ -445,8 +445,8 @@ class StatisticIPlotter(ABC):
 
         for chart_type in CHART_TYPES:
             func = partial(self._chart, chart_type=chart_type)
-            func = update_wrapper(func, self._chart)
-            func.__doc__ = func.__doc__.replace("chart_type", chart_type)
+            func = update_wrapper(func, self._chart)  # type: ignore
+            func.__doc__ = func.__doc__.replace("chart_type", chart_type)  # type: ignore
             setattr(self, chart_type, func)
 
     def __call__(
@@ -657,4 +657,4 @@ class StatisticIPlotter(ABC):
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
-        return plotter.iplot(data, chart_type, **plot_kwargs, **kwargs)
+        return plotter.iplot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
