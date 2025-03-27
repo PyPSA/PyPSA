@@ -2,14 +2,18 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..    The features listed below are not released yet, but will be part of the next release! 
-..    To use the features already you have to install the ``master`` branch, e.g. 
-..    ``pip install git+https://github.com/pypsa/pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
+
+
+* The capacity statistics functions `optimal_capacity`, `installed_capacity`, and `expanded_capacity` now exclude storage capacities by default, i.e., when the `storage` parameter is set to False. This ensures that the Store component is not included in the statistics, preventing the mixing of different units of capacity. As a result, power production capacities are consistently reported in MW, while energy storage capacities are reported in MWh.
+
 
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================

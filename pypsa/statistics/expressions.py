@@ -776,6 +776,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
+            if c == "Store" and not storage:
+                return pd.Series([], dtype=float)
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
@@ -798,7 +800,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         df.attrs["name"] = "Optimal Capacity"
-        df.attrs["unit"] = "MW"
+        df.attrs["unit"] = "MW" if not storage else "MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
@@ -893,6 +895,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
+            if c == "Store" and not storage:
+                return pd.Series([], dtype=float)
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
@@ -915,7 +919,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         df.attrs["name"] = "Installed Capacity"
-        df.attrs["unit"] = "MW"
+        df.attrs["unit"] = "MW" if not storage else "MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
