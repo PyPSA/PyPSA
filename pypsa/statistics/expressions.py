@@ -7,7 +7,7 @@ import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
-from pypsa.plot.statistics.plotter import StatisticIPlotter, StatisticPlotter
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -135,7 +135,7 @@ class StatisticHandler:
         self._bound_method = bound_method
         self._n = n
         self.plot = StatisticPlotter(n=n, bound_method=bound_method)
-        self.iplot = StatisticIPlotter(n=n, bound_method=bound_method)
+        self.iplot = StatisticInteractivePlotter(n=n, bound_method=bound_method)
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
         return self._bound_method(*args, **kwargs)

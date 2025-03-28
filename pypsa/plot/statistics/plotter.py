@@ -419,7 +419,7 @@ class StatisticPlotter(ABC):
         )
 
 
-class StatisticIPlotter(ABC):
+class StatisticInteractivePlotter(ABC):
     """
     Create interactive plots based on output of statistics functions.
 
