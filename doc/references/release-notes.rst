@@ -11,6 +11,12 @@ Upcoming Release
    To use the features already you have to install the ``master`` branch, e.g. 
    ``pip install git+https://github.com/pypsa/pypsa``.
 
+* New **interactive** plotting library
+
+  * You can now create plots on any PyPSA statistic. Try them with:
+
+    * :meth:`n.statistics.energy_balance.iplot() <pypsa.iplot.statistics.plotter.StatisticInteractivePlotter.__call__>` to get the pre defined default plot
+    * :meth:`n.statistics.energy_balance.iplot.bar() <pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar>` to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
 
 * The previous maps module under `pypsa/plot` is now modularized. Instead of a 
   monolithic module, the maps module is now split into several submodules. The
