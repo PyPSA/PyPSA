@@ -173,7 +173,30 @@ def as_index(
     return values_
 
 
-def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
+def equals(
+    a: Any, b: Any, ignored_classes: Any = None, log_difference: bool = False
+) -> bool:
+    """
+    Check if two objects are equal.
+
+    Parameters
+    ----------
+    a : Any
+        First object to compare.
+    b : Any
+        Second object to compare.
+    ignored_classes : Any, default=None
+        Classes to ignore during comparison. If None, no classes are ignored.
+    log_difference : bool, default=False
+        If True, logs the difference between two objects (logging level WARNING). This
+        is useful for debugging purposes.
+
+    Returns
+    -------
+    bool
+        True if the objects are equal, False otherwise.
+
+    """
     assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
 
     if ignored_classes is not None:
@@ -183,10 +206,19 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
     # Classes with equality methods
     if isinstance(a, np.ndarray):
         if not np.array_equal(a, b):
+            if log_difference:
+                logger.warning(f"numpy arrays diff:\n\n{a}\n\n!=\n\n{b}\n")
+
             return False
     elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
+        if a.empty and b.empty:
+            return True
+
         if not a.equals(b):
+            if log_difference:
+                logger.warning(f"pandas objects diff:\n\n{a}\n\n!=\n\n{b}\n")
             return False
+
     # Iterators
     elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
@@ -196,11 +228,16 @@ def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
         for i, v in enumerate(a):
             if not equals(v, b[i]):
                 return False
+
     # Nans
     elif pd.isna(a) and pd.isna(b):
         pass
+
+    # Other objects
     else:
         if a != b:
+            if log_difference:
+                logger.warning(f"Objects diff:\n\n{a}\n\n!=\n\n{b}\n")
             return False
 
     return True
