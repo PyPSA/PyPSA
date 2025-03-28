@@ -50,6 +50,35 @@ def get_weightings(n: Network, c: str) -> pd.Series:
         return n.snapshot_weightings["objective"]
 
 
+def filter_carriers(n: pypsa.Network, bus_carrier="AC", comps=["Generator", "Link"])->list:
+    """filter carriers for links that attach to a bus of the target carrier
+
+    Args:
+        n (pypsa.Network): the pypsa network object
+        bus_carrier (str, optional): the bus carrier. Defaults to "AC".
+        comps (list, optional): the components to check. Defaults to ["Generator", "Link"].
+
+    Example:
+        attached_carriers = filter_carriers(n, "AC")
+        ds = n.statistics.capacity_factor(groupby=["carrier"]).dropna()
+        ds.loc[ds.index.get_level_values(1).isin(attached_carriers)]
+        
+    Returns:
+        list: list of carriers that are attached to the bus carrier
+    """
+    carriers = []
+    for c in comps:
+        comp = n.static(c)
+        ports = [c for c in comp.columns if c.startswith("bus")]
+        comp_df = comp[ports+["carrier"]]
+        is_attached = comp_df[ports].apply(lambda x: x.map(n.buses.carrier)==bus_carrier).T.any()
+        carriers += comp_df.loc[is_attached].carrier.unique().tolist()
+
+    if not bus_carrier in carriers:
+        carriers += [bus_carrier]
+    return carriers
+
+
 def port_efficiency(
     n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
