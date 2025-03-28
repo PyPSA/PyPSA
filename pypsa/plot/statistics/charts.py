@@ -538,14 +538,34 @@ class ChartGenerator(PlotsGenerator, ABC):
             )
 
             if stacked:
-                pos = ldata.assign(value=ldata.value.clip(lower=0))
-                neg = ldata.assign(value=ldata.value.clip(upper=0))
+                pos = ldata[ldata.value > 0]
+                neg = ldata[ldata.value < 0]
                 positives = px.area(pos, **kwargs)
-                positives.update_traces(stackgroup="positive")
+                positives.update_traces(
+                    stackgroup="positive",
+                    showlegend=False,
+                )
                 negatives = px.area(neg, **kwargs)
-                negatives.update_traces(stackgroup="negative", showlegend=False)
+                negatives.update_traces(
+                    stackgroup="negative",
+                    showlegend=False,
+                )
 
-                fig = positives.add_traces(negatives.data)
+                # In order to not bloat the hover display with zeros, we need to
+                # filter out zeros in ldata as done below. However, then the legend
+                # only shows for the latest traces (ignoring the positive values).
+                # To fix this, we need to add an artificial trace with the last value
+                # of each color and use that for the legend.
+                artificial_zeros = pd.DataFrame(
+                    {x: ldata[x].iloc[-1], y: np.nan, color: ldata[color].unique()}
+                )
+                artificials = px.area(
+                    artificial_zeros,
+                    **kwargs,
+                )
+
+                # Combine the figures
+                fig = positives.add_traces(negatives.data).add_traces(artificials.data)
             else:
                 fig = px.area(ldata, **kwargs)
             fig.update_traces(line=dict(width=0))
