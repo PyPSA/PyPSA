@@ -710,6 +710,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
 
+        By default, storage capacities (Store component) are excluded to maintain
+        consistent units (MW) for power production capacities. Set storage=True to
+        specifically report storage capacities in MWh.
+
         Parameters
         ----------
         comps : str | Sequence[str] | None, default=None
@@ -753,8 +757,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Additional Parameters
         ---------------------
         storage : bool, default=False
-            Whether to consider only storage capacities of the components
-            `Store` and `StorageUnit`.
+            Whether to include storage capacities from the Store component (in MWh).
+            When False, Store components are excluded and only power capacities (MW)
+            are reported. When True, only Store and StorageUnit components are included,
+            reporting energy storage capacities in MWh.
 
         Returns
         -------
@@ -765,12 +771,23 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Example
         -------
 
-        >>> n.statistics.optimal_capacity()
+        >>> n.statistics.optimal_capacity()  # Returns power capacities in MW
+        Series([], dtype: float64)
+
+        >>> n.statistics.optimal_capacity(storage=True)  # Returns storage capacities in MWh
         Series([], dtype: float64)
 
         """
         if storage:
             comps = ("Store", "StorageUnit")
+        elif (isinstance(comps, str) and comps == "Store") or (
+            comps is not None and "Store" in comps
+        ):
+            warnings.warn(
+                "Including Store component with storage=False will exclude it from results. "
+                "Set storage=True to include storage capacities (in MWh)."
+            )
+
         if bus_carrier and at_port is None:
             at_port = True
 
