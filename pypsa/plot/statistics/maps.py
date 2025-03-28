@@ -8,7 +8,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
 from pypsa.consistency import plotting_consistency_check
-from pypsa.plot.maps import (
+from pypsa.plot.maps.static import (
     MapPlotter,
     add_legend_arrows,
     add_legend_circles,

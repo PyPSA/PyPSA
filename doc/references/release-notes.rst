@@ -2,14 +2,26 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
 .. .. warning:: 
   
-..    The features listed below are not released yet, but will be part of the next release! 
-..    To use the features already you have to install the ``master`` branch, e.g. 
-..    ``pip install git+https://github.com/pypsa/pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
+
+
+* The previous maps module under `pypsa/plot` is now modularized. Instead of a 
+  monolithic module, the maps module is now split into several submodules. The
+  submodules are:
+
+  - `pypsa.plot.maps.common`: Base module for all maps.
+  - `pypsa.plot.maps.interactive`: Maps using interactive libraries.
+  - `pypsa.plot.maps.static`: Maps using static libraries.
+
+  The new modularized maps module allows for more flexibility and easier
+  maintenance. 
 
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================
