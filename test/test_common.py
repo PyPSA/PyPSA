@@ -147,6 +147,13 @@ def test_equals(a, b, expected):
     assert equals(a, b) == expected
 
 
+def test_equals_logs(caplog):
+    a = pd.DataFrame({"A": [1, 2]})
+    b = pd.DataFrame({"A": [1, 1]})
+    assert equals(a, b, log_difference=True) is False
+    assert "pandas objects diff" in caplog.text
+
+
 def test_equals_ignored_classes():
     class IgnoredClass:
         def __init__(self, value=1):
