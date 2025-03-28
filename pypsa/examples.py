@@ -128,6 +128,27 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     return Network(path)
 
 
+def model_energy(update: bool = False, from_master: bool = False) -> Network:
+    """
+    Load the single-node capacity expansion model in style of model.energy.
+
+    Parameters
+    ----------
+    update : bool, optional
+        Whether to update the locally stored network data. The default is False.
+
+    Returns
+    -------
+    pypsa.Network
+    """
+    name = "model-energy"
+    repofile = "examples/model-energy/model-energy.nc"
+    path = _retrieve_if_not_local(
+        name, repofile, update=update, from_master=from_master
+    )
+    return Network(path)
+
+
 def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     """
     Load the SciGrid network example of pypsa stored in the PyPSA repository.
