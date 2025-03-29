@@ -28,6 +28,8 @@ Upcoming Release
 
 * Add new example for how to run MGA ('modelling-to-generate-alternatives') optimisation.
 
+* Added demand elasticity example.
+
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================
 
