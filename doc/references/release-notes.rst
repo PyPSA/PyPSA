@@ -5,7 +5,7 @@ Release Notes
 Upcoming Release
 ================
 
-.. .. warning:: 
+.. warning:: 
   
    The features listed below are not released yet, but will be part of the next release! 
    To use the features already you have to install the ``master`` branch, e.g. 
@@ -22,6 +22,12 @@ Upcoming Release
 
   The new modularized maps module allows for more flexibility and easier
   maintenance. 
+
+* The function ``n.statistics.opex()`` now includes all operational cost
+  components: marginal costs, quadratic marginal costs, storage costs, spill
+  costs, start-up costs, shut-down costs, and stand-by costs. Previously, only
+  marginal costs were considered. A new parameter `cost_types` allows selecting
+  which cost components to include.
 
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================

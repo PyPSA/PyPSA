@@ -137,7 +137,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             objective.append((operation * cost).sum())
 
     # marginal cost quadratic
-    for c, attr in lookup.query("marginal_cost").index:
+    for c, attr in lookup.query("marginal_cost_quadratic").index:
         if "marginal_cost_quadratic" in n.static(c):
             cost = (
                 get_as_dense(n, c, "marginal_cost_quadratic", sns)
