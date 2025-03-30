@@ -67,32 +67,10 @@ def define_committability_variables(n: Network, sns: Sequence, c: str) -> None:
         lower=0, coords=coords, name=f"{c}-status", mask=active, integer=is_integer
     )
 
-
-def define_start_up_variables(n: Network, sns: Sequence, c: str) -> None:
-    com_i = n.get_committable_i(c)
-
-    if com_i.empty:
-        return
-
-    active = get_activity_mask(n, c, sns, com_i)
-    coords = (sns, com_i)
-    is_integer = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_integer else {}
     n.model.add_variables(
         lower=0, coords=coords, name=f"{c}-start_up", mask=active, integer=is_integer
     )
 
-
-def define_shut_down_variables(n: Network, sns: Sequence, c: str) -> None:
-    com_i = n.get_committable_i(c)
-
-    if com_i.empty:
-        return
-
-    active = get_activity_mask(n, c, sns, com_i)
-    coords = (sns, com_i)
-    is_integer = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_integer else {}
     n.model.add_variables(
         lower=0, coords=coords, name=f"{c}-shut_down", mask=active, integer=is_integer
     )

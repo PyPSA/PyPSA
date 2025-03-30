@@ -107,9 +107,9 @@ def define_operational_constraints_for_extendables(
 
     ext_i = n.get_extendable_i(c)
     com_i = n.get_committable_i(c)
-    mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+    mod_i = n.static(c).query(f"({nominal_attrs[c]}_mod>0)").index
 
-    inter_i = ext_i.difference(n.get_committable_i(c)).rename(ext_i.name)
+    inter_i = ext_i.difference(com_i).rename(ext_i.name)
 
     if inter_i.empty:
         inter_i = ext_i.intersection(com_i).difference(mod_i).rename(ext_i.name)
@@ -123,7 +123,7 @@ def define_operational_constraints_for_extendables(
 
     min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, inter_i, attr))
     dispatch = reindex(n.model[f"{c}-{attr}"], c, inter_i)
-    capacity = n.model[f"{c}-{nominal_attrs[c]}"]
+    capacity = n.model[f"{c}-{nominal_attrs[c]}"].loc[inter_i]
 
     active = get_activity_mask(n, c, sns, inter_i)
 
@@ -167,13 +167,12 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
     attr : str
         name of the attribute, e.g. 'p_nom'
     """
-
     ##############################################################
     # rhs is initially filled for committable components, with modularity declared but not extendable. rhs = p_nom/p_nom_mod
 
     com_i = n.get_committable_i(c)
-    fix_i = n.df(c).query(f"not {attr}_extendable").index
-    mod_i = n.df(c).query(f"({attr}_mod>0)").index
+    fix_i = n.static(c).query(f"not {attr}_extendable").index
+    mod_i = n.static(c).query(f"({attr}_mod>0)").index
 
     inter_i = com_i.intersection(mod_i).intersection(fix_i).rename(com_i.name)
 
@@ -181,7 +180,7 @@ def define_committability_variables_constraints_with_fixed_upper_limit(
         return
 
     if not inter_i.empty:
-        n_mod = n.df(c)[attr].loc[inter_i] / n.df(c)[attr + "_mod"].loc[inter_i]
+        n_mod = n.static(c)[attr].loc[inter_i] / n.static(c)[attr + "_mod"].loc[inter_i]
         diff_n_mod = abs(n_mod - round(n_mod))
         non_integers_n_mod_i = diff_n_mod[diff_n_mod > 10**-6].index
 
@@ -258,8 +257,8 @@ def define_committability_variables_constraints_with_variable_upper_limit(
         name of the attribute, e.g. 'p_nom'
     """
     com_i = n.get_committable_i(c)
-    ext_i = n.df(c).query(f"{attr}_extendable").index
-    mod_i = n.df(c).query(f"({attr}_mod>0)").index
+    ext_i = n.static(c).query(f"{attr}_extendable").index
+    mod_i = n.static(c).query(f"({attr}_mod>0)").index
 
     inter_i = com_i.intersection(mod_i).intersection(ext_i).rename(com_i.name)
 
@@ -310,7 +309,7 @@ def define_operational_constraints_for_committables(
         name of the network component
     """
     com_i = n.get_committable_i(c)
-    mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+    mod_i = n.static(c).query(f"({nominal_attrs[c]}_mod>0)").index
     fix_i = n.get_non_extendable_i(c)
 
     inter_i = com_i.intersection(mod_i).rename(com_i.name)
@@ -319,14 +318,14 @@ def define_operational_constraints_for_committables(
     if inter_i.empty:
         inter_i = inter_i2
         if not inter_i2.empty:
-            nominal = DataArray(n.df(c)[nominal_attrs[c]].reindex(inter_i))
+            nominal = DataArray(n.static(c)[nominal_attrs[c]].reindex(inter_i))
     else:
         # nominal parameters
-        nominal = DataArray(n.df(c)[nominal_attrs[c] + "_mod"].reindex(inter_i))
+        nominal = DataArray(n.static(c)[nominal_attrs[c] + "_mod"].reindex(inter_i))
         inter_i = inter_i.union(inter_i2)
 
         if not inter_i2.empty:
-            nominal2 = DataArray(n.df(c)[nominal_attrs[c]].reindex(inter_i2))
+            nominal2 = DataArray(n.static(c)[nominal_attrs[c]].reindex(inter_i2))
             nominal = concat([nominal, nominal2], dim=f"{c}-com")
             nominal.sel({f"{c}-com": inter_i})
 
@@ -362,7 +361,9 @@ def define_operational_constraints_for_committables(
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
         # get generators which are online until the first regarded snapshot
-        until_start_up = n.dynamic(c).status.iloc[:start_i][::-1].reindex(columns=inter_i)
+        until_start_up = (
+            n.dynamic(c).status.iloc[:start_i][::-1].reindex(columns=inter_i)
+        )
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
         up_time_before_set = up_time_before.clip(upper=min_up_time_set)
@@ -638,6 +639,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
     fix_i = n.get_non_extendable_i(c)
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
     ext_i = n.get_extendable_i(c)
+    mod_i = n.static(c).query(f"({nominal_attrs[c]}_mod>0)").index
 
     # ----------------------------- Fixed Generators ----------------------------- #
 
@@ -715,16 +717,16 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
             constraint_name = ""
             com_i = n.get_committable_i(c)
             fix_i = n.get_non_extendable_i(c)
-            mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+            mod_i = n.static(c).query(f"({nominal_attrs[c]}_mod>0)").index
             com_i = com_i.intersection(fix_i).difference(mod_i).rename(com_i.name)
 
         else:
             constraint_name = "-mod"
             com_i = n.get_committable_i(c)
-            mod_i = n.df(c).query(f"({nominal_attrs[c]}_mod>0)").index
+            mod_i = n.static(c).query(f"({nominal_attrs[c]}_mod>0)").index
             com_i = com_i.intersection(mod_i).rename(com_i.name)
 
-        assets = n.df(c).reindex(com_i)
+        assets = n.static(c).reindex(com_i)
         # com up
         if not assets.ramp_limit_up.isnull().all():
             limit_start = assets.eval(f"ramp_limit_start_up * {attr_nom}").to_xarray()
