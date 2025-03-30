@@ -1164,10 +1164,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=aggregate_time)
                     result.append(term)
-
             if not result:
                 return pd.Series()
-            return pd.concat(result, axis=1).sum(axis=1)
+            return pd.concat(result).groupby(level=0).sum()
 
         df = self._aggregate_components(
             func,
