@@ -342,7 +342,6 @@ def define_operational_constraints_for_committables(
     active = get_activity_mask(n, c, sns, inter_i)
 
     # parameters
-    nominal = DataArray(n.static(c)[nominal_attrs[c]].reindex(inter_i))
     min_pu, max_pu = map(DataArray, get_bounds_pu(n, c, sns, inter_i, "p"))
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
