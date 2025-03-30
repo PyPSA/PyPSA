@@ -1,0 +1,11 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,Name of bus to which load is attached.,Input (required)
+carrier,string,n/a,n/a,"Energy carrier: can be ""AC"" or ""DC"" for electrical buses, or ""heat"" or ""gas"".",Input (optional)
+type,string,n/a,n/a,Placeholder for load type. Not yet implemented.,Input (optional)
+p_set,static or series,MW,0,Active power consumption (positive if the load is consuming power).,Input (optional)
+q_set,static or series,MVar,0,Reactive power consumption (positive if the load is inductive).,Input (optional)
+sign,float,n/a,-1,power sign (opposite sign to generator),Input (optional)
+p,series,MW,0,active power at bus (positive if net load),Output
+q,series,MVar,0,reactive power (positive if net load),Output
+active,boolean,n/a,True,"Whether to consider the component in common functionalities or not",Input (optional)

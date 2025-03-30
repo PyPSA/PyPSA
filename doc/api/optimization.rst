@@ -20,9 +20,8 @@ Statistic methods
     ~pypsa.optimization.optimize.OptimizationAccessor.optimize_transmission_expansion_iteratively
     ~pypsa.optimization.optimize.OptimizationAccessor.optimize_security_constrained
     ~pypsa.optimization.optimize.OptimizationAccessor.optimize_with_rolling_horizon 
-    ~pypsa.optimization.optimize.OptimizationAccessor.optimize_mga 
+    ~pypsa.optimization.optimize.OptimizationAccessor.optimize_mga
+    ~pypsa.optimization.optimize.OptimizationAccessor.optimize_and_run_non_linear_powerflow
     ~pypsa.optimization.optimize.OptimizationAccessor.fix_optimal_capacities 
     ~pypsa.optimization.optimize.OptimizationAccessor.fix_optimal_dispatch 
     ~pypsa.optimization.optimize.OptimizationAccessor.add_load_shedding 
-
-

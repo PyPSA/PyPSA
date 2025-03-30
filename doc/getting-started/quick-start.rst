@@ -13,7 +13,7 @@ In principle, PyPSA networks can be assigned with
 
     network = pypsa.Network()
 
-Components like buses can be added with :py:meth:`pypsa.Network.add` or :py:meth:`pypsa.Network.madd`
+Components like buses can be added with :py:meth:`pypsa.Network.add`.
 
 .. code:: python
 

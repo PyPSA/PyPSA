@@ -1,0 +1,37 @@
+name,f_nom,r_per_length,x_per_length,c_per_length,i_nom,mounting,cross_section,references
+149-AL1/24-ST1A 10.0,50.,0.194,0.315,11.25,0.47,ol,149,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+149-AL1/24-ST1A 110.0,50.,0.194,0.41,8.75,0.47,ol,149,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+149-AL1/24-ST1A 20.0,50.,0.194,0.337,10.5,0.47,ol,149,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+15-AL1/3-ST1A 0.4,50.,1.8769,0.35,11,0.105,ol,16,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+184-AL1/30-ST1A 110.0,50.,0.1571,0.4,8.8,0.535,ol,184,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+184-AL1/30-ST1A 20.0,50.,0.1571,0.33,10.75,0.535,ol,184,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+24-AL1/4-ST1A 0.4,50.,1.2012,0.335,11.25,0.14,ol,24,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+243-AL1/39-ST1A 110.0,50.,0.1188,0.39,9,0.645,ol,243,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+243-AL1/39-ST1A 20.0,50.,0.1188,0.32,11,0.645,ol,243,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+305-AL1/39-ST1A 110.0,50.,0.0949,0.38,9.2,0.74,ol,305,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+48-AL1/8-ST1A 0.4,50.,0.5939,0.3,12.2,0.21,ol,48,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+48-AL1/8-ST1A 10.0,50.,0.5939,0.35,10.1,0.21,ol,48,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+48-AL1/8-ST1A 20.0,50.,0.5939,0.372,9.5,0.21,ol,48,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+490-AL1/64-ST1A 220.0,50.,0.059,0.285,10,0.96,ol,490,pandapower
+490-AL1/64-ST1A 380.0,50.,0.059,0.253,11,0.96,ol,490,pandapower
+94-AL1/15-ST1A 0.4,50.,0.306,0.29,13.2,0.35,ol,94,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+94-AL1/15-ST1A 10.0,50.,0.306,0.33,10.75,0.35,ol,94,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+94-AL1/15-ST1A 20.0,50.,0.306,0.35,10,0.35,ol,94,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013)
+N2XS(FL)2Y 1x120 RM/35 64/110 kV,50.,0.153,0.166,112,0.366,cs,120,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+N2XS(FL)2Y 1x185 RM/35 64/110 kV,50.,0.099,0.156,125,0.457,cs,185,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+N2XS(FL)2Y 1x240 RM/35 64/110 kV,50.,0.075,0.149,135,0.526,cs,240,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+N2XS(FL)2Y 1x300 RM/35 64/110 kV,50.,0.06,0.144,144,0.588,cs,300,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+NA2XS2Y 1x185 RM/25 12/20 kV,50.,0.161,0.117,273,0.362,cs,185,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+NA2XS2Y 1x240 RM/25 12/20 kV,50.,0.122,0.112,304,0.421,cs,240,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+NA2XS2Y 1x95 RM/25 12/20 kV,50.,0.313,0.132,216,0.252,cs,95,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+NAYY 4x120 SE,50.,0.225,0.08,264,0.242,cs,120,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+NAYY 4x150 SE,50.,0.208,0.08,261,0.27,cs,150,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+NAYY 4x50 SE,50.,0.642,0.083,210,0.142,cs,50,pandapower;Heuck et al. Elektrische Energieversorgung 8. Auflage (2010); Vierweg+Teubner (2013);Werth Netzberechnung mit Erzeugungsprofilen
+Al/St 240/40 2-bundle 220.0,50.,0.06,0.301,12.5,1.29,ol,240,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Chapter 9"
+Al/St 240/40 3-bundle 300.0,50.,0.04,0.265,13.2,1.935,ol,240,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Chapter 9"
+Al/St 240/40 4-bundle 380.0,50.,0.03,0.246,13.8,2.58,ol,240,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Chapter 9"
+Al/St 490/64 4-bundle 380.0,50.,0.015,0.16,16.5,3.84,ol,490,Calculation similar to Al/St 240/40 4-bundle 380.0 using the conductor 490-AL1/64-ST1A 380.0
+HTLS 4-bundle 380.0,50.,0.02,0.26,13.9,4.0,ol,240,"HTLS based on line Oudon-Taute line in JAO Static Grid model, compared also to similar lines in Germany"
+Al/St 560/50 4-bundle 750.0,50.,0.013,0.276,13.13,4.16,ol,560,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Appendix"
+HVDC XLPE 1000,0.,0.0022,0.000001,10000,1.638,,2500,"Regional Group North Sea, “Offshore Transmission Technology,”ENTSO-E AISBL, Brussels, Belgium, Tech. Rep., 2011. P.21-22"
+HVDC Oil filled 1400,0.,0.00264,0.000001,10000,2.8,,3000,"Regional Group North Sea, “Offshore Transmission Technology,”ENTSO-E AISBL, Brussels, Belgium, Tech. Rep., 2011. P.19-20"

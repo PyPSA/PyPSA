@@ -2,20 +2,414 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
 .. .. warning:: 
   
-..   The features listed below are not released yet, but will be part of the next release! 
-..   To use the features already you have to install the ``master`` branch, e.g. 
-..   ``pip install git+https://github.com/pypsa/pypsa#egg=pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
 
-.. * Added `pip install pypsa[cloudpath]` to install the `cloudpathlib` package for
-..   importing and exporting CSV, netCDF and HDF5 files in cloud object storage.
 
-v0.30.0 (30th August 2024)
-==========================
+* The previous maps module under `pypsa/plot` is now modularized. Instead of a 
+  monolithic module, the maps module is now split into several submodules. The
+  submodules are:
+
+  - `pypsa.plot.maps.common`: Base module for all maps.
+  - `pypsa.plot.maps.interactive`: Maps using interactive libraries.
+  - `pypsa.plot.maps.static`: Maps using static libraries.
+
+  The new modularized maps module allows for more flexibility and easier
+  maintenance. 
+
+* PyPSA now supports committability and extendability, on 
+  the same components, if modularity is used. The new feature
+  is compatible with start-up and shut-down costs, ramp-up and
+  shut-down limit. The feature is not still compatible with
+  min-up and min-down time, up and down time before.
+
+`v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
+=======================================================================================
+
+Features
+--------
+
+* New supported file formats for import and export: Excel
+
+  * Use :meth:`n.import_from_excel <pypsa.io.import_from_excel>` and 
+    :meth:`n.export_to_excel <pypsa.io.export_to_excel>` to import and export Networks
+    from and to Excel files.
+     
+  * `openpyxl` and `python-calamine` are required dependencies for this feature, but
+    different engines can be passed. By default they are not installed, but can be
+    installed via ``pip install pypsa[excel]``.
+
+* New plotting library
+
+  * You can now create plots on any PyPSA statistic. Try them with:
+
+    * :meth:`n.statistics.energy_balance.plot() <pypsa.plot.statistics.plotter.StatisticPlotter.__call__>` to get the pre defined default plot
+    * :meth:`n.statistics.energy_balance.plot.bar() <pypsa.plot.statistics.plotter.StatisticPlotter.bar>` to get a bar plot
+    * :meth:`n.statistics.energy_balance.plot.line() <pypsa.plot.statistics.plotter.StatisticPlotter.line>` to get a line plot
+    * :meth:`n.statistics.energy_balance.plot.area() <pypsa.plot.statistics.plotter.StatisticPlotter.area>` to get a area plot
+    * :meth:`n.statistics.energy_balance.plot.map() <pypsa.plot.statistics.plotter.StatisticPlotter.map>` to get a map plot
+
+  * ``n.plot()``  was moved to ``n.plot.map()``
+
+  * ``n.explore()`` was moved to ``n.plot.explore()`` and ``n.iplot()`` was moved to ``n.plot.iplot()``
+
+* Statistics module
+
+  * All statistics functions now interpret the bus_carrier argument as a regular 
+    expression (regex), enabling more flexible filtering options. 
+    (https://github.com/PyPSA/PyPSA/pull/1155)
+
+  * All statistics functions have a new argument ``carrier`` to filter by carriers.
+    (https://github.com/PyPSA/PyPSA/pull/1176)
+
+  * All statistics functions have two new arguments ``drop_zero`` and ``round`` to
+    control the output. ``drop_zero`` drops all rows with zero values and ``round``
+    rounds the output to the specified number of decimal places. Those settings have been
+    used before already via the statistics parameters, but are deprecated now. Use the
+    new arguments or the module level settings instead (to set them globally). E.g. 
+    ``pypsa.options.params.statistics.nice_names = False``. List all available parameter 
+    settings via ``pypsa.options.params.describe()``. 
+    (https://github.com/PyPSA/PyPSA/pull/1173)
+
+Minor improvements
+------------------
+
+* Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed 
+  buses. (https://github.com/PyPSA/PyPSA/pull/1174)
+
+* Added warning for consistent legend circle and semicirle sizes when combining plots 
+  on a geographical axis.
+
+* Added descriptive attribute "location" to Buses. This attribute does not influence
+  the optimisation model but can be used for aggregation in the statistics module.
+  (https://github.com/PyPSA/PyPSA/pull/1182)
+
+Bug fixes
+---------
+
+* Fixed ``pypsa.plot.add_legend_semicircles()`` circle sizing to be consistent with 
+  ``n.plot(bus_sizes=..., bus_split_circles=True)`` argument. 
+  (https://github.com/PyPSA/PyPSA/pull/1179)
+
+`v0.33.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2>`__ (12th March 2025)
+=======================================================================================
+
+Bug fixes
+---------
+
+* **Regression hotfix**: Fixed a critical bug in statistics functions for 
+  multi-investment networks where built years and lifetimes were not being correctly 
+  considered. In version ``v0.32.0``, only components active in the first time period were
+  being included in statistics calculations. The fix ensures all components are properly
+  represented according to their respective built years and lifetimes across all 
+  investment periods. This issue was patched in version ``0.33.2``. We also backported the 
+  fix to version ``0.32.2``. (https://github.com/PyPSA/PyPSA/pull/1172)
+
+* The expressions function `n.optimize.expressions.capacity` now uses the absolute 
+  efficiency to calculate the capacity at link ports, unless a `bus_carrier` is defined
+  or `at_port` is set to True. This is in line with the behavior of the statistics 
+  functions (`statistics.installed_capacity`, `statistics.optimal_capacity`). 
+  Before, the efficiency was allowed to be negative, which lead to inconsistent results.
+
+
+`v0.33.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.1>`__ (3rd March 2025)
+=======================================================================================
+
+Minor improvements
+------------------
+
+* Added a ``quotechar`` parameter to :func:`io.import_from_csv_folder` and
+  :func:`io.export_to_csv_folder` to handle non-standard field quoting in CSV
+  import/export, aligning with :func:`pandas.read_csv` and
+  :func:`pandas.to_csv`. (https://github.com/PyPSA/PyPSA/pull/1143)
+
+Bug fixes
+---------
+
+* `pypsa[cloudpath]` optional dependency will now only install `cloudpathlib` without 
+  extra cloud storage provider client libraries, these will be left to the user to 
+  install. (https://github.com/PyPSA/PyPSA/pull/1139)
+
+* :func:`import_from_netcdf` and :func:`import_from_hdf5` now work when a URI is
+  passed as a string instead of a CloudPath object.
+  (https://github.com/PyPSA/PyPSA/pull/1139)
+
+* Linearized unit commitment with equal startup and shutdown costs.
+  (https://github.com/PyPSA/PyPSA/pull/1157)
+
+* Fix pandas dtype warning. (https://github.com/PyPSA/PyPSA/pull/1151)
+
+`v0.33.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.0>`__ (7th February 2025)
+=======================================================================================
+
+Features
+--------
+
+* New component class structure 
+  (https://github.com/PyPSA/PyPSA/pull/1075, https://github.com/PyPSA/PyPSA/pull/1130)
+
+  * Major structural refactoring of how component data is stored and accessed. The new 
+    structure adds an extra layer to move all component-specific data from the network 
+    class to a new component class.
+
+  * This is an experimental feature, will be developed further and is not yet 
+    recommended for general use. More features, documentation and examples will 
+    follow. Most users will not notice any changes.
+
+  * The new additional layer makes it easy to add new features. If you wanna play around
+    with the new components class, see the 
+    `Components class example <https://pypsa.readthedocs.io/en/latest/examples/experimental-components-class.html>`_ 
+    in the documentation. You will find an short introduction and some simple examples 
+    to show which other features could be added in the future. If you have any ideas, 
+    wishes, feedback or suggestions, please let us know via the 
+    `issue tracker <https://www.github.com/PyPSA/PyPSA/issues>`_.
+
+* Breaking: Deprecation of custom components (https://github.com/PyPSA/PyPSA/pull/1130)
+
+  * This version of PyPSA deprecates custom components. While we don't see many use 
+    cases for them, they might be added in an improved way in future again. For a 
+    potential reimplementation we would be happy to hear your use case and 
+    requirements via the `issue tracker <https://www.github.com/PyPSA/PyPSA/issues>`_.
+  
+  * If you don't know what this is or have never used the ``override_components``
+    and ``override_component_attrs`` arguments during Network initialisation, you can
+    safely ignore this deprecation.
+
+* Breaking: Behavior of ``n.components``
+
+  * Iterating over `n.components` now yields the values instead of keys. Use 
+    `n.components.keys()` to keep iterating over keys.
+
+  * Checking if a component is in `n.components` using the 'in' operator is deprecated. 
+    With the deprecation of custom components keys in `n.components` also ever change.
+            
+* PyPSA `0.33` provides support for the recent Python 3.13 release and drops support 
+  for Python 3.9. While Python 3.9 still gets security updates until October 2025,
+  core dependencies of PyPSA are dropping support for Python 3.9 (e.g. `numpy`) and
+  active support is only provided for the most recent versions 
+  (see `endoflife.date <https://endoflife.date/python>`_). It is recommended to upgrade 
+  to the latest Python version if possible. Note that there might be some issues with
+  Windows and Python 3.13, which are not yet resolved. 
+  (https://github.com/PyPSA/PyPSA/pull/1099)
+
+* Added PyPSA options architecture via :meth:`pypsa.get_option`, :meth:`pypsa.set_option`, 
+  :meth:`pypsa.describe_options` and :meth:`pypsa.option_context`.
+  This allows to set and get global options for PyPSA and
+  mimics the options setting behavior of pandas. Currently there are not many options
+  available, but this will be extended in future. 
+  (https://github.com/PyPSA/PyPSA/pull/1134)
+
+* New network attributes :meth:`n.timesteps <pypsa.networks.Network.timesteps>`, 
+  :meth:`n.periods <pypsa.networks.Network.periods>` and 
+  :meth:`n.has_periods <pypsa.networks.Network.has_periods>` to simplified level access
+  of the snapshots dimension. (https://github.com/PyPSA/PyPSA/pull/1113)
+
+* Consistency checks can now be run with the parameter ``strict``, which will raise 
+  them as ``ConsistenyError``. Pass checks which should be strict in 
+  :meth:`n.consistency_check <pypsa.consistency.consistency_check>` as e.g.
+  ``strict=['unknown_buses']``. :meth:`n.optimize <pypsa.optimization.optimize.optimize>`
+  will run some strict checks by default now. (https://github.com/PyPSA/PyPSA/pull/1120, 
+  https://github.com/PyPSA/PyPSA/pull/1112)
+
+* New example in the documentation showing how to implement reserve power constraints.
+  (https://github.com/PyPSA/PyPSA/pull/1133)
+
+* Doctests are now run with the unit tests. They allow to test the documentation 
+  examples, which will improve the quality of docstrings and documentation in future 
+  releases. (https://github.com/PyPSA/PyPSA/pull/1114)
+  
+Bug fixes
+---------
+
+* The parameter threshold in function get_strong_meshed_buses was not considered
+  in the function it self. A kwargs check has been added for providing a own threshold.
+  E.g., get_strongly_meshed_buses (network, threshold=10)
+
+
+`v0.32.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.2>`__ (12th March 2025)
+=======================================================================================
+
+Bug fixes
+---------
+
+* Backported from version ``v0.33.2``: Fixed a critical bug in statistics functions for 
+  multi-investment networks where built years and lifetimes were not being correctly 
+  considered. In version ``v0.32.0``, only components active in the first time period were
+  being included in statistics calculations. The fix ensures all components are properly
+  represented according to their respective built years and lifetimes across all 
+  investment periods. (https://github.com/PyPSA/PyPSA/pull/1172)
+
+`v0.32.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.1>`__ (23th Januarary 2025)
+=======================================================================================
+
+Bug fixes
+---------
+
+* The expression module now correctly includes the "Load" component in the
+  energy balance calculation. Before the fix, the "Load" component was not
+  considered. (https://github.com/PyPSA/PyPSA/pull/1110)
+
+* The optimize/expression module now correctly assigns contributions from branch 
+  components in the `withdrawal` and `supply` functions. Before, there was a wrong 
+  multiplication by -1 for branch components. (https://github.com/PyPSA/PyPSA/pull/1123)
+
+`v0.32.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.32.0>`__ (5th December 2024)
+=======================================================================================
+
+Features
+--------
+
+* Improvements to groupers in the statistics module 
+  (https://github.com/PyPSA/PyPSA/pull/1093, https://github.com/PyPSA/PyPSA/pull/1078)
+
+  * The ``groupby`` argument now accepts keys to allow for more granular and flexible 
+    grouping.
+    For example,
+    :meth:`n.statistics.energy_balance(groupby=["bus_carrier", "carrier"]) <pypsa.statistics.StatisticsAccessor.energy_balance>`
+    groups the energy balance by bus carrier and carrier.
+
+    * Build in groupers include: 
+
+      * :meth:`pypsa.statistics.groupers.carrier <pypsa.statistics.grouping.Groupers.carrier>`
+      * :meth:`pypsa.statistics.groupers.bus_carrier <pypsa.statistics.grouping.Groupers.bus_carrier>`
+      * :meth:`pypsa.statistics.groupers.name <pypsa.statistics.grouping.Groupers.name>`
+      * :meth:`pypsa.statistics.groupers.bus <pypsa.statistics.grouping.Groupers.bus>`
+      * :meth:`pypsa.statistics.groupers.country <pypsa.statistics.grouping.Groupers.country>`
+      * :meth:`pypsa.statistics.groupers.unit <pypsa.statistics.grouping.Groupers.unit>`
+      * A list of registered groupers can be accessed via
+        :meth:`pypsa.statistics.groupers.list_groupers <pypsa.statistics.grouping.Groupers.list_groupers>`
+  
+  * Custom groupers can be registered on module level via
+    :meth:`pypsa.statistics.groupers.add_grouper <pypsa.statistics.grouping.Groupers.add_grouper>`.
+    The key will be used as identifier in the ``groupby`` argument. Check the API reference
+    for more information.
+
+  * Accessing default groupers was moved to module level and an improved API was 
+    introduced. ``n.statistics.get_carrier`` can now be accessed as 
+    :meth:`pypsa.statistics.groupers.carrier <pypsa.statistics.grouping.Groupers.carrier>`
+    and a combination of groupers can be accessed as 
+    :meth:`pypsa.statistics.groupers['bus', 'carrier'] <pypsa.statistics.grouping.Groupers.__call__>`
+    instead of ``n.statistics.groupers.get_bus_and_carrier``.
+
+* A new module ``pypsa.optimize.expressions`` was added. It contains functions to quickly 
+  create expressions for the optimization model. The behavior of the functions is 
+  mirroring the behavior of the ``statistics``` module and allows for similar complexity 
+  in grouping and filtering. Use it with e.g. 
+  :meth:`n.optimize.expressions.energy_balance() <pypsa.Network.expressions.energy_balance>`.
+  (https://github.com/PyPSA/PyPSA/pull/1044)
+
+* ``pytables`` is now an optional dependency for using the HDF5 format. Install 
+  it via ``pip install pypsa[hdf5]``. Otherwise it is not installed by default 
+  anymore. (https://github.com/PyPSA/PyPSA/pull/1100)
+
+`v0.31.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.31.2>`__ (27th November 2024)
+=======================================================================================
+
+Bug fixes
+---------
+
+* The constraint to account for ``e_sum_max``/ ``e_sum_min`` is now skipped if not applied 
+  to any asset 
+  (https://github.com/PyPSA/PyPSA/pull/1069, https://github.com/PyPSA/PyPSA/pull/1074)
+
+
+`v0.31.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.31.1>`__ (1st November 2024)
+======================================================================================
+
+Bug fixes
+---------
+
+* Abolishing ``min_units`` in the post discretization. If the maximum capacity of a 
+  component is smaller than the specified unit size, the maximum capacity is built as 
+  soon as the threshold is passed (https://github.com/PyPSA/PyPSA/pull/1052)
+
+* Less verbose logging when using :meth:`n.add <pypsa.Network.add>` 
+  (https://github.com/PyPSA/PyPSA/pull/1067)
+
+`v0.31.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.31.0>`__ (1st October 2024)
+=====================================================================================
+
+Features
+--------
+
+* New ``active`` attribute (https://github.com/PyPSA/PyPSA/pull/1038)
+
+  - A new attribute for one-port and branch components `active` was added. If set to 
+    true (default), the asset is considered active for all functionality, including 
+    optimization and power flow calculation. If set to false, the asset is considered 
+    inactive and is excluded from the optimization, power flow and statistics modules. 
+
+  - The active attribute can be thought of as a global filter on the components. When 
+    running a multi-horizon optimization, the active attribute is considered a global 
+    condition for each horizon. Then assets are considered active only if `active` is 
+    true and the investment period falls within the lifetime of the asset.
+
+* New attributes for the :ref:`generator <component-generator>` component 
+  (https://github.com/PyPSA/PyPSA/pull/1047)
+  
+  - ``e_sum_min`` and ``e_sum_max`` add a new constraint and allow to set the minimum 
+    and maximum total energy that can be generated by the generator over one 
+    optimization horizon. 
+
+* New :meth:`n.add <pypsa.Network.add>` method (https://github.com/PyPSA/PyPSA/pull/896)
+  
+  - :meth:`n.add <pypsa.Network.add>` now handles the addition of a single or multiple
+    components, has more robust index alignment checks allows to overwrite existing
+    components using the new argument ``overwrite``. Because of the more strict 
+    alignment checks, this might be a **breaking change** for some users.
+  
+  - Therefore the methods :meth:`n.madd <pypsa.Network.madd>` and 
+    :meth:`n.mremove <pypsa.Network.mremove>` are now deprecated and will point to
+    their generalised counterparts.
+
+* New function :meth:`n.optimize_and_run_non_linear_powerflow <pypsa.optimization.optimize.OptimizationAccessor.optimize_and_run_non_linear_powerflow>`
+  was added to the set of abstract optimize functions. This function optimizes the 
+  network and runs a non-linear power flow calculation afterwards. (https://github.com/PyPSA/PyPSA/pull/1038)
+
+* API and structural changes:
+
+  - The :class:`Component <pypsa.definitions.components.Component>` object is now a refactored 
+    stand-alone class. This is ongoing work and will change further in future 
+    releases. (https://github.com/PyPSA/PyPSA/pull/1038)
+  - The :class:`pypsa.SubNetwork` class has new methods `df`, `pnl`, `component` 
+    to ease the access of component data for a subnetwork. Use it with e.g.
+    `subnetwork.df("Generator")` and alike. (https://github.com/PyPSA/PyPSA/pull/1038)
+  - :meth:`n.df <pypsa.Network.df>` and :meth:`n.pnl <pypsa.Network.pnl>` 
+    have been renamed to :meth:`n.static <pypsa.Network.static>` and 
+    :meth:`n.dynamic <pypsa.Network.dynamic>`. But `n.df` and `n.pnl` are still available 
+    and can be used as aliases without any deprecation warning for now. (https://github.com/PyPSA/PyPSA/pull/1028)
+
+`v0.30.3 <https://github.com/PyPSA/PyPSA/releases/tag/v0.30.3>`__ (24th September 2024)
+========================================================================================
+
+* Bugfix in the post discretization for ``Links`` with a maximum capacity.
+  Furthermore, giving the option to build out only multiples of the specified unit_size
+  or allowing to use the full maximum capacity. (https://github.com/PyPSA/PyPSA/pull/1039)
+
+`v0.30.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.30.2>`__ (11th September 2024)
+========================================================================================
+
+* Bugfix in operational limit global constraints, which now directly uses the
+  carrier of the ``Store`` rather than the carrier of the bus it is attached to.
+  (https://github.com/PyPSA/PyPSA/pull/1029)
+
+`v0.30.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.30.1>`__ (9th September 2024)
+=======================================================================================
+
+* Added option for importing and exporting CSV, netCDF and HDF5 files in cloud
+  object storage. This requires the installation of the optional dependency
+  ``cloudpathlib``, e.g. via ``pip install pypsa[cloudpath]``.
+
+* Bugfix of ``n.plot()`` when single buses have no coordinates.
+
+`v0.30.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.30.0>`__ (30th August 2024)
+=====================================================================================
 
 * Added ``n.explore()`` function based on ``folium`` and ``geopandas`` to
   interactively explore networks. (https://github.com/PyPSA/PyPSA/pull/1009)
@@ -31,18 +425,7 @@ v0.30.0 (30th August 2024)
 
 * Updated documentation. (https://github.com/PyPSA/PyPSA/pull/1004)
 
-* See full list of changes `here
-  <https://github.com/PyPSA/PyPSA/releases/tag/v0.30.0>`__.
-
-* PyPSA now supports committability and extendability, on 
-  the same components, if modularity is used. The new feature
-  is compatible with start-up and shut-down costs, ramp-up and
-  shut-down limit. The feature is not still compatible with
-  min-up and min-down time, up and down time before.
-
-
-v0.29.0 (31st July 2024)
-=============================
+`v0.29.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.29.0>`__ (31st July 2024)
 
 * Removed ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with ``n.optimize()`` instead.
@@ -154,12 +537,8 @@ v0.29.0 (31st July 2024)
 
 * Compatibility with ``numpy>=2.0``. (https://github.com/PyPSA/PyPSA/pull/932)
 
-* See full list of changes `here
-  <https://github.com/PyPSA/PyPSA/releases/tag/v0.29.0>`__.
-
-
-v0.28.0 (8th May 2024)
-=================================
+`v0.28.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.28.0>`__ (8th May 2024)
+=================================================================================
 
 * When using iterative optimisation functionality
   ``n.optimize_transmission_expansion_iteratively()``, add option to discretize
@@ -213,8 +592,8 @@ v0.28.0 (8th May 2024)
   now correctly returns each functions return values. (https://github.com/PyPSA/PyPSA/pull/871)
 
 
-v0.27.1 (22nd March 2024)
-=================================
+`v0.27.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.27.1>`__ (22nd March 2024)
+====================================================================================
 
 * Fixed sometimes-faulty total budget calculation for single-horizon MGA optimisations.
 
@@ -228,8 +607,8 @@ v0.27.1 (22nd March 2024)
 
 * Fix of the capex description in the attribute CSV files.
 
-v0.27.0 (18th February 2024)
-=================================
+`v0.27.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.27.0>`__ (18th February 2024)
+=======================================================================================
 
 * Bugfix: If plotting a network map with split buses
   (``n.plot(bus_split_circles=True)``), the bus sizes are now scaled by factor 2
@@ -259,8 +638,8 @@ v0.27.0 (18th February 2024)
 * ``pyomo`` is no longer supported for Python 3.12 or higher.
 
 
-v0.26.3 (25th January 2024)
-=================================
+`v0.26.3 <https://github.com/PyPSA/PyPSA/releases/tag/v0.26.3>`__ (25th January 2024)
+======================================================================================
 
 * Bugfix: With line transmission losses there was a sign error in the
   calculation of the line capacity constraints.
@@ -270,15 +649,15 @@ v0.26.3 (25th January 2024)
   appear in the energy balance (e.g. ``n.statistics.energy_balance()``) and when
   calculating losses with ``n.lines_t.p0 + n.lines_t.p1``.
 
-v0.26.2 (31st December 2023)
-=================================
+`v0.26.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.26.2>`__ (31st December 2023)
+=======================================================================================
 
 * Bugfix in the definition of spillage variables for storage units. Previously,
   the spillage variable creation was skipped in some cases due to a wrong
   condition check even though there was a positive inflow.
 
-v0.26.1 (29th December 2023)
-=================================
+`v0.26.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.26.1>`__ (29th December 2023)
+=======================================================================================
 
 * The output attribute ``n_mod`` introduced in the previous version was removed
   since it contains duplicate information. Calculate the number of expanded
@@ -291,8 +670,8 @@ v0.26.1 (29th December 2023)
 
 * Removed ``numexpr`` version constraint.
 
-v0.26.0 (4th December 2023)
-================================
+`v0.26.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.26.0>`__ (4th December 2023)
+======================================================================================
 
 **New Features**
 
@@ -362,8 +741,8 @@ v0.26.0 (4th December 2023)
 * Added Python 3.12 to CI and supported Python versions.
 
 
-v0.25.2 (30th September 2023)
-==================================
+`v0.25.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.25.2>`__ (30th September 2023)
+========================================================================================
 
 * Add option to enable or disable nice carrier name in the statistics module,
   e.g. ``n.statistics(nice_name=False)``.
@@ -391,8 +770,8 @@ v0.25.2 (30th September 2023)
 * Bugfix: Handle cases with multi-decade optimisation, activated transmission
   limit and an empty list of lines or DC links.
 
-v0.25.1 (27th July 2023)
-=============================
+`v0.25.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.25.1>`__ (27th July 2023)
+===================================================================================
 
 **New Features**
 
@@ -453,8 +832,8 @@ v0.25.1 (27th July 2023)
   aggregating in the time dimension. (https://github.com/PyPSA/PyPSA/pull/687)
 
 
-v0.25.0 (13th July 2023)
-=============================
+`v0.25.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.25.0>`__ (13th July 2023)
+===================================================================================
 
 **New Features**
 
@@ -533,8 +912,8 @@ v0.25.0 (13th July 2023)
   units was corrected. (https://github.com/PyPSA/PyPSA/pull/671)
 
 
-v0.24.0 (27th June 2023)
-=================================
+`v0.24.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.24.0>`__ (27th June 2023)
+===================================================================================
 
 * PyPSA now supports quadratic marginal cost terms. A new column
   `marginal_cost_quadratic` was added to generators, links, stores and storage
@@ -564,8 +943,8 @@ v0.24.0 (27th June 2023)
 * Dropped support for Python 3.8. The minimum required version of Python is now 3.9.
 
 
-v0.23.0 (10th May 2023)
-=================================
+`v0.23.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.23.0>`__ (10th May 2023)
+==================================================================================
 
 * Transmission losses can now be represented during optimisation with
   ``n.optimize()`` or ``n.lopf()`` using a piecewise linear approximation of the
@@ -658,8 +1037,8 @@ v0.23.0 (10th May 2023)
   <https://github.com/PyPSA/PyPSA/pull/599>`_]
 
 
-v0.22.1 (15th February 2023)
-=================================
+`v0.22.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.22.1>`__ (15th February 2023)
+=======================================================================================
 
 * The model creation for large, sector-coupled models is now much quicker.
 * The FICO Xpress solver interface now skips loading a basis if there is an
@@ -672,8 +1051,8 @@ v0.22.1 (15th February 2023)
   results in drawing separate half circles for positive and negative values.
 
 
-v0.22.0 (3rd February 2023)
-================================
+`v0.22.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.22.0>`__ (3rd February 2023)
+======================================================================================
 
 * Python 3.11 is now tested. The support of Python 3.7 was dropped. The minimum supported python version is now 3.8.
 * The linopy based optimization (``n.optimize()``) now allows to limit the carrier's growth by an additional linear term, so that one can limit an expansion growth by multiples of what was installed in the preceding investment period.
@@ -1631,7 +2010,7 @@ changes to the internal API.
   interface for components is gone. You can only access component
   attributes through the dataframes, e.g. ``network.lines``.
 * Component attributes are now defined in CSV files in
-  ``pypsa/component_attrs/``. You can access these CSVs in the code
+  ``pypsa/data/component_attrs/``. You can access these CSVs in the code
   via the dictionary ``network.components``,
   e.g. ``network.components["Line"]["attrs"]`` will show a pandas
   DataFrame with all attributes and their types, defaults, units and
@@ -2004,4 +2383,3 @@ Release process
   `zenodo <https://zenodo.org/>`_ to archive the release with its own DOI.
 * To update to conda-forge, check the pull request generated at the `feedstock repository
   <https://github.com/conda-forge/pypsa-feedstock>`_.
-* Inform the PyPSA mailing list.

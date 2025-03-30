@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from pypsa.clustering import spatial, temporal
+from pypsa.common import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -20,36 +21,35 @@ class ClusteringAccessor:
     Clustering accessor for clustering a network spatially and temporally.
     """
 
-    def __init__(self, network: "Network") -> None:
-        self._parent = network
+    @deprecated_common_kwargs
+    def __init__(self, n: "Network") -> None:
+        self.n = n
 
     @wraps(spatial.busmap_by_hac)
     def busmap_by_hac(self, *args: Any, **kwargs: Any) -> pd.Series:
-        return spatial.busmap_by_hac(self._parent, *args, **kwargs)
+        return spatial.busmap_by_hac(self.n, *args, **kwargs)
 
     @wraps(spatial.busmap_by_kmeans)
     def busmap_by_kmeans(self, *args: Any, **kwargs: Any) -> pd.Series:
-        return spatial.busmap_by_kmeans(self._parent, *args, **kwargs)
+        return spatial.busmap_by_kmeans(self.n, *args, **kwargs)
 
     @wraps(spatial.busmap_by_greedy_modularity)
     def busmap_by_greedy_modularity(self, *args: Any, **kwargs: Any) -> pd.Series:
-        return spatial.busmap_by_greedy_modularity(self._parent, *args, **kwargs)
+        return spatial.busmap_by_greedy_modularity(self.n, *args, **kwargs)
 
     @wraps(spatial.hac_clustering)
     def cluster_spatially_by_hac(self, *args: Any, **kwargs: Any) -> "Clustering":
-        return spatial.hac_clustering(self._parent, *args, **kwargs).network
+        return spatial.hac_clustering(self.n, *args, **kwargs).n
 
     @wraps(spatial.kmeans_clustering)
     def cluster_spatially_by_kmeans(self, *args: Any, **kwargs: Any) -> "Clustering":
-        return spatial.kmeans_clustering(self._parent, *args, **kwargs).network
+        return spatial.kmeans_clustering(self.n, *args, **kwargs).n
 
     @wraps(spatial.greedy_modularity_clustering)
     def cluster_spatially_by_greedy_modularity(
         self, *args: Any, **kwargs: Any
     ) -> "Clustering":
-        return spatial.greedy_modularity_clustering(
-            self._parent, *args, **kwargs
-        ).network
+        return spatial.greedy_modularity_clustering(self.n, *args, **kwargs).n
 
     def cluster_by_busmap(self, *args: Any, **kwargs: Any) -> "Clustering":
         """
@@ -60,13 +60,13 @@ class ClusteringAccessor:
 
         Returns
         -------
-        network : pypsa.Network
+        n : pypsa.Network
         """
-        return spatial.get_clustering_from_busmap(self._parent, *args, **kwargs).network
+        return spatial.get_clustering_from_busmap(self.n, *args, **kwargs).n
 
     @wraps(spatial.get_clustering_from_busmap)
     def get_clustering_from_busmap(self, *args: Any, **kwargs: Any) -> "Clustering":
-        return spatial.get_clustering_from_busmap(self._parent, *args, **kwargs)
+        return spatial.get_clustering_from_busmap(self.n, *args, **kwargs)
 
 
 __all__ = ["ClusteringAccessor", "spatial", "temporal"]

@@ -13,7 +13,6 @@
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg)](https://doi.org/10.5281/zenodo.3946412)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
-[![Stack Exchange questions](https://img.shields.io/stackexchange/stackoverflow/t/pypsa)](https://stackoverflow.com/questions/tagged/pypsa)
 
 PyPSA stands for "Python for Power System Analysis". It is pronounced
 "pipes-ah".
@@ -25,7 +24,7 @@ energy sectors, and mixed alternating and direct current networks. PyPSA is
 designed to scale well with large networks and long time series.
 
 This project is maintained by the [Department of Digital Transformation in
-Energy Systems](https://tub-ensys.github.io) at the [Technical University of
+Energy Systems](https://www.tu.berlin/ensys) at the [Technical University of
 Berlin](https://www.tu.berlin). Previous versions were developed by the Energy
 System Modelling group at the [Institute for Automation and Applied
 Informatics](https://www.iai.kit.edu/english/index.php) at the [Karlsruhe
@@ -33,7 +32,7 @@ Institute of Technology](http://www.kit.edu/english/index.php) funded by the
 [Helmholtz Association](https://www.helmholtz.de/en/), and by the [Renewable
 Energy
 Group](https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/)
-at [FIAS](https://fias.uni-frankfurt.de/) to carry out simulations for the
+at [FIAS](https://fias.uni-frankfurt.de/en/) to carry out simulations for the
 [CoNDyNet project](https://fias.institute/en/projects/condynet/), financed by the [German Federal
 Ministry for Education and Research (BMBF)](https://www.bmbf.de/bmbf/en/)
 as part of the [Stromnetze Research
@@ -78,7 +77,7 @@ It has models for:
 
     * [Quick start](https://pypsa.readthedocs.io/en/latest/quick_start.html)
 
-    * [Examples](https://pypsa.readthedocs.io/en/latest/examples-basic.html)
+    * [Examples](https://pypsa.readthedocs.io/en/latest/examples-index/lopf.html)
 
     * [Known users of PyPSA](https://pypsa.readthedocs.io/en/latest/users.html)
 
@@ -92,7 +91,7 @@ conda/mamba:
 
 ```conda install -c conda-forge pypsa```
 
-Additionally, install a solver (see [here](https://pypsa.readthedocs.io/en/latest/installation.html#getting-a-solver-for-optimisation)).
+Additionally, install a solver (see [here](https://pypsa.readthedocs.io/en/latest/getting-started/installation.html#getting-a-solver)).
 
 ## Usage
 
@@ -142,7 +141,7 @@ for 2015.
 
 ## Dependencies
 
-PyPSA is written and tested to be compatible with Python 3.9 and above.
+PyPSA is written and tested to be compatible with Python 3.10 and above.
 The last release supporting Python 2.7 was PyPSA 0.15.0.
 
 It leans heavily on the following Python packages:
@@ -151,14 +150,14 @@ It leans heavily on the following Python packages:
     components and time series
 -   [numpy](http://www.numpy.org/) and [scipy](http://scipy.org/) for
     calculations, such as linear algebra and sparse matrix calculations
--   [networkx](https://networkx.github.io/) for some network
+-   [networkx](https://networkx.org/) for some network
     calculations
 -   [matplotlib](https://matplotlib.org/) for static plotting
 -   [linopy](https://github.com/PyPSA/linopy) for preparing optimisation problems
     (currently only linear and mixed integer linear optimisation)
 -   [cartopy](https://scitools.org.uk/cartopy) for plotting the
     baselayer map
--   [pytest](http://pytest.org/) for unit testing
+-   [pytest](https://docs.pytest.org/) for unit testing
 -   [logging](https://docs.python.org/3/library/logging.html) for
     managing messages
 
@@ -175,9 +174,7 @@ the preferred solver. You can use e.g. one of the free solvers
 
 We strongly welcome anyone interested in contributing to this project. If you have any ideas, suggestions or encounter problems, feel invited to file issues or make pull requests on GitHub.
 
--   In case of code-related **questions**, please post on [stack overflow](https://stackoverflow.com/questions/tagged/pypsa).
--   For non-programming related and more general questions please refer to the [mailing list](https://groups.google.com/group/pypsa).
--   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [discord server](https://discord.gg/AnuJBk23FU).
+-   To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the [Discord server](https://discord.gg/AnuJBk23FU).
 -   For **bugs and feature requests**, please use the [PyPSA Github Issues page](https://github.com/PyPSA/PyPSA/issues).
 -   For **troubleshooting**, please check the [troubleshooting](https://pypsa.readthedocs.io/en/latest/troubleshooting.html) in the documentation.
 
@@ -227,7 +224,7 @@ or from the overall PyPSA Zenodo DOI for Versions up to 0.17.0:
 
 # Licence
 
-Copyright 2015-2024 [PyPSA
+Copyright 2015-2025 [PyPSA
 Developers](https://pypsa.readthedocs.io/en/latest/developers.html)
 
 PyPSA is licensed under the open source [MIT

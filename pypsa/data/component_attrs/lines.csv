@@ -1,0 +1,39 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus0,string,n/a,n/a,Name of first bus to which branch is attached.,Input (required)
+bus1,string,n/a,n/a,Name of second bus to which branch is attached.,Input (required)
+type,string,n/a,n/a,"Name of line standard type. If this is not an empty string """", then the line standard type impedance parameters are multiplied with the line length and divided/multiplied by num_parallel to compute x, r, etc. This will override any values set in r, x, and b. If the string is empty, PyPSA will simply read r, x, etc.",Input (optional)
+x,float,Ohm,0,"Series reactance, must be non-zero for AC branch in linear power flow. If the line has series inductance :math:`L` in Henries then :math:`x = 2\pi f L` where :math:`f` is the frequency in Hertz. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
+r,float,Ohm,0,"Series resistance, must be non-zero for DC branch in linear power flow. Series impedance :math:`z = r + jx` must be non-zero for the non-linear power flow. Ignored if type defined.",Input (required)
+g,float,Siemens,0,Shunt conductivity. Shunt admittance is :math:`y = g + jb`.,Input (optional)
+b,float,Siemens,0,Shunt susceptance. If the line has shunt capacitance :math:`C` in Farads then :math:`b = 2\pi f C` where :math:`f` is the frequency in Hertz. Shunt admittance is :math:`y = g + jb`. Ignored if type defined.,Input (optional)
+s_nom,float,MVA,0,Limit of apparent power which can pass through branch.,Input (optional)
+s_nom_mod,float,MVA,0,Unit size of line expansion of ``s_nom``.,Input (optional)
+s_nom_extendable,boolean,n/a,False,Switch to allow capacity s_nom to be extended in OPF.,Input (optional)
+s_nom_min,float,MVA,0,"If s_nom is extendable in OPF, set its minimum value.",Input (optional)
+s_nom_max,float,MVA,inf,"If s_nom is extendable in OPF, set its maximum value (e.g. limited by potential).",Input (optional)
+s_max_pu,static or series,per unit,1,"The maximum allowed absolute flow per unit of s_nom for the OPF (e.g. can be set <1 to approximate n-1 factor, or can be time-varying to represent weather-dependent dynamic line rating for overhead lines).",Input (optional)
+capital_cost,float,currency/MVA,0,"Fixed period costs of extending s_nom by 1 MVA, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
+build_year,int,year,0,build year,Input (optional)
+lifetime,float,years,inf,lifetime,Input (optional)
+length,float,km,0,"Length of line used when ""type"" is set, also useful for calculating the capital cost.",Input (optional)
+carrier,string,"n/a","","Type of current, ""AC"" is the only valid value",Input (optional)
+terrain_factor,float,per unit,1,Terrain factor for increasing capital cost.,Input (optional)
+num_parallel,float,n/a,1,"When ""type"" is set, this is the number of parallel lines (can also be fractional). If ""type"" is empty """" this value is ignored.",Input (optional)
+v_ang_min,float,Degrees,-inf,Minimum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.,Input (optional)
+v_ang_max,float,Degrees,inf,Maximum voltage angle difference across the line. This is a placeholder attribute and is not currently used by any PyPSA functions.,Input (optional)
+sub_network,string,n/a,n/a,Name of connected sub-network to which lines belongs. This attribute is set by PyPSA in the function network.determine_network_topology(); do not set it directly by hand.,Output
+p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
+q0,series,MVar,0.,Reactive power at bus0 (positive if branch is withdrawing power from bus0).,Output
+p1,series,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
+q1,series,MVar,0.,Reactive power at bus1 (positive if branch is withdrawing power from bus1).,Output
+x_pu,float,per unit,0,Per unit series reactance calculated by PyPSA from x and bus.v_nom.,Output
+r_pu,float,per unit,0,Per unit series resistance calculated by PyPSA from r and bus.v_nom,Output
+g_pu,float,per unit,0,Per unit shunt conductivity calculated by PyPSA from g and bus.v_nom,Output
+b_pu,float,per unit,0,Per unit shunt susceptance calculated by PyPSA from b and bus.v_nom,Output
+x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by PyPSA from x, tap_ratio for transformers and bus.v_nom.",Output
+r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by PyPSA from x, tap_ratio for transformers and bus.v_nom.",Output
+s_nom_opt,float,MVA,0,Optimised capacity for apparent power.,Output
+mu_lower,series,currency/MVA,0.,Shadow price of lower s_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MVA,0.,Shadow price of upper s_nom limit f \leq F. Always non-negative.,Output

@@ -53,14 +53,14 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
             dim = f"{c}-ext"
-            df = n.df(c)
+            static = n.static(c)
 
-            if "carrier" not in df:
+            if "carrier" not in static:
                 continue
 
             ext_i = (
                 n.get_extendable_i(c)
-                .intersection(df.index[df.carrier == carrier])
+                .intersection(static.index[static.carrier == carrier])
                 .rename(dim)
             )
             if period is not None:
@@ -70,7 +70,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
                 continue
 
             bus = "bus0" if c in n.branch_components else "bus"
-            busmap = df.loc[ext_i, bus].rename(busdim).to_xarray()
+            busmap = static.loc[ext_i, bus].rename(busdim).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum()
             lhs_per_bus_list.append(expr)
 
@@ -146,14 +146,14 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
             dim = f"{c}-ext"
-            df = n.df(c)
+            static = n.static(c)
 
-            if c not in n.one_port_components or "carrier" not in df:
+            if c not in n.one_port_components or "carrier" not in static:
                 continue
 
             ext_i = (
                 n.get_extendable_i(c)
-                .intersection(df.index[df.carrier == carrier])
+                .intersection(static.index[static.carrier == carrier])
                 .rename(dim)
             )
             if period is not None:
@@ -162,7 +162,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             if ext_i.empty:
                 continue
 
-            busmap = df.loc[ext_i, "bus"].rename(buses.name).to_xarray()
+            busmap = static.loc[ext_i, "bus"].rename(buses.name).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum().reindex({buses.name: buses})
             lhs.append(expr)
 
@@ -203,13 +203,13 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         dim = f"{c}-ext"
-        df = n.df(c)
+        static = n.static(c)
 
-        if "carrier" not in df:
+        if "carrier" not in static:
             continue
 
         limited_i = (
-            df.index[df.carrier.isin(carrier_i)]
+            static.index[static.carrier.isin(carrier_i)]
             .intersection(n.get_extendable_i(c))
             .rename(dim)
         )
@@ -219,7 +219,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         active = pd.concat({p: n.get_active_assets(c, p) for p in periods}, axis=1)
         active = active.loc[limited_i].rename_axis(columns="periods").T
         first_active = DataArray(active.cumsum() == 1)
-        carriers = df.loc[limited_i, "carrier"].rename("Carrier")
+        carriers = static.loc[limited_i, "carrier"].rename("Carrier")
 
         vars = m[var].sel({dim: limited_i}).where(first_active)
         expr = vars.groupby(carriers.to_xarray()).sum()
@@ -369,10 +369,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             rhs -= sus.state_of_charge_initial.sum()
 
         # stores
-        bus_carrier = n.stores.bus.map(n.buses.carrier)  # noqa: F841
-        stores = n.stores.query(
-            "@bus_carrier == @glc.carrier_attribute and not e_cyclic"
-        )
+        stores = n.stores.query("carrier == @glc.carrier_attribute and not e_cyclic")
         if not stores.empty:
             e = m["Store-e"].loc[snapshots, stores.index]
             e = e.ffill("snapshot").isel(snapshot=-1)
@@ -423,9 +420,9 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(
-                ext_i.name
-            )
+            ext_i = ext_i.intersection(
+                n.static(c).query("carrier in @car").index
+            ).rename(ext_i.name)
 
             if ext_i.empty:
                 continue
@@ -437,7 +434,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
                     n.get_active_assets(c, sns.unique("period"))[ext_i]
                 ].rename(ext_i.name)
 
-            length = n.df(c).length.reindex(ext_i)
+            length = n.static(c).length.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((length, vars)).sum())
 
@@ -489,9 +486,9 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(
-                ext_i.name
-            )
+            ext_i = ext_i.intersection(
+                n.static(c).query("carrier in @car").index
+            ).rename(ext_i.name)
 
             if not isnan(period):
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
@@ -512,7 +509,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             else:
                 weights = 1
 
-            cost = n.df(c).capital_cost.reindex(ext_i) * weights
+            cost = n.static(c).capital_cost.reindex(ext_i) * weights
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 

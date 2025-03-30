@@ -11,10 +11,8 @@ from typing import TYPE_CHECKING
 from urllib.error import HTTPError
 from urllib.request import urlretrieve
 
-import pandas as pd
-
-from pypsa.components import Network
 from pypsa.io import _data_dir
+from pypsa.networks import Network
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -67,6 +65,20 @@ def _retrieve_if_not_local(
     return str(path)
 
 
+def _sanitize_ac_dc_meshed(n: Network, remove_link_p_set: bool = True) -> None:
+    # TODO: make this function obsolete by adjusting the input files
+    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
+    n.carriers["color"] = ["red", "blue", "green"]
+    n.loads["carrier"] = "load"
+    n.lines["carrier"] = "AC"
+    n.links["carrier"] = "DC"
+    n.add("Carrier", "load", color="black")
+    n.add("Carrier", "AC", color="orange")
+    n.add("Carrier", "DC", color="purple")
+    if remove_link_p_set:
+        n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+
+
 def ac_dc_meshed(
     update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
 ) -> Network:
@@ -91,8 +103,7 @@ def ac_dc_meshed(
         name, repofile, update=update, from_master=from_master
     )
     n = Network(path)
-    if remove_link_p_set:
-        n.links_t.p_set = pd.DataFrame(index=n.snapshots)
+    _sanitize_ac_dc_meshed(n, remove_link_p_set=remove_link_p_set)
     return n
 
 
@@ -135,4 +146,14 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     path = _retrieve_if_not_local(
         name, repofile, update=update, from_master=from_master
     )
-    return Network(path)
+    n = Network(path)
+    carriers = list(
+        {
+            carrier
+            for c in n.iterate_components()
+            if "carrier" in c.static
+            for carrier in c.static.carrier.unique()
+        }
+    )
+    n.add("Carrier", carriers)
+    return n

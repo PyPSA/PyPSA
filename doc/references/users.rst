@@ -14,6 +14,8 @@ The PyPSA user meetings give further insight into the use of PyPSA in the energy
 
 Find the 1st PyPSA user meeting in 10/2022 `here <https://www.youtube.com/embed/fmwDxNpSMM4>`_.
 
+.. _academic-mentions:
+
 Universities and Research Institutes
 ====================================
 
@@ -25,9 +27,11 @@ Universities and Research Institutes
 
 * `Frankfurt Institute of Advanced Studies <https://fias.science/>`_ (FIAS, where PyPSA was initially developed): multiple research papers, for example: `doi:10.1016/j.energy.2017.06.004 <https://doi.org/10.1016/j.energy.2017.06.004>`_, `doi:10.1109/EEM.2017.7982024 <https://doi.org/10.1109/EEM.2017.7982024>`_, `doi:10.1016/j.energy.2018.08.070 <https://doi.org/10.1016/j.energy.2018.08.070>`_, `doi:10.1016/j.apenergy.2018.09.084 <https://doi.org/10.1016/j.apenergy.2018.09.084>`_, `doi:10.1016/j.epsr.2017.12.034 <https://doi.org/10.1016/j.epsr.2017.12.034>`_
 
+* `Stanford University <https://www.stanford.edu/>`_ in the United States: research paper: `doi:10.2139/ssrn.5029120 <https://dx.doi.org/10.2139/ssrn.5029120>`_
+
 * `TU Delft <https://www.tudelft.nl/>`_ in the Netherlands: multiple research papers: `doi:10.1016/j.eneco.2018.04.037 <https://doi.org/10.1016/j.eneco.2018.04.037>`_, `doi:10.1016/j.energy.2017.02.111 <https://doi.org/10.1016/j.energy.2017.02.111>`_
 
-* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022. In 2023, JRC used PyPSA for the study `"MODECO – Modelling study on the role of energy communities in the energy transition" <https://publications.jrc.ec.europa.eu/repository/bitstream/JRC132896/JRC132896_01.pdf>`_
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ converted METIS/PRIMES scenarios for the `Fit for 55 package to PyPSA networks <https://zenodo.org/record/7065568#.YygkDKRByMo>`_ in 2022 and used PyPSA for further research: `doi:10.3390/en15124233 <https://doi.org/10.3390/en15124233>`_ in 2022. In 2023, JRC used PyPSA for the study `"MODECO – Modelling study on the role of energy communities in the energy transition" <https://publications.jrc.ec.europa.eu/repository/handle/JRC132896>`_ and in 2024 for the study `"Redispatch and Congestion Management" <https://publications.jrc.ec.europa.eu/repository/handle/JRC137685>`_
 
 * `Chalmers University <https://www.chalmers.se/>`_ in Sweden: research paper: `doi.org:10.1016/j.apenergy.2022.120016 <https://doi.org/10.1016/j.apenergy.2022.120016>`_
 
@@ -43,7 +47,7 @@ Universities and Research Institutes
 
 * `DLR Institute of Networked Energy Systems <https://www.dlr.de/ve/desktopdefault.aspx/tabid-12472/21440_read-49440/>`_ in Oldenburg, Germany: research paper `doi:10.1016/j.apenergy.2020.114523 <https://doi.org/10.1016/j.apenergy.2020.114523>`_ and a `dataset publication <https://doi.org/10.1038/s41597-023-01992-9>`_ for the Brazilian power system.
 
-* `University of Oxford <https://www.ox.ac.uk/>`_ and the `University of Sevilla <https://www.us.es/>`_ in a `study <https://doi.org/10.1016/j.apenergy.2023.122331>`_ on the role of regionally resolved heat pump demand in power system design
+* `University of Oxford <https://www.ox.ac.uk/>`_ in `study on green ammonia imports <https://iopscience.iop.org/article/10.1088/2753-3751/ad785d>`_ as a supplement to long-duration energy storage in the UK and with the `University of Sevilla <https://www.us.es/>`_ in a `study on the role of regionally resolved heat pump demand <https://doi.org/10.1016/j.apenergy.2023.122331>`_ in power system design.
 
 * `Council for Scientific and Industrial Research <https://www.csir.co.za/>`_ (CSIR) in South Africa: research publication `arXiv:1710.11199 <https://arxiv.org/abs/1710.11199>`_
 
@@ -65,6 +69,8 @@ Universities and Research Institutes
 
 * `Forschungszentrum Jülich <https://www.fz-juelich.de/>`_ (FZJ) for network calculations
 
+* `Forschungsstelle für Energiewirtschaft (FfE) <https://www.ffe.de/>`_ uses PyPSA for their `HyPTraDe <https://www.ffe.de/tools/hyptrade-global-hydrogen-modellkette/>`__ global hydrogen model chain.
+
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
 * `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
@@ -73,15 +79,26 @@ Universities and Research Institutes
 
 * `The University of Edinburgh <https://www.eng.ed.ac.uk/research/institutes/ies>`_: introduced PyPSA-GB: An open-source model of Great Britain's power system for simulating future energy scenarios (Energy Strategy Reviews, May 2024) `doi.org/10.1016/j.esr.2024.101375 <https://doi.org/10.1016/j.esr.2024.101375>`_
 
+* `Energy Innovation Lab <https://energyinnovation.korea.ac.kr/>`_ at `Korea University <https://www.korea.ac.kr/sites/ko/index.do>`_ uses PyPSA-Earth to support development of long-term energy strategy
+
+* `South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS) <https://ait.ac.th/centre/smartscenter/>`_ at `Asian Institute of Technology <https://ait.ac.th/>`_  and `Department of Electrical and Electronic Engineering at International University of Business Agriculture and Technology (IUBAT), Dhaka <https://eee.iubat.edu/>`_ developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh `<https://doi.org/10.1016/j.ref.2024.100655>`_
+
+* `RISE Research Institutes of Sweden AB <https://www.ri.se/>`_ (RISE) for energy systems research in `RESILIENT project <https://resilient-project.github.io/>`_ and more.
 
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
 
-* The `International Energy Agency (IEA) <https://www.iea.org/>`_ uses PyPSA within their `Global Energy
+* `International Energy Agency (IEA) <https://www.iea.org/>`_ uses PyPSA within their `Global Energy
   and Climate Model
   <https://www.iea.org/reports/global-energy-and-climate-model>`_. A 2024 report `Managing the Seasonal Variability of Electricity Demand and Supply <https://www.iea.org/reports/managing-the-seasonal-variability-of-electricity-demand-and-supply>`_ used PyPSA to explore how seasonal variations in both demand and supply affect electricity system operations in various world regions in 2050.
 
+* `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ in various studies (see :ref:`academic-mentions` for details).
+
 * `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
+
+* `ENTSO-E (European Network of Transmission System Operators for Electricity) <https://www.entsoe.eu/>`_ launched in collaboration with `Open Energy Transition <https://openenergytransition.org/>`_ a research and innovation project to develop a complementary open-source tool in PyPSA for `Scenario Building and Cost-Benefit Analysis within the TYNDP process <https://www.linkedin.com/posts/entso-e_energytransition-opensource-innovation-activity-7293296246813851649-2ynL>`_.
+
+* `The EU Agency for the Cooperation of Energy Regulators (ACER) <https://www.acer.europa.eu/>`_ is building a PyPSA solution for the `EU-wide flexibility assessment platform <https://www.acer.europa.eu/sites/default/files/documents/en/The_agency/Organisation/Expert_Groups/EG_Flexibility/Flexibility_EG_Open_Letter_2025.pdf>`_.
 
 * `Open Energy Transition <https://openenergytransition.org/>`_, a non-profit software company and environmental think tank: uses, develops and provides commercial support and training for PyPSA. List of projects: `https://openenergytransition.org/projects.html <https://openenergytransition.org/projects.html>`_
 
@@ -102,7 +119,7 @@ Companies, Governmental and Non-Governmental Organisations
 
 * `The Rocky Mountain Institute <https://rmi.org/>`_ (RMI), a non-profit organization in the United States focused on a zero-carbon future, used PyPSA for analysing the levelised cost of hydrogen in different parts of the world in a study from 2021: `Fueling the Transition: Accelerating Cost-Competitive Green Hydrogen <https://rmi.org/insight/fueling-the-transition-accelerating-cost-competitive-green-hydrogen/>`_
 
-* `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example a study on `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_ and a a `study on the Philippines <https://climateanalytics.org/publications/a-15c-future-is-possible-getting-fossil-fuels-out-of-the-philippine-power-sector>`_.
+* `Climate Analytics <https://climateanalytics.org/>`_, a non-profit climate science and policy institute, uses PyPSA for energy system studies, see for example a study on `Employment opportunities from a coal-to-renewables transition in South Korea <https://climateanalytics.org/publications/2021/employment-opportunities-from-a-coal-to-renewables-transition-in-south-korea/>`_ and a `study on the Philippines <https://climateanalytics.org/publications/a-15c-future-is-possible-getting-fossil-fuels-out-of-the-philippine-power-sector>`_.
 
 * `Instrat <https://instrat.pl/en/>`_, a think-tank focused on public policy in Poland, built PyPSA-PL and published reports in 2021 including `What's next after coal? RES potential in Poland <http://instrat.pl/wp-content/uploads/2021/06/Instrat-What-next-after-coal-v.1.2.pdf>`_ and `Achieving the goal: Coal phase-out in the Polish power sector <https://instrat.pl/en/coal-phase-out/>`_
 

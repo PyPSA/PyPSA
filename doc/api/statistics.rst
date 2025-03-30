@@ -2,11 +2,12 @@
 Statistics
 ###########
 
-Statistic functions which can be called within a :class:`pypsa.Network` via
-``n.statistics.func``. For example ``n.statistics.capex()``.
+.. seealso::
 
-Statistic methods
-~~~~~~~~~~~~~~~~~~
+    See :doc:`/user-guide/statistics` for the usage documentation.
+
+Metrics
+========
 
 .. autosummary::
     :toctree: _source/
@@ -27,26 +28,19 @@ Statistic methods
     ~pypsa.statistics.StatisticsAccessor.revenue
     ~pypsa.statistics.StatisticsAccessor.market_value
 
-    
-Statistic groupers
-~~~~~~~~~~~~~~~~~~~
 
-Groupers can be used in combination with the statistic methods. For example
-
-.. code-block:: python
-    
-    groupers = n.statistics.groupers
-    n.statistics.capex(groupby=groupers.get_carrier)
-
-Or any other grouper could be used.
+Grouping
+========
 
 .. autosummary::
     :toctree: _source/
 
-    ~pypsa.statistics.Groupers.get_carrier
-    ~pypsa.statistics.Groupers.get_bus_and_carrier
-    ~pypsa.statistics.Groupers.get_name_bus_and_carrier
-    ~pypsa.statistics.Groupers.get_country_and_carrier
-    ~pypsa.statistics.Groupers.get_carrier_and_bus_carrier
-    ~pypsa.statistics.Groupers.get_bus_and_carrier_and_bus_carrier
-    ~pypsa.statistics.Groupers.get_bus_unit_and_carrier
+    ~pypsa.statistics.grouping.Groupers.add_grouper
+    ~pypsa.statistics.grouping.Groupers.list_groupers
+    ~pypsa.statistics.grouping.Groupers.carrier
+    ~pypsa.statistics.grouping.Groupers.bus_carrier
+    ~pypsa.statistics.grouping.Groupers.name
+    ~pypsa.statistics.grouping.Groupers.bus
+    ~pypsa.statistics.grouping.Groupers.country
+    ~pypsa.statistics.grouping.Groupers.location
+    ~pypsa.statistics.grouping.Groupers.unit

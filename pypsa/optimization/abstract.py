@@ -24,6 +24,110 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def discretized_capacity(
+    nom_opt: float,
+    nom_max: float,
+    unit_size: float,
+    threshold: float,
+    fractional_last_unit_size: bool,
+    min_units: int | None = None,
+) -> float:
+    """
+    Discretize a optimal capacity to a capacity that is either a multiple of a unit size
+    or the maximum capacity, depending on the variable `fractional_last_unit_size`.
+
+    This function checks if the optimal capacity is within the threshold of the unit
+    size. If so, it returns the next multiple of the unit size - if not it returns the
+    last multiple of the unit size.
+    In the special case that the maximum capacity is not a multiple of the unit size,
+    the variable `fractional_last_unit_size` determines if the returned capacity is the
+    maximum capacity (True) or the last multiple of the unit size (False).
+    In case the maximum capacity is lower than the unit size, the function returns the
+    maximum capacity.
+
+    Parameters
+    ----------
+    nom_opt : float
+        The optimal capacity as returned by the optimization.
+    nom_max : float
+        The maximum capacity as defined in the network.
+    unit_size : float
+        The unit size for the capacity.
+    threshold : float
+        The threshold relative to the unit size for discretizing the capacity.
+    fractional_last_unit_size : bool
+        Whether only multiples of the unit size or the maximum capacity.
+    min_units: int, default None
+        The minimum number of units that should be installed.
+
+        .. deprecated:: 0.31
+            The `min_units` parameter is deprecated and will be removed in future versions.
+
+    Returns
+    -------
+    float
+        The discretized capacity.
+
+    Examples
+    --------
+    >>> discretized_capacity(
+    ... nom_opt = 7,
+    ... nom_max = 25,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = False)
+    10
+    >>> discretized_capacity(
+    ... nom_opt = 7,
+    ... nom_max = 8,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = False)
+    5
+    >>> discretized_capacity(
+    ... nom_opt = 7,
+    ... nom_max = 8,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = True)
+    8
+    >>> discretized_capacity(
+    ... nom_opt = 3,
+    ... nom_max = 4,
+    ... unit_size = 5,
+    ... threshold = 0.1,
+    ... fractional_last_unit_size = False)
+    4
+    """
+    if min_units is not None:
+        raise DeprecationWarning(
+            "The `min_units` parameter is deprecated and will be removed in future "
+            "versions."
+        )
+    units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
+
+    if min_units is not None:
+        block_capacity = max(min_units, units) * unit_size
+    else:
+        block_capacity = units * unit_size
+    if nom_max % unit_size == 0:
+        return block_capacity
+
+    else:
+        if (nom_max - nom_opt) < unit_size:
+            if (
+                fractional_last_unit_size
+                and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
+            ):
+                return nom_max
+            elif nom_max < unit_size:
+                return nom_max
+            else:
+                return (nom_opt // unit_size) * unit_size
+        else:
+            return block_capacity
+
+
 def optimize_transmission_expansion_iteratively(
     n: Network,
     snapshots: Sequence | None = None,
@@ -35,6 +139,7 @@ def optimize_transmission_expansion_iteratively(
     link_unit_size: dict | None = None,
     line_threshold: float | None = None,
     link_threshold: dict | None = None,
+    fractional_last_unit_size: bool = False,
     **kwargs: Any,
 ) -> tuple[str, str]:
     """
@@ -48,7 +153,7 @@ def optimize_transmission_expansion_iteratively(
     ----------
     snapshots : list or index slice
         A list of snapshots to optimise, must be a subset of
-        network.snapshots, defaults to network.snapshots
+        n.snapshots, defaults to n.snapshots
     msq_threshold: float, default 0.05
         Maximal mean square difference between optimized line capacity of
         the current and the previous iteration. As soon as this threshold is
@@ -74,10 +179,11 @@ def optimize_transmission_expansion_iteratively(
         The threshold relative to the unit size for discretizing line components.
     link_threshold: dict-like, default 0.3 per carrier
         The threshold relative to the unit size for discretizing link components.
+    fractional_last_unit_size: bool, default False
+        Whether only multiples of the unit size or in case of a maximum capacity fractions of unit size is allowed.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
-
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     ext_i = n.get_extendable_i("Line").copy()
     typed_i = n.lines.query('type != ""').index
@@ -106,13 +212,13 @@ def optimize_transmission_expansion_iteratively(
             / n.lines["s_nom_opt"].mean()
         )
         logger.info(
-            f"Mean square difference after iteration {iteration} is " f"{lines_err}"
+            f"Mean square difference after iteration {iteration} is {lines_err}"  # type: ignore
         )
         return lines_err
 
     def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-            n.df(c)[f"{attr}_opt_{iteration}"] = n.df(c)[f"{attr}_opt"]
+            n.static(c)[f"{attr}_opt_{iteration}"] = n.static(c)[f"{attr}_opt"]
         setattr(n, f"status_{iteration}", status)
         setattr(n, f"objective_{iteration}", n.objective)
         n.iteration = iteration
@@ -120,21 +226,13 @@ def optimize_transmission_expansion_iteratively(
             columns={"mu": f"mu_{iteration}"}
         )
 
-    def discretized_capacity(
-        nom_opt: float,
-        unit_size: float,
-        threshold: float,
-        min_units: int = 0,
-    ) -> float:
-        units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
-        return max(min_units, units) * unit_size
-
     def discretize_branch_components(
         n: Network,
         line_unit_size: float | None,
         link_unit_size: dict | None,
         line_threshold: float | None,
         link_threshold: dict | None,
+        fractional_last_unit_size: bool = False,
     ) -> None:
         """
         Discretizes the branch components of a network based on the specified
@@ -145,20 +243,29 @@ def optimize_transmission_expansion_iteratively(
         link_threshold = link_threshold or {}
 
         if line_unit_size:
-            min_units = 1
-            n.lines["s_nom"] = n.lines["s_nom_opt"].apply(
-                discretized_capacity, args=(line_unit_size, line_threshold, min_units)
+            n.lines["s_nom"] = n.lines.apply(
+                lambda row: discretized_capacity(
+                    nom_opt=row["s_nom_opt"],
+                    nom_max=row["s_nom_max"],
+                    unit_size=line_unit_size,
+                    threshold=line_threshold,
+                    fractional_last_unit_size=fractional_last_unit_size,
+                ),
+                axis=1,
             )
 
         if link_unit_size:
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
                 idx = n.links.carrier == carrier
-                n.links.loc[idx, "p_nom"] = n.links.loc[idx, "p_nom_opt"].apply(
-                    discretized_capacity,
-                    args=(
-                        link_unit_size[carrier],
-                        link_threshold.get(carrier, 0.3),
+                n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
+                    lambda row: discretized_capacity(
+                        nom_opt=row["p_nom_opt"],
+                        nom_max=row["p_nom_max"],
+                        unit_size=link_unit_size[carrier],
+                        threshold=link_threshold.get(carrier, 0.3),
+                        fractional_last_unit_size=fractional_last_unit_size,
                     ),
+                    axis=1,
                 )
 
     if link_threshold is None:
@@ -166,7 +273,7 @@ def optimize_transmission_expansion_iteratively(
 
     if track_iterations:
         for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-            n.df(c)[f"{attr}_opt_0"] = n.df(c)[f"{attr}"]
+            n.static(c)[f"{attr}_opt_0"] = n.static(c)[f"{attr}"]
 
     iteration = 1
     diff = msq_threshold
@@ -222,6 +329,7 @@ def optimize_transmission_expansion_iteratively(
         link_unit_size,
         line_threshold,
         link_threshold,
+        fractional_last_unit_size,
     )
 
     n.calculate_dependent_values()
@@ -285,7 +393,7 @@ def optimize_security_constrained(
 
     if branch_outages is None:
         branch_outages = all_passive_branches
-    elif isinstance(branch_outages, (list, pd.Index)):
+    elif isinstance(branch_outages, (list | pd.Index)):
         branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
         if diff := set(branch_outages) - set(all_passive_branches):
@@ -307,15 +415,17 @@ def optimize_security_constrained(
         **model_kwargs,
     )
 
-    for sn in n.sub_networks.obj:
-        branches_i = sn.branches_i()
+    for sub_network in n.sub_networks.obj:
+        branches_i = sub_network.branches_i()
         outages = branches_i.intersection(branch_outages)
 
         if outages.empty:
             continue
 
-        sn.calculate_BODF()
-        BODF = pd.DataFrame(sn.BODF, index=branches_i, columns=branches_i)[outages]
+        sub_network.calculate_BODF()
+        BODF = pd.DataFrame(sub_network.BODF, index=branches_i, columns=branches_i)[
+            outages
+        ]
 
         for c_outage, c_affected in product(outages.unique(0), branches_i.unique(0)):
             c_outage_ = c_outage + "-outage"
@@ -334,11 +444,11 @@ def optimize_security_constrained(
                 rename = {c_affected: coord}
                 added_flow = additional_flow.rename(rename)
                 con = m.constraints[constraint]  # use this as a template
-                # idx now contains fixed/extendable for the subnetwork
+                # idx now contains fixed/extendable for the sub-network
                 idx = con.lhs.indexes[coord].intersection(added_flow.indexes[coord])
                 sel = {coord: idx}
                 lhs = con.lhs.sel(sel) + added_flow.sel(sel)
-                name = constraint + f"-security-for-{c_outage_}-in-{sn}"
+                name = constraint + f"-security-for-{c_outage_}-in-{sub_network}"
                 m.add_constraints(lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name)
 
     return n.optimize.solve_model(**kwargs)
@@ -381,7 +491,7 @@ def optimize_with_rolling_horizon(
         end = min(len(snapshots), start + horizon)
         sns = snapshots[start:end]
         logger.info(
-            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i+1}/{len(starting_points)})."
+            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i + 1}/{len(starting_points)})."
         )
 
         if i:
@@ -425,18 +535,9 @@ def optimize_mga(
     weights : dict-like
         Weights for alternate objective function. The default is None, which
         minimizes generation capacity. The weights dictionary should be keyed
-        with the component and variable (see ``pypsa/variables.csv``), followed
+        with the component and variable (see ``pypsa/data/variables.csv``), followed
         by a float, dict, pd.Series or pd.DataFrame for the coefficients of the
-        objective function. Examples:
-
-        >>> {"Generator": {"p_nom": 1}}
-        >>> {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
-        >>> {"Generator": {"p_nom": {"gas": 1, "coal": 2}}}
-        >>> {"Generator": {"p": pd.Series(1, index=n.generators.index)}
-        >>> {"Generator": {"p": pd.DataFrame(1, columns=n.generators.index, index=n.snapshots)}
-
-        Weights for non-extendable components are ignored. The dictionary does
-        not need to provide weights for all extendable components.
+        objective function.
     sense : str|int
         Optimization sense of alternate objective function. Defaults to 'min'.
         Can also be 'max'.
@@ -457,6 +558,7 @@ def optimize_mga(
         The termination condition of the optimization, either
         "optimal" or one of the codes listed in
         https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+
     """
     if snapshots is None:
         snapshots = n.snapshots
@@ -488,7 +590,7 @@ def optimize_mga(
         fixed_cost = (n.statistics.installed_capex().sum() * w).sum()
 
     objective = m.objective
-    if not isinstance(objective, (LinearExpression, QuadraticExpression)):
+    if not isinstance(objective, (LinearExpression | QuadraticExpression)):
         objective = objective.expression
 
     m.add_constraints(
@@ -523,9 +625,9 @@ def optimize_mga(
                 coeffs = coeffs.reindex(n.get_extendable_i(c))
                 coeffs.index.name = ""
             elif isinstance(coeffs, pd.Series):
-                coeffs = coeffs.reindex(columns=n.df(c).index)
+                coeffs = coeffs.reindex(columns=n.static(c).index)
             elif isinstance(coeffs, pd.DataFrame):
-                coeffs = coeffs.reindex(columns=n.df(c).index, index=snapshots)
+                coeffs = coeffs.reindex(columns=n.static(c).index, index=snapshots)
             objective.append(m[f"{c}-{attr}"] * coeffs * sense)
 
     m.objective = merge(objective)
@@ -549,3 +651,87 @@ def optimize_mga(
     n.meta["weights"] = convert_to_dict(weights)
 
     return status, condition
+
+
+def optimize_and_run_non_linear_powerflow(
+    n: Network,
+    snapshots: Sequence | None = None,
+    skip_pre: bool = False,
+    x_tol: float = 1e-06,
+    use_seed: bool = False,
+    distribute_slack: bool = False,
+    slack_weights: str = "p_set",
+    **kwargs: Any,
+) -> dict:
+    """
+    Optimizes the network and then performs a non-linear power flow for all snapshots.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The PyPSA Network object to optimize and analyze.
+    snapshots : Sequence | None, optional
+        Set of snapshots to consider in the optimization and power flow.
+        If None, uses all snapshots in the network.
+    skip_pre : bool, optional
+        Skip the preliminary steps of the power flow, by default False.
+    x_tol : float, optional
+        Power flow convergence tolerance, by default 1e-06.
+    use_seed : bool, optional
+        Use the last solution as initial guess, by default False.
+    distribute_slack : bool, optional
+        Distribute slack power across generators, by default False.
+    slack_weights : str, optional
+        How to distribute slack power, by default 'p_set'.
+    **kwargs : Any
+        Keyword arguments passed to the optimize function.
+
+    Returns
+    -------
+    Tuple[str, str, Dict]
+        A tuple containing:
+        - optimization status
+        - optimization condition
+        - dictionary of power flow results for all snapshots
+    """
+    if snapshots is None:
+        snapshots = n.snapshots
+
+    # Step 1: Optimize the network
+    status, condition = n.optimize(snapshots, **kwargs)  # type: ignore
+
+    if status != "ok":
+        logger.warning(
+            f"Optimization failed with status {status} and condition {condition}"
+        )
+        return dict(status=status, terminantion_condition=condition)
+
+    for c in n.one_port_components:
+        n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
+    for c in {"Link"}:
+        n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
+
+    n.generators.control = "PV"
+    for sub_network in n.sub_networks.obj:
+        n.generators.loc[sub_network.slack_generator, "control"] = "Slack"
+    # Need some PQ buses so that Jacobian doesn't break
+    for sub_network in n.sub_networks.obj:
+        generators = sub_network.generators_i()
+        other_generators = generators.difference([sub_network.slack_generator])
+        if not other_generators.empty:
+            n.generators.loc[other_generators[0], "control"] = "PQ"
+
+    # Step 2: Perform non-linear power flow for all snapshots
+    logger.info("Running non-linear power flow iteratively...")
+
+    # Run non-linear power flow
+    res = n.pf(
+        snapshots=snapshots,
+        skip_pre=skip_pre,
+        x_tol=x_tol,
+        use_seed=use_seed,
+        distribute_slack=distribute_slack,
+        slack_weights=slack_weights,
+    )
+
+    return dict(status=status, terminantion_condition=condition, **res)

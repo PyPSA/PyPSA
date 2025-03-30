@@ -1,13 +1,14 @@
 ---
-name: Feature request
+name: Feature Request
 about: Suggest an idea for this project
 title: ''
-labels: enhancement
+labels: ["needs triage"]
+type: 'Feature'
 assignees: ''
 
 ---
 
-<!-- Please do not post usage questions here. Ask them on the PyPSA mailing list: https://groups.google.com/forum/#!forum/pypsa -->
+<!-- Please do not post usage questions here. Ask them on the PyPSA Discord server: https://discord.gg/AnuJBk23FU -->
 
 ## Describe the feature you'd like to see
 

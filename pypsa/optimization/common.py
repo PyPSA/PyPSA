@@ -13,7 +13,7 @@ from numpy import hstack, ravel
 if TYPE_CHECKING:
     import xarray as xr
 
-    from pypsa.components import Network
+    from pypsa import Network
 
 
 def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
@@ -39,12 +39,12 @@ def set_from_frame(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
     """
     Update values in time-dependent attribute from new dataframe.
     """
-    pnl = n.pnl(c)
-    if (attr not in pnl) or (pnl[attr].empty):
-        pnl[attr] = df.reindex(n.snapshots).fillna(0.0)
+    dynamic = n.dynamic(c)
+    if (attr not in dynamic) or (dynamic[attr].empty):
+        dynamic[attr] = df.reindex(n.snapshots).fillna(0.0)
     else:
-        pnl[attr].loc[df.index, df.columns] = df
-        pnl[attr] = pnl[attr].fillna(0.0)
+        dynamic[attr].loc[df.index, df.columns] = df
+        dynamic[attr] = dynamic[attr].fillna(0.0)
 
 
 def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
@@ -62,8 +62,10 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     pandas series of all meshed buses.
     """
     all_buses = pd.Series(
-        hstack([ravel(c.df.filter(like="bus")) for c in n.iterate_components()])
+        hstack([ravel(c.static.filter(like="bus")) for c in n.iterate_components()])
     )
     all_buses = all_buses[all_buses != ""]
     counts = all_buses.value_counts()
-    return counts.index[counts > 20].rename("Bus-meshed")
+    results = counts.index[counts > threshold].rename("Bus-meshed")
+    results = results.sort_values()
+    return results

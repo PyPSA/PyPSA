@@ -9,7 +9,6 @@ def test_stand_by_cost():
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
     n = pypsa.Network()
 
     snapshots = range(4)
