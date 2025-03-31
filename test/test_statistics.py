@@ -291,3 +291,11 @@ def test_transmission_carriers(ac_dc_network_r):
     n.lines["carrier"] = "AC"
     df = pypsa.statistics.get_transmission_carriers(ac_dc_network_r)
     assert "AC" in df.unique(1)
+
+
+def test_system_cost(ac_dc_network_r):
+    n = ac_dc_network_r
+    capex = n.statistics.capex().sum()
+    opex = n.statistics.opex().sum()
+    system_cost = n.statistics.system_cost().sum()
+    assert system_cost == capex + opex
