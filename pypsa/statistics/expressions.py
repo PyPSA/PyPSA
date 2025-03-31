@@ -1056,12 +1056,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
+        cost_types: str | Sequence[str] | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the ongoing operational costs.
+        Calculate the operational expenditure in the network in given currency.
 
-        Takes into account various operational parameters and their costs, measured in
-        the specified currency.
+        Operational expenditures include the marginal, marginal quadratic,
+        storage holding, spillage, start-up, shut-down and stand-by costs.
 
         Parameters
         ----------
@@ -1110,6 +1111,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
+        cost_types : str | Sequence[str] | None, default=None
+            List of cost types to include in the calculation. Available options
+            are: 'marginal_cost', 'marginal_cost_quadratic',
+            'marginal_cost_storage', 'spill_cost', 'start_up_cost',
+            'shut_down_cost', 'stand_by_cost'. Defaults to all (when None).
 
         Returns
         -------
@@ -1125,19 +1131,65 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        from pypsa.optimization.optimize import lookup
+
+        if cost_types is None:
+            cost_types_ = [
+                "marginal_cost",
+                "marginal_cost_quadratic",
+                "marginal_cost_storage",
+                "spill_cost",
+                "start_up_cost",
+                "shut_down_cost",
+                "stand_by_cost",
+            ]
+        elif isinstance(cost_types, str):
+            cost_types_ = [cost_types]
+        else:
+            cost_types_ = list(cost_types)
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            if c in n.branch_components:
-                p = n.dynamic(c).p0
-            elif c == "StorageUnit":
-                p = n.dynamic(c).p_dispatch
-            else:
-                p = n.dynamic(c).p
-
-            opex = p * n.get_switchable_as_dense(c, "marginal_cost")
+            result = []
             weights = get_weightings(n, c)
-            return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
+            weights_one = pd.Series(1.0, index=weights.index)
+            com_i = n.get_committable_i(c)
+
+            for cost_type in [
+                "marginal_cost",
+                "marginal_cost_storage",
+                "marginal_cost_quadratic",
+                "spill_cost",
+            ]:
+                if cost_type in cost_types_ and cost_type in n.static(c):
+                    attr = lookup.query(cost_type).loc[c].index.item()
+                    cost = n.get_switchable_as_dense(c, cost_type)
+                    p = n.dynamic(c)[attr]
+                    var = p * p if cost_type == "marginal_cost_quadratic" else p
+                    opex = var * cost
+                    term = self._aggregate_timeseries(opex, weights, agg=aggregate_time)
+                    result.append(term)
+
+            mapping = dict(
+                start_up_cost="start_up",
+                shut_down_cost="shut_down",
+                stand_by_cost="status",
+            )
+            for cost_type, attr in mapping.items():
+                if (
+                    cost_type in cost_types_
+                    and cost_type in n.static(c)
+                    and not com_i.empty
+                ):
+                    cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
+                    var = n.dynamic(c)[attr].loc[:, com_i]
+                    opex = var * cost
+                    w = weights if attr == "status" else weights_one
+                    term = self._aggregate_timeseries(opex, w, agg=aggregate_time)
+                    result.append(term)
+            if not result:
+                return pd.Series()
+            return pd.concat(result).groupby(level=0).sum()
 
         df = self._aggregate_components(
             func,
