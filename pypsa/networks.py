@@ -83,7 +83,8 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import explore, iplot, plot  # type: ignore
+from pypsa.plot.accessor import PlotAccessor
+from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 
@@ -233,9 +234,17 @@ class Network:
     pf = network_pf
 
     # from pypsa.plot
-    plot = plot
-    iplot = iplot
-    explore = explore
+    @deprecated(
+        details="Use `n.plot.iplot()` as a drop-in replacement instead.",
+    )
+    def iplot(self, *args: Any, **kwargs: Any) -> Any:
+        return iplot(self, *args, **kwargs)
+
+    @deprecated(
+        details="Use `n.plot.explore()` as a drop-in replacement instead.",
+    )
+    def explore(self, *args: Any, **kwargs: Any) -> Any:
+        return explore(self, *args, **kwargs)
 
     # from pypsa.contingency
     lpf_contingency = network_lpf_contingency
@@ -302,6 +311,7 @@ class Network:
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
         self.statistics: StatisticsAccessor = StatisticsAccessor(self)
+        self.plot: PlotAccessor = PlotAccessor(self)
 
         # Define component sets
         self._initialize_component_sets()
@@ -359,7 +369,12 @@ class Network:
 
     def __eq__(self, other: Any) -> bool:
         """Check for equality of two networks."""
-        ignore = [OptimizationAccessor, ClusteringAccessor, StatisticsAccessor]
+        ignore = [
+            OptimizationAccessor,
+            ClusteringAccessor,
+            StatisticsAccessor,
+            PlotAccessor,
+        ]
 
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():

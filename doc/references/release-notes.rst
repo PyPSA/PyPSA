@@ -5,11 +5,26 @@ Release Notes
 Upcoming Release
 ================
 
-.. warning:: 
+.. .. warning:: 
   
    The features listed below are not released yet, but will be part of the next release! 
    To use the features already you have to install the ``master`` branch, e.g. 
    ``pip install git+https://github.com/pypsa/pypsa``.
+
+
+* The previous maps module under `pypsa/plot` is now modularized. Instead of a 
+  monolithic module, the maps module is now split into several submodules. The
+  submodules are:
+
+  - `pypsa.plot.maps.common`: Base module for all maps.
+  - `pypsa.plot.maps.interactive`: Maps using interactive libraries.
+  - `pypsa.plot.maps.static`: Maps using static libraries.
+
+  The new modularized maps module allows for more flexibility and easier
+  maintenance. 
+
+`v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
+=======================================================================================
 
 Features
 --------
@@ -23,6 +38,20 @@ Features
   * `openpyxl` and `python-calamine` are required dependencies for this feature, but
     different engines can be passed. By default they are not installed, but can be
     installed via ``pip install pypsa[excel]``.
+
+* New plotting library
+
+  * You can now create plots on any PyPSA statistic. Try them with:
+
+    * :meth:`n.statistics.energy_balance.plot() <pypsa.plot.statistics.plotter.StatisticPlotter.__call__>` to get the pre defined default plot
+    * :meth:`n.statistics.energy_balance.plot.bar() <pypsa.plot.statistics.plotter.StatisticPlotter.bar>` to get a bar plot
+    * :meth:`n.statistics.energy_balance.plot.line() <pypsa.plot.statistics.plotter.StatisticPlotter.line>` to get a line plot
+    * :meth:`n.statistics.energy_balance.plot.area() <pypsa.plot.statistics.plotter.StatisticPlotter.area>` to get a area plot
+    * :meth:`n.statistics.energy_balance.plot.map() <pypsa.plot.statistics.plotter.StatisticPlotter.map>` to get a map plot
+
+  * ``n.plot()``  was moved to ``n.plot.map()``
+
+  * ``n.explore()`` was moved to ``n.plot.explore()`` and ``n.iplot()`` was moved to ``n.plot.iplot()``
 
 * Statistics module
 
@@ -45,18 +74,27 @@ Features
 Minor improvements
 ------------------
 
-* Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed buses. (https://github.com/PyPSA/PyPSA/pull/1174)
+* Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed 
+  buses. (https://github.com/PyPSA/PyPSA/pull/1174)
 
-* Added warning for consistent legend circle and semicirle sizes when combining plots on a geographical axis.
+* Added warning for consistent legend circle and semicirle sizes when combining plots 
+  on a geographical axis.
 
 * Add new statistic ``n.statistics.system_cost()`` to calculate the total system cost from capital and operational expenditures.
 
 * Added descriptive attribute "location" to Buses. This attribute does not influence the optimisation model but can be used for aggregation in the statistics module.
 
+* Added descriptive attribute "location" to Buses. This attribute does not influence
+  the optimisation model but can be used for aggregation in the statistics module.
+  (https://github.com/PyPSA/PyPSA/pull/1182)
+
+
 Bug fixes
 ---------
 
-* Fixed ``pypsa.plot.add_legend_semicircles()`` circle sizing to be consistent with ``n.plot(bus_sizes=..., bus_split_circles=True)`` argument.
+* Fixed ``pypsa.plot.add_legend_semicircles()`` circle sizing to be consistent with 
+  ``n.plot(bus_sizes=..., bus_split_circles=True)`` argument. 
+  (https://github.com/PyPSA/PyPSA/pull/1179)
 
 `v0.33.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2>`__ (12th March 2025)
 =======================================================================================

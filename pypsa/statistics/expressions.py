@@ -7,18 +7,27 @@ import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
+from pypsa.plot.statistics.plotter import StatisticPlotter
+
 if TYPE_CHECKING:
     from pypsa import Network
 
 import pandas as pd
 
 from pypsa._options import options
-from pypsa.common import MethodHandlerWrapper, pass_empty_series_if_keyerror
+from pypsa.common import (
+    MethodHandlerWrapper,
+    deprecated_kwargs,
+    pass_empty_series_if_keyerror,
+)
 from pypsa.descriptors import bus_carrier_unit, nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
+if TYPE_CHECKING:
+    from pypsa import Network
+
+
 logger = logging.getLogger(__name__)
-warnings.simplefilter("always", DeprecationWarning)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
@@ -104,9 +113,14 @@ class StatisticHandler:
 
     This class wraps a statistic method and provides a callable instance. To the get
     the statistic output as a DataFrame, call the instance with the desired arguments.
+
+    See Also
+    --------
+    pypsa.common.MethodHandlerWrapper
+
     """
 
-    def __init__(self, bound_method: Callable) -> None:
+    def __init__(self, bound_method: Callable, n: Network) -> None:
         """
         Initialize the statistic handler.
 
@@ -114,14 +128,16 @@ class StatisticHandler:
         ----------
         bound_method : Callable
             The bound method/ underlying statistic function to call.
+        n : Network
+            The network object to use for the statistic calculation.
 
         """
-        self.bound_method = bound_method
-        self.__name__ = bound_method.__name__
-        self.__doc__ = bound_method.__doc__
+        self._bound_method = bound_method
+        self._n = n
+        self.plot = StatisticPlotter(n=n, bound_method=bound_method)
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
-        return self.bound_method(*args, **kwargs)
+        return self._bound_method(*args, **kwargs)
 
     def __repr__(self) -> str:
         """
@@ -134,12 +150,12 @@ class StatisticHandler:
 
         Examples
         --------
-        >>> handler = StatisticHandler(lambda x: x)
+        >>> handler = StatisticHandler(lambda x: x,n=n)
         >>> handler
         StatisticHandler(<lambda>)
 
         """
-        return f"StatisticHandler({self.__name__})"
+        return f"StatisticHandler({self._bound_method.__name__})"
 
 
 class StatisticsAccessor(AbstractStatisticsAccessor):
@@ -356,7 +372,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         res = {k: v.reindex(index, fill_value=0.0) for k, v in res.items()}
         return pd.concat(res, axis=1).sort_index(axis=0)
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -458,7 +474,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def installed_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -530,12 +546,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
+
         >>> n.statistics.installed_capex().sort_index()
         component  carrier
         Generator  gas        2.120994e+07
                    wind       6.761698e+05
-        Line       -          1.653634e+04
-        Link       -          1.476534e+03
+        Line       AC         1.653634e+04
+        Link       DC         1.476534e+03
         dtype: float64
 
         """
@@ -562,7 +580,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def expanded_capex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -639,7 +657,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Generator  gas       -2.120994e+07
                    wind      -6.761698e+05
         ...
-        dtype: float64
 
         """
         df = self.capex(
@@ -674,7 +691,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def optimal_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -749,6 +766,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.optimal_capacity()
         Series([], dtype: float64)
 
@@ -785,7 +803,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def installed_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -860,12 +878,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.installed_capacity().sort_index()
         component  carrier
         Generator  gas        150000.0
                    wind          290.0
-        Line       -          160000.0
-        Link       -            4000.0
+        Line       AC         160000.0
+        Link       DC           4000.0
         dtype: float64
 
         """
@@ -901,7 +920,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def expanded_capacity(
         self,
         comps: str | Sequence[str] | None = None,
@@ -969,6 +988,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.expanded_capacity()
         Series([], dtype: float64)
 
@@ -1003,7 +1023,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MW"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def opex(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1081,6 +1101,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Example
         -------
+
         >>> n.statistics.opex()
         Series([], dtype: float64)
 
@@ -1226,7 +1247,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def supply(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1319,13 +1340,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
-            kind="supply",
+            direction="supply",
         )
         df.attrs["name"] = "Supply"
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def withdrawal(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1418,13 +1439,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
-            kind="withdrawal",
+            direction="withdrawal",
         )
         df.attrs["name"] = "Withdrawal"
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def transmission(
         self,
         comps: Collection[str] | str | None = None,
@@ -1502,10 +1523,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Example
         -------
         >>> n.statistics.transmission()
-        Series([], dtype: float64)
+        Series([], dtype: object)
 
         """
-        n = self.n
+        n = self._n
 
         if comps is None:
             comps = n.branch_components
@@ -1535,7 +1556,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "carrier dependent"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(kind="direction")
     def energy_balance(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1549,7 +1571,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        kind: str | None = None,
+        direction: str | None = None,
     ) -> pd.DataFrame:
         """
         Calculate energy balance of components in network.
@@ -1605,7 +1627,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
-        kind : str | None, default=None
+        direction : str | None, default=None
             Type of energy balance to calculate:
             - 'supply': Only consider positive values (energy production)
             - 'withdrawal': Only consider negative values (energy consumption)
@@ -1624,7 +1646,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        n = self.n
+        n = self._n
 
         if (
             n.buses.carrier.unique().size > 1
@@ -1641,13 +1663,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
             weights = get_weightings(n, c)
             p = sign * n.dynamic(c)[f"p{port}"]
-            if kind == "supply":
+            if direction == "supply":
                 p = p.clip(lower=0)
-            elif kind == "withdrawal":
+            elif direction == "withdrawal":
                 p = -p.clip(upper=0)
-            elif kind is not None:
+            elif direction is not None:
                 logger.warning(
-                    "Argument 'kind' is not recognized. Falling back to energy balance."
+                    "Argument 'direction' is not recognized. Falling back to energy balance."
                 )
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -1669,7 +1691,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def curtailment(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1748,7 +1770,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Example
         -------
         >>> n.statistics.curtailment()
-        Series([], dtype: float64)
+        Series([], Name: generators, dtype: float64)
 
         """
 
@@ -1778,7 +1800,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "MWh"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def capacity_factor(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1883,7 +1905,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "p.u."
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(kind="direction")
     def revenue(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1897,7 +1920,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        kind: str | None = None,
+        direction: str | None = None,
     ) -> pd.DataFrame:
         """
         Calculate the revenue of components in the network in given currency.
@@ -1952,7 +1975,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
-        kind : str, optional, default=None
+        direction : str, optional, default=None
             Type of revenue to consider. If 'input' only the revenue of the input is considered.
             If 'output' only the revenue of the output is considered. Defaults to None.
 
@@ -1978,14 +2001,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values
-            if kind is not None:
-                if kind == "input":
+            if direction is not None:
+                if direction == "input":
                     df = df.clip(upper=0)
-                elif kind == "output":
+                elif direction == "output":
                     df = df.clip(lower=0)
                 else:
                     raise ValueError(
-                        f"Argument 'kind' must be 'input', 'output' or None, got {kind}"
+                        f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
                     )
             revenue = df * prices
             weights = get_weightings(n, c)
@@ -2008,7 +2031,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def market_value(
         self,
         comps: str | Sequence[str] | None = None,

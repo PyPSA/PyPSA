@@ -73,19 +73,19 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv pip install --compile --system "$(ls dist/*.whl)[dev,hdf5,excel]"
+        uv pip install --compile --system "$(ls dist/*.whl)[dev,hdf5,excel,cartopy]"
 
 
     - name: Run unit tests # Also includes doctests
       if: matrix.os != 'windows-latest' || matrix.python-version != '3.13'
       run: |
-        coverage run -m pytest
+        coverage run -m pytest --mpl
         coverage xml
 
     - name: Test with pytest (windows & Python 3.13)
       if: matrix.os == 'windows-latest' && matrix.python-version == '3.13'
       run: |
-        coverage run -m pytest
+        coverage run -m pytest --mpl
         coverage xml
         return 0
 
