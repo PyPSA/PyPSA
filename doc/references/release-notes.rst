@@ -23,6 +23,12 @@ Upcoming Release
   The new modularized maps module allows for more flexibility and easier
   maintenance. 
 
+* PyPSA now supports committability and extendability, on 
+  the same components, if modularity is used. The new feature
+  is compatible with start-up and shut-down costs, ramp-up and
+  shut-down limit. The feature is not still compatible with
+  min-up and min-down time, up and down time before.
+
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================
 
@@ -420,7 +426,6 @@ Features
 * Updated documentation. (https://github.com/PyPSA/PyPSA/pull/1004)
 
 `v0.29.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.29.0>`__ (31st July 2024)
-===================================================================================
 
 * Removed ``n.lopf()`` pyomo-based and nomopyomo-based optimisation modules. Use
   linopy-based optimization with ``n.optimize()`` instead.

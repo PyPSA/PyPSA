@@ -28,6 +28,8 @@ from pypsa.optimization.abstract import (
 )
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
+    define_committability_variables_constraints_with_fixed_upper_limit,
+    define_committability_variables_constraints_with_variable_upper_limit,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -54,14 +56,12 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.variables import (
+    define_committability_variables,
     define_loss_variables,
     define_modular_variables,
     define_nominal_variables,
     define_operational_variables,
-    define_shut_down_variables,
     define_spillage_variables,
-    define_start_up_variables,
-    define_status_variables,
 )
 
 if TYPE_CHECKING:
@@ -261,9 +261,10 @@ def create_model(
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
         define_operational_variables(n, sns, c, attr)
-        define_status_variables(n, sns, c)
-        define_start_up_variables(n, sns, c)
-        define_shut_down_variables(n, sns, c)
+        # Removed functions no longer used: define_status_variables, define_start_up_variables, define_shut_down_variables
+        # Define all variable used in committability (status, start_upm and shut_down)
+        # for all committable components  (ext/non ext and mod/non mod)
+        define_committability_variables(n, sns, c)
 
     define_spillage_variables(n, sns)
     define_operational_variables(n, sns, "Store", "p")
@@ -277,14 +278,29 @@ def create_model(
         define_nominal_constraints_for_extendables(n, c, attr)
         define_fixed_nominal_constraints(n, c, attr)
         define_modular_constraints(n, c, attr)
+        # Define upper limit of committable variables with fixed upper limit (1 or P_nom/P_nom_mod)
+        define_committability_variables_constraints_with_fixed_upper_limit(
+            n, sns, c, attr
+        )
+        # Define upper limit of committable variables for committable, modular, and extendable components --> up.lim. = n_mod (variable)
+        define_committability_variables_constraints_with_variable_upper_limit(
+            n, sns, c, attr
+        )
 
     for c, attr in lookup.query("not nominal and not handle_separately").index:
+        # Define operational constraints for non extendable and non committable components (mod/non mod).
+        # Function is kept as it was.
         define_operational_constraints_for_non_extendables(
             n, sns, c, attr, transmission_losses
         )
+        # Define operational constraints for extendable but non committable components (mod/non mod).
+        # Function is kept as it was, I only added filter for non committable.
+        # Function also handles case where committability and extendability are set as on, but modularity is not used.
         define_operational_constraints_for_extendables(
             n, sns, c, attr, transmission_losses
         )
+        # Define operational constraints for components where committability works.
+        # Function handles cases with modularity (ext/non ext) and cases with non-mod+non+ext
         define_operational_constraints_for_committables(n, sns, c)
         define_ramp_limit_constraints(n, sns, c, attr)
         define_fixed_operation_constraints(n, sns, c, attr)
