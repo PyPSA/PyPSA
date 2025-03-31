@@ -778,18 +778,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        if storage and comps is None:
-            comps = ("Store", "StorageUnit")
-        elif comps is None:
-            comps = list(
-                (self._n.branch_components | self._n.one_port_components) - {"Store"}
-            )
+        n = self._n
+        if comps is None:
+            if storage:
+                comps = ("Store", "StorageUnit")
+            else:
+                comps = list((n.branch_components | n.one_port_components) - {"Store"})
         elif "Store" in comps:
             warnings.warn(
                 "Including Store component with storage=False will exclude it from results. "
                 "Set storage=True to include storage capacities (in MWh)."
             )
-
         if bus_carrier and at_port is None:
             at_port = True
 
@@ -907,12 +906,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        if storage and comps is None:
-            comps = ("Store", "StorageUnit")
-        elif comps is None:
-            comps = list(
-                (self._n.branch_components | self._n.one_port_components) - {"Store"}
-            )
+        n = self._n
+        if comps is None:
+            if storage:
+                comps = ("Store", "StorageUnit")
+            else:
+                comps = list((n.branch_components | n.one_port_components) - {"Store"})
         elif "Store" in comps:
             warnings.warn(
                 "Including Store component with storage=False will exclude it from results. "
@@ -1862,15 +1861,19 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        n = self._n
+        msg = (
+            "The capacity factor of {comp} components is not defined. "
+            "This will lead to nan's in the calculation."
+        )
         if comps is None:
             comps = list(
-                (self._n.one_port_components | self._n.branch_components) - {"Store"}
+                (n.one_port_components | n.branch_components) - {"Store", "Load"}
             )
         elif "Store" in comps:
-            logger.warning(
-                "The capacity factor of Store components is not defined. "
-                "This will lead to nan's in the calculation."
-            )
+            logger.warning(msg.format(comp="Store"))
+        elif "Load" in comps:
+            logger.warning(msg.format(comp="Load"))
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
