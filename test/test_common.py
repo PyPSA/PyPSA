@@ -138,6 +138,7 @@ def test_as_index(ac_dc_network_mi, attr, expected_name):
         (np.array([1, 2, 3]), np.array([1, 2, 3]), True),
         (np.array([1, 2, 3]), np.array([1, 2, 4]), False),
         (pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"A": [1, 2]}), True),
+        (pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"A": [1, 4]}), False),
         ({"a": 1, "b": 2}, {"a": 1, "b": 3}, False),
         ([1, 2, 3], [1, 2, 3], True),
         (np.nan, np.nan, True),
@@ -145,6 +146,20 @@ def test_as_index(ac_dc_network_mi, attr, expected_name):
 )
 def test_equals(a, b, expected):
     assert equals(a, b) == expected
+
+
+@pytest.mark.parametrize(
+    "a, b",
+    [
+        (1, 2),
+        ("a", "b"),
+        (np.array([1, 2, 3]), np.array([1, 2, 4])),
+        (pd.DataFrame({"A": [1, 3]}), pd.DataFrame({"A": [1, 2]})),
+    ],
+)
+def test_equals_logs(a, b, caplog):
+    assert equals(a, b, log_difference=True) is False
+    assert caplog.text != ""
 
 
 def test_equals_ignored_classes():
