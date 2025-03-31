@@ -1113,7 +1113,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         from pypsa.optimization.optimize import lookup
 
         if cost_types is None:
-            cost_types = [
+            cost_types_ = [
                 "marginal_cost",
                 "marginal_cost_quadratic",
                 "marginal_cost_storage",
@@ -1123,7 +1123,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "stand_by_cost",
             ]
         elif isinstance(cost_types, str):
-            cost_types = [cost_types]
+            cost_types_ = [cost_types]
+        else:
+            cost_types_ = list(cost_types)
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
@@ -1138,7 +1140,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "marginal_cost_quadratic",
                 "spill_cost",
             ]:
-                if cost_type in cost_types and cost_type in n.static(c):
+                if cost_type in cost_types_ and cost_type in n.static(c):
                     attr = lookup.query(cost_type).loc[c].index.item()
                     cost = n.get_switchable_as_dense(c, cost_type)
                     p = n.dynamic(c)[attr]
@@ -1154,7 +1156,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             )
             for cost_type, attr in mapping.items():
                 if (
-                    cost_type in cost_types
+                    cost_type in cost_types_
                     and cost_type in n.static(c)
                     and not com_i.empty
                 ):

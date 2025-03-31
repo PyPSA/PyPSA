@@ -27,7 +27,7 @@ Upcoming Release
   components: marginal costs, quadratic marginal costs, storage costs, spill
   costs, start-up costs, shut-down costs, and stand-by costs. Previously, only
   marginal costs were considered. A new parameter `cost_types` allows selecting
-  which cost components to include.
+  which cost components to include. (https://github.com/PyPSA/PyPSA/pull/1195)
 
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================
