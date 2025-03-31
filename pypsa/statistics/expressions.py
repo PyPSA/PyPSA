@@ -1090,11 +1090,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
             With False the time series is given in MW.
-        cost_types : str | Sequence[str], optional
+        cost_types : str | Sequence[str] | None, default=None
             List of cost types to include in the calculation. Available options
             are: 'marginal_cost', 'marginal_cost_quadratic',
             'marginal_cost_storage', 'spill_cost', 'start_up_cost',
-            'shut_down_cost', 'stand_by_cost'. Defaults to all.
+            'shut_down_cost', 'stand_by_cost'. Defaults to all (when None).
 
         Returns
         -------
