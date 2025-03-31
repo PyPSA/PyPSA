@@ -778,11 +778,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        if storage:
+        if storage and comps is None:
             comps = ("Store", "StorageUnit")
-        elif (isinstance(comps, str) and comps == "Store") or (
-            comps is not None and "Store" in comps
-        ):
+        elif comps is None:
+            comps = list(
+                (self._n.branch_components | self._n.one_port_components) - {"Store"}
+            )
+        elif "Store" in comps:
             warnings.warn(
                 "Including Store component with storage=False will exclude it from results. "
                 "Set storage=True to include storage capacities (in MWh)."
@@ -905,8 +907,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        if storage:
+        if storage and comps is None:
             comps = ("Store", "StorageUnit")
+        elif comps is None:
+            comps = list(
+                (self._n.branch_components | self._n.one_port_components) - {"Store"}
+            )
+        elif "Store" in comps:
+            warnings.warn(
+                "Including Store component with storage=False will exclude it from results. "
+                "Set storage=True to include storage capacities (in MWh)."
+            )
         if bus_carrier and at_port is None:
             at_port = True
 
@@ -952,6 +963,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
+        storage: bool = False,
     ) -> pd.DataFrame:
         """
         Calculate the expanded capacity of the network components in MW.
@@ -999,6 +1011,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
+        Additional Parameters
+        ---------------------
+        storage : bool, default=False
+            Whether to include storage capacities from the Store component (in MWh).
+            When False, Store components are excluded and only power capacities (MW)
+            are reported. When True, only Store and StorageUnit components are included,
+            reporting energy storage capacities in MWh.
+
         Returns
         -------
         pd.DataFrame
@@ -1023,6 +1043,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = self.installed_capacity(
             comps=comps,
@@ -1035,11 +1056,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
         df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
         df.attrs["name"] = "Expanded Capacity"
-        df.attrs["unit"] = "MW"
+        df.attrs["unit"] = "MW" if not storage else "MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
@@ -1840,8 +1862,16 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        if comps is None:
+            comps = list(
+                (self._n.one_port_components | self._n.branch_components) - {"Store"}
+            )
+        elif "Store" in comps:
+            logger.warning(
+                "The capacity factor of Store components is not defined. "
+                "This will lead to nan's in the calculation."
+            )
 
-        # TODO: Why not just take p_max_pu, s_max_pu, etc. directly from the network?
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
