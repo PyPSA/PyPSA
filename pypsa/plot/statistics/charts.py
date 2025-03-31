@@ -556,8 +556,9 @@ class ChartGenerator(PlotsGenerator, ABC):
                 # only shows for the latest traces (ignoring the positive values).
                 # To fix this, we need to add an artificial trace with the last value
                 # of each color and use that for the legend.
+                unique_colors = ldata[color].unique() if color else []
                 artificial_zeros = pd.DataFrame(
-                    {x: ldata[x].iloc[-1], y: np.nan, color: ldata[color].unique()}
+                    {x: ldata[x].iloc[-1], y: np.nan, color: unique_colors}
                 )
                 artificials = px.area(
                     artificial_zeros,
@@ -569,6 +570,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             else:
                 fig = px.area(ldata, **kwargs)
             fig.update_traces(line=dict(width=0))
+            fig.update_layout(hovermode="x")
         else:
             raise ValueError(f"Unsupported plot type: {kind}")
 
