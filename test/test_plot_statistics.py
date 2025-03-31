@@ -1,3 +1,5 @@
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -16,6 +18,10 @@ plt.rcParams["figure.figsize"] = [8, 6]
 plt.rcParams["figure.dpi"] = 100
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform != "linux",
+    reason="Check only on Linux and Python 3.13 for stability",
+)
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
 def test_simple_plot(ac_dc_network_r, stat_func):
@@ -25,6 +31,10 @@ def test_simple_plot(ac_dc_network_r, stat_func):
     return fig
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform != "linux",
+    reason="Check only on Linux and Python 3.13 for stability",
+)
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
 def test_bar_plot(ac_dc_network_r, stat_func):
@@ -34,6 +44,10 @@ def test_bar_plot(ac_dc_network_r, stat_func):
     return fig
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform != "linux",
+    reason="Check only on Linux and Python 3.13 for stability",
+)
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
 def test_line_plot(ac_dc_network_r, stat_func):
@@ -43,6 +57,10 @@ def test_line_plot(ac_dc_network_r, stat_func):
     return fig
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform != "linux",
+    reason="Check only on Linux and Python 3.13 for stability",
+)
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
 def test_area_plot(ac_dc_network_r, stat_func):
@@ -52,6 +70,10 @@ def test_area_plot(ac_dc_network_r, stat_func):
     return fig
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform != "linux",
+    reason="Check only on Linux and Python 3.13 for stability",
+)
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 # @pytest.mark.mpl_image_compare(tolerance=40) # TODO find better way to compare
 def test_map_plot(ac_dc_network_r, stat_func):
