@@ -12,6 +12,11 @@ Upcoming Release
    ``pip install git+https://github.com/pypsa/pypsa``.
 
 
+* The capacity statistics functions `optimal_capacity`, `installed_capacity`, and `expanded_capacity` now exclude 
+  storage capacities by default, i.e., when the `storage` parameter is set to False. This ensures that the Store 
+  component is not included in the statistics, preventing the mixing of different units of capacity. As a result, 
+  power production capacities are consistently reported in MW, while energy storage capacities are reported in MWh.
+
 * The previous maps module under `pypsa/plot` is now modularized. Instead of a 
   monolithic module, the maps module is now split into several submodules. The
   submodules are:

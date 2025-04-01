@@ -710,6 +710,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
 
+        By default, storage capacities (Store component) are excluded to maintain
+        consistent units (MW) for power production capacities. Set storage=True to
+        specifically report storage capacities in MWh.
+
         Parameters
         ----------
         comps : str | Sequence[str] | None, default=None
@@ -753,8 +757,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Additional Parameters
         ---------------------
         storage : bool, default=False
-            Whether to consider only storage capacities of the components
-            `Store` and `StorageUnit`.
+            Whether to include storage capacities from the Store component (in MWh).
+            When False, Store components are excluded and only power capacities (MW)
+            are reported. When True, only Store and StorageUnit components are included,
+            reporting energy storage capacities in MWh.
 
         Returns
         -------
@@ -765,17 +771,31 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Example
         -------
 
-        >>> n.statistics.optimal_capacity()
+        >>> n.statistics.optimal_capacity()  # Returns power capacities in MW
+        Series([], dtype: float64)
+
+        >>> n.statistics.optimal_capacity(storage=True)  # Returns storage capacities in MWh
         Series([], dtype: float64)
 
         """
-        if storage:
-            comps = ("Store", "StorageUnit")
+        n = self._n
+        if comps is None:
+            if storage:
+                comps = ("Store", "StorageUnit")
+            else:
+                comps = list((n.branch_components | n.one_port_components) - {"Store"})
+        elif "Store" in comps:
+            warnings.warn(
+                "Including Store component with storage=False will exclude it from results. "
+                "Set storage=True to include storage capacities (in MWh)."
+            )
         if bus_carrier and at_port is None:
             at_port = True
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
+            if c == "Store" and not storage:
+                return pd.Series([], dtype=float)
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
@@ -798,7 +818,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         df.attrs["name"] = "Optimal Capacity"
-        df.attrs["unit"] = "MW"
+        df.attrs["unit"] = "MW" if not storage else "MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
@@ -886,13 +906,24 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        if storage:
-            comps = ("Store", "StorageUnit")
+        n = self._n
+        if comps is None:
+            if storage:
+                comps = ("Store", "StorageUnit")
+            else:
+                comps = list((n.branch_components | n.one_port_components) - {"Store"})
+        elif "Store" in comps:
+            warnings.warn(
+                "Including Store component with storage=False will exclude it from results. "
+                "Set storage=True to include storage capacities (in MWh)."
+            )
         if bus_carrier and at_port is None:
             at_port = True
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
+            if c == "Store" and not storage:
+                return pd.Series([], dtype=float)
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
@@ -915,7 +946,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         df.attrs["name"] = "Installed Capacity"
-        df.attrs["unit"] = "MW"
+        df.attrs["unit"] = "MW" if not storage else "MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
@@ -931,6 +962,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
+        storage: bool = False,
     ) -> pd.DataFrame:
         """
         Calculate the expanded capacity of the network components in MW.
@@ -978,6 +1010,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
+        Additional Parameters
+        ---------------------
+        storage : bool, default=False
+            Whether to include storage capacities from the Store component (in MWh).
+            When False, Store components are excluded and only power capacities (MW)
+            are reported. When True, only Store and StorageUnit components are included,
+            reporting energy storage capacities in MWh.
+
         Returns
         -------
         pd.DataFrame
@@ -1002,6 +1042,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = self.installed_capacity(
             comps=comps,
@@ -1014,11 +1055,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
             drop_zero=drop_zero,
             round=round,
+            storage=storage,
         )
         installed = installed.reindex(optimal.index, fill_value=0)
         df = optimal.sub(installed).where(optimal.abs() > installed.abs(), 0)
         df.attrs["name"] = "Expanded Capacity"
-        df.attrs["unit"] = "MW"
+        df.attrs["unit"] = "MW" if not storage else "MWh"
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
@@ -1819,8 +1861,20 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        n = self._n
+        msg = (
+            "The capacity factor of {comp} components is not defined. "
+            "This will lead to nan's in the calculation."
+        )
+        if comps is None:
+            comps = list(
+                (n.one_port_components | n.branch_components) - {"Store", "Load"}
+            )
+        elif "Store" in comps:
+            logger.warning(msg.format(comp="Store"))
+        elif "Load" in comps:
+            logger.warning(msg.format(comp="Load"))
 
-        # TODO: Why not just take p_max_pu, s_max_pu, etc. directly from the network?
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
