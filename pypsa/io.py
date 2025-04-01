@@ -13,15 +13,8 @@ from abc import abstractmethod
 from collections.abc import Callable, Collection, Iterable, Sequence
 from functools import partial
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.request import urlretrieve
-
-from pypsa.common import check_optional_dependency, deprecated_common_kwargs
-
-try:
-    from cloudpathlib import AnyPath as Path
-except ImportError:
-    from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -31,8 +24,13 @@ import xarray as xr
 from deprecation import deprecated
 from pyproj import CRS
 
+from pypsa.common import check_optional_dependency, deprecated_common_kwargs
 from pypsa.descriptors import update_linkports_component_attrs
 
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
 if TYPE_CHECKING:
     from typing import TracebackType  # type: ignore
 
@@ -44,7 +42,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _retrieve_from_url(url: str, io_function: Callable) -> Network:
+@overload
+def _retrieve_from_url(
+    url: str, io_function: Callable[[Path], pd.read_excel]
+) -> pd.DataFrame: ...
+
+
+@overload
+def _retrieve_from_url(
+    url: str, io_function: Callable[[Path], pd.HDFStore | xr.Dataset]
+) -> Network: ...
+
+
+def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Network:
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         file_path = Path(temp_file.name)
         logger.info(f"Retrieving network data from {url}.")

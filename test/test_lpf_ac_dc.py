@@ -24,22 +24,18 @@ def test_lpf(ac_dc_network, ac_dc_network_r):
 
     n.lpf(snapshots=n.snapshots)
 
-    equal(
-        n.generators_t.p[n.generators.index].iloc[:2],
-        n_r.generators_t.p[n.generators.index].iloc[:2],
-    )
-    equal(n.lines_t.p0[n.lines.index].iloc[:2], n_r.lines_t.p0[n.lines.index].iloc[:2])
-    equal(n.links_t.p0[n.links.index].iloc[:2], n_r.links_t.p0[n.links.index].iloc[:2])
+    equal(n.generators_t.p[n.generators.index], n_r.generators_t.p[n.generators.index])
+    equal(n.lines_t.p0[n.lines.index], n_r.lines_t.p0[n.lines.index])
+    equal(n.links_t.p0[n.links.index], n_r.links_t.p0[n.links.index])
 
 
 def test_lpf_chunks(ac_dc_network, ac_dc_network_r):
     n = ac_dc_network
     n_r = ac_dc_network_r
+    n.links_t.p_set = n_r.links_t.p_set
 
-    for snapshot in n.snapshots[:2]:
+    for snapshot in n.snapshots:
         n.lpf(snapshot)
-
-    n.lpf(snapshots=n.snapshots)
 
     equal(n.generators_t.p[n.generators.index], n_r.generators_t.p[n.generators.index])
     equal(n.lines_t.p0[n.lines.index], n_r.lines_t.p0[n.lines.index])
