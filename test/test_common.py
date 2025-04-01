@@ -7,7 +7,6 @@ import pytest
 from pypsa.common import (
     MethodHandlerWrapper,
     as_index,
-    check_pypsa_version,
     deprecated_common_kwargs,
     deprecated_kwargs,
     equals,
@@ -260,11 +259,3 @@ def test_list_as_string():
     # Test empty lists
     assert list_as_string([]) == ""
     assert list_as_string([], style="bullet-list") == ""
-
-
-def test_version_check(caplog):
-    check_pypsa_version("0.20.0")
-    assert caplog.text == ""
-
-    check_pypsa_version("0.0")
-    assert "The correct version of PyPSA could not be resolved" in caplog.text

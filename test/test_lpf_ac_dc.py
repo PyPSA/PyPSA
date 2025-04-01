@@ -12,9 +12,9 @@ def ac_dc_network_r():
         os.path.dirname(__file__),
         "..",
         "examples",
-        "ac-dc-meshed",
-        "ac-dc-data",
-        "results-lpf",
+        "networks",
+        "ac_dc_meshed",
+        "results_lpf",
     )
     return pypsa.Network(csv_folder)
 

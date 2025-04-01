@@ -1618,12 +1618,24 @@ def merge(
             raise ValueError(msg)
     if with_time:
         snapshots_aligned = n.snapshots.equals(other.snapshots)
-        weightings_aligned = n.snapshot_weightings.equals(other.snapshot_weightings)
-        if not (snapshots_aligned and weightings_aligned):
-            msg = (
-                "Snapshots or snapshot weightings do not agree, cannot merge networks."
-            )
+        if not snapshots_aligned:
+            msg = "Snapshots do not agree, cannot merge networks."
             raise ValueError(msg)
+        weightings_aligned = n.snapshot_weightings.equals(other.snapshot_weightings)
+        if not weightings_aligned:
+            # Check if only index order is different
+            # TODO fix with #1128
+            if n.snapshot_weightings.reindex(
+                sorted(n.snapshot_weightings.columns), axis=1
+            ).equals(
+                other.snapshot_weightings.reindex(
+                    sorted(other.snapshot_weightings.columns), axis=1
+                )
+            ):
+                weightings_aligned = True
+            else:
+                msg = "Snapshot weightings do not agree, cannot merge networks."
+                raise ValueError(msg)
     new = n if inplace else n.copy()
     if other.srid != new.srid:
         logger.warning(
