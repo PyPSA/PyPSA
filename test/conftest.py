@@ -46,20 +46,6 @@ def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 
 
-def _sanitize_ac_dc_meshed(n, remove_link_p_set: bool = True) -> None:
-    # TODO: make this function obsolete by adjusting the input files
-    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
-    n.carriers["color"] = ["red", "blue", "green"]
-    n.loads["carrier"] = "load"
-    n.lines["carrier"] = "AC"
-    n.links["carrier"] = "DC"
-    n.add("Carrier", "load", color="black")
-    n.add("Carrier", "AC", color="orange")
-    n.add("Carrier", "DC", color="purple")
-    if remove_link_p_set:
-        n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
-
-
 @pytest.fixture()  # scope="session")
 def ac_dc_network_r():
     csv_folder = os.path.join(
@@ -68,9 +54,7 @@ def ac_dc_network_r():
         "ac-dc-meshed",
         "results-lopf",
     )
-    n = pypsa.Network(csv_folder)
-    _sanitize_ac_dc_meshed(n)
-    return n
+    return pypsa.Network(csv_folder)
 
 
 @pytest.fixture()

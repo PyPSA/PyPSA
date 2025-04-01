@@ -1,7 +1,7 @@
-name,bus
-London,London
-Frankfurt,Frankfurt
-Norway,Norway
-Norwich,Norwich
-Bremen,Bremen
-Manchester,Manchester
+name,bus,carrier
+London,London,load
+Frankfurt,Frankfurt,load
+Norway,Norway,load
+Norwich,Norwich,load
+Bremen,Bremen,load
+Manchester,Manchester,load
