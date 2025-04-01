@@ -1,2 +1,2 @@
-name,now,srid,pypsa_version
-AC-DC,now,4326,0.10.0
+name,_multi_invest,now,pypsa_version,srid
+AC-DC,0,now,0.34.0,4326
