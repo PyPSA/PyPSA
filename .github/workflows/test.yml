@@ -76,7 +76,7 @@ jobs:
         uv pip install --compile --system "$(ls dist/*.whl)[dev,hdf5,excel,cartopy]"
 
 
-    - name: Run unit tests # Also includes doctests
+    - name: Run unit tests
       if: matrix.os != 'windows-latest' || matrix.python-version != '3.13'
       run: |
         coverage run -m pytest --mpl
@@ -87,7 +87,6 @@ jobs:
       run: |
         coverage run -m pytest --mpl
         coverage xml
-        return 0
 
     - name: Upload code coverage report
       uses: codecov/codecov-action@v5
