@@ -41,7 +41,7 @@ def scipy_network():
     return n
 
 
-@pytest.fixture()
+@pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 
@@ -64,11 +64,9 @@ def _sanitize_ac_dc_meshed(n, remove_link_p_set: bool = True) -> None:
 def ac_dc_network_r():
     csv_folder = os.path.join(
         os.path.dirname(__file__),
-        "..",
-        "examples",
-        "networks",
-        "ac_dc_meshed",
-        "results_lopf",
+        "data",
+        "ac-dc-meshed",
+        "results-lopf",
     )
     n = pypsa.Network(csv_folder)
     _sanitize_ac_dc_meshed(n)
@@ -117,17 +115,9 @@ def ac_dc_network_shapes(ac_dc_network):
     return n
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def storage_hvdc_network():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "networks",
-        "storage_hvdc",
-        "storage_hvdc",
-    )
-    return pypsa.Network(csv_folder)
+    return pypsa.examples.storage_hvdc()
 
 
 @pytest.fixture(scope="function")

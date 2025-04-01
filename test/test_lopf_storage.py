@@ -11,11 +11,9 @@ import pypsa
 def target_gen_p():
     target_path = os.path.join(
         os.path.dirname(__file__),
-        "..",
-        "examples",
-        "networks",
-        "storage_hvdc",
-        "results_opf",
+        "data",
+        "storage-hvdc",
+        "results-lopf",
         "generators-p.csv",
     )
     return pd.read_csv(target_path, index_col=0, parse_dates=True)
