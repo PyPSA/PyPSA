@@ -13,4 +13,4 @@ def test_version_check(caplog):
 
 def test_deprecation():
     with pytest.warns(DeprecationWarning):
-        pass
+        from pypsa import release_version  # noqa
