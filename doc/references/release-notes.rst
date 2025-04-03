@@ -36,6 +36,12 @@ Upcoming Release
   (https://github.com/PyPSA/PyPSA/pull/1194)
 
 
+Bug Fixes
+---------
+
+* The static map plots for statistics are fixed, e.g. `n.statistics.energy_balance.map()`. 
+
+
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================
 
