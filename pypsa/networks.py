@@ -17,6 +17,7 @@ from pypsa.common import equals, future_deprecation
 from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -368,19 +369,74 @@ class Network:
         self.merge(other)
 
     def __eq__(self, other: Any) -> bool:
-        """Check for equality of two networks."""
+        """
+        Check for equality of two networks.
+
+        Parameters
+        ----------
+        other : Any
+            The other network to compare with.
+
+        Returns
+        -------
+        bool
+            True if the networks are equal, False otherwise.
+
+        See Also
+        --------
+        pypsa.Network.equals : Check for equality of two networks.
+        """
+        return self.equals(other, log_difference=False)
+
+    def equals(self, other: Any, log_difference: bool = False) -> bool:
+        """
+        Check for equality of two networks.
+
+        Parameters
+        ----------
+        other : Any
+            The other network to compare with.
+        log_difference: bool, default=False
+            If True, logs the difference between two objects (logging level INFO). This
+            is useful for debugging purposes.
+
+        Returns
+        -------
+        bool
+            True if the networks are equal, False otherwise.
+
+        Examples
+        --------
+        >>> n1 = pypsa.Network()
+        >>> n2 = pypsa.Network()
+        >>> n1.add("Bus", "bus1")
+        Index(['bus1'], dtype='object')
+        >>> n2.add("Bus", "bus2")
+        Index(['bus2'], dtype='object')
+        >>> n1.equals(n2)
+        False
+
+        """
         ignore = [
             OptimizationAccessor,
             ClusteringAccessor,
             StatisticsAccessor,
             PlotAccessor,
+            AbstractStatisticsAccessor,
         ]
-
+        not_equal = False
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
-                if not equals(value, other.__dict__[key], ignored_classes=ignore):
+                if not equals(
+                    value,
+                    other.__dict__[key],
+                    ignored_classes=ignore,
+                    log_difference=log_difference,
+                ):
                     logger.warning("Mismatch in attribute: %s", key)
-                    return False
+                    not_equal = True
+                    if not log_difference:
+                        break
         else:
             logger.warning(
                 "Can only compare two pypsa.Network objects with each other. Got %s.",
@@ -388,7 +444,8 @@ class Network:
             )
 
             return False
-        return True
+
+        return not not_equal
 
     # ----------------
     # Initialization
