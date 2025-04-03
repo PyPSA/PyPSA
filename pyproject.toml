@@ -37,6 +37,7 @@ dependencies = [
     "plotly",
     "seaborn",
     "geopandas>=0.9",
+    "shapely<2.1",
     "networkx>=2",
     "deprecation",
     "validators",
