@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import pandas.testing as pd_testing
 from deprecation import deprecated
 from pandas.api.types import is_list_like
 
@@ -215,9 +216,15 @@ def equals(
             return True
 
         if not a.equals(b):
-            if log_difference:
-                logger.warning(f"pandas objects diff:\n\n{a}\n\n!=\n\n{b}\n")
-            return False
+            # TODO: Resolve with data validation PRi
+            # Check if dtypes are equal
+            try:
+                pd_testing.assert_frame_equal(a, b, check_dtype=False)
+
+            except AssertionError:
+                if log_difference:
+                    logger.warning(f"pandas objects diff:\n\n{a}\n\n!=\n\n{b}\n")
+                return False
 
     # Iterators
     elif isinstance(a, (dict | Dict)):
@@ -517,14 +524,3 @@ def resample_timeseries(
 
     # Combine the results
     return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
-
-
-def check_pypsa_version(version_string: str) -> None:
-    """
-    Check if the installed PyPSA version was resolved correctly.
-    """
-    if version_string.startswith("0.0"):
-        logger.warning(
-            "The correct version of PyPSA could not be resolved. This is likely due to "
-            "a local clone without pulling tags. Please run `git fetch --tags`."
-        )

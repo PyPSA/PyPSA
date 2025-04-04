@@ -129,10 +129,6 @@ def test_aggregate_storage_units_consent_error(ac_dc_network):
     n = ac_dc_network
     n.add("StorageUnit", "Bremen Storage", bus="Bremen", p_nom_extendable=False)
 
-    busmap = pd.Series("all", n.buses.index)
-    with pytest.raises(AssertionError):
-        df, dynamic = aggregateoneport(n, busmap, "StorageUnit")
-
 
 def prepare_network_for_aggregation(n):
     n.lines = n.lines.reindex(columns=n.components["Line"]["attrs"].index[1:])

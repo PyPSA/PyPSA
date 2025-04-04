@@ -1,22 +1,4 @@
-import os
-
-import pytest
 from numpy.testing import assert_array_almost_equal as equal
-
-import pypsa
-
-
-@pytest.fixture
-def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "ac-dc-meshed",
-        "ac-dc-data",
-        "results-lopf",
-    )
-    return pypsa.Network(csv_folder)
 
 
 def test_optimize(ac_dc_network, ac_dc_network_r):

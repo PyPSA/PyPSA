@@ -1,0 +1,8 @@
+name,bus0,bus1,x,r,s_nom,s_nom_extendable,capital_cost,carrier
+0,London,Manchester,0.7968782824,0.0,40000.0,True,0.1367157553,AC
+1,Manchester,Norwich,0.3915599178,0.0,40000.0,True,0.1334916779,AC
+2,Bremen DC,Norwich DC,0.0,0.2126041927,40000.0,True,0.0086734246,AC
+3,Norwich DC,Norway DC,0.0,0.4861637504,40000.0,True,0.1291260515,AC
+4,Norway DC,Bremen DC,0.0,0.4287266497,40000.0,True,0.0624298729,AC
+5,Norwich,London,0.2388003463,0.0,40000.0,True,0.0218524519,AC
+6,Bremen,Frankfurt,0.4,0.0,40000.0,True,0.2,AC
