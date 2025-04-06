@@ -1840,6 +1840,83 @@ class Network:
         c.rename_component_names(**kwargs)
 
 
+class Networks:
+    """
+    Container for multiple Network objects indexed by a pandas Index or MultiIndex.
+    """
+
+    def __init__(
+        self, networks: Sequence[Network] | pd.Series, index: pd.Index | None = None
+    ) -> None:
+        """
+        Initialize the Networks container.
+
+        Parameters
+        ----------
+        networks : Sequence[Network] | pd.Series
+            A sequence of Network objects or a pandas Series where values are Network objects.
+        index : pd.Index | None, optional
+            Index for the networks if a list is provided. If None, a default
+            integer index will be used. Ignored if `networks` is a Series.
+        """
+        networks = pd.Series(networks, index=index)
+        if networks.index.name is None:
+            networks.index.name = "network"
+        if not all(isinstance(n, Network) for n in networks):
+            raise TypeError("All values in the Series must be PyPSA Network objects.")
+        self._networks = networks
+
+    @property
+    def carriers(self) -> pd.DataFrame:
+        """
+        Get a unique DataFrame of carriers across all contained networks.
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame containing the unique carriers found in all networks,
+            indexed by carrier name.
+        """
+        all_carriers = [n.carriers for n in self._networks]
+        combined_carriers = pd.concat(all_carriers)
+        # Keep the first occurrence of each carrier based on the index
+        unique_carriers = combined_carriers[
+            ~combined_carriers.index.duplicated(keep="first")
+        ]
+        return unique_carriers.sort_index()
+
+    def __len__(self) -> int:
+        return len(self._networks)
+
+    def __getitem__(self, key: Any) -> Network | Networks:
+        """
+        Access networks by index label or slice.
+
+        Parameters
+        ----------
+        key : Any
+            Label, slice, or boolean mask to select networks.
+
+        Returns
+        -------
+        Network | Networks
+            A single Network object if a single label is passed, or a new
+            Networks object containing the selected networks.
+        """
+        selected = self._networks.loc[key]
+        if isinstance(selected, Network):
+            return selected
+        else:
+            # Return a new Networks object for slices or masks
+            return Networks(selected)
+
+    def __iter__(self) -> Iterator[Network]:
+        """
+        Iterate over the Network objects in the container.
+        """
+        return iter(self._networks)
+
+
 class SubNetwork:
     """
     Connected network of electric buses (AC or DC) with passive flows or
