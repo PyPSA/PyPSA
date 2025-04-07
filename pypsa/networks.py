@@ -88,6 +88,7 @@ from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
+from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
     import linopy
@@ -289,12 +290,10 @@ class Network:
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        from pypsa import release_version as pypsa_version
-
         self.name: str = name
 
         # this will be saved on export
-        self.pypsa_version: str = pypsa_version
+        self.pypsa_version: str = __version_semver__
 
         self._meta: dict = {}
 
