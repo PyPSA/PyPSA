@@ -347,7 +347,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             self.transmission,
             self.capacity_factor,
             self.curtailment,
-            self.system_cost,
             self.capex,
             self.opex,
             self.revenue,
@@ -1190,7 +1189,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency"
         return df
 
-    @MethodHandlerWrapper(handler_class=StatisticHandler)
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def system_cost(
         self,
         comps: str | Sequence[str] | None = None,
