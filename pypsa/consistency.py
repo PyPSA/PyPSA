@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
-from pypsa.common import deprecated_common_kwargs
+from pypsa.common import deprecated_common_kwargs, network_method_wrapper
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -880,6 +880,7 @@ def consistency_check(
     check_shapes(n, "shapes" in strict)
 
 
+@network_method_wrapper
 def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> None:
     """
     Check network for consistency for plotting functions.

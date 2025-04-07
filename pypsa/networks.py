@@ -6,7 +6,7 @@ import copy
 import logging
 import os
 import warnings
-from collections.abc import Collection, Iterator, Sequence
+from collections.abc import Callable, Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -86,7 +86,7 @@ from pypsa.pf import (
 )
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
-from pypsa.statistics import StatisticsAccessor
+from pypsa.statistics.expressions import NetworksStatisticsAccessor, StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 from pypsa.version import __version_semver__
 
@@ -1122,6 +1122,19 @@ class Network:
             )
         self._investment_period_weightings = df
 
+    @property
+    def _index_names(self) -> list[str]:
+        """
+        Compatibility property for Networks object.
+
+        Returns
+        -------
+        list of str
+            Empty list, since the Network class does not have any index names.
+
+        """
+        return []
+
     def add(
         self,
         class_name: str,
@@ -1141,8 +1154,7 @@ class Network:
         time-varying and indexed by snapshots.
         When multiple components are added, all non-scalar attributes are assumed to be
         static and indexed by names. A single value sequence is treated as scalar and
-        broadcasted to all components. It is recommended to explicitly pass a scalar
-        instead.
+        broadcasted to all components. It is recommended to explicitly pass a scalar instead.
         If you want to add time-varying attributes to multiple components, you can pass
         a 2D array/ DataFrame where the first dimension is snapshots and the second
         dimension is names.
@@ -1840,83 +1852,6 @@ class Network:
         c.rename_component_names(**kwargs)
 
 
-class Networks:
-    """
-    Container for multiple Network objects indexed by a pandas Index or MultiIndex.
-    """
-
-    def __init__(
-        self, networks: Sequence[Network] | pd.Series, index: pd.Index | None = None
-    ) -> None:
-        """
-        Initialize the Networks container.
-
-        Parameters
-        ----------
-        networks : Sequence[Network] | pd.Series
-            A sequence of Network objects or a pandas Series where values are Network objects.
-        index : pd.Index | None, optional
-            Index for the networks if a list is provided. If None, a default
-            integer index will be used. Ignored if `networks` is a Series.
-        """
-        networks = pd.Series(networks, index=index)
-        if networks.index.name is None:
-            networks.index.name = "network"
-        if not all(isinstance(n, Network) for n in networks):
-            raise TypeError("All values in the Series must be PyPSA Network objects.")
-        self._networks = networks
-
-    @property
-    def carriers(self) -> pd.DataFrame:
-        """
-        Get a unique DataFrame of carriers across all contained networks.
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame containing the unique carriers found in all networks,
-            indexed by carrier name.
-        """
-        all_carriers = [n.carriers for n in self._networks]
-        combined_carriers = pd.concat(all_carriers)
-        # Keep the first occurrence of each carrier based on the index
-        unique_carriers = combined_carriers[
-            ~combined_carriers.index.duplicated(keep="first")
-        ]
-        return unique_carriers.sort_index()
-
-    def __len__(self) -> int:
-        return len(self._networks)
-
-    def __getitem__(self, key: Any) -> Network | Networks:
-        """
-        Access networks by index label or slice.
-
-        Parameters
-        ----------
-        key : Any
-            Label, slice, or boolean mask to select networks.
-
-        Returns
-        -------
-        Network | Networks
-            A single Network object if a single label is passed, or a new
-            Networks object containing the selected networks.
-        """
-        selected = self._networks.loc[key]
-        if isinstance(selected, Network):
-            return selected
-        else:
-            # Return a new Networks object for slices or masks
-            return Networks(selected)
-
-    def __iter__(self) -> Iterator[Network]:
-        """
-        Iterate over the Network objects in the container.
-        """
-        return iter(self._networks)
-
-
 class SubNetwork:
     """
     Connected network of electric buses (AC or DC) with passive flows or
@@ -2186,3 +2121,122 @@ class SubNetwork:
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
+
+
+class Networks:
+    """
+    Container for multiple Network objects indexed by a pandas Index or MultiIndex.
+    """
+
+    def __init__(
+        self, networks: Sequence[Network] | pd.Series, index: pd.Index | None = None
+    ) -> None:
+        """
+        Initialize the Networks container.
+
+        Parameters
+        ----------
+        networks : Sequence[Network] | pd.Series
+            A sequence of Network objects or a pandas Series where values are Network objects.
+        index : pd.Index | None, optional
+            Index for the networks if a list is provided. If None, a default
+            integer index will be used. Ignored if `networks` is a Series.
+        """
+        networks = pd.Series(networks, index=index)
+        if networks.index.name is None:
+            networks.index.name = "network"
+        if not all(isinstance(n, Network) for n in networks):
+            raise TypeError("All values in the Series must be PyPSA Network objects.")
+        self._networks = networks
+        self.statistics = NetworksStatisticsAccessor(self)
+
+    @property
+    def index(self) -> pd.Index:
+        """
+        Get the index of the Networks container.
+
+        Returns
+        -------
+        pd.Index
+            The index of the Networks container.
+        """
+        return self._networks.index
+
+    @property
+    def _index_names(self) -> list[str]:
+        """
+        Get the names of the index of the Networks container.
+
+        Returns
+        -------
+        list[str]
+            The names of the index of the Networks container.
+        """
+        return self.index.names or [self.index.name]
+
+    @property
+    def carriers(self) -> pd.DataFrame:
+        """
+        Get a unique DataFrame of carriers across all contained networks.
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame containing the unique carriers found in all networks,
+            indexed by carrier name.
+        """
+        all_carriers = [n.carriers for n in self._networks]
+        combined_carriers = pd.concat(all_carriers)
+        # Keep the first occurrence of each carrier based on the index
+        unique_carriers = combined_carriers[
+            ~combined_carriers.index.duplicated(keep="first")
+        ]
+        return unique_carriers.sort_index()
+
+    def apply(self, func: Callable[[Network], Any]) -> pd.Series:
+        """
+        Apply a function to each Network object in the container.
+
+        Parameters
+        ----------
+        func : Callable[[Network], Any]
+            A function that takes a Network object as input and returns a value.
+
+        Returns
+        -------
+        pd.Series
+            A pandas Series containing the results of applying the function to each
+            Network object, indexed by the original index of the Networks container.
+        """
+        return self._networks.apply(func)
+
+    def __len__(self) -> int:
+        return len(self._networks)
+
+    def __getitem__(self, key: Any) -> Network | Networks:
+        """
+        Access networks by index label or slice.
+
+        Parameters
+        ----------
+        key : Any
+            Label, slice, or boolean mask to select networks.
+
+        Returns
+        -------
+        Network | Networks
+            A single Network object if a single label is passed, or a new
+            Networks object containing the selected networks.
+        """
+        selected = self._networks.loc[key]
+        if isinstance(selected, Network):
+            return selected
+        else:
+            # Return a new Networks object for slices or masks
+            return Networks(selected)
+
+    def __iter__(self) -> Iterator[Network]:
+        """
+        Iterate over the Network objects in the container.
+        """
+        return iter(self._networks)

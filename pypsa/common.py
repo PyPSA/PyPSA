@@ -8,6 +8,7 @@ import functools
 import logging
 import warnings
 from collections.abc import Callable, Sequence
+from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -22,7 +23,7 @@ from pypsa.definitions.structures import Dict
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa import Network, Networks
 
 logger = logging.getLogger(__name__)
 
@@ -110,8 +111,48 @@ class MethodHandlerWrapper:
                 raise AttributeError(msg)
 
         # Create a callable instance with the bound method and optional attributes
-        wrapper = self.handler_class(bound_method, **handler_kwargs)
+        @wraps(self.func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            handler_instance = self.handler_class(bound_method, **handler_kwargs)
+            return handler_instance(*args, **kwargs)
+
         return wrapper
+
+
+def network_method_wrapper(func: Callable) -> Callable:
+    """
+    Decorator that allows a Network method to be applied to Networks containers.
+
+    This decorator checks if the first argument is a Networks container instead of a
+    Network. If it is, it applies the function to each network in the container.
+
+    Parameters
+    ----------
+    func : Callable
+        Network method to wrap.
+
+    Returns
+    -------
+    Callable
+        Wrapped function that can handle both Network and Networks objects.
+
+    Examples
+    --------
+    >>> @network_method_wrapper
+    ... def my_network_function(n, other_arg):
+    ...     # do something with network n
+    ...     return result
+    """
+
+    @functools.wraps(func)
+    def wrapper(n: Network | Networks, *args: Any, **kwargs: Any) -> Any:
+        from pypsa.networks import Networks
+
+        if isinstance(n, Networks):
+            return n.apply(lambda net: func(net, *args, **kwargs))
+        return func(n, *args, **kwargs)
+
+    return wrapper
 
 
 def as_index(

@@ -8,9 +8,16 @@ import pypsa
 def network1():
     n = pypsa.Network()
     n.add("Carrier", "wind")
-    n.add("Carrier", "solar")
+    n.add("Carrier", "gas")  # Add gas carrier for consistency if needed later
     n.add("Bus", "bus1")
-    n.add("Generator", "gen_wind", bus="bus1", carrier="wind", p_nom=100)
+    n.add(
+        "Generator",
+        "gen_wind",
+        bus="bus1",
+        carrier="wind",
+        p_nom=100,
+        capital_cost=1000,
+    )  # Added capital_cost
     return n
 
 
@@ -20,8 +27,17 @@ def network2():
     n.add("Carrier", "solar")
     n.add("Carrier", "gas", co2_emissions=0.2)
     n.add("Bus", "bus2")
-    n.add("Generator", "gen_solar", bus="bus2", carrier="solar", p_nom=50)
-    n.add("Generator", "gen_gas", bus="bus2", carrier="gas", p_nom=200)
+    n.add(
+        "Generator",
+        "gen_solar",
+        bus="bus2",
+        carrier="solar",
+        p_nom=50,
+        capital_cost=800,
+    )  # Added capital_cost
+    n.add(
+        "Generator", "gen_gas", bus="bus2", carrier="gas", p_nom=200, capital_cost=500
+    )  # Added capital_cost
     return n
 
 
@@ -134,3 +150,26 @@ def test_networks_iteration(network1, network2):
     networks_obj = pypsa.Networks(networks_list)
     iterated_list = [n for n in networks_obj]
     assert iterated_list == networks_list
+
+
+# Tests for NetworksStatisticsAccessor
+
+
+def test_networks_statistics_capex_per_network(network1, network2):
+    """Test capex calculation per network."""
+    networks = pypsa.Networks([network1, network2])
+    capacity = networks.statistics.installed_capacity()
+
+    assert not capacity.empty
+
+    capacity.plot()
+
+
+def test_networks_statistics_nonexistent_method(network1):
+    """Test calling a method that doesn't exist on the accessor."""
+    networks_obj = pypsa.Networks([network1])
+    with pytest.raises(
+        AttributeError,
+        match="'NetworksStatisticsAccessor' object has no attribute 'nonexistent_method'",
+    ):
+        networks_obj.statistics.nonexistent_method()

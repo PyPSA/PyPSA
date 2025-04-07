@@ -257,13 +257,15 @@ class StatisticPlotter(ABC):
         stats_name = self._bound_method.__name__
         plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
 
+        relevant_plot_kwargs = [
+            value
+            for key, value in plot_kwargs.items()
+            if key in {"x", "y", "color", "facet_col", "facet_row"}
+            and value not in plotter._n._index_names
+        ]
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
@@ -639,13 +641,15 @@ class StatisticInteractivePlotter(ABC):
         stats_name = self._bound_method.__name__
         plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
 
+        relevant_plot_kwargs = [
+            value
+            for key, value in plot_kwargs.items()
+            if key in {"x", "y", "color", "facet_col", "facet_row"}
+            and value not in plotter._n._index_names
+        ]
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
