@@ -17,6 +17,7 @@ from pypsa.common import equals, future_deprecation
 from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -420,6 +421,7 @@ class Network:
             ClusteringAccessor,
             StatisticsAccessor,
             PlotAccessor,
+            AbstractStatisticsAccessor,
         ]
         not_equal = False
         if isinstance(other, self.__class__):

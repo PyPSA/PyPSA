@@ -13,6 +13,13 @@ import pytest
 
 import pypsa
 
+try:
+    import cartopy  # noqa
+
+    cartopy_available = True
+except ImportError:
+    cartopy_available = False
+
 # Warning: Keep in sync with settings in doc/conf.py
 doctest_globals = {
     "numpy": np,
@@ -32,6 +39,7 @@ modules = [
     sys.version_info[:2] == (3, 10),
     reason="Doctest fail until linopy supports numpy 2 on all python versions",
 )
+@pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize("module", modules)
 def test_doctest(module):
     finder = doctest.DocTestFinder()
