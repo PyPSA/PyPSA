@@ -115,9 +115,14 @@ Minor improvements
 * Added warning for consistent legend circle and semicirle sizes when combining plots 
   on a geographical axis.
 
+* Add new statistic ``n.statistics.system_cost()`` to calculate the total system cost from capital and operational expenditures.
+
+* Added descriptive attribute "location" to Buses. This attribute does not influence the optimisation model but can be used for aggregation in the statistics module.
+
 * Added descriptive attribute "location" to Buses. This attribute does not influence
   the optimisation model but can be used for aggregation in the statistics module.
   (https://github.com/PyPSA/PyPSA/pull/1182)
+
 
 Bug fixes
 ---------

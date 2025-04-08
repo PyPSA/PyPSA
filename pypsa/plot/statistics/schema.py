@@ -143,6 +143,7 @@ SCHEMA: dict = {
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
     },
+    "system_cost": {},
 }
 
 
