@@ -242,7 +242,7 @@ def equals(
 
     # Classes with equality methods
     if isinstance(a, np.ndarray):
-        if not np.array_equal(a, b):
+        if not np.array_equal(a, b, equal_nan=True):
             msg = f"numpy arrays differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
             return handle_diff(msg)
 

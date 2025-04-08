@@ -129,60 +129,116 @@ def test_as_index(ac_dc_network_mi, attr, expected_name):
     # assert scalar_result.name == expected_name
 
 
-@pytest.mark.parametrize(
-    "a, b, expected",
-    [
-        (1, 1, True),
-        (1, 2, False),
-        (np.array([1, 2, 3]), np.array([1, 2, 3]), True),
-        (np.array([1, 2, 3]), np.array([1, 2, 4]), False),
-        (pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"A": [1, 2]}), True),
-        (pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"A": [1, 4]}), False),
-        ({"a": 1, "b": 2}, {"a": 1, "b": 3}, False),
-        ([1, 2, 3], [1, 2, 3], True),
-        (np.nan, np.nan, True),
-    ],
-)
-def test_equals(a, b, expected):
-    assert equals(a, b) == expected
-
-
-@pytest.mark.parametrize(
-    "a, b",
-    [
-        (1, 2),
-        ("a", "b"),
-        (np.array([1, 2, 3]), np.array([1, 2, 4])),
-        (pd.DataFrame({"A": [1, 3]}), pd.DataFrame({"A": [1, 2]})),
-    ],
-)
-def test_equals_logs(a, b, caplog):
-    assert equals(a, b, log_mode="silent") is False
-    assert caplog.text == ""
-
-    assert equals(a, b, log_mode="verbose") is False
-    assert caplog.text != ""
-
-    with pytest.raises(ValueError):
-        equals(a, b, log_mode="strict")
-
-    with pytest.raises(ValueError):
-        equals(a, b, log_mode="invalid")
-
-
-def test_equals_ignored_classes():
-    class IgnoredClass:
-        def __init__(self, value=1):
-            self.value = value
-
-    assert equals(
-        IgnoredClass(value=1), IgnoredClass(value=2), ignored_classes=[IgnoredClass]
+# Tests for the Comparator class
+class TestEquals:
+    @pytest.mark.parametrize(
+        "a, b, expected",
+        [
+            (1, 1, True),
+            (1, 2, False),
+            (np.array([1, 2, 3]), np.array([1, 2, 3]), True),
+            (np.array([1, 2, 3]), np.array([1, 2, 4]), False),
+            (pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"A": [1, 2]}), True),
+            (pd.DataFrame({"A": [1, 2]}), pd.DataFrame({"A": [1, 4]}), False),
+            ({"a": 1, "b": 2}, {"a": 1, "b": 3}, False),
+            ([1, 2, 3], [1, 2, 3], True),
+            (np.nan, np.nan, True),
+            # Additional test cases
+            ("string", "string", True),
+            ("string", "different", False),
+            (None, None, True),
+            (True, True, True),
+            (True, False, False),
+            ([], [], True),
+            ({}, {}, True),
+            ((1, 2), (1, 2), True),
+            ((1, 2), (1, 3), False),
+            (set([1, 2]), set([1, 2]), True),
+            (set([1, 2]), set([1, 3]), False),
+            # Same object identity
+            (lambda x: x, lambda x: x, False),  # Functions with different identity
+        ],
     )
+    def test_equals(self, a, b, expected):
+        assert equals(a, b) == expected
 
+    @pytest.mark.parametrize(
+        "a, b",
+        [
+            (1, 2),
+            ("a", "b"),
+            (np.array([1, 2, 3]), np.array([1, 2, 4])),
+            (pd.DataFrame({"A": [1, 3]}), pd.DataFrame({"A": [1, 2]})),
+        ],
+    )
+    def test_equals_logs(self, a, b, caplog):
+        assert equals(a, b, log_mode="silent") is False
+        assert caplog.text == ""
 
-def test_equals_type_mismatch():
-    with pytest.raises(ValueError):
-        equals(1, "1", log_mode="strict")
+        assert equals(a, b, log_mode="verbose") is False
+        assert caplog.text != ""
+
+        with pytest.raises(ValueError):
+            equals(a, b, log_mode="strict")
+
+        with pytest.raises(ValueError):
+            equals(a, b, log_mode="invalid")
+
+    def test_equals_ignored_classes(self):
+        class IgnoredClass:
+            def __init__(self, value=1):
+                self.value = value
+
+        assert equals(
+            IgnoredClass(value=1), IgnoredClass(value=2), ignored_classes=[IgnoredClass]
+        )
+
+    def test_equals_type_mismatch(self):
+        with pytest.raises(ValueError):
+            equals(1, "1", log_mode="strict")
+
+    def test_invalid_log_mode_type(self):
+        with pytest.raises(ValueError, match="'log_mode' must be one of"):
+            equals(1, 1, log_mode=123)
+
+    def test_nested_structures(self):
+        a = {"level1": {"level2": [1, 2, {"level3": "value"}]}}
+        b = {"level1": {"level2": [1, 2, {"level3": "different"}]}}
+
+        assert equals(a, a) is True
+        assert equals(a, b) is False
+
+    def test_pandas_series(self):
+        a = pd.Series([1, 2, 3])
+        b = pd.Series([1, 2, 3])
+        c = pd.Series([1, 2, 4])
+
+        assert equals(a, b) is True
+        assert equals(a, c) is False
+
+    def test_pandas_empty_dataframes(self):
+        a = pd.DataFrame()
+        b = pd.DataFrame()
+
+        assert equals(a, b) is True
+
+    def test_numpy_arrays_with_nan(self):
+        a = np.array([1, 2, np.nan])
+        b = np.array([1, 2, np.nan])
+
+        assert equals(a, b) is True
+
+    def test_same_object_identity(self):
+        obj = {"complex": "object"}
+        assert equals(obj, obj) is True
+
+    def test_dict_with_missing_keys(self):
+        a = {"key1": 1, "key2": 2}
+        b = {"key1": 1}
+        c = {"key1": 1, "key2": 2, "key3": 3}
+
+        assert equals(a, b) is False
+        assert equals(a, c) is False
 
 
 @pytest.fixture
