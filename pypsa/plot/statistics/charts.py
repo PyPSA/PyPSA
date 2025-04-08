@@ -450,7 +450,7 @@ class ChartGenerator(PlotsGenerator, ABC):
                 ldata[x], categories=ldata[x].unique(), ordered=True
             )
         if y != "value" and ldata[y].dtype.name == "object":
-            ldata[y] = pd.Categorical(
+            ldata.loc[:, y] = pd.Categorical(
                 ldata[y], categories=ldata[y].unique(), ordered=True
             )
 
@@ -560,6 +560,11 @@ class ChartGenerator(PlotsGenerator, ABC):
                 artificial_zeros = pd.DataFrame(
                     {x: ldata[x].iloc[-1], y: np.nan, color: unique_colors}
                 )
+                if facet_col:
+                    artificial_zeros[facet_col] = ldata[facet_col].iloc[-1]
+                if facet_row:
+                    artificial_zeros[facet_row] = ldata[facet_row].iloc[-1]
+
                 artificials = px.area(
                     artificial_zeros,
                     **kwargs,

@@ -46,6 +46,20 @@ def test_iplot_with_colors(ac_dc_network_r):
     )
 
 
+def test_iplot_with_facet_col(ac_dc_network_r):
+    """Test creating a plot with colors from carriers."""
+    n = ac_dc_network_r
+    fig = n.statistics.installed_capacity.iplot.bar(facet_col="carrier")
+    assert isinstance(fig, go.Figure)
+
+
+def test_iplot_with_facet_row(ac_dc_network_r):
+    """Test creating a plot with colors from carriers."""
+    n = ac_dc_network_r
+    fig = n.statistics.installed_capacity.iplot.bar(facet_row="carrier")
+    assert isinstance(fig, go.Figure)
+
+
 def test_iplot_different_statistics(ac_dc_network_r):
     """Test creating plots with different statistics."""
     n = ac_dc_network_r
