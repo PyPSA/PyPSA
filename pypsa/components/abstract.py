@@ -230,9 +230,9 @@ class Components(ComponentsData, ABC):
             Check for equality of two networks.
 
         """
-        return self.equals(other, log_difference=False)
+        return self.equals(other)
 
-    def equals(self, other: Any, log_difference: bool = False) -> bool:
+    def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """
         Check if two Components are equal.
 
@@ -243,9 +243,16 @@ class Components(ComponentsData, ABC):
         ----------
         other : Any
             The other network to compare with.
-        log_difference: bool, default=False
-            If True, logs the difference between two objects (logging level INFO). This
-            is useful for debugging purposes.
+        log_mode: str, default="silent"
+            Controls how differences are reported:
+            - 'silent': No logging, just returns True/False
+            - 'verbose': Prints differences but doesn't raise errors
+            - 'strict': Raises ValueError on first difference
+
+        Raises
+        ------
+        ValueError
+            If log_mode is 'strict' and components are not equal.
 
         Returns
         -------
@@ -265,9 +272,9 @@ class Components(ComponentsData, ABC):
 
         """
         return (
-            equals(self.ctype, other.ctype, log_difference=log_difference)
-            and equals(self.static, other.static, log_difference=log_difference)
-            and equals(self.dynamic, other.dynamic, log_difference=log_difference)
+            equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
+            and equals(self.static, other.static, log_mode=log_mode, path="c.static")
+            and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
         )
 
     @staticmethod

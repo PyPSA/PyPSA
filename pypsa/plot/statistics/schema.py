@@ -54,7 +54,14 @@ SCHEMA_DEFAULTS: dict = {
 }
 
 SCHEMA_METHOD_DEFAULTS: dict = {
-    "area": {"x": "carrier", "y": "value", "color": None, "height": 3, "aspect": 2},
+    "area": {
+        "x": "carrier",
+        "y": "value",
+        "color": None,
+        "height": 3,
+        "aspect": 2,
+        "linewidth": 0,
+    },
     "line": {"x": "carrier", "y": "value", "color": None, "height": 3, "aspect": 2},
     "bar": {"x": "value", "y": "carrier", "color": "carrier"},
 }
@@ -136,6 +143,7 @@ SCHEMA: dict = {
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
     },
+    "system_cost": {},
 }
 
 

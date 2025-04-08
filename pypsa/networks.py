@@ -17,6 +17,7 @@ from pypsa.common import equals, future_deprecation
 from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -87,6 +88,7 @@ from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
+from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
     import linopy
@@ -288,12 +290,10 @@ class Network:
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        from pypsa import release_version as pypsa_version
-
         self.name: str = name
 
         # this will be saved on export
-        self.pypsa_version: str = pypsa_version
+        self.pypsa_version: str = __version_semver__
 
         self._meta: dict = {}
 
@@ -385,9 +385,9 @@ class Network:
         --------
         pypsa.Network.equals : Check for equality of two networks.
         """
-        return self.equals(other, log_difference=False)
+        return self.equals(other)
 
-    def equals(self, other: Any, log_difference: bool = False) -> bool:
+    def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """
         Check for equality of two networks.
 
@@ -395,9 +395,16 @@ class Network:
         ----------
         other : Any
             The other network to compare with.
-        log_difference: bool, default=False
-            If True, logs the difference between two objects (logging level INFO). This
-            is useful for debugging purposes.
+        log_mode: str, default="silent"
+            Controls how differences are reported:
+            - 'silent': No logging, just returns True/False
+            - 'verbose': Prints differences but doesn't raise errors
+            - 'strict': Raises ValueError on first difference
+
+        Raises
+        ------
+        ValueError
+            If log_mode is 'strict' and components are not equal.
 
         Returns
         -------
@@ -421,6 +428,7 @@ class Network:
             ClusteringAccessor,
             StatisticsAccessor,
             PlotAccessor,
+            AbstractStatisticsAccessor,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
@@ -429,11 +437,12 @@ class Network:
                     value,
                     other.__dict__[key],
                     ignored_classes=ignore,
-                    log_difference=log_difference,
+                    log_mode=log_mode,
+                    path="n." + key,
                 ):
                     logger.warning("Mismatch in attribute: %s", key)
                     not_equal = True
-                    if not log_difference:
+                    if not log_mode:
                         break
         else:
             logger.warning(

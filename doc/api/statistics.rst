@@ -12,6 +12,7 @@ Metrics
 .. autosummary::
     :toctree: _source/
 
+    ~pypsa.statistics.StatisticsAccessor.system_cost
     ~pypsa.statistics.StatisticsAccessor.capex
     ~pypsa.statistics.StatisticsAccessor.installed_capex
     ~pypsa.statistics.StatisticsAccessor.expanded_capex

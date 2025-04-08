@@ -84,7 +84,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """Plot network statistics on a map."""
         n = self._n
-        colors = self.get_carrier_colors()
+        colors = self.get_carrier_colors(nice_names=False)
         plotting_consistency_check(n)
         boundaries = boundaries or self.boundaries
         (x_min, x_max, y_min, y_max) = boundaries
@@ -122,7 +122,9 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         # Handle transmission flows or branch widths
         if transmission_flow:
-            branch_flows = n.statistics.transmission(groupby=False, bus_carrier=carrier)
+            branch_flows = n.statistics.transmission(
+                groupby=False, bus_carrier=bus_carrier, nice_names=False
+            )
             branch_flows = MapPlotGenerator.aggregate_flow_by_connection(
                 branch_flows, n.branches()
             )

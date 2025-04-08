@@ -359,6 +359,30 @@ class TestExcelIO:
         )
 
 
+def test_io_equality(ac_dc_network, tmp_path):
+    """
+    Test if the network is equal after export and import.
+    """
+    n = ac_dc_network
+    n.export_to_netcdf(tmp_path / "network.nc")
+    n2 = pypsa.Network(tmp_path / "network.nc")
+    assert n.equals(n2, log_mode="strict")
+
+    n.export_to_csv_folder(tmp_path / "network")
+    n3 = pypsa.Network(tmp_path / "network")
+    assert n.equals(n3, log_mode="strict")
+
+    if excel_installed:
+        n.export_to_excel(tmp_path / "network.xlsx")
+        n4 = pypsa.Network(tmp_path / "network.xlsx")
+        assert n.equals(n4, log_mode="strict")
+
+    if tables_installed:
+        n.export_to_hdf5(tmp_path / "network.h5")
+        n5 = pypsa.Network(tmp_path / "network.h5")
+        assert n.equals(n5, log_mode="strict")
+
+
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
 def test_import_from_pandapower_network(

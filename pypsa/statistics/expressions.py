@@ -7,7 +7,7 @@ import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
-from pypsa.plot.statistics.plotter import StatisticPlotter
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -135,6 +135,7 @@ class StatisticHandler:
         self._bound_method = bound_method
         self._n = n
         self.plot = StatisticPlotter(n=n, bound_method=bound_method)
+        self.iplot = StatisticInteractivePlotter(n=n, bound_method=bound_method)
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.DataFrame:  # noqa: D102
         return self._bound_method(*args, **kwargs)
@@ -162,6 +163,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     """Accessor to calculate different statistical values."""
 
     _methods = [
+        "system_cost",
         "capex",
         "installed_capex",
         "expanded_capex",
@@ -224,8 +226,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         first_key = next(iter(d))
         if is_one_component:
             return d[first_key]
-        index_names = ["component"] + d[first_key].index.names
-        df = pd.concat(d, names=index_names)
+        index_names = [x.index.names for x in d.values()]
+        # If index names are the same, use them
+        if all(x == index_names[0] for x in index_names):
+            col_names = ["component"] + index_names[0]
+        # Otherwise, use default column names
+        elif all(len(x) == 1 for x in index_names):
+            col_names = ["component", "name"]
+        else:
+            msg = "Multi-indexed data must have the same index names."
+            raise AssertionError(msg)
+
+        df = pd.concat(d, names=col_names)
         return df
 
     def _apply_option_kwargs(
@@ -1226,6 +1238,116 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         df.attrs["name"] = "Operational Expenditure"
+        df.attrs["unit"] = "currency"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def system_cost(
+        self,
+        comps: str | Sequence[str] | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = False,
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        """
+        Calculate the total system cost.
+
+        Sum of the capital and operational expenditures.
+
+        Parameters
+        ----------
+        comps : str | Sequence[str] | None, default=None
+            Components to include in the calculation. If None, includes all one-port
+            and branch components. Available components are 'Generator', 'StorageUnit',
+            'Store', 'Load', 'Line', 'Transformer' and'Link'.
+        aggregate_groups : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+            Any pandas aggregation function can be used.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components. If there are different components
+            which would be grouped together due to the same index, this is avoided.
+        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+            How to group components:
+            - str or list of str: Column names from component static DataFrames
+            - callable: Function that takes network and component name as arguments
+        at_port : bool | str | Sequence[str], default=True
+            Which ports to consider:
+            - True: All ports of components
+            - False: Exclude first port ("bus"/"bus0")
+            - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses. If specified, only considers assets
+            connected to buses with the given carrier(s).
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
+
+        Additional Parameters
+        ---------------------
+        aggregate_time : str | bool, default="sum"
+            Type of aggregation when aggregating time series. Deactivate by setting to
+            False. Any pandas aggregation function can be used. Note that when
+            aggregating the time series are aggregated to MWh using snapshot weightings.
+            With False the time series is given in MW.
+
+        Returns
+        -------
+        pd.DataFrame
+            System cost with components as rows and a single column of
+            aggregated values.
+
+        Example
+        -------
+        >>> n.statistics.system_cost()
+        Series([], dtype: float64)
+
+        """
+        capex = self.capex(
+            comps=comps,
+            aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+        opex = self.opex(
+            comps=comps,
+            aggregate_time=aggregate_time,
+            aggregate_groups=aggregate_groups,
+            aggregate_across_components=aggregate_across_components,
+            groupby=groupby,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            nice_names=nice_names,
+            drop_zero=drop_zero,
+            round=round,
+        )
+        df = capex.add(opex, fill_value=0)
+        df.attrs["name"] = "System Cost"
         df.attrs["unit"] = "currency"
         return df
 
