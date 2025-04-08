@@ -19,8 +19,8 @@ plt.rcParams["figure.dpi"] = 100
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform != "linux",
-    reason="Check only on Linux and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Check only on Linux/macOS and Python 3.13 for stability",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
@@ -32,8 +32,8 @@ def test_simple_plot(ac_dc_network_r, stat_func):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform != "linux",
-    reason="Check only on Linux and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Check only on Linux/macOS and Python 3.13 for stability",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
@@ -45,8 +45,8 @@ def test_bar_plot(ac_dc_network_r, stat_func):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform != "linux",
-    reason="Check only on Linux and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Check only on Linux/macOS and Python 3.13 for stability",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
@@ -58,8 +58,8 @@ def test_line_plot(ac_dc_network_r, stat_func):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform != "linux",
-    reason="Check only on Linux and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Check only on Linux/macOS and Python 3.13 for stability",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
@@ -71,8 +71,8 @@ def test_area_plot(ac_dc_network_r, stat_func):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform != "linux",
-    reason="Check only on Linux and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Check only on Linux/macOS and Python 3.13 for stability",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 # @pytest.mark.mpl_image_compare(tolerance=40) # TODO find better way to compare
@@ -81,7 +81,7 @@ def test_map_plot(ac_dc_network_r, stat_func):
 
     fig, _ = plotter.plot.map()
 
-    return fig
+    # return fig
 
 
 def test_to_long_format_static(ac_dc_network_r):
