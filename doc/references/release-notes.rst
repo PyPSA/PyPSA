@@ -35,6 +35,8 @@ Bug Fixes
 * Fixed unaligned statistics index names when ``groupby=False``
   (https://github.com/PyPSA/PyPSA/pull/1205)
   
+* Fixed interactive area plots in stacked more with `facet_row` and `facet_col`. 
+
 
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================
