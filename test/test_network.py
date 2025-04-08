@@ -344,7 +344,7 @@ def test_equality_behavior(all_networks):
     for n in all_networks:
         deep_copy = copy.deepcopy(n)
         assert n is not deep_copy
-        assert n.equals(deep_copy, log_difference=True)
+        assert n.equals(deep_copy, log_mode="strict")
 
         assert n == deep_copy
 

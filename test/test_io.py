@@ -366,21 +366,21 @@ def test_io_equality(ac_dc_network, tmp_path):
     n = ac_dc_network
     n.export_to_netcdf(tmp_path / "network.nc")
     n2 = pypsa.Network(tmp_path / "network.nc")
-    assert n.equals(n2, log_difference=True)
+    assert n.equals(n2, log_mode="strict")
 
     n.export_to_csv_folder(tmp_path / "network")
     n3 = pypsa.Network(tmp_path / "network")
-    assert n.equals(n3, log_difference=True)
+    assert n.equals(n3, log_mode="strict")
 
     if excel_installed:
         n.export_to_excel(tmp_path / "network.xlsx")
         n4 = pypsa.Network(tmp_path / "network.xlsx")
-        assert n.equals(n4, log_difference=True)
+        assert n.equals(n4, log_mode="strict")
 
     if tables_installed:
         n.export_to_hdf5(tmp_path / "network.h5")
         n5 = pypsa.Network(tmp_path / "network.h5")
-        assert n.equals(n5, log_difference=True)
+        assert n.equals(n5, log_mode="strict")
 
 
 @pytest.mark.parametrize("use_pandapower_index", [True, False])

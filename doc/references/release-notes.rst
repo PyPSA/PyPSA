@@ -27,7 +27,13 @@ Upcoming Release
 * New method `n.equals() <pypsa.Network.equals>` to compare two networks for equality. 
   This is similar to the equality operator `==` but allows for more flexibility in the
   comparison which is useful for testing and debugging.
-  (https://github.com/PyPSA/PyPSA/pull/1194)
+  (https://github.com/PyPSA/PyPSA/pull/1194, https://github.com/PyPSA/PyPSA/pull/1205)
+
+Bug Fixes
+--------
+
+* Fixed unaligned statistics index names when ``groupby=False``
+  (https://github.com/PyPSA/PyPSA/pull/1205)
   
 
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
