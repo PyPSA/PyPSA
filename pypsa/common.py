@@ -16,6 +16,7 @@ import pandas.testing as pd_testing
 from deprecation import deprecated
 from pandas.api.types import is_list_like
 
+from pypsa.definitions.components import ComponentsStore
 from pypsa.definitions.structures import Dict
 
 if TYPE_CHECKING:
@@ -175,10 +176,14 @@ def as_index(
 
 
 def equals(
-    a: Any, b: Any, ignored_classes: Any = None, log_difference: bool = False
+    a: Any,
+    b: Any,
+    ignored_classes: Any = None,
+    log_mode: str = "silent",
+    path: str = "",
 ) -> bool:
     """
-    Check if two objects are equal.
+    Check if two objects are equal and track the location of differences.
 
     Parameters
     ----------
@@ -188,17 +193,48 @@ def equals(
         Second object to compare.
     ignored_classes : Any, default=None
         Classes to ignore during comparison. If None, no classes are ignored.
-    log_difference : bool, default=False
-        If True, logs the difference between two objects (logging level WARNING). This
-        is useful for debugging purposes.
+    log_mode: str, default="silent"
+        Controls how differences are reported:
+        - 'silent': No logging, just returns True/False
+        - 'verbose': Prints differences but doesn't raise errors
+        - 'strict': Raises ValueError on first difference
+    path: str, default=""
+        Current path in the object structure (used for tracking differences).
+
+    Raises
+    ------
+    ValueError
+        If log_mode is 'strict' and components are not equal.
 
     Returns
     -------
     bool
         True if the objects are equal, False otherwise.
-
     """
-    assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
+    if not isinstance(log_mode, str):
+        msg = "'log_mode' must be a string, not {type(log_mode)}."
+    if log_mode not in ["silent", "verbose", "strict"]:
+        msg = (
+            f"'log_mode' must be one of 'silent', 'verbose', 'strict'], not {log_mode}."
+        )
+        raise ValueError(msg)
+
+    current_path = path or "root"
+
+    def handle_diff(message: str) -> bool:
+        if log_mode == "strict":
+            raise ValueError(message)
+        elif log_mode == "verbose":
+            logger.warning(message)
+        return False
+
+    if not isinstance(a, type(b)):
+        # Ignore if they are subtypes # TODO: remove with data validation PR
+        if np.issubdtype(type(a), type(b)) or np.issubdtype(type(b), type(a)):
+            pass
+        else:
+            msg = f"Types differ at '{current_path}'\n\n{a} ({type(a)})\n\n!=\n\n{b} ({type(b)})\n"
+            return handle_diff(msg)
 
     if ignored_classes is not None:
         if isinstance(a, tuple(ignored_classes)):
@@ -207,33 +243,51 @@ def equals(
     # Classes with equality methods
     if isinstance(a, np.ndarray):
         if not np.array_equal(a, b):
-            if log_difference:
-                logger.warning(f"numpy arrays diff:\n\n{a}\n\n!=\n\n{b}\n")
+            msg = f"numpy arrays differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
 
-            return False
     elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
         if a.empty and b.empty:
             return True
-
         if not a.equals(b):
-            # TODO: Resolve with data validation PRi
+            # TODO: Resolve with data validation PR
             # Check if dtypes are equal
             try:
                 pd_testing.assert_frame_equal(a, b, check_dtype=False)
-
             except AssertionError:
-                if log_difference:
-                    logger.warning(f"pandas objects diff:\n\n{a}\n\n!=\n\n{b}\n")
+                msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+                return handle_diff(msg)
+    # Custom classes
+    elif isinstance(a, ComponentsStore):
+        if a.keys() != b.keys():
+            msg = (
+                f"ComponentsStore keys differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            )
+            return handle_diff(msg)
+        for k in a.keys():
+            if not equals(a[k], b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
                 return False
-
     # Iterators
     elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
-            if not equals(v, b[k]):
+            if k not in b:
+                msg = f"Key '{k}' missing from second dict at '{current_path}'"
+                return handle_diff(msg)
+            if not equals(v, b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
                 return False
+        # Check for extra keys in b
+        for k in b:
+            if k not in a:
+                msg = f"Key '{k}' missing from first dict at '{current_path}'"
+                return handle_diff(msg)
+
     elif isinstance(a, (list | tuple)):
+        if len(a) != len(b):
+            msg = f"Collections have different lengths at '{current_path}': {len(a)} != {len(b)}"
+            return handle_diff(msg)
+
         for i, v in enumerate(a):
-            if not equals(v, b[i]):
+            if not equals(v, b[i], ignored_classes, log_mode, f"{current_path}[{i}]"):
                 return False
 
     # Nans
@@ -243,9 +297,8 @@ def equals(
     # Other objects
     else:
         if a != b:
-            if log_difference:
-                logger.warning(f"Objects diff:\n\n{a}\n\n!=\n\n{b}\n")
-            return False
+            msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
 
     return True
 
@@ -307,7 +360,7 @@ def rename_kwargs(
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
-                raise TypeError(
+                raise DeprecationWarning(
                     f"{func_name} received both {alias} and {new} as arguments!"
                     f" {alias} is deprecated, use {new} instead."
                 )

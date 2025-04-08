@@ -157,8 +157,17 @@ def test_equals(a, b, expected):
     ],
 )
 def test_equals_logs(a, b, caplog):
-    assert equals(a, b, log_difference=True) is False
+    assert equals(a, b, log_mode="silent") is False
+    assert caplog.text == ""
+
+    assert equals(a, b, log_mode="verbose") is False
     assert caplog.text != ""
+
+    with pytest.raises(ValueError):
+        equals(a, b, log_mode="strict")
+
+    with pytest.raises(ValueError):
+        equals(a, b, log_mode="invalid")
 
 
 def test_equals_ignored_classes():
@@ -172,8 +181,8 @@ def test_equals_ignored_classes():
 
 
 def test_equals_type_mismatch():
-    with pytest.raises(AssertionError):
-        equals(1, "1")
+    with pytest.raises(ValueError):
+        equals(1, "1", log_mode="strict")
 
 
 @pytest.fixture

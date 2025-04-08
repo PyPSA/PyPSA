@@ -385,9 +385,9 @@ class Network:
         --------
         pypsa.Network.equals : Check for equality of two networks.
         """
-        return self.equals(other, log_difference=False)
+        return self.equals(other)
 
-    def equals(self, other: Any, log_difference: bool = False) -> bool:
+    def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """
         Check for equality of two networks.
 
@@ -395,9 +395,16 @@ class Network:
         ----------
         other : Any
             The other network to compare with.
-        log_difference: bool, default=False
-            If True, logs the difference between two objects (logging level INFO). This
-            is useful for debugging purposes.
+        log_mode: str, default="silent"
+            Controls how differences are reported:
+            - 'silent': No logging, just returns True/False
+            - 'verbose': Prints differences but doesn't raise errors
+            - 'strict': Raises ValueError on first difference
+
+        Raises
+        ------
+        ValueError
+            If log_mode is 'strict' and components are not equal.
 
         Returns
         -------
@@ -430,11 +437,12 @@ class Network:
                     value,
                     other.__dict__[key],
                     ignored_classes=ignore,
-                    log_difference=log_difference,
+                    log_mode=log_mode,
+                    path="n." + key,
                 ):
                     logger.warning("Mismatch in attribute: %s", key)
                     not_equal = True
-                    if not log_difference:
+                    if not log_mode:
                         break
         else:
             logger.warning(
