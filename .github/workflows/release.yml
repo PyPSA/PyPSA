@@ -106,6 +106,10 @@ jobs:
         n = pypsa.examples.scigrid_de()
         n.export_to_csv_folder("examples/networks/scigrid-de/scigrid-de")
         n.export_to_netcdf("examples/networks/scigrid-de/scigrid-de.nc")
+        # model-energy
+        n = pypsa.examples.model_energy()
+        n.export_to_csv_folder("examples/networks/model-energy/model-energy")
+        n.export_to_netcdf("examples/networks/model-energy/model-energy.nc")
       shell: python
 
     # End of preparation script
