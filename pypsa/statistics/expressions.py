@@ -226,8 +226,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         first_key = next(iter(d))
         if is_one_component:
             return d[first_key]
-        index_names = ["component"] + d[first_key].index.names
-        df = pd.concat(d, names=index_names)
+        index_names = [x.index.names for x in d.values()]
+        # If index names are the same, use them
+        if all(x == index_names[0] for x in index_names):
+            col_names = ["component"] + index_names[0]
+        # Otherwise, use default column names
+        elif all(len(x) == 1 for x in index_names):
+            col_names = ["component", "name"]
+        else:
+            msg = "Multi-indexed data must have the same index names."
+            raise AssertionError(msg)
+
+        df = pd.concat(d, names=col_names)
         return df
 
     def _apply_option_kwargs(
