@@ -51,6 +51,13 @@ Bug Fixes
   (https://github.com/PyPSA/PyPSA/pull/1190)
 
 
+* Added new single node capacity expansion example in style of model.energy.
+  It can be loaded with ``pypsa.examples.model_energy()``.
+
+* Add new example for how to run MGA ('modelling-to-generate-alternatives') optimisation.
+
+* Added demand elasticity example.
+
 `v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
 =======================================================================================
 

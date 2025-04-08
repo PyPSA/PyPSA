@@ -116,3 +116,30 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
             DeprecationWarning,
         )
     return _retrieve_if_not_local("examples/networks/scigrid-de/scigrid-de.nc")
+
+
+def model_energy(update: bool = False, from_master: bool = False) -> Network:
+    """
+    Load the single-node capacity expansion model in style of model.energy.
+
+    Parameters
+    ----------
+    update : bool, optional
+        Whether to update the locally stored network data. The default is False.
+    from_master : bool, optional
+        Whether to retrieve from the master branch of the pypsa repository.
+
+    .. deprecated:: 0.35.0
+          `from_master` and `update` are deprecated and do not have any effect.
+
+    Returns
+    -------
+    pypsa.Network
+    """
+    if update or from_master:
+        warnings.warn(
+            "The 'update' and 'from_master' parameters are deprecated and do not have any effect. "
+            "Example networks are always updated and retrieved for the current version.",
+            DeprecationWarning,
+        )
+    return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")
