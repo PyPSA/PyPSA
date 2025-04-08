@@ -343,8 +343,10 @@ def test_equality_behavior(all_networks):
     """
     for n in all_networks:
         deep_copy = copy.deepcopy(n)
-        assert n == deep_copy
         assert n is not deep_copy
+        assert n.equals(deep_copy, log_mode="strict")
+
+        assert n == deep_copy
 
         # TODO: Could add more property based tests here (hypothesis)
         deep_copy.name = "new_name"

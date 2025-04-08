@@ -1160,7 +1160,7 @@ class MapPlotter:
                 "Set differing widths with arguments 'line_widths', "
                 "'link_widths' and 'transformer_widths'."
             )
-            raise TypeError(msg)
+            raise DeprecationWarning(msg)
 
         if isinstance(line_colors, pd.Series) and isinstance(
             line_colors.index, pd.MultiIndex
@@ -1171,7 +1171,7 @@ class MapPlotter:
                 "Set differing colors with arguments 'line_colors', "
                 "'link_colors' and 'transformer_colors'."
             )
-            raise TypeError(msg)
+            raise DeprecationWarning(msg)
 
         # Check for ValueErrors
         if geomap:

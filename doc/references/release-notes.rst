@@ -5,23 +5,51 @@ Release Notes
 Upcoming Release
 ================
 
-.. .. warning:: 
+.. warning:: 
   
    The features listed below are not released yet, but will be part of the next release! 
    To use the features already you have to install the ``master`` branch, e.g. 
    ``pip install git+https://github.com/pypsa/pypsa``.
 
+* New **interactive** plotting library
+
+  * You can now create plots on any PyPSA statistic. Try them with:
+
+    * :meth:`n.statistics.energy_balance.iplot() <pypsa.iplot.statistics.plotter.StatisticInteractivePlotter.__call__>` to get the pre defined default plot
+    * :meth:`n.statistics.energy_balance.iplot.bar() <pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar>` to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
+
+* The function ``n.statistics.opex()`` now includes all operational cost
+  components: marginal costs, quadratic marginal costs, storage costs, spill
+  costs, start-up costs, shut-down costs, and stand-by costs. Previously, only
+  marginal costs were considered. A new parameter `cost_types` allows selecting
+  which cost components to include. (https://github.com/PyPSA/PyPSA/pull/1195)
+
+* New method `n.equals() <pypsa.Network.equals>` to compare two networks for equality. 
+  This is similar to the equality operator `==` but allows for more flexibility in the
+  comparison which is useful for testing and debugging.
+  (https://github.com/PyPSA/PyPSA/pull/1194, https://github.com/PyPSA/PyPSA/pull/1205)
+
+Bug Fixes
+--------
+
+* Fixed unaligned statistics index names when ``groupby=False``
+  (https://github.com/PyPSA/PyPSA/pull/1205)
+  
+
+`v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
+=======================================================================================
+
+Bug Fixes
+---------
+
+* The static map plots for statistics are fixed, e.g. `n.statistics.energy_balance.map()`. 
+  (https://github.com/PyPSA/PyPSA/pull/1201)
 
 * The previous maps module under `pypsa/plot` is now modularized. Instead of a 
   monolithic module, the maps module is now split into several submodules. The
-  submodules are:
+  submodules are: `.maps.common`, `.maps.interactive`, and `.maps.static`.
+  (https://github.com/PyPSA/PyPSA/pull/1190)
 
-  - `pypsa.plot.maps.common`: Base module for all maps.
-  - `pypsa.plot.maps.interactive`: Maps using interactive libraries.
-  - `pypsa.plot.maps.static`: Maps using static libraries.
-
-  The new modularized maps module allows for more flexibility and easier
-  maintenance. 
 
 * Added new single node capacity expansion example in style of model.energy.
   It can be loaded with ``pypsa.examples.model_energy()``.

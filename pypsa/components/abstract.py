@@ -224,11 +224,57 @@ class Components(ComponentsData, ABC):
         bool
             True if components are equal, otherwise False.
 
+        See Also
+        --------
+        pypsa.components.abstract.Components.equals :
+            Check for equality of two networks.
+
+        """
+        return self.equals(other)
+
+    def equals(self, other: Any, log_mode: str = "silent") -> bool:
+        """
+        Check if two Components are equal.
+
+        Does not check the attached Network, but only component specific data. Therefore
+        two components can be equal even if they are attached to different networks.
+
+        Parameters
+        ----------
+        other : Any
+            The other network to compare with.
+        log_mode: str, default="silent"
+            Controls how differences are reported:
+            - 'silent': No logging, just returns True/False
+            - 'verbose': Prints differences but doesn't raise errors
+            - 'strict': Raises ValueError on first difference
+
+        Raises
+        ------
+        ValueError
+            If log_mode is 'strict' and components are not equal.
+
+        Returns
+        -------
+        bool
+            True if components are equal, otherwise False.
+
+        Examples
+        --------
+        >>> n1 = pypsa.Network()
+        >>> n2 = pypsa.Network()
+        >>> n1.add("Bus", "bus1")
+        Index(['bus1'], dtype='object')
+        >>> n2.add("Bus", "bus1")
+        Index(['bus1'], dtype='object')
+        >>> n1.buses.equals(n2.buses)
+        True
+
         """
         return (
-            equals(self.ctype, other.ctype)
-            and equals(self.static, other.static)
-            and equals(self.dynamic, other.dynamic)
+            equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
+            and equals(self.static, other.static, log_mode=log_mode, path="c.static")
+            and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
         )
 
     @staticmethod

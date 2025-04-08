@@ -366,12 +366,12 @@ The generator/link may have been up for some periods before the ``snapshots`` si
 At the end of ``snapshots`` the minimum up-time in the constraint is only enforced for the remaining snapshots, if the number of remaining snapshots is less than :math:`T_{\textrm{min_up}}`.
 
 
-Similarly if the minimum down time :math:`T_{\textrm{min_down}}` (``n.generators.min_up_time``) is set then we have
+Similarly if the minimum down time :math:`T_{\textrm{min_down}}` (``n.generators.min_down_time``) is set then we have
 
 .. math::
    \sum_{t'=t}^{t+T_\textrm{min_down}} (1-u_{n,s,t'})\geq T_\textrm{min_down} (u_{n,s,t-1} - u_{n,s,t})   \hspace{.5cm} \forall\, n,s,t
 
-You can also defined ``n.generators.down_time_before`` for periods before ``n.snapshots``, analogous to the up time.
+You can also define ``n.generators.down_time_before`` for periods before ``n.snapshots``, analogous to the up time.
 
 For non-zero start up costs :math:`suc_{n,s}` a new variable :math:`suc_{n,s,t} \geq 0` is introduced for each time period :math:`t` and added to the objective function.  The variable satisfies
 
