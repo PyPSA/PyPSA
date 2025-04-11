@@ -1520,7 +1520,7 @@ class Network:
         if with_time is not None:
             warnings.warn(
                 "Argument 'with_time' is deprecated in 0.29 and will be "
-                "removed in a future version. Pass an empty list to 'snapshots' instead.",
+                "removed in a future version. Pass an empty list to 'snapshots' instead."
                 "Deprecated in version 0.29 and will be removed in version 1.0.",
                 DeprecationWarning,
                 stacklevel=2,
