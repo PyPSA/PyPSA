@@ -95,7 +95,6 @@ if TYPE_CHECKING:
     from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
-warnings.simplefilter("always", DeprecationWarning)
 
 
 dir_name = os.path.dirname(__file__)
@@ -287,7 +286,8 @@ class Network:
             msg = (
                 "The arguments `override_components` and `override_component_attrs` "
                 "are deprecated. Please check the release notes: "
-                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0"
+                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0."
+                "Deprecated in version 0.33 and will be removed in version 1.0."
             )
             raise DeprecationWarning(msg)
 
@@ -1521,6 +1521,7 @@ class Network:
             warnings.warn(
                 "Argument 'with_time' is deprecated in 0.29 and will be "
                 "removed in a future version. Pass an empty list to 'snapshots' instead.",
+                "Deprecated in version 0.29 and will be removed in version 1.0.",
                 DeprecationWarning,
                 stacklevel=2,
             )

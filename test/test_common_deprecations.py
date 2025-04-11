@@ -36,7 +36,7 @@ def test_rename_deprecated_kwargs_basic(mock_version_semver):
         assert "`old_arg` is deprecated as an argument to `test_func`" in str(
             w[0].message
         )
-        assert "Deprecated since version 0.9.0" in str(w[0].message)
+        assert "Deprecated in version 0.9.0" in str(w[0].message)
         assert "Will be removed in version 1.1.0" in str(w[0].message)
 
     # Check that the argument was renamed

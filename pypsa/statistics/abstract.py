@@ -39,7 +39,8 @@ class Parameters:
     @property
     def drop_zero(self) -> bool:  # noqa: D102
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.drop_zero' instead.",
+            "Use 'pypsa.options.params.statistics.drop_zero' instead."
+            "Deprecated in version 0.34 and will be removed in version 1.0.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -48,7 +49,8 @@ class Parameters:
     @drop_zero.setter
     def drop_zero(self, value: bool) -> None:  # noqa: D102
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.drop_zero = ..' instead.",
+            "Use 'pypsa.options.params.statistics.drop_zero = ..' instead."
+            "Deprecated in version 0.34 and will be removed in version 1.0.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -57,7 +59,8 @@ class Parameters:
     @property
     def nice_names(self) -> bool:  # noqa: D102
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.nice_names' instead.",
+            "Use 'pypsa.options.params.statistics.nice_names' instead."
+            "Deprecated in version 0.34 and will be removed in version 1.0.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -66,7 +69,8 @@ class Parameters:
     @nice_names.setter
     def nice_names(self, value: bool) -> None:  # noqa: D102
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.nice_names = ..' instead.",
+            "Use 'pypsa.options.params.statistics.nice_names = ..' instead."
+            "Deprecated in version 0.34 and will be removed in version 1.0.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -75,7 +79,8 @@ class Parameters:
     @property
     def round(self) -> int:  # noqa: D102
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.round' instead.",
+            "Use 'pypsa.options.params.statistics.round' instead."
+            "Deprecated in version 0.34 and will be removed in version 1.0.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -84,7 +89,8 @@ class Parameters:
     @round.setter
     def round(self, value: int) -> None:  # noqa: D102
         warnings.warn(
-            "Use 'pypsa.options.params.statistics.round = ..' instead.",
+            "Use 'pypsa.options.params.statistics.round = ..' instead."
+            "Deprecated in version 0.34 and will be removed in version 1.0.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -264,7 +270,8 @@ class AbstractStatisticsAccessor(ABC):
                         warnings.warn(
                             "Passing `groupby=None` is deprecated. Drop the "
                             "argument to get the default grouping (by carrier), which "
-                            "was also the previous default behavior.",
+                            "was also the previous default behavior. Deprecated in "
+                            "version 0.34 and will be removed in version 1.0.",
                             DeprecationWarning,
                             stacklevel=2,
                         )

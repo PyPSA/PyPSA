@@ -126,6 +126,9 @@ show_error_code_links = true
 # disallow_any_generics = true 
 # warn_return_any = true
 
+
+
+
 [[tool.mypy.overrides]]
 module = "pypsa.*"
 disallow_untyped_defs = true

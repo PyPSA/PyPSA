@@ -345,7 +345,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         if aggregate_time is not None:
             warnings.warn(
                 "The parameter `aggregate_time` is deprecated for the summary function."
-                "Please use it for individual statistics instead.",
+                "Please use it for individual statistics instead. Deprecated in "
+                "version 0.34 and will be removed in version 1.0.",
                 DeprecationWarning,
             )
         funcs: list[Callable] = [

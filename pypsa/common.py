@@ -346,7 +346,7 @@ def rename_deprecated_kwargs(
 
             message = f"`{alias}` is deprecated as an argument to `{func_name}`; use `{new}` instead."
             if deprecated_in:
-                message += f" Deprecated since version {deprecated_in}."
+                message += f" Deprecated in version {deprecated_in}."
             if removed_in:
                 message += f" Will be removed in version {removed_in}."
 
