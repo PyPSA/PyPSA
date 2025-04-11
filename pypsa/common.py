@@ -14,10 +14,12 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pd_testing
 from deprecation import deprecated
+from packaging import version
 from pandas.api.types import is_list_like
 
 from pypsa.definitions.components import ComponentsStore
 from pypsa.definitions.structures import Dict
+from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -303,48 +305,15 @@ def equals(
     return True
 
 
-def deprecated_kwargs(**aliases: str) -> Callable:
-    """
-    Decorator for deprecated function and method arguments.
-    Based on solution from [here](https://stackoverflow.com/questions/49802412).
-
-    Parameters
-    ----------
-    aliases : dict
-        A mapping of old argument names to new argument names.
-
-    Returns
-    -------
-    Callable
-        A decorator that renames the old arguments to the new arguments.
-
-    Examples
-    --------
-    >>> @deprecated_kwargs(object_id="id_object")
-    ... def some_func(id_object):
-    ...     print(id_object)
-    >>> some_func(object_id=1) # doctest: +SKIP
-    1
-
-    """
-
-    def deco(f: Callable) -> Callable:
-        @functools.wraps(f)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            rename_kwargs(f.__name__, kwargs, aliases)
-            return f(*args, **kwargs)
-
-        return wrapper
-
-    return deco
-
-
-def rename_kwargs(
-    func_name: str, kwargs: dict[str, Any], aliases: dict[str, str]
+def rename_deprecated_kwargs(
+    func_name: str,
+    kwargs: dict[str, Any],
+    aliases: dict[str, str],
+    deprecated_in: str,
+    removed_in: str,
 ) -> None:
     """
     Helper function for deprecating function arguments.
-
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
     Parameters
@@ -355,8 +324,18 @@ def rename_kwargs(
         The keyword arguments of the function.
     aliases : dict
         A mapping of old argument names to new argument names.
-
+    deprecated_in : str
+        Version in which the argument was deprecated.
+    removed_in : str
+        Version in which the argument will be removed.
     """
+    if version.parse(deprecated_in) > version.parse(__version_semver__):
+        msg = (
+            "'rename_deprecated_kwargs' can only be used in a version >= deprecated_in "
+            f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
+        )
+        raise ValueError(msg)
+
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
@@ -364,15 +343,60 @@ def rename_kwargs(
                     f"{func_name} received both {alias} and {new} as arguments!"
                     f" {alias} is deprecated, use {new} instead."
                 )
+
+            message = f"`{alias}` is deprecated as an argument to `{func_name}`; use `{new}` instead."
+            if deprecated_in:
+                message += f" Deprecated since version {deprecated_in}."
+            if removed_in:
+                message += f" Will be removed in version {removed_in}."
+
             warnings.warn(
-                message=(
-                    f"`{alias}` is deprecated as an argument to `{func_name}`; use"
-                    f" `{new}` instead."
-                ),
+                message=message,
                 category=DeprecationWarning,
                 stacklevel=3,
             )
             kwargs[new] = kwargs.pop(alias)
+
+
+def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Callable:
+    """
+    Decorator for deprecated function and method arguments.
+    Based on solution from [here](https://stackoverflow.com/questions/49802412).
+
+    Parameters
+    ----------
+    deprecated_in : str
+        Version in which the argument was deprecated.
+    removed_in : str
+        Version in which the argument will be removed.
+    aliases : dict
+        A mapping of old argument names to new argument names.
+
+    Returns
+    -------
+    Callable
+        A decorator that renames the old arguments to the new arguments.
+
+    Examples
+    --------
+    >>> @deprecated_kwargs(deprecated_in="0.32.0", removed_in="1.0", object_id="id_object")
+    ... def some_func(id_object):
+    ...     print(id_object)
+    >>> some_func(object_id=1) # doctest: +SKIP
+    1
+    """
+
+    def deco(f: Callable) -> Callable:
+        @functools.wraps(f)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            rename_deprecated_kwargs(
+                f.__name__, kwargs, aliases, deprecated_in, removed_in
+            )
+            return f(*args, **kwargs)
+
+        return wrapper
+
+    return deco
 
 
 def deprecated_common_kwargs(f: Callable) -> Callable:
@@ -390,38 +414,87 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     Callable
         A decorated function that renames 'a' to 'b'.
     """
-    return deprecated_kwargs(network="n")(f)
+    return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
 
 
-def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Callable:
+def deprecated_in_next_major(details: str) -> Callable:
     """
-    Decorator factory which conditionally applies a deprecation warning.
+    A wrapper for the @deprecated decorator that only requires specifying the details.
 
-    This way future deprecations can be marked without already raising the warning.
+    Deprecates the function in the next major version and removes it in the
+    following major version. Currently set to deprecate in version 1.0 and remove
+    in version 2.0.
+
+    Parameters
+    ----------
+    details : str
+        Details about the deprecation.
+
+    Returns
+    -------
+    Callable
+        A decorator that marks the function as deprecated.
+
     """
 
-    def custom_decorator(func: Callable) -> Callable:
-        if activate:
-            # Apply the deprecated decorator conditionally
-            decorated_func = deprecated(*args, **kwargs)(func)
-        else:
-            decorated_func = func
+    def decorator(func: Callable) -> Callable:
+        return deprecated(
+            deprecated_in="1.0",
+            removed_in="2.0",
+            current_version=__version_semver__,
+            details=details,
+        )(func)
 
-        @functools.wraps(decorated_func)
-        def wrapper(*func_args: Any, **func_kwargs: Any) -> Any:
-            return decorated_func(*func_args, **func_kwargs)
-
-        return wrapper
-
-    return custom_decorator
+    return decorator
 
 
-def deprecated_namespace(func: Callable, previous_module: str) -> Callable:
+def deprecated_namespace(
+    func: Callable,
+    previous_module: str,
+    deprecated_in: str,
+    removed_in: str,
+) -> Callable:
+    """
+    Decorator for functions that have been moved from one namespace to another.
+
+    Parameters
+    ----------
+    func : Callable
+        The function that has been moved.
+    previous_module : str
+        The previous module path where the function was located.
+    deprecated_in : str
+        Version in which the namespace was deprecated.
+    removed_in : str
+        Version in which the namespace will be removed.
+
+    Returns
+    -------
+    Callable
+        A wrapper function that warns about the deprecated namespace.
+    """
+    if version.parse(deprecated_in) > version.parse(__version_semver__):
+        msg = (
+            "'deprecated_namespace' can only be used in a version >= deprecated_in "
+            f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
+        )
+        raise ValueError(msg)
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
+        # Build the warning message with version information
+        message = (
+            f"`{previous_module}.{func.__name__}` is deprecated and will be removed in a future version. "
+            f"Please use `{func.__module__}.{func.__name__}` instead."
+        )
+
+        if deprecated_in:
+            message += f" Deprecated since version {deprecated_in}."
+        if removed_in:
+            message += f" Will be removed in version {removed_in}."
+
         warnings.warn(
-            f"The namespace `{previous_module}.{func.__name__}` is deprecated and will be removed in a future version. "
-            f"Please use the new namespace `{func.__module__}.{func.__name__}` instead.",
+            message,
             DeprecationWarning,
             stacklevel=2,
         )

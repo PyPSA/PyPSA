@@ -7,12 +7,8 @@ import pytest
 from pypsa.common import (
     MethodHandlerWrapper,
     as_index,
-    deprecated_common_kwargs,
-    deprecated_kwargs,
     equals,
-    future_deprecation,
     list_as_string,
-    rename_kwargs,
 )
 
 
@@ -246,59 +242,6 @@ def warning_catcher():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         yield w
-
-
-def test_deprecated_kwargs(warning_catcher):
-    @deprecated_kwargs(old_arg="new_arg")
-    def test_func(new_arg):
-        return new_arg
-
-    result = test_func(old_arg="value")
-    assert result == "value"
-    assert len(warning_catcher) == 1
-    assert issubclass(warning_catcher[0].category, DeprecationWarning)
-    assert "old_arg" in str(warning_catcher[0].message)
-
-
-def test_rename_kwargs():
-    kwargs = {"old_arg": "value"}
-    aliases = {"old_arg": "new_arg"}
-    with pytest.warns(DeprecationWarning):
-        rename_kwargs("test_func", kwargs, aliases)
-    assert "new_arg" in kwargs
-    assert "old_arg" not in kwargs
-    assert kwargs["new_arg"] == "value"
-
-
-def test_deprecated_common_kwargs(warning_catcher):
-    @deprecated_common_kwargs
-    def test_func(n):
-        return n
-
-    result = test_func(network="value")
-    assert result == "value"
-    assert len(warning_catcher) == 1
-    assert issubclass(warning_catcher[0].category, DeprecationWarning)
-    assert "network" in str(warning_catcher[0].message)
-
-
-def test_future_deprecation(warning_catcher):
-    @future_deprecation(activate=False)
-    def test_func_inactive():
-        return "not deprecated"
-
-    result = test_func_inactive()
-    assert result == "not deprecated"
-    assert len(warning_catcher) == 0
-
-    @future_deprecation(activate=True)
-    def test_func_active():
-        return "deprecated"
-
-    result = test_func_active()
-    assert result == "deprecated"
-    assert len(warning_catcher) == 1
-    assert issubclass(warning_catcher[0].category, DeprecationWarning)
 
 
 def test_list_as_string():

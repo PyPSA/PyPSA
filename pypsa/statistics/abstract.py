@@ -91,6 +91,8 @@ class Parameters:
         options.set_option("params.statistics.round", value)
 
     @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
         details="Use the 'pypsa.options' module instead. E.g. 'pypsa.options.params.statistics.drop_zero = True'.",
     )
     def set_parameters(self, **kwargs: Any) -> None:  # noqa: D102

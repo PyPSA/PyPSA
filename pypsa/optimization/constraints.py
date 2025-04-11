@@ -1020,7 +1020,11 @@ def define_loss_constraints(
             )
 
 
-@deprecated("Use define_total_supply_constraints instead.")
+@deprecated(
+    deprecated_in="0.31.2",
+    removed_in="1.0",
+    details="Use define_total_supply_constraints instead.",
+)
 def define_generators_constraints(n: Network, sns: Sequence) -> None:
     return define_total_supply_constraints(n, sns)
 

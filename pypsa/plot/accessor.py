@@ -26,6 +26,8 @@ class PlotAccessor:
         self.n = n  # TODO rename
 
     @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
         details="Use `n.plot.map()` as a drop-in replacement instead.",
     )
     @functools.wraps(plot)

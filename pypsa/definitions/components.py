@@ -65,6 +65,7 @@ class ComponentType:
     @property
     @deprecated(
         deprecated_in="0.32.0",
+        removed_in="1.0",
         details="Use the 'category' attribute instead.",
     )
     def type(self) -> str:
@@ -73,6 +74,7 @@ class ComponentType:
     @property
     @deprecated(
         deprecated_in="0.32.0",
+        removed_in="1.0",
         details="Use the 'defaults' attribute instead.",
     )
     def attrs(self) -> pd.DataFrame:

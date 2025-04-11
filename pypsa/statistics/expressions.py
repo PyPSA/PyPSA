@@ -1619,7 +1619,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(kind="direction")
+    @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
     def energy_balance(
         self,
         comps: str | Sequence[str] | None = None,
@@ -1968,7 +1968,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(kind="direction")
+    @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
     def revenue(
         self,
         comps: str | Sequence[str] | None = None,

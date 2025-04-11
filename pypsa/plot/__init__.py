@@ -11,14 +11,28 @@ from pypsa.plot.maps.static import add_legend_semicircles as _add_legend_semicir
 from pypsa.plot.maps.static import plot as _plot
 
 # Create wrapped versions
-plot = deprecated_namespace(_plot, "pypsa.plot")  # noqa: F811
-iplot = deprecated_namespace(_iplot, "pypsa.plot")  # noqa: F811
-explore = deprecated_namespace(_explore, "pypsa.plot")  # noqa: F811
-add_legend_arrows = deprecated_namespace(_add_legend_arrows, "pypsa.plot")  # noqa: F811
-add_legend_circles = deprecated_namespace(_add_legend_circles, "pypsa.plot")  # noqa: F811
-add_legend_lines = deprecated_namespace(_add_legend_lines, "pypsa.plot")  # noqa: F811
-add_legend_patches = deprecated_namespace(_add_legend_patches, "pypsa.plot")  # noqa: F811
-add_legend_semicircles = deprecated_namespace(_add_legend_semicircles, "pypsa.plot")  # noqa: F811
+plot = deprecated_namespace(_plot, "pypsa.plot", deprecated_in="0.34", removed_in="1.0")  # noqa: F811
+iplot = deprecated_namespace(
+    _iplot, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
+)  # noqa: F811
+explore = deprecated_namespace(
+    _explore, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
+)  # noqa: F811
+add_legend_arrows = deprecated_namespace(
+    _add_legend_arrows, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
+)  # noqa: F811
+add_legend_circles = deprecated_namespace(
+    _add_legend_circles, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
+)  # noqa: F811
+add_legend_lines = deprecated_namespace(
+    _add_legend_lines, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
+)  # noqa: F811
+add_legend_patches = deprecated_namespace(
+    _add_legend_patches, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
+)  # noqa: F811
+add_legend_semicircles = deprecated_namespace(
+    _add_legend_semicircles, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
+)  # noqa: F811
 
 __all__ = [
     "plot",  # deprecated namespace

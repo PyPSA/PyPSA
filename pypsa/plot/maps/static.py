@@ -1307,6 +1307,8 @@ class MapPlotter:
     link_norm="link_cmap_norm",
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
+    deprecated_in="0.34",
+    removed_in="1.0",
 )
 @wraps(
     MapPlotter.draw_map,
