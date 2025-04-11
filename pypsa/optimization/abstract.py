@@ -102,7 +102,7 @@ def discretized_capacity(
     if min_units is not None:
         raise DeprecationWarning(
             "The `min_units` parameter is deprecated and will be removed in future "
-            "versions."
+            "versions. Deprecated in version 0.32 and will be removed in version 1.0."
         )
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
 

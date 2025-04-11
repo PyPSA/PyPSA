@@ -13,7 +13,7 @@ from weakref import ref
 from deprecation import deprecated
 
 from pypsa._options import option_context
-from pypsa.common import equals, future_deprecation
+from pypsa.common import deprecated_in_next_major, equals
 from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
@@ -95,7 +95,6 @@ if TYPE_CHECKING:
     from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
-warnings.simplefilter("always", DeprecationWarning)
 
 
 dir_name = os.path.dirname(__file__)
@@ -237,12 +236,16 @@ class Network:
 
     # from pypsa.plot
     @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
         details="Use `n.plot.iplot()` as a drop-in replacement instead.",
     )
     def iplot(self, *args: Any, **kwargs: Any) -> Any:
         return iplot(self, *args, **kwargs)
 
     @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
         details="Use `n.plot.explore()` as a drop-in replacement instead.",
     )
     def explore(self, *args: Any, **kwargs: Any) -> Any:
@@ -283,7 +286,8 @@ class Network:
             msg = (
                 "The arguments `override_components` and `override_component_attrs` "
                 "are deprecated. Please check the release notes: "
-                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0"
+                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0."
+                "Deprecated in version 0.33 and will be removed in version 1.0."
             )
             raise DeprecationWarning(msg)
 
@@ -528,7 +532,9 @@ class Network:
         """
         return self.components
 
-    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.dynamic` instead."
+    )
     def df(self, component_name: str) -> pd.DataFrame:
         """
         Alias for :py:meth:`pypsa.Network.static`.
@@ -544,7 +550,9 @@ class Network:
         """
         return self.static(component_name)
 
-    @future_deprecation(details="Use `self.components.<component>.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.static` instead."
+    )
     def static(self, component_name: str) -> pd.DataFrame:
         """
         Return the DataFrame of static components for component_name, i.e.
@@ -561,7 +569,9 @@ class Network:
         """
         return self.components[component_name].static
 
-    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.dynamic` instead.",
+    )
     def pnl(self, component_name: str) -> Dict:
         """
         Alias for :py:meth:`pypsa.Network.dynamic`.
@@ -577,7 +587,9 @@ class Network:
         """
         return self.dynamic(component_name)
 
-    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.dynamic` instead.",
+    )
     def dynamic(self, component_name: str) -> Dict:
         """
         Return the dictionary of DataFrames of varying components for
@@ -595,7 +607,9 @@ class Network:
         return self.components[component_name].dynamic
 
     @property
-    @future_deprecation(details="Use `self.components.<component>.defaults` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.defaults` instead.",
+    )
     def component_attrs(self) -> pd.DataFrame:
         """
         Alias for :py:meth:`pypsa.Network.get`.
@@ -1506,7 +1520,8 @@ class Network:
         if with_time is not None:
             warnings.warn(
                 "Argument 'with_time' is deprecated in 0.29 and will be "
-                "removed in a future version. Pass an empty list to 'snapshots' instead.",
+                "removed in a future version. Pass an empty list to 'snapshots' instead."
+                "Deprecated in version 0.29 and will be removed in version 1.0.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -1755,11 +1770,13 @@ class Network:
             find_cycles(sub)
             sub.find_bus_controls()
 
-    @future_deprecation(details="Use `self.components.<component>` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>` instead.",
+    )
     def component(self, c_name: str) -> Component:
         return self.components[c_name]
 
-    @future_deprecation(details="Use `self.components` instead.")
+    @deprecated_in_next_major(details="Use `self.components` instead.")
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
@@ -1873,7 +1890,9 @@ class SubNetwork:
         self.name = name
 
     @property
-    @deprecated(details="Use the `n` property instead.")
+    @deprecated(
+        deprecated_in="0.32", removed_in="1.0", details="Use the `n` property instead."
+    )
     def network(self) -> Network:
         return self._n()  # type: ignore
 
@@ -1944,93 +1963,121 @@ class SubNetwork:
         branches = self.n.passive_branches()
         return branches[branches.sub_network == self.name]
 
-    @future_deprecation(details="Use `self.components.<c_name>` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>` instead.",
+    )
     def component(self, c_name: str) -> SubNetworkComponents:
         return self.components[c_name]
 
-    @future_deprecation(details="Use `self.components.<c_name>.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.static` instead.",
+    )
     def df(self, c_name: str) -> pd.DataFrame:
         return self.static(c_name)
 
-    @future_deprecation(details="Use `self.components.<c_name>.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.static` instead.",
+    )
     def static(self, c_name: str) -> pd.DataFrame:
         return self.components[c_name].static
 
-    @future_deprecation(details="Use `self.components.<c_name>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.dynamic` instead.",
+    )
     def pnl(self, c_name: str) -> Dict:
         return self.dynamic(c_name)
 
-    @future_deprecation(details="Use `self.components.<c_name>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.dynamic` instead.",
+    )
     def dynamic(self, c_name: str) -> Dict:
         return self.components[c_name].dynamic
 
-    @future_deprecation(details="Use `self.components.buses.static.index` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.buses.static.index` instead.",
+    )
     def buses_i(self) -> pd.Index:
         return self.components.buses.static.index
 
-    @future_deprecation(details="Use `self.components.lines.static.index` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.lines.static.index` instead.",
+    )
     def lines_i(self) -> pd.Index:
         return self.components.lines.static.index
 
-    @future_deprecation(
-        details="Use `self.components.transformers.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.transformers.static.index` instead.",
     )
     def transformers_i(self) -> pd.Index:
         return self.components.transformers.static.index
 
-    @future_deprecation(
-        details="Use `self.components.generators.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.generators.static.index` instead.",
     )
     def generators_i(self) -> pd.Index:
         return self.components.generators.static.index
 
-    @future_deprecation(details="Use `self.components.loads.static.index` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.loads.static.index` instead.",
+    )
     def loads_i(self) -> pd.Index:
         return self.components.loads.static.index
 
-    @future_deprecation(
-        details="Use `self.components.shunt_impedances.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.shunt_impedances.static.index` instead.",
     )
     def shunt_impedances_i(self) -> pd.Index:
         return self.components.shunt_impedances.static.index
 
-    @future_deprecation(
-        details="Use `self.components.storage_units.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.storage_units.static.index` instead.",
     )
     def storage_units_i(self) -> pd.Index:
         return self.components.storage_units.static.index
 
-    @future_deprecation(details="Use `self.components.stores.index.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.stores.index.static` instead.",
+    )
     def stores_i(self) -> pd.Index:
         return self.components.stores.static.index
 
-    @future_deprecation(details="Use `self.components.buses.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.buses.static` instead.",
+    )
     def buses(self) -> pd.DataFrame:
         return self.components.buses.static
 
-    @future_deprecation(details="Use `self.components.generators.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.generators.static` instead.",
+    )
     def generators(self) -> pd.DataFrame:
         return self.components.generators.static
 
-    @future_deprecation(details="Use `self.components.loads.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.loads.static` instead.",
+    )
     def loads(self) -> pd.DataFrame:
         return self.components.loads.static
 
-    @future_deprecation(
-        details="Use `self.components.shunt_impedances.static` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.shunt_impedances.static` instead.",
     )
     def shunt_impedances(self) -> pd.DataFrame:
         return self.components.shunt_impedances.static
 
-    @future_deprecation(details="Use `self.components.storage_units.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.storage_units.static` instead.",
+    )
     def storage_units(self) -> pd.DataFrame:
         return self.components.storage_units.static
 
-    @future_deprecation(details="Use `self.components.stores.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.stores.static` instead.",
+    )
     def stores(self) -> pd.DataFrame:
         return self.components.stores.static
 
-    @future_deprecation(details="Use `self.components` instead.")
+    @deprecated_in_next_major(details="Use `self.components` instead.")
     # Deprecate: Use `self.iterate_components` instead
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True

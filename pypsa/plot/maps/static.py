@@ -1144,6 +1144,7 @@ class MapPlotter:
                 msg = (
                     "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
                     "`transformer_flow` instead. Multiindex Series are not supported anymore."
+                    "Deprecated in version 0.34 and will be removed in version 1.0."
                 )
                 warnings.warn(msg, DeprecationWarning, 2)
                 line_flow = flow.get("Line")
@@ -1156,7 +1157,7 @@ class MapPlotter:
         ):
             msg = (
                 "Index of argument 'line_widths' is a Multiindex, "
-                "this is not support since pypsa v0.17. "
+                "this is not support since pypsa v0.17 and will be removed in v1.0. "
                 "Set differing widths with arguments 'line_widths', "
                 "'link_widths' and 'transformer_widths'."
             )
@@ -1167,7 +1168,7 @@ class MapPlotter:
         ):
             msg = (
                 "Index of argument 'line_colors' is a Multiindex, "
-                "this is not support since pypsa v0.17. "
+                "this is not support since pypsa v0.17 and will be removed in v1.0. "
                 "Set differing colors with arguments 'line_colors', "
                 "'link_colors' and 'transformer_colors'."
             )
@@ -1307,6 +1308,8 @@ class MapPlotter:
     link_norm="link_cmap_norm",
     transformer_norm="transformer_cmap_norm",
     color_geomap="geomap_colors",
+    deprecated_in="0.34",
+    removed_in="1.0",
 )
 @wraps(
     MapPlotter.draw_map,
