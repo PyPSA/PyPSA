@@ -117,7 +117,7 @@ exclude_also = [
 # Static type checker settings
 
 [tool.mypy]
-exclude = ['dev/*', 'examples/*', 'doc/*']
+exclude = ['dev/*', 'examples/*', 'docs/*']
 ignore_missing_imports = true
 no_implicit_optional = true
 warn_unused_ignores = true
@@ -182,7 +182,7 @@ ignore = [
     # https://github.com/astral-sh/ruff/issues/2310
     ]
 
-"{test,examples}/**"=[
+"{test,examples,docs}/**"=[
     'ANN' # flake8-annotations
 ]
 
