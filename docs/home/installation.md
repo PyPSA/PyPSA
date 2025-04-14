@@ -85,3 +85,31 @@ To upgrade PyPSA with conda, do at the command line::
 
 Don't forget to read the :doc:`/references/release-notes` regarding API changes
 that might require you to update your code.
+
+Dependencies
+============
+
+PyPSA is written and tested to be compatible with Python 3.10 and
+above.
+
+
+It leans heavily on the following Python packages:
+
+* `pandas <http://pandas.pydata.org/>`_ for storing data about components and time series
+* `numpy <http://www.numpy.org/>`_ and `scipy <http://scipy.org/>`_ for calculations, such as
+  linear algebra and sparse matrix calculations
+* `matplotlib <https://matplotlib.org/>`_ for static plotting
+* `cartopy <https://scitools.org.uk/cartopy>`_ for plotting the baselayer map
+* `networkx <https://networkx.github.io/>`_ for some network calculations
+* `linopy <https://github.com/PyPSA/linopy>`_ for preparing optimisation problems (currently only linear and mixed-integer linear)
+* `pytest <http://pytest.org/>`_ for unit testing
+* `logging <https://docs.python.org/3/library/logging.html>`_ for managing messages
+
+
+The optimisation uses solver interfaces that are independent of the preferred
+solver. You can use e.g. one of the free solvers `HiGHS <https://highs.dev/>`_,
+`GLPK <https://www.gnu.org/software/glpk/>`_ and `CLP/CBC
+<https://github.com/coin-or/Cbc/>`_ or commercial solvers like `Gurobi
+<http://www.gurobi.com/>`_ or `CPLEX
+<https://www.ibm.com/de-de/analytics/cplex-optimizer>`_ for which free academic
+licenses are available.
