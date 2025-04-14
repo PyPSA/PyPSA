@@ -86,7 +86,7 @@ from pypsa.pf import (
 )
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
-from pypsa.statistics.expressions import NetworksStatisticsAccessor, StatisticsAccessor
+from pypsa.statistics.expressions import StatisticsAccessor, StatisticsAccessorMulti
 from pypsa.typing import is_1d_list_like
 from pypsa.version import __version_semver__
 
@@ -2148,7 +2148,7 @@ class Networks:
         if not all(isinstance(n, Network) for n in networks):
             raise TypeError("All values in the Series must be PyPSA Network objects.")
         self._networks = networks
-        self.statistics = NetworksStatisticsAccessor(self)
+        self.statistics = StatisticsAccessorMulti(self)
 
     @property
     def index(self) -> pd.Index:

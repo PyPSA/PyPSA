@@ -101,6 +101,30 @@ def test_networks_init_index_mismatch(network1, network2):
         pypsa.Networks([network1, network2], index=pd.Index(["A"]))
 
 
+def test_networks_index_names(network1, network2):
+    """Test the index names of the Networks object."""
+    networks_list = [network1, network2]
+    networks_obj = pypsa.Networks(networks_list)
+    assert networks_obj.index.names == ["network"]
+    assert networks_obj._networks.index.name == "network"
+    assert networks_obj._index_names == ["network"]
+
+    # Test with custom index
+    custom_index = pd.Index(["net_A", "net_B"], name="scenario")
+    networks_obj_custom = pypsa.Networks(networks_list, index=custom_index)
+    assert networks_obj_custom.index.names == ["scenario"]
+    assert networks_obj_custom._networks.index.name == "scenario"
+    assert networks_obj_custom._index_names == ["scenario"]
+
+    # test with multiindex
+    multi_index = pd.MultiIndex.from_tuples(
+        [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
+    )
+    networks_obj_multi = pypsa.Networks(networks_list, index=multi_index)
+    assert networks_obj_multi.index.names == ["scenario", "year"]
+    assert networks_obj_multi._index_names == ["scenario", "year"]
+
+
 def test_networks_carriers_property(network1, network2, network3):
     """Test the carriers property."""
     networks_obj = pypsa.Networks([network1, network2, network3])
@@ -157,12 +181,14 @@ def test_networks_iteration(network1, network2):
 
 def test_networks_statistics_capex_per_network(network1, network2):
     """Test capex calculation per network."""
-    networks = pypsa.Networks([network1, network2])
+    networks = pypsa.Networks(
+        [network1, network2], index=pd.Series(["net1", "net2"], name="scenario")
+    )
     capacity = networks.statistics.installed_capacity()
 
     assert not capacity.empty
-
-    capacity.plot()
+    assert set(networks.index.names).issubset(capacity.index.names)
+    assert "carrier" in capacity.index.names
 
 
 def test_networks_statistics_nonexistent_method(network1):
@@ -170,6 +196,6 @@ def test_networks_statistics_nonexistent_method(network1):
     networks_obj = pypsa.Networks([network1])
     with pytest.raises(
         AttributeError,
-        match="'NetworksStatisticsAccessor' object has no attribute 'nonexistent_method'",
+        match="'StatisticsAccessorMulti' object has no attribute 'nonexistent_method'",
     ):
         networks_obj.statistics.nonexistent_method()
