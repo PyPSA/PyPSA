@@ -1,0 +1,233 @@
+site_name: Documentation
+site_url: https://docs.pypsa.org
+repo_url: https://github.com/PyPSA/PyPSA
+repo_name: PyPSA/PyPSA
+edit_uri: edit/main/docs/
+
+nav:
+- Home:
+  - Home: index.md
+  - Overview:
+    - Features: home/features.md
+    - What's new: home/release-notes.md
+    - FAQ: home/faq.md
+  - Getting Started:
+    - Installation: home/installation.md
+    - Quickstart: home/quickstart.md
+  - Reference:
+    - Users: home/users.md
+    - Models: home/models.md
+    - Citing: home/citing.md
+
+- User Guide:
+  - Architecture:
+    - Design: user-guide/design.md
+    - Components: user-guide/components.md
+  - Optimization:
+    - Power Flow: user-guide/power-flow.md
+    - System Optimization: user-guide/optimal-power-flow.md
+    - Contigency Analysis: user-guide/contingency-analysis.md
+  - Utilities:
+    - Import and Export: user-guide/import-export.md
+    - Plotting: user-guide/plotting.md
+    - Statistics: user-guide/statistics.md
+
+- Examples:
+  - Overview: examples/overview.md
+  - Power System Optimization:
+    - examples/optimization-with-linopy.ipynb
+    - examples/capacity-constraint-per-bus.ipynb
+    - examples/multi-investment-optimisation.ipynb
+    - examples/chained-hydro-reservoirs.ipynb
+    - examples/generation-investment-screening-curve.ipynb
+    - examples/scigrid-lopf-then-pf.ipynb
+    - examples/scigrid-redispatch.ipynb
+    - examples/scigrid-sclopf.ipynb
+    - examples/simple-electricity-market-examples.ipynb
+    - examples/capacity-expansion-planning-single-node.ipynb
+    - examples/mga.ipynb
+    - examples/islanded-methanol-production.ipynb
+    - examples/transformer_example.ipynb
+    - examples/unit-commitment.ipynb
+    - examples/reserve-power.ipynb
+    - examples/optimization-with-linopy-migrate-extra-functionalities.ipynb
+  - Sector Coupling:
+    - examples/sector-coupling-single-node.ipynb
+    - examples/battery-electric-vehicle-charging.ipynb
+    - examples/biomass-synthetic-fuels-carbon-management.ipynb
+    - examples/chp-fixed-heat-power-ratio.ipynb
+    - examples/lopf-with-heating.ipynb
+    - examples/power-to-gas-boiler-chp.ipynb
+    - examples/power-to-heat-water-tank.ipynb
+  - Other:
+    - examples/spatial-clustering.ipynb
+    - examples/statistics.ipynb
+    - examples/logging-demo.ipynb
+    - examples/replace-generator-storage-units-with-store.ipynb
+    - examples/flow-plot.ipynb
+    - examples/stochastic-problem.ipynb
+    - examples/experimental-components-class.ipynb
+
+- API Documentation:
+  - Networks:
+    - Network: api/networks/network.md
+    - SubNetwork: api/networks/subnetwork.md
+  - Components:
+    - Components: api/components/components.md
+    - Component Types:
+      - Generators: api/components/types/generators.md
+      - Lines: api/components/types/lines.md
+    - Component: api/components/component.md
+    - Utils: api/components/common.md
+  - Features:
+    - Plotting: api/plot.md
+
+- Resources:
+  - Learn: learn.md
+
+- More tools:
+  - More Tools: more-tools.md
+  - Frameworks:
+    - pypsa: https://github.com/pypsa/pypsa
+    - linopy: https://github.com/PyPSA/linopy
+    - atlite: https://github.com/PyPSA/atlite
+    - powerplantmatching: https://github.com/PyPSA/powerplantmatching
+    - technology-data: https://github.com/PyPSA/technology-data
+  - Models:
+    - PyPSA-Eur: https://github.com/PyPSA/PyPSA-Eur
+    - PyPSA-DE: https://github.com/PyPSA/PyPSA-DE
+
+theme:
+  name: material
+  logo: assets/logo/logo-primary-dark.svg
+  favicon: assets/logo/logo.svg
+  custom_dir: docs/assets/overrides
+
+  features:
+  - navigation.tabs
+  - navigation.sections
+  - navigation.indexes
+  - navigation.instant
+  - navigation.instant.preview
+  - navigation.instant.progress
+  - navigation.expand
+  - navigation.path
+  - navigation.top
+  - navigation.footer
+  - content.action.edit
+  - toc.follow
+  - search.suggest
+  - announce.dismiss
+
+  palette:
+  - media: "(prefers-color-scheme: light)"
+    primary: custom
+    scheme: default
+    toggle:
+      icon: material/weather-sunny
+      name: Switch to dark mode
+  - media: "(prefers-color-scheme: dark)"
+    primary: custom
+    scheme: slate
+    toggle:
+      icon: material/weather-night
+      name: Switch to light mode
+
+extra_css:
+- assets/stylesheets/extra.css
+
+markdown_extensions:
+  # Callouts
+- admonition
+- pymdownx.details
+- pymdownx.superfences
+  # Abbreviations
+- pymdownx.snippets:
+    auto_append:
+    - includes/abbreviations.md
+- abbr
+- attr_list
+  # Emojis
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  # Toctree with permalinks
+- toc:
+    title: On this page
+    permalink: true
+    toc_depth: 2
+  # Grids
+
+- md_in_html
+
+plugins:
+# - obsidian-interactive-graph
+- search
+- tags
+- autorefs
+- mkdocs-video
+# - git-revision-date-localized:
+#     enable_creation_date: true
+- open-in-new-tab:
+    add_icon: true
+- mkdocstrings:
+    enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+    default_handler: python
+    handlers:
+      python:
+        options:
+          docstring_style: numpy
+          docstring_options:
+            ignore_init_summary: true
+          docstring_section_style: list
+          filters: ["!^_"]
+          heading_level: 1
+          merge_init_into_class: true
+          parameter_headings: true
+          separate_signature: true
+          show_root_heading: true
+          show_root_full_path: false
+          show_signature_annotations: true
+          show_source: false
+          show_symbol_type_heading: true
+          show_symbol_type_toc: true
+          show_base_class: true
+          signature_crossrefs: true
+          summary: true
+          show_if_no_docstring: true
+          # docstring_section_style: list
+          # backlinks: flat
+          # find_stubs_package: true
+          # parameter_headings: false
+          # merge_init_into_class: true
+          # separate_signature: true
+          # show_signature_annotations: true
+          # signature_crossrefs: true
+          show_inheritance_diagram: true
+          extensions:
+          - griffe_warnings_deprecated
+- mkdocs-jupyter:
+    # Execute notebooks (disable for development)
+    execute: false
+    # execute: true
+    include: ["examples/*.ipynb"]
+
+extra:
+  version:
+    provider: mike
+  social:
+  - icon: fontawesome/brands/discord
+    link: https://discord.com/invite/AnuJBk23FU
+  - icon: fontawesome/brands/github
+    link: https://github.com/PyPSA
+
+  generator: false
+
+  extra:
+  homepage: https://pypsa.org
+
+# validation:
+#   omitted_files: warn
+#   absolute_links: warn
+#   unrecognized_links: warn
+#   anchors: warn
