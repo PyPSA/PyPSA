@@ -1034,13 +1034,12 @@ class Network:
 
         Parameters
         ----------
-        n : pypsa.Network
         periods : list
             List of periods to be selected/initialized.
 
         Returns
         -------
-        None.
+        None
 
         """
         periods_ = pd.Index(periods, name="period")
@@ -1457,7 +1456,7 @@ class Network:
         ----------
         class_name : string
             Component class name
-        name : list-like
+        names : list-like
             Component names
 
         """
