@@ -8,7 +8,6 @@ import functools
 import logging
 import warnings
 from collections.abc import Callable, Sequence
-from functools import wraps
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -110,11 +109,7 @@ class MethodHandlerWrapper:
                 )
                 raise AttributeError(msg)
 
-        # Create a callable instance with the bound method and optional attributes
-        @wraps(self.func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            handler_instance = self.handler_class(bound_method, **handler_kwargs)
-            return handler_instance(*args, **kwargs)
+        wrapper = self.handler_class(bound_method, **handler_kwargs)
 
         return wrapper
 

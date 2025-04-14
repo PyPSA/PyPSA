@@ -116,6 +116,27 @@ def test_to_long_format_dynamic(ac_dc_network_r):
     assert set(long_data.columns) == {"component", "carrier", "bus_carrier", "value"}
 
 
+def test_to_long_format_dynamic_multi(networks_scenario):
+    """Test the _to_long_format method with installed_capacity data."""
+    # Create the accessor instance
+    accessor = ChartGenerator(networks_scenario)
+
+    # Get installed capacity data from statistics
+    data = networks_scenario.statistics.energy_balance()
+
+    # Convert to long format
+    long_data = accessor._to_long_format(data)
+
+    # Check the output structure
+    assert isinstance(long_data, pd.DataFrame)
+    assert set(long_data.columns) == {
+        "component",
+        "carrier",
+        "bus_carrier",
+        "value",
+    }.union(networks_scenario.index.names)
+
+
 def test_derive_statistic_parameters(ac_dc_network_r):
     """Test derivation of statistic parameters"""
     # TODO rewrite once function is updated
@@ -179,6 +200,62 @@ def test_stacking(ac_dc_network_r):
     """Test stacking options in bar plots"""
     n = ac_dc_network_r
     fig, ax, g = n.statistics.supply.plot.bar(x="carrier", y="value", stacked=True)
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_simple_plot(networks_scenario, stat_func):
+    plotter = getattr(networks_scenario.statistics, stat_func)
+    fig, ax, g = plotter.plot()
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_bar_plot(networks_scenario, stat_func):
+    plotter = getattr(networks_scenario.statistics, stat_func)
+    fig, ax, g = plotter.plot.bar(facet_col="scenario")
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_line_plot(networks_scenario, stat_func):
+    plotter = getattr(networks_scenario.statistics, stat_func)
+    fig, ax, g = plotter.plot.line(facet_col="scenario")
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_area_plot(networks_scenario, stat_func):
+    plotter = getattr(networks_scenario.statistics, stat_func)
+    fig, ax, g = plotter.plot.area(facet_col="scenario")
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+def test_networks_query_filtering(networks_scenario):
+    plotter = ChartGenerator(networks_scenario)
+    data = networks_scenario.statistics.energy_balance()
+    fig, ax, g = plotter.plot(
+        data, "bar", x="carrier", y="value", facet_col="scenario", query="value > 1"
+    )
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+def test_networks_stacking(networks_scenario):
+    fig, ax, g = networks_scenario.statistics.supply.plot.bar(
+        x="carrier", y="value", stacked=True, facet_col="scenario"
+    )
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
