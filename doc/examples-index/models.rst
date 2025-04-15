@@ -17,10 +17,10 @@ This section provides examples of open-source models using PyPSA:
 - **Polish** power system model `PyPSA-PL <https://github.com/instrat-pl/pypsa-pl>`_, developed by Instrat.pl
 - **United Kingdom** power system model `PyPSA-UK <https://github.com/ember-climate/pypsa-uk>`__, maintained by Ember
 - **Great Britain** power system model `PyPSA-GB <https://github.com/andrewlyden/PyPSA-GB>`__, maintained by the University of Edinburgh
-- **Great Britain** power system model `PyPSA-FES <https://github.com/centrefornetzero/pypsa-fes>`, maintained by Octupus Energy's `Centre for Net Zero <https://www.centrefornetzero.org/>`__.
-- **Spanish** energy system model `PyPSA-Spain <https://github.com/cristobal-GC/pypsa-spain>`, maintained by Polytechnic University of Madrid
-- **Central and Eastern Europe** power system model `PyPSA-CEE https://github.com/ember-climate/pypsa-cee`__, maintained by Ember
-- **Brazilian** power system model `PyPSA-Brazil <https://gitlab.com/dlr-ve/esy/open-brazil-energy-data/open-brazilian-energy-data>`_ from `this paper <https://doi.org/10.1038/s41597-023-01992-9>`, developed by the German Aerospace Center (DLR)
+- **Great Britain** power system model `PyPSA-FES <https://github.com/centrefornetzero/pypsa-fes>`__, maintained by Octupus Energy's `Centre for Net Zero <https://www.centrefornetzero.org/>`__.
+- **Spanish** energy system model `PyPSA-Spain <https://github.com/cristobal-GC/pypsa-spain>`__, maintained by Polytechnic University of Madrid
+- **Central and Eastern Europe** power system model `PyPSA-CEE <https://github.com/ember-climate/pypsa-cee>`__, maintained by Ember
+- **Brazilian** power system model `PyPSA-Brazil <https://gitlab.com/dlr-ve/esy/open-brazil-energy-data/open-brazilian-energy-data>`_ from `this paper <https://doi.org/10.1038/s41597-023-01992-9>`__, developed by the German Aerospace Center (DLR)
 - **ASEAN** power system model `TZ-APG <https://www.transitionzero.org/products/tz-asean-power-grid-model/>`__, maintained by TransitionZero
 - **South Korean** energy system model `PyPSA-KR <https://energyinnovation.korea.ac.kr/research/code-and-data>`_, developed by Korea University
 - **Japanese** `power system model <https://github.com/smdumlao/demandfingerprint/tree/main/papers/coaldecommissioning>`_
