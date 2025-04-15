@@ -1,7 +1,5 @@
-<picture align="center">
-  <source media="(prefers-color-scheme: dark)" srcset="assets/logo/logo-primary-dark.svg">
-  <img alt="PyPSA Header Logo" src="assets/logo/logo-primary-light.svg">
-</picture>
+![PyPSA Header Logo](assets/logo/logo-primary-light.svg#only-light)
+![PyPSA Header Logo](assets/logo/logo-primary-dark.svg#only-dark)
 
 # PyPSA: Python for Power System Analysis
 
