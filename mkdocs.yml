@@ -1,5 +1,5 @@
 site_name: Documentation
-site_url: https://docs.pypsa.org
+site_url: !ENV READTHEDOCS_CANONICAL_URL
 repo_url: https://github.com/PyPSA/PyPSA
 repo_name: PyPSA/PyPSA
 edit_uri: edit/main/docs/
@@ -164,12 +164,17 @@ plugins:
 # - obsidian-interactive-graph
 - search
 - tags
-- autorefs
+- ezlinks
+# Embed videos
 - mkdocs-video
-# - git-revision-date-localized:
-#     enable_creation_date: true
+- git-revision-date-localized:
+    enable_creation_date: true
 - open-in-new-tab:
     add_icon: true
+- argref:
+    autolinks:
+    - reference_prefix: ":octicons-git-pull-request-16:"
+      target_url: https://github.com/PyPSA/PyPSA/pull/<num>
 - mkdocstrings:
     enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
     default_handler: python
@@ -204,8 +209,6 @@ plugins:
           # show_signature_annotations: true
           # signature_crossrefs: true
           show_inheritance_diagram: true
-          extensions:
-          - griffe_warnings_deprecated
 - mkdocs-jupyter:
     # Execute notebooks (disable for development)
     execute: false
