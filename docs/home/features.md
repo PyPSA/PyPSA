@@ -1,5 +1,9 @@
 # Features
 
+[Test Link](../user-guide/components.md)
+
+[[faq]]
+
 ## Functionality
 
 **PyPSA can calculate:**

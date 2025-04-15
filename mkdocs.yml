@@ -133,8 +133,14 @@ theme:
       icon: material/weather-night
       name: Switch to light mode
 
+extra_javascript:
+- https://fastly.jsdelivr.net/npm/jquery/dist/jquery.min.js
+- https://fastly.jsdelivr.net/npm/echarts/dist/echarts.min.js
+- assets/javascripts/interactive_graph.js
+
 extra_css:
 - assets/stylesheets/extra.css
+- assets/stylesheets/interactive_graph.css
 
 markdown_extensions:
   # Callouts
@@ -161,7 +167,8 @@ markdown_extensions:
 - md_in_html
 
 plugins:
-# - obsidian-interactive-graph
+# Graph View
+- obsidian-interactive-graph
 - search
 - tags
 - ezlinks
