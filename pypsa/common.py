@@ -110,6 +110,8 @@ class MethodHandlerWrapper:
                 raise AttributeError(msg)
 
         wrapper = self.handler_class(bound_method, **handler_kwargs)
+        wrapper.__name__ = self.func.__name__
+        wrapper.__doc__ = self.func.__doc__
 
         return wrapper
 
