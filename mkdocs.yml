@@ -9,7 +9,7 @@ nav:
   - Home: index.md
   - Overview:
     - Features: home/features.md
-    - What's new: home/release-notes.md
+    - What's new: release-notes.md
     - FAQ: home/faq.md
   - Getting Started:
     - Installation: home/installation.md
