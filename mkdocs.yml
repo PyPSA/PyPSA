@@ -107,9 +107,10 @@ theme:
   - navigation.tabs
   - navigation.sections
   - navigation.indexes
-  - navigation.instant
-  - navigation.instant.preview
-  - navigation.instant.progress
+  # Does not work with graph view
+  # - navigation.instant
+  # - navigation.instant.preview
+  # - navigation.instant.progress
   - navigation.expand
   - navigation.path
   - navigation.top
