@@ -242,3 +242,5 @@ extra:
 #   absolute_links: warn
 #   unrecognized_links: warn
 #   anchors: warn
+copyright: >-
+  &copy Copyright 2015-2025 PyPSA team and contributors
