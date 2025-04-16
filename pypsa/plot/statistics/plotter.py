@@ -13,6 +13,7 @@ import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
+from pypsa.networks import NetworkBundle
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import apply_parameter_schema
@@ -30,7 +31,7 @@ class StatisticPlotter(ABC):
     are performed to validated the arguments.
     """
 
-    def __init__(self, bound_method: Callable, n: Network) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkBundle) -> None:
         """
         Initialize the statistic handler.
 
@@ -404,6 +405,9 @@ class StatisticPlotter(ABC):
             "bus_split_circles": bus_split_circles,
         }
 
+        if isinstance(self._n, NetworkBundle):
+            raise ValueError("Map plots are not supported for NetworkBundles.")
+
         plotter = MapPlotGenerator(self._n)
 
         # Apply schema to plotting kwargs
@@ -430,7 +434,7 @@ class StatisticInteractivePlotter(ABC):
     are performed to validate the arguments.
     """
 
-    def __init__(self, bound_method: Callable, n: Network) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkBundle) -> None:
         """
         Initialize the interactive statistic handler.
 

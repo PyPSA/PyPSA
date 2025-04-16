@@ -8,6 +8,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
 from pypsa.consistency import plotting_consistency_check
+from pypsa.networks import NetworkBundle
 from pypsa.plot.maps.static import (
     MapPlotter,
     add_legend_arrows,
@@ -31,7 +32,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
     to create geographic visualizations of network statistics.
     """
 
-    def __init__(self, n: "Network") -> None:
+    def __init__(self, n: Network) -> None:
         """
         Initialize the MapPlotter with a PyPSA network.
 
@@ -42,6 +43,9 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         """
         # Initialize both parent classes
+        if isinstance(n, NetworkBundle):
+            raise ValueError("MapPlotGenerator does not support NetworkBundle.")
+
         PlotsGenerator.__init__(self, n)
         MapPlotter.__init__(self, n)
 
