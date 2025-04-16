@@ -8,11 +8,6 @@ import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
-from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
-
-if TYPE_CHECKING:
-    from pypsa import Network, Networks
-
 import pandas as pd
 
 from pypsa._options import options
@@ -22,10 +17,11 @@ from pypsa.common import (
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import bus_carrier_unit, nominal_attrs
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
-    from pypsa import Network, Networks
+    from pypsa import Network, NetworkBundle
 
 
 logger = logging.getLogger(__name__)
@@ -2197,18 +2193,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
 
 class StatisticsAccessorMulti:
-    """Statistical accessor for Networks objects that aggregates statistics across multiple networks."""
+    """Statistical accessor for NetworkBundle objects that aggregates statistics across multiple networks."""
 
-    _networks: Networks
+    _networks: NetworkBundle
 
-    def __init__(self, networks: Networks) -> None:
+    def __init__(self, networks: NetworkBundle) -> None:
         """
-        Initialize the statistics accessor for Networks object.
+        Initialize the statistics accessor for NetworkBundle object.
 
         Parameters
         ----------
-        networks : pypsa.Networks
-            The Networks object containing multiple network instances.
+        networks : pypsa.NetworkBundle
+            The NetworkBundle object containing multiple network instances.
 
         """
         self._networks = networks
@@ -2216,7 +2212,7 @@ class StatisticsAccessorMulti:
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
         """
-        Calculate statistical values across all networks in the Networks object.
+        Calculate statistical values across all networks in the NetworkBundle object.
 
         This method maps the StatisticsAccessor.__call__ method across all networks
         and combines the results with network indices as the outermost level.
@@ -2252,7 +2248,7 @@ class StatisticsAccessorMulti:
 
         # Create a function that will be wrapped in a StatisticHandler
         def networks_method(*args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
-            """Method applied across all networks in the Networks object."""
+            """Method applied across all networks in the NetworkBundle object."""
             # First argument should be self
             self = args[0]
             results = {}
@@ -2271,16 +2267,16 @@ class StatisticsAccessorMulti:
 
             return combined
 
-        # Add the original docstring with a note about the Networks version
+        # Add the original docstring with a note about the NetworkBundle version
         doc_prefix = (
             orig_method.__doc__
-            or f"Dynamically generated Networks accessor for {name}."
+            or f"Dynamically generated NetworkBundle accessor for {name}."
         )
         networks_method.__doc__ = (
             doc_prefix.strip()
             + "\n\n"
             + (
-                "This method is applied across all networks in the Networks object. "
+                "This method is applied across all networks in the NetworkBundle object. "
                 "Results are combined with a 'network' level in the index."
             )
         )
@@ -2297,7 +2293,7 @@ class StatisticsAccessorMulti:
         return wrapped_method
 
     def _create_methods(self) -> None:
-        """Dynamically create methods for NetworksStatisticsAccessor based on StatisticsAccessor methods."""
+        """Dynamically create methods for StatisticsAccessor based on StatisticsAccessor methods."""
         # Use the explicit list if available and reliable, otherwise fallback to dir()
         method_names = getattr(StatisticsAccessor, "_methods", None)
         if method_names is None:

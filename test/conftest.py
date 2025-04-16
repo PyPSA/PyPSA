@@ -101,7 +101,9 @@ def ac_dc_network_shapes(ac_dc_network):
 
 @pytest.fixture()
 def networks_scenario(ac_dc_network_r):
-    return pypsa.Networks([ac_dc_network_r], index=pd.Index(["a"], name="scenario"))
+    return pypsa.NetworkBundle(
+        [ac_dc_network_r], index=pd.Index(["a"], name="scenario")
+    )
 
 
 @pytest.fixture

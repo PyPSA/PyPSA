@@ -53,7 +53,7 @@ def network3():
 def test_networks_init_list(network1, network2):
     """Test initialization with a list of networks."""
     networks_list = [network1, network2]
-    networks_obj = pypsa.Networks(networks_list)
+    networks_obj = pypsa.NetworkBundle(networks_list)
     assert len(networks_obj) == 2
     assert isinstance(networks_obj._networks, pd.Series)
     assert networks_obj._networks.index.equals(pd.RangeIndex(2, name="network"))
@@ -65,7 +65,7 @@ def test_networks_init_list_with_index(network1, network2):
     """Test initialization with a list and custom index."""
     networks_list = [network1, network2]
     custom_index = pd.Index(["net_A", "net_B"], name="scenario")
-    networks_obj = pypsa.Networks(networks_list, index=custom_index)
+    networks_obj = pypsa.NetworkBundle(networks_list, index=custom_index)
     assert len(networks_obj) == 2
     assert networks_obj._networks.index.equals(custom_index)
     assert networks_obj["net_A"] == network1
@@ -78,7 +78,7 @@ def test_networks_init_series(network1, network2):
         [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
     )
     networks_series = pd.Series([network1, network2], index=index)
-    networks_obj = pypsa.Networks(networks_series)
+    networks_obj = pypsa.NetworkBundle(networks_series)
     assert len(networks_obj) == 2
     assert networks_obj._networks.index.equals(index)
     assert networks_obj[("base", 2030)] == network1
@@ -88,30 +88,30 @@ def test_networks_init_series(network1, network2):
 def test_networks_init_invalid_type():
     """Test initialization with invalid types."""
     with pytest.raises(TypeError):
-        pypsa.Networks([pypsa.Network(), "not a network"])
+        pypsa.NetworkBundle([pypsa.Network(), "not a network"])
     with pytest.raises(TypeError):
-        pypsa.Networks(pd.Series([pypsa.Network(), 5]))
+        pypsa.NetworkBundle(pd.Series([pypsa.Network(), 5]))
     with pytest.raises(TypeError):
-        pypsa.Networks("just a string")
+        pypsa.NetworkBundle("just a string")
 
 
 def test_networks_init_index_mismatch(network1, network2):
     """Test initialization with mismatched index length."""
     with pytest.raises(ValueError):
-        pypsa.Networks([network1, network2], index=pd.Index(["A"]))
+        pypsa.NetworkBundle([network1, network2], index=pd.Index(["A"]))
 
 
 def test_networks_index_names(network1, network2):
-    """Test the index names of the Networks object."""
+    """Test the index names of the NetworkBundle object."""
     networks_list = [network1, network2]
-    networks_obj = pypsa.Networks(networks_list)
+    networks_obj = pypsa.NetworkBundle(networks_list)
     assert networks_obj.index.names == ["network"]
     assert networks_obj._networks.index.name == "network"
     assert networks_obj._index_names == ["network"]
 
     # Test with custom index
     custom_index = pd.Index(["net_A", "net_B"], name="scenario")
-    networks_obj_custom = pypsa.Networks(networks_list, index=custom_index)
+    networks_obj_custom = pypsa.NetworkBundle(networks_list, index=custom_index)
     assert networks_obj_custom.index.names == ["scenario"]
     assert networks_obj_custom._networks.index.name == "scenario"
     assert networks_obj_custom._index_names == ["scenario"]
@@ -120,14 +120,14 @@ def test_networks_index_names(network1, network2):
     multi_index = pd.MultiIndex.from_tuples(
         [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
     )
-    networks_obj_multi = pypsa.Networks(networks_list, index=multi_index)
+    networks_obj_multi = pypsa.NetworkBundle(networks_list, index=multi_index)
     assert networks_obj_multi.index.names == ["scenario", "year"]
     assert networks_obj_multi._index_names == ["scenario", "year"]
 
 
 def test_networks_carriers_property(network1, network2, network3):
     """Test the carriers property."""
-    networks_obj = pypsa.Networks([network1, network2, network3])
+    networks_obj = pypsa.NetworkBundle([network1, network2, network3])
     expected_carriers = pd.concat(
         [network1.carriers, network2.carriers, network3.carriers]
     )
@@ -142,7 +142,7 @@ def test_networks_carriers_property_empty():
     """Test the carriers property when networks have no carriers."""
     n1 = pypsa.Network()
     n2 = pypsa.Network()
-    networks_obj = pypsa.Networks([n1, n2])
+    networks_obj = pypsa.NetworkBundle([n1, n2])
     expected_carriers = pd.DataFrame(
         index=pd.Index([], name="Carrier"), columns=n1.carriers.columns, dtype=int
     )
@@ -155,11 +155,11 @@ def test_networks_carriers_property_empty():
 
 
 def test_networks_getitem_slice(network1, network2, network3):
-    """Test slicing the Networks object."""
+    """Test slicing the NetworkBundle object."""
     networks_list = [network1, network2, network3]
-    networks_obj = pypsa.Networks(networks_list)
+    networks_obj = pypsa.NetworkBundle(networks_list)
     sliced_networks = networks_obj[1:]
-    assert isinstance(sliced_networks, pypsa.Networks)
+    assert isinstance(sliced_networks, pypsa.NetworkBundle)
     assert len(sliced_networks) == 2
     assert sliced_networks[1] == network2  # Original index 1
     assert sliced_networks[2] == network3  # Original index 2
@@ -169,19 +169,19 @@ def test_networks_getitem_slice(network1, network2, network3):
 
 
 def test_networks_iteration(network1, network2):
-    """Test iterating over the Networks object."""
+    """Test iterating over the NetworkBundle object."""
     networks_list = [network1, network2]
-    networks_obj = pypsa.Networks(networks_list)
+    networks_obj = pypsa.NetworkBundle(networks_list)
     iterated_list = [n for n in networks_obj]
     assert iterated_list == networks_list
 
 
-# Tests for NetworksStatisticsAccessor
+# Tests for NetworkBundleStatisticsAccessor
 
 
 def test_networks_statistics_capex_per_network(network1, network2):
     """Test capex calculation per network."""
-    networks = pypsa.Networks(
+    networks = pypsa.NetworkBundle(
         [network1, network2], index=pd.Series(["net1", "net2"], name="scenario")
     )
     capacity = networks.statistics.installed_capacity()
@@ -193,7 +193,7 @@ def test_networks_statistics_capex_per_network(network1, network2):
 
 def test_networks_statistics_nonexistent_method(network1):
     """Test calling a method that doesn't exist on the accessor."""
-    networks_obj = pypsa.Networks([network1])
+    networks_obj = pypsa.NetworkBundle([network1])
     with pytest.raises(
         AttributeError,
         match="'StatisticsAccessorMulti' object has no attribute 'nonexistent_method'",

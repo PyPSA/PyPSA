@@ -22,7 +22,7 @@ from pypsa.definitions.structures import Dict
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
-    from pypsa import Network, Networks
+    from pypsa import Network, NetworkBundle
 
 logger = logging.getLogger(__name__)
 
@@ -118,9 +118,9 @@ class MethodHandlerWrapper:
 
 def network_method_wrapper(func: Callable) -> Callable:
     """
-    Decorator that allows a Network method to be applied to Networks containers.
+    Decorator that allows a Network method to be applied to NetworkBundle objects.
 
-    This decorator checks if the first argument is a Networks container instead of a
+    This decorator checks if the first argument is a NetworkBundle instead of a
     Network. If it is, it applies the function to each network in the container.
 
     Parameters
@@ -131,7 +131,7 @@ def network_method_wrapper(func: Callable) -> Callable:
     Returns
     -------
     Callable
-        Wrapped function that can handle both Network and Networks objects.
+        Wrapped function that can handle both Network and NetworkBundle objects.
 
     Examples
     --------
@@ -142,10 +142,10 @@ def network_method_wrapper(func: Callable) -> Callable:
     """
 
     @functools.wraps(func)
-    def wrapper(n: Network | Networks, *args: Any, **kwargs: Any) -> Any:
-        from pypsa.networks import Networks
+    def wrapper(n: Network | NetworkBundle, *args: Any, **kwargs: Any) -> Any:
+        from pypsa.networks import NetworkBundle
 
-        if isinstance(n, Networks):
+        if isinstance(n, NetworkBundle):
             return n.apply(lambda net: func(net, *args, **kwargs))
         return func(n, *args, **kwargs)
 
