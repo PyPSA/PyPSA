@@ -152,7 +152,7 @@ def test_all_stat_functions_all_plot_types(ac_dc_network_r, plot_type, stat_func
 
 @pytest.mark.parametrize(
     "network_fixture",
-    ["ac_dc_network_r", "networks_scenario"],
+    ["ac_dc_network_r", "network_bundle"],
     ids=["single_network", "multiple_networks"],
 )
 @pytest.mark.parametrize(
@@ -172,10 +172,10 @@ def test_stat_functions_all_plot_types_with_multi(request, network_fixture, plot
     assert isinstance(fig, go.Figure)
 
 
-def test_networks_interactive_query_filtering(networks_scenario):
+def test_networks_interactive_query_filtering(network_bundle):
     """Test query filtering on networks collection."""
-    plotter = ChartGenerator(networks_scenario)
-    data = networks_scenario.statistics.energy_balance()
+    plotter = ChartGenerator(network_bundle)
+    data = network_bundle.statistics.energy_balance()
     fig = plotter.iplot(
         data,
         "bar",
@@ -187,9 +187,9 @@ def test_networks_interactive_query_filtering(networks_scenario):
     assert isinstance(fig, go.Figure)
 
 
-def test_networks_interactive_stacking(networks_scenario):
+def test_networks_interactive_stacking(network_bundle):
     """Test stacking with networks collection."""
-    fig = networks_scenario.statistics.supply.iplot.bar(
+    fig = network_bundle.statistics.supply.iplot.bar(
         x="carrier", y="value", stacked=True, facet_col="scenario"
     )
     assert isinstance(fig, go.Figure)

@@ -8,10 +8,8 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from pypsa.networks import NetworkBundle
-
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa import Network, NetworkBundle
 
 
 class PlotsGenerator(ABC):

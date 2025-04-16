@@ -2283,6 +2283,7 @@ class StatisticsAccessorMulti:
 
         # Bind the method to the current instance
         bound_method = functools.partial(networks_method, self)
+        bound_method.__name__ = name  # type: ignore
 
         # Wrap the method in a StatisticHandler to provide plot/iplot attributes
         wrapped_method = StatisticHandler(bound_method, self._networks)

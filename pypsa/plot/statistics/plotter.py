@@ -13,13 +13,13 @@ import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
-from pypsa.networks import NetworkBundle
+import pypsa.networks
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import apply_parameter_schema
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa.networks import Network, NetworkBundle
 
 
 class StatisticPlotter(ABC):
@@ -405,8 +405,8 @@ class StatisticPlotter(ABC):
             "bus_split_circles": bus_split_circles,
         }
 
-        if isinstance(self._n, NetworkBundle):
-            raise ValueError("Map plots are not supported for NetworkBundles.")
+        if isinstance(self._n, pypsa.networks.NetworkBundle):
+            raise NotImplementedError("Map plots are not supported for NetworkBundles.")
 
         plotter = MapPlotGenerator(self._n)
 
