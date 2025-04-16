@@ -61,6 +61,8 @@ def _apply_cmap(
 class MapPlotter:
     """Class to plot a PyPSA network on a map."""
 
+    n: Network
+
     def __init__(
         self,
         n: Network,
