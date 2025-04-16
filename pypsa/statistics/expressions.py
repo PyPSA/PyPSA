@@ -117,7 +117,7 @@ class StatisticHandler:
 
     """
 
-    def __init__(self, bound_method: Callable, n: Network) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkBundle) -> None:
         """
         Initialize the statistic handler.
 
@@ -2283,9 +2283,6 @@ class StatisticsAccessorMulti:
 
         # Bind the method to the current instance
         bound_method = functools.partial(networks_method, self)
-
-        # Store the original name for potential use by the handler's __repr__
-        bound_method.__name__ = name
 
         # Wrap the method in a StatisticHandler to provide plot/iplot attributes
         wrapped_method = StatisticHandler(bound_method, self._networks)
