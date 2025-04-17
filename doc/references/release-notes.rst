@@ -24,6 +24,22 @@ Upcoming Release
   marginal costs were considered. A new parameter `cost_types` allows selecting
   which cost components to include. (https://github.com/PyPSA/PyPSA/pull/1195)
 
+* The capacity statistics functions `optimal_capacity`, `installed_capacity`, and `expanded_capacity` now exclude 
+  storage capacities by default, i.e., when the `storage` parameter is set to False. This ensures that the Store 
+  component is not included in the statistics, preventing the mixing of different units of capacity. As a result, 
+  power production capacities are consistently reported in MW, while energy storage capacities are reported in MWh.
+
+* The previous maps module under `pypsa/plot` is now modularized. Instead of a 
+  monolithic module, the maps module is now split into several submodules. The
+  submodules are:
+
+  - `pypsa.plot.maps.common`: Base module for all maps.
+  - `pypsa.plot.maps.interactive`: Maps using interactive libraries.
+  - `pypsa.plot.maps.static`: Maps using static libraries.
+
+  The new modularized maps module allows for more flexibility and easier
+  maintenance. 
+
 * New method `n.equals() <pypsa.Network.equals>` to compare two networks for equality. 
   This is similar to the equality operator `==` but allows for more flexibility in the
   comparison which is useful for testing and debugging.
