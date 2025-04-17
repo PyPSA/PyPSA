@@ -409,7 +409,7 @@ def deprecated_grouper(func: Callable) -> Callable:
             f"`pypsa.statistics.groupers{new_grouper_access[func.__name__]}` instead."
             "Deprecated in version 0.34 and will be removed in version 1.0."
         )
-        warnings.warn(msg, DeprecationWarning)
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
         return func(*args, **kwargs)
 
     return wrapper

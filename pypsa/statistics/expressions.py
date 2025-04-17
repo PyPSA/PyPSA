@@ -348,6 +348,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "Please use it for individual statistics instead. Deprecated in "
                 "version 0.34 and will be removed in version 1.0.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         funcs: list[Callable] = [
             self.optimal_capacity,

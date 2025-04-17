@@ -43,6 +43,7 @@ def __getattr__(name: str) -> Any:
             "The attribute 'release_version' is deprecated and will be removed in a future version. "
             "Use '__version_semver__' instead. Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
+            stacklevel=2,
         )
     return __version_semver__
 

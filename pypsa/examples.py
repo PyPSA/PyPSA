@@ -61,6 +61,7 @@ def ac_dc_meshed(
             "Example networks are always updated and retrieved for the current version."
             "Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
+            stacklevel=2,
         )
     return _retrieve_if_not_local("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
 
@@ -89,6 +90,7 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
             "Example networks are always updated and retrieved for the current version."
             "Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
+            stacklevel=2,
         )
     return _retrieve_if_not_local("examples/networks/storage-hvdc/storage-hvdc.nc")
 
@@ -117,6 +119,7 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
             "Example networks are always updated and retrieved for the current version."
             "Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
+            stacklevel=2,
         )
     return _retrieve_if_not_local("examples/networks/scigrid-de/scigrid-de.nc")
 
@@ -145,5 +148,6 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
             "Example networks are always updated and retrieved for the current version."
             "Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
+            stacklevel=2,
         )
     return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")
