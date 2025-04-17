@@ -19,10 +19,10 @@ Upcoming Release
     * :meth:`n.statistics.energy_balance.iplot.bar() <pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar>` to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
 
 
-* New **Networks** object
+* New **NetworkCollection** object
 
   * You can now create a container for multiple `Network` objects. Use is with
-    ``pypsa.Networks()`` and pass a list of networks and optional pandas index.
+    ``pypsa.NetworkCollection()`` and pass a list of networks and optional pandas index.
     The main use case is to create a container for multiple networks and run
     statistics and corresponding plots on all networks at once.
 
