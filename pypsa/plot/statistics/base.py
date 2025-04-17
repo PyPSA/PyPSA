@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 if TYPE_CHECKING:
-    from pypsa import Network, NetworkBundle
+    from pypsa import Network, NetworkCollection
 
 
 class PlotsGenerator(ABC):
@@ -21,9 +21,9 @@ class PlotsGenerator(ABC):
     to be implemented by subclasses.
     """
 
-    _n: Network | NetworkBundle
+    _n: Network | NetworkCollection
 
-    def __init__(self, n: Network | NetworkBundle) -> None:
+    def __init__(self, n: Network | NetworkCollection) -> None:
         """
         Initialize plot generator.
 

@@ -1125,7 +1125,7 @@ class Network:
     @property
     def _index_names(self) -> list[str]:
         """
-        Compatibility property for NetworkBundle object.
+        Compatibility property for NetworkCollection object.
 
         Returns
         -------
@@ -2123,7 +2123,7 @@ class SubNetwork:
         )
 
 
-class NetworkBundle:
+class NetworkCollection:
     """
     Container for multiple Network objects indexed by a pandas Index or MultiIndex.
     """
@@ -2132,7 +2132,7 @@ class NetworkBundle:
         self, networks: Sequence[Network] | pd.Series, index: pd.Index | None = None
     ) -> None:
         """
-        Initialize the NetworkBundle.
+        Initialize the NetworkCollection.
 
         Parameters
         ----------
@@ -2153,24 +2153,24 @@ class NetworkBundle:
     @property
     def index(self) -> pd.Index:
         """
-        Get the index of the NetworkBundle.
+        Get the index of the NetworkCollection.
 
         Returns
         -------
         pd.Index
-            The index of the NetworkBundle.
+            The index of the NetworkCollection.
         """
         return self._networks.index
 
     @property
     def _index_names(self) -> list[str]:
         """
-        Get the names of the index of the NetworkBundle.
+        Get the names of the index of the NetworkCollection.
 
         Returns
         -------
         list[str]
-            The names of the index of the NetworkBundle.
+            The names of the index of the NetworkCollection.
         """
         return self.index.names or [self.index.name]
 
@@ -2206,14 +2206,14 @@ class NetworkBundle:
         -------
         pd.Series
             A pandas Series containing the results of applying the function to each
-            Network object, indexed by the original index of the NetworkBundle.
+            Network object, indexed by the original index of the NetworkCollection.
         """
         return self._networks.apply(func)
 
     def __len__(self) -> int:
         return len(self._networks)
 
-    def __getitem__(self, key: Any) -> Network | NetworkBundle:
+    def __getitem__(self, key: Any) -> Network | NetworkCollection:
         """
         Access networks by index label or slice.
 
@@ -2224,16 +2224,16 @@ class NetworkBundle:
 
         Returns
         -------
-        Network | NetworkBundle
+        Network | NetworkCollection
             A single Network object if a single label is passed, or a new
-            NetworkBundle object containing the selected networks.
+            NetworkCollection object containing the selected networks.
         """
         selected = self._networks.loc[key]
         if isinstance(selected, Network):
             return selected
         else:
-            # Return a new NetworkBundle object for slices or masks
-            return NetworkBundle(selected)
+            # Return a new NetworkCollection object for slices or masks
+            return NetworkCollection(selected)
 
     def __iter__(self) -> Iterator[Network]:
         """

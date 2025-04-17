@@ -33,7 +33,7 @@ from pypsa._options import (
     options,
 )
 from pypsa.components.abstract import Components
-from pypsa.networks import Network, NetworkBundle, SubNetwork
+from pypsa.networks import Network, NetworkCollection, SubNetwork
 from pypsa.version import __version__, __version_semver__, __version_short__
 
 
@@ -74,7 +74,7 @@ __all__ = [
     "plot",
     "statistics",
     "Network",
-    "NetworkBundle",
+    "NetworkCollection",
     "SubNetwork",
     "Components",
 ]

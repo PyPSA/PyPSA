@@ -21,7 +21,7 @@ from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, Statistic
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
-    from pypsa import Network, NetworkBundle
+    from pypsa import Network, NetworkCollection
 
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class StatisticHandler:
 
     """
 
-    def __init__(self, bound_method: Callable, n: Network | NetworkBundle) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkCollection) -> None:
         """
         Initialize the statistic handler.
 
@@ -2193,18 +2193,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
 
 class StatisticsAccessorMulti:
-    """Statistical accessor for NetworkBundle objects that aggregates statistics across multiple networks."""
+    """Statistical accessor for NetworkCollection objects that aggregates statistics across multiple networks."""
 
-    _networks: NetworkBundle
+    _networks: NetworkCollection
 
-    def __init__(self, networks: NetworkBundle) -> None:
+    def __init__(self, networks: NetworkCollection) -> None:
         """
-        Initialize the statistics accessor for NetworkBundle object.
+        Initialize the statistics accessor for NetworkCollection object.
 
         Parameters
         ----------
-        networks : pypsa.NetworkBundle
-            The NetworkBundle object containing multiple network instances.
+        networks : pypsa.NetworkCollection
+            The NetworkCollection object containing multiple network instances.
 
         """
         self._networks = networks
@@ -2212,7 +2212,7 @@ class StatisticsAccessorMulti:
 
     def __call__(self, *args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
         """
-        Calculate statistical values across all networks in the NetworkBundle object.
+        Calculate statistical values across all networks in the NetworkCollection object.
 
         This method maps the StatisticsAccessor.__call__ method across all networks
         and combines the results with network indices as the outermost level.
@@ -2248,7 +2248,7 @@ class StatisticsAccessorMulti:
 
         # Create a function that will be wrapped in a StatisticHandler
         def networks_method(*args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
-            """Method applied across all networks in the NetworkBundle object."""
+            """Method applied across all networks in the NetworkCollection object."""
             # First argument should be self
             self = args[0]
             results = {}
@@ -2267,16 +2267,16 @@ class StatisticsAccessorMulti:
 
             return combined
 
-        # Add the original docstring with a note about the NetworkBundle version
+        # Add the original docstring with a note about the NetworkCollection version
         doc_prefix = (
             orig_method.__doc__
-            or f"Dynamically generated NetworkBundle accessor for {name}."
+            or f"Dynamically generated NetworkCollection accessor for {name}."
         )
         networks_method.__doc__ = (
             doc_prefix.strip()
             + "\n\n"
             + (
-                "This method is applied across all networks in the NetworkBundle object. "
+                "This method is applied across all networks in the NetworkCollection object. "
                 "Results are combined with a 'network' level in the index."
             )
         )

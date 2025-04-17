@@ -19,7 +19,7 @@ from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import apply_parameter_schema
 
 if TYPE_CHECKING:
-    from pypsa.networks import Network, NetworkBundle
+    from pypsa.networks import Network, NetworkCollection
 
 
 class StatisticPlotter(ABC):
@@ -31,7 +31,7 @@ class StatisticPlotter(ABC):
     are performed to validated the arguments.
     """
 
-    def __init__(self, bound_method: Callable, n: Network | NetworkBundle) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkCollection) -> None:
         """
         Initialize the statistic handler.
 
@@ -405,8 +405,10 @@ class StatisticPlotter(ABC):
             "bus_split_circles": bus_split_circles,
         }
 
-        if isinstance(self._n, pypsa.networks.NetworkBundle):
-            raise NotImplementedError("Map plots are not supported for NetworkBundles.")
+        if isinstance(self._n, pypsa.networks.NetworkCollection):
+            raise NotImplementedError(
+                "Map plots are not supported for NetworkCollections."
+            )
 
         plotter = MapPlotGenerator(self._n)
 
@@ -434,7 +436,7 @@ class StatisticInteractivePlotter(ABC):
     are performed to validate the arguments.
     """
 
-    def __init__(self, bound_method: Callable, n: Network | NetworkBundle) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkCollection) -> None:
         """
         Initialize the interactive statistic handler.
 
