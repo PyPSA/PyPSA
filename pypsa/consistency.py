@@ -456,11 +456,12 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
     if component.name in {"Generator", "Link"}:
         committables = n.get_committable_i(component.name)
         extendables = n.get_extendable_i(component.name)
-        intersection = committables.intersection(extendables)
+        modulars = n.df(component.name).query("p_nom_mod>0").index
+        intersection = committables.intersection(extendables).difference(modulars)
         if not intersection.empty:
             _log_or_raise(
                 strict,
-                "Assets can only be committable or extendable."
+                "Assets can only be committable or extendable, if not modular."
                 " Found assets in component %s which are both:\n\n\t%s",
                 component.name,
                 ", ".join(intersection),
