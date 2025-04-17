@@ -13,12 +13,13 @@ import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
+import pypsa.networks
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import apply_parameter_schema
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa.networks import Network, NetworkCollection
 
 
 class StatisticPlotter(ABC):
@@ -30,7 +31,7 @@ class StatisticPlotter(ABC):
     are performed to validated the arguments.
     """
 
-    def __init__(self, bound_method: Callable, n: Network) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkCollection) -> None:
         """
         Initialize the statistic handler.
 
@@ -257,13 +258,15 @@ class StatisticPlotter(ABC):
         stats_name = self._bound_method.__name__
         plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
 
+        relevant_plot_kwargs = [
+            value
+            for key, value in plot_kwargs.items()
+            if key in {"x", "y", "color", "facet_col", "facet_row"}
+            and value not in plotter._n._index_names
+        ]
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
@@ -402,6 +405,11 @@ class StatisticPlotter(ABC):
             "bus_split_circles": bus_split_circles,
         }
 
+        if isinstance(self._n, pypsa.networks.NetworkCollection):
+            raise NotImplementedError(
+                "Map plots are not supported for NetworkCollections."
+            )
+
         plotter = MapPlotGenerator(self._n)
 
         # Apply schema to plotting kwargs
@@ -428,7 +436,7 @@ class StatisticInteractivePlotter(ABC):
     are performed to validate the arguments.
     """
 
-    def __init__(self, bound_method: Callable, n: Network) -> None:
+    def __init__(self, bound_method: Callable, n: Network | NetworkCollection) -> None:
         """
         Initialize the interactive statistic handler.
 
@@ -639,13 +647,15 @@ class StatisticInteractivePlotter(ABC):
         stats_name = self._bound_method.__name__
         plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
 
+        relevant_plot_kwargs = [
+            value
+            for key, value in plot_kwargs.items()
+            if key in {"x", "y", "color", "facet_col", "facet_row"}
+            and value not in plotter._n._index_names
+        ]
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
