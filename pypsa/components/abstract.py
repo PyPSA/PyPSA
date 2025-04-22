@@ -21,14 +21,7 @@ from pyproj import CRS
 
 from pypsa.common import equals
 from pypsa.components.array import as_dynamic, as_xarray
-from pypsa.components.descriptors import (
-    get_active_assets,
-    get_activity_mask,
-    get_bounds_pu,
-    get_committable_i,
-    get_extendable_i,
-    get_non_extendable_i,
-)
+from pypsa.components.descriptors import ComponentsDescriptors
 from pypsa.components.transform import rename_component_names
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
@@ -71,7 +64,7 @@ class ComponentsData:
     dynamic: dict
 
 
-class Components(ComponentsData, ABC):
+class Components(ComponentsData, ABC, ComponentsDescriptors):
     """
     Components base class.
 
@@ -82,28 +75,14 @@ class Components(ComponentsData, ABC):
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
-    .. warning::
+    !!! warning
         This class is under ongoing development and will be subject to changes.
         It is not recommended to use this class outside of PyPSA.
 
     """
 
-    # Methods
-    # -------
-
-    # from pypsa.components.array
-    as_xarray = as_xarray
     as_dynamic = as_dynamic
-
-    # from pypsa.components.descriptors
-    get_active_assets = get_active_assets
-    get_activity_mask = get_activity_mask
-    get_bounds_pu = get_bounds_pu
-    get_extendable_i = get_extendable_i
-    get_non_extendable_i = get_non_extendable_i
-    get_committable_i = get_committable_i
-
-    # from pypsa.components.transform
+    as_xarray = as_xarray
     rename_component_names = rename_component_names
 
     def __init__(
@@ -152,8 +131,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> str(n.components.generators)
         "PyPSA 'Generator' Components"
 
@@ -171,8 +148,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c = n.components.generators
         >>> c
         PyPSA 'Generator' Components
         ----------------------------
@@ -250,11 +226,57 @@ class Components(ComponentsData, ABC):
         bool
             True if components are equal, otherwise False.
 
+        See Also
+        --------
+        pypsa.components.abstract.Components.equals :
+            Check for equality of two networks.
+
+        """
+        return self.equals(other)
+
+    def equals(self, other: Any, log_mode: str = "silent") -> bool:
+        """
+        Check if two Components are equal.
+
+        Does not check the attached Network, but only component specific data. Therefore
+        two components can be equal even if they are attached to different networks.
+
+        Parameters
+        ----------
+        other : Any
+            The other network to compare with.
+        log_mode: str, default="silent"
+            Controls how differences are reported:
+            - 'silent': No logging, just returns True/False
+            - 'verbose': Prints differences but doesn't raise errors
+            - 'strict': Raises ValueError on first difference
+
+        Raises
+        ------
+        ValueError
+            If log_mode is 'strict' and components are not equal.
+
+        Returns
+        -------
+        bool
+            True if components are equal, otherwise False.
+
+        Examples
+        --------
+        >>> n1 = pypsa.Network()
+        >>> n2 = pypsa.Network()
+        >>> n1.add("Bus", "bus1")
+        Index(['bus1'], dtype='object')
+        >>> n2.add("Bus", "bus1")
+        Index(['bus1'], dtype='object')
+        >>> n1.buses.equals(n2.buses)
+        True
+
         """
         return (
-            equals(self.ctype, other.ctype)
-            and equals(self.static, other.static)
-            and equals(self.dynamic, other.dynamic)
+            equals(self.ctype, other.ctype, log_mode=log_mode, path="c.ctype")
+            and equals(self.static, other.static, log_mode=log_mode, path="c.static")
+            and equals(self.dynamic, other.dynamic, log_mode=log_mode, path="c.dynamic")
         )
 
     @staticmethod
@@ -324,8 +346,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.name
         'Generator'
 
@@ -350,8 +370,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.list_name
         'generators'
 
@@ -376,8 +394,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.description
         'Power generator.'
 
@@ -402,8 +418,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.category
         'controllable_one_port'
 
@@ -481,8 +495,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.defaults.head() # doctest: +SKIP
                      type unit default                                        description            status  static  varying              typ    dtype
         attribute
@@ -571,8 +583,6 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators.attached
         True
 
@@ -645,8 +655,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c = n.components.generators
         >>> c.units.head() # doctest: +SKIP
                         unit
         attribute
@@ -671,8 +680,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.lines
+        >>> c = n.components.lines
         >>> c.ports
         ['0', '1']
 
@@ -746,8 +754,7 @@ class Components(ComponentsData, ABC):
 
         Examples
         --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c = n.components.generators
         >>> c.nominal_attr
         'p_nom'
 

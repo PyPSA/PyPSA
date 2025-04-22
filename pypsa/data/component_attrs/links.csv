@@ -36,7 +36,9 @@ ramp_limit_shut_down,float,per unit,1,"Maximum decrease at shut down, per unit o
 p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
 p1,series,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
 p_nom_opt,float,MW,0,Optimised capacity for active power.,Output
-status,series,n/a,1.,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
+status,series,n/a,1.,"Status in the snapshot (1 is on, 0 is off). Only outputted if committable is True.",Output
+start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only outputted if committable is True.",Output
+shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only outputted if committable is True.",Output
 mu_lower,series,currency/MW,0.,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
 mu_upper,series,currency/MW,0.,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
 mu_p_set,series,currency/MWh,0.,Shadow price of fixed power transmission p_set,Output

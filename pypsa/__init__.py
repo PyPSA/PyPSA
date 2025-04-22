@@ -11,8 +11,8 @@ __copyright__ = (
     "Copyright 2015-2025 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
-import re
-from importlib.metadata import version
+import warnings
+from typing import Any
 
 from pypsa import (
     clustering,
@@ -29,25 +29,34 @@ from pypsa import (
     statistics,
 )
 from pypsa._options import (
-    describe_options,
-    get_option,
     option_context,
     options,
-    set_option,
 )
-from pypsa.common import check_pypsa_version
 from pypsa.components.abstract import Components
 from pypsa.networks import Network, SubNetwork
+from pypsa.version import __version__, __version_semver__, __version_short__
 
-# e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
-__version__ = version("pypsa")
-# e.g. "0.17.0" # TODO, in the network structure it should use the dev version
-match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
-assert match, f"Could not determine release_version of pypsa: {__version__}"
-release_version = match.group(0)
-check_pypsa_version(__version__)
+
+def __getattr__(name: str) -> Any:
+    if name in ["release_version"]:
+        warnings.warn(
+            "The attribute 'release_version' is deprecated and will be removed in a future version. "
+            "Use '__version_semver__' instead. Deprecated in version 0.35 and will be removed in version 1.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return __version_semver__
+
+
+# Module access to options
+describe_options = options.describe_options
+get_option = options.get_option
+set_option = options.set_option
 
 __all__ = [
+    "__version__",
+    "__version_semver__",
+    "__version_short__",
     "options",
     "set_option",
     "get_option",

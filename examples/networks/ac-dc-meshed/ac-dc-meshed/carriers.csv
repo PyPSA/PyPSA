@@ -1,0 +1,7 @@
+name,co2_emissions,color,marginal_cost,efficiency,capital_cost
+gas,0.24,red,0.0,1.0,0.0
+wind,0.0,blue,0.0,1.0,0.0
+battery,0.0,green,0.0,1.0,0.0
+load,0.0,black,,,
+AC,0.0,orange,,,
+DC,0.0,purple,,,
