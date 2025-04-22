@@ -20,9 +20,9 @@ import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
-from pypsa.components.array import as_dynamic, as_xarray
+from pypsa.components.array import ComponentsArray
 from pypsa.components.descriptors import ComponentsDescriptors
-from pypsa.components.transform import rename_component_names
+from pypsa.components.transform import ComponentsTransform
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
@@ -64,7 +64,9 @@ class ComponentsData:
     dynamic: dict
 
 
-class Components(ComponentsData, ABC, ComponentsDescriptors):
+class Components(
+    ComponentsData, ABC, ComponentsDescriptors, ComponentsTransform, ComponentsArray
+):
     """
     Components base class.
 
@@ -80,10 +82,6 @@ class Components(ComponentsData, ABC, ComponentsDescriptors):
         It is not recommended to use this class outside of PyPSA.
 
     """
-
-    as_dynamic = as_dynamic
-    as_xarray = as_xarray
-    rename_component_names = rename_component_names
 
     def __init__(
         self,
