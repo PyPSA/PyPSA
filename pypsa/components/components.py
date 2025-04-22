@@ -42,25 +42,7 @@ class GenericComponents(Components):
 
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """
-        Initialize generic components class.
-
-        See :class:`pypsa.components.abstract.Components` for more information.
-
-        Parameters
-        ----------
-        args : Any
-            Arguments of base class.
-        kwargs : Any
-            Keyword arguments of base class.
-
-        Returns
-        -------
-        None
-
-        """
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class Generators(Components):

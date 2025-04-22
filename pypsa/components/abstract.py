@@ -19,7 +19,7 @@ import pandas as pd
 from pyproj import CRS
 
 from pypsa.common import equals
-from pypsa.components.descriptors import get_active_assets
+from pypsa.components.descriptors import ComponentsDescriptors
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
@@ -61,7 +61,7 @@ class ComponentsData:
     dynamic: dict
 
 
-class Components(ComponentsData, ABC):
+class Components(ComponentsData, ABC, ComponentsDescriptors):
     """
     Components base class.
 
@@ -72,17 +72,11 @@ class Components(ComponentsData, ABC):
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
-    .. warning::
+    !!! warning
         This class is under ongoing development and will be subject to changes.
         It is not recommended to use this class outside of PyPSA.
 
     """
-
-    # Methods
-    # -------
-
-    # from pypsa.components.descriptors
-    get_active_assets = get_active_assets
 
     def __init__(
         self,
@@ -665,6 +659,9 @@ class Components(ComponentsData, ABC):
         except KeyError:
             msg = f"Component type '{self.ctype.name}' has no nominal attribute."
             raise AttributeError(msg)
+
+    # Methods
+    # -------
 
     # TODO move
     def rename_component_names(self, **kwargs: str) -> None:
