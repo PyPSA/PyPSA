@@ -20,9 +20,9 @@ import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
-from pypsa.components.array import ComponentsArray
-from pypsa.components.descriptors import ComponentsDescriptors
-from pypsa.components.transform import ComponentsTransform
+from pypsa.components.array import _ComponentsArray
+from pypsa.components.descriptors import _ComponentsDescriptors
+from pypsa.components.transform import _ComponentsTransform
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
@@ -65,7 +65,7 @@ class ComponentsData:
 
 
 class Components(
-    ComponentsData, ABC, ComponentsDescriptors, ComponentsTransform, ComponentsArray
+    ComponentsData, ABC, _ComponentsDescriptors, _ComponentsTransform, _ComponentsArray
 ):
     """
     Components base class.

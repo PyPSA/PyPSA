@@ -15,7 +15,7 @@ import xarray
 from pypsa.common import as_index
 
 
-class ComponentsArray:
+class _ComponentsArray:
     """
     Helper class for components array methods.
 

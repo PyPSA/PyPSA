@@ -1,7 +1,7 @@
 """
 Components transform module.
 
-Contains single helper class (ComponentsTransform) which is used to inherit
+Contains single helper class (_ComponentsTransform) which is used to inherit
 to Components class. Should not be used directly.  Transform methods are methods which
 modify and restructure data.
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     pass
 
 
-class ComponentsTransform:
+class _ComponentsTransform:
     """
     Helper class for components descriptors methods.
 

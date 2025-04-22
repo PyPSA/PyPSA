@@ -1,7 +1,7 @@
 """
 Components descriptor module.
 
-Contains single helper class (ComponentsDescriptors) which is used to inherit
+Contains single helper class (__ComponentsDescriptors) which is used to inherit
 to Components class. Should not be used directly. Descriptor functions only describe
 data and do not modify it.
 """
@@ -56,7 +56,7 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     return c.get_active_assets(*args, **kwargs)
 
 
-class ComponentsDescriptors:
+class _ComponentsDescriptors:
     """
     Helper class for components descriptors methods.
 
