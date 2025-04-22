@@ -13,9 +13,10 @@ import pandas as pd
 import xarray
 
 from pypsa.common import as_index
+from pypsa.components.abstract import _ComponentsABC
 
 
-class _ComponentsArray:
+class _ComponentsArray(_ComponentsABC):
     """
     Helper class for components array methods.
 

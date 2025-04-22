@@ -10,7 +10,9 @@ modify and restructure data.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +26,12 @@ class _ComponentsTransform:
 
     Class only inherits to Components and should not be used directly.
     """
+
+    static: pd.DataFrame
+    dynamic: dict[str, pd.DataFrame]
+    attached: Any
+    n_save: Any
+    name: Any
 
     def rename_component_names(self, **kwargs: str) -> None:
         """

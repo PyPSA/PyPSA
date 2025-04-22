@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa.components.abstract import _ComponentsABC
 from pypsa.descriptors import expand_series
 
 logger = logging.getLogger(__name__)
@@ -56,15 +57,12 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     return c.get_active_assets(*args, **kwargs)
 
 
-class _ComponentsDescriptors:
+class _ComponentsDescriptors(_ComponentsABC):
     """
     Helper class for components descriptors methods.
 
     Class only inherits to Components and should not be used directly.
     """
-
-    static: pd.DataFrame
-    n_save: Any
 
     def get_active_assets(
         self,

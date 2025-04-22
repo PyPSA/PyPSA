@@ -14,8 +14,8 @@ from deprecation import deprecated
 
 from pypsa._options import option_context
 from pypsa.common import deprecated_in_next_major, equals
-from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
+from pypsa.components.components import Components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
@@ -33,8 +33,7 @@ from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import as_index, deprecated_common_kwargs
-from pypsa.components.abstract import SubNetworkComponents
-from pypsa.components.components import Component
+from pypsa.components.components import Component, SubNetworkComponents
 from pypsa.components.types import (
     component_types_df,
 )

@@ -2,8 +2,12 @@
 
 from typing import Any
 
-from pypsa.components.abstract import Components
-from pypsa.components.components import Component, Generators, GenericComponents, Lines
+from pypsa.components.components import (
+    Component,
+    Components,
+    Generators,
+    Lines,
+)
 
 
 def __getattr__(name: str) -> Any:
@@ -19,7 +23,6 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     "Component",
     "Components",
-    "GenericComponents",
     "Generators",
     "Lines",
 ]
