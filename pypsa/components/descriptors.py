@@ -8,32 +8,47 @@ to Components class. Should not be used directly.
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
+if TYPE_CHECKING:
+    from pypsa import Components
 logger = logging.getLogger(__name__)
 
 
-def get_active_assets(*args: Any, **kwargs: Any) -> Any:
+def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     """
     Deprecated function to get active assets. Use `c.get_active_assets`.
 
     Examples
     --------
     >>> import pytest
-    >>> with pytest.raises(DeprecationWarning):
-    ...     get_active_assets()
+    >>> with pytest.warns(DeprecationWarning):
+    ...     get_active_assets(c)
+    Generator
+    Manchester Wind    True
+    Manchester Gas     True
+    Norway Wind        True
+    Norway Gas         True
+    Frankfurt Wind     True
+    Frankfurt Gas      True
+    Name: active, dtype: bool
 
     """
-    msg = (
-        "pypsa.components.descriptors.get_active_assets is deprecated. "
-        "Use c.get_active_assets instead."
-        "Deprecated in version 0.35 and will be removed in version 1.0."
+    warnings.warn(
+        (
+            "pypsa.components.descriptors.get_active_assets is deprecated. "
+            "Use c.get_active_assets instead."
+            "Deprecated in version 0.35 and will be removed in version 1.0."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
     )
-    raise DeprecationWarning(msg)
+    return c.get_active_assets(*args, **kwargs)
 
 
 class ComponentsDescriptors:

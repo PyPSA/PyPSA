@@ -26,6 +26,7 @@ doctest_globals = {
     "pandas": pd,
     "pypsa": pypsa,
     "n": pypsa.examples.ac_dc_meshed(),
+    "c": pypsa.examples.ac_dc_meshed().components.generators,
 }
 
 modules = [
