@@ -17,10 +17,20 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def get_component_type(*args: Any, **kwargs: Any) -> Any:  # noqa: D103
+def get_active_assets(*args: Any, **kwargs: Any) -> Any:
+    """
+    Deprecated function to get active assets. Use `c.get_active_assets`.
+
+    Examples
+    --------
+    >>> import pytest
+    >>> with pytest.raises(DeprecationWarning):
+    ...     get_active_assets()
+
+    """
     msg = (
-        "pypsa.components.descriptors.get_component_type is deprecated. "
-        "Use c.get_component_type instead."
+        "pypsa.components.descriptors.get_active_assets is deprecated. "
+        "Use c.get_active_assets instead."
         "Deprecated in version 0.35 and will be removed in version 1.0."
     )
     raise DeprecationWarning(msg)
