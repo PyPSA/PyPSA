@@ -329,7 +329,10 @@ def rename_deprecated_kwargs(
     removed_in : str
         Version in which the argument will be removed.
     """
-    if version.parse(deprecated_in) > version.parse(__version_semver__):
+    if (
+        version.parse(deprecated_in) > version.parse(__version_semver__)
+        and __version_semver__ != "0.0"
+    ):
         msg = (
             "'rename_deprecated_kwargs' can only be used in a version >= deprecated_in "
             f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
@@ -473,7 +476,8 @@ def deprecated_namespace(
     Callable
         A wrapper function that warns about the deprecated namespace.
     """
-    if version.parse(deprecated_in) > version.parse(__version_semver__):
+    current_version = version.parse(__version_semver__)
+    if version.parse(deprecated_in) > current_version and __version_semver__ != "0.0":
         msg = (
             "'deprecated_namespace' can only be used in a version >= deprecated_in "
             f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
