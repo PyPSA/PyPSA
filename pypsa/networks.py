@@ -13,10 +13,11 @@ from weakref import ref
 from deprecation import deprecated
 
 from pypsa._options import option_context
-from pypsa.common import equals, future_deprecation
-from pypsa.components.abstract import Components
+from pypsa.common import deprecated_in_next_major, equals
 from pypsa.components.common import as_components
+from pypsa.components.components import Components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -32,8 +33,7 @@ from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import as_index, deprecated_common_kwargs
-from pypsa.components.abstract import SubNetworkComponents
-from pypsa.components.components import Component
+from pypsa.components.components import Component, SubNetworkComponents
 from pypsa.components.types import (
     component_types_df,
 )
@@ -83,16 +83,17 @@ from pypsa.pf import (
     sub_network_lpf,
     sub_network_pf,
 )
-from pypsa.plot import explore, iplot, plot  # type: ignore
+from pypsa.plot.accessor import PlotAccessor
+from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
+from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
     import linopy
     from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
-warnings.simplefilter("always", DeprecationWarning)
 
 
 dir_name = os.path.dirname(__file__)
@@ -146,7 +147,6 @@ class Network:
 
     Examples
     --------
-    >>> import pypsa
     >>> nw1 = pypsa.Network("network.nc") # doctest: +SKIP
     >>> nw2 = pypsa.Network("/my/folder") # doctest: +SKIP
     >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc") # doctest: +SKIP
@@ -234,9 +234,21 @@ class Network:
     pf = network_pf
 
     # from pypsa.plot
-    plot = plot
-    iplot = iplot
-    explore = explore
+    @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
+        details="Use `n.plot.iplot()` as a drop-in replacement instead.",
+    )
+    def iplot(self, *args: Any, **kwargs: Any) -> Any:
+        return iplot(self, *args, **kwargs)
+
+    @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
+        details="Use `n.plot.explore()` as a drop-in replacement instead.",
+    )
+    def explore(self, *args: Any, **kwargs: Any) -> Any:
+        return explore(self, *args, **kwargs)
 
     # from pypsa.contingency
     lpf_contingency = network_lpf_contingency
@@ -273,19 +285,18 @@ class Network:
             msg = (
                 "The arguments `override_components` and `override_component_attrs` "
                 "are deprecated. Please check the release notes: "
-                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0"
+                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0."
+                "Deprecated in version 0.33 and will be removed in version 1.0."
             )
             raise DeprecationWarning(msg)
 
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        from pypsa import release_version as pypsa_version
-
         self.name: str = name
 
         # this will be saved on export
-        self.pypsa_version: str = pypsa_version
+        self.pypsa_version: str = __version_semver__
 
         self._meta: dict = {}
 
@@ -306,6 +317,7 @@ class Network:
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
         self.statistics: StatisticsAccessor = StatisticsAccessor(self)
+        self.plot: PlotAccessor = PlotAccessor(self)
 
         # Define component sets
         self._initialize_component_sets()
@@ -362,15 +374,82 @@ class Network:
         self.merge(other)
 
     def __eq__(self, other: Any) -> bool:
-        """Check for equality of two networks."""
+        """
+        Check for equality of two networks.
 
-        ignore = [OptimizationAccessor, ClusteringAccessor, StatisticsAccessor]
+        Parameters
+        ----------
+        other : Any
+            The other network to compare with.
 
+        Returns
+        -------
+        bool
+            True if the networks are equal, False otherwise.
+
+        See Also
+        --------
+        pypsa.Network.equals : Check for equality of two networks.
+        """
+        return self.equals(other)
+
+    def equals(self, other: Any, log_mode: str = "silent") -> bool:
+        """
+        Check for equality of two networks.
+
+        Parameters
+        ----------
+        other : Any
+            The other network to compare with.
+        log_mode: str, default="silent"
+            Controls how differences are reported:
+            - 'silent': No logging, just returns True/False
+            - 'verbose': Prints differences but doesn't raise errors
+            - 'strict': Raises ValueError on first difference
+
+        Raises
+        ------
+        ValueError
+            If log_mode is 'strict' and components are not equal.
+
+        Returns
+        -------
+        bool
+            True if the networks are equal, False otherwise.
+
+        Examples
+        --------
+        >>> n1 = pypsa.Network()
+        >>> n2 = pypsa.Network()
+        >>> n1.add("Bus", "bus1")
+        Index(['bus1'], dtype='object')
+        >>> n2.add("Bus", "bus2")
+        Index(['bus2'], dtype='object')
+        >>> n1.equals(n2)
+        False
+
+        """
+        ignore = [
+            OptimizationAccessor,
+            ClusteringAccessor,
+            StatisticsAccessor,
+            PlotAccessor,
+            AbstractStatisticsAccessor,
+        ]
+        not_equal = False
         if isinstance(other, self.__class__):
             for key, value in self.__dict__.items():
-                if not equals(value, other.__dict__[key], ignored_classes=ignore):
+                if not equals(
+                    value,
+                    other.__dict__[key],
+                    ignored_classes=ignore,
+                    log_mode=log_mode,
+                    path="n." + key,
+                ):
                     logger.warning("Mismatch in attribute: %s", key)
-                    return False
+                    not_equal = True
+                    if not log_mode:
+                        break
         else:
             logger.warning(
                 "Can only compare two pypsa.Network objects with each other. Got %s.",
@@ -378,7 +457,8 @@ class Network:
             )
 
             return False
-        return True
+
+        return not not_equal
 
     # ----------------
     # Initialization
@@ -454,7 +534,9 @@ class Network:
         """
         return self.components
 
-    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.dynamic` instead."
+    )
     def df(self, component_name: str) -> pd.DataFrame:
         """
         Alias for :py:meth:`pypsa.Network.static`.
@@ -470,7 +552,9 @@ class Network:
         """
         return self.static(component_name)
 
-    @future_deprecation(details="Use `self.components.<component>.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.static` instead."
+    )
     def static(self, component_name: str) -> pd.DataFrame:
         """
         Return the DataFrame of static components for component_name, i.e.
@@ -487,7 +571,9 @@ class Network:
         """
         return self.components[component_name].static
 
-    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.dynamic` instead.",
+    )
     def pnl(self, component_name: str) -> Dict:
         """
         Alias for :py:meth:`pypsa.Network.dynamic`.
@@ -503,7 +589,9 @@ class Network:
         """
         return self.dynamic(component_name)
 
-    @future_deprecation(details="Use `self.components.<component>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.dynamic` instead.",
+    )
     def dynamic(self, component_name: str) -> Dict:
         """
         Return the dictionary of DataFrames of varying components for
@@ -521,7 +609,9 @@ class Network:
         return self.components[component_name].dynamic
 
     @property
-    @future_deprecation(details="Use `self.components.<component>.defaults` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>.defaults` instead.",
+    )
     def component_attrs(self) -> pd.DataFrame:
         """
         Alias for :py:meth:`pypsa.Network.get`.
@@ -784,7 +874,6 @@ class Network:
         --------
         pypsa.networks.Network.timesteps : Getter method
         """
-
         msg = "Setting `timesteps` is not supported. Please set `snapshots` instead."
         raise NotImplementedError(msg)
 
@@ -827,7 +916,6 @@ class Network:
         pypsa.networks.Network.periods : Getter method
         pypsa.networks.Network.set_investment_periods : Setter method
         """
-
         self.set_investment_periods(periods)
 
     @property
@@ -870,7 +958,6 @@ class Network:
         pypsa.networks.Network.timesteps : Get the timestep level only.
 
         """
-
         return self.periods
 
     @investment_periods.setter
@@ -1100,9 +1187,6 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-
         Add a single component:
 
         >>> n.add("Bus", "my_bus_0")
@@ -1299,8 +1383,6 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.remove("Line", "0")
         >>> n.remove("Line", ["1","2"])
         """
@@ -1435,12 +1517,9 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> network_copy = n.copy()
 
         """
-
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types, with_time]
         if all(arg is None or arg is False for arg in args):
@@ -1454,7 +1533,8 @@ class Network:
         if with_time is not None:
             warnings.warn(
                 "Argument 'with_time' is deprecated in 0.29 and will be "
-                "removed in a future version. Pass an empty list to 'snapshots' instead.",
+                "removed in a future version. Pass an empty list to 'snapshots' instead."
+                "Deprecated in version 0.29 and will be removed in version 1.0.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -1540,8 +1620,6 @@ class Network:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> sub_network_0 = n[n.buses.sub_network == "0"]
 
         """
@@ -1705,11 +1783,13 @@ class Network:
             find_cycles(sub)
             sub.find_bus_controls()
 
-    @future_deprecation(details="Use `self.components.<component>` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<component>` instead.",
+    )
     def component(self, c_name: str) -> Component:
         return self.components[c_name]
 
-    @future_deprecation(details="Use `self.components` instead.")
+    @deprecated_in_next_major(details="Use `self.components` instead.")
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
@@ -1745,7 +1825,7 @@ class Network:
         Examples
         --------
         Define some network
-        >>> import pypsa
+
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
         Index(['bus1'], dtype='object')
@@ -1823,7 +1903,9 @@ class SubNetwork:
         self.name = name
 
     @property
-    @deprecated(details="Use the `n` property instead.")
+    @deprecated(
+        deprecated_in="0.32", removed_in="1.0", details="Use the `n` property instead."
+    )
     def network(self) -> Network:
         return self._n()  # type: ignore
 
@@ -1894,93 +1976,121 @@ class SubNetwork:
         branches = self.n.passive_branches()
         return branches[branches.sub_network == self.name]
 
-    @future_deprecation(details="Use `self.components.<c_name>` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>` instead.",
+    )
     def component(self, c_name: str) -> SubNetworkComponents:
         return self.components[c_name]
 
-    @future_deprecation(details="Use `self.components.<c_name>.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.static` instead.",
+    )
     def df(self, c_name: str) -> pd.DataFrame:
         return self.static(c_name)
 
-    @future_deprecation(details="Use `self.components.<c_name>.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.static` instead.",
+    )
     def static(self, c_name: str) -> pd.DataFrame:
         return self.components[c_name].static
 
-    @future_deprecation(details="Use `self.components.<c_name>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.dynamic` instead.",
+    )
     def pnl(self, c_name: str) -> Dict:
         return self.dynamic(c_name)
 
-    @future_deprecation(details="Use `self.components.<c_name>.dynamic` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.<c_name>.dynamic` instead.",
+    )
     def dynamic(self, c_name: str) -> Dict:
         return self.components[c_name].dynamic
 
-    @future_deprecation(details="Use `self.components.buses.static.index` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.buses.static.index` instead.",
+    )
     def buses_i(self) -> pd.Index:
         return self.components.buses.static.index
 
-    @future_deprecation(details="Use `self.components.lines.static.index` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.lines.static.index` instead.",
+    )
     def lines_i(self) -> pd.Index:
         return self.components.lines.static.index
 
-    @future_deprecation(
-        details="Use `self.components.transformers.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.transformers.static.index` instead.",
     )
     def transformers_i(self) -> pd.Index:
         return self.components.transformers.static.index
 
-    @future_deprecation(
-        details="Use `self.components.generators.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.generators.static.index` instead.",
     )
     def generators_i(self) -> pd.Index:
         return self.components.generators.static.index
 
-    @future_deprecation(details="Use `self.components.loads.static.index` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.loads.static.index` instead.",
+    )
     def loads_i(self) -> pd.Index:
         return self.components.loads.static.index
 
-    @future_deprecation(
-        details="Use `self.components.shunt_impedances.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.shunt_impedances.static.index` instead.",
     )
     def shunt_impedances_i(self) -> pd.Index:
         return self.components.shunt_impedances.static.index
 
-    @future_deprecation(
-        details="Use `self.components.storage_units.static.index` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.storage_units.static.index` instead.",
     )
     def storage_units_i(self) -> pd.Index:
         return self.components.storage_units.static.index
 
-    @future_deprecation(details="Use `self.components.stores.index.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.stores.index.static` instead.",
+    )
     def stores_i(self) -> pd.Index:
         return self.components.stores.static.index
 
-    @future_deprecation(details="Use `self.components.buses.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.buses.static` instead.",
+    )
     def buses(self) -> pd.DataFrame:
         return self.components.buses.static
 
-    @future_deprecation(details="Use `self.components.generators.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.generators.static` instead.",
+    )
     def generators(self) -> pd.DataFrame:
         return self.components.generators.static
 
-    @future_deprecation(details="Use `self.components.loads.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.loads.static` instead.",
+    )
     def loads(self) -> pd.DataFrame:
         return self.components.loads.static
 
-    @future_deprecation(
-        details="Use `self.components.shunt_impedances.static` instead."
+    @deprecated_in_next_major(
+        details="Use `self.components.shunt_impedances.static` instead.",
     )
     def shunt_impedances(self) -> pd.DataFrame:
         return self.components.shunt_impedances.static
 
-    @future_deprecation(details="Use `self.components.storage_units.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.storage_units.static` instead.",
+    )
     def storage_units(self) -> pd.DataFrame:
         return self.components.storage_units.static
 
-    @future_deprecation(details="Use `self.components.stores.static` instead.")
+    @deprecated_in_next_major(
+        details="Use `self.components.stores.static` instead.",
+    )
     def stores(self) -> pd.DataFrame:
         return self.components.stores.static
 
-    @future_deprecation(details="Use `self.components` instead.")
+    @deprecated_in_next_major(details="Use `self.components` instead.")
     # Deprecate: Use `self.iterate_components` instead
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True

@@ -470,7 +470,6 @@ def test_dynamic_ramp_rates():
     This test checks that dynamic ramp rates are correctly applied when
     considering a unit outage represented by p_max_pu.
     """
-
     n = pypsa.Network()
 
     snapshots = range(0, 15)
@@ -512,7 +511,6 @@ def test_dynamic_ramp_rates_for_commitables():
     """
     This test checks that ramp rate constraints and unit commitment functionality runs through
     """
-
     n = pypsa.Network()
 
     snapshots = range(0, 15)

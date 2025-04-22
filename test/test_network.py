@@ -343,12 +343,16 @@ def test_equality_behavior(all_networks):
     """
     for n in all_networks:
         deep_copy = copy.deepcopy(n)
-        assert n == deep_copy
         assert n is not deep_copy
+        assert n.equals(deep_copy, log_mode="strict")
+
+        assert n == deep_copy
 
         # TODO: Could add more property based tests here (hypothesis)
         deep_copy.name = "new_name"
         assert n != deep_copy
+
+        assert n != "other_type"
 
 
 @pytest.mark.skipif(
@@ -388,7 +392,13 @@ def test_copy_snapshots(all_networks):
 
         copied_n = n.copy(snapshots=n.snapshots[:5])
         n.set_snapshots(n.snapshots[:5])
-        assert copied_n == n
+        try:
+            assert copied_n == n
+        except AssertionError:
+            from deepdiff import DeepDiff
+
+            differences = DeepDiff(copied_n, n)
+            raise AssertionError(f"DeepDiff: {differences}")
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):
@@ -401,7 +411,6 @@ def test_single_add_network_static(ac_dc_network, n_5bus):
     THEN    the first network should now contain its original buses and
     also the buses in the second network
     """
-
     n = ac_dc_network.merge(n_5bus, with_time=False)
     new_buses = set(n.buses.index)
     assert new_buses.issuperset(n_5bus.buses.index)

@@ -8,18 +8,13 @@ import json
 import logging
 import math
 import os
+import tempfile
 from abc import abstractmethod
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Sequence
+from functools import partial
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.request import urlretrieve
-
-from pypsa.common import check_optional_dependency, deprecated_common_kwargs
-
-try:
-    from cloudpathlib import AnyPath as Path
-except ImportError:
-    from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -29,8 +24,13 @@ import xarray as xr
 from deprecation import deprecated
 from pyproj import CRS
 
+from pypsa.common import check_optional_dependency, deprecated_common_kwargs
 from pypsa.descriptors import update_linkports_component_attrs
 
+try:
+    from cloudpathlib import AnyPath as Path
+except ImportError:
+    from pathlib import Path
 if TYPE_CHECKING:
     from typing import TracebackType  # type: ignore
 
@@ -41,22 +41,29 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# for the writable data directory follow the XDG guidelines
-# https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
-_writable_dir = Path(os.path.expanduser("~")) / ".local" / "share"
-_data_dir = (
-    Path(os.environ.get("XDG_DATA_HOME", os.environ.get("APPDATA", _writable_dir)))
-    / "pypsa-networks"
-)
 
-_data_dir.mkdir(exist_ok=True, parents=True)
+@overload
+def _retrieve_from_url(
+    url: str, io_function: Callable[[Path], pd.read_excel]
+) -> pd.DataFrame: ...
 
 
-def _retrieve_from_url(path: str) -> str:
-    local_path = _data_dir / os.path.basename(path)
-    logger.info(f"Retrieving network data from {path}")
-    urlretrieve(path, local_path)
-    return str(local_path)
+@overload
+def _retrieve_from_url(
+    url: str, io_function: Callable[[Path], pd.HDFStore | xr.Dataset]
+) -> Network: ...
+
+
+def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Network:
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        file_path = Path(temp_file.name)
+        logger.info(f"Retrieving network data from {url}.")
+        try:
+            urlretrieve(url, file_path)
+        except Exception as e:
+            logger.error(f"Failed to retrieve network data from {url}: {e}")
+            raise
+        return io_function(file_path)
 
 
 # TODO: Restructure abc inheritance
@@ -274,7 +281,7 @@ class ExporterCSV(Exporter):
 
 
 class ImporterExcel(Importer):
-    def __init__(self, excel_file_path: str | Path, engine: str = "calamine") -> None:
+    def __init__(self, path: str | Path, engine: str = "calamine") -> None:
         if engine == "calamine":
             check_optional_dependency(
                 "python_calamine",
@@ -282,14 +289,22 @@ class ImporterExcel(Importer):
                 "`pip install pypsa[excel]`. If you passed any other engine, "
                 "make sure it is installed.",
             )
-        excel_file_path = Path(excel_file_path)
-        if not excel_file_path.is_file():
-            msg = f"Excel file {excel_file_path} does not exist."
+        if not isinstance(path, (str | Path)):
+            msg = f"Invalid path type. Expected str or Path, got {type(path)}."
+            raise TypeError(msg)
+
+        path = Path(path)
+        if not path.is_file():
+            msg = f"Excel file {path} does not exist."
             raise FileNotFoundError(msg)
         self.engine = engine
-        self.sheets = pd.read_excel(
-            excel_file_path, sheet_name=None, engine=self.engine
-        )
+
+        reader = partial(pd.read_excel, sheet_name=None, engine=self.engine)
+        if validators.url(str(path)):
+            self.sheets = _retrieve_from_url(str(path), reader)
+        else:
+            self.sheets = reader(path)
+        self.index: dict = {}
 
     def get_attributes(self) -> dict | None:
         try:
@@ -463,9 +478,12 @@ class ImporterHDF5(Importer):
         self.path = path
         self.ds: pd.HDFStore
         if isinstance(path, (str | Path)):
+            reader = partial(pd.HDFStore, mode="r")
             if validators.url(str(path)):
-                path = _retrieve_from_url(str(path))
-            self.ds = pd.HDFStore(Path(path), mode="r")
+                self.ds = _retrieve_from_url(str(path), reader)
+            else:
+                self.ds = reader(Path(path))
+
         self.index: dict = {}
 
     def get_attributes(self) -> dict:
@@ -570,8 +588,9 @@ class ImporterNetCDF(Importer):
         self.path = path
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
-                path = _retrieve_from_url(str(path))
-            self.ds = xr.open_dataset(Path(path))
+                self.ds = _retrieve_from_url(str(path), xr.open_dataset)
+            else:
+                self.ds = xr.open_dataset(Path(path))
         else:
             self.ds = path
 
@@ -918,7 +937,6 @@ def export_to_csv_folder(
     export_to_hdf5 : Export to an HDF5 file
     export_to_excel : Export to an Excel file
     """
-
     basename = os.path.basename(csv_folder_name)
     with ExporterCSV(
         csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
@@ -1151,8 +1169,6 @@ def export_to_netcdf(
 
     Examples
     --------
-    >>> import pypsa
-    >>> n = pypsa.examples.ac_dc_meshed()
     >>> n.export_to_netcdf("my_file.nc") # doctest: +SKIP
 
     See Also
@@ -1308,7 +1324,6 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
     -------
     pandas.DataFrame
     """
-
     df_cols_set = set(df.columns if axis == 1 else df.index)
 
     existing_cols = [col for col in attrs_list if col in df_cols_set]
@@ -1622,12 +1637,24 @@ def merge(
             raise ValueError(msg)
     if with_time:
         snapshots_aligned = n.snapshots.equals(other.snapshots)
-        weightings_aligned = n.snapshot_weightings.equals(other.snapshot_weightings)
-        if not (snapshots_aligned and weightings_aligned):
-            msg = (
-                "Snapshots or snapshot weightings do not agree, cannot merge networks."
-            )
+        if not snapshots_aligned:
+            msg = "Snapshots do not agree, cannot merge networks."
             raise ValueError(msg)
+        weightings_aligned = n.snapshot_weightings.equals(other.snapshot_weightings)
+        if not weightings_aligned:
+            # Check if only index order is different
+            # TODO fix with #1128
+            if n.snapshot_weightings.reindex(
+                sorted(n.snapshot_weightings.columns), axis=1
+            ).equals(
+                other.snapshot_weightings.reindex(
+                    sorted(other.snapshot_weightings.columns), axis=1
+                )
+            ):
+                weightings_aligned = True
+            else:
+                msg = "Snapshot weightings do not agree, cannot merge networks."
+                raise ValueError(msg)
     new = n if inplace else n.copy()
     if other.srid != new.srid:
         logger.warning(
@@ -1887,7 +1914,7 @@ def import_from_pandapower_net(
     --------
     >>> n.import_from_pandapower_net(net) # doctest: +SKIP
     OR
-    >>> import pypsa
+
     >>> import pandapower as pp # doctest: +SKIP
     >>> import pandapower.networks as pn # doctest: +SKIP
     >>> net = pn.create_cigre_network_mv(with_der='all') # doctest: +SKIP

@@ -62,3 +62,5 @@ dev-scripts
 dev
 
 .venv
+.aider*
+uv.lock

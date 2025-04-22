@@ -89,7 +89,6 @@ def test_post_discretization():
     depending on the variable fractional_last_unit_size the p_nom should
     either be the last full unit_size or the p_nom_max.
     """
-
     unit_size = 10
 
     n = build_network(unit_size=unit_size)

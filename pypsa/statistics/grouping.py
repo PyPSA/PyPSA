@@ -302,6 +302,28 @@ class Groupers:
         bus = f"bus{port}"
         return n.static(c)[bus].map(n.buses.country).rename("country")
 
+    def location(self, n: Network, c: str, port: str = "") -> pd.Series:
+        """
+        Grouper method to group by the location of the components corresponding bus.
+
+        Parameters
+        ----------
+        n : Network
+            PyPSA network instance.
+        c : str
+            Components type name. E.g. "Generator", "StorageUnit", etc.
+        port : str, optional
+            Port of corresponding bus, which should be used.
+
+        Returns
+        -------
+        pd.Series
+            Series with the location of the components corresponding bus.
+
+        """
+        bus = f"bus{port}"
+        return n.static(c)[bus].map(n.buses.location).rename("location")
+
     def unit(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
         Grouper method to group by the unit of the components corresponding bus.
@@ -351,12 +373,14 @@ new_grouper_access = {
     "get_bus_carrier": ".bus_carrier",
     "get_bus": ".bus",
     "get_country": ".country",
+    "get_location": ".location",
     "get_unit": ".unit",
     "get_name": ".name",
     "get_bus_and_carrier": '["bus", "carrier"]',
     "get_bus_unit_and_carrier": '["bus", "unit", "carrier"]',
     "get_name_bus_and_carrier": '["name", "bus", "carrier"]',
     "get_country_and_carrier": '["country", "carrier"]',
+    "get_location_and_carrier": '["location", "carrier"]',
     "get_bus_and_carrier_and_bus_carrier": '["bus", "carrier", "bus_carrier"]',
     "get_carrier_and_bus_carrier": '["carrier", "bus_carrier"]',
 }
@@ -364,7 +388,7 @@ new_grouper_access = {
 
 def deprecated_grouper(func: Callable) -> Callable:
     """
-    Decorator to deprecate old grouper methods with custom deprecation warning.
+    Deprecate old grouper methods with custom deprecation warning.
 
     Parameters
     ----------
@@ -383,8 +407,9 @@ def deprecated_grouper(func: Callable) -> Callable:
             f"`n.statistics.{func.__name__}` and `pypsa.statistics.{func.__name__}` "
             f"are deprecated. Use "
             f"`pypsa.statistics.groupers{new_grouper_access[func.__name__]}` instead."
+            "Deprecated in version 0.34 and will be removed in version 1.0."
         )
-        warnings.warn(msg, DeprecationWarning)
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
         return func(*args, **kwargs)
 
     return wrapper
