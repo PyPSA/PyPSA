@@ -2,12 +2,24 @@
 
 from typing import Any
 
-from pypsa.components.components import (
-    Component,
-    Components,
+from pypsa.components._types import (
+    Buses,
+    Carriers,
     Generators,
+    GlobalConstraints,
     Lines,
+    LineTypes,
+    Links,
+    Loads,
+    Shapes,
+    ShuntImpedances,
+    StorageUnits,
+    Stores,
+    Transformers,
+    TransformerTypes,
 )
+from pypsa.components.components import Components
+from pypsa.components.legacy import Component
 
 
 def __getattr__(name: str) -> Any:
@@ -23,6 +35,18 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     "Component",
     "Components",
+    "Buses",
+    "Carriers",
     "Generators",
+    "GlobalConstraints",
+    "LineTypes",
     "Lines",
+    "Links",
+    "Loads",
+    "Shapes",
+    "ShuntImpedances",
+    "StorageUnits",
+    "Stores",
+    "TransformerTypes",
+    "Transformers",
 ]

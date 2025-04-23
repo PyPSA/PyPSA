@@ -65,11 +65,6 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
-    def operational_attrs(self) -> dict:
-        pass
-
-    @property
-    @abstractmethod
     def extendables(self) -> pd.Index:
         pass
 

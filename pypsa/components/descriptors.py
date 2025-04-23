@@ -11,14 +11,12 @@ from __future__ import annotations
 import logging
 import warnings
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 
 from pypsa.components.abstract import _ComponentsABC
-from pypsa.descriptors import expand_series
 
 logger = logging.getLogger(__name__)
 
@@ -157,92 +155,6 @@ class _ComponentsDescriptors(_ComponentsABC):
             mask = mask.reindex(columns=index)
 
         return mask
-
-    @overload
-    def get_bounds_pu(
-        self,
-        sns: Sequence,
-        index: pd.Index | None = None,
-        attr: str | None = None,
-        as_xarray: Literal[True] = True,
-    ) -> tuple[xr.DataArray, xr.DataArray]: ...
-
-    @overload
-    def get_bounds_pu(
-        self,
-        sns: Sequence,
-        index: pd.Index | None = None,
-        attr: str | None = None,
-        as_xarray: Literal[False] = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
-
-    def get_bounds_pu(
-        self,
-        sns: Sequence,
-        index: pd.Index | None = None,
-        attr: str | None = None,
-        as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Get per unit bounds of the component for given snapshots.
-
-        This is a backward-compatible implementation that delegates to the component's
-        specific implementation if available.
-
-        Parameters
-        ----------
-        c : pypsa.Components
-            Components instance.
-        sns : pandas.Index/pandas.DateTimeIndex
-            Set of snapshots for the bounds
-        index : pd.Index, default None
-            Subset of the component elements. If None (default) bounds of all
-            elements are returned.
-        attr : string, default None
-            Attribute name for the bounds, e.g. "p", "s", "p_store"
-        as_xarray : bool, default False
-            If True, return xarray DataArrays instead of pandas DataFrames.
-
-        Returns
-        -------
-        tuple[pd.DataFrame, pd.DataFrame]
-            Tuple of (min_pu, max_pu) DataFrames.
-
-        """
-        # If the component has a specialized implementation, use it
-        if hasattr(self, "get_bounds_pu") and callable(getattr(self, "get_bounds_pu")):
-            if as_xarray:
-                return self.get_bounds_pu(sns, index, attr, True)
-            else:
-                return self.get_bounds_pu(sns, index, attr, False)
-
-        # Legacy implementation (to be deprecated)
-        min_pu_str = self.operational_attrs["min_pu"]
-        max_pu_str = self.operational_attrs["max_pu"]
-
-        max_pu = self.as_dynamic(max_pu_str, sns)
-
-        if self.category in {"passive_branch"}:
-            min_pu = -max_pu
-        elif self.name == "StorageUnit":
-            min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
-            if attr == "p_store":
-                max_pu = -self.as_dynamic(min_pu_str, sns)
-            if attr == "state_of_charge":
-                max_pu = expand_series(self.static.max_hours, sns).T
-                min_pu = pd.DataFrame(0, *max_pu.axes)
-        else:
-            min_pu = self.as_dynamic(min_pu_str, sns)
-
-        if index is not None:
-            min_pu = min_pu.reindex(columns=index)
-            max_pu = max_pu.reindex(columns=index)
-
-        if as_xarray:
-            min_pu = xr.DataArray(min_pu)
-            max_pu = xr.DataArray(max_pu)
-
-        return min_pu, max_pu
 
     # TODO: remove as soon as deprecated renaming is removed
     def get_extendable_i(self, rename_index: bool = True) -> pd.Index:

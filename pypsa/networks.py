@@ -33,7 +33,8 @@ from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import as_index, deprecated_common_kwargs
-from pypsa.components.components import Component, SubNetworkComponents
+from pypsa.components.components import SubNetworkComponents
+from pypsa.components.legacy import Component
 from pypsa.components.types import (
     component_types_df,
 )
