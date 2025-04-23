@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pypsa.components.abstract import Components
+from pypsa.components.components import Components
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 if TYPE_CHECKING:
