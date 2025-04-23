@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from pypsa import Network
-from pypsa.components.components import Component
+from pypsa.components.legacy import Component
 
 
 @pytest.fixture

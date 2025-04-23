@@ -50,11 +50,6 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
-    def has_scenarios(self) -> bool:
-        pass
-
-    @property
-    @abstractmethod
     def has_investment_periods(self) -> bool:
         pass
 
@@ -63,25 +58,6 @@ class _ComponentsABC(ABC):
     def investment_periods(self) -> pd.Index:
         pass
 
-    @property
     @abstractmethod
-    def extendables(self) -> pd.Index:
-        pass
-
-    @property
-    @abstractmethod
-    def committables(self) -> pd.Index:
-        pass
-
-    @property
-    @abstractmethod
-    def fixed(self) -> pd.Index:
-        pass
-
-    @abstractmethod
-    def get_activity_mask(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
-        pass
-
-    @abstractmethod
-    def as_dynamic(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
+    def get_active_assets(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         pass

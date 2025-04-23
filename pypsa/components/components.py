@@ -27,7 +27,6 @@ import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
-from pypsa.components.array import _ComponentsArray
 from pypsa.components.descriptors import _ComponentsDescriptors
 from pypsa.components.transform import _ComponentsTransform
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
@@ -71,9 +70,7 @@ class ComponentsData:
     dynamic: dict
 
 
-class Components(
-    ComponentsData, _ComponentsDescriptors, _ComponentsTransform, _ComponentsArray
-):
+class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
     """
     Components base class.
 
@@ -537,16 +534,6 @@ class Components(
         return self.n_save.has_investment_periods
 
     @property
-    def scenarios(self) -> pd.Index:
-        """Scenarios of networks."""
-        return self.n_save.scenarios
-
-    @property
-    def has_scenarios(self) -> bool:
-        """Indicator whether the network has scenarios."""
-        return self.n_save.has_scenarios
-
-    @property
     def empty(self) -> bool:
         """Check if component is empty."""
         return self.static.empty
@@ -690,121 +677,6 @@ class Components(
 
         """
         return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
-
-    @property
-    def operational_attrs(self) -> dict[str, str]:
-        """
-        Get operational attributes of component for optimization.
-
-        Provides a dictionary of attribute patterns used in optimization constraints,
-        based on the component type. This makes constraint formulation more modular
-        by avoiding hardcoded attribute names.
-
-        Returns
-        -------
-        dict[str, str]
-            Dictionary of operational attribute names
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
-        >>> c.operational_attrs["min_pu"]
-        'p_min_pu'
-        >>> c.operational_attrs["max_pu"]
-        'p_max_pu'
-        >>> c.operational_attrs["nom"]
-        'p_nom'
-
-        """
-        base = self.base_attr
-
-        return {
-            "base": base,
-            "nom": f"{base}_nom",
-            "nom_extendable": f"{base}_nom_extendable",
-            "nom_min": f"{base}_nom_min",
-            "nom_max": f"{base}_nom_max",
-            "nom_set": f"{base}_nom_set",
-            "min_pu": f"{base}_min_pu",
-            "max_pu": f"{base}_max_pu",
-            "set": f"{base}_set",
-        }
-
-    @property
-    def nominal_attr(self) -> str:
-        """
-        Get nominal attribute of component.
-
-        Returns
-        -------
-        str
-            Name of the nominal attribute of the component.
-
-        Examples
-        --------
-        >>> c = n.components.generators
-        >>> c.nominal_attr
-        'p_nom'
-
-        """
-        return self.base_attr + "_nom"
-
-    @property
-    def extendables(self) -> pd.Index:
-        """
-        Get the index of extendable elements of this component.
-
-        Returns
-        -------
-        pd.Index
-            Index of extendable elements.
-
-        """
-        index_name = self.name
-        extendable_col = self.operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return pd.Index([], name=index_name)
-
-        idx = self.static.loc[self.static[extendable_col]].index
-        return idx.rename(index_name)
-
-    @property
-    def fixed(self) -> pd.Index:
-        """
-        Get the index of non-extendable elements of this component.
-
-        Returns
-        -------
-        pd.Index
-            Index of non-extendable elements.
-
-        """
-        index_name = self.name
-        extendable_col = self.operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return pd.Index([], name=index_name)
-
-        idx = self.static.loc[~self.static[extendable_col]].index
-        return idx.rename(index_name)
-
-    @property
-    def committables(self) -> pd.Index:
-        """
-        Get the index of committable elements of this component.
-
-        Returns
-        -------
-        pd.Index
-            Index of committable elements.
-
-        """
-        index_name = self.name
-        if "committable" not in self.static:
-            return pd.Index([], name=index_name)
-
-        idx = self.static.loc[self.static["committable"]].index
-        return idx.rename(index_name)
 
 
 class SubNetworkComponents:

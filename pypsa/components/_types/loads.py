@@ -22,7 +22,3 @@ class Loads(Components):
     pypsa.components.abstract.Components : Base class for all components.
 
     """
-
-    base_attr = "p"
-
-    pass

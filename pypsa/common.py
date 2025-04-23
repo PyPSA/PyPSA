@@ -27,6 +27,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class UnexpectedError(AssertionError):
+    """Custom error for unexpected conditions with issue tracker reference."""
+
+    URL_CREATE_ISSUE = (
+        "https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml"
+    )
+
+    def __init__(self, message: str = "") -> None:
+        track_message = (
+            f"Please track this issue in our issue tracker: {self.URL_CREATE_ISSUE}"
+        )
+
+        if message:
+            message += f"\n{track_message}"
+        else:
+            message = track_message
+
+        super().__init__(message)
+
+
 class MethodHandlerWrapper:
     """
     Decorator to wrap a method with a handler class.
