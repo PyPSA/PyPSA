@@ -948,35 +948,36 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     previous_soc + p_store - p_dispatch + inflow - spill == soc
     """
     m = n.model
-    c = "StorageUnit"
+    component = "StorageUnit"
     dim = "snapshot"
-    assets = n.static(c)
-    active = DataArray(get_activity_mask(n, c, sns))
+    c = as_components(n, component)
+    active = c.as_xarray("active", sns)
 
-    if assets.empty:
+    if c.static.empty:
         return
 
     # elapsed hours
-    eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
-    # efficiencies
-    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
-    eff_dispatch = get_as_dense(n, c, "efficiency_dispatch", sns)
-    eff_store = get_as_dense(n, c, "efficiency_store", sns)
+    eh = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
 
-    soc = m[f"{c}-state_of_charge"]
+    # efficiencies as xarray DataArrays
+    eff_stand = (1 - c.as_xarray("standing_loss", sns)) ** eh
+    eff_dispatch = c.as_xarray("efficiency_dispatch", sns)
+    eff_store = c.as_xarray("efficiency_store", sns)
+
+    soc = m[f"{component}-state_of_charge"]
 
     lhs = [
         (-1, soc),
-        (-1 / eff_dispatch * eh, m[f"{c}-p_dispatch"]),
-        (eff_store * eh, m[f"{c}-p_store"]),
+        (-1 / eff_dispatch * eh, m[f"{component}-p_dispatch"]),
+        (eff_store * eh, m[f"{component}-p_store"]),
     ]
 
-    if f"{c}-spill" in m.variables:
-        lhs += [(-eh, m[f"{c}-spill"])]
+    if f"{component}-spill" in m.variables:
+        lhs += [(-eh, m[f"{component}-spill"])]
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
-    # for non-cyclic assets.
-    noncyclic_b = ~assets.cyclic_state_of_charge.to_xarray()
+    # for non-cyclic assets
+    noncyclic_b = ~c.as_xarray("cyclic_state_of_charge")
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     previous_soc = (
@@ -988,16 +989,15 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     # We add inflow and initial soc for noncyclic assets to rhs
-    soc_init = assets.state_of_charge_initial.to_xarray()
-    rhs = DataArray(-get_as_dense(n, c, "inflow", sns).mul(eh))
+    soc_init = c.as_xarray("state_of_charge_initial")
+    rhs = DataArray(-c.as_xarray("inflow", sns) * eh)
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
-        # for all assets which are cyclid/non-cyclid per period.
+        # for all assets which are cyclic/non-cyclic per period
         periods = soc.coords["period"]
-        per_period = (
-            assets.cyclic_state_of_charge_per_period.to_xarray()
-            | assets.state_of_charge_initial_per_period.to_xarray()
+        per_period = c.as_xarray("cyclic_state_of_charge_per_period") | c.as_xarray(
+            "state_of_charge_initial_per_period"
         )
 
         # We calculate the previous soc per period while cycling within a period
@@ -1011,7 +1011,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         previous_soc_pp = concat(previous_soc_pp_list, dim="snapshot")
 
         # We create a mask `include_previous_soc_pp` which excludes the first
-        # snapshot of each period for non-cyclic assets.
+        # snapshot of each period for non-cyclic assets
         include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
@@ -1024,9 +1024,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         include_previous_soc = include_previous_soc_pp.where(
             per_period, include_previous_soc
         )
+
     lhs += [(eff_stand, previous_soc)]
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
-    m.add_constraints(lhs, "=", rhs, name=f"{c}-energy_balance", mask=active)
+
+    m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
