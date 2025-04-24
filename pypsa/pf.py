@@ -1544,4 +1544,9 @@ def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
     """
     raise NotImplementedError("Batch linear power flow not supported yet.")
 
+<<<<<<< HEAD
 print("Das is mein eigener, in pf.py geschriebenener Code, der bei jedem Lastfluss (pf) aufgerufen wird.")
+=======
+
+print(">>> Hier läuft gerade mein eigener Power Flow Code 😎: Erstellt von Timo")
+>>>>>>> master
