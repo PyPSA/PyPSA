@@ -1036,50 +1036,53 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     Defines energy balance constraints for stores. In principal the constraints
     states:
 
-    previous_e - p == e
+    previous_e + p == e * standing_efficiency
     """
     m = n.model
-    c = "Store"
+    component = "Store"
     dim = "snapshot"
-    assets = n.static(c)
-    active = DataArray(get_activity_mask(n, c, sns))
+    c = as_components(n, component)
+    active = c.as_xarray("active", sns)
 
-    if assets.empty:
+    if c.static.empty:
         return
 
     # elapsed hours
-    eh = expand_series(n.snapshot_weightings.stores[sns], assets.index)
-    # efficiencies
-    eff_stand = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    eh = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
 
-    e = m[f"{c}-e"]
-    p = m[f"{c}-p"]
+    # standing efficiency
+    eff_stand = (1 - c.as_xarray("standing_loss", sns)) ** eh
 
+    e = m[f"{component}-e"]
+    p = m[f"{component}-p"]
+
+    # Define LHS expression
     lhs = [(-1, e), (-eh, p)]
 
     # We create a mask `include_previous_e` which excludes the first snapshot
-    # for non-cyclic assets.
-    noncyclic_b = ~assets.e_cyclic.to_xarray()
+    # for non-cyclic assets
+    noncyclic_b = ~c.as_xarray("e_cyclic")
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
+    # Calculate previous energy state with proper handling of boundaries
     previous_e = (
         e.where(active).ffill(dim).roll(snapshot=1).ffill(dim).where(include_previous_e)
     )
 
-    # We add inflow and initial e for for noncyclic assets to rhs
-    e_init = assets.e_initial.to_xarray()
+    # We add initial e for non-cyclic assets to rhs
+    e_init = c.as_xarray("e_initial")
+    rhs = DataArray(0)
 
     if isinstance(sns, pd.MultiIndex):
-        # If multi-horizon optimizing, we update the previous_e and the rhs
-        # for all assets which are cyclid/non-cyclid per period.
+        # If multi-horizon optimization, we update previous_e and the rhs
+        # for all assets which are cyclic/non-cyclic per period
         periods = e.coords["period"]
-        per_period = (
-            assets.e_cyclic_per_period.to_xarray()
-            | assets.e_initial_per_period.to_xarray()
+        per_period = c.as_xarray("e_cyclic_per_period") | c.as_xarray(
+            "e_initial_per_period"
         )
 
         # We calculate the previous e per period while cycling within a period
-        # Normally, we should use groupby, but is broken for multi-index
+        # Normally, we should use groupby, but it's broken for multi-index
         # see https://github.com/pydata/xarray/issues/6836
         ps = sns.unique("period")
         sl = slice(None)
@@ -1087,22 +1090,26 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         previous_e_pp = concat(previous_e_pp_list, dim="snapshot")
 
         # We create a mask `include_previous_e_pp` which excludes the first
-        # snapshot of each period for non-cyclic assets.
+        # snapshot of each period for non-cyclic assets
         include_previous_e_pp = active & (periods == periods.shift(snapshot=1))
         include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
+
         # We take values still to handle internal xarray multi-index difficulties
         previous_e_pp = previous_e_pp.where(
             include_previous_e_pp.values, linopy.variables.FILL_VALUE
         )
 
-        # update the previous_e variables and right hand side
+        # update previous_e variables and rhs
         previous_e = previous_e.where(~per_period, previous_e_pp)
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
+    # Add the previous energy term with standing efficiency factor
     lhs += [(eff_stand, previous_e)]
+
+    # For snapshots where we don't include previous_e, we need to account for initial values
     rhs = -e_init.where(~include_previous_e, 0)
 
-    m.add_constraints(lhs, "=", rhs, name=f"{c}-energy_balance", mask=active)
+    m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
 
 
 def define_loss_constraints(
