@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
+import pandas as pd
+
+from pypsa.components._types._patch import patch_docstrings
 from pypsa.components.components import Components
 
 
+@patch_docstrings
 class Generators(Components):
     """
     Generators components class.
@@ -22,3 +29,17 @@ class Generators(Components):
     pypsa.components.abstract.Components : Base class for all components.
 
     """
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )
