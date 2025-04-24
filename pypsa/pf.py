@@ -1543,3 +1543,6 @@ def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
     Batched linear power flow with numpy.dot for several snapshots.
     """
     raise NotImplementedError("Batch linear power flow not supported yet.")
+
+
+print(">>> Hier läuft gerade mein eigener Power Flow Code 😎: Erstellt von Timo")
