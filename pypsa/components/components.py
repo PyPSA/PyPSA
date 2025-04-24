@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
 import pandas as pd
-import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
@@ -622,17 +621,6 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
 
         """
         return self.dynamic
-
-    @property
-    def ds(self) -> xarray.Dataset:
-        """Create a xarray data array view of the component."""
-        static_attrs = self.static.columns
-        dynamic_attrs = [
-            attr for attr in self.dynamic.keys() if not self.dynamic[attr].empty
-        ]
-        attrs = set([*static_attrs, *dynamic_attrs])
-        data = {attr: self.as_xarray(attr) for attr in attrs}
-        return xarray.Dataset(data)
 
     @property
     def units(self) -> pd.Series:
