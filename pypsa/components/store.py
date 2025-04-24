@@ -63,7 +63,23 @@ class ComponentsStore(dict):
         Examples
         --------
         >>> n.components
-
+        PyPSA Components Store
+        ======================
+        - 0 'SubNetwork' Components
+        - 9 'Bus' Components
+        - 6 'Carrier' Components
+        - 1 'GlobalConstraint' Components
+        - 7 'Line' Components
+        - 36 'LineType' Components
+        - 0 'Transformer' Components
+        - 14 'TransformerType' Components
+        - 4 'Link' Components
+        - 6 'Load' Components
+        - 6 'Generator' Components
+        - 0 'StorageUnit' Components
+        - 0 'Store' Components
+        - 0 'ShuntImpedance' Components
+        - 0 'Shape' Components
 
         """
         return "PyPSA Components Store\n======================\n- " + "\n- ".join(
@@ -89,7 +105,7 @@ class ComponentsStore(dict):
         PyPSA Components Store
         ======================
         - 0 'SubNetwork' Components
-        - 10 'Bus' Components
+        - 9 'Bus' Components
         - 6 'Carrier' Components
         - 1 'GlobalConstraint' Components
         - 7 'Line' Components
