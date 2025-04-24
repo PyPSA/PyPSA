@@ -133,10 +133,10 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
         Examples
         --------
         >>> str(n.components.generators)
-        "PyPSA 'Generator' Components"
+        "'Generator' Components"
 
         """
-        return f"PyPSA '{self.ctype.name}' Components"
+        return f"'{self.ctype.name}' Components"
 
     def __repr__(self) -> str:
         """
@@ -151,8 +151,8 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
         --------
         >>> c = n.components.generators
         >>> c
-        PyPSA 'Generator' Components
-        ----------------------------
+        'Generator' Components
+        ----------------------
         Attached to PyPSA Network 'AC-DC'
         Components: 6
 
