@@ -1114,24 +1114,40 @@ def define_loss_constraints(
     n: Network, sns: pd.Index, component: str, transmission_losses: int
 ) -> None:
     """
-    Defines power loss constraints for passive branches.
+    Define power loss constraints for passive branches.
 
     This function approximates quadratic power losses using piecewise linear
-    constraints. The number of segments in the piecewise linearization is
-    determined by the transmission_losses parameter.
-    See eqs. (39)-(46) in https://doi.org/10.1016/j.apenergy.2022.118859
+    constraints. It creates tangent segments to the quadratic loss curve
+    to model the relationship between power flow and losses.
+
+    See equations (39)-(46) in [1]_ for further details on the formulation.
 
     Parameters
     ----------
     n : pypsa.Network
-        Network instance
+        Network instance containing the model and branch data
     sns : pd.Index
-        Set of snapshots
+        Set of snapshots for which to define the constraints
     component : str
         Name of the passive branch component (e.g. "Line", "Transformer")
     transmission_losses : int
-        Number of tangent segments to use in the piecewise linearization of
-        the quadratic loss function
+        Number of tangent segments to use in the piecewise linearization
+        of the quadratic loss function; higher values increase accuracy
+        but also computational complexity
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    3 segments offer a good trade-off between accuracy and solver performance.
+
+    References
+    ----------
+    .. [1] Neumann, F., Brown, T. "Transmission losses in power system
+           optimization models: A comparison of heuristic and exact solution methods",
+           Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
     """
     c = as_components(n, component)
 
