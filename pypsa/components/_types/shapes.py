@@ -23,5 +23,3 @@ class Shapes(Components):
     pypsa.components.components.GenericComponents : Generic components class.
 
     """
-
-    pass

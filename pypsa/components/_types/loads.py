@@ -24,5 +24,3 @@ class Loads(Components):
     """
 
     base_attr = "p"
-
-    pass

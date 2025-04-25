@@ -136,10 +136,10 @@ class Components(
         Examples
         --------
         >>> str(n.components.generators)
-        "PyPSA 'Generator' Components"
+        "'Generator' Components"
 
         """
-        return f"PyPSA '{self.ctype.name}' Components"
+        return f"'{self.ctype.name}' Components"
 
     def __repr__(self) -> str:
         """
@@ -154,8 +154,8 @@ class Components(
         --------
         >>> c = n.components.generators
         >>> c
-        PyPSA 'Generator' Components
-        ----------------------------
+        'Generator' Components
+        ----------------------
         Attached to PyPSA Network 'AC-DC'
         Components: 6
 
@@ -543,8 +543,8 @@ class Components(
 
     @property
     def has_scenarios(self) -> bool:
-        """Indicator whether the network has scenarios."""
-        return self.n_save.has_scenarios
+        """Boolean indicating if the network has scenarios defined."""
+        return len(self.scenarios) > 0
 
     @property
     def empty(self) -> bool:
@@ -692,46 +692,6 @@ class Components(
         return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
 
     @property
-    def operational_attrs(self) -> dict[str, str]:
-        """
-        Get operational attributes of component for optimization.
-
-        Provides a dictionary of attribute patterns used in optimization constraints,
-        based on the component type. This makes constraint formulation more modular
-        by avoiding hardcoded attribute names.
-
-        Returns
-        -------
-        dict[str, str]
-            Dictionary of operational attribute names
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
-        >>> c.operational_attrs["min_pu"]
-        'p_min_pu'
-        >>> c.operational_attrs["max_pu"]
-        'p_max_pu'
-        >>> c.operational_attrs["nom"]
-        'p_nom'
-
-        """
-        base = self.base_attr
-
-        return {
-            "base": base,
-            "nom": f"{base}_nom",
-            "nom_extendable": f"{base}_nom_extendable",
-            "nom_min": f"{base}_nom_min",
-            "nom_max": f"{base}_nom_max",
-            "nom_set": f"{base}_nom_set",
-            "min_pu": f"{base}_min_pu",
-            "max_pu": f"{base}_max_pu",
-            "set": f"{base}_set",
-        }
-
-    @property
     def nominal_attr(self) -> str:
         """
         Get nominal attribute of component.
@@ -805,6 +765,46 @@ class Components(
 
         idx = self.static.loc[self.static["committable"]].index
         return idx.rename(index_name)
+
+    @property
+    def operational_attrs(self) -> dict[str, str]:
+        """
+        Get operational attributes of component for optimization.
+
+        Provides a dictionary of attribute patterns used in optimization constraints,
+        based on the component type. This makes constraint formulation more modular
+        by avoiding hardcoded attribute names.
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of operational attribute names
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.operational_attrs["min_pu"]
+        'p_min_pu'
+        >>> c.operational_attrs["max_pu"]
+        'p_max_pu'
+        >>> c.operational_attrs["nom"]
+        'p_nom'
+
+        """
+        base = self.base_attr
+
+        return {
+            "base": base,
+            "nom": f"{base}_nom",
+            "nom_extendable": f"{base}_nom_extendable",
+            "nom_min": f"{base}_nom_min",
+            "nom_max": f"{base}_nom_max",
+            "nom_set": f"{base}_nom_set",
+            "min_pu": f"{base}_min_pu",
+            "max_pu": f"{base}_max_pu",
+            "set": f"{base}_set",
+        }
 
 
 class SubNetworkComponents:

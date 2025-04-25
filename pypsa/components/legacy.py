@@ -7,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 
+from pypsa.common import UnexpectedError
 from pypsa.components._types import (
     Buses,
     Carriers,
@@ -110,7 +111,7 @@ class Component:
         if component_class is not None:
             instance = component_class(ctype=ctype_)
         else:
-            raise ValueError(f"Component type '{ctype_.name}' is not supported.")
+            raise UnexpectedError(f"Component type '{ctype_.name}' not found.")
 
         if n is not None:
             instance.n = n

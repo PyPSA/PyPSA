@@ -22,5 +22,3 @@ class Carriers(Components):
     pypsa.components.abstract.Components : Base class for all components.
 
     """
-
-    pass

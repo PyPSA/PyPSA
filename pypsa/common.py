@@ -17,14 +17,33 @@ from deprecation import deprecated
 from packaging import version
 from pandas.api.types import is_list_like
 
-from pypsa.definitions.components import ComponentsStore
 from pypsa.definitions.structures import Dict
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
+
+
+class UnexpectedError(AssertionError):
+    """Custom error for unexpected conditions with issue tracker reference."""
+
+    URL_CREATE_ISSUE = (
+        "https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml"
+    )
+
+    def __init__(self, message: str = "") -> None:
+        track_message = (
+            f"Please track this issue in our issue tracker: {self.URL_CREATE_ISSUE}"
+        )
+
+        if message:
+            message += f"\n{track_message}"
+        else:
+            message = track_message
+
+        super().__init__(message)
 
 
 class MethodHandlerWrapper:
@@ -259,27 +278,17 @@ def equals(
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
-    # Custom classes
-    elif isinstance(a, ComponentsStore):
-        if a.keys() != b.keys():
-            msg = (
-                f"ComponentsStore keys differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
-            )
-            return handle_diff(msg)
-        for k in a.keys():
-            if not equals(a[k], b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
-                return False
     # Iterators
     elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
-            if k not in b:
+            if k not in b.keys():
                 msg = f"Key '{k}' missing from second dict at '{current_path}'"
                 return handle_diff(msg)
             if not equals(v, b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
                 return False
         # Check for extra keys in b
-        for k in b:
-            if k not in a:
+        for k in b.keys():
+            if k not in a.keys():
                 msg = f"Key '{k}' missing from first dict at '{current_path}'"
                 return handle_diff(msg)
 
