@@ -90,3 +90,7 @@ class _ComponentsABC(ABC):
     @abstractmethod
     def as_dynamic(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         pass
+
+    @abstractmethod
+    def get_active_assets(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
+        pass
