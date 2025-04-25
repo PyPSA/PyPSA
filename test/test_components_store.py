@@ -3,7 +3,7 @@ import warnings
 import pytest
 
 import pypsa
-from pypsa.definitions.components import ComponentsStore
+from pypsa.components.store import ComponentsStore
 
 
 def test_init():

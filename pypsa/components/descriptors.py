@@ -1,8 +1,9 @@
 """
 Components descriptor module.
 
-Contains single helper class (ComponentsDescriptors) which is used to inherit
-to Components class. Should not be used directly.
+Contains single helper class (__ComponentsDescriptors) which is used to inherit
+to Components class. Should not be used directly. Descriptor functions only describe
+data and do not modify it.
 """
 
 from __future__ import annotations
@@ -14,6 +15,10 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+
+from pypsa.components.abstract import _ComponentsABC
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pypsa import Components
@@ -51,15 +56,12 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     return c.get_active_assets(*args, **kwargs)
 
 
-class ComponentsDescriptors:
+class _ComponentsDescriptors(_ComponentsABC):
     """
     Helper class for components descriptors methods.
 
     Class only inherits to Components and should not be used directly.
     """
-
-    static: pd.DataFrame
-    n_save: Any
 
     def get_active_assets(
         self,

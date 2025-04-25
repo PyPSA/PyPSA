@@ -14,8 +14,8 @@ from deprecation import deprecated
 
 from pypsa._options import option_context
 from pypsa.common import deprecated_in_next_major, equals
-from pypsa.components.abstract import Components
 from pypsa.components.common import as_components
+from pypsa.components.components import Components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
@@ -33,8 +33,9 @@ from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import as_index, deprecated_common_kwargs
-from pypsa.components.abstract import SubNetworkComponents
-from pypsa.components.components import Component
+from pypsa.components.components import SubNetworkComponents
+from pypsa.components.legacy import Component
+from pypsa.components.store import ComponentsStore
 from pypsa.components.types import (
     component_types_df,
 )
@@ -43,7 +44,6 @@ from pypsa.components.types import (
 )
 from pypsa.consistency import consistency_check
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
-from pypsa.definitions.components import ComponentsStore
 from pypsa.definitions.structures import Dict
 from pypsa.descriptors import (
     get_active_assets,
@@ -1165,7 +1165,7 @@ class Network:
             ignored.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
-            of pandas.DataFrame for time-varying
+            or pandas.DataFrame for time-varying
 
         Returns
         -------
