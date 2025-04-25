@@ -22,10 +22,8 @@ from pypsa.components.common import as_components
 from pypsa.descriptors import (
     additional_linkports,
     expand_series,
-    get_activity_mask,
     nominal_attrs,
 )
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
 
 if TYPE_CHECKING:
@@ -1113,47 +1111,76 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_loss_constraints(
-    n: Network, sns: pd.Index, c: str, transmission_losses: int
+    n: Network, sns: pd.Index, component: str, transmission_losses: int
 ) -> None:
-    if n.static(c).empty or c not in n.passive_branch_components:
+    """
+    Defines power loss constraints for passive branches.
+
+    This function approximates quadratic power losses using piecewise linear
+    constraints. The number of segments in the piecewise linearization is
+    determined by the transmission_losses parameter.
+    See eqs. (39)-(46) in https://doi.org/10.1016/j.apenergy.2022.118859
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+    sns : pd.Index
+        Set of snapshots
+    component : str
+        Name of the passive branch component (e.g. "Line", "Transformer")
+    transmission_losses : int
+        Number of tangent segments to use in the piecewise linearization of
+        the quadratic loss function
+    """
+    c = as_components(n, component)
+
+    if c.static.empty or component not in n.passive_branch_components:
         return
 
     tangents = transmission_losses
-    active = get_activity_mask(n, c, sns)
+    active = c.as_xarray("active", sns)
 
-    s_max_pu = get_as_dense(n, c, "s_max_pu").loc[sns]
+    s_max_pu = c.as_xarray("s_max_pu", sns)
 
-    s_nom_max = n.static(c)["s_nom_max"].where(
-        n.static(c)["s_nom_extendable"], n.static(c)["s_nom"]
-    )
+    # Define nominal capacity (depends on extendability of lines)
+    is_extendable = c.as_xarray("s_nom_extendable")
+    s_nom_max = c.as_xarray("s_nom_max").where(is_extendable, c.as_xarray("s_nom"))
 
     if not isfinite(s_nom_max).all():
         msg = (
             f"Loss approximation requires finite 's_nom_max' for extendable "
-            f"branches:\n {s_nom_max[~isfinite(s_nom_max)]}"
+            f"branches:\n {s_nom_max.sel({c.name: ~isfinite(s_nom_max)})}"
         )
         raise ValueError(msg)
 
-    r_pu_eff = n.static(c)["r_pu_eff"]
+    r_pu_eff = c.as_xarray("r_pu_eff")
 
+    # Calculate upper bound on losses
     upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
 
-    loss = n.model[f"{c}-loss"]
-    flow = n.model[f"{c}-s"]
+    # Get variables
+    loss = n.model[f"{c.name}-loss"]
+    flow = n.model[f"{c.name}-s"]
 
-    n.model.add_constraints(loss <= upper_limit, name=f"{c}-loss_upper", mask=active)
+    # Add upper limit constraint
+    n.model.add_constraints(
+        loss <= upper_limit, name=f"{c.name}-loss_upper", mask=active
+    )
 
+    # Add linearization constraints for each tangent segment
     for k in range(1, tangents + 1):
+        # Calculate linearization parameters for segment k
         p_k = k / tangents * s_max_pu * s_nom_max
         loss_k = r_pu_eff * p_k**2
         slope_k = 2 * r_pu_eff * p_k
         offset_k = loss_k - slope_k * p_k
 
+        # Add constraints for both positive and negative flow
         for sign in [-1, 1]:
             lhs = n.model.linexpr((1, loss), (sign * slope_k, flow))
-
             n.model.add_constraints(
-                lhs >= offset_k, name=f"{c}-loss_tangents-{k}-{sign}", mask=active
+                lhs >= offset_k, name=f"{c.name}-loss_tangents-{k}-{sign}", mask=active
             )
 
 
