@@ -21,7 +21,7 @@ from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, Statistic
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
-    from pypsa import Network, NetworkCollection
+    from pypsa import Network
 
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class StatisticHandler:
 
     """
 
-    def __init__(self, bound_method: Callable, n: Network | NetworkCollection) -> None:
+    def __init__(self, bound_method: Callable, n: Network) -> None:
         """
         Initialize the statistic handler.
 
@@ -2195,9 +2195,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 class StatisticsAccessorMulti:
     """Statistical accessor for NetworkCollection objects that aggregates statistics across multiple networks."""
 
-    _networks: NetworkCollection
-
-    def __init__(self, networks: NetworkCollection) -> None:
+    def __init__(self, networks: Any) -> None:
         """
         Initialize the statistics accessor for NetworkCollection object.
 

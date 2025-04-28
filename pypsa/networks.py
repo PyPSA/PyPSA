@@ -6,7 +6,7 @@ import copy
 import logging
 import os
 import warnings
-from collections.abc import Callable, Collection, Iterator, Sequence
+from collections.abc import Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -86,7 +86,7 @@ from pypsa.pf import (
 )
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
-from pypsa.statistics.expressions import StatisticsAccessor, StatisticsAccessorMulti
+from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 from pypsa.version import __version_semver__
 
@@ -2121,122 +2121,3 @@ class SubNetwork:
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
-
-
-class NetworkCollection:
-    """
-    Container for multiple Network objects indexed by a pandas Index or MultiIndex.
-    """
-
-    def __init__(
-        self, networks: Sequence[Network] | pd.Series, index: pd.Index | None = None
-    ) -> None:
-        """
-        Initialize the NetworkCollection.
-
-        Parameters
-        ----------
-        networks : Sequence[Network] | pd.Series
-            A sequence of Network objects or a pandas Series where values are Network objects.
-        index : pd.Index | None, optional
-            Index for the networks if a list is provided. If None, a default
-            integer index will be used. Ignored if `networks` is a Series.
-        """
-        networks = pd.Series(networks, index=index)
-        if networks.index.name is None:
-            networks.index.name = "network"
-        if not all(isinstance(n, Network) for n in networks):
-            raise TypeError("All values in the Series must be PyPSA Network objects.")
-        self._networks = networks
-        self.statistics = StatisticsAccessorMulti(self)
-
-    @property
-    def index(self) -> pd.Index:
-        """
-        Get the index of the NetworkCollection.
-
-        Returns
-        -------
-        pd.Index
-            The index of the NetworkCollection.
-        """
-        return self._networks.index
-
-    @property
-    def _index_names(self) -> list[str]:
-        """
-        Get the names of the index of the NetworkCollection.
-
-        Returns
-        -------
-        list[str]
-            The names of the index of the NetworkCollection.
-        """
-        return self.index.names or [self.index.name]
-
-    @property
-    def carriers(self) -> pd.DataFrame:
-        """
-        Get a unique DataFrame of carriers across all contained networks.
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame containing the unique carriers found in all networks,
-            indexed by carrier name.
-        """
-        all_carriers = [n.carriers for n in self._networks]
-        combined_carriers = pd.concat(all_carriers)
-        # Keep the first occurrence of each carrier based on the index
-        unique_carriers = combined_carriers[
-            ~combined_carriers.index.duplicated(keep="first")
-        ]
-        return unique_carriers.sort_index()
-
-    def apply(self, func: Callable[[Network], Any]) -> pd.Series:
-        """
-        Apply a function to each Network object in the container.
-
-        Parameters
-        ----------
-        func : Callable[[Network], Any]
-            A function that takes a Network object as input and returns a value.
-
-        Returns
-        -------
-        pd.Series
-            A pandas Series containing the results of applying the function to each
-            Network object, indexed by the original index of the NetworkCollection.
-        """
-        return self._networks.apply(func)
-
-    def __len__(self) -> int:
-        return len(self._networks)
-
-    def __getitem__(self, key: Any) -> Network | NetworkCollection:
-        """
-        Access networks by index label or slice.
-
-        Parameters
-        ----------
-        key : Any
-            Label, slice, or boolean mask to select networks.
-
-        Returns
-        -------
-        Network | NetworkCollection
-            A single Network object if a single label is passed, or a new
-            NetworkCollection object containing the selected networks.
-        """
-        selected = self._networks.loc[key]
-        if isinstance(selected, Network):
-            return selected
-        else:
-            # Return a new NetworkCollection object for slices or masks
-            return NetworkCollection(selected)
-
-    def __iter__(self) -> Iterator[Network]:
-        """
-        Iterate over the Network objects in the container.
-        """
-        return iter(self._networks)

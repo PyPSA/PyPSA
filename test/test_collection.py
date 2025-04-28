@@ -50,26 +50,26 @@ def network3():
     return n
 
 
-def test_networks_init_list(network1, network2):
+def test_collection_init_list(network1, network2):
     """Test initialization with a list of networks."""
-    networks_list = [network1, network2]
-    networks_obj = pypsa.NetworkCollection(networks_list)
-    assert len(networks_obj) == 2
-    assert isinstance(networks_obj._networks, pd.Series)
-    assert networks_obj._networks.index.equals(pd.RangeIndex(2, name="network"))
-    assert networks_obj[0] == network1
-    assert networks_obj[1] == network2
+    networks = [network1, network2]
+    collection = pypsa.NetworkCollection(networks)
+    assert len(collection) == 2
+    assert isinstance(collection.networks, pd.Series)
+    assert collection.networks.index.equals(pd.RangeIndex(2, name="network"))
+    assert collection[0] == network1
+    assert collection[1] == network2
 
 
 def test_networks_init_list_with_index(network1, network2):
     """Test initialization with a list and custom index."""
-    networks_list = [network1, network2]
+    networks = [network1, network2]
     custom_index = pd.Index(["net_A", "net_B"], name="scenario")
-    networks_obj = pypsa.NetworkCollection(networks_list, index=custom_index)
-    assert len(networks_obj) == 2
-    assert networks_obj._networks.index.equals(custom_index)
-    assert networks_obj["net_A"] == network1
-    assert networks_obj["net_B"] == network2
+    collection = pypsa.NetworkCollection(networks, index=custom_index)
+    assert len(collection) == 2
+    assert collection.networks.index.equals(custom_index)
+    assert collection["net_A"] == network1
+    assert collection["net_B"] == network2
 
 
 def test_networks_init_series(network1, network2):
@@ -78,11 +78,11 @@ def test_networks_init_series(network1, network2):
         [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
     )
     networks_series = pd.Series([network1, network2], index=index)
-    networks_obj = pypsa.NetworkCollection(networks_series)
-    assert len(networks_obj) == 2
-    assert networks_obj._networks.index.equals(index)
-    assert networks_obj[("base", 2030)] == network1
-    assert networks_obj[("high_renewables", 2030)] == network2
+    collection = pypsa.NetworkCollection(networks_series)
+    assert len(collection) == 2
+    assert collection.networks.index.equals(index)
+    assert collection[("base", 2030)] == network1
+    assert collection[("high_renewables", 2030)] == network2
 
 
 def test_networks_init_invalid_type():
@@ -103,31 +103,31 @@ def test_networks_init_index_mismatch(network1, network2):
 
 def test_networks_index_names(network1, network2):
     """Test the index names of the NetworkCollection object."""
-    networks_list = [network1, network2]
-    networks_obj = pypsa.NetworkCollection(networks_list)
-    assert networks_obj.index.names == ["network"]
-    assert networks_obj._networks.index.name == "network"
-    assert networks_obj._index_names == ["network"]
+    networks = [network1, network2]
+    collection = pypsa.NetworkCollection(networks)
+    assert collection.index.names == ["network"]
+    assert collection.networks.index.name == "network"
+    assert collection._index_names == ["network"]
 
     # Test with custom index
     custom_index = pd.Index(["net_A", "net_B"], name="scenario")
-    networks_obj_custom = pypsa.NetworkCollection(networks_list, index=custom_index)
-    assert networks_obj_custom.index.names == ["scenario"]
-    assert networks_obj_custom._networks.index.name == "scenario"
-    assert networks_obj_custom._index_names == ["scenario"]
+    collection_custom = pypsa.NetworkCollection(networks, index=custom_index)
+    assert collection_custom.index.names == ["scenario"]
+    assert collection_custom.networks.index.name == "scenario"
+    assert collection_custom._index_names == ["scenario"]
 
     # test with multiindex
     multi_index = pd.MultiIndex.from_tuples(
         [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
     )
-    networks_obj_multi = pypsa.NetworkCollection(networks_list, index=multi_index)
-    assert networks_obj_multi.index.names == ["scenario", "year"]
-    assert networks_obj_multi._index_names == ["scenario", "year"]
+    collection_multi = pypsa.NetworkCollection(networks, index=multi_index)
+    assert collection_multi.index.names == ["scenario", "year"]
+    assert collection_multi._index_names == ["scenario", "year"]
 
 
 def test_networks_carriers_property(network1, network2, network3):
     """Test the carriers property."""
-    networks_obj = pypsa.NetworkCollection([network1, network2, network3])
+    collection = pypsa.NetworkCollection([network1, network2, network3])
     expected_carriers = pd.concat(
         [network1.carriers, network2.carriers, network3.carriers]
     )
@@ -135,19 +135,19 @@ def test_networks_carriers_property(network1, network2, network3):
         ~expected_carriers.index.duplicated(keep="first")
     ].sort_index()
 
-    pd.testing.assert_frame_equal(networks_obj.carriers, expected_carriers)
+    pd.testing.assert_frame_equal(collection.carriers, expected_carriers)
 
 
 def test_networks_carriers_property_empty():
     """Test the carriers property when networks have no carriers."""
     n1 = pypsa.Network()
     n2 = pypsa.Network()
-    networks_obj = pypsa.NetworkCollection([n1, n2])
+    collection = pypsa.NetworkCollection([n1, n2])
     expected_carriers = pd.DataFrame(
         index=pd.Index([], name="Carrier"), columns=n1.carriers.columns, dtype=int
     )
     pd.testing.assert_frame_equal(
-        networks_obj.carriers,
+        collection.carriers,
         expected_carriers,
         check_dtype=False,
         check_index_type=False,
@@ -156,27 +156,37 @@ def test_networks_carriers_property_empty():
 
 def test_networks_getitem_slice(network1, network2, network3):
     """Test slicing the NetworkCollection object."""
-    networks_list = [network1, network2, network3]
-    networks_obj = pypsa.NetworkCollection(networks_list)
-    sliced_networks = networks_obj[1:]
+    networks = [network1, network2, network3]
+    collection = pypsa.NetworkCollection(networks)
+    sliced_networks = collection[1:]
     assert isinstance(sliced_networks, pypsa.NetworkCollection)
     assert len(sliced_networks) == 2
     assert sliced_networks[1] == network2  # Original index 1
     assert sliced_networks[2] == network3  # Original index 2
     pd.testing.assert_index_equal(
-        sliced_networks._networks.index, pd.RangeIndex(1, 3, name="network")
+        sliced_networks.networks.index, pd.RangeIndex(1, 3, name="network")
     )
 
 
 def test_networks_iteration(network1, network2):
     """Test iterating over the NetworkCollection object."""
-    networks_list = [network1, network2]
-    networks_obj = pypsa.NetworkCollection(networks_list)
-    iterated_list = [n for n in networks_obj]
-    assert iterated_list == networks_list
+    networks = [network1, network2]
+    collection = pypsa.NetworkCollection(networks)
+    iterated_list = [n for n in collection]
+    assert iterated_list == networks
 
 
-# Tests for NetworkCollectionStatisticsAccessor
+def test_networks_static_data(network1, network2):
+    """Test static data access."""
+    networks = pypsa.NetworkCollection(
+        [network1, network2], index=pd.Series(["net1", "net2"], name="scenario")
+    )
+
+    generators = networks.generators
+
+    assert not generators.empty
+    assert set(networks.index.names).issubset(generators.index.names)
+    assert "Generator" in generators.index.names
 
 
 def test_networks_statistics_capex_per_network(network1, network2):
@@ -193,9 +203,9 @@ def test_networks_statistics_capex_per_network(network1, network2):
 
 def test_networks_statistics_nonexistent_method(network1):
     """Test calling a method that doesn't exist on the accessor."""
-    networks_obj = pypsa.NetworkCollection([network1])
+    collection = pypsa.NetworkCollection([network1])
     with pytest.raises(
         AttributeError,
-        match="'StatisticsAccessorMulti' object has no attribute 'nonexistent_method'",
+        match="'StatisticsAccessor' object has no attribute 'nonexistent_method'",
     ):
-        networks_obj.statistics.nonexistent_method()
+        collection.statistics.nonexistent_method()
