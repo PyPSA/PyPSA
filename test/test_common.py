@@ -6,10 +6,28 @@ import pytest
 
 from pypsa.common import (
     MethodHandlerWrapper,
+    UnexpectedError,
     as_index,
     equals,
     list_as_string,
 )
+
+
+def test_unexpected_error_message_formatting():
+    """Test that UnexpectedError correctly formats the error message with the issue tracker URL."""
+    # Test with a custom message
+    custom_message = "Something unexpected happened"
+    error = UnexpectedError(custom_message)
+
+    # Verify the error message contains both the custom message and the URL
+    assert custom_message in str(error)
+    assert UnexpectedError.URL_CREATE_ISSUE in str(error)
+    assert "Please track this issue in our issue tracker:" in str(error)
+
+    # Test with an empty message
+    empty_error = UnexpectedError()
+    assert "Please track this issue in our issue tracker:" in str(empty_error)
+    assert UnexpectedError.URL_CREATE_ISSUE in str(empty_error)
 
 
 def test_decorator_with_arguments():

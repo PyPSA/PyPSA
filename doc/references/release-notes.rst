@@ -37,6 +37,9 @@ Upcoming Release
   comparison which is useful for testing and debugging.
   (https://github.com/PyPSA/PyPSA/pull/1194, https://github.com/PyPSA/PyPSA/pull/1205)
 
+* The components subpackage was further restructured. The known API remains untouched.
+  (https://github.com/PyPSA/PyPSA/pull/1223)
+
 Bug Fixes
 --------
 

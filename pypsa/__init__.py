@@ -33,7 +33,7 @@ from pypsa._options import (
     options,
 )
 from pypsa.collection import NetworkCollection
-from pypsa.components.abstract import Components
+from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
 from pypsa.version import __version__, __version_semver__, __version_short__
 
@@ -44,6 +44,7 @@ def __getattr__(name: str) -> Any:
             "The attribute 'release_version' is deprecated and will be removed in a future version. "
             "Use '__version_semver__' instead. Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
+            stacklevel=2,
         )
     return __version_semver__
 
