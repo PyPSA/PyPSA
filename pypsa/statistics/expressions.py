@@ -2257,9 +2257,12 @@ class StatisticsAccessorMulti:
                 results[idx] = network_method(*args[1:], **kwargs)
 
             # Combine results into a multi-indexed DataFrame/Series
-            combined = pd.concat(
-                results, names=[self._networks._networks.index.name or "network"]
-            )
+            if results:
+                results_index_names = list(results.values())[0].index.names
+            else:
+                results_index_names = []
+            new_index_names = self._networks._index_names + results_index_names
+            combined = pd.concat(results, names=new_index_names)
 
             # Copy over attributes from the last result if possible
             if results and hasattr(list(results.values())[-1], "attrs"):
