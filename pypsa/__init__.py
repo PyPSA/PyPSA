@@ -32,8 +32,9 @@ from pypsa._options import (
     option_context,
     options,
 )
+from pypsa.collection import NetworkCollection
 from pypsa.components.abstract import Components
-from pypsa.networks import Network, NetworkCollection, SubNetwork
+from pypsa.networks import Network, SubNetwork
 from pypsa.version import __version__, __version_semver__, __version_short__
 
 
