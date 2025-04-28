@@ -125,9 +125,8 @@ class MemberProxy:
     """
 
     # Method patterns for special handling
-    _method_patterns = [
-        # Add your regex patterns here, e.g.:
-        (
+    _method_patterns = {
+        "basic_concat": (
             r"^"  # Start of string
             # Static component dataframes
             r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
@@ -137,9 +136,8 @@ class MemberProxy:
             r"statistics|"
             r"statistics\.[^\.\s]+)"
             r"$",  # End of string
-            "basic_concat",
         ),
-    ]
+    }
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         """
@@ -156,7 +154,7 @@ class MemberProxy:
         if not callable(first_accessor):
             if instance.accessor_path:
                 # Check for pattern-based method processor
-                for pattern, processor_name in instance._method_patterns:
+                for processor_name, pattern in instance._method_patterns.items():
                     if re.match(pattern, instance.accessor_path):
                         processor = getattr(instance, processor_name)
                         return processor(is_call=False)
@@ -195,7 +193,7 @@ class MemberProxy:
         of collecting results from each network.
         """
         # Check for pattern-based method processor
-        for pattern, processor_name in self._method_patterns:
+        for processor_name, pattern in self._method_patterns.items():
             if re.match(pattern, self.accessor_path):
                 processor = getattr(self, processor_name)
                 return processor(is_call=True, *args, **kwargs)
