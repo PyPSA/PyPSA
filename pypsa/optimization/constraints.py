@@ -40,20 +40,45 @@ def define_operational_constraints_for_non_extendables(
     n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
 ) -> None:
     """
-    Sets power dispatch constraints for non-extendable and non-commitable
-    assets for a given component and a given attribute.
+    Define operational constraints (lower-/upper bound).
+
+    Sets operational constraints for a subset of non-extendable
+    and non-committable components based on their bounds. For each component,
+    the constraint enforces:
+
+    lower_bound ≤ dispatch ≤ upper_bound
+
+    where lower_bound and upper_bound are computed from the component's nominal
+    capacity and min/max per unit values.
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance containing the model and component data
     sns : pd.Index
-        Snapshots of the constraint.
-    c : str
-        name of the network component
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "Link")
     attr : str
-        name of the attribute, e.g. 'p'
+        Name of the attribute to constrain (e.g. "p" for active power)
     transmission_losses : int
-        Whether to consider transmission losses
+        Number of segments for transmission loss linearization; if non-zero,
+        losses are considered in the constraints for passive branches
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    For passive branches with transmission losses, the constraint accounts for
+    the losses in both directions, see justification in [1]_.
+
+    References
+    ----------
+    .. [1] F. Neumann, T. Brown, "Transmission losses in power system
+       optimization models: A comparison of heuristic and exact solution methods,"
+       Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
     """
     c = as_components(n, component)
     fix_i = c.get_non_extendable_i()
@@ -91,18 +116,34 @@ def define_operational_constraints_for_extendables(
     n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
 ) -> None:
     """
-    Sets power dispatch constraints for extendable devices for a given
-    component and a given attribute.
+    Define operational constraints (lower-/upper bound) for extendable components.
+
+    Sets operational constraints for extendable components based on their bounds.
+    For each component, the constraint enforces:
+
+    lower_bound ≤ dispatch ≤ upper_bound
+
+    where lower_bound and upper_bound are computed from the component's nominal
+    capacity and min/max per unit values.
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance containing the model and component data
     sns : pd.Index
-        Snapshots of the constraint.
-    c : str
-        name of the network component
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "Link")
     attr : str
-        name of the attribute, e.g. 'p'
+        Name of the attribute to constrain (e.g. "p" for active power)
+    transmission_losses : int
+        Number of segments for transmission loss linearization; if non-zero,
+        losses are considered in the constraints for passive branches
+
+    Returns
+    -------
+    None
+
     """
     c = as_components(n, component)
     ext_i = c.get_extendable_i()
@@ -134,18 +175,47 @@ def define_operational_constraints_for_committables(
     n: Network, sns: pd.Index, component: str
 ) -> None:
     """
-    Sets power dispatch constraints for committable devices for a given
-    component and a given attribute. The linearized approximation of the unit
-    commitment problem is inspired by Hua et al. (2017) DOI:
-    10.1109/TPWRS.2017.2735026.
+
+    Define operational constraints (lower-/upper bound) for committable components.
+
+    Sets operational constraints for components with unit commitment
+    decisions. The constraints include:
+
+    1. Power output limits based on commitment status
+    2. State transition constraints (start-up/shut-down)
+    3. Minimum up and down time constraints
+    4. Ramp rate constraints for committed units
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance containing the model and component data
     sns : pd.Index
-        Snapshots of the constraint.
-    c : str
-        name of the network component
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component ("Generator" or "Link")
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    The linearized approximation of the unit commitment problem
+    is possible with flag `n._linearized_uc`. Here linearization
+    implies that p_min_pu is fractional, ie component can start up
+    any fraction of its capacity. The linearization is based on
+    [2]_.
+
+    For components with equal start-up and shut-down costs, additional
+    tightening constraints are applied to improve the linear relaxation.
+
+    References
+    ----------
+    .. [2] Y. Hua, C. Liu, J. Zhang, "Representing Operational
+       Flexibility in Generation Expansion Planning Through Convex Relaxation
+       of Unit Commitment," IEEE Transactions on Power Systems, vol. 32,
+       no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
     """
     c = as_components(n, component)
     com_i = c.get_committable_i()
@@ -387,18 +457,34 @@ def define_nominal_constraints_for_extendables(
     n: Network, component: str, attr: str
 ) -> None:
     """
-    Sets capacity expansion constraints for extendable assets for a given
-    component and a given attribute.
+    Define capacity constraints for extendable components.
 
-    Note: As GLPK does not like inf values on the right-hand-side we as masking these out.
+    Sets capacity expansion constraints for components with extendable
+    capacities. For each component, the constraint enforces:
+
+    min_capacity ≤ capacity ≤ max_capacity
+
+    where capacity is a decision variable representing the component's
+    optimal capacity.
 
     Parameters
     ----------
     n : pypsa.Network
-    c : str
-        name of the network component
+        Network instance containing the model and component data
+    component : str
+        Name of the network component (e.g. "Generator", "StorageUnit")
     attr : str
-        name of the attribute, e.g. 'p'
+        Name of the capacity attribute (e.g. "p_nom" for nominal power)
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Components with infinite max_capacity values are handled through masking
+    to avoid solver issues, particularly with GLPK which doesn't accept
+    infinite values in constraints.
     """
     c = as_components(n, component)
     ext_i = c.get_extendable_i()
@@ -423,13 +509,38 @@ def define_ramp_limit_constraints(
     n: Network, sns: pd.Index, component: str, attr: str
 ) -> None:
     """
-    Defines ramp limits for assets with valid ramplimit.
+    Define ramp rate limit constraints for components.
+
+    Sets ramp rate constraints to limit the change in output between
+    consecutive time periods. The constraints are defined for fixed,
+    extendable, and committable components, with different formulations
+    for each case.
 
     Parameters
     ----------
     n : pypsa.Network
-    c : str
-        name of the network component
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator")
+    attr : str
+        Name of the dispatch attribute (e.g. "p" for active power)
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    For rolling horizon optimization, the function handles linking between
+    optimization windows by including the previous snapshot's dispatch value.
+
+    For committable components, ramp constraints incorporate the unit commitment
+    status and special ramp limits for start-up and shut-down periods.
+
+    For extendable components, ramp constraints are defined relative to the
+    variable capacity, ensuring consistency in the optimization.
     """
     m = n.model
     c = as_components(n, component)
@@ -678,7 +789,45 @@ def define_nodal_balance_constraints(
     suffix: str = "",
 ) -> None:
     """
-    Defines nodal balance constraints.
+    Define energy balance constraints at each node.
+
+    Creates constraints ensuring that the sum of power injections at each node
+    equals the demand at that node for each snapshot. This is the core constraint
+    implementing Kirchhoff's Current Law (KCL) in the power system model. However,
+    the logic is not limited to power networks and spans to other energy carriers.
+
+    Using an example of power system, the general form of the constraint is:
+
+    sum(power_injections) = sum(power_withdrawals)
+
+    where power injections include generation, storage discharge, and incoming branch flows,
+    while power withdrawals include loads, storage charging, and outgoing branch flows.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    transmission_losses : int, default 0
+        Number of segments for transmission loss linearization; if non-zero,
+        losses are included in the power balance
+    buses : Sequence | None, default None
+        Subset of buses for which to define constraints; if None, all buses are used
+    suffix : str, default ""
+        Optional suffix to append to constraint names and dimensions
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Link components with multiple buses are handled with their respective
+    efficiency factors for conversion between energy carriers.
+
+    The function raises an error if there's a bus with non-zero load but no
+    connected components to provide power.
     """
     m = n.model
     if buses is None:
@@ -782,7 +931,49 @@ def define_nodal_balance_constraints(
 
 def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     """
-    Defines Kirchhoff voltage constraints.
+    Define Kirchhoff's Voltage Law constraints for networks.
+
+    Creates constraints ensuring that the sum of potential differences across
+    branches around all cycles in the network must sum to zero. For each cycle
+    in the network graph, the constraint enforces:
+
+    sum_{l in cycle} x_l * s_l = 0
+
+    where
+        x_l : series reactance or resistance of branch l (depending on AC/DC)
+        s_l : branch flow variable for branch l in the cycle
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    While there are different formulations of KVL, the cycle-based
+    formulation was found to be much faster than other formulations
+    due to its sparsity, as shown in [3]_.
+
+    The function first determines the network topology including cycles for each
+    network component (AC and DC sub-networks), then creates constraints for
+    each cycle.
+
+    For multi-investment period models, the function creates separate constraints
+    for each investment period, reflecting the changing network topology over time.
+
+    The impedances are scaled by 1e5 to improve numerical conditioning.
+
+    References
+    ----------
+    .. [3] J. Hörsch et al., "Linear optimal power flow using cycle flows,"
+       Electric Power Systems Research, vol. 158, pp. 126-135, 2018,
+       https://doi.org/10.1016/j.epsr.2020.106908
     """
     m = n.model
     n.calculate_dependent_values()
@@ -841,16 +1032,28 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
     """
-    Sets constraints for fixing static variables of a given component and
-    attribute to the corresponding values in `n.static(c)[attr + '_set']`.
+    Define constraints for fixing component capacities to specified values.
+
+    Sets constraints to fix nominal (capacity) variables of components to values
+    specified in the corresponding '_set' attribute.
 
     Parameters
     ----------
     n : pypsa.Network
-    c : str
-        name of the network component
+        Network instance containing the model and component data
+    component : str
+        Name of the network component (e.g. "Generator", "StorageUnit")
     attr : str
-        name of the attribute, e.g. 'p'
+        Name of the capacity attribute (e.g. "p_nom" for nominal power)
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    The function only creates constraints for components that have non-NaN
+    values in their '{attr}_set' attribute.
     """
     if attr + "_set" not in n.static(component):
         return
@@ -868,17 +1071,40 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
 
 def define_modular_constraints(n: Network, component: str, attr: str) -> None:
     """
-    Sets constraints for fixing modular variables of a given component. It
-    allows to define optimal capacity of a component as multiple of the nominal
-    capacity of the single module.
+    Define constraints for modular capacity expansion.
+
+    Sets constraints ensuring that the optimal capacity of a component is
+    an integer multiple of a specified module size. This implements discrete
+    capacity expansion for components with modular units.
+
+    For each modular component, the constraint enforces:
+
+    capacity = n_modules * module_size
+
+    where n_modules is an integer decision variable and module_size is the
+    specified size of each module.
 
     Parameters
     ----------
     n : pypsa.Network
-    c : str
-        name of the network component
+        Network instance containing the model and component data
+    component : str
+        Name of the network component (e.g. "Generator", "StorageUnit")
     attr : str
-        name of the variable, e.g. 'n_opt'
+        Name of the capacity attribute (e.g. "p_nom" for nominal power)
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function is used for components where capacity expansion must occur
+    in discrete steps rather than continuous values, reflecting the reality
+    of many energy system technologies.
+
+    The function only applies to components that are both extendable and have
+    a positive module size specified in the '{attr}_mod' attribute.
     """
     m = n.model
     c = as_components(n, component)
@@ -908,16 +1134,33 @@ def define_fixed_operation_constraints(
     n: Network, sns: pd.Index, component: str, attr: str
 ) -> None:
     """
-    Sets constraints for fixing time-dependent variables of a given component
-    and attribute to the corresponding values in `n.dynamic(c)[attr + '_set']`.
+    Define constraints for fixing operational variables to specified values.
+
+    Sets constraints to fix dispatch variables of components to values specified
+    in the corresponding '_set' attribute.
 
     Parameters
     ----------
     n : pypsa.Network
-    c : str
-        name of the network component
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "StorageUnit")
     attr : str
-        name of the attribute, e.g. 'p'
+        Name of the dispatch attribute (e.g. "p" for active power)
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function is useful for modeling must-run generators, fixed imports/exports,
+    or pre-committed dispatch decisions.
+
+    The function only creates constraints for snapshots and components where
+    the '{attr}_set' values are not NaN and the component is active.
     """
     c = as_components(n, component)
     attr_set = f"{attr}_set"
@@ -940,10 +1183,40 @@ def define_fixed_operation_constraints(
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     """
-    Defines energy balance constraints for storage units. In principal the
-    constraints states:
+    Define energy balance constraints for storage units.
 
-    previous_soc + p_store - p_dispatch + inflow - spill == soc
+    Creates constraints ensuring energy conservation for storage units over time.
+    For each storage unit and snapshot, the constraint enforces:
+
+    soc(t) = standing_eff * soc(t-1) + eff_store * p_store(t)
+                - (1/eff_dispatch) * p_dispatch(t)
+                - spill(t) + inflow(t)
+
+    where soc is the state of charge, p_store and p_dispatch are the
+    charging and discharging power variables, and the efficiencies account
+    for energy losses.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    The function handles different storage operating modes:
+    - Cyclic storage (returning to initial state at the end of the period)
+    - Non-cyclic storage (with specified initial state of charge)
+
+    For multi-investment period models, the function supports both cycling
+    within each period and carrying state of charge between periods.
+
+    Standing losses are applied based on the elapsed hours between snapshots.
     """
     m = n.model
     component = "StorageUnit"
@@ -1031,10 +1304,45 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
     """
-    Defines energy balance constraints for stores. In principal the constraints
-    states:
+    Define energy balance constraints for stores.
 
-    previous_e + p == e * standing_efficiency
+    Creates constraints ensuring energy conservation for store components over time.
+    For each store and snapshot, the constraint enforces:
+
+    e(t) = eff_stand * e(t-1) + p(t) * elapsed_hours
+
+    where
+        e(t)        : energy level at time t
+        eff_stand   : standing efficiency (1 - standing_loss)^elapsed_hours
+        e(t-1)      : energy level at previous time step
+        p(t)        : energy charging (positive), or discharging (negative)
+        elapsed_hours: duration of the time step
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Stores differ from storage units in that they have a single power variable
+    that can be positive (charging) or negative (discharging) rather than
+    separate variables for charge and discharge.
+
+    The function handles different store operating modes:
+    - Cyclic storage (returning to initial energy level at the end of the period)
+    - Non-cyclic storage (with specified initial energy level)
+
+    For multi-investment period models, the function supports both cycling
+    within each period and carrying energy between periods.
+
+    Standing losses are applied based on the elapsed hours between snapshots.
     """
     m = n.model
     component = "Store"
@@ -1145,9 +1453,9 @@ def define_loss_constraints(
 
     References
     ----------
-    .. [1] Neumann, F., Brown, T. "Transmission losses in power system
-           optimization models: A comparison of heuristic and exact solution methods",
-           Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
+    .. [1] F. Neumann, T. Brown, "Transmission losses in power system
+       optimization models: A comparison of heuristic and exact solution methods,"
+       Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
     """
     c = as_components(n, component)
 
@@ -1211,31 +1519,43 @@ def define_generators_constraints(n: Network, sns: Sequence) -> None:
 
 def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     """
-    Defines energy sum constraints for generators in the network model.
+    Define energy sum constraints for generators.
 
-    This function adds constraints to the network model to ensure that the total
-    energy generated by each generator over the specified snapshots meets the
-    minimum and maximum energy sum requirements.
+    Creates constraints limiting the total energy generated by each generator
+    over the specified snapshots. The constraints can enforce both minimum
+    and maximum energy production requirements.
 
-    Added constraints:
-    - Minimum Energy Sum (e_sum_min): Ensures that the total energy generated by
-      each generator over the specified snapshots is at least the minimum energy
-      sum specified.
-    - Maximum Energy Sum (e_sum_max): Ensures that the total energy generated by
-      each generator over the specified snapshots does not exceed the maximum
-      energy sum specified.
+    For generators with e_sum_min, the constraint enforces:
+
+    sum(p(t) * weighting(t)) ≥ e_sum_min
+
+    For generators with e_sum_max, the constraint enforces:
+
+    sum(p(t) * weighting(t)) ≤ e_sum_max
+
+    where the sum is taken over all snapshots and weighting accounts for the
+    duration of each snapshot.
 
     Parameters
     ----------
     n : pypsa.Network
-        The network object containing the model and generator data.
+        Network instance containing the model and generator data
     sns : Sequence
-        A list of snapshots (time steps) over which the constraints are applied.
+        Set of snapshots for which to define the constraints
 
     Returns
     -------
     None
 
+    Notes
+    -----
+    These constraints are useful for modeling:
+    - Minimum energy production requirements (e.g., contracted energy delivery)
+    - Maximum energy production limits (e.g., fuel availability, water reservoir limits)
+    - Must-run generators with flexibility in when to produce
+
+    The constraints only apply to generators that have finite e_sum_min or
+    e_sum_max values specified.
     """
     sns_ = as_index(n, sns, "snapshots")
 
