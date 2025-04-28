@@ -61,7 +61,7 @@ def test_collection_init_list(network1, network2):
     assert collection[1] == network2
 
 
-def test_networks_init_list_with_index(network1, network2):
+def test_collection_init_list_with_index(network1, network2):
     """Test initialization with a list and custom index."""
     networks = [network1, network2]
     custom_index = pd.Index(["net_A", "net_B"], name="scenario")
@@ -72,7 +72,7 @@ def test_networks_init_list_with_index(network1, network2):
     assert collection["net_B"] == network2
 
 
-def test_networks_init_series(network1, network2):
+def test_collection_init_series(network1, network2):
     """Test initialization with a pandas Series."""
     index = pd.MultiIndex.from_tuples(
         [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
@@ -85,7 +85,7 @@ def test_networks_init_series(network1, network2):
     assert collection[("high_renewables", 2030)] == network2
 
 
-def test_networks_init_invalid_type():
+def test_collection_init_invalid_type():
     """Test initialization with invalid types."""
     with pytest.raises(TypeError):
         pypsa.NetworkCollection([pypsa.Network(), "not a network"])
@@ -95,13 +95,13 @@ def test_networks_init_invalid_type():
         pypsa.NetworkCollection("just a string")
 
 
-def test_networks_init_index_mismatch(network1, network2):
+def test_collection_init_index_mismatch(network1, network2):
     """Test initialization with mismatched index length."""
     with pytest.raises(ValueError):
         pypsa.NetworkCollection([network1, network2], index=pd.Index(["A"]))
 
 
-def test_networks_index_names(network1, network2):
+def test_collection_index_names(network1, network2):
     """Test the index names of the NetworkCollection object."""
     networks = [network1, network2]
     collection = pypsa.NetworkCollection(networks)
@@ -125,7 +125,7 @@ def test_networks_index_names(network1, network2):
     assert collection_multi._index_names == ["scenario", "year"]
 
 
-def test_networks_carriers_property(network1, network2, network3):
+def test_collection_carriers_property(network1, network2, network3):
     """Test the carriers property."""
     collection = pypsa.NetworkCollection([network1, network2, network3])
     expected_carriers = pd.concat(
@@ -138,7 +138,7 @@ def test_networks_carriers_property(network1, network2, network3):
     pd.testing.assert_frame_equal(collection.carriers, expected_carriers)
 
 
-def test_networks_carriers_property_empty():
+def test_collection_carriers_property_empty():
     """Test the carriers property when networks have no carriers."""
     n1 = pypsa.Network()
     n2 = pypsa.Network()
@@ -154,7 +154,7 @@ def test_networks_carriers_property_empty():
     )
 
 
-def test_networks_getitem_slice(network1, network2, network3):
+def test_collection_getitem_slice(network1, network2, network3):
     """Test slicing the NetworkCollection object."""
     networks = [network1, network2, network3]
     collection = pypsa.NetworkCollection(networks)
@@ -168,7 +168,7 @@ def test_networks_getitem_slice(network1, network2, network3):
     )
 
 
-def test_networks_iteration(network1, network2):
+def test_collection_iteration(network1, network2):
     """Test iterating over the NetworkCollection object."""
     networks = [network1, network2]
     collection = pypsa.NetworkCollection(networks)
@@ -176,32 +176,36 @@ def test_networks_iteration(network1, network2):
     assert iterated_list == networks
 
 
-def test_networks_static_data(network1, network2):
+def test_collection_static_data(network1, network2):
     """Test static data access."""
-    networks = pypsa.NetworkCollection(
+    collection = pypsa.NetworkCollection(
         [network1, network2], index=pd.Series(["net1", "net2"], name="scenario")
     )
 
-    generators = networks.generators
+    generators = collection.generators
 
     assert not generators.empty
-    assert set(networks.index.names).issubset(generators.index.names)
+    assert set(collection.index.names).issubset(generators.index.names)
     assert "Generator" in generators.index.names
 
 
-def test_networks_statistics_capex_per_network(network1, network2):
+def test_collection_statistics(network1, network2):
     """Test capex calculation per network."""
-    networks = pypsa.NetworkCollection(
+    collection = pypsa.NetworkCollection(
         [network1, network2], index=pd.Series(["net1", "net2"], name="scenario")
     )
-    capacity = networks.statistics.installed_capacity()
+    statistics = collection.statistics()
+    assert not statistics.empty
+    assert set(collection.index.names).issubset(statistics.index.names)
+
+    capacity = collection.statistics.installed_capacity()
 
     assert not capacity.empty
-    assert set(networks.index.names).issubset(capacity.index.names)
+    assert set(collection.index.names).issubset(capacity.index.names)
     assert "carrier" in capacity.index.names
 
 
-def test_networks_statistics_nonexistent_method(network1):
+def test_collection_statistics_nonexistent_method(network1):
     """Test calling a method that doesn't exist on the accessor."""
     collection = pypsa.NetworkCollection([network1])
     with pytest.raises(

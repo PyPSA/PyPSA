@@ -43,7 +43,7 @@ class NetworkCollection:
         """
         Get attribute from all networks in the collection.
 
-        Returns an MemberWrapper that will either call the method on each network
+        Returns an MemberProxy that will either call the method on each network
         when invoked or retrieve the property values when accessed.
         """
         if not self.networks.any():
@@ -51,7 +51,7 @@ class NetworkCollection:
             raise AttributeError(msg)
 
         try:
-            return MemberWrapper(self, lambda n: getattr(n, name), name)
+            return MemberProxy(self, lambda n: getattr(n, name), name)
         except AttributeError as e:
             msg = "Only attributes as they are defined in the Network class can be accessed."
             raise AttributeError(msg) from e
@@ -116,7 +116,7 @@ class NetworkCollection:
         return unique_carriers.sort_index()
 
 
-class MemberWrapper:
+class MemberProxy:
     """
     Wrapper for network accessors that combines results from multiple networks.
 
@@ -128,16 +128,22 @@ class MemberWrapper:
     _method_patterns = [
         # Add your regex patterns here, e.g.:
         (
-            r"^StatisticsAccessor|sub_networks|buses|carriers|global_constraints|lines|"
-            r"line_types|transformers|transformer_types|links|loads|generators|"
-            r"storage_units|stores|shunt_impedances|shapes$",
+            r"^"  # Start of string
+            # Static component dataframes
+            r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
+            r"transformers|transformer_types|links|loads|generators|storage_units|"
+            r"stores|shunt_impedances|shapes|"
+            # statistics and all statistics expressions
+            r"statistics|"
+            r"statistics\.[^\.\s]+)"
+            r"$",  # End of string
             "basic_concat",
         ),
     ]
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         """
-        Create new instance of MemberWrapper.
+        Create new instance of MemberProxy.
 
         If no Wrapper is needed, since the return value is not a callable, immediately
         return the result of the default processor function.
@@ -188,21 +194,11 @@ class MemberWrapper:
         uses the matching handler method. Otherwise uses the default behavior
         of collecting results from each network.
         """
-        # Get the method name from the accessor function
-        if len(self.collection.networks) > 0:
-            first_accessor = self.accessor_func(self.collection.networks[0])
-            method_name = getattr(first_accessor, "__class__", None)
-            if not method_name:
-                method_name = getattr(first_accessor, "__name__", None)
-            else:
-                method_name = getattr(method_name, "__name__", None)
-
-            if method_name:
-                # Check for pattern-based method processor
-                for pattern, processor_name in self._method_patterns:
-                    if re.match(pattern, method_name):
-                        processor = getattr(self, processor_name)
-                        return processor(is_call=True, *args, **kwargs)
+        # Check for pattern-based method processor
+        for pattern, processor_name in self._method_patterns:
+            if re.match(pattern, self.accessor_path):
+                processor = getattr(self, processor_name)
+                return processor(is_call=True, *args, **kwargs)
 
         # Default behavior for methods
         return self.default_processor(is_call=True, *args, **kwargs)
@@ -212,7 +208,7 @@ class MemberWrapper:
         Handle attribute access on the accessor.
 
         This method handles three cases:
-        1. The attribute is another accessor object (returns a new MemberWrapper)
+        1. The attribute is another accessor object (returns a new MemberProxy)
         2. The attribute is a method (returns a function that aggregates results)
         3. The attribute is a property (returns a ResultWrapper of property values)
         """
@@ -226,7 +222,7 @@ class MemberWrapper:
         new_path = f"{self.accessor_path}.{name}" if self.accessor_path else name
 
         # For any attribute, create a new accessor function that chains the attribute access
-        return MemberWrapper(
+        return MemberProxy(
             self.collection, lambda n: getattr(self.accessor_func(n), name), new_path
         )
 
