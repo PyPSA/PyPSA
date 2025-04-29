@@ -79,15 +79,11 @@ class Transformers(Components):
             Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
-        max_pu = self.as_dynamic("s_max_pu", sns)
+        max_pu = self.as_xarray("s_max_pu", sns, inds=index)
         min_pu = -max_pu  # Transformers specific: min_pu is the negative of max_pu
 
-        if index is not None:
-            min_pu = min_pu.reindex(columns=index)
-            max_pu = max_pu.reindex(columns=index)
-
-        if as_xarray:
-            min_pu = xr.DataArray(min_pu)
-            max_pu = xr.DataArray(max_pu)
+        if not as_xarray:
+            min_pu = min_pu.to_dataframe()
+            max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu

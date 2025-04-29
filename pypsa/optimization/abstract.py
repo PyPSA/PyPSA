@@ -441,12 +441,14 @@ def optimize_security_constrained(
                 constraint = coord + "-s-" + bound
                 if constraint not in m.constraints:
                     continue
-                rename = {c_affected: coord}
-                added_flow = additional_flow.rename(rename)
+                # rename = {c_affected: coord}
+                added_flow = additional_flow  # .rename(rename)
                 con = m.constraints[constraint]  # use this as a template
                 # idx now contains fixed/extendable for the sub-network
-                idx = con.lhs.indexes[coord].intersection(added_flow.indexes[coord])
-                sel = {coord: idx}
+                idx = con.lhs.indexes[c_affected].intersection(
+                    added_flow.indexes[c_affected]
+                )
+                sel = {c_affected: idx}
                 lhs = con.lhs.sel(sel) + added_flow.sel(sel)
                 name = constraint + f"-security-for-{c_outage_}-in-{sub_network}"
                 m.add_constraints(lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name)

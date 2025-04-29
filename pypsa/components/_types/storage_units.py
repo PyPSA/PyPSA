@@ -10,7 +10,6 @@ import xarray as xr
 from xarray import DataArray
 
 from pypsa.components.components import Components
-from pypsa.descriptors import expand_series
 
 
 class StorageUnits(Components):
@@ -78,23 +77,20 @@ class StorageUnits(Components):
             Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
-        max_pu = self.as_dynamic("p_max_pu", sns)
+        max_pu = self.as_xarray("p_max_pu", sns, inds=index)
 
         if attr == "p_store":
-            max_pu = -self.as_dynamic("p_min_pu", sns)
-            min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
+            max_pu = -self.as_xarray("p_min_pu", snapshots=sns, inds=index)
+            min_pu = xr.zeros_like(max_pu)
         elif attr == "state_of_charge":
-            max_pu = expand_series(self.static.max_hours, sns).T
-            min_pu = pd.DataFrame(0, *max_pu.axes)
+            max_pu = self.as_xarray("max_hours", snapshots=sns, inds=index)
+            min_pu = xr.zeros_like(max_pu)
         else:
-            min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
+            max_pu = self.as_xarray("p_max_pu", snapshots=sns, inds=index)
+            min_pu = xr.zeros_like(max_pu)
 
-        if index is not None:
-            min_pu = min_pu.reindex(columns=index)
-            max_pu = max_pu.reindex(columns=index)
-
-        if as_xarray:
-            min_pu = xr.DataArray(min_pu)
-            max_pu = xr.DataArray(max_pu)
+        if not as_xarray:
+            min_pu = min_pu.to_dataframe()
+            max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu

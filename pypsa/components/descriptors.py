@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
 
 logger = logging.getLogger(__name__)
@@ -131,7 +132,7 @@ class _ComponentsDescriptors(_ComponentsABC):
             Boolean mask for active components indexed by snapshots.
 
         """
-        sns_ = self.snapshots if sns is None else sns
+        sns_ = as_index(self.n_save, sns, "snapshots")
 
         if self.has_investment_periods:
             active_assets_per_period = {
@@ -154,22 +155,26 @@ class _ComponentsDescriptors(_ComponentsABC):
         if index is not None:
             mask = mask.reindex(columns=index)
 
+        mask.index.name = "snapshot"
+        if isinstance(mask.index, pd.MultiIndex):
+            mask.index.names = ["period", "timestep"]
+
         return mask
 
     # TODO: remove as soon as deprecated renaming is removed
     def get_extendable_i(self, rename_index: bool = True) -> pd.Index:
         """Get the index of extendable elements of this component."""
         idx = self.extendables
-        return idx.rename(idx.name + "-ext") if rename_index else idx
+        return idx.rename(idx.name) if rename_index else idx
 
     # TODO: remove as soon as deprecated renaming is removed
     def get_non_extendable_i(self, rename_index: bool = True) -> pd.Index:
         """Get the index of non-extendable elements of this component."""
         idx = self.fixed
-        return idx.rename(idx.name + "-fix") if rename_index else idx
+        return idx.rename(idx.name) if rename_index else idx
 
     # TODO: remove as soon as deprecated renaming is removed
     def get_committable_i(self, rename_index: bool = True) -> pd.Index:
         """Get the index of committable elements of this component."""
         idx = self.committables
-        return idx.rename(idx.name + "-com") if rename_index else idx
+        return idx.rename(idx.name) if rename_index else idx

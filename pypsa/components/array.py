@@ -25,7 +25,7 @@ class _ComponentsArray(_ComponentsABC):
     Class only inherits to Components and should not be used directly.
     """
 
-    def as_dynamic(
+    def _as_dynamic(
         self,
         attr: str,
         snapshots: Sequence | None = None,
@@ -55,11 +55,13 @@ class _ComponentsArray(_ComponentsABC):
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.components.generators.as_dynamic('p_max_pu', n.snapshots[:2]) # doctest: +SKIP
-        Generator            Manchester Wind  Manchester Gas  Norway Wind  Norway Gas  Frankfurt Wind  Frankfurt Gas
-        snapshot
-        2015-01-01 00:00:00         0.930020             1.0     0.974583         1.0        0.559078            1.0
-        2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
+        >>> n.components.generators._as_dynamic('p_max_pu', n.snapshots[:2])
+        Generator            Manchester Wind  ...  Frankfurt Gas
+        snapshot                              ...
+        2015-01-01 00:00:00         0.930020  ...            1.0
+        2015-01-01 01:00:00         0.485748  ...            1.0
+        <BLANKLINE>
+        [2 rows x 6 columns]
 
         """
         # Check if we are in a power flow calculation
@@ -97,7 +99,7 @@ class _ComponentsArray(_ComponentsABC):
         self,
         attr: str,
         snapshots: Sequence | None = None,
-        inds: pd.Index | None = None,
+        inds: Sequence | None = None,
     ) -> xarray.DataArray:
         """
         Get an attribute as a xarray DataArray.
@@ -149,19 +151,28 @@ class _ComponentsArray(_ComponentsABC):
         >>> p_nom = n.components.generators.as_xarray('p_nom', inds=gens)
 
         """
+        # Strip any index name information
+        # snapshots = getattr(snapshots, "values", snapshots) # TODO
+        inds = getattr(inds, "values", inds)
+
         if attr in self.operational_attrs.keys():
             attr = self.operational_attrs[attr]
 
         if attr == "active":
             res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
         elif attr in self.dynamic.keys() or snapshots is not None:
-            res = xarray.DataArray(self.as_dynamic(attr, snapshots, inds))
+            res = xarray.DataArray(self._as_dynamic(attr, snapshots, inds))
         else:
             if inds is not None:
                 data = self.static[attr].reindex(inds)
+                data.index.name = self.name
             else:
                 data = self.static[attr]
+                data.index.name = self.name
             res = xarray.DataArray(data)
+
+        # Rename dimension
+        # res = res.rename({self.name: "component"})
 
         if self.has_scenarios:
             # untack the dimension that contains the scenarios

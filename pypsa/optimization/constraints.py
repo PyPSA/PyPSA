@@ -146,6 +146,8 @@ def define_operational_constraints_for_extendables(
 
     """
     c = as_components(n, component)
+    sns = as_index(n, sns, "snapshots")
+
     ext_i = c.get_extendable_i()
     if ext_i.empty:
         return
@@ -251,7 +253,9 @@ def define_operational_constraints_for_committables(
     if sns[0] != n.snapshots[0]:
         start_i = n.snapshots.get_loc(sns[0])
         # get generators which are online until the first regarded snapshot
-        until_start_up = c.as_dynamic("status", n.snapshots[:start_i][::-1], inds=com_i)
+        until_start_up = c._as_dynamic(
+            "status", n.snapshots[:start_i][::-1], inds=com_i
+        )
         ref = range(1, len(until_start_up) + 1)
         up_time_before = until_start_up[until_start_up.cumsum().eq(ref, axis=0)].sum()
         up_time_before_set = up_time_before.clip(upper=min_up_time_set)

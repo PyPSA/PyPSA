@@ -77,15 +77,11 @@ class Generators(Components):
             Tuple of (min_pu, max_pu) DataFrames or DataArrays.
 
         """
-        min_pu = self.as_dynamic("p_min_pu", sns)
-        max_pu = self.as_dynamic("p_max_pu", sns)
+        min_pu = self.as_xarray("p_min_pu", sns, inds=index)
+        max_pu = self.as_xarray("p_max_pu", sns, inds=index)
 
-        if index is not None:
-            min_pu = min_pu.reindex(columns=index)
-            max_pu = max_pu.reindex(columns=index)
-
-        if as_xarray:
-            min_pu = xr.DataArray(min_pu)
-            max_pu = xr.DataArray(max_pu)
+        if not as_xarray:
+            min_pu = min_pu.to_dataframe()
+            max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu

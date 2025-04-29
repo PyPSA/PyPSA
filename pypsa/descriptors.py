@@ -65,7 +65,7 @@ def get_switchable_as_dense(
     2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
     """
-    return n.components[component].as_dynamic(attr, snapshots, inds)
+    return n.components[component]._as_dynamic(attr, snapshots, inds)
 
 
 @deprecated_common_kwargs

@@ -190,7 +190,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
                 query = f"~{nominal_attrs[c]}_extendable"
                 capacity = capacity + n.df(c).query(query)["p_nom"]
@@ -244,7 +243,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             m = n.model
             attr = nominal_attrs[c]
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
                 query = f"~{attr}_extendable"
                 capacity = capacity + n.df(c).query(query)[attr]
@@ -555,7 +553,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             attr = nominal_attrs[c]
             capacity = (
-                n.model.variables[f"{c}-{attr}"].rename({f"{c}-ext": c})
+                n.model.variables[f"{c}-{attr}"]
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
             idx = capacity.indexes[c]

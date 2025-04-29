@@ -164,7 +164,6 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     """
     c = n.components[c_name]
     mod_i = c.static.query(f"{attr}_extendable and ({attr}_mod>0)").index
-    mod_i = mod_i.rename(f"{c.name}-ext")
 
     if mod_i.empty:
         return

@@ -44,7 +44,7 @@ modules = [
 @pytest.mark.parametrize("module", modules)
 def test_doctest(module):
     finder = doctest.DocTestFinder()
-    runner = doctest.DocTestRunner()
+    runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
     tests = finder.find(module)
 
     failures = 0
