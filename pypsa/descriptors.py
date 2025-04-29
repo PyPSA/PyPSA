@@ -224,7 +224,7 @@ def get_extendable_i(n: Network, c: str) -> pd.Index:
 
     Deprecated: Use n.components[c].get_extendable_i() instead.
     """
-    return n.components[c].get_extendable_i()
+    return n.components[c].extendables
 
 
 @deprecated(details="#TODO new-opt deprecation")
@@ -234,9 +234,9 @@ def get_non_extendable_i(n: Network, c: str) -> pd.Index:
 
     Get the index of non-extendable elements of a given component.
 
-    Deprecated: Use n.components[c].get_non_extendable_i() instead.
+    Deprecated: Use n.components[c].self.fixed instead.
     """
-    return n.components[c].get_non_extendable_i()
+    return n.components[c].fixed
 
 
 @deprecated(details="#TODO new-opt deprecation")
@@ -248,7 +248,7 @@ def get_committable_i(n: Network, c: str) -> pd.Index:
 
     Deprecated: Use n.components[c].get_committable_i() instead.
     """
-    return n.components[c].get_committable_i()
+    return n.components[c].committables
 
 
 def get_active_assets(

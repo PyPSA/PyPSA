@@ -160,21 +160,3 @@ class _ComponentsDescriptors(_ComponentsABC):
             mask.index.names = ["period", "timestep"]
 
         return mask
-
-    # TODO: remove as soon as deprecated renaming is removed
-    def get_extendable_i(self, rename_index: bool = True) -> pd.Index:
-        """Get the index of extendable elements of this component."""
-        idx = self.extendables
-        return idx.rename(idx.name) if rename_index else idx
-
-    # TODO: remove as soon as deprecated renaming is removed
-    def get_non_extendable_i(self, rename_index: bool = True) -> pd.Index:
-        """Get the index of non-extendable elements of this component."""
-        idx = self.fixed
-        return idx.rename(idx.name) if rename_index else idx
-
-    # TODO: remove as soon as deprecated renaming is removed
-    def get_committable_i(self, rename_index: bool = True) -> pd.Index:
-        """Get the index of committable elements of this component."""
-        idx = self.committables
-        return idx.rename(idx.name) if rename_index else idx

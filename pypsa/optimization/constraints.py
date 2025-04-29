@@ -81,8 +81,8 @@ def define_operational_constraints_for_non_extendables(
        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
     """
     c = as_components(n, component)
-    fix_i = c.get_non_extendable_i()
-    fix_i = fix_i.difference(c.get_committable_i()).rename(fix_i.name)
+    fix_i = c.fixed
+    fix_i = fix_i.difference(c.committables).rename(fix_i.name)
 
     if fix_i.empty:
         return
@@ -148,7 +148,7 @@ def define_operational_constraints_for_extendables(
     c = as_components(n, component)
     sns = as_index(n, sns, "snapshots")
 
-    ext_i = c.get_extendable_i()
+    ext_i = c.extendables
     if ext_i.empty:
         return
 
@@ -220,7 +220,7 @@ def define_operational_constraints_for_committables(
        no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
     """
     c = as_components(n, component)
-    com_i = c.get_committable_i()
+    com_i = c.committables
 
     if com_i.empty:
         return
@@ -491,7 +491,7 @@ def define_nominal_constraints_for_extendables(
     infinite values in constraints.
     """
     c = as_components(n, component)
-    ext_i = c.get_extendable_i()
+    ext_i = c.extendables
 
     if ext_i.empty:
         return
@@ -572,10 +572,10 @@ def define_ramp_limit_constraints(
     p = m[f"{c.name}-{attr}"]
 
     # Get different component groups for constraint application
-    com_i = c.get_committable_i()
-    fix_i = c.get_non_extendable_i()
+    com_i = c.committables
+    fix_i = c.fixed
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
-    ext_i = c.get_extendable_i()
+    ext_i = c.extendables
 
     # Auxiliary variables for constraint application
     ext_dim = ext_i.name if ext_i.name else c
