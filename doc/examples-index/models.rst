@@ -6,8 +6,8 @@ Open-source models using PyPSA
 This section provides examples of open-source models using PyPSA:
 
 
-- **European** energy system model `PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>`_, maintained by `pypsa.org <pypsa.org>`_
-- **German** energy system model `PyPSA-DE <https://github.com/PyPSA/pypsa-de>`_, maintained by `pypsa.org <pypsa.org>`_
+- **European** energy system model `PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>`_, maintained by `pypsa.org <https://pypsa.org>`_
+- **German** energy system model `PyPSA-DE <https://github.com/PyPSA/pypsa-de>`_, maintained by `pypsa.org <https://pypsa.org>`_
 - **Global** energy system model `PyPSA-Earth <https://github.com/pypsa-meets-earth/pypsa-earth>`_, maintained by `pypsa-meets-earth <https://pypsa-meets-earth.github.io/>`_
 - **United States** energy system model `PyPSA-USA <https://github.com/pypsa/pypsa-usa>`_, maintained by Stanford University
 - **Chinese** power and heat sector-coupling model `PyPSA-China-PIK <https://github.com/pik-piam/PyPSA-China-PIK>`__, maintained by `PIK <https://www.pik-potsdam.de>`__ based on a `previous version <https://github.com/Xiaowei-Z/PyPSA-China>`_
