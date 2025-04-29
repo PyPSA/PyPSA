@@ -1508,16 +1508,9 @@ def define_loss_constraints(
             )
 
 
-@deprecated(
-    deprecated_in="0.31.2",
-    removed_in="1.0",
-    details="Use define_total_supply_constraints instead.",
-)
-def define_generators_constraints(n: Network, sns: Sequence) -> None:
-    return define_total_supply_constraints(n, sns)
-
-
-def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
+def define_total_supply_constraints(
+    n: Network, sns: Sequence, component: str = "Generator"
+) -> None:
     """
     Define energy sum constraints for generators.
 
@@ -1539,9 +1532,11 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     Parameters
     ----------
     n : pypsa.Network
-        Network instance containing the model and generator data
+        Network instance containing the model and component data
     sns : Sequence
         Set of snapshots for which to define the constraints
+    component : str, default "Generator"
+        Name of the network component to apply the constraints to
 
     Returns
     -------
@@ -1558,37 +1553,38 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     e_sum_max values specified.
     """
     sns_ = as_index(n, sns, "snapshots")
-
     m = n.model
-    c = "Generator"
-    static = n.static(c)
+    c = as_components(n, component)
 
-    if static.empty:
+    if c.static.empty:
         return
 
     # elapsed hours
-    eh = expand_series(n.snapshot_weightings.generators[sns_], static.index)
+    eh = DataArray(
+        expand_series(n.snapshot_weightings.generators[sns_], c.static.index)
+    )
 
-    e_sum_min_set = static[static.e_sum_min > -inf].index
-    if not e_sum_min_set.empty:
-        e = (
-            m[f"{c}-p"]
-            .loc[sns_, e_sum_min_set]
-            .mul(eh[e_sum_min_set])
-            .sum(dim="snapshot")
-        )
-        e_sum_min = n.static(c).loc[e_sum_min_set, "e_sum_min"]
+    # minimum energy production constraints
+    e_sum_min_i = c.static.index[c.static.e_sum_min > -inf]
+    if not e_sum_min_i.empty:
+        e_sum_min = c.as_xarray("e_sum_min", inds=e_sum_min_i)
+        p = reindex(m[f"{c.name}-p"], c.name, e_sum_min_i).sel(snapshot=sns_)
+        energy = (p * eh).sum(dim="snapshot")
+        m.add_constraints(energy, ">=", e_sum_min, name=f"{c.name}-e_sum_min")
 
-        m.add_constraints(e, ">=", e_sum_min, name=f"{c}-e_sum_min")
+    # maximum energy production constraints
+    e_sum_max_i = c.static.index[c.static.e_sum_max < inf]
+    if not e_sum_max_i.empty:
+        e_sum_max = c.as_xarray("e_sum_max", inds=e_sum_max_i)
+        p = reindex(m[f"{c.name}-p"], c.name, e_sum_max_i).sel(snapshot=sns_)
+        energy = (p * eh).sum(dim="snapshot")
+        m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
 
-    e_sum_max_set = static[static.e_sum_max < inf].index
-    if not e_sum_max_set.empty:
-        e = (
-            m[f"{c}-p"]
-            .loc[sns_, e_sum_max_set]
-            .mul(eh[e_sum_max_set])
-            .sum(dim="snapshot")
-        )
-        e_sum_max = n.static(c).loc[e_sum_max_set, "e_sum_max"]
 
-        m.add_constraints(e, "<=", e_sum_max, name=f"{c}-e_sum_max")
+@deprecated(
+    deprecated_in="0.31.2",
+    removed_in="1.0",
+    details="Use define_total_supply_constraints instead.",
+)
+def define_generators_constraints(n: Network, sns: Sequence) -> None:
+    return define_total_supply_constraints(n, sns)
