@@ -91,7 +91,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     nom_attr = nominal_attrs.items()
     constant = 0
     for c, attr in nom_attr:
-        ext_i = n.get_extendable_i(c)
+        ext_i = n.components[c].extendables
         cost = n.static(c)["capital_cost"][ext_i]
         if cost.empty:
             continue
@@ -153,8 +153,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # stand-by cost
     comps = {"Generator", "Link"}
     for c in comps:
-        com_i = get_committable_i(n, c)
-
+        com_i = n.components[c].committables
         if com_i.empty:
             continue
 
@@ -169,7 +168,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # investment
     for c, attr in nominal_attrs.items():
-        ext_i = n.get_extendable_i(c)
+        ext_i = n.components[c].extendables
         cost = n.static(c)["capital_cost"][ext_i]
         if cost.empty:
             continue
@@ -193,7 +192,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c, attr in lookup.query("variable in @keys").index:
-        com_i = n.get_committable_i(c)
+        com_i = n.components[c].committables
         cost = n.static(c)[attr + "_cost"].reindex(com_i)
 
         if cost.sum():
@@ -375,7 +374,7 @@ def assign_solution(n: Network) -> None:
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
-        fix_i = n.get_non_extendable_i(c)
+        fix_i = n.components[c].fixed
         if not fix_i.empty:
             n.static(c).loc[fix_i, f"{attr}_opt"] = n.static(c).loc[fix_i, attr]
 
@@ -728,7 +727,7 @@ class OptimizationAccessor:
         """
         n = self.n
         for c, attr in nominal_attrs.items():
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
             n.static(c)[attr + "_extendable"] = False
 

@@ -185,7 +185,7 @@ def optimize_transmission_expansion_iteratively(
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
-    ext_i = n.get_extendable_i("Line").copy()
+    ext_i = n.components["Line"].extendables.copy()
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
     ext_typed_i = ext_i.intersection(typed_i)
@@ -624,7 +624,7 @@ def optimize_mga(
             if isinstance(coeffs, dict):
                 coeffs = pd.Series(coeffs)
             if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                coeffs = coeffs.reindex(n.get_extendable_i(c))
+                coeffs = coeffs.reindex(n.components[c].extendables)
                 coeffs.index.name = ""
             elif isinstance(coeffs, pd.Series):
                 coeffs = coeffs.reindex(columns=n.static(c).index)

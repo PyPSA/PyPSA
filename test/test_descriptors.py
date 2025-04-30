@@ -1,3 +1,5 @@
+import warnings
+
 import pandas as pd
 import pytest
 
@@ -64,8 +66,9 @@ def test_get_extendable_i(network):
     n.add("Bus", "bus0")
     n.add("Generator", "gen0", bus="bus0", p_nom_extendable=True)
     n.add("Generator", "gen1", bus="bus0", p_nom_extendable=False)
-
-    ext_i = get_extendable_i(n, "Generator")
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        ext_i = get_extendable_i(n, "Generator")
     assert len(ext_i) == 1
     assert "gen0" in ext_i
 
@@ -75,8 +78,9 @@ def test_get_non_extendable_i(network):
     n.add("Bus", "bus0")
     n.add("Generator", "gen0", bus="bus0", p_nom_extendable=True)
     n.add("Generator", "gen1", bus="bus0", p_nom_extendable=False)
-
-    nonext_i = get_non_extendable_i(n, "Generator")
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        nonext_i = get_non_extendable_i(n, "Generator")
     assert len(nonext_i) == 1
     assert "gen1" in nonext_i
 

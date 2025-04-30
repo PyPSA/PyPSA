@@ -57,7 +57,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
             if "carrier" not in static:
                 continue
 
-            ext_i = n.get_extendable_i(c).intersection(
+            ext_i = n.components[c].extendables.intersection(
                 static.index[static.carrier == carrier]
             )
             if period is not None:
@@ -147,7 +147,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             if c not in n.one_port_components or "carrier" not in static:
                 continue
 
-            ext_i = n.get_extendable_i(c).intersection(
+            ext_i = n.components[c].extendables.intersection(
                 static.index[static.carrier == carrier]
             )
             if period is not None:
@@ -202,7 +202,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
             continue
 
         limited_i = static.index[static.carrier.isin(carrier_i)].intersection(
-            n.get_extendable_i(c)
+            n.components[c].extendables
         )
         if limited_i.empty:
             continue
@@ -407,7 +407,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
         for c in ["Line", "Link"]:
             attr = nominal_attrs[c]
 
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             if ext_i.empty:
                 continue
 
@@ -473,7 +473,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         for c in ["Line", "Link"]:
             attr = nominal_attrs[c]
 
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             if ext_i.empty:
                 continue
 
