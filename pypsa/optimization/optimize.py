@@ -17,7 +17,7 @@ from linopy import Model, merge
 from linopy.solvers import available_solvers
 
 from pypsa.common import as_index
-from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
+from pypsa.descriptors import additional_linkports, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import (
     optimize_and_run_non_linear_powerflow,
@@ -133,7 +133,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             )
             if cost.empty:
                 continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            operation = m[f"{c}-{attr}"].sel(snapshot=sns, component=cost.columns)
             objective.append((operation * cost).sum())
 
     # marginal cost quadratic
@@ -146,7 +146,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             )
             if cost.empty:
                 continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+            operation = m[f"{c}-{attr}"].sel(snapshot=sns, component=cost.columns)
             objective.append((operation * operation * cost).sum())
             is_quadratic = True
 

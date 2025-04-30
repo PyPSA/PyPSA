@@ -56,7 +56,7 @@ class _ComponentsArray(_ComponentsABC):
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators._as_dynamic('p_max_pu', n.snapshots[:2])
-        Generator            Manchester Wind  ...  Frankfurt Gas
+        component            Manchester Wind  ...  Frankfurt Gas
         snapshot                              ...
         2015-01-01 00:00:00         0.930020  ...            1.0
         2015-01-01 01:00:00         0.485748  ...            1.0
@@ -89,10 +89,10 @@ class _ComponentsArray(_ComponentsABC):
 
         res.index.name = sns.name
         if self.has_scenarios:
-            res.columns.name = "Component"
+            res.columns.name = "component"
             res.columns.names = static.index.names
         else:
-            res.columns.name = self.name
+            res.columns.name = "component"
         return res
 
     def as_xarray(
@@ -165,10 +165,10 @@ class _ComponentsArray(_ComponentsABC):
         else:
             if inds is not None:
                 data = self.static[attr].reindex(inds)
-                data.index.name = self.name
+                data.index.name = "component"
             else:
                 data = self.static[attr]
-                data.index.name = self.name
+                data.index.name = "component"
             res = xarray.DataArray(data)
 
         # Rename dimension

@@ -212,7 +212,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         first_active = DataArray(active.cumsum() == 1)
         carriers = static.loc[limited_i, "carrier"].rename("Carrier")
 
-        vars = m[var].sel({c: limited_i}).where(first_active)
+        vars = m[var].sel(component=limited_i).where(first_active)
         expr = vars.groupby(carriers.to_xarray()).sum()
 
         if (max_relative_growth.loc[carriers.unique()] > 0).any():

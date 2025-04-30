@@ -95,10 +95,10 @@ def define_operational_constraints_for_non_extendables(
 
     active = c.as_xarray("active", sns, fix_i)
 
-    dispatch = reindex(n.model[f"{c.name}-{attr}"], c.name, fix_i)
+    dispatch = n.model[f"{c.name}-{attr}"].sel(component=fix_i)
 
     if c.name in n.passive_branch_components and transmission_losses:
-        loss = reindex(n.model[f"{c.name}-loss"], c.name, fix_i)
+        loss = n.model[f"{c.name}-loss"].sel(component=fix_i)
         lhs_lower = dispatch - loss
         lhs_upper = dispatch + loss
     else:
@@ -153,7 +153,7 @@ def define_operational_constraints_for_extendables(
         return
 
     min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr, as_xarray=True)
-    dispatch = reindex(n.model[f"{c.name}-{attr}"], c.name, ext_i)
+    dispatch = n.model[f"{c.name}-{attr}"].sel(component=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
     active = c.as_xarray("active", sns, ext_i)
 
@@ -230,7 +230,7 @@ def define_operational_constraints_for_committables(
     start_up = n.model[f"{c.name}-start_up"]
     shut_down = n.model[f"{c.name}-shut_down"]
     status_diff = status - status.shift(snapshot=1)
-    p = reindex(n.model[f"{c.name}-p"], c.name, com_i)
+    p = n.model[f"{c.name}-p"].sel(component=com_i)
     active = c.get_activity_mask(sns, com_i)
 
     # parameters
@@ -589,10 +589,10 @@ def define_ramp_limit_constraints(
         rhs_start.loc[sns[0]] = p_start
 
         def p_actual(idx: pd.Index) -> DataArray:
-            return reindex(p, c.name, idx)
+            return p.sel(component=idx)
 
         def p_previous(idx: pd.Index) -> DataArray:
-            return reindex(p, c.name, idx).shift(snapshot=1)
+            return p.sel(component=idx).shift(snapshot=1)
 
     else:
         active = c.as_xarray("active", sns[1:], fix_i)
@@ -600,22 +600,18 @@ def define_ramp_limit_constraints(
         rhs_start.index.name = "snapshot"
 
         def p_actual(idx: pd.Index) -> DataArray:
-            return reindex(p, c.name, idx).sel(snapshot=sns[1:])
+            return p.sel(component=idx).sel(snapshot=sns[1:])
 
         def p_previous(idx: pd.Index) -> DataArray:
-            return reindex(p, c.name, idx).shift(snapshot=1).sel(snapshot=sns[1:])
+            return p.sel(component=idx).shift(snapshot=1).sel(snapshot=sns[1:])
 
     rhs_start = DataArray(rhs_start)
 
     # ----------------------------- Fixed Components ----------------------------- #
     if not fix_i.empty:
-        ramp_limit_up_fix = ramp_limit_up.sel({c.name: fix_i}).rename(
-            {c.name: fix_i.name}
-        )
-        ramp_limit_down_fix = ramp_limit_down.sel({c.name: fix_i}).rename(
-            {c.name: fix_i.name}
-        )
-        rhs_start_fix = rhs_start.rename({c.name: fix_i.name})
+        ramp_limit_up_fix = ramp_limit_up.sel(component=fix_i)
+        ramp_limit_down_fix = ramp_limit_down.sel(component=fix_i)
+        rhs_start_fix = rhs_start
         p_nom = c.as_xarray(c.nominal_attr, inds=fix_i)
 
         # Ramp up constraints for fixed components
@@ -697,23 +693,18 @@ def define_ramp_limit_constraints(
         )
 
         ramp_limit_up_com = ramp_limit_up.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, c.name: com_i}
-        ).rename({c.name: com_dim})
-        ramp_limit_down_com = ramp_limit_down.reindex(
-            {"snapshot": active_com.coords["snapshot"].values, c.name: com_i}
-        ).rename({c.name: com_dim})
-
-        ramp_limit_start_up_com = c.as_xarray("ramp_limit_start_up", inds=com_i).rename(
-            {c.name: com_dim}
+            {"snapshot": active_com.coords["snapshot"].values, "component": com_i}
         )
-        ramp_limit_shut_down_com = c.as_xarray(
-            "ramp_limit_shut_down", inds=com_i
-        ).rename({c.name: com_dim})
+        ramp_limit_down_com = ramp_limit_down.reindex(
+            {"snapshot": active_com.coords["snapshot"].values, "component": com_i}
+        )
 
+        ramp_limit_start_up_com = c.as_xarray("ramp_limit_start_up", inds=com_i)
+        ramp_limit_shut_down_com = c.as_xarray("ramp_limit_shut_down", inds=com_i)
         p_nom_com = c.as_xarray(c.nominal_attr, inds=original_com_i)
 
         # Transform rhs_start for committable components
-        rhs_start_com = rhs_start.sel({c.name: com_i}).rename({c.name: com_dim})
+        rhs_start_com = rhs_start.sel(component=com_i)
 
         # com up
         non_null_up = ~ramp_limit_up_com.isnull()
@@ -890,7 +881,7 @@ def define_nodal_balance_constraints(
         if column in ["bus" + i for i in additional_linkports(n)]:
             cbuses = cbuses[cbuses != ""]
 
-        expr = expr.sel({c.name: cbuses[c.name].values})
+        expr = expr.sel(component=cbuses["component"].values)
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum())
 
@@ -1177,7 +1168,7 @@ def define_fixed_operation_constraints(
     if fix.isnull().all():
         return
 
-    active = c.as_xarray("active", sns, inds=fix.coords[c.name].values)
+    active = c.as_xarray("active", sns, inds=fix.coords["component"].values)
     mask = (~fix.isnull()) & active
 
     var = n.model[f"{c.name}-{attr}"]
@@ -1478,7 +1469,7 @@ def define_loss_constraints(
     if not isfinite(s_nom_max).all():
         msg = (
             f"Loss approximation requires finite 's_nom_max' for extendable "
-            f"branches:\n {s_nom_max.sel({c.name: ~isfinite(s_nom_max)})}"
+            f"branches:\n {s_nom_max.sel(component=~isfinite(s_nom_max))}"
         )
         raise ValueError(msg)
 
@@ -1572,7 +1563,7 @@ def define_total_supply_constraints(
     e_sum_min_i = c.static.index[c.static.e_sum_min > -inf]
     if not e_sum_min_i.empty:
         e_sum_min = c.as_xarray("e_sum_min", inds=e_sum_min_i)
-        p = reindex(m[f"{c.name}-p"], c.name, e_sum_min_i).sel(snapshot=sns_)
+        p = m[f"{c.name}-p"].sel(component=e_sum_min_i, snapshot=sns_)
         energy = (p * eh).sum(dim="snapshot")
         m.add_constraints(energy, ">=", e_sum_min, name=f"{c.name}-e_sum_min")
 
@@ -1580,7 +1571,7 @@ def define_total_supply_constraints(
     e_sum_max_i = c.static.index[c.static.e_sum_max < inf]
     if not e_sum_max_i.empty:
         e_sum_max = c.as_xarray("e_sum_max", inds=e_sum_max_i)
-        p = reindex(m[f"{c.name}-p"], c.name, e_sum_max_i).sel(snapshot=sns_)
+        p = m[f"{c.name}-p"].sel(component=e_sum_max_i, snapshot=sns_)
         energy = (p * eh).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
 

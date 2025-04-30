@@ -35,7 +35,7 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     >>> import pytest
     >>> with pytest.warns(DeprecationWarning):
     ...     get_active_assets(c)
-    Generator
+    component
     Manchester Wind    True
     Manchester Gas     True
     Norway Wind        True

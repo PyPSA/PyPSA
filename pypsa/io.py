@@ -1494,7 +1494,7 @@ def _import_components_from_df(
     # Align index (component names) and columns (attributes)
     new_static = _sort_attrs(new_static, attrs.index, axis=1)
 
-    new_static.index.name = cls_name
+    new_static.index.name = "component"
     setattr(n, n.components[cls_name]["list_name"], new_static)
 
     # Now deal with time-dependent properties
