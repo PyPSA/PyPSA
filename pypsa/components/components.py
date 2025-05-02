@@ -537,16 +537,6 @@ class Components(
         return self.n_save.has_investment_periods
 
     @property
-    def scenarios(self) -> pd.Index:
-        """Scenarios of networks."""
-        return self.n_save.scenarios
-
-    @property
-    def has_scenarios(self) -> bool:
-        """Boolean indicating if the network has scenarios defined."""
-        return len(self.scenarios) > 0
-
-    @property
     def empty(self) -> bool:
         """Check if component is empty."""
         return self.static.empty
