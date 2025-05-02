@@ -136,14 +136,21 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         nominal = c.as_xarray(attr, inds=ext_i)
 
+        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                # collapse time axis via any() so capex value isn’t broadcasted
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, component=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            active = c.as_xarray("active").sel(component=ext_i)
-            weighted_cost = capital_cost * active  # type: ignore
+            # collapse time axis via any() so capex value isn’t broadcasted
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
 
         constant += (weighted_cost * nominal).sum().item()
 
@@ -233,15 +240,21 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if capital_cost.size == 0 or (capital_cost == 0).all():
             continue
 
+        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                # collapse time axis via any() so capex value isn’t broadcasted
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, component=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            active = c.as_xarray("active").sel(component=ext_i)
-            # we skip “active” here to avoid re-introducing the snapshot axis (and scaling capex)
-            weighted_cost = capital_cost  # type: ignore
+            # collapse time axis via any() so capex value isn’t broadcasted
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
         objective.append((caps * weighted_cost).sum())
