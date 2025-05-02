@@ -162,3 +162,24 @@ def pandapower_cigre_network():
     except ImportError:
         pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")
+
+
+@pytest.fixture
+def stochastic_network():
+    """
+    Create a simple stochastic network with three scenarios: low, medium, high.
+    The network has one bus with nuclear and gas generators, and a single load.
+    """
+    snapshots = pd.date_range("2024-01-01", periods=5, freq="h")  # Updated freq to 'h'
+    n = pypsa.Network(snapshots=snapshots)
+    n.add("Carrier", "AC")
+    n.add("Bus", "Springfield", carrier="AC")
+    n.add("Generator", "nuclear", bus="Springfield", marginal_cost=10, p_nom=100)
+    n.add("Generator", "gas", bus="Springfield", marginal_cost=70, p_nom=50)
+    load_data = [80, 90, 110, 120, 100]
+    load_series = pd.Series(load_data, index=snapshots)
+    n.add("Load", "demand", bus="Springfield", p_set=load_series)
+
+    n.set_scenarios({"low": 0.33, "medium": 0.34, "high": 0.33})
+
+    return n
