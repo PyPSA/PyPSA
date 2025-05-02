@@ -10,7 +10,7 @@ p_nom_min,float,MW,0,"If p_nom is extendable in optimization, set its minimum va
 p_nom_max,float,MW,inf,"If p_nom is extendable in optimization, set its maximum value (e.g. limited by technical potential).",Input (optional)
 p_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of p_nom for the optimization (e.g. for variable renewable generators this can change due to weather conditions and compulsory feed-in; for conventional generators it represents a minimal dispatch). Note that if comittable is False and p_min_pu > 0, this represents a must-run condition.",Input (optional)
 p_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of p_nom for the optimization (e.g. for variable renewable generators this can change due to weather conditions; for conventional generators it represents a maximum dispatch).,Input (optional)
-p_set,static or series,MW,0.,active power set point (for PF),Input (optional)
+p_set,static or series,MW,n/a,active power set point (for PF),Input (optional)
 e_sum_min,float,MWh,-inf,The minimum total energy produced during a single optimization horizon.,Input (optional)
 e_sum_max,float,MWh,inf,The maximum total energy produced during a single optimization horizon.,Input (optional)
 q_set,static or series,MVar,0.,reactive power set point (for PF),Input (optional)
@@ -39,11 +39,11 @@ weight,float,n/a,1,"Weighting of a generator. Only used for network clustering."
 p,series,MW,0.,active power at bus (positive if net generation),Output
 q,series,MVar,0.,reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal power.,Output
-status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only outputted if committable is True.",Output
+status,series,n/a,1,"Status (1 is on, 0 is off). Only outputted if committable is True.",Output
 start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only outputted if committable is True.",Output
 shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only outputted if committable is True.",Output
-mu_upper,series,currency/MWh,0.,Shadow price of upper p_nom limit,Output
-mu_lower,series,currency/MWh,0.,Shadow price of lower p_nom limit,Output
-mu_p_set,series,currency/MWh,0.,Shadow price of fixed power generation p_set,Output
-mu_ramp_limit_up,series,currency/MWh,0.,Shadow price of upper ramp up limit,Output
-mu_ramp_limit_down,series,currency/MWh,0.,Shadow price of lower ramp down limit,Output
+mu_upper,series,currency/MWh,n/a,Shadow price of upper p_nom limit,Output
+mu_lower,series,currency/MWh,n/a,Shadow price of lower p_nom limit,Output
+mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power generation p_set,Output
+mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output

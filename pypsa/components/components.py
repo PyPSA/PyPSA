@@ -300,7 +300,7 @@ class Components(
                 {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
             )
-        static.index.name = ct.name
+        static.index.name = "component"
 
         # # it's currently hard to imagine non-float series,
         # but this could be generalised
@@ -311,7 +311,7 @@ class Components(
         for k in ct.defaults.index[ct.defaults.varying]:
             df = pd.DataFrame(index=snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
-            df.columns.name = ct.name
+            df.columns.name = "component"
             dynamic[k] = df
 
         return static, dynamic
@@ -727,7 +727,7 @@ class Components(
             return pd.Index([], name=index_name)
 
         idx = self.static.loc[self.static[extendable_col]].index
-        return idx.rename(index_name)
+        return idx
 
     @property
     def fixed(self) -> pd.Index:
@@ -746,7 +746,7 @@ class Components(
             return pd.Index([], name=index_name)
 
         idx = self.static.loc[~self.static[extendable_col]].index
-        return idx.rename(index_name)
+        return idx
 
     @property
     def committables(self) -> pd.Index:
@@ -764,7 +764,7 @@ class Components(
             return pd.Index([], name=index_name)
 
         idx = self.static.loc[self.static["committable"]].index
-        return idx.rename(index_name)
+        return idx
 
     @property
     def operational_attrs(self) -> dict[str, str]:

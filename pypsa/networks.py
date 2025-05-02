@@ -1220,7 +1220,7 @@ class Network:
         ...       p_set=np.random.rand(len(snapshots), len(buses)))
         Index(['0 load', '1 load', '2 load', '3 load', '4 load', '5 load', '6 load',
                '7 load', '8 load', '9 load', '10 load', '11 load', '12 load'],
-              dtype='object', name='Bus')
+              dtype='object', name='component')
         >>> # add wind availability as pandas DataFrame
         >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
@@ -1840,12 +1840,12 @@ class Network:
         Which updates the bus components
 
         >>> n.buses.index
-        Index(['bus2'], dtype='object', name='Bus')
+        Index(['bus2'], dtype='object', name='component')
 
         and all references in the network
 
         >>> n.generators.bus
-        Generator
+        component
         gen1    bus2
         Name: bus, dtype: object
 

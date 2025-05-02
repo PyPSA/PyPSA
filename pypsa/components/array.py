@@ -7,6 +7,8 @@ DataArray for each variable.
 
 from __future__ import annotations
 
+import inspect
+import os
 from collections.abc import Sequence
 
 import pandas as pd
@@ -23,7 +25,7 @@ class _ComponentsArray(_ComponentsABC):
     Class only inherits to Components and should not be used directly.
     """
 
-    def as_dynamic(
+    def _as_dynamic(
         self,
         attr: str,
         snapshots: Sequence | None = None,
@@ -31,11 +33,6 @@ class _ComponentsArray(_ComponentsABC):
     ) -> pd.DataFrame:
         """
         Get an attribute as a dynamic DataFrame.
-
-        Return a Dataframe for a time-varying component attribute with values for
-        all non-time-varying components filled in with the default values for the
-        attribute.
-
 
         Parameters
         ----------
@@ -52,19 +49,25 @@ class _ComponentsArray(_ComponentsABC):
 
         Returns
         -------
-        pandas.DataFrame
+            pandas.DataFrame
 
         Examples
         --------
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.components.generators.as_dynamic('p_max_pu', n.snapshots[:2]) # doctest: +SKIP
-        Generator            Manchester Wind  Manchester Gas  Norway Wind  Norway Gas  Frankfurt Wind  Frankfurt Gas
-        snapshot
-        2015-01-01 00:00:00         0.930020             1.0     0.974583         1.0        0.559078            1.0
-        2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
+        >>> n.components.generators._as_dynamic('p_max_pu', n.snapshots[:2])
+        component            Manchester Wind  ...  Frankfurt Gas
+        snapshot                              ...
+        2015-01-01 00:00:00         0.930020  ...            1.0
+        2015-01-01 01:00:00         0.485748  ...            1.0
+        <BLANKLINE>
+        [2 rows x 6 columns]
 
         """
+        # Check if we are in a power flow calculation
+        stack = inspect.stack()
+        in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)
+
         sns = as_index(self.n_save, snapshots, "snapshots")
         index = self.static.index
         empty_index = index[:0]  # keep index name and names
@@ -79,19 +82,24 @@ class _ComponentsArray(_ComponentsABC):
         diff = index.difference(dynamic.columns)
         static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
         res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
+
+        # power flow calculations in pf.py require a starting point for the algorithm, while p_set default is n/a
+        if attr == "p_set" and in_pf:
+            res = res.fillna(0)
+
         res.index.name = sns.name
         if self.has_scenarios:
-            res.columns.name = "Component"
+            res.columns.name = "component"
             res.columns.names = static.index.names
         else:
-            res.columns.name = self.name
+            res.columns.name = "component"
         return res
 
     def as_xarray(
         self,
         attr: str,
         snapshots: Sequence | None = None,
-        inds: pd.Index | None = None,
+        inds: Sequence | None = None,
     ) -> xarray.DataArray:
         """
         Get an attribute as a xarray DataArray.
@@ -136,26 +144,35 @@ class _ComponentsArray(_ComponentsABC):
         >>> limit = n.components.generators.as_xarray('max_pu', n.snapshots[:2])
 
         # Get activity mask for lines
-        >>> acitve = n.components.lines.as_xarray('active')
+        >>> active = n.components.lines.as_xarray('active')
 
         # Get nominal capacity for specific generators
         >>> gens = pd.Index(['Manchester Wind', 'Norway Wind'], name='Generator')
         >>> p_nom = n.components.generators.as_xarray('p_nom', inds=gens)
 
         """
+        # Strip any index name information
+        # snapshots = getattr(snapshots, "values", snapshots) # TODO
+        inds = getattr(inds, "values", inds)
+
         if attr in self.operational_attrs.keys():
             attr = self.operational_attrs[attr]
 
         if attr == "active":
             res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
         elif attr in self.dynamic.keys() or snapshots is not None:
-            res = xarray.DataArray(self.as_dynamic(attr, snapshots, inds))
+            res = xarray.DataArray(self._as_dynamic(attr, snapshots, inds))
         else:
             if inds is not None:
                 data = self.static[attr].reindex(inds)
+                data.index.name = "component"
             else:
                 data = self.static[attr]
+                data.index.name = "component"
             res = xarray.DataArray(data)
+
+        # Rename dimension
+        # res = res.rename({self.name: "component"})
 
         if self.has_scenarios:
             # untack the dimension that contains the scenarios

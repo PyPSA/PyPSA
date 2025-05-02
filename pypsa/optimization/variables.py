@@ -43,7 +43,7 @@ def define_status_variables(
     n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
 ) -> None:
     c = n.components[c_name]
-    com_i = c.get_committable_i()
+    com_i = c.committables
 
     if com_i.empty:
         return
@@ -74,7 +74,7 @@ def define_start_up_variables(
         Whether the unit commitment should be linearized
     """
     c = n.components[c_name]
-    com_i = c.get_committable_i()
+    com_i = c.committables
 
     if com_i.empty:
         return
@@ -109,7 +109,7 @@ def define_shut_down_variables(
         Whether the unit commitment should be linearized
     """
     c = n.components[c_name]
-    com_i = c.get_committable_i()
+    com_i = c.committables
 
     if com_i.empty:
         return
@@ -141,7 +141,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
         name of the variable, e.g. 'p_nom'
     """
     c = n.components[c_name]
-    ext_i = c.get_extendable_i()
+    ext_i = c.extendables
     if ext_i.empty:
         return
 
@@ -164,7 +164,6 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
     """
     c = n.components[c_name]
     mod_i = c.static.query(f"{attr}_extendable and ({attr}_mod>0)").index
-    mod_i = mod_i.rename(f"{c.name}-ext")
 
     if mod_i.empty:
         return

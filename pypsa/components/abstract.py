@@ -65,11 +65,6 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
-    def operational_attrs(self) -> dict:
-        pass
-
-    @property
-    @abstractmethod
     def extendables(self) -> pd.Index:
         pass
 
@@ -88,7 +83,7 @@ class _ComponentsABC(ABC):
         pass
 
     @abstractmethod
-    def as_dynamic(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
+    def _as_dynamic(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         pass
 
     @abstractmethod

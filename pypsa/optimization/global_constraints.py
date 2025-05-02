@@ -52,16 +52,13 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
-            dim = f"{c}-ext"
             static = n.static(c)
 
             if "carrier" not in static:
                 continue
 
-            ext_i = (
-                n.get_extendable_i(c)
-                .intersection(static.index[static.carrier == carrier])
-                .rename(dim)
+            ext_i = n.components[c].extendables.intersection(
+                static.index[static.carrier == carrier]
             )
             if period is not None:
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
@@ -145,16 +142,13 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
-            dim = f"{c}-ext"
             static = n.static(c)
 
             if c not in n.one_port_components or "carrier" not in static:
                 continue
 
-            ext_i = (
-                n.get_extendable_i(c)
-                .intersection(static.index[static.carrier == carrier])
-                .rename(dim)
+            ext_i = n.components[c].extendables.intersection(
+                static.index[static.carrier == carrier]
             )
             if period is not None:
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
@@ -202,16 +196,13 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     lhs_list = []
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
-        dim = f"{c}-ext"
         static = n.static(c)
 
         if "carrier" not in static:
             continue
 
-        limited_i = (
-            static.index[static.carrier.isin(carrier_i)]
-            .intersection(n.get_extendable_i(c))
-            .rename(dim)
+        limited_i = static.index[static.carrier.isin(carrier_i)].intersection(
+            n.components[c].extendables
         )
         if limited_i.empty:
             continue
@@ -221,7 +212,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         first_active = DataArray(active.cumsum() == 1)
         carriers = static.loc[limited_i, "carrier"].rename("Carrier")
 
-        vars = m[var].sel({dim: limited_i}).where(first_active)
+        vars = m[var].sel(component=limited_i).where(first_active)
         expr = vars.groupby(carriers.to_xarray()).sum()
 
         if (max_relative_growth.loc[carriers.unique()] > 0).any():
@@ -416,7 +407,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
         for c in ["Line", "Link"]:
             attr = nominal_attrs[c]
 
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             if ext_i.empty:
                 continue
 
@@ -482,7 +473,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         for c in ["Line", "Link"]:
             attr = nominal_attrs[c]
 
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             if ext_i.empty:
                 continue
 

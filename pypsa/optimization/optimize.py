@@ -15,9 +15,11 @@ import numpy as np
 import pandas as pd
 from linopy import Model, merge
 from linopy.solvers import available_solvers
+from xarray import DataArray
 
 from pypsa.common import as_index
-from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
+from pypsa.components.common import as_components
+from pypsa.descriptors import additional_linkports, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import (
     optimize_and_run_non_linear_powerflow,
@@ -77,7 +79,38 @@ lookup = pd.read_csv(
 
 def define_objective(n: Network, sns: pd.Index) -> None:
     """
-    Defines and writes out the objective function.
+    Define and write the optimization objective function.
+
+    Builds the (linear or quadratic) objective by assembling the following terms:
+
+    1. **Constant term** for already-built capacity
+       Calculates capex of existing assets and stores it in `n.objective_constant`.
+    2. **Operating costs**
+       Marginal generation costs, storage operation costs, and spill costs weighted by snapshot durations.
+    3. **Quadratic costs**
+       If present, adds second-order marginal cost terms to convex quadratic objective.
+    4. **Stand-by costs**
+       Fixed costs for committed assets (e.g. generators and links) when online.
+    5. **Investment costs**
+       Capex for new capacity, weighted by investment periods if `n._multi_invest` is True.
+    6. **Unit-commitment costs**
+       Start-up and shut-down costs for committable components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the Linopy model and component data.
+    sns : pandas.Index
+        Snapshots (and, for multi-investment, periods) over which to build the objective.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    - The final objective expression is assigned to `n.model.objective`.
+    - Applies snapshot and investment-period weightings to operational and capex terms.
     """
     m = n.model
     objective = []
@@ -90,26 +123,29 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # constant for already done investment
     nom_attr = nominal_attrs.items()
     constant = 0
-    for c, attr in nom_attr:
-        ext_i = n.get_extendable_i(c)
-        cost = n.static(c)["capital_cost"][ext_i]
-        if cost.empty:
+    for c_name, attr in nom_attr:
+        c = as_components(n, c_name)
+        ext_i = c.extendables
+
+        if ext_i.empty:
             continue
 
-        if n._multi_invest:
-            active = pd.concat(
-                {
-                    period: n.get_active_assets(c, period)[ext_i]
-                    for period in sns.unique("period")
-                },
-                axis=1,
-            )
-            cost = active @ period_weighting * cost
-        else:
-            active = n.get_active_assets(c)[ext_i]
-            cost = cost[active]
+        capital_cost = c.as_xarray("capital_cost", inds=ext_i)
+        if capital_cost.size == 0:
+            continue
 
-        constant += (cost * n.static(c)[attr][ext_i]).sum()
+        nominal = c.as_xarray(attr, inds=ext_i)
+
+        if n._multi_invest:
+            weighted_cost = 0
+            for i, period in enumerate(periods):
+                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                weighted_cost += capital_cost * active * period_weighting.iloc[i]
+        else:
+            active = c.as_xarray("active").sel(component=ext_i)
+            weighted_cost = capital_cost * active
+
+        constant += (weighted_cost * nominal).sum().item()
 
     n.objective_constant = constant
     if constant != 0:
@@ -122,83 +158,110 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         weighting = weighting.mul(period_weighting, level=0).loc[sns]
     else:
         weighting = weighting.loc[sns]
+    weight = DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
 
     # marginal costs, marginal storage cost, and spill cost
     for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
-        for c, attr in lookup.query(cost_type).index:
-            cost = (
-                get_as_dense(n, c, cost_type, sns)
-                .loc[:, lambda ds: (ds != 0).any()]
-                .mul(weighting, axis=0)
-            )
-            if cost.empty:
+        for c_name, attr in lookup.query(cost_type).index:
+            c = as_components(n, c_name)
+
+            if c.static.empty:
                 continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
+
+            var_name = f"{c.name}-{attr}"
+            if var_name not in m.variables and cost_type == "spill_cost":
+                continue
+
+            cost = c.as_xarray(cost_type, sns)
+            if cost.size == 0 or (cost == 0).all():
+                continue
+
+            cost = cost * weight
+
+            operation = m[var_name].sel(
+                snapshot=sns, component=cost.coords["component"].values
+            )
             objective.append((operation * cost).sum())
 
     # marginal cost quadratic
-    for c, attr in lookup.query("marginal_cost_quadratic").index:
-        if "marginal_cost_quadratic" in n.static(c):
-            cost = (
-                get_as_dense(n, c, "marginal_cost_quadratic", sns)
-                .loc[:, lambda ds: (ds != 0).any()]
-                .mul(weighting, axis=0)
-            )
-            if cost.empty:
-                continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
-            objective.append((operation * operation * cost).sum())
-            is_quadratic = True
+    for c_name, attr in lookup.query("marginal_cost_quadratic").index:
+        c = as_components(n, c_name)
+
+        if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
+            continue
+
+        cost = c.as_xarray("marginal_cost_quadratic", sns)
+        if cost.size == 0 or (cost == 0).all():
+            continue
+
+        cost = cost * weight
+
+        operation = m[f"{c.name}-{attr}"].sel(
+            snapshot=sns, component=cost.coords["component"].values
+        )
+        objective.append((operation * operation * cost).sum())
+        is_quadratic = True
 
     # stand-by cost
-    comps = {"Generator", "Link"}
-    for c in comps:
-        com_i = get_committable_i(n, c)
+    for c_name in ["Generator", "Link"]:
+        c = as_components(n, c_name)
+        com_i = c.committables
 
         if com_i.empty:
             continue
 
-        stand_by_cost = (
-            get_as_dense(n, c, "stand_by_cost", sns, com_i)
-            .loc[:, lambda ds: (ds != 0).any()]
-            .mul(weighting, axis=0)
+        stand_by_cost = c.as_xarray("stand_by_cost", sns, inds=com_i)
+        if stand_by_cost.size == 0 or (stand_by_cost == 0).all():
+            continue
+
+        stand_by_cost = stand_by_cost * weight
+
+        status = m[f"{c.name}-status"].sel(
+            snapshot=sns, component=stand_by_cost.coords["component"].values
         )
-        stand_by_cost.columns.name = f"{c}-com"
-        status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
         objective.append((status * stand_by_cost).sum())
 
     # investment
-    for c, attr in nominal_attrs.items():
-        ext_i = n.get_extendable_i(c)
-        cost = n.static(c)["capital_cost"][ext_i]
-        if cost.empty:
+    for c_name, attr in nominal_attrs.items():
+        c = as_components(n, c_name)
+        ext_i = c.extendables
+
+        if ext_i.empty:
+            continue
+
+        capital_cost = c.as_xarray("capital_cost", inds=ext_i)
+        if capital_cost.size == 0 or (capital_cost == 0).all():
             continue
 
         if n._multi_invest:
-            active = pd.concat(
-                {
-                    period: n.get_active_assets(c, period)[ext_i]
-                    for period in sns.unique("period")
-                },
-                axis=1,
-            )
-            cost = active @ period_weighting * cost
+            weighted_cost = 0
+            for i, period in enumerate(periods):
+                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            active = n.get_active_assets(c)[ext_i]
-            cost = cost[active]
+            active = c.as_xarray("active").sel(component=ext_i)
+            # we skip “active” here to avoid re-introducing the snapshot axis (and scaling capex)
+            weighted_cost = capital_cost
 
-        caps = m[f"{c}-{attr}"]
-        objective.append((caps * cost).sum())
+        caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
+        objective.append((caps * weighted_cost).sum())
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
-    for c, attr in lookup.query("variable in @keys").index:
-        com_i = n.get_committable_i(c)
-        cost = n.static(c)[attr + "_cost"].reindex(com_i)
+    for c_name, attr in lookup.query("variable in @keys").index:
+        c = as_components(n, c_name)
+        com_i = c.committables
 
-        if cost.sum():
-            var = m[f"{c}-{attr}"]
-            objective.append((var * cost).sum())
+        if com_i.empty:
+            continue
+
+        cost = c.as_xarray(attr + "_cost", inds=com_i)
+
+        if cost.size == 0 or cost.sum().item() == 0:
+            continue
+
+        var = m[f"{c.name}-{attr}"].sel(component=com_i)
+        objective.append((var * cost).sum())
 
     if not len(objective):
         raise ValueError(
@@ -206,7 +269,11 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             "Please make sure the components have assigned costs."
         )
 
-    m.objective = sum(objective) if is_quadratic else merge(objective)
+    # Ensure we're returning the correct expression type (MGA compatibility)
+    if is_quadratic:
+        m.objective = sum(objective)  # sum for quadratic expressions
+    else:
+        m.objective = merge(objective)  # merge for for linear expressions
 
 
 def create_model(
@@ -375,7 +442,7 @@ def assign_solution(n: Network) -> None:
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
-        fix_i = n.get_non_extendable_i(c)
+        fix_i = n.components[c].fixed
         if not fix_i.empty:
             n.static(c).loc[fix_i, f"{attr}_opt"] = n.static(c).loc[fix_i, attr]
 
@@ -728,7 +795,7 @@ class OptimizationAccessor:
         """
         n = self.n
         for c, attr in nominal_attrs.items():
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
             n.static(c)[attr + "_extendable"] = False
 
