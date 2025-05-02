@@ -42,6 +42,11 @@ def scipy_network():
 
 
 @pytest.fixture
+def n():
+    return pypsa.examples.ac_dc_meshed()
+
+
+@pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 

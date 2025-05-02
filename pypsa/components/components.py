@@ -514,7 +514,7 @@ class Components(
     @property
     def component_names(self) -> pd.Index:
         """Unique names of the components."""
-        return self.static.index.get_level_values(self.ctype.name).unique()
+        return self.static.index.get_level_values("component")
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
