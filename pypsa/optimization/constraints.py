@@ -580,7 +580,6 @@ def define_ramp_limit_constraints(
     # Auxiliary variables for constraint application
     ext_dim = ext_i.name if ext_i.name else c
     original_ext_i = ext_i.copy()
-    com_dim = com_i.name if com_i.name else c
     original_com_i = com_i.copy()
 
     if is_rolling_horizon:
@@ -861,8 +860,8 @@ def define_nodal_balance_constraints(
 
     exprs = []
 
-    for c, attr, column, sign in args:
-        c = as_components(n, c)
+    for component, attr, column, sign in args:
+        c = as_components(n, component)
         if c.static.empty:
             continue
 

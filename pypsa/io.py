@@ -1291,7 +1291,7 @@ def _import_from_importer(
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
-                df.set_index(n.snapshots, inplace=True)
+                df = df.set_index(n.snapshots)
                 _import_series_from_df(n, df, component, attr)
 
         logger.debug(getattr(n, list_name))
@@ -1545,7 +1545,7 @@ def _import_series_from_df(
         except KeyError:
             pass  # Don't drop any columns if the data doesn't exist yet
 
-    df.columns.name = cls_name
+    df.columns.name = "component"
 
     # Check if components exist in static df
     diff = df.columns.difference(static.index)
