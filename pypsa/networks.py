@@ -351,7 +351,10 @@ class Network(_NetworkIndex):
             setattr(self, key, value)
 
     def __str__(self) -> str:
-        return f"PyPSA Network '{self.name}'" if self.name else "Unnamed PyPSA Network"
+        prefix = (
+            "Stochastic PyPSA Network" if not self._scenarios.empty else "PyPSA Network"
+        )
+        return f"{prefix} '{self.name}'" if self.name else f"Unnamed {prefix}"
 
     def __repr__(self) -> str:
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
@@ -367,7 +370,12 @@ class Network(_NetworkIndex):
             header = "Empty " + header
             content += " none"
         content += "\n"
+
         content += f"Snapshots: {len(self.snapshots)}"
+        content += "\n"
+
+        if not self._scenarios.empty:
+            content += f"Scenarios: {len(self._scenarios)}"
 
         return header + content
 
