@@ -50,6 +50,11 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def has_scenarios(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
     def has_investment_periods(self) -> bool:
         pass
 

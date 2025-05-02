@@ -88,7 +88,11 @@ class _ComponentsArray(_ComponentsABC):
             res = res.fillna(0)
 
         res.index.name = sns.name
-        res.columns.name = "component"
+        if self.has_scenarios:
+            res.columns.name = "component"
+            res.columns.names = static.index.names
+        else:
+            res.columns.name = "component"
         return res
 
     def as_xarray(
@@ -170,4 +174,7 @@ class _ComponentsArray(_ComponentsABC):
         # Rename dimension
         # res = res.rename({self.name: "component"})
 
+        if self.has_scenarios:
+            # untack the dimension that contains the scenarios
+            res = res.unstack(res.indexes["scenario"].name)
         return res

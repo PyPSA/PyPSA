@@ -311,6 +311,9 @@ class Network:
             index=self.investment_periods, columns=cols
         )
 
+        self._scenarios: pd.Index = pd.Index([])
+        self._scenarios.name = "scenario"
+
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
@@ -1091,6 +1094,12 @@ class Network:
             self.periods, fill_value=1.0
         ).astype(float)
 
+    scenarios = property(
+        lambda self: self._scenarios,
+        lambda self, value: setattr(self, "_scenarios", value),
+        doc="Scenarios of the network for stochastic optimization.",
+    )
+
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
         """
@@ -1119,6 +1128,13 @@ class Network:
                 {c: df for c in self._investment_period_weightings.columns}
             )
         self._investment_period_weightings = df
+
+    @property
+    def has_scenarios(self) -> bool:
+        """
+        Boolean indicating if the network has scenarios defined.
+        """
+        return len(self.scenarios) > 0
 
     def add(
         self,
