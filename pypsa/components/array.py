@@ -144,7 +144,7 @@ class _ComponentsArray(_ComponentsABC):
         >>> limit = n.components.generators.as_xarray('max_pu', n.snapshots[:2])
 
         # Get activity mask for lines
-        >>> acitve = n.components.lines.as_xarray('active')
+        >>> active = n.components.lines.as_xarray('active')
 
         # Get nominal capacity for specific generators
         >>> gens = pd.Index(['Manchester Wind', 'Norway Wind'], name='Generator')
