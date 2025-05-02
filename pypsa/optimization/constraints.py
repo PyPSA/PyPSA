@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import linopy
 import pandas as pd
@@ -87,7 +87,7 @@ def define_operational_constraints_for_non_extendables(
     if fix_i.empty:
         return
 
-    nominal_fix = c.as_xarray(c.nominal_attr, inds=fix_i)
+    nominal_fix = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
     min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr, as_xarray=True)
 
     lower = min_pu * nominal_fix
@@ -234,7 +234,7 @@ def define_operational_constraints_for_committables(
     active = c.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = c.as_xarray(c.nominal_attr, inds=com_i)
+    nominal = c.as_xarray(c.operational_attrs["nom"], inds=com_i)
     min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p", as_xarray=True)
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
@@ -611,7 +611,7 @@ def define_ramp_limit_constraints(
         ramp_limit_up_fix = ramp_limit_up.sel(component=fix_i)
         ramp_limit_down_fix = ramp_limit_down.sel(component=fix_i)
         rhs_start_fix = rhs_start
-        p_nom = c.as_xarray(c.nominal_attr, inds=fix_i)
+        p_nom = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
 
         # Ramp up constraints for fixed components
         non_null_up = ~ramp_limit_up_fix.isnull().all()
@@ -651,7 +651,7 @@ def define_ramp_limit_constraints(
         rhs_start_ext = rhs_start.sel({c: ext_i}).rename({c: ext_dim})
 
         # For extendables, nominal capacity is a decision variable
-        p_nom_var = m[f"{c.name}-{c.nominal_attr}"]
+        p_nom_var = m[f"{c.name}-{c.operational_attrs['nom']}"]
 
         if not ramp_limit_up_ext.isnull().all():
             lhs = (
@@ -700,7 +700,7 @@ def define_ramp_limit_constraints(
 
         ramp_limit_start_up_com = c.as_xarray("ramp_limit_start_up", inds=com_i)
         ramp_limit_shut_down_com = c.as_xarray("ramp_limit_shut_down", inds=com_i)
-        p_nom_com = c.as_xarray(c.nominal_attr, inds=original_com_i)
+        p_nom_com = c.as_xarray(c.operational_attrs["nom"], inds=original_com_i)
 
         # Transform rhs_start for committable components
         rhs_start_com = rhs_start.sel(component=com_i)
@@ -729,7 +729,7 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic.status.iloc[start_i]
+                status_start = c.dynamic["status"].iloc[start_i]
                 limit_diff = (limit_up - limit_start).isel(snapshot=0)
                 rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
                     limit_diff * status_start
@@ -764,7 +764,7 @@ def define_ramp_limit_constraints(
 
             rhs = rhs_start_com.copy()
             if is_rolling_horizon:
-                status_start = c.dynamic.status.iloc[start_i]
+                status_start = c.dynamic["status"].iloc[start_i]
                 rhs.loc[{"snapshot": rhs.coords["snapshot"].item(0)}] += (
                     -limit_shut * status_start
                 )
@@ -829,7 +829,7 @@ def define_nodal_balance_constraints(
 
     links = as_components(n, "Link")
 
-    args: list[ArgItem] = [
+    args: list[Any] = [
         ["Generator", "p", "bus", 1],
         ["Store", "p", "bus", 1],
         ["StorageUnit", "p_dispatch", "bus", 1],

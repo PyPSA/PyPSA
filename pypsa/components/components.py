@@ -692,25 +692,6 @@ class Components(
         return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
 
     @property
-    def nominal_attr(self) -> str:
-        """
-        Get nominal attribute of component.
-
-        Returns
-        -------
-        str
-            Name of the nominal attribute of the component.
-
-        Examples
-        --------
-        >>> c = n.components.generators
-        >>> c.nominal_attr
-        'p_nom'
-
-        """
-        return self.base_attr + "_nom"
-
-    @property
     def extendables(self) -> pd.Index:
         """
         Get the index of extendable elements of this component.
@@ -792,6 +773,8 @@ class Components(
         'p_nom'
 
         """
+        # TODO: refactor component attrs store
+
         base = self.base_attr
 
         return {

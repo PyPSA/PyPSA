@@ -31,6 +31,7 @@ class Stores(Components):
     """
 
     base_attr = "e"
+    nominal_attr = "e_nom"
 
     @overload
     def get_bounds_pu(
@@ -56,7 +57,7 @@ class Stores(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for stores.
 

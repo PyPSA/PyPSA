@@ -65,6 +65,11 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def operational_attrs(self) -> dict:
+        pass
+
+    @property
+    @abstractmethod
     def extendables(self) -> pd.Index:
         pass
 
@@ -78,6 +83,11 @@ class _ComponentsABC(ABC):
     def fixed(self) -> pd.Index:
         pass
 
+    @property
+    def base_attr(self) -> str:
+        msg = f"base_attr does not exist for {self.name} components"
+        raise ValueError(msg)
+
     @abstractmethod
     def get_activity_mask(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         pass
@@ -89,3 +99,27 @@ class _ComponentsABC(ABC):
     @abstractmethod
     def get_active_assets(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         pass
+
+    def get_bounds_pu(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Get per unit bounds for components.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments for the method
+        kwargs : Any
+            Keyword arguments for the method
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        msg = f"get_bounds_pu does not exist for {self.name} components"
+        raise ValueError(msg)

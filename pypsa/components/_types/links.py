@@ -31,6 +31,7 @@ class Links(Components):
     """
 
     base_attr = "p"
+    nominal_attr = "p_nom"
 
     @overload
     def get_bounds_pu(
@@ -56,7 +57,7 @@ class Links(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for links.
 
