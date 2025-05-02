@@ -143,7 +143,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
             active = c.as_xarray("active").sel(component=ext_i)
-            weighted_cost = capital_cost * active
+            weighted_cost = capital_cost * active  # type: ignore
 
         constant += (weighted_cost * nominal).sum().item()
 
@@ -241,7 +241,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         else:
             active = c.as_xarray("active").sel(component=ext_i)
             # we skip “active” here to avoid re-introducing the snapshot axis (and scaling capex)
-            weighted_cost = capital_cost
+            weighted_cost = capital_cost  # type: ignore
 
         caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
         objective.append((caps * weighted_cost).sum())

@@ -33,6 +33,7 @@ class Lines(Components):
     """
 
     base_attr = "s"
+    nominal_attr = "s_nom"
 
     @overload
     def get_bounds_pu(
@@ -58,7 +59,7 @@ class Lines(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
         as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray]:
+    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
         """
         Get per unit bounds for lines.
 
