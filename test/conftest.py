@@ -165,21 +165,67 @@ def pandapower_cigre_network():
 
 
 @pytest.fixture
-def stochastic_network():
+def stochastic_benchmark_network():
     """
-    Create a simple stochastic network with three scenarios: low, medium, high.
-    The network has one bus with nuclear and gas generators, and a single load.
+    Create a network for benchmarking stochastic problems.
+    This optimization problem is also uploaded to the pypsa examples repository
+    with stochastic problem solved in two ways: out-of-the-box using PyPSA
+    functionality and hardcoded using linopy.
     """
-    snapshots = pd.date_range("2024-01-01", periods=5, freq="h")  # Updated freq to 'h'
-    n = pypsa.Network(snapshots=snapshots)
-    n.add("Carrier", "AC")
-    n.add("Bus", "Springfield", carrier="AC")
-    n.add("Generator", "nuclear", bus="Springfield", marginal_cost=10, p_nom=100)
-    n.add("Generator", "gas", bus="Springfield", marginal_cost=70, p_nom=50)
-    load_data = [80, 90, 110, 120, 100]
-    load_series = pd.Series(load_data, index=snapshots)
-    n.add("Load", "demand", bus="Springfield", p_set=load_series)
+    # Configuration
+    GAS_PRICE = 40  # Default scenario
+    FREQ = "3h"
+    LOAD_MW = 1
+    TS_URL = "https://tubcloud.tu-berlin.de/s/pKttFadrbTKSJKF/download/time-series-lecture-2.csv"
 
-    n.set_scenarios({"low": 0.33, "medium": 0.34, "high": 0.33})
+    # Technology specs
+    TECH = {
+        "solar": {"profile": "solar", "inv": 1e6, "m_cost": 0.01},
+        "wind": {"profile": "onwind", "inv": 2e6, "m_cost": 0.02},
+        "gas": {"inv": 7e5, "eff": 0.6},
+        "lignite": {"inv": 1.3e6, "eff": 0.4, "m_cost": 130},
+    }
+    FOM, DR, LIFE = 3.0, 0.03, 25
+
+    def annuity(life, rate):
+        return rate / (1 - (1 + rate) ** -life) if rate else 1 / life
+
+    for cfg in TECH.values():
+        cfg["fixed_cost"] = (annuity(LIFE, DR) + FOM / 100) * cfg["inv"]
+
+    # Load time series data from URL - same as in the original script
+    ts = pd.read_csv(TS_URL, index_col=0, parse_dates=True).resample(FREQ).asfreq()
+
+    n = pypsa.Network()
+    n.set_snapshots(ts.index)
+    n.snapshot_weightings = pd.Series(int(FREQ[:-1]), index=ts.index)
+
+    n.add("Bus", "DE")
+    n.add("Load", "DE_load", bus="DE", p_set=LOAD_MW)
+
+    for tech in ["solar", "wind"]:
+        cfg = TECH[tech]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            p_max_pu=ts[cfg["profile"]],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=cfg["m_cost"],
+        )
+
+    for tech in ["gas", "lignite"]:
+        cfg = TECH[tech]
+        mc = (GAS_PRICE / cfg["eff"]) if tech == "gas" else cfg["m_cost"]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            efficiency=cfg["eff"],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=mc,
+        )
 
     return n

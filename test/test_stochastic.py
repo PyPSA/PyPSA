@@ -1,12 +1,25 @@
-#!/usr/bin/env python3
 """
 Test stochastic functionality of PyPSA networks.
 """
 
+import os
 
-def test_stochastic_network_properties(stochastic_network):
+import pandas as pd
+import pytest
+from numpy.testing import assert_array_almost_equal as equal
+
+import pypsa
+
+
+def test_network_properties():
     """Test basic properties of a stochastic network."""
-    n = stochastic_network
+    snapshots = pd.date_range("2024-01-01", periods=5, freq="h")
+    n = pypsa.Network(snapshots=snapshots)
+    n.add("Bus", "bus1")
+    n.add("Load", "load1", bus="bus1", p_set=100)
+
+    # Set up scenarios
+    n.set_scenarios({"low": 0.33, "medium": 0.34, "high": 0.33})
 
     # Check scenarios were properly set up
     assert len(n.scenarios) == 3
@@ -22,7 +35,7 @@ def test_stochastic_network_properties(stochastic_network):
     for scenario in n.scenarios.index:
         assert n.loads_t.p_set.loc[scenario, :].shape[0] == 5
 
-    # Test string representation contains scenario information
+    # Check string representation contains scenario information
     assert "Scenarios:" in repr(n)
 
 
@@ -36,12 +49,37 @@ def test_scenario_constraints():
     pass
 
 
-def test_solved_network_simple():
+def test_solved_network_simple(stochastic_benchmark_network):
     """
-    Placeholder: solve the stochastic problem and compare a solution with a known result.
-    Simple test case with a single bus and 2 generators.
+    Solve the stochastic problem and compare results with benchmark data.
+    Simple test case with a single bus and multiple generators.
     """
-    pass
+    # Load the benchmark results
+    benchmark_path = os.path.join(os.path.dirname(__file__), "data", "benchmark-sp")
+
+    if not os.path.exists(benchmark_path):
+        pytest.skip("Benchmark data not available")
+
+    n_r = pypsa.Network(benchmark_path)
+
+    # Create a new network for the stochastic model
+    n = stochastic_benchmark_network
+
+    # TODO
+
+    # Check that it solves to optimality
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
+
+    # Compare generator capacities (these are the main result of stochastic planning)
+    equal(
+        n.generators.p_nom_opt,
+        n_r.generators.p_nom_opt,
+        decimal=2,
+    )
+
+    # Compare objective value
+    equal(n.objective, n_r.objective, decimal=2)
 
 
 def test_solved_network_advanced():
