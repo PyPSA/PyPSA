@@ -527,7 +527,7 @@ class _NetworkIndex(_NetworkABC):
             )
             for k, v in c.dynamic.items():
                 c.dynamic[k] = pd.concat(
-                    {scen: v for scen in scenarios.index}, names=["scenario"]
+                    {scen: v for scen in scenarios.index}, names=["scenario"], axis=1
                 )
 
         self._scenarios = scenarios

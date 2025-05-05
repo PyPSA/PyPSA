@@ -33,7 +33,7 @@ def test_network_properties():
 
     # Check data shape for each scenario
     for scenario in n.scenarios.index:
-        assert n.loads_t.p_set.loc[scenario, :].shape[0] == 5
+        assert n.loads_t.p_set.loc[:, scenario].shape[0] == 5
 
     # Check string representation contains scenario information
     assert "Scenarios:" in repr(n)
