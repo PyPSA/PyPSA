@@ -11,6 +11,58 @@ Upcoming Release
    To use the features already you have to install the ``master`` branch, e.g. 
    ``pip install git+https://github.com/pypsa/pypsa``.
 
+* New **interactive** plotting library
+
+  * You can now create plots on any PyPSA statistic. Try them with:
+
+    * :meth:`n.statistics.energy_balance.iplot() <pypsa.iplot.statistics.plotter.StatisticInteractivePlotter.__call__>` to get the pre defined default plot
+    * :meth:`n.statistics.energy_balance.iplot.bar() <pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar>` to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
+
+* The function ``n.statistics.opex()`` now includes all operational cost
+  components: marginal costs, quadratic marginal costs, storage costs, spill
+  costs, start-up costs, shut-down costs, and stand-by costs. Previously, only
+  marginal costs were considered. A new parameter `cost_types` allows selecting
+  which cost components to include. (https://github.com/PyPSA/PyPSA/pull/1195)
+
+* New method `n.equals() <pypsa.Network.equals>` to compare two networks for equality. 
+  This is similar to the equality operator `==` but allows for more flexibility in the
+  comparison which is useful for testing and debugging.
+  (https://github.com/PyPSA/PyPSA/pull/1194, https://github.com/PyPSA/PyPSA/pull/1205)
+
+Bug Fixes
+--------
+
+* Fixed unaligned statistics index names when ``groupby=False``
+  (https://github.com/PyPSA/PyPSA/pull/1205)
+  
+* Fixed interactive area plots in stacked more with `facet_row` and `facet_col`. 
+
+
+`v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
+=======================================================================================
+
+Bug Fixes
+---------
+
+* The static map plots for statistics are fixed, e.g. `n.statistics.energy_balance.map()`. 
+  (https://github.com/PyPSA/PyPSA/pull/1201)
+
+* The previous maps module under `pypsa/plot` is now modularized. Instead of a 
+  monolithic module, the maps module is now split into several submodules. The
+  submodules are: `.maps.common`, `.maps.interactive`, and `.maps.static`.
+  (https://github.com/PyPSA/PyPSA/pull/1190)
+
+
+* Added new single node capacity expansion example in style of model.energy.
+  It can be loaded with ``pypsa.examples.model_energy()``.
+
+* Add new example for how to run MGA ('modelling-to-generate-alternatives') optimisation.
+
+* Added demand elasticity example.
+
+`v0.34.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.0>`__ (25th March 2025)
+=======================================================================================
+
 Features
 --------
 
@@ -24,11 +76,62 @@ Features
     different engines can be passed. By default they are not installed, but can be
     installed via ``pip install pypsa[excel]``.
 
+* New plotting library
 
-* All statistics functions now interpret the bus_carrier argument as a regular 
-  expression (regex), enabling more flexible filtering options. 
-  (https://github.com/PyPSA/PyPSA/pull/1155)
+  * You can now create plots on any PyPSA statistic. Try them with:
 
+    * :meth:`n.statistics.energy_balance.plot() <pypsa.plot.statistics.plotter.StatisticPlotter.__call__>` to get the pre defined default plot
+    * :meth:`n.statistics.energy_balance.plot.bar() <pypsa.plot.statistics.plotter.StatisticPlotter.bar>` to get a bar plot
+    * :meth:`n.statistics.energy_balance.plot.line() <pypsa.plot.statistics.plotter.StatisticPlotter.line>` to get a line plot
+    * :meth:`n.statistics.energy_balance.plot.area() <pypsa.plot.statistics.plotter.StatisticPlotter.area>` to get a area plot
+    * :meth:`n.statistics.energy_balance.plot.map() <pypsa.plot.statistics.plotter.StatisticPlotter.map>` to get a map plot
+
+  * ``n.plot()``  was moved to ``n.plot.map()``
+
+  * ``n.explore()`` was moved to ``n.plot.explore()`` and ``n.iplot()`` was moved to ``n.plot.iplot()``
+
+* Statistics module
+
+  * All statistics functions now interpret the bus_carrier argument as a regular 
+    expression (regex), enabling more flexible filtering options. 
+    (https://github.com/PyPSA/PyPSA/pull/1155)
+
+  * All statistics functions have a new argument ``carrier`` to filter by carriers.
+    (https://github.com/PyPSA/PyPSA/pull/1176)
+
+  * All statistics functions have two new arguments ``drop_zero`` and ``round`` to
+    control the output. ``drop_zero`` drops all rows with zero values and ``round``
+    rounds the output to the specified number of decimal places. Those settings have been
+    used before already via the statistics parameters, but are deprecated now. Use the
+    new arguments or the module level settings instead (to set them globally). E.g. 
+    ``pypsa.options.params.statistics.nice_names = False``. List all available parameter 
+    settings via ``pypsa.options.params.describe()``. 
+    (https://github.com/PyPSA/PyPSA/pull/1173)
+
+Minor improvements
+------------------
+
+* Ensuring that the created lp/mps file is deterministic by sorting the strongly meshed 
+  buses. (https://github.com/PyPSA/PyPSA/pull/1174)
+
+* Added warning for consistent legend circle and semicirle sizes when combining plots 
+  on a geographical axis.
+
+* Add new statistic ``n.statistics.system_cost()`` to calculate the total system cost from capital and operational expenditures.
+
+* Added descriptive attribute "location" to Buses. This attribute does not influence the optimisation model but can be used for aggregation in the statistics module.
+
+* Added descriptive attribute "location" to Buses. This attribute does not influence
+  the optimisation model but can be used for aggregation in the statistics module.
+  (https://github.com/PyPSA/PyPSA/pull/1182)
+
+
+Bug fixes
+---------
+
+* Fixed ``pypsa.plot.add_legend_semicircles()`` circle sizing to be consistent with 
+  ``n.plot(bus_sizes=..., bus_split_circles=True)`` argument. 
+  (https://github.com/PyPSA/PyPSA/pull/1179)
 
 `v0.33.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2>`__ (12th March 2025)
 =======================================================================================

@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 from deprecation import deprecated
 
-from pypsa._options import get_option
+from pypsa._options import options
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,7 @@ class ComponentType:
     @property
     @deprecated(
         deprecated_in="0.32.0",
+        removed_in="1.0",
         details="Use the 'category' attribute instead.",
     )
     def type(self) -> str:
@@ -73,6 +74,7 @@ class ComponentType:
     @property
     @deprecated(
         deprecated_in="0.32.0",
+        removed_in="1.0",
         details="Use the 'defaults' attribute instead.",
     )
     def attrs(self) -> pd.DataFrame:
@@ -99,8 +101,6 @@ class ComponentsStore(dict):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components
         PyPSA Components Store
         ======================
@@ -146,8 +146,6 @@ class ComponentsStore(dict):
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators
         PyPSA 'Generator' Components
         ----------------------------
@@ -182,7 +180,7 @@ class ComponentsStore(dict):
         """
         Value iterator over components in store.
         """
-        if get_option("warnings.components_store_iter"):
+        if options.get_option("warnings.components_store_iter"):
             warnings.warn(
                 "Iterating over `n.components` yields the values instead of keys from "
                 "v0.33.0. This behavior might be breaking. Use `n.components.keys()` "

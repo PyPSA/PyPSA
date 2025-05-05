@@ -29,6 +29,7 @@ General methods
     ~pypsa.Network.remove
     ~pypsa.Network.mremove
     ~pypsa.Network.copy
+    ~pypsa.Network.equals
     ~pypsa.Network.branches
     ~pypsa.Network.passive_branches
     ~pypsa.Network.controllable_branches

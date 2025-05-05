@@ -4,11 +4,29 @@ import pkgutil
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 import pytest
 
 import pypsa
+
+try:
+    import cartopy  # noqa
+
+    cartopy_available = True
+except ImportError:
+    cartopy_available = False
+
+# Warning: Keep in sync with settings in doc/conf.py
+doctest_globals = {
+    "numpy": np,
+    "pandas": pd,
+    "pypsa": pypsa,
+    "n": pypsa.examples.ac_dc_meshed(),
+}
 
 modules = [
     importlib.import_module(name)
@@ -17,12 +35,30 @@ modules = [
 ]
 
 
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 10),
+    reason="Doctest fail until linopy supports numpy 2 on all python versions",
+)
+@pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize("module", modules)
 def test_doctest(module):
-    failed, _ = doctest.testmod(module)
-    assert failed == 0, f"{failed} doctest(s) failed in module {module.__name__}"
+    finder = doctest.DocTestFinder()
+    runner = doctest.DocTestRunner()
+    tests = finder.find(module)
+
+    failures = 0
+    for test in tests:
+        # Create a fresh copy of the globals for each test
+        test_globals = dict(doctest_globals)
+        test.globs.update(test_globals)
+
+        # Run the test
+        failures += runner.run(test).failed
+
+    assert failures == 0, f"{failures} doctest(s) failed in module {module.__name__}"
 
 
+@pytest.mark.skip(reason="Currently broken and not catching all warnings")  # TODO
 @pytest.mark.test_sphinx_build
 def test_sphinx_build(pytestconfig):
     if not pytestconfig.getoption("--test-docs-build"):

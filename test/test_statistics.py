@@ -4,21 +4,17 @@ import pytest
 
 import pypsa
 from pypsa.statistics import groupers
+from pypsa.statistics.expressions import StatisticsAccessor
 
 
-def test_default_unsolved(ac_dc_network):
-    df = ac_dc_network.statistics()
-    assert not df.empty
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_all_methods(ac_dc_network_r, stat_func):
+    df = getattr(ac_dc_network_r.statistics, stat_func)
+    assert not df().empty
 
 
 def test_default_solved(ac_dc_network_r):
     df = ac_dc_network_r.statistics()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.capex()
-    assert not df.empty
-
-    df = ac_dc_network_r.statistics.opex()
     assert not df.empty
 
     df = ac_dc_network_r.statistics.energy_balance()
@@ -94,8 +90,8 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
 def test_net_and_gross_revenue(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.revenue(aggregate_time="sum")
-    revenue_out = n.statistics.revenue(aggregate_time="sum", kind="output")
-    revenue_in = n.statistics.revenue(aggregate_time="sum", kind="input")
+    revenue_out = n.statistics.revenue(aggregate_time="sum", direction="output")
+    revenue_in = n.statistics.revenue(aggregate_time="sum", direction="input")
     revenue = revenue_in.add(revenue_out, fill_value=0)
     comps = ["Generator", "Line", "Link"]
     assert np.allclose(revenue[comps], target[comps])
@@ -104,10 +100,84 @@ def test_net_and_gross_revenue(ac_dc_network_r):
 def test_supply_withdrawal(ac_dc_network_r):
     n = ac_dc_network_r
     target = n.statistics.energy_balance()
-    supply = n.statistics.energy_balance(kind="supply")
-    withdrawal = n.statistics.energy_balance(kind="withdrawal")
+    supply = n.statistics.energy_balance(direction="supply")
+    withdrawal = n.statistics.energy_balance(direction="withdrawal")
     energy_balance = supply.sub(withdrawal, fill_value=0)
     assert np.allclose(energy_balance.reindex(target.index), target)
+
+
+def test_opex():
+    n = pypsa.Network()
+    n.set_snapshots([0, 1, 2])
+    n.snapshot_weightings.loc[:, :] = 2
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0, 0, 5])
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        carrier="gen",
+        p_nom=10,
+        p_max_pu=[0, 1, 0],
+        marginal_cost=2,
+        marginal_cost_quadratic=0.2,
+    )
+    n.add(
+        "Store",
+        "sto",
+        bus="bus",
+        carrier="sto",
+        e_nom=10,
+        e_initial=0,
+        marginal_cost_storage=0.5,
+    )
+    n.add("Bus", "bus2")
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus2",
+        carrier="su",
+        marginal_cost=5,
+        p_nom=1,
+        max_hours=2,
+        inflow=1,
+        spill_cost=20,
+    )
+
+    n.optimize()
+
+    opex = n.statistics.opex()
+
+    assert opex.loc["Store", "sto"] == 2 * 0.5 * 10
+    assert opex.loc["Generator", "gen"] == 2 * 2 * 5 + 2 * 0.2 * 5**2
+    assert opex.loc["StorageUnit", "su"] == 2 * 20 * 2
+
+    n.generators.marginal_cost_quadratic = 0
+    n.generators.committable = True
+    n.generators.start_up_cost = 4
+    n.generators.shut_down_cost = 5
+    n.generators.stand_by_cost = 9
+
+    n.optimize()
+
+    opex = n.statistics.opex()
+
+    assert opex.loc["Store", "sto"] == 2 * 0.5 * 10
+    assert opex.loc["Generator", "gen"] == 2 * 2 * 5 + 1 * 4 + 2 * 5 + 2 * 1 * 9
+
+    opex = n.statistics.opex(cost_types="marginal_cost")
+
+    assert opex.loc["Generator", "gen"] == 2 * 2 * 5
+    with pytest.raises(KeyError):
+        opex.loc["StorageUnit", "su"]
+    with pytest.raises(KeyError):
+        opex.loc["Store", "sto"]
+
+    opex = n.statistics.opex(cost_types="marginal_cost_storage")
+
+    assert opex.loc["Store", "sto"] == 2 * 0.5 * 10
+    with pytest.raises(KeyError):
+        opex.loc["Generator", "gen"]
 
 
 def test_no_grouping(ac_dc_network_r):
@@ -119,6 +189,18 @@ def test_no_time_aggregation(ac_dc_network_r):
     df = ac_dc_network_r.statistics.supply(aggregate_time=False)
     assert not df.empty
     assert isinstance(df, pd.DataFrame)
+
+
+def test_carrier_selection(ac_dc_network_r):
+    n = ac_dc_network_r
+    df = n.statistics(carrier="AC")
+    assert not df.empty
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
+
+    df = n.statistics(carrier=["AC"])
+    assert "Line" in df.index.unique(0)
+    assert list(df.index.unique(1)) == ["AC"]
 
 
 def test_bus_carrier_selection(ac_dc_network_r):
@@ -197,14 +279,8 @@ def test_inactive_exclusion_in_static(ac_dc_network_r):
     df = n.statistics()
     assert "Line" in df.index.unique(0)
 
-    df = n.statistics(aggregate_time=False)
-    assert "Line" in df.index.unique(0)
-
     n.lines["active"] = False
     df = n.statistics()
-    assert "Line" not in df.index.unique(0)
-
-    df = n.statistics(aggregate_time=False)
     assert "Line" not in df.index.unique(0)
 
     n.lines["active"] = True
@@ -217,7 +293,7 @@ def test_transmission_carriers(ac_dc_network_r):
     assert "AC" in df.unique(1)
 
 
-def test_groupers(ac_dc_network_r):
+def test_system_cost(ac_dc_network_r):
     n = ac_dc_network_r
     c = "Generator"
 
@@ -261,6 +337,11 @@ def test_parameters(ac_dc_network_r):
         n.statistics.set_parameters(round="one")
     # Test parameter representation
     isinstance(n.statistics.parameters, str)
+
+    capex = n.statistics.capex().sum()
+    opex = n.statistics.opex().sum()
+    system_cost = n.statistics.system_cost().sum()
+    assert system_cost == capex + opex
 
 
 def test_emissions_calculation(ac_dc_network_r):

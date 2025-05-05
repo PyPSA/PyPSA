@@ -104,11 +104,12 @@ Documentation
 * :doc:`/user-guide/power-flow`
 * :doc:`/user-guide/optimal-power-flow`
 * :doc:`/user-guide/contingency-analysis`
+* :doc:`/user-guide/statistics`
 * :doc:`/user-guide/plotting`
 
 .. toctree::
    :hidden:
-   :maxdepth: 2
+   :maxdepth: 0
    :caption: User Guide
 
    user-guide/design
@@ -117,6 +118,7 @@ Documentation
    user-guide/power-flow
    user-guide/optimal-power-flow
    user-guide/contingency-analysis
+   user-guide/statistics
    user-guide/plotting
 
 **Examples**
@@ -128,7 +130,7 @@ Documentation
 
 .. toctree::
    :hidden:
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Examples
 
    examples-index/lopf
@@ -144,7 +146,7 @@ Documentation
 
 .. toctree::
    :hidden:
-   :maxdepth: 1
+   :maxdepth: 0
    :caption: Contributing & Support
 
    contributing/contributing

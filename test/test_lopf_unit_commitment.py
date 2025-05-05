@@ -470,7 +470,6 @@ def test_dynamic_ramp_rates():
     This test checks that dynamic ramp rates are correctly applied when
     considering a unit outage represented by p_max_pu.
     """
-
     n = pypsa.Network()
 
     snapshots = range(0, 15)

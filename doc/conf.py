@@ -16,6 +16,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
 
+import doctest
 import os
 import sys
 from importlib.metadata import version as get_version
@@ -50,10 +51,8 @@ extensions = [
     "sphinx_reredirects",
     "nbsphinx",
     "nbsphinx_link",
-    #    'sphinx.ext.pngmath',
-    #    'sphinxcontrib.tikz',
-    # 'rinoh.frontend.sphinx',
     "sphinx.ext.imgconverter",  # for SVG conversion
+    "sphinx.ext.doctest",
 ]
 
 autodoc_default_flags = ["members"]
@@ -346,6 +345,7 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
+# Redirects for old URLs
 redirects = {
     # Redirects from old/ similar urls to new ones
     # Getting Started
@@ -377,3 +377,17 @@ redirects = {
     "users.html": "references/users.html",
     "developers.html": "references/developers.html",
 }
+
+# Doctest configuration
+# Warning: Keep in sync with settings in test/test_docs.py
+doctest_global_setup = """
+import pypsa
+import pandas as pd
+import numpy as np
+
+n = pypsa.examples.ac_dc_meshed()
+"""
+
+doctest_default_flags = (
+    doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS | doctest.IGNORE_EXCEPTION_DETAIL
+)

@@ -161,7 +161,6 @@ class Lines(Components):
 
         Examples
         --------
-        >>> import pypsa
         >>> c = pypsa.examples.scigrid_de().c.lines
         >>> ds = c.calculate_line_length()
         >>> ds.head()
@@ -231,19 +230,22 @@ class Component:
         if list_name is not None or attrs is not None:
             warnings.warn(
                 "Passing 'list_name' and 'attrs' is deprecated and they will be "
-                "retrieved via the 'name' argument.",
+                "retrieved via the 'name' argument. Deprecated in version 0.31 and "
+                "will be removed in version 1.0.",
                 DeprecationWarning,
                 stacklevel=2,
             )
         if ind is not None:
             warnings.warn(
-                "The 'ind' attribute is deprecated.",
+                "The 'ind' attribute is deprecated. Deprecated in version 0.31 and "
+                "will be removed in version 1.0.",
                 DeprecationWarning,
                 stacklevel=2,
             )
         if investment_periods is not None:
             raise DeprecationWarning(
                 "The 'investment_periods' attribute is deprecated. Pass 'n' instead."
+                "Deprecated in version 0.31 and will be removed in version 1.0."
             )
 
         if name:
