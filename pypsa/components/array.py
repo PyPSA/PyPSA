@@ -161,14 +161,16 @@ class _ComponentsArray(_ComponentsABC):
         if attr == "active":
             res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
         elif attr in self.dynamic.keys() or snapshots is not None:
-            res = xarray.DataArray(self._as_dynamic(attr, snapshots, inds))
+            res = self._as_dynamic(attr, snapshots, inds)
+            if self.has_scenarios:
+                # TODO implement this better
+                res.columns.name = None
+            res = xarray.DataArray(res)
         else:
             if inds is not None:
                 data = self.static[attr].reindex(inds)
-                data.index.name = "component"
             else:
                 data = self.static[attr]
-                data.index.name = "component"
             res = xarray.DataArray(data)
 
         # Rename dimension
@@ -177,4 +179,12 @@ class _ComponentsArray(_ComponentsABC):
         if self.has_scenarios:
             # untack the dimension that contains the scenarios
             res = res.unstack(res.indexes["scenario"].name)
+
+        if self.has_periods:
+            try:
+                res = res.rename(dim_0="snapshot")
+            except ValueError:
+                pass
+        res.name = attr
+
         return res
