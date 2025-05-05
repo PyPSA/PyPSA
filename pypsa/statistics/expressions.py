@@ -2198,7 +2198,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def carbon_emissions(
         self,
-        comps: str | Sequence[str] | None = ["Generator"],
+        comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
