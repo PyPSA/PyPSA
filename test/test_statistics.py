@@ -295,48 +295,6 @@ def test_transmission_carriers(ac_dc_network_r):
 
 def test_system_cost(ac_dc_network_r):
     n = ac_dc_network_r
-    c = "Generator"
-
-    grouper = groupers.carrier(n, c)
-    assert isinstance(grouper, pd.Series)
-
-    grouper = groupers.bus_carrier(n, c)
-    assert isinstance(grouper, pd.Series)
-
-    grouper = groupers["bus", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["bus", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["country", "carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["carrier", "bus_carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-    grouper = groupers["bus", "carrier", "bus_carrier"](n, c)
-    assert isinstance(grouper, list)
-    assert all(isinstance(ds, pd.Series) for ds in grouper)
-
-
-def test_parameters(ac_dc_network_r):
-    n = ac_dc_network_r
-    target = n.statistics.capex(nice_names=False).round(2)
-    n.statistics.set_parameters(nice_names=False, round=2)
-    df = n.statistics.capex()
-    assert np.allclose(df, target)
-    with pytest.raises(ValueError):
-        # Test setting not existing parameters
-        n.statistics.set_parameters(groupby=False)
-        # Test setting wrong dtype of parameter
-        n.statistics.set_parameters(round="one")
-    # Test parameter representation
-    isinstance(n.statistics.parameters, str)
 
     capex = n.statistics.capex().sum()
     opex = n.statistics.opex().sum()
