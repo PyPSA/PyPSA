@@ -95,85 +95,6 @@ class _ComponentsArray(_ComponentsABC):
             res.columns.name = "component"
         return res
 
-    def _as_dynamic_new(self, attr: str) -> pd.DataFrame:
-        """
-        Get an attribute as a dynamic DataFrame.
-
-        Parameters
-        ----------
-        c : pypsa.Components
-            Components instance
-        component : string
-            Component object name, e.g. 'Generator' or 'Link'
-        attr : string
-            Attribute name
-        snapshots : pandas.Index
-            Restrict to these snapshots rather than n.snapshots.
-        inds : pandas.Index
-            Restrict to these components rather than n.components.index
-
-        Returns
-        -------
-            pandas.DataFrame
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.components.generators._as_dynamic('p_max_pu', n.snapshots[:2])
-        component            Manchester Wind  ...  Frankfurt Gas
-        snapshot                              ...
-        2015-01-01 00:00:00         0.930020  ...            1.0
-        2015-01-01 01:00:00         0.485748  ...            1.0
-        <BLANKLINE>
-        [2 rows x 6 columns]
-
-        """
-        # Check if we are in a power flow calculation
-        stack = inspect.stack()
-        in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)
-
-        index = self.static.index
-        static = self.static.get(attr, None)  # pd.Series([], index=self._static_index))
-        dynamic = self.dynamic.get(
-            attr, pd.DataFrame()
-        )  # pd.DataFrame(index=self._dynamic_index, columns=self.dynamic_columns)
-        #    )
-
-        if self.has_scenarios:
-            diff = index.difference(
-                pd.MultiIndex.from_product([self.scenarios.index, dynamic.columns])
-            )
-        else:
-            diff = index.difference(dynamic.columns)
-
-        static_to_dynamic = pd.DataFrame({**static[diff]}, index=self.snapshots)
-
-        if self.has_scenarios:
-            static_to_dynamic = static_to_dynamic.stack(
-                level=0, future_stack=True
-            ).swaplevel(0, 1)
-
-            static_to_dynamic.index.names = ["scenario", "snapshot"]
-            static_to_dynamic.columns.name = "component"
-
-        res = pd.concat([dynamic, static_to_dynamic], axis=1)[
-            index.get_level_values("component").unique()
-        ]
-
-        # power flow calculations in pf.py require a starting point for the algorithm, while p_set default is n/a
-        if attr == "p_set" and in_pf:
-            res = res.fillna(0)
-
-        # if self.has_scenarios:
-        #     res.index.name = "snapshot"
-
-        #     res.columns.name = "component"
-        #     # res.columns.names = static.index.names
-        # else:
-        res.columns.name = "component"
-        return res
-
     def as_xarray(
         self,
         attr: str,
@@ -238,32 +159,22 @@ class _ComponentsArray(_ComponentsABC):
             attr = self.operational_attrs[attr]
 
         if attr == "active":
-            res = xarray.DataArray(self.get_activity_mask())
+            res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
         elif attr in self.dynamic.keys() or snapshots is not None:
-            res = xarray.DataArray(self._as_dynamic_new(attr))
+            res = xarray.DataArray(self._as_dynamic(attr, snapshots, inds))
         else:
             if inds is not None:
                 data = self.static[attr].reindex(inds)
+                data.index.name = "component"
             else:
                 data = self.static[attr]
+                data.index.name = "component"
             res = xarray.DataArray(data)
 
         # Rename dimension
         # res = res.rename({self.name: "component"})
+
         if self.has_scenarios:
             # untack the dimension that contains the scenarios
             res = res.unstack(res.indexes["scenario"].name)
-
-        if self.has_periods:
-            try:
-                res = res.rename(dim_0="snapshot")
-            except ValueError:
-                pass
-        res.name = attr
-
-        if snapshots is not None:
-            res = res.sel(snapshot=snapshots)
-        if inds is not None:
-            res = res.sel(component=inds)
-
         return res

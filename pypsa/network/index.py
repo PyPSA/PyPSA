@@ -25,10 +25,6 @@ class _NetworkIndex(_NetworkABC):
     Class only inherits to Components and should not be used directly.
     """
 
-    # ----------------
-    # Snapshots
-    # ----------------
-
     def set_snapshots(
         self,
         snapshots: Sequence,
@@ -173,8 +169,6 @@ class _NetworkIndex(_NetworkABC):
         """
         self.set_snapshots(snapshots)
 
-    # Timesteps
-    # ---------
     @property
     def timesteps(self) -> pd.Index:
         """
@@ -195,7 +189,7 @@ class _NetworkIndex(_NetworkABC):
 
         """
         if "timestep" in self.snapshots.names:
-            return self.snapshots.get_level_values("timestep").unique()
+            return self.snapshots.get_level_values("timestep")
         else:
             return self.snapshots.rename("timestep")
 
@@ -217,78 +211,6 @@ class _NetworkIndex(_NetworkABC):
         """
         msg = "Setting `timesteps` is not supported. Please set `snapshots` instead."
         raise NotImplementedError(msg)
-
-    # Periods
-    # ---------
-
-    def set_investment_periods(self, periods: Sequence) -> None:
-        """
-        Set the investment periods of the network.
-
-        If the network snapshots are a pandas.MultiIndex, the investment periods
-        have to be a subset of the first level. If snapshots are a single index,
-        they and all time-series are repeated for all periods. This changes
-        the network snapshots to be a MultiIndex (inplace operation) with the first
-        level being the investment periods and the second level the snapshots.
-
-        Parameters
-        ----------
-        n : pypsa.Network
-        periods : list
-            List of periods to be selected/initialized.
-
-        Returns
-        -------
-        None.
-
-        """
-        periods_ = pd.Index(periods, name="period")
-        if periods_.empty:
-            return
-        if not (
-            pd.api.types.is_integer_dtype(periods_)
-            and periods_.is_unique
-            and periods_.is_monotonic_increasing
-        ):
-            raise ValueError(
-                "Investment periods are not strictly increasing integers, "
-                "which is required for multi-period investment optimisation."
-            )
-        if isinstance(self.snapshots, pd.MultiIndex):
-            if not periods_.isin(self.snapshots.unique("period")).all():
-                raise ValueError(
-                    "Not all investment periods are in level `period` of snapshots."
-                )
-            if len(periods_) < len(self.snapshots.unique(level="period")):
-                raise NotImplementedError(
-                    "Investment periods do not equal first level values of snapshots."
-                )
-        else:
-            # Convenience case:
-            logger.info(
-                "Repeating time-series for each investment period and "
-                "converting snapshots to a pandas.MultiIndex."
-            )
-            names = ["period", "timestep"]
-            for c in self.components.values():
-                for k in c.dynamic.keys():
-                    c.dynamic[k] = pd.concat(
-                        {p: c.dynamic[k] for p in periods_}, names=names
-                    )
-                    c.dynamic[k].index.name = "snapshot"
-
-            self._snapshots = pd.MultiIndex.from_product(
-                [periods_, self.snapshots], names=names
-            )
-            self._snapshots.name = "snapshot"
-            self._snapshot_weightings = pd.concat(
-                {p: self.snapshot_weightings for p in periods_}, names=names
-            )
-            self._snapshot_weightings.index.name = "snapshot"
-
-        self.investment_period_weightings = self.investment_period_weightings.reindex(
-            self.periods, fill_value=1.0
-        ).astype(float)
 
     @property
     def periods(self) -> pd.Index:
@@ -410,9 +332,6 @@ class _NetworkIndex(_NetworkABC):
         """
         return self.has_periods
 
-    # Snapshot weightings
-    # -------------------
-
     @property
     def snapshot_weightings(self) -> pd.DataFrame:
         """
@@ -439,6 +358,75 @@ class _NetworkIndex(_NetworkABC):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
             df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
         self._snapshot_weightings = df
+
+    def set_investment_periods(self, periods: Sequence) -> None:
+        """
+        Set the investment periods of the network.
+
+        If the network snapshots are a pandas.MultiIndex, the investment periods
+        have to be a subset of the first level. If snapshots are a single index,
+        they and all time-series are repeated for all periods. This changes
+        the network snapshots to be a MultiIndex (inplace operation) with the first
+        level being the investment periods and the second level the snapshots.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+        periods : list
+            List of periods to be selected/initialized.
+
+        Returns
+        -------
+        None.
+
+        """
+        periods_ = pd.Index(periods, name="period")
+        if periods_.empty:
+            return
+        if not (
+            pd.api.types.is_integer_dtype(periods_)
+            and periods_.is_unique
+            and periods_.is_monotonic_increasing
+        ):
+            raise ValueError(
+                "Investment periods are not strictly increasing integers, "
+                "which is required for multi-period investment optimisation."
+            )
+        if isinstance(self.snapshots, pd.MultiIndex):
+            if not periods_.isin(self.snapshots.unique("period")).all():
+                raise ValueError(
+                    "Not all investment periods are in level `period` of snapshots."
+                )
+            if len(periods_) < len(self.snapshots.unique(level="period")):
+                raise NotImplementedError(
+                    "Investment periods do not equal first level values of snapshots."
+                )
+        else:
+            # Convenience case:
+            logger.info(
+                "Repeating time-series for each investment period and "
+                "converting snapshots to a pandas.MultiIndex."
+            )
+            names = ["period", "timestep"]
+            for c in self.components.values():
+                for k in c.dynamic.keys():
+                    c.dynamic[k] = pd.concat(
+                        {p: c.dynamic[k] for p in periods_}, names=names
+                    )
+                    c.dynamic[k].index.name = "snapshot"
+
+            self._snapshots = pd.MultiIndex.from_product(
+                [periods_, self.snapshots], names=names
+            )
+            self._snapshots.name = "snapshot"
+            self._snapshot_weightings = pd.concat(
+                {p: self.snapshot_weightings for p in periods_}, names=names
+            )
+            self._snapshot_weightings.index.name = "snapshot"
+
+        self.investment_period_weightings = self.investment_period_weightings.reindex(
+            self.periods, fill_value=1.0
+        ).astype(float)
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -472,6 +460,14 @@ class _NetworkIndex(_NetworkABC):
     # -----------
     # Scenarios
     # -----------
+
+    @property
+    def scenarios(self) -> pd.Series:
+        return self._scenarios
+
+    @scenarios.setter
+    def scenarios(self, scenarios: dict | pd.Series | Sequence) -> None:
+        self.set_scenarios(scenarios)
 
     def set_scenarios(
         self,
@@ -535,14 +531,6 @@ class _NetworkIndex(_NetworkABC):
                 )
 
         self._scenarios = scenarios
-
-    @property
-    def scenarios(self) -> pd.Series:
-        return self._scenarios
-
-    @scenarios.setter
-    def scenarios(self, scenarios: dict | pd.Series | Sequence) -> None:
-        self.set_scenarios(scenarios)
 
     @property
     def has_scenarios(self) -> bool:
