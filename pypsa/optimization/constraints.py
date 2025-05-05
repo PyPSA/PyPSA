@@ -882,9 +882,10 @@ def define_nodal_balance_constraints(
 
         expr = expr.sel(component=cbuses["component"].values)
         if expr.size:
-            exprs.append(expr.groupby(cbuses).sum())
+            exprs.append(expr.groupby(cbuses).sum().rename(Bus="component"))
 
-    lhs = merge(exprs, join="outer").reindex(Bus=buses)
+    # TODO Why is this writing back to the dataframe? e.g. n.buses.index.name
+    lhs = merge(exprs, join="outer").reindex(component=buses)
 
     # Prepare the RHS
     loads = as_components(n, "Load")
@@ -895,13 +896,15 @@ def define_nodal_balance_constraints(
             "p_set", sns, inds=active_loads
         ) * loads.as_xarray("sign", inds=active_loads)
         load_buses = loads.as_xarray("bus", inds=active_loads)
-        rhs = load_values.groupby(load_buses).sum()
+        rhs = load_values.groupby(load_buses).sum().rename(bus="component")
 
         # Reindex to include all buses with zeros for missing buses
-        rhs = rhs.reindex(bus=buses, fill_value=0).rename(bus="Bus")
+        rhs = rhs.reindex(component=buses, fill_value=0)
     else:
         rhs = DataArray(
-            0, coords={"snapshot": sns, "Bus": buses}, dims=["snapshot", "Bus"]
+            0,
+            coords={"snapshot": sns, "component": buses},
+            dims=["snapshot", "component"],
         )
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
@@ -913,12 +916,6 @@ def define_nodal_balance_constraints(
         mask = ~empty_nodal_balance
     else:
         mask = None
-
-    if suffix:
-        lhs = lhs.rename(Bus=f"Bus{suffix}")
-        rhs = rhs.rename({"Bus": f"Bus{suffix}"})
-        if mask is not None:
-            mask = mask.rename(Bus=f"Bus{suffix}")
 
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
