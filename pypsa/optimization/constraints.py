@@ -995,7 +995,6 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
     names = ["component", "name"]
     s = pd.concat({c: m[f"{c}-s"].to_pandas() for c in comps}, axis=1, names=names)
-
     lhs = []
 
     periods = sns.unique("period") if n._multi_invest else [None]
@@ -1015,6 +1014,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             carrier = n.sub_networks.carrier[sub_network.name]
             weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
             C = 1e5 * sparse.diags(weightings.values) * sub_network.C
+
             ssub = s.loc[snapshots, branches.index].values
 
             ncycles = C.shape[1]
@@ -1038,6 +1038,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     if len(lhs):
         lhs = merge(lhs, dim="snapshot")
         m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
+    breakpoint()
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
