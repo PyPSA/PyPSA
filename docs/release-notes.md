@@ -31,6 +31,8 @@ hides:
   (:octicons-git-pull-request-16:1194, :octicons-git-pull-request-16:1205)
 
 ### Bug Fixes
+- The components subpackage was further restructured. The known API remains untouched.
+  (https://github.com/PyPSA/PyPSA/pull/1223)
 
 - Fixed unaligned statistics index names when ``groupby=False``
   (:octicons-git-pull-request-16:1205)

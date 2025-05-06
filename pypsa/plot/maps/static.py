@@ -20,7 +20,7 @@ from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
-from pypsa.components.abstract import Components
+from pypsa.components.components import Components
 from pypsa.constants import DEFAULT_EPSG
 from pypsa.geo import (
     compute_bbox,

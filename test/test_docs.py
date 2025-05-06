@@ -22,10 +22,11 @@ except ImportError:
 
 # Warning: Keep in sync with settings in doc/conf.py
 doctest_globals = {
-    "numpy": np,
-    "pandas": pd,
+    "np": np,
+    "pd": pd,
     "pypsa": pypsa,
     "n": pypsa.examples.ac_dc_meshed(),
+    "c": pypsa.examples.ac_dc_meshed().components.generators,
 }
 
 modules = [

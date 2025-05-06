@@ -56,6 +56,7 @@ gurobipy = ["gurobipy"]
 cloudpath = ["cloudpathlib"]
 dev = [
     "pytest",
+    "pytest-cov",
     "pytest-mpl", 
     "coverage",
     "pypower",
