@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pandas as pd
+import xarray as xr
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -189,8 +190,14 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     if (upper.max() <= 0).all():
         return
 
-    active = c.as_xarray("active", sns).where(upper > 0, False)
-    n.model.add_variables(0, upper, name=f"{c.name}-spill", mask=active)
+    active = c.as_xarray("active", sns)
+
+    # align "active" and "upper" arrays on the same order across scenario/snapshot/component axes
+    # .align() TODO low high
+    active_aligned, upper_aligned = xr.align(active, upper, join="inner")
+    active = active_aligned.where(upper_aligned > 0, False)
+
+    n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
 
 
 def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:

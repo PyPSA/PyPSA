@@ -84,6 +84,9 @@ def define_operational_constraints_for_non_extendables(
     fix_i = c.fixed
     fix_i = fix_i.difference(c.committables)
 
+    if c.has_scenarios:
+        fix_i = fix_i.get_level_values("component").unique()
+
     if fix_i.empty:
         return
 
@@ -1171,7 +1174,7 @@ def define_fixed_operation_constraints(
         return
 
     active = c.as_xarray("active", sns, inds=fix.coords["component"].values)
-    mask = (~fix.isnull()) & active
+    mask = active & (~fix.isnull())
 
     var = n.model[f"{c.name}-{attr}"]
 
@@ -1225,7 +1228,13 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         return
 
     # elapsed hours
-    eh = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    eh = DataArray(elapsed_h)
+    try:
+        eh = eh.unstack("dim_1")
+    except:  # noqa: E722
+        # todo
+        pass
 
     # efficiencies as xarray DataArrays
     eff_stand = (1 - c.as_xarray("standing_loss", sns)) ** eh
@@ -1258,7 +1267,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # We add inflow and initial soc for noncyclic assets to rhs
     soc_init = c.as_xarray("state_of_charge_initial")
-    rhs = DataArray(-c.as_xarray("inflow", sns) * eh)
+    rhs = -c.as_xarray("inflow", sns) * eh
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
@@ -1280,7 +1289,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets
-        include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
+        include_previous_soc_pp = (periods == periods.shift(snapshot=1)) & active
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
         previous_soc_pp = previous_soc_pp.where(
@@ -1294,6 +1303,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         )
 
     lhs += [(eff_stand, previous_soc)]
+
+    # TODO make reindex unnecessary
+    if "scenario" in rhs.dims:
+        include_previous_soc = include_previous_soc.reindex(scenario=rhs.scenario)
+
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)

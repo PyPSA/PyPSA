@@ -675,7 +675,7 @@ class Components(
         index_name = self.name
         extendable_col = self.operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
-            return pd.Index([], name=index_name)
+            return self.static.iloc[:0].index
 
         idx = self.static.loc[self.static[extendable_col]].index
 
@@ -698,7 +698,7 @@ class Components(
         index_name = self.name
         extendable_col = self.operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
-            return pd.Index([], name=index_name)
+            return self.static.iloc[:0].index
 
         idx = self.static.loc[~self.static[extendable_col]].index
         return idx
@@ -716,7 +716,7 @@ class Components(
         """
         index_name = self.name
         if "committable" not in self.static:
-            return pd.Index([], name=index_name)
+            return self.static.iloc[:0].index
 
         idx = self.static.loc[self.static["committable"]].index
         return idx
