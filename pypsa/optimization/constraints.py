@@ -994,7 +994,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         exprs = []
         for c in C.index.unique("type"):
             C_branch = DataArray(C.loc[c])
-            flow = m[f"{c}-s"].loc[sns, C_branch.indexes["component"]]
+            flow = m[f"{c}-s"].sel(
+                snapshot=sns, component=C_branch.indexes["component"]
+            )
             exprs.append(flow @ C_branch * 1e5)
         lhs.append(sum(exprs))
 

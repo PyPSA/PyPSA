@@ -1250,26 +1250,62 @@ class Network(_NetworkIndex):
 
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
+    def _empty_components(self) -> list:
+        """
+        Returns a list of all components that are not empty.
+
+        Returns
+        -------
+        list
+            List of non-empty components.
+
+        """
+        return [c.name for c in self.iterate_components() if c.empty]
+
     def branches(self) -> pd.DataFrame:
+        comps = list(set(self.branch_components) - set(self._empty_components()))
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.branch_components),
-            keys=self.branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
-            names=["component", "name"],
+            names=names,
         )
 
     def passive_branches(self) -> pd.DataFrame:
+        comps = list(
+            set(self.passive_branch_components) - set(self._empty_components())
+        )
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.passive_branch_components),
-            keys=self.passive_branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
+            names=names,
         )
 
     def controllable_branches(self) -> pd.DataFrame:
+        comps = list(
+            set(self.controllable_branch_components) - set(self._empty_components())
+        )
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.controllable_branch_components),
-            keys=self.controllable_branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
+            names=names,
         )
 
     def determine_network_topology(
@@ -1291,7 +1327,7 @@ class Network(_NetworkIndex):
             investment_period=investment_period,
         )
         n_components, labels = csgraph.connected_components(
-            adjacency_matrix, directed=False
+            adjacency_matrix.values, directed=False
         )
 
         # remove all old sub_networks
@@ -1331,10 +1367,16 @@ class Network(_NetworkIndex):
             SubNetwork(self, name) for name in self.sub_networks.index
         ]
 
-        self.buses.loc[:, "sub_network"] = labels.astype(str)
+        if self.has_scenarios:
+            for s in self.scenarios.index:
+                self.buses.loc[s, "sub_network"] = labels.astype(str)
+            subnetwork_map = self.buses.sub_network.xs(s, level="scenario")
+        else:
+            self.buses.loc[:, "sub_network"] = labels.astype(str)
+            subnetwork_map = self.buses.sub_network
 
         for c in self.iterate_components(self.passive_branch_components):
-            c.static["sub_network"] = c.static.bus0.map(self.buses["sub_network"])
+            c.static["sub_network"] = c.static.bus0.map(subnetwork_map)
 
             if investment_period is not None:
                 active = get_active_assets(self, c.name, investment_period)
@@ -1377,12 +1419,18 @@ class Network(_NetworkIndex):
         self.determine_network_topology(
             investment_period=investment_period, skip_isolated_buses=True
         )
+        self.calculate_dependent_values()
 
         cycles = []
 
         # Process each sub-network to find its cycles
         for sub_network in self.sub_networks.obj:
-            branches_i = sub_network.branches_i()
+            branches = sub_network.branches()
+
+            if self.has_scenarios:
+                branches = branches.xs(self.scenarios.index[0], level="scenario")
+
+            branches_i = branches.index
             branches_i.names = ["type", "component"]
             if not hasattr(sub_network, "C") or not sub_network.C.size:
                 continue
@@ -1400,6 +1448,10 @@ class Network(_NetworkIndex):
         # Get all branch components
         existing_branch_components = cycles_df.index.unique("type")
         branches = self.branches()
+
+        if self.has_scenarios:
+            branches = branches.xs(self.scenarios.index[0], level="scenario")
+
         branches.index.names = ["type", "component"]
         branches_i = branches.loc[existing_branch_components].index
 
@@ -1592,11 +1644,20 @@ class SubNetwork:
     def investment_period_weightings(self) -> pd.DataFrame:
         return self.n.investment_period_weightings
 
+    @property
+    def scenarios(self) -> pd.Series:
+        return self.n.scenarios
+
+    @property
+    def has_scenarios(self) -> bool:
+        return self.n.has_scenarios
+
     def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
         types = []
         names = []
         for c in self.iterate_components(self.n.passive_branch_components):
-            idx = c.static.query("active").index if active_only else c.static.index
+            static = c.static
+            idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
             names += list(idx)
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
