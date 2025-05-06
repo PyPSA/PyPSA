@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     >>> import pytest
     >>> with pytest.warns(DeprecationWarning):
     ...     get_active_assets(c)
-    Generator
+    component
     Manchester Wind    True
     Manchester Gas     True
     Norway Wind        True
@@ -104,3 +105,58 @@ class _ComponentsDescriptors(_ComponentsABC):
                 "build_year <= @period < build_year + lifetime"
             )
         return pd.DataFrame(active).any(axis=1) & self.static.active
+
+    def get_activity_mask(
+        self,
+        sns: Sequence | None = None,
+        index: pd.Index | None = None,
+    ) -> pd.DataFrame:
+        """
+        Get active components mask indexed by snapshots.
+
+        Gets the boolean mask for active components, indexed by snapshots and
+        components instead of just components.
+
+        Parameters
+        ----------
+        c : pypsa.Components
+            Components instance.
+        sns : pandas.Index, default None
+            Set of snapshots for the mask. If None (default) all snapshots are returned.
+        index : pd.Index, default None
+            Subset of the component elements. If None (default) all components are returned.
+
+        Returns
+        -------
+        pd.DataFrame
+            Boolean mask for active components indexed by snapshots.
+
+        """
+        sns_ = as_index(self.n_save, sns, "snapshots")
+
+        if self.has_investment_periods:
+            active_assets_per_period = {
+                period: self.get_active_assets(investment_period=period)
+                for period in self.investment_periods
+            }
+            mask = (
+                pd.concat(active_assets_per_period, axis=1)
+                .T.reindex(self.snapshots, level=0)
+                .loc[sns_]
+            )
+        else:
+            active_assets = self.get_active_assets()
+            mask = pd.DataFrame(
+                np.tile(active_assets, (len(sns_), 1)),
+                index=sns_,
+                columns=active_assets.index,
+            )
+
+        if index is not None:
+            mask = mask.reindex(columns=index)
+
+        mask.index.name = "snapshot"
+        if isinstance(mask.index, pd.MultiIndex):
+            mask.index.names = ["period", "timestep"]
+
+        return mask

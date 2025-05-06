@@ -1146,7 +1146,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             result = []
             weights = get_weightings(n, c)
             weights_one = pd.Series(1.0, index=weights.index)
-            com_i = n.get_committable_i(c)
+            com_i = n.components[c].committables
 
             for cost_type in [
                 "marginal_cost",

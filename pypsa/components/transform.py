@@ -67,12 +67,12 @@ class _ComponentsTransform:
         Which updates the bus components
 
         >>> c.static.index
-        Index(['bus2'], dtype='object', name='Bus')
+        Index(['bus2'], dtype='object', name='component')
 
         and all references in the network
 
         >>> n.generators.bus
-        Generator
+        component
         gen1    bus2
         Name: bus, dtype: object
 

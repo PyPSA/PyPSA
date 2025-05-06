@@ -185,7 +185,7 @@ def optimize_transmission_expansion_iteratively(
         Keyword arguments of the `n.optimize` function which runs at each iteration
     """
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
-    ext_i = n.get_extendable_i("Line").copy()
+    ext_i = n.components["Line"].extendables.copy()
     typed_i = n.lines.query('type != ""').index
     ext_untyped_i = ext_i.difference(typed_i)
     ext_typed_i = ext_i.intersection(typed_i)
@@ -431,23 +431,42 @@ def optimize_security_constrained(
             c_outage_ = c_outage + "-outage"
             c_outages = outages.get_loc_level(c_outage)[1]
             flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
-            flow_outage = flow_outage.rename({c_outage: c_outage_})
+            flow_outage = flow_outage.rename({"component": c_outage_})
 
             bodf = BODF.loc[c_affected, c_outage]
             bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
-            additional_flow = flow_outage * bodf
+            added_flow = flow_outage * bodf
+
             for bound, kind in product(("lower", "upper"), ("fix", "ext")):
                 coord = c_affected + "-" + kind
                 constraint = coord + "-s-" + bound
                 if constraint not in m.constraints:
                     continue
-                rename = {c_affected: coord}
-                added_flow = additional_flow.rename(rename)
-                con = m.constraints[constraint]  # use this as a template
-                # idx now contains fixed/extendable for the sub-network
-                idx = con.lhs.indexes[coord].intersection(added_flow.indexes[coord])
-                sel = {coord: idx}
-                lhs = con.lhs.sel(sel) + added_flow.sel(sel)
+
+                con = m.constraints[constraint]
+
+                component_dim = "component"  # Fix for 22a9c3e (c.name -> "component")
+                # TODO make clean before new-opt-optimize merge
+
+                if component_dim in con.lhs.indexes:
+                    idx = con.lhs.indexes[component_dim].intersection(
+                        added_flow.indexes[c_affected]
+                    )
+                    sel = {component_dim: idx}
+
+                    # Rename to match con.lhs dimensions
+                    added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
+                        {c_affected: component_dim}
+                    )
+                    lhs = con.lhs.sel(sel) + added_flow_aligned
+                else:
+                    # fallback for original for tests
+                    idx = con.lhs.indexes[c_affected].intersection(
+                        added_flow.indexes[c_affected]
+                    )
+                    sel = {c_affected: idx}
+                    lhs = con.lhs.sel(sel) + added_flow.sel({c_affected: idx})
+
                 name = constraint + f"-security-for-{c_outage_}-in-{sub_network}"
                 m.add_constraints(lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name)
 
@@ -622,7 +641,7 @@ def optimize_mga(
             if isinstance(coeffs, dict):
                 coeffs = pd.Series(coeffs)
             if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                coeffs = coeffs.reindex(n.get_extendable_i(c))
+                coeffs = coeffs.reindex(n.components[c].extendables)
                 coeffs.index.name = ""
             elif isinstance(coeffs, pd.Series):
                 coeffs = coeffs.reindex(columns=n.static(c).index)

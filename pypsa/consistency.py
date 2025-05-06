@@ -454,8 +454,8 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
     """
     if component.name in {"Generator", "Link"}:
-        committables = n.get_committable_i(component.name)
-        extendables = n.get_extendable_i(component.name)
+        committables = component.committables
+        extendables = component.extendables
         intersection = committables.intersection(extendables)
         if not intersection.empty:
             _log_or_raise(

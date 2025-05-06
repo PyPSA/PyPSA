@@ -760,6 +760,7 @@ def _export_to_exporter(
                 if isinstance(prop, property) and prop.fset is None:
                     continue
                 _attrs[attr] = value
+
     exporter.save_attributes(_attrs)
 
     crs = {}
@@ -1290,7 +1291,7 @@ def _import_from_importer(
 
         if not skip_time:
             for attr, df in importer.get_series(list_name):
-                df.set_index(n.snapshots, inplace=True)
+                df = df.set_index(n.snapshots)
                 _import_series_from_df(n, df, component, attr)
 
         logger.debug(getattr(n, list_name))
@@ -1493,7 +1494,7 @@ def _import_components_from_df(
     # Align index (component names) and columns (attributes)
     new_static = _sort_attrs(new_static, attrs.index, axis=1)
 
-    new_static.index.name = cls_name
+    new_static.index.name = "component"
     setattr(n, n.components[cls_name]["list_name"], new_static)
 
     # Now deal with time-dependent properties
@@ -1544,8 +1545,7 @@ def _import_series_from_df(
         except KeyError:
             pass  # Don't drop any columns if the data doesn't exist yet
 
-    df.columns.name = cls_name
-    df.index.name = "snapshot"
+    df.columns.name = "component"
 
     # Check if components exist in static df
     diff = df.columns.difference(static.index)
