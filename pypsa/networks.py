@@ -1302,6 +1302,7 @@ class Network(_NetworkIndex):
 
         for i in np.arange(n_components):
             # index of first bus
+            breakpoint()
             buses_i = (labels == i).nonzero()[0]
 
             if skip_isolated_buses and (len(buses_i) == 1):
@@ -1373,7 +1374,6 @@ class Network(_NetworkIndex):
             in the network.
 
         """
-        self.calculate_dependent_values()
         self.determine_network_topology(
             investment_period=investment_period, skip_isolated_buses=True
         )
@@ -1382,13 +1382,13 @@ class Network(_NetworkIndex):
 
         # Process each sub-network to find its cycles
         for sub_network in self.sub_networks.obj:
-            branches = sub_network.branches_i()
-            branches.names = ["component", "name"]
+            branches_i = sub_network.branches_i()
+            branches_i.names = ["type", "component"]
             if not hasattr(sub_network, "C") or not sub_network.C.size:
                 continue
 
             # Convert sparse matrix to DataFrame
-            C = pd.DataFrame(sub_network.C.todense(), index=branches)
+            C = pd.DataFrame(sub_network.C.todense(), index=branches_i)
             cycles.append(C)
 
         if not cycles:
@@ -1398,8 +1398,9 @@ class Network(_NetworkIndex):
         cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
 
         # Get all branch components
-        existing_branch_components = cycles_df.index.unique("component")
+        existing_branch_components = cycles_df.index.unique("type")
         branches = self.branches()
+        branches.index.names = ["type", "component"]
         branches_i = branches.loc[existing_branch_components].index
 
         if apply_weights:
@@ -1409,7 +1410,7 @@ class Network(_NetworkIndex):
             cycles_df = cycles_df.multiply(weights, axis=0)
 
         # Reindex to include all branches (even those not in cycles)
-        return cycles_df.reindex(branches_i, fill_value=0)
+        return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
 
     @deprecated_in_next_major(
         details="Use `self.components.<component>` instead.",

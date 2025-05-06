@@ -12,10 +12,9 @@ from typing import TYPE_CHECKING, Any
 import linopy
 import pandas as pd
 from deprecation import deprecated
-from linopy import LinearExpression, merge
+from linopy import merge
 from numpy import inf, isfinite
-from scipy import sparse
-from xarray import DataArray, Dataset, concat
+from xarray import DataArray, concat
 
 from pypsa.common import as_index
 from pypsa.components.common import as_components
@@ -975,57 +974,20 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     m = n.model
     n.calculate_dependent_values()
 
-    comps = [c for c in n.passive_branch_components if not n.static(c).empty]
-
-    if not comps:
-        return
-
-    names = ["component", "name"]
-    s = pd.concat({c: m[f"{c}-s"].to_pandas() for c in comps}, axis=1, names=names)
-    lhs = []
-
     periods = sns.unique("period") if n._multi_invest else [None]
-
+    lhs = []
     for period in periods:
-        n.determine_network_topology(investment_period=period, skip_isolated_buses=True)
-
-        snapshots = sns if period is None else sns[sns.get_loc(period)]
-
-        exprs_list = []
-        for sub_network in n.sub_networks.obj:
-            branches = sub_network.branches()
-
-            if not sub_network.C.size:
-                continue
-
-            carrier = n.sub_networks.carrier[sub_network.name]
-            weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            C = 1e5 * sparse.diags(weightings.values) * sub_network.C
-
-            ssub = s.loc[snapshots, branches.index].values
-
-            ncycles = C.shape[1]
-
-            for j in range(ncycles):
-                c = C.getcol(j).tocoo()
-                coeffs = DataArray(c.data, dims="_term")
-                vars = DataArray(
-                    ssub[:, c.row],
-                    dims=("snapshot", "_term"),
-                    coords={"snapshot": snapshots},
-                )
-                ds = Dataset({"coeffs": coeffs, "vars": vars})
-                exprs_list.append(LinearExpression(ds, m))
-
-        if len(exprs_list):
-            exprs = merge(exprs_list, dim="cycles")
-            exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
-            lhs.append(exprs)
+        C = n.cycles(investment_period=period, apply_weights=True)
+        exprs = []
+        for c in C.index.unique("type"):
+            C_branch = DataArray(C.loc[c])
+            flow = m[f"{c}-s"].loc[sns, C_branch.indexes["component"]]
+            exprs.append(flow @ C_branch * 1e5)
+        lhs.append(sum(exprs))
 
     if len(lhs):
         lhs = merge(lhs, dim="snapshot")
-        m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
-    breakpoint()
+        m.add_constraints(lhs == 0, name="Kirchhoff-Voltage-Law")
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
