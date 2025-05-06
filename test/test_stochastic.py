@@ -38,6 +38,35 @@ def test_network_properties():
     assert "Scenarios:" in repr(n)
 
 
+def test_component_functions(n_stoch):
+    assert isinstance(n_stoch.branches(), pd.DataFrame)
+    assert isinstance(n_stoch.passive_branches(), pd.DataFrame)
+    assert isinstance(n_stoch.controllable_branches(), pd.DataFrame)
+
+
+def test_calculate_dependent_values(n_stoch: pypsa.Network):
+    """
+    Test the calculation of dependent values in a stochastic network.
+    This includes checking that the function runs without errors and that
+    the expected attributes are present in the network object.
+    """
+    n_stoch.calculate_dependent_values()
+    assert n_stoch.lines.x_pu_eff.notnull().all()
+
+
+def test_cycles(n_stoch: pypsa.Network):
+    C = n_stoch.cycles()
+
+    assert isinstance(C, pd.DataFrame)
+    assert C.notnull().all().all()  # Check for NaN values
+
+    # repeat with apply weights
+    n_stoch.calculate_dependent_values()
+    C = n_stoch.cycles(apply_weights=True)
+    assert isinstance(C, pd.DataFrame)
+    assert C.notnull().all().all()  # Check for NaN values
+
+
 def test_variable_dimensions():
     """Placeholder: verify that variables are cast to the correct dimensions."""
     pass
@@ -48,14 +77,12 @@ def test_scenario_constraints():
     pass
 
 
-def test_optimization_simple(n_stoch):
+def test_model_creation(n_stoch):
     """
     Simple test case for the optimization of a stochastic network.
     """
-    n_stoch.optimize.create_model()
     # Check that the optimization problem can be solved
-    # status, _ = n.optimize(solver_name="highs")
-    # assert status == "ok"
+    n_stoch.optimize.create_model()
 
 
 def test_solved_network_simple(stochastic_benchmark_network):

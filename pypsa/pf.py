@@ -995,8 +995,12 @@ def calculate_dependent_values(n: Network) -> None:
     apply_line_types(n)
     apply_transformer_types(n)
 
-    n.lines["v_nom"] = n.lines.bus0.map(n.buses.v_nom)
-    n.lines.loc[n.lines.carrier == "", "carrier"] = n.lines.bus0.map(n.buses.carrier)
+    buses = n.buses
+    if n.has_scenarios:
+        buses = buses.xs(n.scenarios.index[0], level="scenario")
+
+    n.lines["v_nom"] = n.lines.bus0.map(buses.v_nom)
+    n.lines.loc[n.lines.carrier == "", "carrier"] = n.lines.bus0.map(buses.carrier)
 
     n.lines["x_pu"] = n.lines.x / (n.lines.v_nom**2)
     n.lines["r_pu"] = n.lines.r / (n.lines.v_nom**2)
@@ -1015,13 +1019,13 @@ def calculate_dependent_values(n: Network) -> None:
 
     apply_transformer_t_model(n)
 
-    n.shunt_impedances["v_nom"] = n.shunt_impedances["bus"].map(n.buses.v_nom)
+    n.shunt_impedances["v_nom"] = n.shunt_impedances["bus"].map(buses.v_nom)
     n.shunt_impedances["b_pu"] = n.shunt_impedances.b * n.shunt_impedances.v_nom**2
     n.shunt_impedances["g_pu"] = n.shunt_impedances.g * n.shunt_impedances.v_nom**2
 
-    n.links.loc[n.links.carrier == "", "carrier"] = n.links.bus0.map(n.buses.carrier)
+    n.links.loc[n.links.carrier == "", "carrier"] = n.links.bus0.map(buses.carrier)
 
-    n.stores.loc[n.stores.carrier == "", "carrier"] = n.stores.bus.map(n.buses.carrier)
+    n.stores.loc[n.stores.carrier == "", "carrier"] = n.stores.bus.map(buses.carrier)
 
     update_linkports_component_attrs(n)
 
@@ -1384,6 +1388,11 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     Cycles with infinite impedance are skipped.
     """
     branches_bus0 = sub_network.branches()["bus0"]
+
+    if sub_network.has_scenarios:
+        first_scenario = sub_network.scenarios.index[0]
+        branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
+
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
