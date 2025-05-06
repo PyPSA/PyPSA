@@ -891,13 +891,27 @@ def define_nodal_balance_constraints(
 
     # Prepare the RHS
     loads = as_components(n, "Load")
-    loads_values = loads.as_xarray("p_set").where(loads.as_xarray("active", sns))
-    loads_values = loads_values.reindex(
-        component=loads.static.index.unique("component")
-    )
-    load_buses = loads.as_xarray("bus", drop_scenarios=True).rename("Bus")
-    rhs = loads_values.groupby(load_buses).sum().rename(Bus="component")
-    rhs = rhs.reindex(component=buses, fill_value=0)
+
+    if loads.static.empty:
+        rhs = DataArray(
+            0.0,
+            coords={"snapshot": sns, "component": buses},
+            dims=["snapshot", "component"],
+        )
+    else:
+        loads_values = loads.as_xarray("p_set").where(loads.as_xarray("active", sns))
+        loads_values = loads_values.reindex(
+            component=loads.static.index.unique("component")
+        )
+        load_buses = loads.as_xarray("bus", drop_scenarios=True).rename("Bus")
+
+        # group by bus, then reindex over *all* buses (fill zeros where no loads)
+        rhs = (
+            loads_values.groupby(load_buses)
+            .sum()
+            .rename(Bus="component")
+            .reindex(component=buses, fill_value=0)
+        )
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
 
