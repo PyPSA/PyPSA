@@ -81,8 +81,10 @@ def test_model_creation(n_stoch):
     """
     Simple test case for the optimization of a stochastic network.
     """
+    n = n_stoch
     # Check that the optimization problem can be solved
-    n_stoch.optimize.create_model()
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
 
 
 def test_solved_network_simple(stochastic_benchmark_network):

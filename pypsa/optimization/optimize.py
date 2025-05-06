@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from linopy import Model, merge
 from linopy.solvers import available_solvers
 from xarray import DataArray
@@ -413,6 +414,29 @@ def create_model(
     return n.model
 
 
+def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
+    """
+    # TODO move
+    """
+    # Get available dimensions
+    dims = set(da.dims)
+
+    if dims == {"component"} or dims == {"snapshot", "component"}:
+        return da.to_pandas()
+
+    elif dims == {"component", "snapshot", "scenario"}:
+        stacked = da.stack(combined=("component", "scenario"))
+        return stacked.to_pandas()
+
+    # Handle other cases
+    else:
+        available_dims = ", ".join(dims)
+        raise ValueError(
+            f"Unexpected combination of dimensions: {available_dims}. "
+            f"Expected some combination of 'snapshot', 'component', and 'scenario'."
+        )
+
+
 def assign_solution(n: Network) -> None:
     """
     Map solution to network components.
@@ -427,8 +451,9 @@ def assign_solution(n: Network) -> None:
 
         try:
             c, attr = name.split("-", 1)
-            df = sol.to_pandas()
+            df = from_xarray(sol)
         except ValueError:
+            # TODO Why is this needed?
             continue
 
         if "snapshot" in sol.dims:

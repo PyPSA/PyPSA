@@ -243,6 +243,18 @@ class Components(
         """
         return self.equals(other)
 
+    def __len__(self) -> int:
+        """
+        Get the number of components.
+
+        Returns
+        -------
+        int
+            Number of components.
+
+        """
+        return len(self.static)
+
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """
         Check if two Components are equal.
@@ -672,7 +684,6 @@ class Components(
             Index of extendable elements.
 
         """
-        index_name = self.name
         extendable_col = self.operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
             return self.static.iloc[:0].index
@@ -695,7 +706,6 @@ class Components(
             Index of non-extendable elements.
 
         """
-        index_name = self.name
         extendable_col = self.operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
             return self.static.iloc[:0].index
@@ -714,7 +724,6 @@ class Components(
             Index of committable elements.
 
         """
-        index_name = self.name
         if "committable" not in self.static:
             return self.static.iloc[:0].index
 
