@@ -554,6 +554,10 @@ def define_ramp_limit_constraints(
     m = n.model
     c = as_components(n, component)
 
+    # Fix for as_dynamic function breaking with scenarios. TODO fix it OR leave this if clause
+    if c.static.size == 0:
+        return
+
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
         return
 
@@ -844,7 +848,13 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus0", -1],
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
-        ["Link", "p", "bus1", links.as_xarray("efficiency", sns)],
+        [
+            "Link",
+            "p",
+            "bus1",
+            # dirty as hell, TODO make sure as_xarray handles case when links empty AND scenarios there
+            links.as_xarray("efficiency", sns) if not links.static.empty else 0,
+        ],
     ]
 
     if not links.empty:
