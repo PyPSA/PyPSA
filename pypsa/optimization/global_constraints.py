@@ -109,7 +109,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
     """
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
-    buses = n.buses.index[n.buses[cols].notnull().any(axis=1)].rename("Bus-nom_min_max")
+    buses = n.buses.index[n.buses[cols].notnull().any(axis=1)]
 
     for col in cols:
         msg = (

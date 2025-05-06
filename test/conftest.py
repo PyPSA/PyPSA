@@ -30,7 +30,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
 
 
-@pytest.fixture()
+@pytest.fixture
 def scipy_network():
     n = pypsa.examples.scigrid_de()
     n.generators.control = "PV"
@@ -47,11 +47,18 @@ def n():
 
 
 @pytest.fixture
+def n_stoch():
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    return n
+
+
+@pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 
 
-@pytest.fixture()  # scope="session")
+@pytest.fixture
 def ac_dc_network_r():
     csv_folder = os.path.join(
         os.path.dirname(__file__),
@@ -62,7 +69,7 @@ def ac_dc_network_r():
     return pypsa.Network(csv_folder)
 
 
-@pytest.fixture()
+@pytest.fixture
 def ac_dc_network_mi(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
@@ -73,7 +80,7 @@ def ac_dc_network_mi(ac_dc_network):
     return n
 
 
-@pytest.fixture()
+@pytest.fixture
 def ac_dc_network_shapes(ac_dc_network):
     n = ac_dc_network
 

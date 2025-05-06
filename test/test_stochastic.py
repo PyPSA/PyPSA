@@ -48,13 +48,11 @@ def test_scenario_constraints():
     pass
 
 
-def test_optimization_simple(ac_dc_network):
+def test_optimization_simple(n_stoch):
     """
     Simple test case for the optimization of a stochastic network.
     """
-    n = ac_dc_network
-    n.set_scenarios({"low": 0.5, "high": 0.5})
-
+    n_stoch.optimize.create_model()
     # Check that the optimization problem can be solved
     # status, _ = n.optimize(solver_name="highs")
     # assert status == "ok"
