@@ -100,6 +100,7 @@ class _ComponentsArray(_ComponentsABC):
         attr: str,
         snapshots: Sequence | None = None,
         inds: Sequence | None = None,
+        drop_scenarios: bool = False,
     ) -> xarray.DataArray:
         """
         Get an attribute as a xarray DataArray.
@@ -126,6 +127,9 @@ class _ComponentsArray(_ComponentsABC):
             or returns static data as-is
         inds : pd.Index | None, optional
             Component indices to filter by. If None, includes all components
+        drop_scenarios : bool, default False
+            If True, drops the scenario dimension from the resulting DataArray
+            by selecting the first scenario.
 
         Returns
         -------
@@ -159,19 +163,15 @@ class _ComponentsArray(_ComponentsABC):
             attr = self.operational_attrs[attr]
 
         if attr == "active":
-            res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
+            res = xarray.DataArray(self.get_activity_mask(snapshots))
         elif attr in self.dynamic.keys() or snapshots is not None:
-            res = self._as_dynamic(attr, snapshots, inds)
+            res = self._as_dynamic(attr, snapshots)
             if self.has_scenarios:
                 # TODO implement this better
                 res.columns.name = None
             res = xarray.DataArray(res)
         else:
-            if inds is not None:
-                data = self.static[attr].reindex(inds)
-            else:
-                data = self.static[attr]
-            res = xarray.DataArray(data)
+            res = xarray.DataArray(self.static[attr])
 
         # Rename dimension
         # res = res.rename({self.name: "component"})
@@ -179,12 +179,18 @@ class _ComponentsArray(_ComponentsABC):
         if self.has_scenarios:
             # untack the dimension that contains the scenarios
             res = res.unstack(res.indexes["scenario"].name)
+            if drop_scenarios:
+                res = res.isel(scenario=0, drop=True)
+
+        if inds is not None:
+            res = res.sel(component=inds)
 
         if self.has_periods:
             try:
                 res = res.rename(dim_0="snapshot")
             except ValueError:
                 pass
+
         res.name = attr
 
         return res

@@ -678,6 +678,10 @@ class Components(
             return pd.Index([], name=index_name)
 
         idx = self.static.loc[self.static[extendable_col]].index
+
+        if self.has_scenarios:
+            idx = idx.unique("component")
+
         return idx
 
     @property

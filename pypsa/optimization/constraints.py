@@ -82,7 +82,7 @@ def define_operational_constraints_for_non_extendables(
     """
     c = as_components(n, component)
     fix_i = c.fixed
-    fix_i = fix_i.difference(c.committables).rename(fix_i.name)
+    fix_i = fix_i.difference(c.committables)
 
     if fix_i.empty:
         return
@@ -151,8 +151,10 @@ def define_operational_constraints_for_extendables(
     ext_i = c.extendables
     if ext_i.empty:
         return
+    if isinstance(ext_i, pd.MultiIndex):
+        ext_i = ext_i.unique(level="component")
 
-    min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr, as_xarray=True)
+    min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr)
     dispatch = n.model[f"{c.name}-{attr}"].sel(component=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
     active = c.as_xarray("active", sns, ext_i)
@@ -825,7 +827,7 @@ def define_nodal_balance_constraints(
     """
     m = n.model
     if buses is None:
-        buses = as_components(n, "Bus").static.index
+        buses = n.buses.index.unique("component")
 
     links = as_components(n, "Link")
 
@@ -866,12 +868,12 @@ def define_nodal_balance_constraints(
             continue
 
         if "sign" in c.static:
-            sign = sign * c.static.sign
+            sign = sign * c.as_xarray("sign")
 
-        expr = DataArray(sign) * m[f"{c.name}-{attr}"]
+        expr = sign * m[f"{c.name}-{attr}"]
 
-        cbuses = c.as_xarray(column).rename("Bus")
-        cbuses = cbuses[cbuses.isin(buses)]
+        cbuses = c.as_xarray(column, drop_scenarios=True)
+        cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
 
         if not cbuses.size:
             continue
@@ -889,23 +891,13 @@ def define_nodal_balance_constraints(
 
     # Prepare the RHS
     loads = as_components(n, "Load")
-    active_loads = loads.static.query("active").index
-
-    if len(active_loads) > 0:
-        load_values = -loads.as_xarray(
-            "p_set", sns, inds=active_loads
-        ) * loads.as_xarray("sign", inds=active_loads)
-        load_buses = loads.as_xarray("bus", inds=active_loads)
-        rhs = load_values.groupby(load_buses).sum().rename(bus="component")
-
-        # Reindex to include all buses with zeros for missing buses
-        rhs = rhs.reindex(component=buses, fill_value=0)
-    else:
-        rhs = DataArray(
-            0,
-            coords={"snapshot": sns, "component": buses},
-            dims=["snapshot", "component"],
-        )
+    loads_values = loads.as_xarray("p_set").where(loads.as_xarray("active", sns))
+    loads_values = loads_values.reindex(
+        component=loads.static.index.unique("component")
+    )
+    load_buses = loads.as_xarray("bus", drop_scenarios=True).rename("Bus")
+    rhs = loads_values.groupby(load_buses).sum()
+    rhs = rhs.reindex(Bus=buses, fill_value=0)
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
 
@@ -1156,7 +1148,7 @@ def define_fixed_operation_constraints(
     c = as_components(n, component)
     attr_set = f"{attr}_set"
 
-    if attr_set not in c.dynamic.keys():
+    if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
         return
 
     fix = c.as_xarray(attr_set, sns)

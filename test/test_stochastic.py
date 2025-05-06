@@ -33,7 +33,7 @@ def test_network_properties():
 
     # Check data shape for each scenario
     for scenario in n.scenarios.index:
-        assert n.loads_t.p_set.loc[:, scenario].shape[0] == 5
+        assert n.get_switchable_as_dense("Load", "p_set").loc[:, scenario].shape[0] == 5
 
     # Check string representation contains scenario information
     assert "Scenarios:" in repr(n)
@@ -47,6 +47,18 @@ def test_variable_dimensions():
 def test_scenario_constraints():
     """Placeholder: ensure constraints expressions are correctly defined."""
     pass
+
+
+def test_optimization_simple(ac_dc_network):
+    """
+    Simple test case for the optimization of a stochastic network.
+    """
+    n = ac_dc_network
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+
+    # Check that the optimization problem can be solved
+    status, _ = n.optimize(solver_name="highs")
+    assert status == "ok"
 
 
 def test_solved_network_simple(stochastic_benchmark_network):
@@ -64,7 +76,6 @@ def test_solved_network_simple(stochastic_benchmark_network):
 
     # Create a new network for the stochastic model
     n = stochastic_benchmark_network
-
     # TODO
 
     # Check that it solves to optimality
