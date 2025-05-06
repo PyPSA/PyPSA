@@ -1338,7 +1338,6 @@ class Network(_NetworkIndex):
 
         for i in np.arange(n_components):
             # index of first bus
-            breakpoint()
             buses_i = (labels == i).nonzero()[0]
 
             if skip_isolated_buses and (len(buses_i) == 1):
