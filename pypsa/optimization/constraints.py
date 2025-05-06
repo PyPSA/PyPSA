@@ -991,6 +991,9 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     lhs = []
     for period in periods:
         C = n.cycles(investment_period=period, apply_weights=True)
+        if C.empty:
+            continue
+
         exprs = []
         for c in C.index.unique("type"):
             C_branch = DataArray(C.loc[c])

@@ -594,7 +594,11 @@ def post_processing(n: Network) -> None:
 
     # TODO: if multi investment optimization, the network topology is not the necessarily the same,
     # i.e. one has to iterate over the periods in order to get the correct angles.
+
     # Determine_network_topology is not necessarily called (only if KVL was assigned)
+    if n.sub_networks.empty:
+        n.determine_network_topology()
+
     if "obj" in n.sub_networks:
         n.buses_t.v_ang = pd.concat(
             [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
