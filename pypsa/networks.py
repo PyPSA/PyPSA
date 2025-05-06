@@ -1344,6 +1344,73 @@ class Network(_NetworkIndex):
             find_cycles(sub)
             sub.find_bus_controls()
 
+    def cycles(
+        self, investment_period: str | int | None = None, apply_weights: bool = False
+    ) -> pd.DataFrame:
+        """
+        Get the cycles in the network and represent them as a DataFrame.
+
+        This function identifies all cycles in the network topology and
+        returns a DataFrame representation of the cycle matrix. The cycles
+        matrix is a sparse matrix with branches as rows and independent
+        cycles as columns. An entry of +1 indicates the branch is traversed
+        in the direction from bus0 to bus1 in that cycle, -1 indicates
+        the opposite direction, and 0 indicates the branch is not part
+        of the cycle.
+
+        Parameters
+        ----------
+        investment_period : str or int, optional
+            Investment period to use when determining network topology.
+            If not given, all branches are considered regardless of
+            build_year and lifetime.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame with branches as rows (MultiIndex of (component, name))
+            and cycles as columns. Each column represents an independent cycle
+            in the network.
+
+        """
+        self.calculate_dependent_values()
+        self.determine_network_topology(
+            investment_period=investment_period, skip_isolated_buses=True
+        )
+
+        cycles = []
+
+        # Process each sub-network to find its cycles
+        for sub_network in self.sub_networks.obj:
+            branches = sub_network.branches_i()
+            branches.names = ["component", "name"]
+            if not hasattr(sub_network, "C") or not sub_network.C.size:
+                continue
+
+            # Convert sparse matrix to DataFrame
+            C = pd.DataFrame(sub_network.C.todense(), index=branches)
+            cycles.append(C)
+
+        if not cycles:
+            return pd.DataFrame()
+
+        # Combine all cycles and fill missing values with 0
+        cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
+
+        # Get all branch components
+        existing_branch_components = cycles_df.index.unique("component")
+        branches = self.branches()
+        branches_i = branches.loc[existing_branch_components].index
+
+        if apply_weights:
+            is_ac = branches.sub_network.map(self.sub_networks.carrier) == "AC"
+            weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
+            weights = weights[cycles_df.index]
+            cycles_df = cycles_df.multiply(weights, axis=0)
+
+        # Reindex to include all branches (even those not in cycles)
+        return cycles_df.reindex(branches_i, fill_value=0)
+
     @deprecated_in_next_major(
         details="Use `self.components.<component>` instead.",
     )
