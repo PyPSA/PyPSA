@@ -88,7 +88,7 @@ def define_operational_constraints_for_non_extendables(
         return
 
     nominal_fix = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
-    min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr, as_xarray=True)
+    min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr)
 
     lower = min_pu * nominal_fix
     upper = max_pu * nominal_fix
@@ -237,7 +237,7 @@ def define_operational_constraints_for_committables(
 
     # parameters
     nominal = c.as_xarray(c.operational_attrs["nom"], inds=com_i)
-    min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p", as_xarray=True)
+    min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p")
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
     min_up_time_set = c.as_xarray("min_up_time", inds=com_i)
@@ -896,8 +896,8 @@ def define_nodal_balance_constraints(
         component=loads.static.index.unique("component")
     )
     load_buses = loads.as_xarray("bus", drop_scenarios=True).rename("Bus")
-    rhs = loads_values.groupby(load_buses).sum()
-    rhs = rhs.reindex(Bus=buses, fill_value=0)
+    rhs = loads_values.groupby(load_buses).sum().rename(Bus="component")
+    rhs = rhs.reindex(component=buses, fill_value=0)
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
 
