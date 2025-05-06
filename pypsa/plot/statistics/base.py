@@ -21,6 +21,8 @@ class PlotsGenerator(ABC):
     to be implemented by subclasses.
     """
 
+    _n: Network
+
     def __init__(self, n: Network) -> None:
         """
         Initialize plot generator.

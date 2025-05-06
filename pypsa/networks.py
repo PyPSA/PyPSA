@@ -86,7 +86,7 @@ from pypsa.pf import (
 )
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
-from pypsa.statistics import StatisticsAccessor
+from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.typing import is_1d_list_like
 from pypsa.version import __version_semver__
 
@@ -1122,6 +1122,19 @@ class Network:
             )
         self._investment_period_weightings = df
 
+    @property
+    def _index_names(self) -> list[str]:
+        """
+        Compatibility property for NetworkCollection object.
+
+        Returns
+        -------
+        list of str
+            Empty list, since the Network class does not have any index names.
+
+        """
+        return []
+
     def add(
         self,
         class_name: str,
@@ -1141,8 +1154,7 @@ class Network:
         time-varying and indexed by snapshots.
         When multiple components are added, all non-scalar attributes are assumed to be
         static and indexed by names. A single value sequence is treated as scalar and
-        broadcasted to all components. It is recommended to explicitly pass a scalar
-        instead.
+        broadcasted to all components. It is recommended to explicitly pass a scalar instead.
         If you want to add time-varying attributes to multiple components, you can pass
         a 2D array/ DataFrame where the first dimension is snapshots and the second
         dimension is names.

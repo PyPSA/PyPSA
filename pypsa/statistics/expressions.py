@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
-
-from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
-
-if TYPE_CHECKING:
-    from pypsa import Network
 
 import pandas as pd
 
@@ -21,6 +17,7 @@ from pypsa.common import (
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import bus_carrier_unit, nominal_attrs
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
@@ -331,8 +328,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
         aggregate_time : None
             Deprecated. Use dedicated functions for individual statistics instead.
 
@@ -442,8 +439,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -541,8 +538,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -647,8 +644,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -761,8 +758,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -2194,3 +2191,118 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
+
+
+class StatisticsAccessorMulti:
+    """Statistical accessor for NetworkCollection objects that aggregates statistics across multiple networks."""
+
+    def __init__(self, networks: Any) -> None:
+        """
+        Initialize the statistics accessor for NetworkCollection object.
+
+        Parameters
+        ----------
+        networks : pypsa.NetworkCollection
+            The NetworkCollection object containing multiple network instances.
+
+        """
+        self._networks = networks
+        self._create_methods()
+
+    def __call__(self, *args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
+        """
+        Calculate statistical values across all networks in the NetworkCollection object.
+
+        This method maps the StatisticsAccessor.__call__ method across all networks
+        and combines the results with network indices as the outermost level.
+
+        Parameters
+        ----------
+        *args : Any
+            Arguments passed to the network.statistics.__call__ method.
+        **kwargs : Any
+            Keyword arguments passed to the network.statistics.__call__ method.
+
+        Returns
+        -------
+        pd.Series or pd.DataFrame
+            Combined statistics with network indices as the first level.
+
+        """
+        results = {}
+        for idx, network in zip(self._networks._networks.index, self._networks):
+            results[idx] = network.statistics(*args, **kwargs)
+
+        # Combine results into a multi-indexed DataFrame/Series
+        combined = pd.concat(
+            results, names=[self._networks._networks.index.name or "network"]
+        )
+
+        return combined
+
+    def _create_method(self, name: str) -> Callable:
+        """Create a method that applies a statistics method to all networks."""
+        orig_method = getattr(StatisticsAccessor, name)
+        method_name = name  # Store the name for use in the closure
+
+        # Create a function that will be wrapped in a StatisticHandler
+        def networks_method(*args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
+            """Method applied across all networks in the NetworkCollection object."""
+            # First argument should be self
+            self = args[0]
+            results = {}
+            for idx, network in zip(self._networks._networks.index, self._networks):
+                network_method = getattr(network.statistics, method_name)
+                results[idx] = network_method(*args[1:], **kwargs)
+
+            # Combine results into a multi-indexed DataFrame/Series
+            if results:
+                results_index_names = list(results.values())[0].index.names
+            else:
+                results_index_names = []
+            new_index_names = self._networks._index_names + results_index_names
+            combined = pd.concat(results, names=new_index_names)
+
+            # Copy over attributes from the last result if possible
+            if results and hasattr(list(results.values())[-1], "attrs"):
+                combined.attrs = list(results.values())[-1].attrs.copy()
+
+            return combined
+
+        # Add the original docstring with a note about the NetworkCollection version
+        doc_prefix = (
+            orig_method.__doc__
+            or f"Dynamically generated NetworkCollection accessor for {name}."
+        )
+        networks_method.__doc__ = (
+            doc_prefix.strip()
+            + "\n\n"
+            + (
+                "This method is applied across all networks in the NetworkCollection object. "
+                "Results are combined with a 'network' level in the index."
+            )
+        )
+
+        # Bind the method to the current instance
+        bound_method = functools.partial(networks_method, self)
+        bound_method.__name__ = name  # type: ignore
+
+        # Wrap the method in a StatisticHandler to provide plot/iplot attributes
+        wrapped_method = StatisticHandler(bound_method, self._networks)
+
+        return wrapped_method
+
+    def _create_methods(self) -> None:
+        """Dynamically create methods for StatisticsAccessor based on StatisticsAccessor methods."""
+        # Use the explicit list if available and reliable, otherwise fallback to dir()
+        method_names = getattr(StatisticsAccessor, "_methods", None)
+        if method_names is None:
+            method_names = [
+                name
+                for name in dir(StatisticsAccessor)
+                if not name.startswith("_")
+                and callable(getattr(StatisticsAccessor, name))
+            ]
+
+        for method_name in method_names:
+            setattr(self, method_name, self._create_method(method_name))
