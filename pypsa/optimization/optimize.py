@@ -33,6 +33,7 @@ from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
+    define_kirchhoff_voltage_constraints,
     define_loss_constraints,
     define_modular_constraints,
     define_nodal_balance_constraints,
@@ -111,7 +112,6 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     -----
     - The final objective expression is assigned to `n.model.objective`.
     - Applies snapshot and investment-period weightings to operational and capex terms.
-    - In the case of stochastic problem, scenario probabilities are applied as weightings to all cost (includes *all* investment terms).
     """
     m = n.model
     objective = []
@@ -123,9 +123,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # constant for already done investment
     nom_attr = nominal_attrs.items()
-    constant = None  # now xr.DataArray
-    terms = []
-
+    constant = 0
     for c_name, attr in nom_attr:
         c = as_components(n, c_name)
         ext_i = c.extendables
@@ -143,7 +141,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                # collapse time axis so capex value isn't broadcasted
+                # collapse time axis via any() so capex value isn’t broadcasted
                 active = (
                     c.as_xarray("active")
                     .sel(period=period, component=ext_i)
@@ -151,18 +149,14 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            # collapse time axis so capex value isn't broadcasted
+            # collapse time axis via any() so capex value isn’t broadcasted
             active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
-            terms.append((weighted_cost * nominal).sum(dim=["component"]))
-
-        constant = sum(terms)
+        constant += (weighted_cost * nominal).sum().item()
 
     n.objective_constant = constant
-    # constant is an xr.DataArray indexed by "scenario" -> build a single bool: “is there any non‐zero?”
-    has_const = (constant != 0).any().item()
-    if has_const:
+    if constant != 0:
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
@@ -190,13 +184,12 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             if cost.size == 0 or (cost == 0).all():
                 continue
 
-            # Apply snapshot weightings
             cost = cost * weight
 
             operation = m[var_name].sel(
                 snapshot=sns, component=cost.coords["component"].values
             )
-            objective.append((operation * cost).sum(dim=["component", "snapshot"]))
+            objective.append((operation * cost).sum())
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -214,9 +207,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         operation = m[f"{c.name}-{attr}"].sel(
             snapshot=sns, component=cost.coords["component"].values
         )
-        objective.append(
-            (operation * operation * cost).sum(dim=["component", "snapshot"])
-        )
+        objective.append((operation * operation * cost).sum())
         is_quadratic = True
 
     # stand-by cost
@@ -236,7 +227,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         status = m[f"{c.name}-status"].sel(
             snapshot=sns, component=stand_by_cost.coords["component"].values
         )
-        objective.append((status * stand_by_cost).sum(dim=["component", "snapshot"]))
+        objective.append((status * stand_by_cost).sum())
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -250,6 +241,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if capital_cost.size == 0 or (capital_cost == 0).all():
             continue
 
+        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
@@ -266,7 +258,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
-        objective.append((caps * weighted_cost).sum(dim=["component"]))
+        objective.append((caps * weighted_cost).sum())
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -283,7 +275,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         var = m[f"{c.name}-{attr}"].sel(component=com_i)
-        objective.append((var * cost).sum(dim=["component", "snapshot"]))
+        objective.append((var * cost).sum())
 
     if not len(objective):
         raise ValueError(
@@ -291,16 +283,11 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             "Please make sure the components have assigned costs."
         )
 
-    terms = []
-    if n.has_scenarios:
-        for s, p in n.scenarios.items():
-            selected = [e.sel(scenario=s) for e in objective]
-            merged = merge(selected)
-            terms.append(merged * p)
+    # Ensure we're returning the correct expression type (MGA compatibility)
+    if is_quadratic:
+        m.objective = sum(objective)  # sum for quadratic expressions
     else:
-        terms = objective
-
-    m.objective = sum(terms) if is_quadratic else merge(terms)
+        m.objective = merge(objective)  # merge for for linear expressions
 
 
 def create_model(
@@ -404,7 +391,7 @@ def create_model(
             n, sns, transmission_losses=transmission_losses
         )
 
-    # define_kirchhoff_voltage_constraints(n, sns)
+    define_kirchhoff_voltage_constraints(n, sns)
     define_storage_unit_constraints(n, sns)
     define_store_constraints(n, sns)
     define_total_supply_constraints(n, sns)

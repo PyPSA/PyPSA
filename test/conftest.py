@@ -235,6 +235,6 @@ def stochastic_benchmark_network():
             marginal_cost=mc,
         )
     # Set up scenarios
-    n.set_scenarios({"low": 0.4, "medium": 0.3, "high": 0.3})
+    n.set_scenarios({"low": 0.33, "medium": 0.34, "high": 0.33})
 
     return n
