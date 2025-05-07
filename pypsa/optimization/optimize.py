@@ -112,6 +112,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     -----
     - The final objective expression is assigned to `n.model.objective`.
     - Applies snapshot and investment-period weightings to operational and capex terms.
+    - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
     """
     m = n.model
     objective = []
@@ -124,6 +125,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # constant for already done investment
     nom_attr = nominal_attrs.items()
     constant = 0
+    terms = []
+
     for c_name, attr in nom_attr:
         c = as_components(n, c_name)
         ext_i = c.extendables
@@ -153,10 +156,16 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
-        constant += (weighted_cost * nominal).sum().item()
+            terms.append((weighted_cost * nominal).sum(dim=["component"]))
+
+        constant = sum(terms)
 
     n.objective_constant = constant
-    if constant != 0:
+    if n.has_scenarios:
+        has_const = (constant != 0).any().item()
+    else:
+        has_const = constant != 0
+    if has_const:
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
@@ -189,7 +198,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             operation = m[var_name].sel(
                 snapshot=sns, component=cost.coords["component"].values
             )
-            objective.append((operation * cost).sum())
+            objective.append((operation * cost).sum(dim=["component", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -207,7 +216,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         operation = m[f"{c.name}-{attr}"].sel(
             snapshot=sns, component=cost.coords["component"].values
         )
-        objective.append((operation * operation * cost).sum())
+        objective.append(
+            (operation * operation * cost).sum(dim=["component", "snapshot"])
+        )
         is_quadratic = True
 
     # stand-by cost
@@ -227,7 +238,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         status = m[f"{c.name}-status"].sel(
             snapshot=sns, component=stand_by_cost.coords["component"].values
         )
-        objective.append((status * stand_by_cost).sum())
+        objective.append((status * stand_by_cost).sum(dim=["component", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -258,7 +269,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
-        objective.append((caps * weighted_cost).sum())
+        objective.append((caps * weighted_cost).sum(dim=["component"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -275,7 +286,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         var = m[f"{c.name}-{attr}"].sel(component=com_i)
-        objective.append((var * cost).sum())
+        objective.append((var * cost).sum(dim=["component", "snapshot"]))
 
     if not len(objective):
         raise ValueError(
@@ -283,11 +294,18 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             "Please make sure the components have assigned costs."
         )
 
-    # Ensure we're returning the correct expression type (MGA compatibility)
-    if is_quadratic:
-        m.objective = sum(objective)  # sum for quadratic expressions
+    terms = []
+    if n.has_scenarios:
+        # Apply scenario probabilities as weights to the objective
+        for s, p in n.scenarios.items():
+            selected = [e.sel(scenario=s) for e in objective]
+            merged = merge(selected)
+            terms.append(merged * p)
     else:
-        m.objective = merge(objective)  # merge for for linear expressions
+        terms = objective
+
+    # Ensure we're returning the correct expression type (MGA compatibility)
+    m.objective = sum(terms) if is_quadratic else merge(terms)
 
 
 def create_model(
