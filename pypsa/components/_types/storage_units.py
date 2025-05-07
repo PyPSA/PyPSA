@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, overload
 
 import pandas as pd
 import xarray as xr
-from xarray import DataArray
 
 from pypsa.components.components import Components
 
@@ -33,31 +31,12 @@ class StorageUnits(Components):
     base_attr = "p"
     nominal_attr = "p_nom"
 
-    @overload
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
-        as_xarray: Literal[True] = True,
-    ) -> tuple[xr.DataArray, xr.DataArray]: ...
-
-    @overload
-    def get_bounds_pu(
-        self,
-        sns: Sequence,
-        index: pd.Index | None = None,
-        attr: str | None = None,
-        as_xarray: Literal[False] = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
-
-    def get_bounds_pu(
-        self,
-        sns: Sequence,
-        index: pd.Index | None = None,
-        attr: str | None = None,
-        as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         """
         Get per unit bounds for storage units.
 
@@ -69,13 +48,11 @@ class StorageUnits(Components):
             Subset of the component elements
         attr : string, optional
             Attribute name for the bounds, e.g. "p", "p_store", "state_of_charge"
-        as_xarray : bool, default False
-            If True, return xarray DataArrays instead of pandas DataFrames
 
         Returns
         -------
-        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
-            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (min_pu, max_pu) DataArrays.
 
         """
         max_pu = self.as_xarray("p_max_pu", sns, inds=index)
@@ -89,9 +66,5 @@ class StorageUnits(Components):
         else:
             max_pu = self.as_xarray("p_max_pu", snapshots=sns, inds=index)
             min_pu = xr.zeros_like(max_pu)
-
-        if not as_xarray:
-            min_pu = min_pu.to_dataframe()
-            max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu

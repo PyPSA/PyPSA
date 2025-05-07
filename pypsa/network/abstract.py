@@ -1,9 +1,4 @@
-"""
-Abstract components module.
-Contains classes and properties relevant to all component types in PyPSA. Also imports
-logic from other modules:
-- components.types
-"""
+"""#TODO."""
 
 from __future__ import annotations
 

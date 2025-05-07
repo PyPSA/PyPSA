@@ -64,7 +64,8 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.buses.index)
+        buses = n.buses.index.unique("component")
+        missing = ~component.static[attr].astype(str).isin(buses)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
@@ -140,7 +141,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.carriers.index)
+            ~component.static["carrier"].isin(n.carriers.index.unique("component"))
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )
@@ -925,3 +926,7 @@ def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> No
     for c in n.iterate_components():
         check_for_unknown_carriers(n, c, strict="unknown_carriers" in strict)
     check_for_missing_carrier_colors(n, strict="missing_carrier_colors" in strict)
+
+
+# TODO SCENARIOS
+# - add consistency check for scenarios changed after init and does not some up to 1

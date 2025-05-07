@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from linopy import Model, merge
 from linopy.solvers import available_solvers
 from xarray import DataArray
@@ -111,7 +112,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     -----
     - The final objective expression is assigned to `n.model.objective`.
     - Applies snapshot and investment-period weightings to operational and capex terms.
+    - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
     """
+    weighted_cost: xr.DataArray | int
     m = n.model
     objective = []
     is_quadratic = False
@@ -122,7 +125,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # constant for already done investment
     nom_attr = nominal_attrs.items()
-    constant = 0
+    constant: xr.DataArray | float = 0
+    terms = []
+
     for c_name, attr in nom_attr:
         c = as_components(n, c_name)
         ext_i = c.extendables
@@ -136,19 +141,32 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         nominal = c.as_xarray(attr, inds=ext_i)
 
+        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                # collapse time axis via any() so capex value isn't broadcasted
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, component=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            active = c.as_xarray("active").sel(component=ext_i)
-            weighted_cost = capital_cost * active  # type: ignore
+            # collapse time axis via any() so capex value isn’t broadcasted
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
 
-        constant += (weighted_cost * nominal).sum().item()
+            terms.append((weighted_cost * nominal).sum(dim=["component"]))
+
+        constant += sum(terms)
 
     n.objective_constant = constant
-    if constant != 0:
+    if n.has_scenarios:
+        has_const = isinstance(constant, xr.DataArray) and (constant != 0).any().item()
+    else:
+        has_const = constant != 0
+    if has_const:
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
@@ -181,7 +199,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             operation = m[var_name].sel(
                 snapshot=sns, component=cost.coords["component"].values
             )
-            objective.append((operation * cost).sum())
+            objective.append((operation * cost).sum(dim=["component", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -199,7 +217,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         operation = m[f"{c.name}-{attr}"].sel(
             snapshot=sns, component=cost.coords["component"].values
         )
-        objective.append((operation * operation * cost).sum())
+        objective.append(
+            (operation * operation * cost).sum(dim=["component", "snapshot"])
+        )
         is_quadratic = True
 
     # stand-by cost
@@ -219,7 +239,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         status = m[f"{c.name}-status"].sel(
             snapshot=sns, component=stand_by_cost.coords["component"].values
         )
-        objective.append((status * stand_by_cost).sum())
+        objective.append((status * stand_by_cost).sum(dim=["component", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -233,18 +253,24 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if capital_cost.size == 0 or (capital_cost == 0).all():
             continue
 
+        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                # collapse time axis via any() so capex value isn't broadcasted
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, component=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            active = c.as_xarray("active").sel(component=ext_i)
-            # we skip “active” here to avoid re-introducing the snapshot axis (and scaling capex)
-            weighted_cost = capital_cost  # type: ignore
+            # collapse time axis via any() so capex value isn't broadcasted
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
-        objective.append((caps * weighted_cost).sum())
+        objective.append((caps * weighted_cost).sum(dim=["component"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -261,7 +287,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         var = m[f"{c.name}-{attr}"].sel(component=com_i)
-        objective.append((var * cost).sum())
+        objective.append((var * cost).sum(dim=["component", "snapshot"]))
 
     if not len(objective):
         raise ValueError(
@@ -269,11 +295,18 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             "Please make sure the components have assigned costs."
         )
 
-    # Ensure we're returning the correct expression type (MGA compatibility)
-    if is_quadratic:
-        m.objective = sum(objective)  # sum for quadratic expressions
+    terms = []
+    if n.has_scenarios:
+        # Apply scenario probabilities as weights to the objective
+        for s, p in n.scenarios.items():
+            selected = [e.sel(scenario=s) for e in objective]
+            merged = merge(selected)
+            terms.append(merged * p)
     else:
-        m.objective = merge(objective)  # merge for for linear expressions
+        terms = objective
+
+    # Ensure we're returning the correct expression type (MGA compatibility)
+    m.objective = sum(terms) if is_quadratic else merge(terms)
 
 
 def create_model(
@@ -400,6 +433,35 @@ def create_model(
     return n.model
 
 
+def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
+    """
+    # TODO move
+    """
+    # Get available dimensions
+    dims = set(da.dims)
+
+    if dims == {"component"} or dims == {"snapshot", "component"}:
+        return da.to_pandas()
+
+    elif dims == {"component", "snapshot", "scenario"}:
+        df = (
+            da.transpose("component", "scenario", "snapshot")
+            .stack(combined=("scenario", "component"))
+            .to_pandas()
+        )
+
+        df.columns.name = None
+        return df
+
+    # Handle other cases
+    else:
+        available_dims = ", ".join([str(x) for x in dims])
+        raise ValueError(
+            f"Unexpected combination of dimensions: {available_dims}. "
+            f"Expected some combination of 'snapshot', 'component', and 'scenario'."
+        )
+
+
 def assign_solution(n: Network) -> None:
     """
     Map solution to network components.
@@ -414,8 +476,9 @@ def assign_solution(n: Network) -> None:
 
         try:
             c, attr = name.split("-", 1)
-            df = sol.to_pandas()
+            df = from_xarray(sol)
         except ValueError:
+            # TODO Why is this needed?
             continue
 
         if "snapshot" in sol.dims:
@@ -437,8 +500,11 @@ def assign_solution(n: Network) -> None:
             else:
                 set_from_frame(n, c, attr, df)
         elif attr != "n_mod":
-            idx = df.index.intersection(n.static(c).index)
-            n.static(c).loc[idx, attr + "_opt"] = df.loc[idx]
+            idx = df.index.intersection(n.components[c].component_names)
+            static = n.components[c].static
+            static.loc[:, attr + "_opt"] = static.index.get_level_values(
+                "component"
+            ).map(df.loc[idx])
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
@@ -560,7 +626,9 @@ def post_processing(n: Network) -> None:
     n.buses_t.p = (
         pd.concat(
             [
-                n.dynamic(c)[attr].mul(sign(c)).rename(columns=n.static(c)[group])
+                n.dynamic(c)[attr]
+                .mul(sign(c))
+                .rename(columns=n.static(c)[group], level="component")
                 for c, attr, group in ca
             ],
             axis=1,
@@ -581,11 +649,18 @@ def post_processing(n: Network) -> None:
 
     # TODO: if multi investment optimization, the network topology is not the necessarily the same,
     # i.e. one has to iterate over the periods in order to get the correct angles.
+
     # Determine_network_topology is not necessarily called (only if KVL was assigned)
-    if "obj" in n.sub_networks:
-        n.buses_t.v_ang = pd.concat(
-            [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-        ).reindex(columns=n.buses.index, fill_value=0.0)
+    # TODO comment it out for now
+    # if n.sub_networks.empty:
+    #     n.determine_network_topology()
+
+    # TODO fails right now and is only needed for pf
+
+    # if "obj" in n.sub_networks:
+    #     n.buses_t.v_ang = pd.concat(
+    #         [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
+    #     ).reindex(columns=n.buses.index, fill_value=0.0)
 
 
 def optimize(

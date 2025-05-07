@@ -66,6 +66,9 @@ def graph(
     else:
         raise TypeError("graph must be called with a Network or a SubNetwork")
 
+    if n.has_scenarios:
+        buses_i = buses_i.unique("component")
+
     graph = OrderedGraph()
 
     # add nodes first, in case there are isolated buses not connected with branches
@@ -74,8 +77,12 @@ def graph(
     # Multigraph uses the branch type and name as key
     def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
         for c in n.iterate_components(branch_components):
-            for branch in c.static.loc[
-                slice(None) if include_inactive else c.static.query("active").index
+            static = c.static
+            if n.has_scenarios:
+                static = c.static.loc[n.scenarios.index[0]]
+
+            for branch in static.loc[
+                slice(None) if include_inactive else static.query("active").index
             ].itertuples():
                 if weight is None:
                     data = {}
@@ -85,7 +92,6 @@ def graph(
                         if inf_weight is False:
                             continue
                         data["weight"] = inf_weight
-
                 yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
 
     graph.add_edges_from(gen_edges())
@@ -100,9 +106,9 @@ def adjacency_matrix(
     investment_period: int | str | None = None,
     busorder: pd.Index | None = None,
     weights: pd.Series | None = None,
-) -> sp.sparse.coo_matrix:
+) -> pd.DataFrame:
     """
-    Construct a sparse adjacency matrix (directed)
+    Construct an adjacency matrix (directed) as a pandas DataFrame
 
     Parameters
     ----------
@@ -118,8 +124,8 @@ def adjacency_matrix(
 
     Returns
     -------
-    adjacency_matrix : sp.sparse.coo_matrix
-       Directed adjacency matrix
+    adjacency_matrix : pd.DataFrame
+       Directed adjacency matrix as DataFrame with bus indices as both rows and columns
     """
     from pypsa import Network, SubNetwork
 
@@ -136,32 +142,38 @@ def adjacency_matrix(
     else:
         raise TypeError(" must be called with a Network or a SubNetwork")
 
-    no_buses = len(busorder)
-    no_branches = 0
-    bus0_inds = []
-    bus1_inds = []
-    weight_vals = []
+    # Initialize empty DataFrame with buses as both rows and columns
+    if n.has_scenarios:
+        busorder = busorder.unique("component")
+
+    dtype = int if weights is None else float
+    adjacency_df = pd.DataFrame(0, index=busorder, columns=busorder, dtype=dtype)
+
+    # Build adjacency matrix component by component
     for c in n.iterate_components(branch_components):
         active = c.get_active_assets(investment_period)
-        sel = c.static[active].index
+        sel = c.static[active].index.unique("component")
+        static = c.static.reindex(sel, level="component")
 
-        no_branches = len(c.static.loc[sel])
-        bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
-        weight_vals.append(
-            np.ones(no_branches) if weights is None else weights[c.name][sel].values
-        )
+        # Skip if no branches in this component
+        if len(static) == 0:
+            continue
 
-    if no_branches == 0:
-        return sp.sparse.coo_matrix((no_buses, no_buses))
+        # Get bus0 and bus1 from static data
+        bus0 = static.bus0
+        bus1 = static.bus1
 
-    bus0_inds = np.concatenate(bus0_inds)
-    bus1_inds = np.concatenate(bus1_inds)
-    weight_vals = np.concatenate(weight_vals)
+        # Set weights for these connections
+        if weights is None:
+            # Set default weights of 1 for all branches
+            for b0, b1 in zip(bus0, bus1):
+                adjacency_df.at[b0, b1] = 1
+        else:
+            # Use provided weights
+            for b0, b1, idx in zip(bus0, bus1, sel):
+                adjacency_df.at[b0, b1] = weights[c.name][idx]
 
-    return sp.sparse.coo_matrix(
-        (weight_vals, (bus0_inds, bus1_inds)), shape=(no_buses, no_buses)
-    )
+    return adjacency_df
 
 
 @deprecated_common_kwargs

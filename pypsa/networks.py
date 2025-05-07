@@ -10,6 +10,7 @@ from collections.abc import Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
+import xarray as xr
 from deprecation import deprecated
 
 from pypsa._options import option_context
@@ -205,7 +206,7 @@ class Network(_NetworkIndex):
     _multi_invest: int
     _linearized_uc: int
     objective: float
-    objective_constant: float
+    objective_constant: float | xr.DataArray
     iteration: int
 
     # Geospatial
@@ -312,6 +313,9 @@ class Network(_NetworkIndex):
             index=self.investment_periods, columns=cols
         )
 
+        self._scenarios: pd.Index = pd.Index([])
+        self._scenarios.name = "scenario"
+
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
@@ -348,7 +352,10 @@ class Network(_NetworkIndex):
             setattr(self, key, value)
 
     def __str__(self) -> str:
-        return f"PyPSA Network '{self.name}'" if self.name else "Unnamed PyPSA Network"
+        prefix = (
+            "Stochastic PyPSA Network" if not self._scenarios.empty else "PyPSA Network"
+        )
+        return f"{prefix} '{self.name}'" if self.name else f"Unnamed {prefix}"
 
     def __repr__(self) -> str:
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
@@ -364,7 +371,12 @@ class Network(_NetworkIndex):
             header = "Empty " + header
             content += " none"
         content += "\n"
+
         content += f"Snapshots: {len(self.snapshots)}"
+        content += "\n"
+
+        if not self._scenarios.empty:
+            content += f"Scenarios: {len(self._scenarios)}"
 
         return header + content
 
@@ -1239,26 +1251,62 @@ class Network(_NetworkIndex):
 
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
+    def _empty_components(self) -> list:
+        """
+        Returns a list of all components that are not empty.
+
+        Returns
+        -------
+        list
+            List of non-empty components.
+
+        """
+        return [c.name for c in self.iterate_components() if c.empty]
+
     def branches(self) -> pd.DataFrame:
+        comps = list(set(self.branch_components) - set(self._empty_components()))
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.branch_components),
-            keys=self.branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
-            names=["component", "name"],
+            names=names,
         )
 
     def passive_branches(self) -> pd.DataFrame:
+        comps = list(
+            set(self.passive_branch_components) - set(self._empty_components())
+        )
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.passive_branch_components),
-            keys=self.passive_branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
+            names=names,
         )
 
     def controllable_branches(self) -> pd.DataFrame:
+        comps = list(
+            set(self.controllable_branch_components) - set(self._empty_components())
+        )
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.controllable_branch_components),
-            keys=self.controllable_branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
+            names=names,
         )
 
     def determine_network_topology(
@@ -1280,7 +1328,7 @@ class Network(_NetworkIndex):
             investment_period=investment_period,
         )
         n_components, labels = csgraph.connected_components(
-            adjacency_matrix, directed=False
+            adjacency_matrix.values, directed=False
         )
 
         # remove all old sub_networks
@@ -1319,10 +1367,16 @@ class Network(_NetworkIndex):
             SubNetwork(self, name) for name in self.sub_networks.index
         ]
 
-        self.buses.loc[:, "sub_network"] = labels.astype(str)
+        if self.has_scenarios:
+            for s in self.scenarios.index:
+                self.buses.loc[s, "sub_network"] = labels.astype(str)
+            subnetwork_map = self.buses.sub_network.xs(s, level="scenario")
+        else:
+            self.buses.loc[:, "sub_network"] = labels.astype(str)
+            subnetwork_map = self.buses.sub_network
 
         for c in self.iterate_components(self.passive_branch_components):
-            c.static["sub_network"] = c.static.bus0.map(self.buses["sub_network"])
+            c.static["sub_network"] = c.static.bus0.map(subnetwork_map)
 
             if investment_period is not None:
                 active = get_active_assets(self, c.name, investment_period)
@@ -1332,6 +1386,83 @@ class Network(_NetworkIndex):
         for sub in self.sub_networks.obj:
             find_cycles(sub)
             sub.find_bus_controls()
+
+    def cycles(
+        self, investment_period: str | int | None = None, apply_weights: bool = False
+    ) -> pd.DataFrame:
+        """
+        Get the cycles in the network and represent them as a DataFrame.
+
+        This function identifies all cycles in the network topology and
+        returns a DataFrame representation of the cycle matrix. The cycles
+        matrix is a sparse matrix with branches as rows and independent
+        cycles as columns. An entry of +1 indicates the branch is traversed
+        in the direction from bus0 to bus1 in that cycle, -1 indicates
+        the opposite direction, and 0 indicates the branch is not part
+        of the cycle.
+
+        Parameters
+        ----------
+        investment_period : str or int, optional
+            Investment period to use when determining network topology.
+            If not given, all branches are considered regardless of
+            build_year and lifetime.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame with branches as rows (MultiIndex of (component, name))
+            and cycles as columns. Each column represents an independent cycle
+            in the network.
+
+        """
+        self.determine_network_topology(
+            investment_period=investment_period, skip_isolated_buses=True
+        )
+        self.calculate_dependent_values()
+
+        cycles = []
+
+        # Process each sub-network to find its cycles
+        for sub_network in self.sub_networks.obj:
+            branches = sub_network.branches()
+
+            if self.has_scenarios:
+                branches = branches.xs(self.scenarios.index[0], level="scenario")
+
+            branches_i = branches.index
+            branches_i.names = ["type", "component"]
+            if not hasattr(sub_network, "C") or not sub_network.C.size:
+                continue
+
+            # Convert sparse matrix to DataFrame
+            C = pd.DataFrame(sub_network.C.todense(), index=branches_i)
+            cycles.append(C)
+
+        if not cycles:
+            return pd.DataFrame()
+
+        # Combine all cycles and fill missing values with 0
+        cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
+
+        # Get all branch components
+        existing_branch_components = cycles_df.index.unique("type")
+        branches = self.branches()
+
+        if self.has_scenarios:
+            branches = branches.xs(self.scenarios.index[0], level="scenario")
+
+        branches.index.names = ["type", "component"]
+        branches_i = branches.loc[existing_branch_components].index
+
+        if apply_weights:
+            is_ac = branches.sub_network.map(self.sub_networks.carrier) == "AC"
+            weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
+            weights = weights[cycles_df.index]
+            cycles_df = cycles_df.multiply(weights, axis=0)
+
+        # Reindex to include all branches (even those not in cycles)
+        return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
 
     @deprecated_in_next_major(
         details="Use `self.components.<component>` instead.",
@@ -1513,11 +1644,20 @@ class SubNetwork:
     def investment_period_weightings(self) -> pd.DataFrame:
         return self.n.investment_period_weightings
 
+    @property
+    def scenarios(self) -> pd.Series:
+        return self.n.scenarios
+
+    @property
+    def has_scenarios(self) -> bool:
+        return self.n.has_scenarios
+
     def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
         types = []
         names = []
         for c in self.iterate_components(self.n.passive_branch_components):
-            idx = c.static.query("active").index if active_only else c.static.index
+            static = c.static
+            idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
             names += list(idx)
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))

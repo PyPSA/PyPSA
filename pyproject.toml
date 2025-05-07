@@ -32,7 +32,7 @@ dependencies = [
     "pandas>=0.24",
     "xarray",
     "netcdf4",
-    "linopy>=0.4",
+    "linopy>=0.5.5",
     "matplotlib",
     "plotly",
     "seaborn",
@@ -49,7 +49,7 @@ Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
 
 [project.optional-dependencies]
-hdf5 = ["tables; python_version < '3.13'"]
+hdf5 = ["tables"]
 cartopy = ["cartopy>=0.16"]
 excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
