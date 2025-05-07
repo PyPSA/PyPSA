@@ -15,17 +15,17 @@ class TestNetworkScenarioIndex:
 
     def test_dict_with_weights(self, n):
         """Test that an error is raised when a dict is provided with weights."""
-        with pytest.raises(ValueError, match="When passing a dict or pandas.Series"):
+        with pytest.raises(ValueError, match="You can pass scenarios either via"):
             n.set_scenarios(scenarios={"a": 1, "b": 2}, weights=[1, 2])
 
     def test_series_with_weights(self, n):
         """Test that an error is raised when a Series is provided with weights."""
-        with pytest.raises(ValueError, match="When passing a dict or pandas.Series"):
+        with pytest.raises(ValueError, match="You can pass scenarios either via"):
             n.set_scenarios(scenarios=pd.Series({"a": 1, "b": 2}), weights=[1, 2])
 
     def test_mismatched_weights_length(self, n):
         """Test that an error is raised when weights length doesn't match scenarios length."""
-        with pytest.raises(ValueError, match="Length of `weights` must be equal"):
+        with pytest.raises(ValueError, match="You can pass scenarios either via"):
             n.set_scenarios(scenarios=["a", "b", "c"], weights=[1, 2])
 
     def test_dict_scenarios(self, n):
@@ -43,9 +43,9 @@ class TestNetworkScenarioIndex:
 
     def test_sequence_scenarios(self, n):
         """Test setting scenarios from a sequence with weights."""
-        n.set_scenarios(scenarios=["scenario1", "scenario2"], weights=[0.3, 0.7])
+        n.set_scenarios(scenarios=["scenario1", "scenario2"])
         expected = pd.Series(
-            [0.3, 0.7], index=["scenario1", "scenario2"], name="scenario"
+            [0.5, 0.5], index=["scenario1", "scenario2"], name="scenario"
         )
         pd.testing.assert_series_equal(n.scenarios, expected)
 

@@ -10,6 +10,7 @@ from collections.abc import Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
+import xarray as xr
 from deprecation import deprecated
 
 from pypsa._options import option_context
@@ -205,7 +206,7 @@ class Network(_NetworkIndex):
     _multi_invest: int
     _linearized_uc: int
     objective: float
-    objective_constant: float
+    objective_constant: float | xr.DataArray
     iteration: int
 
     # Geospatial

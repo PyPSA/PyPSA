@@ -475,8 +475,7 @@ class _NetworkIndex(_NetworkABC):
 
     def set_scenarios(
         self,
-        scenarios: dict | pd.Series | Sequence | None = None,
-        weights: float | pd.Series | None = None,
+        scenarios: dict | Sequence | pd.Series | None = None,
         **kwargs: Any,
     ) -> None:
         # Validate input
@@ -487,35 +486,24 @@ class _NetworkIndex(_NetworkABC):
             )
             # TODO
             raise NotImplementedError(msg)
-        if scenarios is None and weights is None and not kwargs:
+        if scenarios is None and not kwargs:
             msg = (
-                "You must pass either `scenarios` (with weights) or keyword arguments "
+                "You must pass either `scenarios` or keyword arguments "
                 "to set_scenarios."
             )
             raise ValueError(msg)
-        if kwargs and (scenarios is not None or weights is not None):
+        if kwargs and scenarios is not None:
             msg = (
-                "You can pass scenarios either via `scenarios`/`weights` or via "
+                "You can pass scenarios either via `scenarios` or via "
                 "keyword arguments, but not both."
             )
-            raise ValueError(msg)
-        if isinstance(scenarios, dict | pd.Series) and weights is not None:
-            msg = (
-                "When passing a dict or pandas.Series to `scenarios`, their values "
-                "are used as weights. Therefore `weights` must be None."
-            )
-            raise ValueError(msg)
-        if weights is not None and len(weights) != len(scenarios):
-            msg = "Length of `weights` must be equal to the length of `scenarios`."
             raise ValueError(msg)
 
         if isinstance(scenarios, dict):
             scenarios = pd.Series(scenarios)
         elif isinstance(scenarios, pd.Series):
             pass
-        elif isinstance(scenarios, Sequence) and weights is not None:
-            scenarios = pd.Series(weights, index=scenarios)
-        elif isinstance(scenarios, Sequence) and weights is None:
+        elif isinstance(scenarios, Sequence):
             scenarios = pd.Series(
                 [1 / len(scenarios)] * len(scenarios), index=scenarios
             )

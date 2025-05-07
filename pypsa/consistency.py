@@ -926,3 +926,7 @@ def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> No
     for c in n.iterate_components():
         check_for_unknown_carriers(n, c, strict="unknown_carriers" in strict)
     check_for_missing_carrier_colors(n, strict="missing_carrier_colors" in strict)
+
+
+# TODO SCENARIOS
+# - add consistency check for scenarios changed after init and does not some up to 1

@@ -114,6 +114,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     - Applies snapshot and investment-period weightings to operational and capex terms.
     - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
     """
+    weighted_cost: xr.DataArray | int
     m = n.model
     objective = []
     is_quadratic = False
@@ -124,7 +125,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # constant for already done investment
     nom_attr = nominal_attrs.items()
-    constant = 0
+    constant: xr.DataArray | float = 0
     terms = []
 
     for c_name, attr in nom_attr:
@@ -144,7 +145,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                # collapse time axis via any() so capex value isn’t broadcasted
+                # collapse time axis via any() so capex value isn't broadcasted
                 active = (
                     c.as_xarray("active")
                     .sel(period=period, component=ext_i)
@@ -158,11 +159,11 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
             terms.append((weighted_cost * nominal).sum(dim=["component"]))
 
-        constant = sum(terms)
+        constant += sum(terms)
 
     n.objective_constant = constant
     if n.has_scenarios:
-        has_const = (constant != 0).any().item()
+        has_const = isinstance(constant, xr.DataArray) and (constant != 0).any().item()
     else:
         has_const = constant != 0
     if has_const:
@@ -256,7 +257,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                # collapse time axis via any() so capex value isn’t broadcasted
+                # collapse time axis via any() so capex value isn't broadcasted
                 active = (
                     c.as_xarray("active")
                     .sel(period=period, component=ext_i)
@@ -264,7 +265,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            # collapse time axis via any() so capex value isn’t broadcasted
+            # collapse time axis via any() so capex value isn't broadcasted
             active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
@@ -454,7 +455,7 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
 
     # Handle other cases
     else:
-        available_dims = ", ".join(dims)
+        available_dims = ", ".join([str(x) for x in dims])
         raise ValueError(
             f"Unexpected combination of dimensions: {available_dims}. "
             f"Expected some combination of 'snapshot', 'component', and 'scenario'."
