@@ -47,7 +47,7 @@ def n():
 
 
 @pytest.fixture
-def n_stoch():
+def ac_dc_meshed_stoch():
     n = pypsa.examples.ac_dc_meshed()
     n.set_scenarios({"low": 0.5, "high": 0.5})
     return n

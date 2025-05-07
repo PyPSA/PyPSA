@@ -38,31 +38,33 @@ def test_network_properties():
     assert "Scenarios:" in repr(n)
 
 
-def test_component_functions(n_stoch):
-    assert isinstance(n_stoch.branches(), pd.DataFrame)
-    assert isinstance(n_stoch.passive_branches(), pd.DataFrame)
-    assert isinstance(n_stoch.controllable_branches(), pd.DataFrame)
+def test_component_functions(ac_dc_meshed_stoch):
+    assert isinstance(ac_dc_meshed_stoch.branches(), pd.DataFrame)
+    assert isinstance(ac_dc_meshed_stoch.passive_branches(), pd.DataFrame)
+    assert isinstance(ac_dc_meshed_stoch.controllable_branches(), pd.DataFrame)
 
 
-def test_calculate_dependent_values(n_stoch: pypsa.Network):
+def test_calculate_dependent_values(ac_dc_meshed_stoch: pypsa.Network):
     """
     Test the calculation of dependent values in a stochastic network.
     This includes checking that the function runs without errors and that
     the expected attributes are present in the network object.
     """
-    n_stoch.calculate_dependent_values()
-    assert n_stoch.lines.x_pu_eff.notnull().all()
+    n = ac_dc_meshed_stoch
+    n.calculate_dependent_values()
+    assert n.lines.x_pu_eff.notnull().all()
 
 
-def test_cycles(n_stoch: pypsa.Network):
-    C = n_stoch.cycles()
+def test_cycles(ac_dc_meshed_stoch: pypsa.Network):
+    n = ac_dc_meshed_stoch
+    C = n.cycles()
 
     assert isinstance(C, pd.DataFrame)
     assert C.notnull().all().all()  # Check for NaN values
 
     # repeat with apply weights
-    n_stoch.calculate_dependent_values()
-    C = n_stoch.cycles(apply_weights=True)
+    n.calculate_dependent_values()
+    C = n.cycles(apply_weights=True)
     assert isinstance(C, pd.DataFrame)
     assert C.notnull().all().all()  # Check for NaN values
 
@@ -77,12 +79,34 @@ def test_scenario_constraints():
     pass
 
 
-def test_model_creation(n_stoch):
+def test_model_creation(ac_dc_meshed_stoch):
     """
     Simple test case for the optimization of a stochastic network.
     """
-    n = n_stoch
+    n = ac_dc_meshed_stoch
+    n.optimize.create_model()
+    # n.optimize.solve_model()
     # Check that the optimization problem can be solved
+    # status, _ = n.optimize(solver_name="highs")
+    # assert status == "ok"
+
+
+def test_optimization_simple(ac_dc_meshed_stoch):
+    """
+    Simple test case for the optimization of a stochastic network.
+    """
+    n = ac_dc_meshed_stoch
+    n.optimize.create_model()
+    status, _ = n.optimize(solver_name="highs")
+    # assert status == "ok"
+
+
+def test_optimization_advanced(storage_hvdc_network):
+    """
+    Advanced test case for the optimization of a stochastic network.
+    """
+    n = storage_hvdc_network
+    n.set_scenarios({"low": 0.5, "high": 0.5})
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
@@ -101,8 +125,17 @@ def test_solved_network_simple(stochastic_benchmark_network):
     # n_r = pypsa.Network(benchmark_path)
 
     # Create a new network for the stochastic model
-    # n = stochastic_benchmark_network
-    # TODO
+    n = stochastic_benchmark_network
+
+    # GAS_PRICES = {"low": 40, "med": 70, "high": 100}
+    n.generators.loc[("medium", "gas"), "marginal_cost"] = (
+        70 / n.generators.loc[("medium", "gas"), "efficiency"]
+    )
+    n.generators.loc[("high", "gas"), "marginal_cost"] = (
+        100 / n.generators.loc[("high", "gas"), "efficiency"]
+    )
+
+    n.optimize.create_model()
 
     # # Check that it solves to optimality
     # status, _ = n.optimize(solver_name="highs")
