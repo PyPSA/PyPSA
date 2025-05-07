@@ -321,7 +321,6 @@ class AbstractStatisticsAccessor(ABC):
         for p in n.investment_periods:
             mask = n.get_active_assets(c, p)
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
-
         return self._concat_periods(per_period, c)
 
     def _filter_bus_carrier(

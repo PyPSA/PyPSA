@@ -206,6 +206,28 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _aggregate_components_groupby(
         self, vals: pd.DataFrame, grouping: dict, agg: Callable | str
     ) -> pd.DataFrame:
+        if isinstance(vals.index, pd.MultiIndex):
+            levels = vals.index.names
+            keep_levels = [l for l in levels if l != "component"]
+            grouping_df = grouping["by"]
+            if isinstance(grouping_df, pd.Series):
+                grouping_df = grouping_df.to_frame()
+            elif isinstance(grouping_df, list):
+                grouping_df = pd.concat(grouping_df, axis=1)
+            elif not isinstance(grouping_df, pd.DataFrame):
+                raise ValueError("grouping_df must be a DataFrame or Series")
+
+            was_series = False
+            if isinstance(vals, pd.Series):
+                vals = vals.rename("value").to_frame()
+                was_series = True
+
+            res = (
+                vals.assign(**grouping_df)
+                .groupby([*keep_levels, *grouping_df.columns])
+                .agg(agg)
+            )
+            return res["value"] if was_series else res
         return vals.groupby(**grouping).agg(agg)
 
     def _aggregate_components_concat_values(

@@ -141,7 +141,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.carriers.index)
+            ~component.static["carrier"].isin(n.carriers.index.unique("component"))
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )

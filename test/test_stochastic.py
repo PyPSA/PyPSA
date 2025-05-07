@@ -86,10 +86,39 @@ def test_model_creation(ac_dc_meshed_stoch):
     """
     n = ac_dc_meshed_stoch
     n.optimize.create_model()
-    # n.optimize.solve_model()
-    # Check that the optimization problem can be solved
-    # status, _ = n.optimize(solver_name="highs")
-    # assert status == "ok"
+
+
+def test_statistics(ac_dc_meshed_stoch_r):
+    """
+    Test the statistics of a stochastic network.
+    """
+    n = ac_dc_meshed_stoch_r
+    ds = n.statistics.installed_capacity()
+    assert isinstance(ds, pd.Series)
+    assert isinstance(ds.index, pd.MultiIndex)
+    assert "scenario" in ds.index.names
+    assert not ds.empty
+
+    stats = n.statistics()
+    assert isinstance(stats, pd.DataFrame)
+    assert isinstance(stats.index, pd.MultiIndex)
+    assert "scenario" in ds.index.names
+    assert not stats.empty
+
+    df = n.statistics.supply(aggregate_time=False)
+    assert isinstance(df, pd.DataFrame)
+    assert isinstance(df.index, pd.MultiIndex)
+    assert "scenario" in df.index.names
+    assert not df.empty
+
+
+def test_statistics_plot(ac_dc_meshed_stoch_r):
+    """
+    Test the statistics plot of a stochastic network.
+    """
+    n = ac_dc_meshed_stoch_r
+    s = n.statistics
+    s.installed_capacity.plot.bar()
 
 
 def test_optimization_simple(ac_dc_meshed_stoch):
@@ -99,7 +128,7 @@ def test_optimization_simple(ac_dc_meshed_stoch):
     n = ac_dc_meshed_stoch
     n.optimize.create_model()
     status, _ = n.optimize(solver_name="highs")
-    # assert status == "ok"
+    assert status == "ok"
 
 
 def test_optimization_advanced(storage_hvdc_network):

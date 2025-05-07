@@ -54,6 +54,13 @@ def ac_dc_meshed_stoch():
 
 
 @pytest.fixture
+def ac_dc_meshed_stoch_r(ac_dc_network_r):
+    n = ac_dc_network_r.copy()
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    return n
+
+
+@pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 
