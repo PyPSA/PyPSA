@@ -990,6 +990,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     periods = sns.unique("period") if n._multi_invest else [None]
     lhs = []
     for period in periods:
+        snapshots = sns if period is None else sns[sns.get_loc(period)]
         C = n.cycles(investment_period=period, apply_weights=True)
         if C.empty:
             continue
@@ -998,7 +999,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         for c in C.index.unique("type"):
             C_branch = DataArray(C.loc[c])
             flow = m[f"{c}-s"].sel(
-                snapshot=sns, component=C_branch.indexes["component"]
+                snapshot=snapshots, component=C_branch.indexes["component"]
             )
             exprs.append(flow @ C_branch * 1e5)
         lhs.append(sum(exprs))
