@@ -501,9 +501,9 @@ def assign_solution(n: Network) -> None:
         elif attr != "n_mod":
             idx = df.index.intersection(n.components[c].component_names)
             static = n.components[c].static
-            static.loc[:, "p_nom_opt"] = static.index.get_level_values("component").map(
-                df.loc[idx]
-            )
+            static.loc[:, attr + "_opt"] = static.index.get_level_values(
+                "component"
+            ).map(df.loc[idx])
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:

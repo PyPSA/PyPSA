@@ -60,6 +60,11 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def has_periods(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
     def investment_periods(self) -> pd.Index:
         pass
 
