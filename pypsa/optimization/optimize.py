@@ -499,8 +499,11 @@ def assign_solution(n: Network) -> None:
             else:
                 set_from_frame(n, c, attr, df)
         elif attr != "n_mod":
-            idx = df.index.intersection(n.static(c).index)
-            n.static(c).loc[idx, attr + "_opt"] = df.loc[idx]
+            idx = df.index.intersection(n.components[c].component_names)
+            static = n.components[c].static
+            static.loc[:, "p_nom_opt"] = static.index.get_level_values("component").map(
+                df.loc[idx]
+            )
 
     # if nominal capacity was no variable set optimal value to nominal
     for c, attr in lookup.query("nominal").index:
@@ -647,8 +650,9 @@ def post_processing(n: Network) -> None:
     # i.e. one has to iterate over the periods in order to get the correct angles.
 
     # Determine_network_topology is not necessarily called (only if KVL was assigned)
-    if n.sub_networks.empty:
-        n.determine_network_topology()
+    # TODO comment it out for now
+    # if n.sub_networks.empty:
+    #     n.determine_network_topology()
 
     # TODO fails right now and is only needed for pf
 
