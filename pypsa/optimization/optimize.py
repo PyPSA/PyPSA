@@ -438,8 +438,14 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
         return da.to_pandas()
 
     elif dims == {"component", "snapshot", "scenario"}:
-        stacked = da.stack(combined=("component", "scenario"))
-        return stacked.to_pandas()
+        df = (
+            da.transpose("component", "scenario", "snapshot")
+            .stack(combined=("scenario", "component"))
+            .to_pandas()
+        )
+
+        df.columns.name = None
+        return df
 
     # Handle other cases
     else:
@@ -611,7 +617,9 @@ def post_processing(n: Network) -> None:
     n.buses_t.p = (
         pd.concat(
             [
-                n.dynamic(c)[attr].mul(sign(c)).rename(columns=n.static(c)[group])
+                n.dynamic(c)[attr]
+                .mul(sign(c))
+                .rename(columns=n.static(c)[group], level="component")
                 for c, attr, group in ca
             ],
             axis=1,
@@ -637,10 +645,12 @@ def post_processing(n: Network) -> None:
     if n.sub_networks.empty:
         n.determine_network_topology()
 
-    if "obj" in n.sub_networks:
-        n.buses_t.v_ang = pd.concat(
-            [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-        ).reindex(columns=n.buses.index, fill_value=0.0)
+    # TODO fails right now and is only needed for pf
+
+    # if "obj" in n.sub_networks:
+    #     n.buses_t.v_ang = pd.concat(
+    #         [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
+    #     ).reindex(columns=n.buses.index, fill_value=0.0)
 
 
 def optimize(

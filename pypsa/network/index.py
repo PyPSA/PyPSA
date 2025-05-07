@@ -480,6 +480,13 @@ class _NetworkIndex(_NetworkABC):
         **kwargs: Any,
     ) -> None:
         # Validate input
+        if self.has_scenarios:
+            msg = (
+                "Changing scenarios on a network that already has scenarios defined is not "
+                "yet supported."
+            )
+            # TODO
+            raise NotImplementedError(msg)
         if scenarios is None and weights is None and not kwargs:
             msg = (
                 "You must pass either `scenarios` (with weights) or keyword arguments "
