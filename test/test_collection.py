@@ -125,6 +125,17 @@ def test_collection_index_names(network1, network2):
     assert collection_multi._index_names == ["scenario", "year"]
 
 
+def test_collection_not_implemented_members(network1, network2):
+    """Test that not implemented members raise NotImplementedError."""
+    collection = pypsa.NetworkCollection([network1, network2])
+    with pytest.raises(NotImplementedError):
+        collection.add("Generator", "gen", bus="bus1", p_nom=100)
+    with pytest.raises(NotImplementedError):
+        collection.remove("Generator", "gen")
+    with pytest.raises(NotImplementedError):
+        collection.set_snapshots([0, 1, 2])
+
+
 def test_collection_carriers_property(network1, network2, network3):
     """Test the carriers property."""
     collection = pypsa.NetworkCollection([network1, network2, network3])
@@ -210,6 +221,6 @@ def test_collection_statistics_nonexistent_method(network1):
     collection = pypsa.NetworkCollection([network1])
     with pytest.raises(
         AttributeError,
-        match="'StatisticsAccessor' object has no attribute 'nonexistent_method'",
+        match="Only members as they are defined in any Network class can be accessed.",
     ):
-        collection.statistics.nonexistent_method()
+        collection.nonexistent_method()

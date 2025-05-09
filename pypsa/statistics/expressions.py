@@ -108,7 +108,7 @@ class StatisticHandler:
     """
     Statistic method handler.
 
-    This class wraps a statistic method and provides a callable instance. To the get
+    This class wraps a statistic method and provides a callable instance. To get
     the statistic output as a DataFrame, call the instance with the desired arguments.
 
     See Also

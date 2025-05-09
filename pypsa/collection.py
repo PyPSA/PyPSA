@@ -53,7 +53,9 @@ class NetworkCollection:
         try:
             return MemberProxy(self, lambda n: getattr(n, name), name)
         except AttributeError as e:
-            msg = "Only attributes as they are defined in the Network class can be accessed."
+            msg = (
+                "Only members as they are defined in any Network class can be accessed."
+            )
             raise AttributeError(msg) from e
 
     def __getitem__(self, key: Any) -> Any:
@@ -126,17 +128,15 @@ class MemberProxy:
 
     # Method patterns for special handling
     _method_patterns = {
-        "basic_concat": (
-            r"^"  # Start of string
-            # Static component dataframes
-            r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
-            r"transformers|transformer_types|links|loads|generators|storage_units|"
-            r"stores|shunt_impedances|shapes|"
-            # statistics and all statistics expressions
-            r"statistics|"
-            r"statistics\.[^\.\s]+)"
-            r"$",  # End of string
-        ),
+        "basic_concat": r"^"  # Start of string
+        # Static component dataframes
+        r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
+        r"transformers|transformer_types|links|loads|generators|storage_units|"
+        r"stores|shunt_impedances|shapes|"
+        # statistics and all statistics expressions
+        r"statistics|"
+        r"statistics\.[^\.\s]+)"
+        r"$",  # End of string
     }
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
@@ -152,14 +152,9 @@ class MemberProxy:
         # Immediately end recursion for non callable returns
         first_accessor = instance.accessor_func(instance.collection.networks[0])
         if not callable(first_accessor):
-            if instance.accessor_path:
-                # Check for pattern-based method processor
-                for processor_name, pattern in instance._method_patterns.items():
-                    if re.match(pattern, instance.accessor_path):
-                        processor = getattr(instance, processor_name)
-                        return processor(is_call=False)
+            processor = instance.get_processor()
+            return processor(is_call=False)
 
-            return instance.default_processor(is_call=False)
         return instance
 
     def __init__(
@@ -192,14 +187,8 @@ class MemberProxy:
         uses the matching handler method. Otherwise uses the default behavior
         of collecting results from each network.
         """
-        # Check for pattern-based method processor
-        for processor_name, pattern in self._method_patterns.items():
-            if re.match(pattern, self.accessor_path):
-                processor = getattr(self, processor_name)
-                return processor(is_call=True, *args, **kwargs)
-
-        # Default behavior for methods
-        return self.default_processor(is_call=True, *args, **kwargs)
+        processor = self.get_processor()
+        return processor(is_call=True, *args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -223,6 +212,19 @@ class MemberProxy:
         return MemberProxy(
             self.collection, lambda n: getattr(self.accessor_func(n), name), new_path
         )
+
+    def get_processor(self) -> Any:
+        # Check for pattern-based method processor
+        for processor_name, pattern in self._method_patterns.items():
+            if re.match(pattern, self.accessor_path):
+                processor = getattr(self, processor_name)
+                return processor
+
+        msg = (
+            f"'{self.accessor_path}' is currently not a supported method/ property for "
+            f"network collections. This might change in the future."
+        )
+        raise NotImplementedError(msg)
 
     def default_processor(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         """
