@@ -102,7 +102,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
 
     def _aggregate_components_groupby(
-        self, vals: LinearExpression, grouping: pd.DataFrame, agg: Callable | str
+        self,
+        vals: LinearExpression,
+        grouping: pd.DataFrame,
+        agg: Callable | str,
+        c: str,
     ) -> pd.DataFrame:
         return vals.groupby(grouping).sum()
 

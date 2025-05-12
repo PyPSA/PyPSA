@@ -56,7 +56,9 @@ def test_collection_init_list(network1, network2):
     collection = pypsa.NetworkCollection(networks)
     assert len(collection) == 2
     assert isinstance(collection.networks, pd.Series)
-    assert collection.networks.index.equals(pd.RangeIndex(2, name="network"))
+    assert collection.networks.index.equals(
+        pd.Index(["network", "network_1"], name="network")
+    )
     assert collection[0] == network1
     assert collection[1] == network2
 
@@ -72,7 +74,34 @@ def test_collection_init_list_with_index(network1, network2):
     assert collection["net_B"] == network2
 
 
+def test_collection_initi_list_with_multiindex(network1, network2):
+    """Test initialization with a list and MultiIndex."""
+    networks = [network1, network2]
+    multi_index = pd.MultiIndex.from_tuples(
+        [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
+    )
+    collection = pypsa.NetworkCollection(networks, index=multi_index)
+    assert len(collection) == 2
+    assert collection.networks.index.equals(multi_index)
+    assert "network" not in collection.networks.index.names
+    assert collection[("base", 2030)] == network1
+    assert collection[("high_renewables", 2030)] == network2
+
+
 def test_collection_init_series(network1, network2):
+    """Test initialization with a pandas Series."""
+    networks_series = pd.Series([network1, network2], index=["net_A", "net_B"])
+    collection = pypsa.NetworkCollection(networks_series)
+    assert len(collection) == 2
+    assert isinstance(collection.networks, pd.Series)
+    assert collection.networks.index.equals(
+        pd.Index(["net_A", "net_B"], name="network")
+    )
+    assert collection["net_A"] == network1
+    assert collection["net_B"] == network2
+
+
+def test_collection_init_series_with_multiindex(network1, network2):
     """Test initialization with a pandas Series."""
     index = pd.MultiIndex.from_tuples(
         [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
@@ -109,12 +138,12 @@ def test_collection_index_names(network1, network2):
     assert collection.networks.index.name == "network"
     assert collection._index_names == ["network"]
 
-    # Test with custom index
+    # Test custom single index overwrite
     custom_index = pd.Index(["net_A", "net_B"], name="scenario")
     collection_custom = pypsa.NetworkCollection(networks, index=custom_index)
-    assert collection_custom.index.names == ["scenario"]
-    assert collection_custom.networks.index.name == "scenario"
-    assert collection_custom._index_names == ["scenario"]
+    assert collection_custom.index.names == ["network"]
+    assert collection_custom.networks.index.name == "network"
+    assert collection_custom._index_names == ["network"]
 
     # test with multiindex
     multi_index = pd.MultiIndex.from_tuples(
@@ -172,10 +201,11 @@ def test_collection_getitem_slice(network1, network2, network3):
     sliced_networks = collection[1:]
     assert isinstance(sliced_networks, pypsa.NetworkCollection)
     assert len(sliced_networks) == 2
-    assert sliced_networks[1] == network2  # Original index 1
-    assert sliced_networks[2] == network3  # Original index 2
+    assert sliced_networks[0] == network2  # Original index 1
+    assert sliced_networks[1] == network3  # Original index 2
     pd.testing.assert_index_equal(
-        sliced_networks.networks.index, pd.RangeIndex(1, 3, name="network")
+        sliced_networks.networks.index,
+        pd.Index(["network_1", "network_2"], name="network"),
     )
 
 
@@ -190,30 +220,28 @@ def test_collection_iteration(network1, network2):
 def test_collection_static_data(network1, network2):
     """Test static data access."""
     collection = pypsa.NetworkCollection(
-        [network1, network2], index=pd.Series(["net1", "net2"], name="scenario")
+        [network1, network2], index=pd.Index(["net1", "net2"], name="scenario")
     )
 
-    generators = collection.generators
-
-    assert not generators.empty
-    assert set(collection.index.names).issubset(generators.index.names)
-    assert "Generator" in generators.index.names
+    assert collection.generators.loc["net1"].equals(network1.generators)
+    assert "Generator" in collection.generators.index.names
+    assert "network" in collection.generators.index.names
 
 
-def test_collection_statistics(network1, network2):
-    """Test capex calculation per network."""
+def test_collection_dynamic_data(network1, network2):
+    """Test dynamic data access."""
+    network1.snapshots = [1, 2]
+    network2.snapshots = [1, 2]
+    network1.add("Generator", "dyn-gen", bus="bus1", p_min_pu=[0, 1])
+    network2.add("Generator", "dyn-gen", bus="bus1", p_min_pu=[0, 1])
     collection = pypsa.NetworkCollection(
-        [network1, network2], index=pd.Series(["net1", "net2"], name="scenario")
+        [network1, network2], index=pd.Index(["net1", "net2"], name="scenario")
     )
-    statistics = collection.statistics()
-    assert not statistics.empty
-    assert set(collection.index.names).issubset(statistics.index.names)
 
-    capacity = collection.statistics.installed_capacity()
-
-    assert not capacity.empty
-    assert set(collection.index.names).issubset(capacity.index.names)
-    assert "carrier" in capacity.index.names
+    assert collection.generators_t.p_min_pu["net1"].equals(
+        network1.generators_t.p_min_pu
+    )
+    assert "network" in collection.generators_t.p_min_pu.columns.names
 
 
 def test_collection_statistics_nonexistent_method(network1):

@@ -1,11 +1,14 @@
 import logging
 import re
 from collections.abc import Callable, Iterator, Sequence
+from itertools import product
 from typing import Any
 
 import pandas as pd
 
+from pypsa.definitions.structures import Dict
 from pypsa.networks import Network
+from pypsa.statistics.expressions import StatisticsAccessor
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +16,25 @@ logger = logging.getLogger(__name__)
 class NetworkCollection:
     """
     A collection of networks that can be accessed like a single network.
+
+    Note:
+    ----
+    A single network is mirrored in two ways:
+        1. For each nested method or property of a network, the collection will
+        dynamically create a new MemberProxy object that wraps around it and allows for
+        custom processing. The '_method_patterns' dictionary in the MemberProxy class
+        defines which processor is used for which method or property. If no processor
+        is defined, a NotImplementedError is raised.
+        2. Some accessors of the Network class already support Networks and
+            NetworkCollections, since via the step above the NetworkCollection can
+            already duck-type to a Network. If this is the case, the accessor is
+            directly initialised with a NetworkCollection instead.
     """
 
     def __init__(
-        self, networks: Sequence[Network] | pd.Series, index: pd.Index | None = None
+        self,
+        networks: pd.Series | Sequence[Network],
+        index: pd.Index | pd.MultiIndex | Sequence | None = None,
     ) -> None:
         """
         Initialize the NetworkCollection with one or more networks.
@@ -32,12 +50,58 @@ class NetworkCollection:
         # if not all(isinstance(n, Network) for n in networks):
         #     raise TypeError("All arguments must be Network instances")
 
-        networks = pd.Series(networks, index=index)
-        if networks.index.name is None:
-            networks.index.name = "network"
+        if isinstance(networks, pd.Series) and index is not None:
+            msg = (
+                "When passing a pandas Series, the index must be None, "
+                "as the Series index is used as the collection index."
+            )
+            raise ValueError(msg)
+
         if not all(isinstance(n, Network) for n in networks):
             raise TypeError("All values in the Series must be PyPSA Network objects.")
+
+        if not isinstance(networks, pd.Series):
+            # Format and validate index
+            if index is None and not isinstance(networks, pd.Series):
+                names = [n.name.replace("", "network") for n in networks]
+
+                # Add a unique suffix to each network name to avoid duplicates, if necessary
+                counts = {}
+                for i, item in enumerate(names):
+                    if item in counts:
+                        counts[item] += 1
+                        names[i] = f"{item}_{counts[item]}"
+                        logger.info(
+                            'Network "%s" is duplicated, renamed one to "%s"',
+                            item,
+                            names[i],
+                        )
+                    else:
+                        counts[item] = 0
+                index = pd.Index(names, name="network")
+            elif isinstance(index, Sequence):
+                if len(index) != len(networks):
+                    msg = "The length of the index must match the number of networks provided."
+                    raise ValueError(msg)
+                index = pd.Index(index)
+            elif not isinstance(index, pd.Index | pd.MultiIndex):
+                msg = (
+                    "The index must be a pandas Index or a sequence of names matching the "
+                    "number of networks provided."
+                )
+                raise TypeError(msg)
+
+        networks = pd.Series(networks, index=index)
+
+        # Only set default index name for non-MultiIndex
+        if not isinstance(networks.index, pd.MultiIndex):
+            networks.index.name = "network"
+
         self.networks = networks
+
+        # Initialize accessors which support NetworkCollections and don't need a proxy
+        # member
+        self.statistics = StatisticsAccessor(self)
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -128,14 +192,28 @@ class MemberProxy:
 
     # Method patterns for special handling
     _method_patterns = {
-        "basic_concat": r"^"  # Start of string
+        "vertical_concat": r"^"  # Start of string
         # Static component dataframes
         r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
         r"transformers|transformer_types|links|loads|generators|storage_units|"
         r"stores|shunt_impedances|shapes|"
+        r"static|"
+        r"get_active_assets|"
+        r"get_committable_i|"
         # statistics and all statistics expressions
         r"statistics|"
         r"statistics\.[^\.\s]+)"
+        r"$",  # End of string
+        "horizontal_concat": r"^"  # Start of string
+        r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
+        r"transformers|transformer_types|links|loads|generators|storage_units|"
+        r"stores|shunt_impedances|shapes)_t|"
+        r"dynamic"
+        r"$",  # End of string
+        "return_from_first": r"^"
+        r"\S+_components|"
+        r"snapshots|"
+        r"snapshot_weightings"
         r"$",  # End of string
     }
 
@@ -188,7 +266,7 @@ class MemberProxy:
         of collecting results from each network.
         """
         processor = self.get_processor()
-        return processor(is_call=True, *args, **kwargs)
+        return processor(True, *args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -226,33 +304,63 @@ class MemberProxy:
         )
         raise NotImplementedError(msg)
 
-    def default_processor(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
-        """
-        Default processing behavior for properties and methods.
+    # Helper functions for processing
+    # -------------------------------
 
-        Collects property values/ method results from all networks and returns them as
-        a list.
+    def _concat_indexes(self, results: dict) -> Any:
+        # Extract all values from indices
+        values_list = [list(idx) for idx in results.values()]
 
-        Parameters
-        ----------
-        is_call : bool
-            Whether this is a method call (needs to invoke the accessor)
-        *args, **kwargs
-            Arguments to pass to the method if is_call=True
-        """
-        if not is_call and (args or kwargs):
-            msg = "Arguments are not allowed for property accessors"
-            raise ValueError(msg)
+        # Get all combinations of values
+        combinations = list(product(*values_list))
 
-        results = []
-        for network in self.collection.networks:
-            accessor = self.accessor_func(network)
-            if is_call:
-                result = accessor(*args, **kwargs)
+        # Get names from keys (handle both string and tuple cases)
+        if all(isinstance(k, str) for k in results.keys()):
+            # All keys are strings
+            names = list(results.keys())
+        else:
+            # All keys are tuples
+            names = [item for tup in results.keys() for item in tup]
+
+        return pd.MultiIndex.from_tuples(combinations, names=names)
+
+    def _do_concat(self, results: Any, axis: int) -> Any:
+        # Check if values are dictionaries
+        if all(isinstance(v, dict) for v in results.values()):
+            # Get all unique keys across all dictionaries
+            all_keys = set().union(*[d.keys() for d in results.values()])
+
+            merged_results = Dict()
+            for key in all_keys:
+                key_results = {
+                    idx: results[idx].get(key) for idx in results if key in results[idx]
+                }
+
+                # Recursively call on subsets
+                merged_results[key] = self._do_concat(key_results, axis=axis)
+            return merged_results
+        else:
+            # Default case - simple concatenation
+            first_result = next(iter(results.values()))
+
+            if isinstance(first_result, pd.Index):
+                result = self._concat_indexes(results)
             else:
-                result = accessor
-            results.append(result)
-        return results
+                result = pd.concat(results, axis=axis)
+            if axis == 0:
+                result.index.names = (
+                    self.collection.networks.index.names or ["network"]
+                ) + first_result.index.names
+
+            elif axis == 1:
+                result.columns.names = (
+                    self.collection.networks.columns.names
+                    or ["network"] + first_result.columns.names
+                )
+            else:
+                msg = "Axis must be 0 or 1"
+                raise AssertionError(msg)
+            return result
 
     # -----------------
     # Custom processors
@@ -260,7 +368,7 @@ class MemberProxy:
     # signature and added to the _method_patterns list above.
     # -----------------
 
-    def basic_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+    def vertical_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         results = {}
 
         for idx, network in self.collection.networks.items():
@@ -271,8 +379,43 @@ class MemberProxy:
                 result = accessor
             results[idx] = result
 
-        combined = pd.concat(
-            results, names=[self.collection.networks.index.name or "network"]
-        )
+        return self._do_concat(results, axis=0)
 
-        return combined
+    def horizontal_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+        results = {}
+        for idx, network in self.collection.networks.items():
+            accessor = self.accessor_func(network)
+            if is_call:
+                result = accessor(*args, **kwargs)
+            else:
+                result = accessor
+            results[idx] = result
+
+        return self._do_concat(results, axis=1)
+
+    def return_from_first(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+        """
+        Return the result from the first network in the collection.
+
+        This is used for properties that are expected to be the same across all networks.
+        """
+        # Get the first network
+        first_network = self.collection.networks[0]
+        accessor = self.accessor_func(first_network)
+        if is_call:
+            result = accessor(*args, **kwargs)
+        else:
+            result = accessor
+
+        return result
+
+    def statistics_plot(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+        if not is_call:
+            msg = "Arguments are not allowed for property accessors"
+            raise ValueError(msg)
+
+        # self.collection._statistics.installed_capacity.plot()
+
+    # wrapped_callable = MethodHandlerWrapper(
+    #     handler_class=StatisticHandler, inject_attrs={"n": "_n"}
+    # )(your_callable)

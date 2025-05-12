@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import functools
 import logging
 import warnings
 from collections.abc import Callable, Collection, Sequence
@@ -201,8 +200,29 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             return df.agg(agg)
 
     def _aggregate_components_groupby(
-        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str
+        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str
     ) -> pd.DataFrame:
+        if isinstance(vals.index, pd.MultiIndex):
+            levels = vals.index.names
+            keep_levels = [l for l in levels if l not in ["component", c]]
+            grouping_df = grouping["by"]
+            if isinstance(grouping_df, pd.Series):
+                grouping_df = grouping_df.to_frame()
+            elif isinstance(grouping_df, list):
+                grouping_df = pd.concat(grouping_df, axis=1)
+            elif not isinstance(grouping_df, pd.DataFrame):
+                raise ValueError("grouping_df must be a DataFrame or Series")
+
+            was_series = False
+            if isinstance(vals, pd.Series):
+                vals = vals.rename("value").to_frame()
+                was_series = True
+            res = (
+                vals.assign(**grouping_df)
+                .groupby([*keep_levels, *grouping_df.columns])
+                .agg(agg)
+            )
+            return res["value"] if was_series else res
         return vals.groupby(**grouping).agg(agg)
 
     def _aggregate_components_concat_values(
@@ -230,6 +250,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         # Otherwise, use default column names
         elif all(len(x) == 1 for x in index_names):
             col_names = ["component", "name"]
+        elif all(len(x) == 3 for x in index_names):
+            # TODO Handle better
+            col_names = ["network", "component", "carrier"]
         else:
             msg = "Multi-indexed data must have the same index names."
             raise AssertionError(msg)
@@ -1303,7 +1326,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        df = capex.add(opex, fill_value=0)
+        # TODO It would be better if the empty series return has index names
+        if not capex.empty and not opex.empty:
+            df = capex.add(opex, fill_value=0)
+        elif not capex.empty:
+            df = capex
+        else:
+            df = capex
         df.attrs["name"] = "System Cost"
         df.attrs["unit"] = "currency"
         return df
@@ -2191,118 +2220,3 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
         return df
-
-
-class StatisticsAccessorMulti:
-    """Statistical accessor for NetworkCollection objects that aggregates statistics across multiple networks."""
-
-    def __init__(self, networks: Any) -> None:
-        """
-        Initialize the statistics accessor for NetworkCollection object.
-
-        Parameters
-        ----------
-        networks : pypsa.NetworkCollection
-            The NetworkCollection object containing multiple network instances.
-
-        """
-        self._networks = networks
-        self._create_methods()
-
-    def __call__(self, *args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
-        """
-        Calculate statistical values across all networks in the NetworkCollection object.
-
-        This method maps the StatisticsAccessor.__call__ method across all networks
-        and combines the results with network indices as the outermost level.
-
-        Parameters
-        ----------
-        *args : Any
-            Arguments passed to the network.statistics.__call__ method.
-        **kwargs : Any
-            Keyword arguments passed to the network.statistics.__call__ method.
-
-        Returns
-        -------
-        pd.Series or pd.DataFrame
-            Combined statistics with network indices as the first level.
-
-        """
-        results = {}
-        for idx, network in zip(self._networks._networks.index, self._networks):
-            results[idx] = network.statistics(*args, **kwargs)
-
-        # Combine results into a multi-indexed DataFrame/Series
-        combined = pd.concat(
-            results, names=[self._networks._networks.index.name or "network"]
-        )
-
-        return combined
-
-    def _create_method(self, name: str) -> Callable:
-        """Create a method that applies a statistics method to all networks."""
-        orig_method = getattr(StatisticsAccessor, name)
-        method_name = name  # Store the name for use in the closure
-
-        # Create a function that will be wrapped in a StatisticHandler
-        def networks_method(*args: Any, **kwargs: Any) -> pd.Series | pd.DataFrame:
-            """Method applied across all networks in the NetworkCollection object."""
-            # First argument should be self
-            self = args[0]
-            results = {}
-            for idx, network in zip(self._networks._networks.index, self._networks):
-                network_method = getattr(network.statistics, method_name)
-                results[idx] = network_method(*args[1:], **kwargs)
-
-            # Combine results into a multi-indexed DataFrame/Series
-            if results:
-                results_index_names = list(results.values())[0].index.names
-            else:
-                results_index_names = []
-            new_index_names = self._networks._index_names + results_index_names
-            combined = pd.concat(results, names=new_index_names)
-
-            # Copy over attributes from the last result if possible
-            if results and hasattr(list(results.values())[-1], "attrs"):
-                combined.attrs = list(results.values())[-1].attrs.copy()
-
-            return combined
-
-        # Add the original docstring with a note about the NetworkCollection version
-        doc_prefix = (
-            orig_method.__doc__
-            or f"Dynamically generated NetworkCollection accessor for {name}."
-        )
-        networks_method.__doc__ = (
-            doc_prefix.strip()
-            + "\n\n"
-            + (
-                "This method is applied across all networks in the NetworkCollection object. "
-                "Results are combined with a 'network' level in the index."
-            )
-        )
-
-        # Bind the method to the current instance
-        bound_method = functools.partial(networks_method, self)
-        bound_method.__name__ = name  # type: ignore
-
-        # Wrap the method in a StatisticHandler to provide plot/iplot attributes
-        wrapped_method = StatisticHandler(bound_method, self._networks)
-
-        return wrapped_method
-
-    def _create_methods(self) -> None:
-        """Dynamically create methods for StatisticsAccessor based on StatisticsAccessor methods."""
-        # Use the explicit list if available and reliable, otherwise fallback to dir()
-        method_names = getattr(StatisticsAccessor, "_methods", None)
-        if method_names is None:
-            method_names = [
-                name
-                for name in dir(StatisticsAccessor)
-                if not name.startswith("_")
-                and callable(getattr(StatisticsAccessor, name))
-            ]
-
-        for method_name in method_names:
-            setattr(self, method_name, self._create_method(method_name))
