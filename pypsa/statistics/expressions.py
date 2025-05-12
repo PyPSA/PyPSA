@@ -7,11 +7,6 @@ import warnings
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
-from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
-
-if TYPE_CHECKING:
-    from pypsa import Network
-
 import pandas as pd
 
 from pypsa._options import options
@@ -21,6 +16,7 @@ from pypsa.common import (
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import bus_carrier_unit, nominal_attrs
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
@@ -111,7 +107,7 @@ class StatisticHandler:
     """
     Statistic method handler.
 
-    This class wraps a statistic method and provides a callable instance. To the get
+    This class wraps a statistic method and provides a callable instance. To get
     the statistic output as a DataFrame, call the instance with the desired arguments.
 
     See Also
@@ -204,8 +200,29 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             return df.agg(agg)
 
     def _aggregate_components_groupby(
-        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str
+        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str
     ) -> pd.DataFrame:
+        if isinstance(vals.index, pd.MultiIndex):
+            levels = vals.index.names
+            keep_levels = [l for l in levels if l not in ["component", c]]
+            grouping_df = grouping["by"]
+            if isinstance(grouping_df, pd.Series):
+                grouping_df = grouping_df.to_frame()
+            elif isinstance(grouping_df, list):
+                grouping_df = pd.concat(grouping_df, axis=1)
+            elif not isinstance(grouping_df, pd.DataFrame):
+                raise ValueError("grouping_df must be a DataFrame or Series")
+
+            was_series = False
+            if isinstance(vals, pd.Series):
+                vals = vals.rename("value").to_frame()
+                was_series = True
+            res = (
+                vals.assign(**grouping_df)
+                .groupby([*keep_levels, *grouping_df.columns])
+                .agg(agg)
+            )
+            return res["value"] if was_series else res
         return vals.groupby(**grouping).agg(agg)
 
     def _aggregate_components_concat_values(
@@ -233,6 +250,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         # Otherwise, use default column names
         elif all(len(x) == 1 for x in index_names):
             col_names = ["component", "name"]
+        elif all(len(x) == 3 for x in index_names):
+            # TODO Handle better
+            col_names = ["network", "component", "carrier"]
         else:
             msg = "Multi-indexed data must have the same index names."
             raise AssertionError(msg)
@@ -331,8 +351,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
         aggregate_time : None
             Deprecated. Use dedicated functions for individual statistics instead.
 
@@ -442,8 +462,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -541,8 +561,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -647,8 +667,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -761,8 +781,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Additional Parameters
         ---------------------
@@ -1306,7 +1326,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        df = capex.add(opex, fill_value=0)
+        # TODO It would be better if the empty series return has index names
+        if not capex.empty and not opex.empty:
+            df = capex.add(opex, fill_value=0)
+        elif not capex.empty:
+            df = capex
+        else:
+            df = capex
         df.attrs["name"] = "System Cost"
         df.attrs["unit"] = "currency"
         return df

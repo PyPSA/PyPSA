@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
-
-if TYPE_CHECKING:
-    from pypsa import Network
-import warnings
 
 import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
 from pypsa.statistics.grouping import deprecated_groupers, groupers
+
+if TYPE_CHECKING:
+    from pypsa import Network, NetworkCollection
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ class Parameters:
 class AbstractStatisticsAccessor(ABC):
     """Abstract accessor to calculate different statistical values."""
 
-    def __init__(self, n: Network) -> None:
+    def __init__(self, n: Network | NetworkCollection) -> None:
         """Initialize the statistics accessor."""
         self._n = n
         self.groupers = deprecated_groupers
@@ -279,7 +279,7 @@ class AbstractStatisticsAccessor(ABC):
                     grouping = self._get_grouping(
                         n, c, groupby, port=port, nice_names=nice_names
                     )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg, c)
                 values.append(vals)
 
             if not values:
