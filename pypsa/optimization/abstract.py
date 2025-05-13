@@ -98,6 +98,7 @@ def discretized_capacity(
     ... threshold = 0.1,
     ... fractional_last_unit_size = False)
     4
+
     """
     if min_units is not None:
         raise DeprecationWarning(
@@ -183,6 +184,7 @@ def optimize_transmission_expansion_iteratively(
         Whether only multiples of the unit size or in case of a maximum capacity fractions of unit size is allowed.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
+
     """
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     ext_i = n.get_extendable_i("Line").copy()
@@ -388,6 +390,7 @@ def optimize_security_constrained(
     Returns
     -------
     None
+
     """
     all_passive_branches = n.passive_branches().index
 
@@ -479,6 +482,7 @@ def optimize_with_rolling_horizon(
     Returns
     -------
     None
+
     """
     if snapshots is None:
         snapshots = n.snapshots
@@ -693,6 +697,7 @@ def optimize_and_run_non_linear_powerflow(
         - optimization status
         - optimization condition
         - dictionary of power flow results for all snapshots
+
     """
     if snapshots is None:
         snapshots = n.snapshots

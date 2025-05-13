@@ -295,6 +295,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated
             using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
+
         """
         from pypsa.optimization.optimize import lookup
 
@@ -348,6 +349,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+
         """
         if comps is None:
             comps = self._n.branch_components
@@ -549,6 +551,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+
         """
 
         @pass_none_if_keyerror
@@ -606,6 +609,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
+
         """
 
         @pass_none_if_keyerror

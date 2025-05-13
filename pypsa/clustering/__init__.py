@@ -61,6 +61,7 @@ class ClusteringAccessor:
         Returns
         -------
         n : pypsa.Network
+
         """
         return spatial.get_clustering_from_busmap(self.n, *args, **kwargs).n
 

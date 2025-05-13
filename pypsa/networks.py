@@ -388,6 +388,7 @@ class Network:
         See Also
         --------
         pypsa.Network.equals : Check for equality of two networks.
+
         """
         return self.equals(other)
 
@@ -812,6 +813,7 @@ class Network:
         only levels of the snapshots dimension, similar to coords in xarray.
         This is because timesteps and periods are not necessarily unique or complete
         across snapshots.
+
         """
         return self._snapshots
 
@@ -829,6 +831,7 @@ class Network:
         --------
         pypsa.networks.Network.snapshots : Getter method
         pypsa.networks.Network.set_snapshots : Setter method
+
         """
         self.set_snapshots(snapshots)
 
@@ -871,6 +874,7 @@ class Network:
         Also see
         --------
         pypsa.networks.Network.timesteps : Getter method
+
         """
         msg = "Setting `timesteps` is not supported. Please set `snapshots` instead."
         raise NotImplementedError(msg)
@@ -913,6 +917,7 @@ class Network:
         --------
         pypsa.networks.Network.periods : Getter method
         pypsa.networks.Network.set_investment_periods : Setter method
+
         """
         self.set_investment_periods(periods)
 
@@ -930,6 +935,7 @@ class Network:
         --------
         pypsa.networks.Network.snapshots : Snapshots dimension of the network.
         pypsa.networks.Network.periods : Periods level of snapshots dimension.
+
         """
         return not self.periods.empty
 
@@ -973,6 +979,7 @@ class Network:
         --------
         pypsa.networks.Network.periods : Getter method
         pypsa.networks.Network.set_investment_periods : Setter method
+
         """
         self.periods = periods
 
@@ -992,6 +999,7 @@ class Network:
         --------
         pypsa.networks.Network.snapshots : Snapshots dimension of the network.
         pypsa.networks.Network.periods : Periods level of snapshots dimension.
+
         """
         return self.has_periods
 
@@ -1372,6 +1380,7 @@ class Network:
         --------
         >>> n.remove("Line", "0")
         >>> n.remove("Line", ["1","2"])
+
         """
         c = as_components(self, class_name)
 

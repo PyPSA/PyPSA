@@ -738,6 +738,7 @@ def _export_to_exporter(
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the netowrk).
+
     """
     if not basename:
         basename = "<unnamed>"
@@ -880,6 +881,7 @@ def import_from_csv_folder(
     Examples
     --------
     >>> n.import_from_csv_folder(csv_folder_name) # doctest: +SKIP
+
     """
     basename = Path(csv_folder_name).name
     with ImporterCSV(
@@ -935,6 +937,7 @@ def export_to_csv_folder(
     export_to_netcdf : Export to a netCDF file
     export_to_hdf5 : Export to an HDF5 file
     export_to_excel : Export to an Excel file
+
     """
     basename = os.path.basename(csv_folder_name)
     with ExporterCSV(
@@ -972,6 +975,7 @@ def import_from_excel(
     Examples
     --------
     >>> n.import_from_excel(excel_file_path) # doctest: +SKIP
+
     """
     basename = Path(excel_file_path).stem
     with ImporterExcel(excel_file_path, engine=engine) as importer:
@@ -1022,6 +1026,7 @@ def export_to_excel(
     export_to_netcdf : Export to a netCDF file
     export_to_hdf5 : Export to an HDF5 file
     export_to_csv_folder : Export to a folder of CSVs
+
     """
     basename = Path(excel_file_path).stem
     with ExporterExcel(excel_file_path, engine=engine) as exporter:
@@ -1044,6 +1049,7 @@ def import_from_hdf5(n: Network, path: str | Path, skip_time: bool = False) -> N
         Name of HDF5 store. The string could be a URL.
     skip_time : bool, default False
         Skip reading in time dependent attributes
+
     """
     basename = Path(path).name
 
@@ -1088,6 +1094,7 @@ def export_to_hdf5(
     export_to_netcdf : Export to a netCDF file
     export_to_csv_folder : Export to a folder of CSVs
     export_to_excel : Export to an Excel file
+
     """
     kwargs.setdefault("complevel", 4)
 
@@ -1117,6 +1124,7 @@ def import_from_netcdf(
         The string could be a URL.
     skip_time : bool, default False
         Skip reading in time dependent attributes
+
     """
     basename = "" if isinstance(path, xr.Dataset) else Path(path).name
     with ImporterNetCDF(path=path) as importer:
@@ -1199,6 +1207,7 @@ def _import_from_importer(
     ----------
     skip_time : bool
         Skip importing time
+
     """
     attrs = importer.get_attributes()
     n.meta = importer.get_meta()
@@ -1322,6 +1331,7 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
     Returns
     -------
     pandas.DataFrame
+
     """
     df_cols_set = set(df.columns if axis == 1 else df.index)
 
@@ -1360,6 +1370,7 @@ def import_components_from_dataframe(
     See Also
     --------
     pypsa.Network.madd
+
     """
     n.add(cls_name, dataframe.index, **dataframe)
 
@@ -1392,6 +1403,7 @@ def import_series_from_dataframe(
         Name of time-varying series attribute
 
     --------
+
     """
     _import_series_from_df(n, dataframe, cls_name, attr)
 
@@ -1413,6 +1425,7 @@ def _import_components_from_df(
         whose columns are the non-default attributes.
     cls_name : string
         Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
+
     """
     attrs = n.components[cls_name]["attrs"]
 
@@ -1533,6 +1546,7 @@ def _import_series_from_df(
         Name of class of component
     attr : string
         Name of time-varying series attribute
+
     """
     static = n.static(cls_name)
     dynamic = n.dynamic(cls_name)
@@ -1624,6 +1638,7 @@ def merge(
     -------
     receiving_n : pypsa.Network
         Merged network, or None if inplace=True
+
     """
     to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
     if components_to_skip:
@@ -1691,6 +1706,7 @@ def import_from_pypower_ppc(
     >>> from pypower.api import case30 # doctest: +SKIP
     >>> ppc = case30() # doctest: +SKIP
     >>> n.import_from_pypower_ppc(ppc) # doctest: +SKIP
+
     """
     version = ppc["version"]
     if int(version) != 2:
@@ -1920,6 +1936,7 @@ def import_from_pandapower_net(
     >>> net = pn.create_cigre_network_mv(with_der='all') # doctest: +SKIP
     >>> n = pypsa.Network()
     >>> n.import_from_pandapower_net(net, extra_line_data=True)  # doctest: +SKIP
+
     """
     logger.warning(
         "Warning: Importing from pandapower is still in beta; not all pandapower data is supported.\nUnsupported features include: three-winding transformers, switches, in_service status, shunt impedances and tap positions of transformers."

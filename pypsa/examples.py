@@ -54,6 +54,7 @@ def ac_dc_meshed(
     Returns
     -------
     pypsa.Network
+
     """
     if update or from_master:
         warnings.warn(
@@ -83,6 +84,7 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     Returns
     -------
     pypsa.Network
+
     """
     if update or from_master:
         warnings.warn(
@@ -112,6 +114,7 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     Returns
     -------
     pypsa.Network
+
     """
     if update or from_master:
         warnings.warn(
@@ -141,6 +144,7 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
     Returns
     -------
     pypsa.Network
+
     """
     if update or from_master:
         warnings.warn(

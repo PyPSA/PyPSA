@@ -93,6 +93,7 @@ class MethodHandlerWrapper:
             passed, and the values are the names of the attributes in the handler
             class. If None, no attributes are passed. Pass only strings, not
             attributes of the instance.
+
         """
         self.func = func
         self.handler_class = handler_class
@@ -158,6 +159,7 @@ def as_index(
     Returns
     -------
     pd.Index: values as a pd.Index object.
+
     """
     n_attr = getattr(n, network_attribute)
 
@@ -231,6 +233,7 @@ def equals(
     -------
     bool
         True if the objects are equal, False otherwise.
+
     """
     if not isinstance(log_mode, str):
         msg = "'log_mode' must be a string, not {type(log_mode)}."
@@ -337,6 +340,7 @@ def rename_deprecated_kwargs(
         Version in which the argument was deprecated.
     removed_in : str
         Version in which the argument will be removed.
+
     """
     if (
         version.parse(deprecated_in) > version.parse(__version_semver__)
@@ -396,6 +400,7 @@ def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Ca
     ...     print(id_object)
     >>> some_func(object_id=1) # doctest: +SKIP
     1
+
     """
 
     def deco(f: Callable) -> Callable:
@@ -425,6 +430,7 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     -------
     Callable
         A decorated function that renames 'a' to 'b'.
+
     """
     return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
 
@@ -484,6 +490,7 @@ def deprecated_namespace(
     -------
     Callable
         A wrapper function that warns about the deprecated namespace.
+
     """
     current_version = version.parse(__version_semver__)
     if version.parse(deprecated_in) > current_version and __version_semver__ != "0.0":
@@ -545,6 +552,7 @@ def list_as_string(
     --------
     >>> list_as_string(['a', 'b', 'c'])
     'a, b, c'
+
     """
     if isinstance(list_, dict):
         list_ = list(list_.keys())
@@ -644,6 +652,7 @@ def resample_timeseries(
     pd.DataFrame
         Resampled DataFrame with numeric columns aggregated by mean
         and non-numeric columns forward-filled
+
     """
     if not isinstance(df.index, pd.DatetimeIndex):
         df = df.set_index(pd.to_datetime(df.index))

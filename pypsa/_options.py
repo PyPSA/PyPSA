@@ -217,6 +217,7 @@ def option_context(*args: Any) -> Generator[None, None, None]:
     Returns
     -------
     None
+
     """
     if len(args) % 2 != 0:
         raise ValueError("Arguments must be paired option_names and values")

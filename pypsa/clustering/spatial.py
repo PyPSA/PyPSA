@@ -98,6 +98,7 @@ def normed_or_uniform(x: pd.Series) -> pd.Series:
     -------
     pandas.Series
         The normalized series, or a uniform distribution if the input sum is zero.
+
     """
     if x.sum(skipna=False) > 0:
         return x / x.sum()
@@ -126,6 +127,7 @@ def make_consense(component: str, attr: str) -> Callable:
     ------
     AssertionError
         If the attribute values in a cluster are not the same or all null.
+
     """
 
     def consense(x: Series) -> object:
@@ -154,6 +156,7 @@ def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
     -------
     dict
         The aligned strategies.
+
     """
     strategies |= {
         k: make_consense(component, k) for k in set(keys).difference(strategies)
@@ -201,6 +204,7 @@ def aggregateoneport(
         DataFrame of the aggregated generators.
     dynamic : dict
         Dictionary of the aggregated dynamic data.
+
     """
     c = component
     static = n.static(c)
@@ -310,6 +314,7 @@ def aggregatebuses(
     -------
     static : DataFrame
         DataFrame of the aggregated buses.
+
     """
     c = "Bus"
     attrs = n.components[c]["attrs"]
@@ -361,6 +366,7 @@ def aggregatelines(
         DataFrame of the aggregated lines.
     dynamic : dict
         Dictionary of DataFrames of the aggregated dynamic data (if with_time is True).
+
     """
     if custom_strategies is None:
         custom_strategies = {}
@@ -628,6 +634,7 @@ def busmap_by_kmeans(
     busmap : pandas.Series
         Mapping of n.buses to k-means clusters (indexed by
         non-negative integers).
+
     """
     if find_spec("sklearn") is None:
         raise ModuleNotFoundError(
@@ -691,6 +698,7 @@ def kmeans_clustering(
     -------
     Clustering : named tuple
         A named tuple containing network, busmap and linemap
+
     """
     busmap = busmap_by_kmeans(n, bus_weightings, n_clusters, **kwargs)
 
@@ -746,6 +754,7 @@ def busmap_by_hac(
     busmap : pandas.Series
         Mapping of n.buses to clusters (indexed by
         non-negative integers).
+
     """
     if find_spec("sklearn") is None:
         raise ModuleNotFoundError(
@@ -837,6 +846,7 @@ def hac_clustering(
     -------
     Clustering : named tuple
         A named tuple containing network, busmap and linemap
+
     """
     busmap = busmap_by_hac(
         n,
@@ -880,6 +890,7 @@ def busmap_by_greedy_modularity(
     .. [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
+
     """
     if parse(nx.__version__) < Version("2.8"):
         raise NotImplementedError(
@@ -944,6 +955,7 @@ def greedy_modularity_clustering(
     .. [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
        "Finding community structure in very large networks."
        Physical Review E 70(6), 2004.
+
     """
     busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)
 
@@ -973,6 +985,7 @@ def busmap_by_stubs(
     busmap : pandas.Series
         Mapping of n.buses to k-means clusters (indexed by
         non-negative integers).
+
     """
     busmap = pd.Series(n.buses.index, n.buses.index)
 

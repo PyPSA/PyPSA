@@ -52,6 +52,7 @@ def define_operational_constraints_for_non_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     dispatch_lower: DataArray | tuple
     dispatch_upper: DataArray | tuple
@@ -99,6 +100,7 @@ def define_operational_constraints_for_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     lhs_lower: DataArray | tuple
     lhs_upper: DataArray | tuple
@@ -145,6 +147,7 @@ def define_operational_constraints_for_committables(
         Snapshots of the constraint.
     c : str
         name of the network component
+
     """
     com_i = n.get_committable_i(c)
 
@@ -374,6 +377,7 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     ext_i = n.get_extendable_i(c)
 
@@ -399,6 +403,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
     n : pypsa.Network
     c : str
         name of the network component
+
     """
     m = n.model
 
@@ -737,6 +742,7 @@ def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if attr + "_set" not in n.static(c):
         return
@@ -765,6 +771,7 @@ def define_modular_constraints(n: Network, c: str, attr: str) -> None:
         name of the network component
     attr : str
         name of the variable, e.g. 'n_opt'
+
     """
     m = n.model
     mod_i = n.static(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
@@ -794,6 +801,7 @@ def define_fixed_operation_constraints(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if attr + "_set" not in n.dynamic(c):
         return

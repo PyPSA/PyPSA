@@ -47,6 +47,7 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     >>> b = np.array([[10.8, 52.1], [-34, 56.]])
     >>> haversine_pts(a, b)
     array([  73.15416698, 2903.73511621])
+
     """
     lon0, lat0 = np.deg2rad(np.asarray(a, dtype=float)).T
     lon1, lat1 = np.deg2rad(np.asarray(b, dtype=float)).T
@@ -85,6 +86,7 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     See Also
     --------
     haversine_pts : Determine pointwise crow-fly distance
+
     """
 
     #

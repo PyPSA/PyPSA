@@ -50,6 +50,7 @@ def graph(
     -------
     graph : OrderedGraph
         NetworkX graph
+
     """
     from pypsa import Network, SubNetwork
 
@@ -120,6 +121,7 @@ def adjacency_matrix(
     -------
     adjacency_matrix : sp.sparse.coo_matrix
        Directed adjacency matrix
+
     """
     from pypsa import Network, SubNetwork
 
@@ -186,6 +188,7 @@ def incidence_matrix(
     -------
     incidence_matrix : sp.sparse.csr_matrix
        Directed incidence matrix
+
     """
     from pypsa import Network, SubNetwork
 

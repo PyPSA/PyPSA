@@ -30,6 +30,7 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if n.static(c).empty:
         return
@@ -96,6 +97,7 @@ def define_nominal_variables(n: Network, c: str, attr: str) -> None:
         network component of which the nominal capacity should be defined
     attr : str
         name of the variable, e.g. 'p_nom'
+
     """
     ext_i = n.get_extendable_i(c)
     if ext_i.empty:
@@ -117,6 +119,7 @@ def define_modular_variables(n: Network, c: str, attr: str) -> None:
         network component of which the nominal capacity should be defined
     attr : str
         name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
+
     """
     mod_i = n.static(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
     mod_i = mod_i.rename(f"{c}-ext")

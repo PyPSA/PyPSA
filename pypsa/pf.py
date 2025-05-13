@@ -259,6 +259,7 @@ def network_pf(
         Dictionary with keys 'n_iter', 'converged', 'error' and dataframe
         values indicating number of iterations, convergence status, and
         iteration error for each snapshot (rows) and sub_network (columns)
+
     """
     return _network_prepare_and_run_pf(
         n,
@@ -345,6 +346,7 @@ def sub_network_pf_singlebus(
         ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be provided via a pandas.Series/dict
         that has the generators of the single bus as index/keys.
+
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")
     n = sub_network.n
@@ -460,6 +462,7 @@ def sub_network_pf(
     -------
     Tuple of three pandas.Series indicating number of iterations,
     remaining error, and convergence status for each snapshot
+
     """
     if not isinstance(slack_weights, (str | pd.Series | dict)):
         msg = (
@@ -839,6 +842,7 @@ def network_lpf(
     Returns
     -------
     None
+
     """
     sns = as_index(n, snapshots, "snapshots")
     _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
@@ -957,6 +961,7 @@ def wye_to_delta(
     -------
         tuple[float, float, float]:
             A tuple containing the three transformed impedance values
+
     """
     summand = z1 * z2 + z2 * z3 + z3 * z1
     return (summand / z2, summand / z1, summand / z3)
@@ -1174,6 +1179,7 @@ def calculate_PTDF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values,
         finding bus controls and computing B and H.
+
     """
     if not skip_pre:
         calculate_B_H(sub_network)
@@ -1443,6 +1449,7 @@ def sub_network_lpf(
     Returns
     -------
     None
+
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")
     logger.info(

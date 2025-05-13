@@ -243,6 +243,7 @@ def create_model(
     Returns
     -------
     linopy.model
+
     """
     sns = as_index(n, snapshots, "snapshots")
     n._linearized_uc = int(linearized_unit_commitment)
@@ -397,6 +398,7 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
     assign_all_duals : bool, default False
         Whether to assign all dual values or only those that already
         have a designated place in the network.
+
     """
     m = n.model
     unassigned = []
@@ -585,6 +587,7 @@ def optimize(
         The termination condition of the optimization, either
         "optimal" or one of the codes listed in
         https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+
     """
     sns = as_index(n, snapshots, "snapshots")
     n._multi_invest = int(multi_investment_periods)
@@ -670,6 +673,7 @@ class OptimizationAccessor:
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+
         """
         n = self.n
         if extra_functionality:
@@ -772,6 +776,7 @@ class OptimizationAccessor:
             Price of the load shedding. The default is 1e2.
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
+
         """
         n = self.n
         if "Load" not in n.carriers.index:

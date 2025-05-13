@@ -174,6 +174,7 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
     Examples
     --------
     >>> allocate_series_dataframes(n, {'Generator': ['p'], 'Load': ['p']})
+
     """
     for component, attributes in series.items():
         static = n.static(component)
@@ -286,6 +287,7 @@ def get_active_assets(
     -------
     pd.Series
         Boolean mask for active components
+
     """
     return n.component(c).get_active_assets(investment_period=investment_period)
 
@@ -315,6 +317,7 @@ def get_activity_mask(
         Set of snapshots for the mask. If None (default) all snapshots are returned.
     index : pd.Index, default None
         Subset of the component elements. If None (default) all components are returned.
+
     """
     sns_ = as_index(n, sns, "snapshots")
 
@@ -367,6 +370,7 @@ def get_bounds_pu(
         elements are returned.
     attr : string, default None
         attribute name for the bounds, e.g. "p", "s", "p_store"
+
     """
     min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
     max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
@@ -433,6 +437,7 @@ def update_linkports_component_attrs(
         Filters for specific subsets of data by providing an iterable of tags
         or identifiers. If None, no filtering is applied and additional link
         ports are considered for all connectors.
+
     """
     ports = additional_linkports(n, where)
     ports.sort(reverse=True)
@@ -474,6 +479,7 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     -------
     list of strings
         List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
+
     """
     if where is None:
         where = n.links.columns
@@ -498,6 +504,7 @@ def bus_carrier_unit(n: Network, bus_carrier: str | Sequence[str] | None) -> str
     ------
     ValueError: If the specified bus carrier is not found in the network or if multiple units
                 are found for the specified bus carrier.
+
     """
     if bus_carrier is None:
         return "carrier dependent"
