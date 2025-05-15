@@ -1345,9 +1345,10 @@ class Network:
                         if len(v) == 1:
                             v = v.iloc[0]
                             logger.debug(
-                                f"Single value sequence for {k} is treated as a scalar "
-                                f"and broadcasted to all components. It is recommended "
-                                f"to explicitly pass a scalar instead."
+                                "Single value sequence for %s is treated as a scalar "
+                                "and broadcasted to all components. It is recommended "
+                                "to explicitly pass a scalar instead.",
+                                k,
                             )
                         else:
                             v.index = names
@@ -1862,16 +1863,19 @@ class Network:
 
             if carrier not in ["AC", "DC"] and len(buses_i) > 1:
                 logger.warning(
-                    f"Warning, sub network {i} is not electric but "
+                    "Warning, sub network %d is not electric but "
                     "contains multiple buses\nand branches. Passive "
-                    "flows are not allowed for non-electric networks!"
+                    "flows are not allowed for non-electric networks!",
+                    i,
                 )
 
             if (self.buses.carrier.iloc[buses_i] != carrier).any():
                 logger.warning(
-                    f"Warning, sub network {i} contains buses with "
+                    "Warning, sub network %d contains buses with "
                     "mixed carriers! Value counts:"
-                    f"\n{self.buses.carrier.iloc[buses_i].value_counts()}"
+                    "\n%s",
+                    i,
+                    self.buses.carrier.iloc[buses_i].value_counts(),
                 )
 
             self.add("SubNetwork", i, carrier=carrier)

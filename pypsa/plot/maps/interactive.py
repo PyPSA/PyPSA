@@ -433,7 +433,7 @@ def explore(
 
         if num_invalid := sum(~valid_rows):
             logger.info(
-                f"Omitting {num_invalid} transformers due to missing coordinates"
+                "Omitting %d transformers due to missing coordinates", num_invalid
             )
 
         gdf_transformers = gpd.GeoDataFrame(
@@ -467,7 +467,7 @@ def explore(
         valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
 
         if num_invalid := sum(~valid_rows):
-            logger.info(f"Omitting {num_invalid} lines due to missing coordinates.")
+            logger.info("Omitting %d lines due to missing coordinates.", num_invalid)
 
         gdf_lines = gpd.GeoDataFrame(
             n.lines[valid_rows],
@@ -496,7 +496,7 @@ def explore(
         valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
 
         if num_invalid := sum(~valid_rows):
-            logger.info(f"Omitting {num_invalid} links due to missing coordinates.")
+            logger.info("Omitting %d links due to missing coordinates.", num_invalid)
 
         gdf_links = gpd.GeoDataFrame(
             n.links[valid_rows],
@@ -593,11 +593,13 @@ def explore(
 
     if len(components_present) > 0:
         logger.info(
-            f"Components rendered on the map: {', '.join(sorted(components_present))}."
+            "Components rendered on the map: %s",
+            ", ".join(sorted(components_present)),
         )
     if len(set(components) - set(components_present)) > 0:
         logger.info(
-            f"Components omitted as they are missing or not selected: {', '.join(sorted(set(components_possible) - set(components_present)))}."
+            "Components omitted as they are missing or not selected: %s",
+            ", ".join(sorted(set(components_possible) - set(components_present))),
         )
 
     # Set the default view to the bounds of the elements in the map

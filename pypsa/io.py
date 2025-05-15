@@ -55,7 +55,7 @@ def _retrieve_from_url(
 def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Network:
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         file_path = Path(temp_file.name)
-        logger.info(f"Retrieving network data from {url}.")
+        logger.info("Retrieving network data from %s.", url)
         try:
             if url.startswith("http"):
                 urlretrieve(url, file_path)  # noqa: S310
@@ -63,7 +63,7 @@ def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Networ
                 msg = f"Invalid URL: {url}"
                 raise ValueError(msg)
         except Exception as e:
-            logger.error(f"Failed to retrieve network data from {url}: {e}")
+            logger.error("Failed to retrieve network data from %s: %s", url, e)
             raise
         return io_function(file_path)
 
@@ -286,7 +286,7 @@ class ExporterCSV(Exporter):
 
         # make sure directory exists
         if not self.csv_folder_name.is_dir():
-            logger.warning(f"Directory {csv_folder_name} does not exist, creating it")
+            logger.warning("Directory %s does not exist, creating it", csv_folder_name)
             self.csv_folder_name.mkdir()
 
     def save_attributes(self, attrs: dict) -> None:
@@ -342,7 +342,7 @@ class ExporterCSV(Exporter):
         if fns := list(self.csv_folder_name.joinpath(list_name).glob("*.csv")):
             for fn in fns:
                 fn.unlink()
-            logger.warning(f"Stale csv file(s) {', '.join(fns)} removed")
+            logger.warning("Stale csv file(s) %s removed", ", ".join(fns))
 
     def remove_series(self, list_name: str, attr: str) -> None:
         """
@@ -503,7 +503,7 @@ class ExporterExcel(Exporter):
         self.excel_file_path = Path(excel_file_path)
         # Create an empty Excel file if it doesn't exist
         if not self.excel_file_path.exists():
-            logger.warning(f"Excel file {excel_file_path} does not exist, creating it")
+            logger.warning("Excel file %s does not exist, creating it", excel_file_path)
             with pd.ExcelWriter(self.excel_file_path, engine=self.engine) as writer:
                 pd.DataFrame().to_excel(writer, sheet_name="_temp")
 
@@ -576,7 +576,7 @@ class ExporterExcel(Exporter):
         """
         if list_name in self.writer.book.sheetnames:
             del self.writer.book[list_name]
-            logger.warning(f"Stale sheet {list_name} removed")
+            logger.warning("Stale sheet %s removed", list_name)
 
     def remove_series(self, list_name: str, attr: str) -> None:
         """
@@ -587,7 +587,7 @@ class ExporterExcel(Exporter):
         sheet_name = f"{list_name}-{attr}"
         if sheet_name in self.writer.book.sheetnames:
             del self.writer.book[sheet_name]
-            logger.warning(f"Stale sheet {sheet_name} removed")
+            logger.warning("Stale sheet %s removed", sheet_name)
 
     def finish(self) -> None:
         """Postprocessing of exporting process."""
@@ -909,7 +909,7 @@ class ExporterNetCDF(Exporter):
 
     def set_compression_encoding(self) -> None:
         """Set compression encoding for all variables."""
-        logger.debug(f"Setting compression encodings: {self.compression}")
+        logger.debug("Setting compression encodings: %s", self.compression)
         for v in self.ds.data_vars:
             if self.ds[v].dtype.kind not in ["U", "O"]:
                 self.ds[v].encoding.update(self.compression)
@@ -1557,8 +1557,9 @@ def _import_from_importer(
         imported_components.append(list_name)
 
     logger.info(
-        f"Imported network {str(basename or n.name or '<unnamed>')} "
-        f"has {', '.join(imported_components)}"
+        "Imported network %s has %s",
+        str(basename or n.name or "<unnamed>"),
+        ", ".join(imported_components),
     )
 
 
@@ -1830,8 +1831,11 @@ def _import_series_from_df(
     diff = df.columns.difference(static.index)
     if len(diff) > 0:
         logger.warning(
-            f"Components {diff} for attribute {attr} of {cls_name} "
-            f"are not in main components dataframe {list_name}"
+            "Components %s for attribute %s of %s are not in main components dataframe %s",
+            diff,
+            attr,
+            cls_name,
+            list_name,
         )
 
     # Get all attributes for the component
@@ -1848,8 +1852,11 @@ def _import_series_from_df(
     diff = n.snapshots.difference(df.index)
     if len(diff):
         logger.warning(
-            f"Snapshots {diff} are missing from {attr} of {cls_name}."
-            f" Filling with default value '{attrs.loc[attr].default}'"
+            "Snapshots %s are missing from %s of %s. Filling with default value '%s'",
+            diff,
+            attr,
+            cls_name,
+            attrs.loc[attr].default,
         )
         df = df.reindex(n.snapshots, fill_value=attrs.loc[attr].default)
 
@@ -1939,7 +1946,10 @@ def merge(
     if other.srid != new.srid:
         logger.warning(
             "Spatial Reference System Indentifier of networks do not agree: "
-            f"{new.srid}, {other.srid}. Assuming {new.srid}."
+            "%s, %s. Assuming %s.",
+            new.srid,
+            other.srid,
+            new.srid,
         )
     for c in other.iterate_components(to_iterate_list):
         new.add(c.name, c.static.index, **c.static)
@@ -2092,7 +2102,8 @@ def import_from_pypower_ppc(
             pdf["branches"].loc[zero_s_nom, "s_nom"] = overwrite_zero_s_nom
         else:
             logger.warning(
-                f"Warning: there are {zero_s_nom.sum()} branches with s_nom equal to zero, they will probably lead to infeasibilities and should be replaced with a high value using the `overwrite_zero_s_nom` argument."
+                "Warning: there are %d branches with s_nom equal to zero, they will probably lead to infeasibilities and should be replaced with a high value using the `overwrite_zero_s_nom` argument.",
+                zero_s_nom.sum(),
             )
 
     # determine bus voltages of branches to detect transformers

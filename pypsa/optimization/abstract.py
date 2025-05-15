@@ -214,7 +214,9 @@ def optimize_transmission_expansion_iteratively(
             / n.lines["s_nom_opt"].mean()
         )
         logger.info(
-            f"Mean square difference after iteration {iteration} is {lines_err}"  # type: ignore
+            "Mean square difference after iteration %d is %f",
+            iteration,
+            lines_err,
         )
         return lines_err
 
@@ -282,8 +284,9 @@ def optimize_transmission_expansion_iteratively(
     while diff >= msq_threshold or iteration < min_iterations:
         if iteration > max_iterations:
             logger.info(
-                f"Iteration {iteration} beyond max_iterations "
-                f"{max_iterations}. Stopping ..."
+                "Iteration %d beyond max_iterations %d. Stopping ...",
+                iteration,
+                max_iterations,
             )
             break
 
@@ -498,7 +501,11 @@ def optimize_with_rolling_horizon(
         end = min(len(snapshots), start + horizon)
         sns = snapshots[start:end]
         logger.info(
-            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i + 1}/{len(starting_points)})."
+            "Optimizing network for snapshot horizon [%s:%s] (%d/%d).",
+            sns[0],
+            sns[-1],
+            i + 1,
+            len(starting_points),
         )
 
         if i:
@@ -512,7 +519,9 @@ def optimize_with_rolling_horizon(
         status, condition = n.optimize(sns, **kwargs)  # type: ignore
         if status != "ok":
             logger.warning(
-                f"Optimization failed with status {status} and condition {condition}"
+                "Optimization failed with status %s and condition %s",
+                status,
+                condition,
             )
     return n
 
@@ -714,7 +723,9 @@ def optimize_and_run_non_linear_powerflow(
 
     if status != "ok":
         logger.warning(
-            f"Optimization failed with status {status} and condition {condition}"
+            "Optimization failed with status %s and condition %s",
+            status,
+            condition,
         )
         return {"status": status, "terminantion_condition": condition}
 

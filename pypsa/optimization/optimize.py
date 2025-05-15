@@ -440,8 +440,8 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
 
     if unassigned:
         logger.info(
-            f"The shadow-prices of the constraints {', '.join(unassigned)} were "
-            "not assigned to the network."
+            "The shadow-prices of the constraints %s were not assigned to the network.",
+            ", ".join(unassigned),
         )
 
 

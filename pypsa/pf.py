@@ -355,7 +355,9 @@ def sub_network_pf_singlebus(
     sns = as_index(sub_network.n, snapshots, "snapshots")
     n = sub_network.n
     logger.info(
-        f"Balancing power on single-bus sub-network {sub_network} for snapshots {snapshots}"
+        "Balancing power on single-bus sub-network %s for snapshots %s",
+        sub_network,
+        snapshots,
     )
 
     if not skip_pre:
@@ -490,11 +492,10 @@ def sub_network_pf(
 
     sns = as_index(sub_network.n, snapshots, "snapshots")
     logger.info(
-        "Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(
-            sub_network.n.sub_networks.at[sub_network.name, "carrier"],
-            sub_network,
-            sns,
-        )
+        "Performing non-linear load-flow on %s sub-network %s for snapshots %s",
+        sub_network.n.sub_networks.at[sub_network.name, "carrier"],
+        sub_network,
+        sns,
     )
 
     n = sub_network.n
@@ -707,7 +708,7 @@ def sub_network_pf(
         convs[now] = converged
     if not convs.all():
         not_converged = sns[~convs]
-        logger.warning(f"Power flow did not converge for {list(not_converged)}.")
+        logger.warning("Power flow did not converge for %s.", list(not_converged))
 
     # now set everything
     if distribute_slack:
@@ -1054,7 +1055,9 @@ def find_slack_bus(sub_network: SubNetwork) -> None:
                 "Slack"
             )
             logger.debug(
-                f"No slack generator found in sub-network {sub_network.name}, using {sub_network.slack_generator} as the slack generator"
+                "No slack generator found in sub-network %s, using %s as the slack generator",
+                sub_network.name,
+                sub_network.slack_generator,
             )
 
         elif len(slacks) == 1:
@@ -1063,7 +1066,9 @@ def find_slack_bus(sub_network: SubNetwork) -> None:
             sub_network.slack_generator = slacks[0]
             sub_network.n.generators.loc[slacks[1:], "control"] = "PV"
             logger.debug(
-                f"More than one slack generator found in sub-network {sub_network.name}, using {sub_network.slack_generator} as the slack generator"
+                "More than one slack generator found in sub-network %s, using %s as the slack generator",
+                sub_network.name,
+                sub_network.slack_generator,
             )
 
         sub_network.slack_bus = gens.bus[sub_network.slack_generator]
@@ -1072,7 +1077,7 @@ def find_slack_bus(sub_network: SubNetwork) -> None:
     sub_network.n.sub_networks.at[sub_network.name, "slack_bus"] = sub_network.slack_bus
 
     logger.debug(
-        f"Slack bus for sub-network {sub_network.name} is {sub_network.slack_bus}"
+        "Slack bus for sub-network %s is %s", sub_network.name, sub_network.slack_bus
     )
 
 

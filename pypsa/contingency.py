@@ -121,7 +121,7 @@ def network_lpf_contingency(
 
     for branch in branch_outages:
         if not isinstance(branch, tuple):
-            logger.warning(f"No type given for {branch}, assuming it is a line")
+            logger.warning("No type given for %s, assuming it is a line", branch)
             branch = ("Line", branch)
 
         sub_network = n.sub_networks.obj[passive_branches.sub_network[branch]]

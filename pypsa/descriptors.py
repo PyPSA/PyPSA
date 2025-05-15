@@ -541,6 +541,6 @@ def bus_carrier_unit(n: Network, bus_carrier: str | Sequence[str] | None) -> str
         raise ValueError(msg)
     unit = n.buses[n.buses.carrier.isin(bus_carrier)].unit.unique()
     if len(unit) > 1:
-        logger.warning(f"Multiple units found for carrier {bus_carrier}: {unit}")
+        logger.warning("Multiple units found for carrier %s: %s", bus_carrier, unit)
         return "carrier dependent"
     return unit.item()
