@@ -271,8 +271,8 @@ def test_plot_legend_lines(ac_dc_network):
         ax,
         [2, 5],
         ["label a", "label b"],
-        patch_kw=dict(alpha=0.5),
-        legend_kw=dict(frameon=False),
+        patch_kw={"alpha": 0.5},
+        legend_kw={"frameon": False},
     )
 
     plt.close()
@@ -288,7 +288,7 @@ def test_plot_legend_patches(ac_dc_network):
         ax,
         ["r", "g", "b"],
         ["red", "green", "blue"],
-        legend_kw=dict(frameon=False),
+        legend_kw={"frameon": False},
     )
 
     plt.close()

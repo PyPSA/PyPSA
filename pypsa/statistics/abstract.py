@@ -153,7 +153,7 @@ class AbstractStatisticsAccessor(ABC):
         elif groupby is not False:
             msg = f"Argument `groupby` must be a function, list, string, False or dict, got {repr(groupby)}."
             raise ValueError(msg)
-        return dict(by=by, level=level)
+        return {"by": by, "level": level}
 
     @property
     def is_multi_indexed(self) -> bool:

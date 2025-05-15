@@ -162,7 +162,7 @@ def iplot(
 
     """
     if fig is None:
-        fig = dict(data=[], layout={})
+        fig = {"data": [], "layout": {}}
 
     if bus_text is None:
         bus_text = "Bus " + n.buses.index
@@ -175,16 +175,16 @@ def iplot(
         x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
         y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
-    bus_trace = dict(
-        x=x,
-        y=y,
-        text=bus_text,
-        type="scatter",
-        mode="markers",
-        hoverinfo="text",
-        opacity=bus_alpha,
-        marker=dict(color=bus_colors, size=bus_sizes),
-    )
+    bus_trace = {
+        "x": x,
+        "y": y,
+        "text": bus_text,
+        "type": "scatter",
+        "mode": "markers",
+        "hoverinfo": "text",
+        "opacity": bus_alpha,
+        "marker": {"color": bus_colors, "size": bus_sizes},
+    }
 
     if bus_cmap is not None:
         bus_trace["marker"]["colorscale"] = bus_cmap
@@ -247,27 +247,27 @@ def iplot(
 
         for b in c.static.index:
             shapes.append(
-                dict(
-                    type="line",
-                    opacity=0.8,
-                    x0=x0[b],
-                    y0=y0[b],
-                    x1=x1[b],
-                    y1=y1[b],
-                    line=dict(color=b_colors[b], width=b_widths[b]),
-                )
+                {
+                    "type": "line",
+                    "opacity": 0.8,
+                    "x0": x0[b],
+                    "y0": y0[b],
+                    "x1": x1[b],
+                    "y1": y1[b],
+                    "line": {"color": b_colors[b], "width": b_widths[b]},
+                }
             )
 
         shape_traces.append(
-            dict(
-                x=0.5 * (x0 + x1),
-                y=0.5 * (y0 + y1),
-                text=b_text,
-                type="scatter",
-                mode="markers",
-                hoverinfo="text",
-                marker=dict(opacity=0.0),
-            )
+            {
+                "x": 0.5 * (x0 + x1),
+                "y": 0.5 * (y0 + y1),
+                "text": b_text,
+                "type": "scatter",
+                "mode": "markers",
+                "hoverinfo": "text",
+                "marker": {"opacity": 0.0},
+            }
         )
 
     if mapbox:
@@ -293,13 +293,13 @@ def iplot(
     else:
         fig["data"].extend([bus_trace] + shape_traces)
 
-    fig["layout"].update(dict(title=title, hovermode="closest", showlegend=False))
+    fig["layout"].update({"title": title, "hovermode": "closest", "showlegend": False})
 
     if size is not None:
         if len(size) != 2:
             msg = "Parameter size must specify a tuple (width, height)."
             raise ValueError(msg)
-        fig["layout"].update(dict(width=size[0], height=size[1]))
+        fig["layout"].update({"width": size[0], "height": size[1]})
 
     if mapbox:
         if mapbox_token != "":
@@ -319,7 +319,7 @@ def iplot(
         if "center" not in mapbox_parameters.keys():
             lon = (n.buses.x.min() + n.buses.x.max()) / 2
             lat = (n.buses.y.min() + n.buses.y.max()) / 2
-            mapbox_parameters["center"] = dict(lat=lat, lon=lon)
+            mapbox_parameters["center"] = {"lat": lat, "lon": lon}
 
         if "zoom" not in mapbox_parameters.keys():
             mapbox_parameters["zoom"] = 2

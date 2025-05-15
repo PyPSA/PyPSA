@@ -180,7 +180,7 @@ class TestNetcdf:
     def test_netcdf_io_custom_compression(self, scipy_network, tmpdir):
         fn = os.path.join(tmpdir, "netcdf_export.nc")
         digits = 5
-        compression = dict(zlib=True, complevel=9, least_significant_digit=digits)
+        compression = {"zlib": True, "complevel": 9, "least_significant_digit": digits}
         scipy_network.export_to_netcdf(fn, compression=compression)
         scipy_network_compressed = pypsa.Network(fn)
         assert (

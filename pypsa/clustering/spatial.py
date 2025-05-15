@@ -24,62 +24,62 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_ONE_PORT_STRATEGIES = dict(
-    p="sum",
-    q="sum",
-    p_set="sum",
-    q_set="sum",
-    p_nom=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
-    p_nom_max=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
-    p_nom_min="sum",
-    e_nom=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
-    e_nom_max=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
-    e_nom_min="sum",
-    weight="sum",
-    ramp_limit_up="mean",
-    ramp_limit_down="mean",
-    ramp_limit_start_up="mean",
-    ramp_limit_shut_down="mean",
-    build_year=lambda x: 0,
-    lifetime=lambda x: np.inf,
-    control=lambda x: "",
-    p_max_pu="capacity_weighted_average",
-    p_min_pu="capacity_weighted_average",
-    capital_cost="capacity_weighted_average",
-    marginal_cost="capacity_weighted_average",
-    efficiency="capacity_weighted_average",
-    max_hours="capacity_weighted_average",
-    inflow="sum",
-)
+DEFAULT_ONE_PORT_STRATEGIES = {
+    "p": "sum",
+    "q": "sum",
+    "p_set": "sum",
+    "q_set": "sum",
+    "p_nom": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    "p_nom_max": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    "p_nom_min": "sum",
+    "e_nom": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    "e_nom_max": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    "e_nom_min": "sum",
+    "weight": "sum",
+    "ramp_limit_up": "mean",
+    "ramp_limit_down": "mean",
+    "ramp_limit_start_up": "mean",
+    "ramp_limit_shut_down": "mean",
+    "build_year": lambda x: 0,
+    "lifetime": lambda x: np.inf,
+    "control": lambda x: "",
+    "p_max_pu": "capacity_weighted_average",
+    "p_min_pu": "capacity_weighted_average",
+    "capital_cost": "capacity_weighted_average",
+    "marginal_cost": "capacity_weighted_average",
+    "efficiency": "capacity_weighted_average",
+    "max_hours": "capacity_weighted_average",
+    "inflow": "sum",
+}
 
-DEFAULT_BUS_STRATEGIES = dict(
-    x="mean",
-    y="mean",
-    v_nom="max",
-    v_mag_pu_max="min",
-    v_mag_pu_min="max",
-    generator=lambda x: "",
-)
+DEFAULT_BUS_STRATEGIES = {
+    "x": "mean",
+    "y": "mean",
+    "v_nom": "max",
+    "v_mag_pu_max": "min",
+    "v_mag_pu_min": "max",
+    "generator": lambda x: "",
+}
 
-DEFAULT_LINE_STRATEGIES = dict(
-    r="reciprocal_voltage_weighted_average",
-    x="reciprocal_voltage_weighted_average",
-    g="voltage_weighted_average",
-    b="voltage_weighted_average",
-    terrain_factor="mean",
-    s_min_pu="capacity_weighted_average",
-    s_max_pu="capacity_weighted_average",
-    s_nom=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
-    s_nom_min="sum",
-    s_nom_max=pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
-    s_nom_extendable="any",
-    num_parallel="sum",
-    capital_cost="length_capacity_weighted_average",
-    v_ang_min="max",
-    v_ang_max="min",
-    lifetime="capacity_weighted_average",
-    build_year="capacity_weighted_average",
-)
+DEFAULT_LINE_STRATEGIES = {
+    "r": "reciprocal_voltage_weighted_average",
+    "x": "reciprocal_voltage_weighted_average",
+    "g": "voltage_weighted_average",
+    "b": "voltage_weighted_average",
+    "terrain_factor": "mean",
+    "s_min_pu": "capacity_weighted_average",
+    "s_max_pu": "capacity_weighted_average",
+    "s_nom": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    "s_nom_min": "sum",
+    "s_nom_max": pd.Series.sum,  # resolve infinities, see https://github.com/pandas-dev/pandas/issues/54161
+    "s_nom_extendable": "any",
+    "num_parallel": "sum",
+    "capital_cost": "length_capacity_weighted_average",
+    "v_ang_min": "max",
+    "v_ang_max": "min",
+    "lifetime": "capacity_weighted_average",
+    "build_year": "capacity_weighted_average",
+}
 
 
 def normed_or_uniform(x: pd.Series) -> pd.Series:
@@ -264,7 +264,7 @@ def aggregateoneport(
     static = pd.concat([aggregated, non_aggregated], sort=False)
     static.fillna(attrs.default, inplace=True)
 
-    dynamic = dict()
+    dynamic = {}
     if with_time:
         dynamic_strategies = align_strategies(strategies, n.dynamic(c), c)
         for attr, data in n.dynamic(c).items():
@@ -941,7 +941,7 @@ def busmap_by_greedy_modularity(
 
     G = nx.Graph()
     G.add_nodes_from(buses_i)
-    G.add_edges_from((u, v, dict(weight=w)) for (u, v), w in lines.itertuples())
+    G.add_edges_from((u, v, {"weight": w}) for (u, v), w in lines.itertuples())
 
     communities = nx.community.greedy_modularity_communities(
         G, best_n=n_clusters, cutoff=n_clusters, weight="weight"

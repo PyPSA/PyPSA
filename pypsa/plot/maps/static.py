@@ -1812,7 +1812,7 @@ def add_legend_arrows(
     colors = np.atleast_1d(colors)  # type: ignore
 
     if patch_kw is None:
-        patch_kw = dict(linewidth=1, zorder=4)
+        patch_kw = {"linewidth": 1, "zorder": 4}
     if legend_kw is None:
         legend_kw = {}
 

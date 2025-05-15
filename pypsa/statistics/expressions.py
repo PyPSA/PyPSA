@@ -1160,11 +1160,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     term = self._aggregate_timeseries(opex, weights, agg=aggregate_time)
                     result.append(term)
 
-            mapping = dict(
-                start_up_cost="start_up",
-                shut_down_cost="shut_down",
-                stand_by_cost="status",
-            )
+            mapping = {
+                "start_up_cost": "start_up",
+                "shut_down_cost": "shut_down",
+                "stand_by_cost": "status",
+            }
             for cost_type, attr in mapping.items():
                 if (
                     cost_type in cost_types_
@@ -1950,17 +1950,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        kwargs = dict(
-            comps=comps,
-            groupby=groupby,
-            aggregate_across_components=aggregate_across_components,
-            at_port=at_port,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            drop_zero=drop_zero,
-            round=round,
-        )
+        kwargs = {
+            "comps": comps,
+            "groupby": groupby,
+            "aggregate_across_components": aggregate_across_components,
+            "at_port": at_port,
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "nice_names": nice_names,
+            "drop_zero": drop_zero,
+            "round": round,
+        }
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
@@ -2176,19 +2176,19 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        kwargs = dict(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
-            aggregate_across_components=aggregate_across_components,
-            groupby=groupby,
-            at_port=at_port,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            drop_zero=drop_zero,
-            round=round,
-        )
+        kwargs = {
+            "comps": comps,
+            "aggregate_time": aggregate_time,
+            "aggregate_groups": aggregate_groups,
+            "aggregate_across_components": aggregate_across_components,
+            "groupby": groupby,
+            "at_port": at_port,
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "nice_names": nice_names,
+            "drop_zero": drop_zero,
+            "round": round,
+        }
         df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"

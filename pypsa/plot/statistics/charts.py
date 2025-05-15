@@ -574,13 +574,15 @@ class ChartGenerator(PlotsGenerator, ABC):
                 fig = positives.add_traces(negatives.data).add_traces(artificials.data)
             else:
                 fig = px.area(ldata, **kwargs)
-            fig.update_traces(line=dict(width=0))
+            fig.update_traces(line={"width": 0})
             fig.update_layout(hovermode="x")
         else:
             raise ValueError(f"Unsupported plot type: {kind}")
 
         # Update layout
-        fig.update_layout(template="plotly_white", margin=dict(l=50, r=50, t=50, b=50))
+        fig.update_layout(
+            template="plotly_white", margin={"l": 50, "r": 50, "t": 50, "b": 50}
+        )
 
         if not sharex and sharex is not None:
             fig.update_xaxes(matches=None)

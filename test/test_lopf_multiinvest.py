@@ -13,7 +13,7 @@ from pandas import IndexSlice as idx
 import pypsa
 from pypsa.descriptors import get_activity_mask
 
-kwargs = dict(multi_investment_periods=True)
+kwargs = {"multi_investment_periods": True}
 
 
 @pytest.fixture

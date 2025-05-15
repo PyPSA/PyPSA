@@ -574,7 +574,7 @@ def optimize_mga(
         model_kwargs = {}
 
     if weights is None:
-        weights = dict(Generator=dict(p_nom=pd.Series(1, index=n.generators.index)))
+        weights = {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
 
     # check that network has been solved
     if not hasattr(n, "objective"):
@@ -715,7 +715,7 @@ def optimize_and_run_non_linear_powerflow(
         logger.warning(
             f"Optimization failed with status {status} and condition {condition}"
         )
-        return dict(status=status, terminantion_condition=condition)
+        return {"status": status, "terminantion_condition": condition}
 
     for c in n.one_port_components:
         n.dynamic(c)["p_set"] = n.dynamic(c)["p"]

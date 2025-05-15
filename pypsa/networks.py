@@ -812,7 +812,7 @@ class Network:
                 .apply(lambda x: x.total_seconds() / 3600)
             )
             self._snapshot_weightings = pd.DataFrame(
-                {c: hours_per_step for c in self._snapshot_weightings.columns}
+                dict.fromkeys(self._snapshot_weightings.columns, hours_per_step)
             )
         elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             logger.info(
@@ -1084,7 +1084,7 @@ class Network:
 
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
-            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
+            df = pd.DataFrame(dict.fromkeys(self._snapshot_weightings.columns, df))
         self._snapshot_weightings = df
 
     def set_investment_periods(self, periods: Sequence) -> None:
@@ -1141,7 +1141,7 @@ class Network:
 
                 for k in dynamic.keys():
                     dynamic[k] = pd.concat(
-                        {p: dynamic[k] for p in periods_}, names=names
+                        dict.fromkeys(periods_, dynamic[k]), names=names
                     )
                     dynamic[k].index.name = "snapshot"
 
@@ -1150,7 +1150,7 @@ class Network:
             )
             self._snapshots.name = "snapshot"
             self._snapshot_weightings = pd.concat(
-                {p: self.snapshot_weightings for p in periods_}, names=names
+                dict.fromkeys(periods_, self.snapshot_weightings), names=names
             )
             self._snapshot_weightings.index.name = "snapshot"
 
@@ -1181,7 +1181,7 @@ class Network:
                 "Applying weightings to all columns of `investment_period_weightings`"
             )
             df = pd.DataFrame(
-                {c: df for c in self._investment_period_weightings.columns}
+                dict.fromkeys(self._investment_period_weightings.columns, df)
             )
         self._investment_period_weightings = df
 

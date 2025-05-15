@@ -79,7 +79,7 @@ def graph(
                 if weight is None:
                     data = {}
                 else:
-                    data = dict(weight=getattr(branch, weight, 0))
+                    data = {"weight": getattr(branch, weight, 0)}
                     if np.isinf(data["weight"]) and inf_weight is not True:
                         if inf_weight is False:
                             continue

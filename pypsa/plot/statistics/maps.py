@@ -153,21 +153,21 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         branch_colors = n.branches().carrier[branch_widths_scaled.index].map(colors)
 
         # Set default plot arguments
-        plot_args = dict(
-            bus_sizes=bus_sizes * bus_size_scaling_factor,
-            bus_split_circles=bus_split_circles,
-            bus_colors=colors,
-            line_flow=branch_flow_scaled.get("Line"),
-            line_widths=branch_widths_scaled.get("Line", 0),
-            line_colors=branch_colors.get("Line", "k"),
-            link_flow=branch_flow_scaled.get("Link"),
-            link_widths=branch_widths_scaled.get("Link", 0),
-            link_colors=branch_colors.get("Link", "k"),
-            transformer_flow=branch_flow_scaled.get("Transformer"),
-            transformer_widths=branch_widths_scaled.get("Transformer", 0),
-            transformer_colors=branch_colors.get("Transformer", "k"),
-            auto_scale_branches=False,
-        )
+        plot_args = {
+            "bus_sizes": bus_sizes * bus_size_scaling_factor,
+            "bus_split_circles": bus_split_circles,
+            "bus_colors": colors,
+            "line_flow": branch_flow_scaled.get("Line"),
+            "line_widths": branch_widths_scaled.get("Line", 0),
+            "line_colors": branch_colors.get("Line", "k"),
+            "link_flow": branch_flow_scaled.get("Link"),
+            "link_widths": branch_widths_scaled.get("Link", 0),
+            "link_colors": branch_colors.get("Link", "k"),
+            "transformer_flow": branch_flow_scaled.get("Transformer"),
+            "transformer_widths": branch_widths_scaled.get("Transformer", 0),
+            "transformer_colors": branch_colors.get("Transformer", "k"),
+            "auto_scale_branches": False,
+        }
 
         # Override with user-provided arguments
         if kwargs:

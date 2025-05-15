@@ -167,8 +167,8 @@ class TestEquals:
             ({}, {}, True),
             ((1, 2), (1, 2), True),
             ((1, 2), (1, 3), False),
-            (set([1, 2]), set([1, 2]), True),
-            (set([1, 2]), set([1, 3]), False),
+            ({1, 2}, {1, 2}, True),
+            ({1, 2}, {1, 3}, False),
             # Same object identity
             (lambda x: x, lambda x: x, False),  # Functions with different identity
         ],
