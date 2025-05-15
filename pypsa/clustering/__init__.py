@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Clustering functionality for PyPSA networks."""
 
 from functools import wraps

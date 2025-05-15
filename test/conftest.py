@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Created on Mon Jan 31 18:29:48 2022.
-
-@author: fabian
-"""
-
 import os
 
 import geopandas as gpd

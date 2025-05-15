@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Define global constraints for optimisation problems with Linopy.
 """

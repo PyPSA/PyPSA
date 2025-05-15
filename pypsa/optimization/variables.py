@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Define optimisation variables from PyPSA networks with Linopy.
 """

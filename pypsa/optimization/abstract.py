@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.

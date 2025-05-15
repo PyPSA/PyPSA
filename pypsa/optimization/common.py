@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Use common methods for optimization problem definition with Linopy.
 """
