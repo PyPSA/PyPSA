@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 import scipy as sp
 
 from pypsa.common import deprecated_common_kwargs
 from pypsa.descriptors import OrderedGraph
 
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable
+
+    import pandas as pd
+
     from pypsa import Network, SubNetwork
 
 
@@ -210,7 +212,7 @@ def incidence_matrix(
             busorder = n.buses_i()
     else:
         msg = "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
-        raise ValueError(msg)
+        raise TypeError(msg)
 
     no_buses = len(busorder)
     no_branches = 0

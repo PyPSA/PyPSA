@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import pandas as pd
 from deprecation import deprecated
 
 if TYPE_CHECKING:
-    pass
+    import pandas as pd
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +46,7 @@ class ComponentType:
     defaults: pd.DataFrame
     standard_types: pd.DataFrame | None = None
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check if two component types are equal.
 

@@ -28,5 +28,4 @@ def is_1d_list_like(x: Any) -> bool:
     if isinstance(x, pd.DataFrame):
         return False  # DataFrame has always 2 dimensions
 
-    else:
-        return is_list_like(x)
+    return is_list_like(x)

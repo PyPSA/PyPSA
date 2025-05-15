@@ -193,24 +193,26 @@ def iplot(
         bus_trace["marker"]["colorbar"] = bus_colorbar
 
     # Plot branches:
-    if isinstance(line_widths, pd.Series):
-        if isinstance(line_widths.index, pd.MultiIndex):
-            msg = (
-                "Index of argument 'line_widths' is a Multiindex, "
-                "this is not support since pypsa v0.17 and will be removed in v1.0. "
-                "Set differing widths with arguments 'line_widths', "
-                "'link_widths' and 'transformer_widths'."
-            )
-            raise DeprecationWarning(msg)
-    if isinstance(line_colors, pd.Series):
-        if isinstance(line_colors.index, pd.MultiIndex):
-            msg = (
-                "Index of argument 'line_colors' is a Multiindex, "
-                "this is not support since pypsa v0.17. and will be removed in v1.0. "
-                "Set differing colors with arguments 'line_colors', "
-                "'link_colors' and 'transformer_colors'."
-            )
-            raise DeprecationWarning(msg)
+    if isinstance(line_widths, pd.Series) and isinstance(
+        line_widths.index, pd.MultiIndex
+    ):
+        msg = (
+            "Index of argument 'line_widths' is a Multiindex, "
+            "this is not support since pypsa v0.17 and will be removed in v1.0. "
+            "Set differing widths with arguments 'line_widths', "
+            "'link_widths' and 'transformer_widths'."
+        )
+        raise DeprecationWarning(msg)
+    if isinstance(line_colors, pd.Series) and isinstance(
+        line_colors.index, pd.MultiIndex
+    ):
+        msg = (
+            "Index of argument 'line_colors' is a Multiindex, "
+            "this is not support since pypsa v0.17. and will be removed in v1.0. "
+            "Set differing colors with arguments 'line_colors', "
+            "'link_colors' and 'transformer_colors'."
+        )
+        raise DeprecationWarning(msg)
 
     if branch_components is None:
         branch_components = n.branch_components
@@ -247,8 +249,8 @@ def iplot(
         y0 = c.static.bus0.map(y)
         y1 = c.static.bus1.map(y)
 
-        for b in c.static.index:
-            shapes.append(
+        shapes.extend(
+            [
                 {
                     "type": "line",
                     "opacity": 0.8,
@@ -258,7 +260,9 @@ def iplot(
                     "y1": y1[b],
                     "line": {"color": b_colors[b], "width": b_widths[b]},
                 }
-            )
+                for b in c.static.index
+            ]
+        )
 
         shape_traces.append(
             {
@@ -309,21 +313,23 @@ def iplot(
 
         mapbox_parameters.setdefault("style", mapbox_style)
 
-        if mapbox_parameters["style"] in _token_required_mb_styles:
-            if "accesstoken" not in mapbox_parameters.keys():
-                msg = (
-                    "Using Mapbox layout styles requires a valid access token from "
-                    "https://www.mapbox.com/, style which do not require a token "
-                    "are:\n{', '.join(_open__mb_styles)}."
-                )
-                raise ValueError(msg)
+        if (
+            mapbox_parameters["style"] in _token_required_mb_styles
+            and "accesstoken" not in mapbox_parameters
+        ):
+            msg = (
+                "Using Mapbox layout styles requires a valid access token from "
+                "https://www.mapbox.com/, style which do not require a token "
+                "are:\n{', '.join(_open__mb_styles)}."
+            )
+            raise ValueError(msg)
 
-        if "center" not in mapbox_parameters.keys():
+        if "center" not in mapbox_parameters:
             lon = (n.buses.x.min() + n.buses.x.max()) / 2
             lat = (n.buses.y.min() + n.buses.y.max()) / 2
             mapbox_parameters["center"] = {"lat": lat, "lon": lon}
 
-        if "zoom" not in mapbox_parameters.keys():
+        if "zoom" not in mapbox_parameters:
             mapbox_parameters["zoom"] = 2
 
         fig["layout"]["mapbox"] = mapbox_parameters

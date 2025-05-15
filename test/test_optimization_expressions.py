@@ -43,7 +43,7 @@ def test_expressions_capacity(prepared_network, groupby):
     assert expr.size > 0
 
 
-@pytest.mark.parametrize("aggregate_across_components", (True, False))
+@pytest.mark.parametrize("aggregate_across_components", [True, False])
 def test_expression_capacity_all_filtered(
     prepared_network, aggregate_across_components
 ):

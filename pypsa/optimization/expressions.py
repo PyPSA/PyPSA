@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any
 
 import linopy as ln
@@ -23,6 +22,8 @@ from pypsa.statistics import (
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Sequence
+
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
@@ -38,8 +39,7 @@ def check_if_empty(expr: LinearExpression) -> bool:
     """
     if USE_EMPTY_PROPERTY:
         return expr.empty
-    else:
-        return expr.empty()
+    return expr.empty()
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -93,9 +93,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if isinstance(weights.index, pd.MultiIndex):
                 return expr.multiply(weights, axis=0).groupby(level=0).sum().T
             return expr @ weights
-        else:
-            msg = f"Aggregation method {agg} not supported."
-            raise ValueError(msg)
+        msg = f"Aggregation method {agg} not supported."
+        raise ValueError(msg)
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())

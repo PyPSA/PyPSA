@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
-import os
 import warnings
-from collections.abc import Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -91,13 +89,15 @@ from pypsa.typing import is_1d_list_like
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterator, Sequence
+
     import linopy
     from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
 
 
-dir_name = os.path.dirname(__file__)
+dir_name = Path(__file__).parent
 
 standard_types_dir_name = "data/standard_types"
 
@@ -388,7 +388,7 @@ class Network:
         """Merge all components of two networks."""
         self.merge(other)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check for equality of two networks.
 
@@ -824,7 +824,7 @@ class Network:
             dynamic = self.dynamic(component)
             attrs = self.components[component]["attrs"]
 
-            for k in dynamic.keys():
+            for k in dynamic:
                 if dynamic[k].empty:  # avoid expensive reindex operation
                     dynamic[k].index = self._snapshots
                 elif k in attrs.default[attrs.varying]:
@@ -912,8 +912,7 @@ class Network:
         """
         if "timestep" in self.snapshots.names:
             return self.snapshots.get_level_values("timestep").unique()
-        else:
-            return self.snapshots
+        return self.snapshots
 
     @timesteps.setter
     def timesteps(self, timesteps: Sequence) -> None:
@@ -958,8 +957,7 @@ class Network:
         """
         if "period" in self.snapshots.names:
             return self.snapshots.get_level_values("period").unique()
-        else:
-            return pd.Index([], name="period")
+        return pd.Index([], name="period")
 
     @periods.setter
     def periods(self, periods: Sequence) -> None:
@@ -1140,7 +1138,7 @@ class Network:
             for component in self.all_components:
                 dynamic = self.dynamic(component)
 
-                for k in dynamic.keys():
+                for k in dynamic:
                     dynamic[k] = pd.concat(
                         dict.fromkeys(periods_, dynamic[k]), names=names
                     )
@@ -1620,10 +1618,11 @@ class Network:
             # Apply time-varying data
             for component in self.iterate_components():
                 dynamic = getattr(n, component.list_name + "_t")
-                for k in component.dynamic.keys():
-                    try:
+                for k in component.dynamic:
+                    # Check if all snapshots_ are in the index
+                    if set(snapshots_).issubset(component.dynamic[k].index):
                         dynamic[k] = component.dynamic[k].loc[snapshots_].copy()
-                    except KeyError:
+                    else:
                         dynamic[k] = component.dynamic[k].reindex(snapshots_).copy()
 
             # Apply investment periods
@@ -1647,10 +1646,8 @@ class Network:
             "objective_constant",
             "now",
         ]:
-            try:
+            if hasattr(self, attr):
                 setattr(n, attr, getattr(self, attr))
-            except AttributeError:
-                pass
 
         return n
 
@@ -2098,20 +2095,18 @@ class SubNetwork:
             if key == "static":
                 if c.name in {"Bus"} | self.n.passive_branch_components:
                     return value[value.sub_network == self.name]
-                elif c.name in self.n.one_port_components:
+                if c.name in self.n.one_port_components:
                     buses = self.buses_i()
                     return value[value.bus.isin(buses)]
-                else:
-                    msg = f"Component {c.name} not supported for sub-networks"
-                    raise ValueError(msg)
-            elif key == "dynamic":
+                msg = f"Component {c.name} not supported for sub-networks"
+                raise ValueError(msg)
+            if key == "dynamic":
                 dynamic = Dict()
                 index = self.static(c.name).index
                 for k, v in self.n.dynamic(c.name).items():
                     dynamic[k] = v[index.intersection(v.columns)]
                 return dynamic
-            else:
-                return value
+            return value
 
         return ComponentsStore(
             {

@@ -5,9 +5,8 @@ Build optimisation problems from PyPSA networks with Linopy.
 from __future__ import annotations
 
 import logging
-import os
-from collections.abc import Callable, Sequence
 from functools import wraps
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -64,12 +63,14 @@ from pypsa.optimization.variables import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network, SubNetwork
 logger = logging.getLogger(__name__)
 
 
 lookup = pd.read_csv(
-    os.path.join(os.path.dirname(__file__), "..", "data", "variables.csv"),
+    Path(__file__).parent / ".." / "data" / "variables.csv",
     index_col=["component", "variable"],
 )
 
@@ -199,7 +200,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             var = m[f"{c}-{attr}"]
             objective.append((var * cost).sum())
 
-    if not len(objective):
+    if not objective:
         msg = (
             "Objective function could not be created. "
             "Please make sure the components have assigned costs."
@@ -486,8 +487,7 @@ def post_processing(n: Network) -> None:
         ("Link", "p0", "bus0"),
         ("Link", "p1", "bus1"),
     ]
-    for i in additional_linkports(n):
-        ca.append(("Link", f"p{i}", f"bus{i}"))
+    ca.extend([("Link", f"p{i}", f"bus{i}") for i in additional_linkports(n)])
 
     def sign(c: str) -> int:
         return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'

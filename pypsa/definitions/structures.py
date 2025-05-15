@@ -45,11 +45,11 @@ class Dict(dict):
         beginning with a letter or underscore).  Also includes
         attributes of parent dict class.
         """
-        dict_keys = []
-        for k in self.keys():
-            if isinstance(k, str):
-                if m := self._re_pattern.match(k):
-                    dict_keys.append(m.string)
+        dict_keys = [
+            m.string
+            for k in self.keys()
+            if isinstance(k, str) and (m := self._re_pattern.match(k))
+        ]
 
         obj_attrs = list(dir(Dict))
 

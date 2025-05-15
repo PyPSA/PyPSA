@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -18,6 +17,8 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 logger = logging.getLogger(__name__)
 

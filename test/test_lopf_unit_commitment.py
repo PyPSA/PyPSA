@@ -472,7 +472,7 @@ def test_dynamic_ramp_rates():
     """
     n = pypsa.Network()
 
-    snapshots = range(0, 15)
+    snapshots = range(15)
     n.set_snapshots(snapshots)
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=100)

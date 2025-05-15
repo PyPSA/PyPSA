@@ -5,7 +5,6 @@ Define optimisation constraints from PyPSA networks with Linopy.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import linopy
@@ -28,7 +27,9 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
 
 if TYPE_CHECKING:
-    from xarray import DataArray
+    from collections.abc import Sequence
+
+    from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
 
@@ -720,12 +721,12 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
                 ds = Dataset({"coeffs": coeffs, "vars": vars})
                 exprs_list.append(LinearExpression(ds, m))
 
-        if len(exprs_list):
+        if exprs_list:
             exprs = merge(exprs_list, dim="cycles")
             exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
             lhs.append(exprs)
 
-    if len(lhs):
+    if lhs:
         lhs = merge(lhs, dim="snapshot")
         m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 

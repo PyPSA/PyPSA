@@ -1,6 +1,9 @@
+import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidOptionError(AttributeError):
@@ -157,15 +160,15 @@ class OptionsNode:
     def describe_options(self, prefix: str = "") -> None:
         """Print documentation for all options."""
         if not prefix:
-            print("PyPSA Options\n=============")
+            print("PyPSA Options\n=============")  # noqa: T201
 
         for name, child in sorted(self._children.items()):
             path = f"{prefix}.{name}" if prefix else name
 
             if isinstance(child, Option):
-                print(f"{path}:")
-                print(f"    Default: {child._default}")
-                print(f"    Description: {child._docs}")
+                print("%s:", path)  # noqa: T201
+                print("    Default: %s", child._default)  # noqa: T201
+                print("    Description: %s", child._docs)  # noqa: T201
             else:
                 child.describe_options(path)
 

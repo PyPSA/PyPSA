@@ -7,7 +7,6 @@ Mainly used in the `Network.consistency_check()` method.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -16,6 +15,8 @@ import pandas as pd
 from pypsa.common import deprecated_common_kwargs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
     from pypsa.components import Components
 
@@ -34,8 +35,7 @@ def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     formatted_message = message % args if args else message
     if strict:
         raise ConsistencyError(formatted_message)
-    else:
-        logger.warning(message, *args)
+    logger.warning(message, *args)
 
 
 @deprecated_common_kwargs
@@ -615,18 +615,15 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
             )
             if strict:
                 raise ValueError(msg)
-            else:
-                _log_or_raise(strict, msg)
-    else:
-        if constraint_periods:
-            msg = (
-                "The global constraints contain investment periods but "
-                "snapshots are not multi-indexed."
-            )
-            if strict:
-                raise ValueError(msg)
-            else:
-                _log_or_raise(strict, msg)
+            _log_or_raise(strict, msg)
+    elif constraint_periods:
+        msg = (
+            "The global constraints contain investment periods but "
+            "snapshots are not multi-indexed."
+        )
+        if strict:
+            raise ValueError(msg)
+        _log_or_raise(strict, msg)
 
 
 @deprecated_common_kwargs

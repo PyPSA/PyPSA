@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 import pandas as pd
 import pytest
 from geopandas.testing import assert_geodataframe_equal
@@ -35,7 +32,7 @@ class TestCSVDir:
         ],
     )
     def test_csv_io(self, scipy_network, tmpdir, meta):
-        fn = os.path.join(tmpdir, "csv_export")
+        fn = tmpdir / "csv_export"
         scipy_network.meta = meta
         scipy_network.export_to_csv_folder(fn)
         pypsa.Network(fn)
@@ -51,7 +48,7 @@ class TestCSVDir:
         ],
     )
     def test_csv_io_quotes(self, scipy_network, tmpdir, meta, quotechar="'"):
-        fn = os.path.join(tmpdir, "csv_export")
+        fn = tmpdir / "csv_export"
         scipy_network.meta = meta
         scipy_network.export_to_csv_folder(fn, quotechar=quotechar)
         imported = pypsa.Network()
@@ -59,12 +56,12 @@ class TestCSVDir:
         assert imported.meta == scipy_network.meta
 
     def test_csv_io_Path(self, scipy_network, tmpdir):
-        fn = Path(os.path.join(tmpdir, "csv_export"))
+        fn = tmpdir / "csv_export"
         scipy_network.export_to_csv_folder(fn)
         pypsa.Network(fn)
 
     def test_csv_io_multiindexed(self, ac_dc_network_mi, tmpdir):
-        fn = os.path.join(tmpdir, "csv_export")
+        fn = tmpdir / "csv_export"
         ac_dc_network_mi.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
@@ -73,7 +70,7 @@ class TestCSVDir:
         )
 
     def test_csv_io_shapes(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "csv_export")
+        fn = tmpdir / "csv_export"
         ac_dc_network_shapes.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
@@ -83,7 +80,7 @@ class TestCSVDir:
         )
 
     def test_csv_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "csv_export")
+        fn = tmpdir / "csv_export"
         n = ac_dc_network_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_csv_folder(fn)
@@ -105,19 +102,19 @@ class TestNetcdf:
         ],
     )
     def test_netcdf_io(self, scipy_network, tmpdir, meta):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         scipy_network.meta = meta
         scipy_network.export_to_netcdf(fn)
         reloaded = pypsa.Network(fn)
         assert reloaded.meta == scipy_network.meta
 
     def test_netcdf_io_Path(self, scipy_network, tmpdir):
-        fn = Path(os.path.join(tmpdir, "netcdf_export.nc"))
+        fn = tmpdir / "netcdf_export.nc"
         scipy_network.export_to_netcdf(fn)
         pypsa.Network(fn)
 
     def test_netcdf_io_datetime(self, tmpdir):
-        fn = os.path.join(tmpdir, "temp.nc")
+        fn = tmpdir / "temp.nc"
         exported_sns = pd.date_range(start="2013-03-01", end="2013-03-02", freq="h")
         n = pypsa.Network()
         n.set_snapshots(exported_sns)
@@ -127,7 +124,7 @@ class TestNetcdf:
         assert (imported_sns == exported_sns).all()
 
     def test_netcdf_io_multiindexed(self, ac_dc_network_mi, tmpdir):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         ac_dc_network_mi.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
@@ -142,7 +139,7 @@ class TestNetcdf:
         )
 
     def test_netcdf_io_shapes(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         ac_dc_network_shapes.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
@@ -152,7 +149,7 @@ class TestNetcdf:
         )
 
     def test_netcdf_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         n = ac_dc_network_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_netcdf(fn)
@@ -168,7 +165,7 @@ class TestNetcdf:
         pypsa.Network(url)
 
     def test_netcdf_io_no_compression(self, scipy_network, tmpdir):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         scipy_network.export_to_netcdf(fn, float32=False, compression=None)
         scipy_network_compressed = pypsa.Network(fn)
         assert (
@@ -178,7 +175,7 @@ class TestNetcdf:
         )
 
     def test_netcdf_io_custom_compression(self, scipy_network, tmpdir):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         digits = 5
         compression = {"zlib": True, "complevel": 9, "least_significant_digit": digits}
         scipy_network.export_to_netcdf(fn, compression=compression)
@@ -195,12 +192,12 @@ class TestNetcdf:
         )
 
     def test_netcdf_io_typecast(self, scipy_network, tmpdir):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         scipy_network.export_to_netcdf(fn, float32=True, compression=None)
         pypsa.Network(fn)
 
     def test_netcdf_io_typecast_and_compression(self, scipy_network, tmpdir):
-        fn = os.path.join(tmpdir, "netcdf_export.nc")
+        fn = tmpdir / "netcdf_export.nc"
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
@@ -216,7 +213,7 @@ class TestHDF5:
         ],
     )
     def test_hdf5_io(self, scipy_network, tmpdir, meta):
-        fn = os.path.join(tmpdir, "hdf5_export.h5")
+        fn = tmpdir / "hdf5_export.h5"
         scipy_network.meta = meta
         scipy_network.export_to_hdf5(fn)
         pypsa.Network(fn)
@@ -224,12 +221,12 @@ class TestHDF5:
         assert reloaded.meta == scipy_network.meta
 
     def test_hdf5_io_Path(self, scipy_network, tmpdir):
-        fn = Path(os.path.join(tmpdir, "hdf5_export.h5"))
+        fn = tmpdir / "hdf5_export.h5"
         scipy_network.export_to_hdf5(fn)
         pypsa.Network(fn)
 
     def test_hdf5_io_multiindexed(self, ac_dc_network_mi, tmpdir):
-        fn = os.path.join(tmpdir, "hdf5_export.h5")
+        fn = tmpdir / "hdf5_export.h5"
         ac_dc_network_mi.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
@@ -238,7 +235,7 @@ class TestHDF5:
         )
 
     def test_hdf5_io_shapes(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "hdf5_export.h5")
+        fn = tmpdir / "hdf5_export.h5"
         ac_dc_network_shapes.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
@@ -248,7 +245,7 @@ class TestHDF5:
         )
 
     def test_hdf5_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "hdf5_export.h5")
+        fn = tmpdir / "hdf5_export.h5"
         n = ac_dc_network_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_hdf5(fn)
@@ -271,19 +268,19 @@ class TestExcelIO:
         ],
     )
     def test_excel_io(self, scipy_network, tmpdir, meta):
-        fn = os.path.join(tmpdir, "excel_export.xlsx")
+        fn = tmpdir / "excel_export.xlsx"
         scipy_network.meta = meta
         scipy_network.export_to_excel(fn)
         reloaded = pypsa.Network(fn)
         assert reloaded.meta == scipy_network.meta
 
     def test_excel_io_Path(self, scipy_network, tmpdir):
-        fn = Path(os.path.join(tmpdir, "excel_export.xlsx"))
+        fn = tmpdir / "excel_export.xlsx"
         scipy_network.export_to_excel(fn)
         pypsa.Network(fn)
 
     def test_excel_io_datetime(self, tmpdir):
-        fn = os.path.join(tmpdir, "temp.xlsx")
+        fn = tmpdir / "temp.xlsx"
         exported_sns = pd.date_range(start="2013-03-01", end="2013-03-02", freq="h")
         n = pypsa.Network()
         n.set_snapshots(exported_sns)
@@ -292,7 +289,7 @@ class TestExcelIO:
         assert (imported_sns == exported_sns).all()
 
     def test_excel_io_multiindexed(self, ac_dc_network_mi, tmpdir):
-        fn = os.path.join(tmpdir, "excel_export.xlsx")
+        fn = tmpdir / "excel_export.xlsx"
         ac_dc_network_mi.export_to_excel(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
@@ -306,7 +303,7 @@ class TestExcelIO:
         )
 
     def test_excel_io_shapes(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "excel_export.xlsx")
+        fn = tmpdir / "excel_export.xlsx"
         ac_dc_network_shapes.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
@@ -316,7 +313,7 @@ class TestExcelIO:
         )
 
     def test_excel_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
-        fn = os.path.join(tmpdir, "excel_export.xlsx")
+        fn = tmpdir / "excel_export.xlsx"
         n = ac_dc_network_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_excel(fn)
@@ -342,7 +339,7 @@ class TestExcelIO:
             efficiency_dispatch=s,
             standing_loss=s,
         )
-        fn = os.path.join(tmpdir, "network-time-eff.xlsx")
+        fn = tmpdir / "network-time-eff.xlsx"
         n.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert not m.stores_t.standing_loss.empty
@@ -422,7 +419,7 @@ def test_io_time_dependent_efficiencies(tmpdir):
         standing_loss=s,
     )
 
-    fn = os.path.join(tmpdir, "network-time-eff.nc")
+    fn = tmpdir / "network-time-eff.nc"
     n.export_to_netcdf(fn)
     m = pypsa.Network(fn)
 

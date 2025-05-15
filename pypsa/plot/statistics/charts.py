@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -11,8 +10,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
 from pypsa.consistency import (
     plotting_consistency_check,
@@ -20,8 +17,10 @@ from pypsa.consistency import (
 from pypsa.plot.statistics.base import PlotsGenerator
 
 if TYPE_CHECKING:
-    pass
+    from collections.abc import Iterator, Sequence
 
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
 CHART_TYPES = [
     "area",
@@ -616,10 +615,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         """
         filtered = ["value", "component", "snapshot"]
-        filtered_cols = []
-        for c in args:  # Iterate through the args tuple
-            if c not in filtered and c is not None:
-                filtered_cols.append(c)
+        filtered_cols = [c for c in args if c not in filtered and c is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}
 

@@ -166,7 +166,7 @@ def _combine_schemas() -> dict:
         for value in param_list
     }
 
-    for stat_name in SCHEMA.keys():
+    for stat_name in SCHEMA:  # noqa: PLC0206
         combined_schema[stat_name] = {}
 
         for plot_type in plot_types:
@@ -238,10 +238,9 @@ def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dic
             kwargs[param] = schema[stats_name][plot_name][param]["default"]
             if not schema[stats_name][plot_name][param]["allowed"]:
                 to_remove.append(param)
-        else:
-            if not schema[stats_name][plot_name][param]["allowed"]:
-                msg = f"Parameter {param} can not be used for {stats_name} {plot_name}."
-                raise ValueError(msg)
+        elif not schema[stats_name][plot_name][param]["allowed"]:
+            msg = f"Parameter {param} can not be used for {stats_name} {plot_name}."
+            raise ValueError(msg)
 
     for param in to_remove:
         kwargs.pop(param)

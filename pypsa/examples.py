@@ -17,8 +17,7 @@ def _repo_url(
 ) -> str:
     if master or __version_semver_tuple__ < (0, 35):  # Feature was added in 0.35.0
         return f"{url}master/"
-    else:
-        return f"{url}v{__version_semver__}/"
+    return f"{url}v{__version_semver__}/"
 
 
 def _retrieve_if_not_local(path: str | Path) -> Network:

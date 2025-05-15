@@ -166,12 +166,11 @@ def test_query_filtering(ac_dc_network_r):
 def test_consistency_checks(ac_dc_network_r):
     """Test plotting consistency checks"""
     plotter = ChartGenerator(ac_dc_network_r)
-
+    n = ac_dc_network_r.copy()
+    plotter = ChartGenerator(n)
+    n.carriers.color = pd.Series()
     # Test with missing carrier colors
     with pytest.raises(ConsistencyError):
-        n = ac_dc_network_r.copy()
-        plotter = ChartGenerator(n)
-        n.carriers.color = pd.Series()
         plotter.plot(data=pd.DataFrame(), kind="area", x="carrier", y="value")
 
 

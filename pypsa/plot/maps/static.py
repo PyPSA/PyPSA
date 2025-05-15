@@ -4,23 +4,19 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Literal
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
-from matplotlib.legend import Legend
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
-from pypsa.components.components import Components
 from pypsa.constants import DEFAULT_EPSG
 from pypsa.geo import (
     compute_bbox,
@@ -39,6 +35,12 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import networkx as nx
+    from matplotlib.legend import Legend
+
+    from pypsa.components.components import Components
     from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
@@ -204,7 +206,7 @@ class MapPlotter:
         return self._area_factor
 
     @area_factor.setter
-    def area_factor(self, value: float | int | None) -> None:
+    def area_factor(self, value: float | None) -> None:
         """Set the area factor for scaling."""
         if value is not None and not isinstance(value, int | float):
             msg = "area_factor must be a number"
@@ -403,7 +405,7 @@ class MapPlotter:
 
         if not isinstance(self.ax, GeoAxesSubplot):
             msg = "The axis must be a GeoAxesSubplot to add geographic features."
-            raise ValueError(msg)
+            raise TypeError(msg)
 
         if resolution not in ["10m", "50m", "110m"]:
             msg = "Resolution has to be one of '10m', '50m', '110m'"
@@ -578,7 +580,7 @@ class MapPlotter:
 
     def _flow_ds_from_arg(
         self,
-        flow: pd.Series | str | int | float | Callable | None,
+        flow: pd.Series | str | float | Callable | None,
         c_name: str,
     ) -> pd.Series | None:
         """
@@ -600,16 +602,16 @@ class MapPlotter:
         if isinstance(flow, pd.Series):
             return flow
 
-        elif flow in self.n.snapshots:
+        if flow in self.n.snapshots:
             return self.n.dynamic(c_name).p0.loc[flow]
 
-        elif isinstance(flow, str) or callable(flow):
+        if isinstance(flow, str) or callable(flow):
             return self.n.dynamic(c_name).p0.agg(flow, axis=0)
 
-        elif isinstance(flow, int | float):
+        if isinstance(flow, int | float):
             return pd.Series(flow, index=self.n.static(c_name).index)
 
-        elif flow is not None:
+        if flow is not None:
             msg = f"The 'flow' argument must be a pandas.Series, a string, a float or a callable, got {type(flow)}."
             raise ValueError(msg)
 
@@ -754,7 +756,7 @@ class MapPlotter:
         flow: pd.Series,
         color: pd.Series,
         area_factor: float,
-        alpha: float | int = 1,
+        alpha: float = 1,
     ) -> PatchCollection:
         """Helper function to generate arrows from flow data."""
         # this funtion is used for diplaying arrows representing the network flow
@@ -1180,10 +1182,9 @@ class MapPlotter:
             raise DeprecationWarning(msg)
 
         # Check for ValueErrors
-        if geomap:
-            if not cartopy_present:
-                logger.warning("Cartopy needs to be installed to use `geomap=True`.")
-                geomap = False
+        if geomap and not cartopy_present:
+            logger.warning("Cartopy needs to be installed to use `geomap=True`.")
+            geomap = False
 
         # Check if bus_sizes is a MultiIndex
         multindex_buses = isinstance(bus_sizes, pd.Series) and isinstance(
@@ -1441,7 +1442,7 @@ class WedgeHandler(HandlerPatch):
 
     LEGEND_SCALE_FACTOR = 72
 
-    def __init__(self, scale_factor: float | int | None = None) -> None:
+    def __init__(self, scale_factor: float | None = None) -> None:
         """Initialize the WedgeHandler."""
         super().__init__()
         self.scale_factor = scale_factor or self.LEGEND_SCALE_FACTOR
@@ -1575,7 +1576,7 @@ def add_legend_lines(
     if len(sizes) != len(labels):
         msg = "Sizes and labels must have the same length."
         raise ValueError(msg)
-    elif len(colors) > 0 and len(sizes) != len(colors):
+    if len(colors) > 0 and len(sizes) != len(colors):
         msg = "Sizes, labels, and colors must have the same length."
         raise ValueError(msg)
 

@@ -39,8 +39,8 @@ def test_deprecated_namespace(ac_dc_network):
     plt.close()
 
 
-@pytest.mark.parametrize("margin", (None, 0.1))
-@pytest.mark.parametrize("jitter", (None, 1))
+@pytest.mark.parametrize("margin", [None, 0.1])
+@pytest.mark.parametrize("jitter", [None, 1])
 @pytest.mark.skipif(os.name == "nt", reason="tcl_findLibrary on Windows")
 def test_plot_standard_params_wo_geomap(ac_dc_network, margin, jitter):
     n = ac_dc_network
@@ -49,8 +49,8 @@ def test_plot_standard_params_wo_geomap(ac_dc_network, margin, jitter):
 
 
 @pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
-@pytest.mark.parametrize("margin", (None, 0.1))
-@pytest.mark.parametrize("jitter", (None, 1))
+@pytest.mark.parametrize("margin", [None, 0.1])
+@pytest.mark.parametrize("jitter", [None, 1])
 def test_plot_standard_params_w_geomap(ac_dc_network, margin, jitter):
     n = ac_dc_network
     n.plot.map(geomap=True, margin=margin, jitter=jitter)
@@ -68,9 +68,10 @@ def test_plot_on_axis_wo_geomap(ac_dc_network):
 def test_plot_on_axis_w_geomap(ac_dc_network):
     n = ac_dc_network
     fig, ax = plt.subplots()
+
     with pytest.raises(ValueError):
         n.plot.map(ax=ax, geomap=True)
-        plt.close()
+    plt.close()
 
 
 def test_plot_bus_circles(ac_dc_network):

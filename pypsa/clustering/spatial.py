@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Collection, Iterable
 from dataclasses import dataclass
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any
@@ -19,6 +18,8 @@ from pypsa import io
 from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Iterable
+
     from pypsa import Network
 
 logger = logging.getLogger(__name__)
@@ -101,8 +102,7 @@ def normed_or_uniform(x: pd.Series) -> pd.Series:
     """
     if x.sum(skipna=False) > 0:
         return x / x.sum()
-    else:
-        return pd.Series(1.0 / len(x), x.index)
+    return pd.Series(1.0 / len(x), x.index)
 
 
 def make_consense(component: str, attr: str) -> Callable:

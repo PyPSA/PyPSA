@@ -17,7 +17,6 @@ Generic functionality is implemented in the abstract module.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -29,13 +28,15 @@ from pypsa.common import equals
 from pypsa.components.descriptors import _ComponentsDescriptors
 from pypsa.components.transform import _ComponentsTransform
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network
+    from pypsa.definitions.components import ComponentType
 
 # TODO attachment todos
 # - crs
@@ -210,7 +211,7 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
             msg = f"'{key}' not found in Component"
             raise KeyError(msg)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check if two Components are equal.
 

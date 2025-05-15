@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -21,6 +20,8 @@ from pypsa.components.abstract import _ComponentsABC
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Components
 logger = logging.getLogger(__name__)
 

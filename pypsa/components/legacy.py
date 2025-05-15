@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any
 
 from pypsa.common import UnexpectedError
 from pypsa.components._types import (
@@ -25,10 +23,14 @@ from pypsa.components._types import (
     Transformers,
     TransformerTypes,
 )
-from pypsa.components.components import Components
 from pypsa.components.types import get as get_component_type
-from pypsa.definitions.components import ComponentType
-from pypsa.definitions.structures import Dict
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+    from pypsa.components.components import Components
+    from pypsa.definitions.components import ComponentType
+    from pypsa.definitions.structures import Dict
 
 # Legacy Component Class
 # -----------------------------------

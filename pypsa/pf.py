@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +27,8 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from components import Network, SubNetwork
 
 pd.Series.zsum = zsum
@@ -207,8 +208,7 @@ def _network_prepare_and_run_pf(
             )
     if not linear:
         return Dict({"n_iter": itdf, "error": difdf, "converged": cnvdf})
-    else:
-        return None
+    return None
 
 
 @deprecated_common_kwargs

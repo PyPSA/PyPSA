@@ -101,7 +101,7 @@ def test_sphinx_build(pytestconfig):
     except subprocess.CalledProcessError as e:
         lines = e.stderr.splitlines()
         # Save lines to file for debugging
-        with open("sphinx_build_stderr.txt", "w") as f:
+        with Path("sphinx_build_stderr.txt").open("w") as f:
             f.write("\n".join(lines))
 
         filtered_stderr = []
@@ -118,7 +118,7 @@ def test_sphinx_build(pytestconfig):
                 filtered_stderr.append(lines[i])
                 i += 1
 
-        with open("sphinx_build_stderr_filtered.txt", "w") as f:
+        with Path("sphinx_build_stderr_filtered.txt").open("w") as f:
             f.write("\n".join(filtered_stderr))
 
         if filtered_stderr:

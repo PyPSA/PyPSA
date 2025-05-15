@@ -12,12 +12,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    pass
 
 
 class _ComponentsTransform:

@@ -5,12 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import math
-import os
 import tempfile
 from abc import abstractmethod
-from collections.abc import Callable, Collection, Iterable, Sequence
 from functools import partial
-from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.request import urlretrieve
 
@@ -21,6 +18,7 @@ import validators
 import xarray as xr
 from deprecation import deprecated
 from pyproj import CRS
+from typing_extensions import Self
 
 from pypsa.common import check_optional_dependency, deprecated_common_kwargs
 from pypsa.descriptors import update_linkports_component_attrs
@@ -30,7 +28,7 @@ try:
 except ImportError:
     from pathlib import Path
 if TYPE_CHECKING:
-    from typing import TracebackType  # type: ignore
+    from collections.abc import Callable, Collection, Iterable, Sequence
 
     from pandapower.auxiliary import pandapowerNet
 
@@ -56,15 +54,14 @@ def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Networ
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         file_path = Path(temp_file.name)
         logger.info("Retrieving network data from %s.", url)
+        if not url.startswith("http"):
+            msg = f"Invalid URL: {url}"
+            raise ValueError(msg)
         try:
-            if url.startswith("http"):
-                urlretrieve(url, file_path)  # noqa: S310
-            else:
-                msg = f"Invalid URL: {url}"
-                raise ValueError(msg)
+            urlretrieve(url, file_path)  # noqa: S310
         except Exception as e:
-            logger.error("Failed to retrieve network data from %s: %s", url, e)
-            raise
+            msg = f"Failed to retrieve network data from {url}: {e}"
+            raise ValueError(msg) from e
         return io_function(file_path)
 
 
@@ -79,7 +76,7 @@ class ImpExper:
 
     ds: Any = None
 
-    def __enter__(self: TImpExper) -> TImpExper:
+    def __enter__(self) -> Self:
         """Enter the context manager."""
         if self.ds is not None:
             self.ds = self.ds.__enter__()
@@ -87,9 +84,9 @@ class ImpExper:
 
     def __exit__(
         self,
-        exc_type: type,
-        exc_val: BaseException,
-        exc_tb: TracebackType,
+        exc_type: object,
+        exc_val: object,
+        exc_tb: object,
     ) -> None:
         """Exit the context manager."""
         if exc_type is None:
@@ -101,7 +98,6 @@ class ImpExper:
     @abstractmethod
     def finish(self) -> None:
         """Post-processing when process is finished."""
-        pass
 
 
 class Exporter(ImpExper):
@@ -109,52 +105,41 @@ class Exporter(ImpExper):
 
     def remove_static(self, list_name: str) -> None:
         """Remove static components data."""
-        pass
 
     def remove_series(self, list_name: str, attr: str) -> None:
         """Remove dynamic components data."""
-        pass
 
     @abstractmethod
     def save_attributes(self, attrs: dict) -> None:
         """Save generic network attributes."""
-        pass
 
     @abstractmethod
     def save_meta(self, meta: dict) -> None:
         """Save meta data (`n.meta`)."""
-        pass
 
     @abstractmethod
     def save_crs(self, crs: dict) -> None:
         """Save CRS of shapes of network."""
-        pass
 
     @abstractmethod
     def save_snapshots(self, snapshots: Sequence) -> None:
         """Save snapshots data."""
-        pass
 
     @abstractmethod
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
         """Save investment periods data."""
-        pass
 
     @abstractmethod
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save static components data."""
-        pass
 
     @abstractmethod
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save dynamic components data."""
-        pass
 
 
 class Importer(ImpExper):
     """Importer class."""
-
-    pass
 
 
 class ImporterCSV(Importer):
@@ -420,8 +405,9 @@ class ImporterExcel(Importer):
 
                     meta[key] = value
                 return meta
-            return {}
         except (ValueError, KeyError):
+            return {}
+        else:
             return {}
 
     def get_crs(self) -> dict:
@@ -431,8 +417,9 @@ class ImporterExcel(Importer):
             if not df.empty:
                 # Assuming first column is keys and second column is values
                 return dict(zip(df.iloc[:, 0], df.iloc[:, 1], strict=False))
-            return {}
         except (ValueError, KeyError):
+            return {}
+        else:
             return {}
 
     def get_snapshots(self) -> pd.Index:
@@ -445,28 +432,30 @@ class ImporterExcel(Importer):
                 df["snapshot"] = pd.to_datetime(df.snapshot)
             if "timestep" in df:
                 df["timestep"] = pd.to_datetime(df.timestep)
-            return df
         except (ValueError, KeyError):
             return None
+        else:
+            return df
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
         try:
             df = self.sheets["investment_periods"]
             df = df.set_index(df.columns[0])
-            return df
-
         except (ValueError, KeyError):
             return None
+        else:
+            return df
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
         try:
             df = self.sheets[list_name]
             df = df.set_index(df.columns[0])
-            return df
         except (ValueError, KeyError):
             return None
+        else:
+            return df
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
@@ -642,13 +631,11 @@ class ImporterHDF5(Importer):
 
     def get_snapshots(self) -> pd.Series:
         """Get snapshots data."""
-        return self.ds["/snapshots"] if "/snapshots" in self.ds else None
+        return self.ds.get("/snapshots", None)
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
-        return (
-            self.ds["/investment_periods"] if "/investment_periods" in self.ds else None
-        )
+        return self.ds.get("/investment_periods", None)
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
@@ -698,9 +685,7 @@ class ExporterHDF5(Exporter):
         self.ds = pd.HDFStore(path, mode="w", **kwargs)
         self.index: dict = {}
 
-    def __exit__(
-        self, exc_type: type, exc_val: BaseException, exc_tb: TracebackType
-    ) -> None:
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Exit the context manager."""
         super().__exit__(exc_type, exc_val, exc_tb)
 
@@ -776,7 +761,7 @@ class ImporterNetCDF(Importer):
         else:
             self.ds = path
 
-    def __enter__(self) -> ImporterNetCDF:
+    def __enter__(self) -> Self:
         """Enter the context manager."""
         if isinstance(self.path, (str | Path)):
             super().__init__()
@@ -784,9 +769,9 @@ class ImporterNetCDF(Importer):
 
     def __exit__(
         self,
-        exc_type: type,
-        exc_val: BaseException,
-        exc_tb: TracebackType,
+        exc_type: object,
+        exc_val: object,
+        exc_tb: object,
     ) -> None:
         """Exit the context manager."""
         if isinstance(self.path, (str | Path)):
@@ -826,7 +811,7 @@ class ImporterNetCDF(Importer):
             return None
         index = self.ds.coords[index_name].to_index().rename("name")
         df = pd.DataFrame(index=index)
-        for attr in self.ds.data_vars.keys():
+        for attr in self.ds.data_vars:
             if attr.startswith(t) and attr[i : i + 2] != "t_":
                 df[attr[i:]] = self.ds[attr].to_pandas()
         return df
@@ -834,7 +819,7 @@ class ImporterNetCDF(Importer):
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
         t = list_name + "_t_"
-        for attr in self.ds.data_vars.keys():
+        for attr in self.ds.data_vars:
             if attr.startswith(t):
                 df = self.ds[attr].to_pandas()
                 df.index.name = "name"
@@ -1170,7 +1155,7 @@ def export_to_csv_folder(
     export_to_excel : Export to an Excel file
 
     """
-    basename = os.path.basename(csv_folder_name)
+    basename = Path(csv_folder_name).name
     with ExporterCSV(
         csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
     ) as exporter:
@@ -1338,7 +1323,7 @@ def export_to_hdf5(
     """
     kwargs.setdefault("complevel", 4)
 
-    basename = os.path.basename(path)
+    basename = Path(path).name
     with ExporterHDF5(path, **kwargs) as exporter:
         _export_to_exporter(
             n,
@@ -1429,7 +1414,7 @@ def export_to_netcdf(
     export_to_excel : Export to an Excel file
 
     """
-    basename = os.path.basename(path) if path is not None else None
+    basename = Path(path).name if path is not None else None
     with ExporterNetCDF(path, compression, float32) as exporter:
         _export_to_exporter(
             n,
@@ -2065,9 +2050,29 @@ def import_from_pypower_ppc(
 
     # could also do gen.p_min_pu = p_min/p_nom
 
-    columns = "bus, p_set, q_set, q_max, q_min, v_set_pu, mva_base, status, p_nom, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(
-        ", "
-    )
+    columns = [
+        "bus",
+        "p_set",
+        "q_set",
+        "q_max",
+        "q_min",
+        "v_set_pu",
+        "mva_base",
+        "status",
+        "p_nom",
+        "p_min",
+        "Pc1",
+        "Pc2",
+        "Qc1min",
+        "Qc1max",
+        "Qc2min",
+        "Qc2max",
+        "ramp_agc",
+        "ramp_10",
+        "ramp_30",
+        "ramp_q",
+        "apf",
+    ]
 
     index_list = [f"G{str(i)}" for i in range(len(ppc["gen"]))]
 
@@ -2082,9 +2087,21 @@ def import_from_pypower_ppc(
     ## branch data
     # fbus, tbus, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax
 
-    columns = "bus0, bus1, r, x, b, s_nom, rateB, rateC, tap_ratio, phase_shift, status, v_ang_min, v_ang_max".split(
-        ", "
-    )
+    columns = [
+        "bus0",
+        "bus1",
+        "r",
+        "x",
+        "b",
+        "s_nom",
+        "rateB",
+        "rateC",
+        "tap_ratio",
+        "phase_shift",
+        "status",
+        "v_ang_min",
+        "v_ang_max",
+    ]
 
     pdf["branches"] = pd.DataFrame(
         columns=columns, data=ppc["branch"][:, : len(columns)]

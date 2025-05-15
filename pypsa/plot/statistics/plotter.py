@@ -2,21 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
 from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
-
-import numpy as np
-import plotly.graph_objects as go
-import seaborn as sns
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure, SubFigure
 
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import apply_parameter_schema
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    import numpy as np
+    import plotly.graph_objects as go
+    import seaborn as sns
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure, SubFigure
+
     from pypsa import Network
 
 

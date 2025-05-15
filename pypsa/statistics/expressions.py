@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Sequence
+
     from pypsa import Network
 
 import pandas as pd
@@ -34,20 +35,18 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     """Get the operation time series of a component."""
     if c in n.branch_components:
         return n.dynamic(c).p0
-    elif c == "Store":
+    if c == "Store":
         return n.dynamic(c).e
-    else:
-        return n.dynamic(c).p
+    return n.dynamic(c).p
 
 
 def get_weightings(n: Network, c: str) -> pd.Series:
     """Get the relevant snapshot weighting for a component."""
     if c == "Generator":
         return n.snapshot_weightings["generators"]
-    elif c in ["StorageUnit", "Store"]:
+    if c in ["StorageUnit", "Store"]:
         return n.snapshot_weightings["stores"]
-    else:
-        return n.snapshot_weightings["objective"]
+    return n.snapshot_weightings["objective"]
 
 
 def port_efficiency(
@@ -199,9 +198,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if isinstance(weights.index, pd.MultiIndex):
                 return df.multiply(weights, axis=0).groupby(level=0).sum().T
             return weights @ df
-        else:
-            # Todo: here we leave out the weights, is that correct?
-            return df.agg(agg)
+        # Todo: here we leave out the weights, is that correct?
+        return df.agg(agg)
 
     def _aggregate_components_groupby(
         self, vals: pd.DataFrame, grouping: dict, agg: Callable | str

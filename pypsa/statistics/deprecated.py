@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    import pandas as pd
+
     from pypsa import Network
 
-import pandas as pd
 from deprecation import deprecated
 
 from pypsa.statistics.abstract import AbstractStatisticsAccessor

@@ -106,7 +106,7 @@ def test_class_method_access():
 
 
 @pytest.mark.parametrize(
-    "attr, expected_name",
+    ("attr", "expected_name"),
     [
         ("snapshots", "snapshot"),
         ("investment_periods", "period"),
@@ -146,7 +146,7 @@ def test_as_index(ac_dc_network_mi, attr, expected_name):
 # Tests for the Comparator class
 class TestEquals:
     @pytest.mark.parametrize(
-        "a, b, expected",
+        ("a", "b", "expected"),
         [
             (1, 1, True),
             (1, 2, False),
@@ -177,7 +177,7 @@ class TestEquals:
         assert equals(a, b) == expected
 
     @pytest.mark.parametrize(
-        "a, b",
+        ("a", "b"),
         [
             (1, 2),
             ("a", "b"),

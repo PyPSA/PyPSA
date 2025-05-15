@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
-from collections.abc import Collection, Iterable, Sequence
 from itertools import product, repeat
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +14,8 @@ import pandas as pd
 from pypsa.common import as_index, deprecated_common_kwargs
 
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable, Sequence
+
     from pypsa import Network, SubNetwork
 
 logger = logging.getLogger(__name__)
@@ -411,8 +412,7 @@ def get_bounds_pu(
 
     if index is None:
         return min_pu, max_pu
-    else:
-        return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
+    return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
 def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
@@ -477,7 +477,7 @@ def update_linkports_component_attrs(
             .apply(update_linkports_doc_changes, args=("1", i))
         )
         # Also update container for varying attributes
-        if attr in ["efficiency", "p"] and target not in n.dynamic(c).keys():
+        if attr in ["efficiency", "p"] and target not in n.dynamic(c):
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
             df.columns.name = c
             n.dynamic(c)[target] = df

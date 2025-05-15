@@ -5,7 +5,6 @@ from __future__ import annotations
 import functools
 import logging
 import warnings
-from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -19,6 +18,8 @@ from pypsa.definitions.structures import Dict
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
@@ -191,13 +192,12 @@ def as_index(
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    if force_subset:
-        if not values_.isin(n_attr).all():
-            msg = (
-                f"Values must be a subset of the network attribute "
-                f"'{network_attribute}'. Pass force_subset=False to disable this check."
-            )
-            raise ValueError(msg)
+    if force_subset and not values_.isin(n_attr).all():
+        msg = (
+            f"Values must be a subset of the network attribute "
+            f"'{network_attribute}'. Pass force_subset=False to disable this check."
+        )
+        raise ValueError(msg)
 
     return values_
 
@@ -252,7 +252,7 @@ def equals(
     def handle_diff(message: str) -> bool:
         if log_mode == "strict":
             raise ValueError(message)
-        elif log_mode == "verbose":
+        if log_mode == "verbose":
             logger.warning(message)
         return False
 
@@ -264,9 +264,9 @@ def equals(
             msg = f"Types differ at '{current_path}'\n\n{a} ({type(a)})\n\n!=\n\n{b} ({type(b)})\n"
             return handle_diff(msg)
 
-    if ignored_classes is not None:
-        if isinstance(a, tuple(ignored_classes)):
-            return True
+    if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
+        return True
+    from pypsa.components.store import ComponentsStore
 
     # Classes with equality methods
     if isinstance(a, np.ndarray):
@@ -285,17 +285,23 @@ def equals(
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
+
+    elif isinstance(a, ComponentsStore):
+        if a != b:
+            msg = f"ComponentsStore objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
+
     # Iterators
     elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
-            if k not in b.keys():
+            if k not in b:
                 msg = f"Key '{k}' missing from second dict at '{current_path}'"
                 return handle_diff(msg)
             if not equals(v, b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
                 return False
         # Check for extra keys in b
-        for k in b.keys():
-            if k not in a.keys():
+        for k in b:
+            if k not in a:
                 msg = f"Key '{k}' missing from first dict at '{current_path}'"
                 return handle_diff(msg)
 
@@ -313,10 +319,9 @@ def equals(
         pass
 
     # Other objects
-    else:
-        if a != b:
-            msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
-            return handle_diff(msg)
+    elif a != b:
+        msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+        return handle_diff(msg)
 
     return True
 
@@ -572,11 +577,10 @@ def list_as_string(
 
     if style == "comma-seperated":
         return prefix + ", ".join(list_)
-    elif style == "bullet-list":
+    if style == "bullet-list":
         return prefix + "- " + f"\n{prefix}- ".join(list_)
-    else:
-        msg = f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
-        raise ValueError(msg)
+    msg = f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
+    raise ValueError(msg)
 
 
 def pass_none_if_keyerror(func: Callable) -> Callable:
@@ -643,9 +647,7 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         raise ImportError(install_message) from e
 
 
-def _convert_to_series(
-    variable: dict | Sequence | float | int, index: pd.Index
-) -> pd.Series:
+def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd.Series:
     """
     Convert a variable to a pandas Series with the given index.
 
@@ -667,7 +669,7 @@ def _convert_to_series(
     """
     if isinstance(variable, dict):
         return pd.Series(variable)
-    elif not isinstance(variable, pd.Series):
+    if not isinstance(variable, pd.Series):
         return pd.Series(variable, index=index)
     return variable
 

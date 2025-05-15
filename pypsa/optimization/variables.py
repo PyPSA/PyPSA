@@ -5,13 +5,14 @@ Define optimisation variables from PyPSA networks with Linopy.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 
 logger = logging.getLogger(__name__)

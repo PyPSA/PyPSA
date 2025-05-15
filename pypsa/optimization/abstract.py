@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import gc
 import logging
-from collections.abc import Sequence
 from itertools import product
 from typing import TYPE_CHECKING, Any
 
@@ -19,6 +18,8 @@ from linopy import LinearExpression, QuadraticExpression, merge
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
@@ -114,19 +115,16 @@ def discretized_capacity(
     if nom_max % unit_size == 0:
         return block_capacity
 
-    else:
-        if (nom_max - nom_opt) < unit_size:
-            if (
-                fractional_last_unit_size
-                and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
-            ):
-                return nom_max
-            elif nom_max < unit_size:
-                return nom_max
-            else:
-                return (nom_opt // unit_size) * unit_size
-        else:
-            return block_capacity
+    if (nom_max - nom_opt) < unit_size:
+        if (
+            fractional_last_unit_size
+            and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
+        ):
+            return nom_max
+        if nom_max < unit_size:
+            return nom_max
+        return (nom_opt // unit_size) * unit_size
+    return block_capacity
 
 
 def optimize_transmission_expansion_iteratively(
@@ -661,12 +659,11 @@ def optimize_mga(
     def convert_to_dict(obj: Any) -> Any:
         if isinstance(obj, pd.DataFrame):
             return obj.to_dict(orient="list")
-        elif isinstance(obj, pd.Series):
+        if isinstance(obj, pd.Series):
             return obj.to_dict()
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return {k: convert_to_dict(v) for k, v in obj.items()}
-        else:
-            return obj
+        return obj
 
     n.meta["weights"] = convert_to_dict(weights)
 
@@ -731,7 +728,7 @@ def optimize_and_run_non_linear_powerflow(
 
     for c in n.one_port_components:
         n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
-    for c in {"Link"}:
+    for c in ("Link",):
         n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
 
     n.generators.control = "PV"

@@ -9,25 +9,27 @@ from __future__ import annotations
 import logging
 import re
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pypsa._options import options
-from pypsa.components._types.buses import Buses
-from pypsa.components._types.carriers import Carriers
-from pypsa.components._types.generators import Generators
-from pypsa.components._types.global_constraints import GlobalConstraints
-from pypsa.components._types.line_types import LineTypes
-from pypsa.components._types.lines import Lines
-from pypsa.components._types.links import Links
-from pypsa.components._types.loads import Loads
-from pypsa.components._types.shapes import Shapes
-from pypsa.components._types.shunt_impedances import ShuntImpedances
-from pypsa.components._types.storage_units import StorageUnits
-from pypsa.components._types.stores import Stores
-from pypsa.components._types.sub_networks import SubNetworks
-from pypsa.components._types.transformer_types import TransformerTypes
-from pypsa.components._types.transformers import Transformers
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
+
+if TYPE_CHECKING:
+    from pypsa.components._types.buses import Buses
+    from pypsa.components._types.carriers import Carriers
+    from pypsa.components._types.generators import Generators
+    from pypsa.components._types.global_constraints import GlobalConstraints
+    from pypsa.components._types.line_types import LineTypes
+    from pypsa.components._types.lines import Lines
+    from pypsa.components._types.links import Links
+    from pypsa.components._types.loads import Loads
+    from pypsa.components._types.shapes import Shapes
+    from pypsa.components._types.shunt_impedances import ShuntImpedances
+    from pypsa.components._types.storage_units import StorageUnits
+    from pypsa.components._types.stores import Stores
+    from pypsa.components._types.sub_networks import SubNetworks
+    from pypsa.components._types.transformer_types import TransformerTypes
+    from pypsa.components._types.transformers import Transformers
 
 logger = logging.getLogger(__name__)
 
@@ -128,14 +130,13 @@ class ComponentsStore(dict):
         """
         if isinstance(item, (list | set)):
             return [self[key] for key in item]
-        else:
-            if item in COMPONENT_ALIAS_DICT:
-                # TODO: Activate when changing logic
-                # Accessing components in n.components using capitalized singular "
-                # name is deprecated. Use lowercase list name instead: "
-                # '{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.
-                return super().__getitem__(COMPONENT_ALIAS_DICT[item])
-            return super().__getitem__(item)
+        if item in COMPONENT_ALIAS_DICT:
+            # TODO: Activate when changing logic
+            # Accessing components in n.components using capitalized singular "
+            # name is deprecated. Use lowercase list name instead: "
+            # '{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.
+            return super().__getitem__(COMPONENT_ALIAS_DICT[item])
+        return super().__getitem__(item)
 
     def __getattr__(self, item: str) -> Any:
         """
