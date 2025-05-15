@@ -75,7 +75,7 @@ def iplot(
     mapbox: bool = False,
     mapbox_style: str = "open-street-map",
     mapbox_token: str = "",
-    mapbox_parameters: dict = {},
+    mapbox_parameters: dict | None = None,
 ) -> dict:
     """
     Plot the network buses and lines interactively using plotly.
@@ -166,7 +166,8 @@ def iplot(
 
     if bus_text is None:
         bus_text = "Bus " + n.buses.index
-
+    if mapbox_parameters is None:
+        mapbox_parameters = {}
     x, y = apply_layouter(n, layouter=layouter, inplace=False)
 
     rng = np.random.default_rng()  # Create a random number generator

@@ -1,6 +1,4 @@
-"""
-Functionality to help with georeferencing and calculate distances/areas.
-"""
+"""Functionality to help with georeferencing and calculate distances/areas."""
 
 from __future__ import annotations
 
@@ -89,14 +87,13 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
 
     """
 
-    #
     def ensure_dimensions(a: np.ndarray | ArrayLike) -> np.ndarray:
         """
         Ensure correct shape for haversine calculation.
 
         Parameters
         ----------
-        arr : array-like
+        a : array-like
             Array to check
 
         Returns

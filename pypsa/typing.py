@@ -1,6 +1,4 @@
-"""
-Typing utilities.
-"""
+"""Typing utilities."""
 
 from typing import Any
 

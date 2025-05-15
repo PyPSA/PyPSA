@@ -1,6 +1,4 @@
-"""
-Functionality for contingency analysis, such as branch outages.
-"""
+"""Functionality for contingency analysis, such as branch outages."""
 
 from __future__ import annotations
 
@@ -40,6 +38,7 @@ def calculate_BODF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     Parameters
     ----------
     sub_network : pypsa.SubNetwork
+        Sub-network instance.
     skip_pre : bool, default False
         Skip the preliminary step of computing the PTDF.
 
@@ -75,6 +74,8 @@ def network_lpf_contingency(
 
     Parameters
     ----------
+    n : Network
+        Network instance.
     snapshots : list-like|single snapshot
         A subset or an elements of n.snapshots on which to run
         the power flow, defaults to n.snapshots

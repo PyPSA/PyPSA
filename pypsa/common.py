@@ -1,6 +1,4 @@
-"""
-General utility functions for PyPSA.
-"""
+"""General utility functions for PyPSA."""
 
 from __future__ import annotations
 
@@ -34,6 +32,19 @@ class UnexpectedError(AssertionError):
     )
 
     def __init__(self, message: str = "") -> None:
+        """
+        Initialize the UnexpectedError.
+
+        Parameters
+        ----------
+        message : str, optional
+            Message to be displayed.
+
+        Examples
+        --------
+        >>> raise UnexpectedError("This is an unexpected error.")
+
+        """
         track_message = (
             f"Please track this issue in our issue tracker: {self.URL_CREATE_ISSUE}"
         )
@@ -179,13 +190,6 @@ def as_index(
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    # if n_attr.nlevels != values_.nlevels:
-    #     raise ValueError(
-    #         f"Number of levels of the given MultiIndex does not match the number"
-    #         f" of levels of the network attribute '{network_attribute}'. Please"
-    #         f" set them for the network first."
-    #     )
-
     if force_subset:
         if not values_.isin(n_attr).all():
             msg = (
@@ -193,7 +197,6 @@ def as_index(
                 f"'{network_attribute}'. Pass force_subset=False to disable this check."
             )
             raise ValueError(msg)
-    assert isinstance(values_, pd.Index)
 
     return values_
 
@@ -326,6 +329,7 @@ def rename_deprecated_kwargs(
 ) -> None:
     """
     Helper function for deprecating function arguments.
+
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
     Parameters
@@ -377,6 +381,7 @@ def rename_deprecated_kwargs(
 def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Callable:
     """
     Decorator for deprecated function and method arguments.
+
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
     Parameters
@@ -418,7 +423,11 @@ def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Ca
 
 def deprecated_common_kwargs(f: Callable) -> Callable:
     """
-    Decorator that predefines the 'a' keyword to be renamed to 'b'.
+    Decorator that predefines common kwarg deprecations.
+
+    Backwards compatibility is given and just adds more deprecated kwargs without
+    having to specify them in each decorator call.
+
     This allows its usage as `@deprecated_ab` without parentheses.
 
     Parameters
@@ -429,7 +438,7 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     Returns
     -------
     Callable
-        A decorated function that renames 'a' to 'b'.
+        A decorated function that renames 'network' to 'n'.
 
     """
     return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
@@ -570,6 +579,21 @@ def list_as_string(
 
 
 def pass_none_if_keyerror(func: Callable) -> Callable:
+    """
+    Decorator that passes None if a KeyError or AttributeError is raised.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to decorate.
+
+    Returns
+    -------
+    Callable
+        The decorated function.
+
+    """
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -581,6 +605,21 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
 
 
 def pass_empty_series_if_keyerror(func: Callable) -> Callable:
+    """
+    Decorator that passes an empty series if a KeyError or AttributeError is raised.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to decorate.
+
+    Returns
+    -------
+    Callable
+        The decorated function.
+
+    """
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> pd.Series:
         try:
@@ -599,8 +638,8 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
     """
     try:
         __import__(module_name)
-    except ImportError:
-        raise ImportError(install_message)
+    except ImportError as e:
+        raise ImportError(install_message) from e
 
 
 def _convert_to_series(

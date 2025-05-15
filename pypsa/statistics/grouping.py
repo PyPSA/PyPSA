@@ -93,7 +93,7 @@ class Groupers:
             return n.static(c)[key].rename(key)
         except KeyError:
             msg = f"Unknown grouper {key}."
-            raise ValueError(msg)
+            raise ValueError(msg) from None
 
     def list_groupers(self) -> dict:
         """

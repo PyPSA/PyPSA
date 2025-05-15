@@ -200,7 +200,7 @@ def optimize_transmission_expansion_iteratively(
 
     def update_line_params(n: Network, s_nom_prev: float | pd.Series) -> None:
         factor = n.lines.s_nom_opt / s_nom_prev
-        for attr, carrier in (("x", "AC"), ("r", "DC")):
+        for attr, carrier in (("x", "AC"), ("r", "DC")):  # noqa: B007
             ln_i = n.lines.query("carrier == @carrier").index.intersection(
                 ext_untyped_i
             )
@@ -260,7 +260,7 @@ def optimize_transmission_expansion_iteratively(
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
                 idx = n.links.carrier == carrier
                 n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
-                    lambda row: discretized_capacity(
+                    lambda row, carrier=carrier: discretized_capacity(
                         nom_opt=row["p_nom_opt"],
                         nom_max=row["p_nom_max"],
                         unit_size=link_unit_size[carrier],
@@ -359,7 +359,7 @@ def optimize_security_constrained(
     snapshots: Sequence | None = None,
     branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
     multi_investment_periods: bool = False,
-    model_kwargs: dict = {},
+    model_kwargs: dict | None = None,
     **kwargs: Any,
 ) -> tuple[str, str]:
     """
@@ -392,6 +392,9 @@ def optimize_security_constrained(
     None
 
     """
+    if model_kwargs is None:
+        model_kwargs = {}
+
     all_passive_branches = n.passive_branches().index
 
     if branch_outages is None:
@@ -521,7 +524,7 @@ def optimize_mga(
     weights: dict | None = None,
     sense: str | int = "min",
     slack: float = 0.05,
-    model_kwargs: dict = {},
+    model_kwargs: dict | None = None,
     **kwargs: Any,
 ) -> tuple[str, str]:
     """
@@ -566,6 +569,9 @@ def optimize_mga(
     """
     if snapshots is None:
         snapshots = n.snapshots
+
+    if model_kwargs is None:
+        model_kwargs = {}
 
     if weights is None:
         weights = dict(Generator=dict(p_nom=pd.Series(1, index=n.generators.index)))

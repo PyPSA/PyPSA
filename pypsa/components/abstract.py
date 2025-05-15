@@ -16,10 +16,6 @@ if TYPE_CHECKING:
 
     from pypsa import Network
     from pypsa.components.types import ComponentType
-# logger = logging.getLogger(__name__)
-
-# if TYPE_CHECKING:
-#     from pypsa import Network
 
 
 class _ComponentsABC(ABC):

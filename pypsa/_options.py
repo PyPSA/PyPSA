@@ -83,7 +83,7 @@ class OptionsNode:
         node = self
 
         # Navigate/create the path
-        for i, part in enumerate(parts[:-1]):
+        for _i, part in enumerate(parts[:-1]):
             if part not in node._children:
                 node._children[part] = OptionsNode(part)
             elif not isinstance(node._children[part], OptionsNode):

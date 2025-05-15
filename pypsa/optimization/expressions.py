@@ -1,6 +1,4 @@
-"""
-Statistics Expression Accessor.
-"""
+"""Statistics Expression Accessor."""
 
 from __future__ import annotations
 
@@ -158,7 +156,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
-            assert set(["p_store", "p_dispatch"]) <= set(attr)
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
         attr = attr.item()
         return m.variables[f"{c}-{attr}"]
@@ -383,7 +380,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -407,6 +404,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         if (
             self._n.buses.carrier.unique().size > 1
             and groupby is None
@@ -457,7 +456,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -473,6 +472,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -492,7 +493,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -508,6 +509,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -565,7 +568,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx])
             operation = self._get_operational_variable(c).loc[:, idx]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
-            # curtailment = capacity * p_max_pu - operation
+            # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(curtailment, weights, agg=aggregate_time)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from abc import ABC
 from collections.abc import Callable, Sequence
 from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-class StatisticPlotter(ABC):
+class StatisticPlotter:
     """
     Create plots based on output of statistics functions.
 
@@ -419,7 +418,7 @@ class StatisticPlotter(ABC):
         )
 
 
-class StatisticInteractivePlotter(ABC):
+class StatisticInteractivePlotter:
     """
     Create interactive plots based on output of statistics functions.
 

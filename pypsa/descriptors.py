@@ -1,6 +1,4 @@
-"""
-Descriptors for component attributes.
-"""
+"""Descriptors for component attributes."""
 
 from __future__ import annotations
 
@@ -23,6 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 class OrderedGraph(nx.MultiGraph):
+    """Ordered graph."""
+
     node_dict_factory = OrderedDict
     adjlist_dict_factory = OrderedDict
 
@@ -36,13 +36,15 @@ def get_switchable_as_dense(
     inds: pd.Index | None = None,
 ) -> pd.DataFrame:
     """
-    Return a Dataframe for a time-varying component attribute with values for
-    all non-time-varying components filled in with the default values for the
-    attribute.
+    Return a Dataframe for a time-varying component attribute .
+
+    Values for all non-time-varying components are filled in with the default
+    values for the attribute.
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     component : string
         Component object name, e.g. 'Generator' or 'Link'
     attr : string
@@ -92,13 +94,15 @@ def get_switchable_as_iter(
     inds: pd.Index | None = None,
 ) -> pd.DataFrame:
     """
-    Return an iterator over snapshots for a time-varying component attribute
-    with values for all non-time-varying components filled in with the default
+    Return an iterator over snapshots for a time-varying component attribute.
+
+    Values for all non-time-varying components are filled in with the default
     values for the attribute.
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     component : string
         Component object name, e.g. 'Generator' or 'Link'
     attr : string
@@ -164,6 +168,7 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     series : dict
         Dictionary of components and their attributes to populate (see example)
 
@@ -191,9 +196,17 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
 def free_output_series_dataframes(
     n: Network, components: Collection[str] | None = None
 ) -> None:
-    if components is None:
-        components = n.all_components
+    """
+    Free output series dataframes.
 
+    Parameters
+    ----------
+    n : Network
+        Network instance.
+    components : Collection[str] | None
+        Components to free. If None, all components are freed.
+
+    """
     for component in components:
         attrs = n.components[component]["attrs"]
         dynamic = n.dynamic(component)
@@ -204,11 +217,14 @@ def free_output_series_dataframes(
 
 def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
     """
+    Custom zsum function.
+
     Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
 
     Meant to be set as pd.Series.zsum = zsum.
     """
+    # TODO Remove
     return 0 if s.empty else s.sum(*args, **kwargs)
 
 
@@ -225,8 +241,10 @@ nominal_attrs = {
 
 def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
     """
-    Helper function to quickly expand a series to a dataframe with according
-    column axis and every single column being the equal to the given series.
+    Helper function to quickly expand a series to a dataframe.
+
+    Columns are the given series and every single column being the equal to
+    the given series.
     """
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
 
@@ -353,6 +371,8 @@ def get_bounds_pu(
     attr: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
+    Retrieve per unit bounds of a given component.
+
     Getter function to retrieve the per unit bounds of a given compoent for
     given snapshots and possible subset of elements (e.g. non-extendables).
     Depending on the attr you can further specify the bounds of the variable
@@ -361,6 +381,7 @@ def get_bounds_pu(
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     c : string
         Component name, e.g. "Generator", "Line".
     sns : pandas.Index/pandas.DateTimeIndex
@@ -433,7 +454,6 @@ def update_linkports_component_attrs(
     n : Network
         Network instance to which additional ports will be added.
     where : Iterable[str] or None, optional
-
         Filters for specific subsets of data by providing an iterable of tags
         or identifiers. If None, no filtering is applied and additional link
         ports are considered for all connectors.
@@ -472,6 +492,7 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     where : iterable of strings, default None
         Subset of columns to consider. Takes link columns by default.
 
@@ -492,8 +513,10 @@ def bus_carrier_unit(n: Network, bus_carrier: str | Sequence[str] | None) -> str
 
     Parameters
     ----------
-    n (Network): The network object containing buses and their attributes.
-    bus_carrier (str): The carrier type of the bus to query.
+    n : Network
+        The network object containing buses and their attributes.
+    bus_carrier : str | Sequence[str] | None
+        The carrier type of the bus to query.
 
     Returns
     -------

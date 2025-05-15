@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConsistencyError(ValueError):
-    pass
+    """Error raised when a consistency check fails."""
 
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
@@ -762,7 +762,7 @@ def consistency_check(
     n: Network, check_dtypes: bool = False, strict: Sequence | None = None
 ) -> None:
     """
-    Check network for consistency
+    Check network for consistency.
 
     Runs a series of checks on the network to ensure that it is consistent, e.g. that
     all components are connected to existing buses and that no impedances are singular.

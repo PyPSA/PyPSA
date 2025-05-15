@@ -529,11 +529,11 @@ def optimize(
     multi_investment_periods: bool = False,
     transmission_losses: int = 0,
     linearized_unit_commitment: bool = False,
-    model_kwargs: dict = {},
+    model_kwargs: dict | None = None,
     extra_functionality: Callable | None = None,
     assign_all_duals: bool = False,
     solver_name: str = "highs",
-    solver_options: dict = {},
+    solver_options: dict | None = None,
     compute_infeasibilities: bool = False,
     **kwargs: Any,
 ) -> tuple[str, str]:
@@ -589,6 +589,12 @@ def optimize(
         https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
 
     """
+    if model_kwargs is None:
+        model_kwargs = {}
+
+    if solver_options is None:
+        solver_options = {}
+
     sns = as_index(n, snapshots, "snapshots")
     n._multi_invest = int(multi_investment_periods)
     n._linearized_uc = linearized_unit_commitment
@@ -643,7 +649,7 @@ class OptimizationAccessor:
         self,
         extra_functionality: Callable | None = None,
         solver_name: str = "highs",
-        solver_options: dict = {},
+        solver_options: dict | None = None,
         assign_all_duals: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
@@ -675,6 +681,9 @@ class OptimizationAccessor:
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
 
         """
+        if solver_options is None:
+            solver_options = {}
+
         n = self.n
         if extra_functionality:
             extra_functionality(n, n.snapshots)

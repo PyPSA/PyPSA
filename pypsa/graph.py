@@ -1,6 +1,4 @@
-"""
-Graph helper functions, which are attached to network and sub_network.
-"""
+"""Graph helper functions, which are attached to network and sub_network."""
 
 from __future__ import annotations
 
@@ -32,19 +30,19 @@ def graph(
     Parameters
     ----------
     n : Network|SubNetwork
-
+        Network or sub-network.
     branch_components : [str]
         Components to use as branches. The default are
         passive_branch_components in the case of a SubNetwork and
         branch_components in the case of a Network.
-
     weight : str
         Branch attribute to use as weight
-
     inf_weight : bool|float
         How to treat infinite weights (default: False). True keeps the infinite
         weight. False skips edges with infinite weight. If a float is given it
         is used instead.
+    include_inactive : bool
+        Whether to include inactive branches in the graph.
 
     Returns
     -------
@@ -103,13 +101,17 @@ def adjacency_matrix(
     weights: pd.Series | None = None,
 ) -> sp.sparse.coo_matrix:
     """
-    Construct a sparse adjacency matrix (directed)
+    Construct a sparse adjacency matrix (directed).
 
     Parameters
     ----------
+    n : Network | SubNetwork
+        Network or sub-network.
     branch_components : iterable sublist of `branch_components`
-       Buses connected by any of the selected branches are adjacent
-       (default: branch_components (network) or passive_branch_components (sub_network))
+        Buses connected by any of the selected branches are adjacent
+        (default: branch_components (network) or passive_branch_components (sub_network))
+    investment_period : int | str | None
+        Investment period to use for the matrix representation of the adjacency matrix.
     busorder : pd.Index subset of n.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
@@ -173,13 +175,15 @@ def incidence_matrix(
     busorder: pd.Index | None = None,
 ) -> sp.sparse.csr_matrix:
     """
-    Construct a sparse incidence matrix (directed)
+    Construct a sparse incidence matrix (directed).
 
     Parameters
     ----------
+    n : Network | SubNetwork
+        Network or sub-network.
     branch_components : iterable sublist of `branch_components`
-       Buses connected by any of the selected branches are adjacent
-       (default: branch_components (network) or passive_branch_components (sub_network))
+        Buses connected by any of the selected branches are adjacent
+        (default: branch_components (network) or passive_branch_components (sub_network))
     busorder : pd.Index subset of n.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))

@@ -211,13 +211,13 @@ def get(name: str) -> ComponentType:
         name = COMPONENT_ALIAS_DICT[name]
     try:
         return all_components[name]
-    except KeyError:
+    except KeyError as e:
         msg = (
             f"Component type '{name}' not found. If you use a custom component, make "
             f"sure to have it added. Available types are: "
             f"{list_as_string(all_components)}."
         )
-        raise ValueError(msg)
+        raise ValueError(msg) from e
 
 
 # Load default component types

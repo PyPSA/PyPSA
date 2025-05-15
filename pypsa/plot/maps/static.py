@@ -162,7 +162,7 @@ class MapPlotter:
         """Get the plot boundaries."""
         if self._boundaries is None:
             self.set_boundaries(self._boundaries, self.margin, self._n.buses.index)
-            assert self._boundaries is not None
+
         return self._boundaries
 
     @boundaries.setter
@@ -378,12 +378,7 @@ class MapPlotter:
     def add_geomap_features(
         self,
         resolution: Literal["10m", "50m", "110m"] = "50m",
-        geomap_colors: dict = {
-            "ocean": "lightblue",
-            "land": "whitesmoke",
-            "border": "darkgray",
-            "coastline": "black",
-        },
+        geomap_colors: dict | None = None,
     ) -> None:
         """
         Add geographic features to the map using cartopy.
@@ -412,6 +407,14 @@ class MapPlotter:
         if resolution not in ["10m", "50m", "110m"]:
             msg = "Resolution has to be one of '10m', '50m', '110m'"
             raise ValueError(msg)
+
+        if geomap_colors is None:
+            geomap_colors = {
+                "ocean": "lightblue",
+                "land": "whitesmoke",
+                "border": "darkgray",
+                "coastline": "black",
+            }
 
         if "land" in geomap_colors:
             self.ax.add_feature(
@@ -512,7 +515,7 @@ class MapPlotter:
                 starts = (0.25,)
                 scope = 360
 
-            for s, start in zip(s_base, starts):
+            for s, start in zip(s_base, starts, strict=False):
                 radius = abs(s.sum()) ** 0.5
                 ratios = abs(s) if radius == 0.0 else s / s.sum()
                 for i, ratio in ratios.items():
@@ -1576,7 +1579,7 @@ def add_legend_lines(
     else:
         handles = [
             plt.Line2D([0], [0], linewidth=s, color=c, **patch_kw)
-            for s, c in zip(sizes, colors)
+            for s, c in zip(sizes, colors, strict=False)
         ]
 
     legend = ax.legend(handles, labels, **legend_kw)
@@ -1683,6 +1686,7 @@ def add_legend_circles(
             "ensure n.plot() is called first or the final axis extent is set initially "
             "(ax.set_extent(boundaries, crs=crs)) for consistent legend circle sizes.",
             UserWarning,
+            stacklevel=2,
         )
         area_correction = get_projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
@@ -1705,8 +1709,8 @@ def add_legend_semicircles(
     sizes: list[float] | np.ndarray,
     labels: list[str] | np.ndarray,
     srid: int = DEFAULT_EPSG,
-    patch_kw: dict[str, Any] = {},
-    legend_kw: dict[str, Any] = {},
+    patch_kw: dict[str, Any] | None = None,
+    legend_kw: dict[str, Any] | None = None,
 ) -> Legend:
     """
     Add a legend for reference semi-circles.
@@ -1735,7 +1739,8 @@ def add_legend_semicircles(
     sizes = np.atleast_1d(sizes)
     labels = np.atleast_1d(labels)
 
-    assert len(sizes) == len(labels), "Sizes and labels must have the same length."
+    if len(sizes) != len(labels):
+        raise ValueError("Sizes and labels must have the same length.")
 
     if hasattr(ax, "projection"):
         warnings.warn(
@@ -1743,9 +1748,15 @@ def add_legend_semicircles(
             "ensure n.plot() is called first or the final axis extent is set initially "
             "(ax.set_extent(boundaries, crs=crs)) for consistent legend semicircle sizes.",
             UserWarning,
+            stacklevel=2,
         )
         area_correction = get_projected_area_factor(ax, srid) ** 2
         sizes = [s * area_correction for s in sizes]
+
+    if patch_kw is None:
+        patch_kw = {}
+    if legend_kw is None:
+        legend_kw = {}
 
     radius = [np.sign(s) * np.abs(s * 2) ** 0.5 for s in sizes]
     handles = [
@@ -1832,7 +1843,7 @@ def add_legend_arrows(
             color=c,
             **patch_kw,
         )
-        for s, c in zip(sizes, colors)
+        for s, c in zip(sizes, colors, strict=False)
     ]
 
     legend = ax.legend(
@@ -1915,7 +1926,7 @@ def scaled_legend_label(value: float, base_unit: str = "MWh") -> str:
 
 def get_legend_representatives(
     series: pd.Series,
-    quantiles: list[float] = [0.6, 0.2],
+    quantiles: list[float] | None = None,
     n_significant: int = 1,
     base_unit: str = "MWh",
     group_on_first_level: bool = False,
@@ -1946,6 +1957,8 @@ def get_legend_representatives(
         List of tuples (scaled_value, unit) for each quantile
 
     """
+    if quantiles is None:
+        quantiles = [0.6, 0.2]
     if series.empty:
         return []
     if group_on_first_level:

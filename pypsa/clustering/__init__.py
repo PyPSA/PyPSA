@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Clustering functionality for PyPSA networks.
-"""
+"""Clustering functionality for PyPSA networks."""
 
 from functools import wraps
 from typing import TYPE_CHECKING, Any
@@ -17,38 +15,51 @@ if TYPE_CHECKING:
 
 
 class ClusteringAccessor:
-    """
-    Clustering accessor for clustering a network spatially and temporally.
-    """
+    """Clustering accessor for clustering a network spatially and temporally."""
 
     @deprecated_common_kwargs
     def __init__(self, n: "Network") -> None:
+        """
+        Initialize the ClusteringAccessor.
+
+        Parameters
+        ----------
+        n : Network
+            Network instance.
+
+        """
         self.n = n
 
     @wraps(spatial.busmap_by_hac)
     def busmap_by_hac(self, *args: Any, **kwargs: Any) -> pd.Series:
+        """Wrapper for :func:`pypsa.clustering.spatial.busmap_by_hac`."""
         return spatial.busmap_by_hac(self.n, *args, **kwargs)
 
     @wraps(spatial.busmap_by_kmeans)
     def busmap_by_kmeans(self, *args: Any, **kwargs: Any) -> pd.Series:
+        """Wrapper for :func:`pypsa.clustering.spatial.busmap_by_kmeans`."""
         return spatial.busmap_by_kmeans(self.n, *args, **kwargs)
 
     @wraps(spatial.busmap_by_greedy_modularity)
     def busmap_by_greedy_modularity(self, *args: Any, **kwargs: Any) -> pd.Series:
+        """Wrapper for :func:`pypsa.clustering.spatial.busmap_by_greedy_modularity`."""
         return spatial.busmap_by_greedy_modularity(self.n, *args, **kwargs)
 
     @wraps(spatial.hac_clustering)
     def cluster_spatially_by_hac(self, *args: Any, **kwargs: Any) -> "Clustering":
+        """Wrapper for :func:`pypsa.clustering.spatial.hac_clustering`."""
         return spatial.hac_clustering(self.n, *args, **kwargs).n
 
     @wraps(spatial.kmeans_clustering)
     def cluster_spatially_by_kmeans(self, *args: Any, **kwargs: Any) -> "Clustering":
+        """Wrapper for :func:`pypsa.clustering.spatial.kmeans_clustering`."""
         return spatial.kmeans_clustering(self.n, *args, **kwargs).n
 
     @wraps(spatial.greedy_modularity_clustering)
     def cluster_spatially_by_greedy_modularity(
         self, *args: Any, **kwargs: Any
     ) -> "Clustering":
+        """Wrapper for :func:`pypsa.clustering.spatial.greedy_modularity_clustering`."""
         return spatial.greedy_modularity_clustering(self.n, *args, **kwargs).n
 
     def cluster_by_busmap(self, *args: Any, **kwargs: Any) -> "Clustering":
@@ -67,6 +78,7 @@ class ClusteringAccessor:
 
     @wraps(spatial.get_clustering_from_busmap)
     def get_clustering_from_busmap(self, *args: Any, **kwargs: Any) -> "Clustering":
+        """Wrapper for :func:`pypsa.clustering.spatial.get_clustering_from_busmap`."""
         return spatial.get_clustering_from_busmap(self.n, *args, **kwargs)
 
 

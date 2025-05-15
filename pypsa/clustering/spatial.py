@@ -1,6 +1,4 @@
-"""
-Functions for computing network clusters.
-"""
+"""Functions for computing network clusters."""
 
 from __future__ import annotations
 
@@ -86,8 +84,9 @@ DEFAULT_LINE_STRATEGIES = dict(
 
 def normed_or_uniform(x: pd.Series) -> pd.Series:
     """
-    Normalize a series by dividing it by its sum, unless the sum is zero, in
-    which case return a uniform distribution.
+    Normalize a series by dividing it by its sum.
+
+    When the sum is zero, a uniform distribution is returned instead.
 
     Parameters
     ----------
@@ -109,6 +108,7 @@ def normed_or_uniform(x: pd.Series) -> pd.Series:
 def make_consense(component: str, attr: str) -> Callable:
     """
     Returns a function to verify attribute values of a cluster in a component.
+
     The values should either be the same or all null.
 
     Parameters
@@ -132,10 +132,11 @@ def make_consense(component: str, attr: str) -> Callable:
 
     def consense(x: Series) -> object:
         v = x.iat[0]
-        assert (x == v).all() or x.isnull().all(), (
-            f"In {component} cluster {x.name}, the values of attribute "
-            f"{attr} do not agree:\n{x}"
-        )
+        if not (x == v).all() and not x.isnull().all():
+            raise ValueError(
+                f"In {component} cluster {x.name}, the values of attribute "
+                f"{attr} do not agree:\n{x}"
+            )
         return v
 
     return consense
@@ -151,6 +152,8 @@ def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
         The strategies to align.
     keys : list
         The keys to align the strategies with.
+    component : str
+        The component to align the strategies with.
 
     Returns
     -------
@@ -165,9 +168,7 @@ def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
 
 
 def flatten_multiindex(m: pd.MultiIndex, join: str = " ") -> pd.Index:
-    """
-    Flatten a multiindex by joining the levels with the given string.
-    """
+    """Flatten a multiindex by joining the levels with the given string."""
     return m if m.nlevels <= 1 else m.to_flat_index().str.join(join).str.strip()
 
 
@@ -178,7 +179,7 @@ def aggregateoneport(
     carriers: Iterable | None = None,
     buses: Iterable | None = None,
     with_time: bool = True,
-    custom_strategies: dict = dict(),
+    custom_strategies: dict | None = None,
 ) -> tuple[pd.DataFrame, dict]:
     """
     Aggregate one port components in the network based on the given busmap.
@@ -189,6 +190,8 @@ def aggregateoneport(
         The network containing the generators.
     busmap : dict
         A dictionary mapping old bus IDs to new bus IDs.
+    component : str
+        The component to aggregate.
     carriers : list, optional
         List of carriers to be considered (default is all carriers).
     buses : list, optional
@@ -206,6 +209,8 @@ def aggregateoneport(
         Dictionary of the aggregated dynamic data.
 
     """
+    if custom_strategies is None:
+        custom_strategies = {}
     c = component
     static = n.static(c)
     attrs = n.components[c]["attrs"]
@@ -296,7 +301,7 @@ def aggregateoneport(
 
 
 def aggregatebuses(
-    n: Network, busmap: dict, custom_strategies: dict = dict()
+    n: Network, busmap: dict, custom_strategies: dict | None = None
 ) -> pd.DataFrame:
     """
     Aggregate buses in the network based on the given busmap.
@@ -316,6 +321,8 @@ def aggregatebuses(
         DataFrame of the aggregated buses.
 
     """
+    if custom_strategies is None:
+        custom_strategies = {}
     c = "Bus"
     attrs = n.components[c]["attrs"]
 
@@ -459,6 +466,8 @@ def aggregatelines(
 
 @dataclass
 class Clustering:
+    """Clustering result."""
+
     n: Any
     busmap: pd.Series
     linemap: pd.Series
@@ -470,6 +479,12 @@ class Clustering:
         details="Use `clustering.n` instead.",
     )
     def network(self) -> Network:
+        """
+        Get the network.
+
+        !!! warning "Deprecated in 0.32"
+            Use `clustering.n` instead.
+        """
         return self.n
 
 
@@ -482,15 +497,26 @@ def get_clustering_from_busmap(
     aggregate_one_ports: dict | None = None,
     aggregate_generators_carriers: Iterable | None = None,
     scale_link_capital_costs: bool = True,
-    bus_strategies: dict = dict(),
-    one_port_strategies: dict = dict(),
-    generator_strategies: dict = dict(),
-    line_strategies: dict = dict(),
+    bus_strategies: dict | None = None,
+    one_port_strategies: dict | None = None,
+    generator_strategies: dict | None = None,
+    line_strategies: dict | None = None,
     aggregate_generators_buses: Iterable | None = None,
-    custom_line_groupers: list = [],
+    custom_line_groupers: list | None = None,
 ) -> Clustering:
+    """Get a clustering result from a busmap."""
+    if bus_strategies is None:
+        bus_strategies = {}
+    if one_port_strategies is None:
+        one_port_strategies = {}
+    if generator_strategies is None:
+        generator_strategies = {}
+    if line_strategies is None:
+        line_strategies = {}
     if aggregate_one_ports is None:
         aggregate_one_ports = {}
+    if custom_line_groupers is None:
+        custom_line_groupers = []
 
     buses = aggregatebuses(n, busmap, custom_strategies=bus_strategies)
     lines, lines_t, linemap = aggregatelines(
@@ -723,6 +749,7 @@ def busmap_by_hac(
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -815,6 +842,8 @@ def hac_clustering(
     ----------
     n : pypsa.Network
         The buses must have coordinates x, y.
+    n_clusters : int
+        Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
         Subset of buses to cluster. If None, all buses are considered.
     branch_components: List, default=["Line", "Link"]
@@ -862,18 +891,18 @@ def hac_clustering(
     return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
 
 
-################
-# Cluserting based on Modularity (on electrical parameters of the network)
 def busmap_by_greedy_modularity(
     n: Network, n_clusters: int, buses_i: pd.Index | None = None
 ) -> pd.Series:
     """
-    Create a busmap according to Clauset-Newman-Moore greedy modularity
-    maximization [CNM2004_1]_.
+    Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
+
+    See [CNM2004_1]_ for more details.
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -932,12 +961,14 @@ def greedy_modularity_clustering(
     line_length_factor: float = 1.0,
 ) -> Clustering:
     """
-    Create a busmap according to Clauset-Newman-Moore greedy modularity
-    maximization [CNM2004_2]_.
+    Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
+
+    See [CNM2004_2]_ for more details.
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -970,13 +1001,14 @@ def busmap_by_stubs(
     n: Network, matching_attrs: Iterable[str] | None = None
 ) -> pd.Series:
     """
-    Create a busmap by reducing stubs and stubby trees (i.e. sequentially
-    reducing dead-ends).
+    Create a busmap by reducing stubs and stubby trees.
+
+    In other words sequentially reducing dead-ends.
 
     Parameters
     ----------
     n : pypsa.Network
-
+        Network instance.
     matching_attrs : None|[str]
         bus attributes clusters have to agree on
 

@@ -1,3 +1,5 @@
+"""Definitions for network components."""
+
 from __future__ import annotations
 
 import logging
@@ -45,9 +47,21 @@ class ComponentType:
     standard_types: pd.DataFrame | None = None
 
     def __eq__(self, other: Any) -> bool:
+        """
+        Check if two component types are equal.
+
+        Parameters
+        ----------
+        other : Any
+            The other object to compare to.
+
+        Returns
+        -------
+        bool
+
+        """
         if not isinstance(other, ComponentType):
             return NotImplemented
-
         return (
             self.name == other.name
             and self.list_name == other.list_name
@@ -57,6 +71,15 @@ class ComponentType:
         )
 
     def __repr__(self) -> str:
+        """
+        Representation of the component type.
+
+        Returns
+        -------
+        str
+
+        """
+        # TODO make this actually for the REPL
         return f"'{self.name}' Component Type"
 
     @property
@@ -66,6 +89,14 @@ class ComponentType:
         details="Use the 'category' attribute instead.",
     )
     def type(self) -> str:
+        """
+        Getter for the 'type' attribute.
+
+        Returns
+        -------
+        str
+
+        """
         return self.category
 
     @property
@@ -75,4 +106,12 @@ class ComponentType:
         details="Use the 'defaults' attribute instead.",
     )
     def attrs(self) -> pd.DataFrame:
+        """
+        Getter for the 'attrs' attribute.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
         return self.defaults

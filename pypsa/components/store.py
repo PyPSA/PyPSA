@@ -131,13 +131,9 @@ class ComponentsStore(dict):
         else:
             if item in COMPONENT_ALIAS_DICT:
                 # TODO: Activate when changing logic
-                # warnings.warn(
-                #     f"Accessing components in n.components using capitalized singular "
-                #     f"name is deprecated. Use lowercase list name instead: "
-                #     f"'{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.",
-                #     DeprecationWarning,
-                #     stacklevel=2,
-                # )
+                # Accessing components in n.components using capitalized singular "
+                # name is deprecated. Use lowercase list name instead: "
+                # '{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.
                 return super().__getitem__(COMPONENT_ALIAS_DICT[item])
             return super().__getitem__(item)
 
@@ -156,9 +152,9 @@ class ComponentsStore(dict):
         """
         try:
             return self[item]
-        except KeyError:
+        except KeyError as e:
             msg = f"Network has no components '{item}'"
-            raise AttributeError(msg)
+            raise AttributeError(msg) from e
 
     def __delattr__(self, name: str) -> None:
         """Is invoked when del object.member is called."""

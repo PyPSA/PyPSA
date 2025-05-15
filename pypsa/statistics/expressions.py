@@ -247,9 +247,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None,
         round: int | None,
     ) -> pd.DataFrame:
-        # nice_names_ = (
-        #     options.params.statistics.nice_names if nice_names is None else nice_names
-        # )
         # TODO move nice names here and drop from groupers
         round_ = options.params.statistics.round if round is None else round
         drop_zero_ = (
@@ -1628,7 +1625,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
@@ -1710,6 +1707,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         n = self._n
 
         if (

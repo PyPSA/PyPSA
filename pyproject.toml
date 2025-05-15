@@ -147,10 +147,17 @@ select = [
     'UP',  # pyupgrade
     'ANN', # flake-8 annotations
     'TID', # flake8-tidy-imports
+    "S",   # flake8-bandit
+    "B",   # flake8-bugbear
+    "ASYNC",     # flake8-async
     'NPY', # numpy
-    'RUF013', # ruff
-]
+    'RUF013',   # ruff
+    'ERA',      #eradicate
 
+
+]
+# Include once available
+# https://github.com/astral-sh/ruff/issues/2310
 ignore = [
     'ANN401', # Dynamically typed expressions are forbidden
     'E501', # line too long
@@ -163,10 +170,15 @@ ignore = [
 
 
 [tool.ruff.lint.per-file-ignores]
-# pydocstyle ignores, which could be enabled in future when existing
-# issues are fixed
+"{test,examples,doc}/**" = [
+    'D',
+    "ERA",
+    "S",
+    'B',
+]
 
-"!**/{components/**,statistics/**,plot/**}" = [
+# Still to be fixed
+"{*/optimization/**,pypsa/pf.py,test/**}" = [
     'D100', # Missing docstring in public module
     'D101', # Missing docstring in public class
     'D102', # Missing docstring in public method
@@ -179,8 +191,7 @@ ignore = [
     'D413', # Missing blank line after last section
     'D415', # First line should end with a period, question mark, or exclamation point
     'D417', # Missing argument descriptions in the docstring
-    # Include once available
-    # https://github.com/astral-sh/ruff/issues/2310
+
     ]
 
 "{test,examples}/**"=[

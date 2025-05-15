@@ -1,6 +1,4 @@
-"""
-Functions for importing and exporting data.
-"""
+"""Functions for importing and exporting data."""
 
 from __future__ import annotations
 
@@ -59,7 +57,11 @@ def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Networ
         file_path = Path(temp_file.name)
         logger.info(f"Retrieving network data from {url}.")
         try:
-            urlretrieve(url, file_path)
+            if url.startswith("http"):
+                urlretrieve(url, file_path)  # noqa: S310
+            else:
+                msg = f"Invalid URL: {url}"
+                raise ValueError(msg)
         except Exception as e:
             logger.error(f"Failed to retrieve network data from {url}: {e}")
             raise
@@ -73,9 +75,12 @@ TImpExper = TypeVar("TImpExper", bound="ImpExper")
 
 
 class ImpExper:
+    """Base class for importers and exporters."""
+
     ds: Any = None
 
     def __enter__(self: TImpExper) -> TImpExper:
+        """Enter the context manager."""
         if self.ds is not None:
             self.ds = self.ds.__enter__()
         return self
@@ -86,60 +91,91 @@ class ImpExper:
         exc_val: BaseException,
         exc_tb: TracebackType,
     ) -> None:
+        """Exit the context manager."""
         if exc_type is None:
             self.finish()
 
         if self.ds is not None:
             self.ds.__exit__(exc_type, exc_val, exc_tb)
 
+    @abstractmethod
     def finish(self) -> None:
+        """Post-processing when process is finished."""
         pass
 
 
 class Exporter(ImpExper):
+    """Exporter class."""
+
     def remove_static(self, list_name: str) -> None:
+        """Remove static components data."""
         pass
 
     def remove_series(self, list_name: str, attr: str) -> None:
+        """Remove dynamic components data."""
         pass
 
     @abstractmethod
     def save_attributes(self, attrs: dict) -> None:
+        """Save generic network attributes."""
         pass
 
     @abstractmethod
     def save_meta(self, meta: dict) -> None:
+        """Save meta data (`n.meta`)."""
         pass
 
     @abstractmethod
     def save_crs(self, crs: dict) -> None:
+        """Save CRS of shapes of network."""
         pass
 
     @abstractmethod
     def save_snapshots(self, snapshots: Sequence) -> None:
+        """Save snapshots data."""
         pass
 
     @abstractmethod
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        """Save investment periods data."""
         pass
 
     @abstractmethod
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        """Save static components data."""
         pass
 
     @abstractmethod
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save dynamic components data."""
         pass
 
 
 class Importer(ImpExper):
+    """Importer class."""
+
     pass
 
 
 class ImporterCSV(Importer):
+    """Importer class for CSV files."""
+
     def __init__(
         self, csv_folder_name: str | Path, encoding: str | None, quotechar: str
     ) -> None:
+        """
+        Initialize the importer for CSV files.
+
+        Parameters
+        ----------
+        csv_folder_name : str | Path
+            Path to the CSV folder.
+        encoding : str | None
+            Encoding to use for the CSV files.
+        quotechar : str
+            Quote character to use for the CSV files.
+
+        """
         self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
         self.quotechar = quotechar
@@ -149,6 +185,7 @@ class ImporterCSV(Importer):
             raise FileNotFoundError(msg)
 
     def get_attributes(self) -> dict | None:
+        """Get generic network attributes."""
         fn = self.csv_folder_name.joinpath("network.csv")
         if not fn.is_file():
             return None
@@ -161,14 +198,17 @@ class ImporterCSV(Importer):
         )
 
     def get_meta(self) -> dict:
+        """Get meta data (`n.meta`)."""
         fn = self.csv_folder_name.joinpath("meta.json")
         return {} if not fn.is_file() else json.loads(fn.open().read())
 
     def get_crs(self) -> dict:
+        """Get CRS of shapes of network."""
         fn = self.csv_folder_name.joinpath("crs.json")
         return {} if not fn.is_file() else json.loads(fn.open().read())
 
     def get_snapshots(self) -> pd.Index:
+        """Get snapshots data."""
         fn = self.csv_folder_name.joinpath("snapshots.csv")
         if not fn.is_file():
             return None
@@ -187,6 +227,7 @@ class ImporterCSV(Importer):
         return df
 
     def get_investment_periods(self) -> pd.Series:
+        """Get investment periods data."""
         fn = self.csv_folder_name.joinpath("investment_periods.csv")
         if not fn.is_file():
             return None
@@ -195,6 +236,7 @@ class ImporterCSV(Importer):
         )
 
     def get_static(self, list_name: str) -> pd.DataFrame:
+        """Get static components data."""
         fn = self.csv_folder_name.joinpath(list_name + ".csv")
         return (
             pd.read_csv(
@@ -205,6 +247,7 @@ class ImporterCSV(Importer):
         )
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get dynamic components data."""
         for fn in self.csv_folder_name.iterdir():
             if fn.name.startswith(list_name + "-") and fn.name.endswith(".csv"):
                 attr = fn.name[len(list_name) + 1 : -4]
@@ -219,9 +262,24 @@ class ImporterCSV(Importer):
 
 
 class ExporterCSV(Exporter):
+    """Exporter class for CSV files."""
+
     def __init__(
         self, csv_folder_name: Path | str, encoding: str | None, quotechar: str
     ) -> None:
+        """
+        Initialize the exporter for CSV files.
+
+        Parameters
+        ----------
+        csv_folder_name : Path | str
+            Path to the CSV folder.
+        encoding : str | None
+            Encoding to use for the CSV files.
+        quotechar : str
+            Quote character to use for the CSV files.
+
+        """
         self.csv_folder_name = Path(csv_folder_name)
         self.encoding = encoding
         self.quotechar = quotechar
@@ -232,6 +290,7 @@ class ExporterCSV(Exporter):
             self.csv_folder_name.mkdir()
 
     def save_attributes(self, attrs: dict) -> None:
+        """Save generic network attributes."""
         name = attrs.pop("name")
         df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
         fn = self.csv_folder_name.joinpath("network.csv")
@@ -239,19 +298,23 @@ class ExporterCSV(Exporter):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_meta(self, meta: dict) -> None:
+        """Save meta data (`n.meta`)."""
         fn = self.csv_folder_name.joinpath("meta.json")
         fn.open("w").write(json.dumps(meta))
 
     def save_crs(self, crs: dict) -> None:
+        """Save CRS of shapes of network."""
         fn = self.csv_folder_name.joinpath("crs.json")
         fn.open("w").write(json.dumps(crs))
 
     def save_snapshots(self, snapshots: pd.Index) -> None:
+        """Save snapshots data."""
         fn = self.csv_folder_name.joinpath("snapshots.csv")
         with fn.open("w"):
             snapshots.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        """Save investment periods data."""
         fn = self.csv_folder_name.joinpath("investment_periods.csv")
         with fn.open("w"):
             investment_periods.to_csv(
@@ -259,29 +322,54 @@ class ExporterCSV(Exporter):
             )
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        """Save static components data."""
         fn = self.csv_folder_name.joinpath(list_name + ".csv")
         with fn.open("w"):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save dynamic components data."""
         fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
         with fn.open("w"):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def remove_static(self, list_name: str) -> None:
+        """
+        Remove static components data.
+
+        Needed to not have stale sheets for empty components.
+        """
         if fns := list(self.csv_folder_name.joinpath(list_name).glob("*.csv")):
             for fn in fns:
                 fn.unlink()
             logger.warning(f"Stale csv file(s) {', '.join(fns)} removed")
 
     def remove_series(self, list_name: str, attr: str) -> None:
+        """
+        Remove dynamic components data.
+
+        Needed to not have stale sheets for empty components.
+        """
         fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
         if fn.exists():
             fn.unlink()
 
 
 class ImporterExcel(Importer):
+    """Importer class for Excel files."""
+
     def __init__(self, path: str | Path, engine: str = "calamine") -> None:
+        """
+        Initialize the importer for Excel files.
+
+        Parameters
+        ----------
+        path : str | Path
+            Path to the Excel file.
+        engine : str
+            Engine to use for the Excel file.
+
+        """
         if engine == "calamine":
             check_optional_dependency(
                 "python_calamine",
@@ -307,12 +395,14 @@ class ImporterExcel(Importer):
         self.index: dict = {}
 
     def get_attributes(self) -> dict | None:
+        """Get generic network attributes."""
         try:
             return dict(self.sheets["network"].iloc[0])
         except (ValueError, KeyError):
             return None
 
     def get_meta(self) -> dict:
+        """Get meta data (`n.meta`)."""
         try:
             df = self.sheets["meta"]
             if not df.empty:
@@ -335,16 +425,18 @@ class ImporterExcel(Importer):
             return {}
 
     def get_crs(self) -> dict:
+        """Get CRS of shapes of network."""
         try:
             df = self.sheets["crs"]
             if not df.empty:
                 # Assuming first column is keys and second column is values
-                return dict(zip(df.iloc[:, 0], df.iloc[:, 1]))
+                return dict(zip(df.iloc[:, 0], df.iloc[:, 1], strict=False))
             return {}
         except (ValueError, KeyError):
             return {}
 
     def get_snapshots(self) -> pd.Index:
+        """Get snapshots data."""
         try:
             df = self.sheets["snapshots"]
             df = df.set_index(df.columns[0])
@@ -358,6 +450,7 @@ class ImporterExcel(Importer):
             return None
 
     def get_investment_periods(self) -> pd.Series:
+        """Get investment periods data."""
         try:
             df = self.sheets["investment_periods"]
             df = df.set_index(df.columns[0])
@@ -367,6 +460,7 @@ class ImporterExcel(Importer):
             return None
 
     def get_static(self, list_name: str) -> pd.DataFrame:
+        """Get static components data."""
         try:
             df = self.sheets[list_name]
             df = df.set_index(df.columns[0])
@@ -375,6 +469,7 @@ class ImporterExcel(Importer):
             return None
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get dynamic components data."""
         for sheet_name, df in self.sheets.items():
             if sheet_name.startswith(list_name + "-"):
                 attr = sheet_name[len(list_name) + 1 :]
@@ -383,7 +478,20 @@ class ImporterExcel(Importer):
 
 
 class ExporterExcel(Exporter):
+    """Exporter class for Excel files."""
+
     def __init__(self, excel_file_path: Path | str, engine: str = "openpyxl") -> None:
+        """
+        Initialize the exporter for Excel files.
+
+        Parameters
+        ----------
+        excel_file_path : Path | str
+            Path to save the Excel file.
+        engine : str
+            Engine to use for the Excel file.
+
+        """
         if engine == "openpyxl":
             check_optional_dependency(
                 "openpyxl",
@@ -404,6 +512,11 @@ class ExporterExcel(Exporter):
 
     @property
     def writer(self) -> pd.ExcelWriter:
+        """
+        Get the Excel writer object.
+
+        If the writer object is not already created, create it.
+        """
         if self._writer is None:
             self._writer = pd.ExcelWriter(
                 self.excel_file_path,
@@ -414,11 +527,13 @@ class ExporterExcel(Exporter):
         return self._writer
 
     def save_attributes(self, attrs: dict) -> None:
+        """Save generic network attributes."""
         name = attrs.pop("name")
         df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
         df.to_excel(self.writer, sheet_name="network")
 
     def save_meta(self, meta: dict) -> None:
+        """Save meta data (`n.meta`)."""
         # Convert meta dictionary to DataFrame with proper handling of nested dicts
         meta_items = []
         for key, value in meta.items():
@@ -431,35 +546,51 @@ class ExporterExcel(Exporter):
         df.to_excel(self.writer, sheet_name="meta", index=False)
 
     def save_crs(self, crs: dict) -> None:
-        # Convert crs dictionary to DataFrame
+        """Save CRS of shapes of network."""
         df = pd.DataFrame(list(crs.items()), columns=["Key", "Value"])
         df.to_excel(self.writer, sheet_name="crs", index=False)
 
     def save_snapshots(self, snapshots: pd.Index) -> None:
+        """Save snapshots data."""
         snapshots.to_excel(self.writer, sheet_name="snapshots")
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        """Save investment periods data."""
         investment_periods.to_excel(self.writer, sheet_name="investment_periods")
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        """Save static components data."""
         df.to_excel(self.writer, sheet_name=list_name)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save dynamic components data."""
         sheet_name = f"{list_name}-{attr}"
         df.to_excel(self.writer, sheet_name=sheet_name)
 
     def remove_static(self, list_name: str) -> None:
+        """
+        Remove static components data.
+
+        Needed to not have stale sheets for empty components.
+
+        """
         if list_name in self.writer.book.sheetnames:
             del self.writer.book[list_name]
             logger.warning(f"Stale sheet {list_name} removed")
 
     def remove_series(self, list_name: str, attr: str) -> None:
+        """
+        Remove dynamic components data.
+
+        Needed to not have stale sheets for empty components.
+        """
         sheet_name = f"{list_name}-{attr}"
         if sheet_name in self.writer.book.sheetnames:
             del self.writer.book[sheet_name]
             logger.warning(f"Stale sheet {sheet_name} removed")
 
     def finish(self) -> None:
+        """Postprocessing of exporting process."""
         # Remove temp sheet if it exists
         if "_temp" in self.writer.book.sheetnames:
             del self.writer.book["_temp"]
@@ -469,7 +600,18 @@ class ExporterExcel(Exporter):
 
 
 class ImporterHDF5(Importer):
+    """Importer class for HDF5 files."""
+
     def __init__(self, path: str | pd.HDFStore) -> None:
+        """
+        Initialize the importer for HDF5 files.
+
+        Parameters
+        ----------
+        path : str | pd.HDFStore
+            Path to the HDF5 file or an hdfstore object.
+
+        """
         check_optional_dependency(
             "tables",
             "Missing optional dependencies to use HDF5 files. Install them via "
@@ -487,23 +629,29 @@ class ImporterHDF5(Importer):
         self.index: dict = {}
 
     def get_attributes(self) -> dict:
+        """Get generic network attributes."""
         return dict(self.ds["/network"].reset_index().iloc[0])
 
     def get_meta(self) -> dict:
+        """Get meta data (`n.meta`)."""
         return json.loads(self.ds["/meta"][0] if "/meta" in self.ds else "{}")
 
     def get_crs(self) -> dict:
+        """Get CRS of shapes of network."""
         return json.loads(self.ds["/crs"][0] if "/crs" in self.ds else "{}")
 
     def get_snapshots(self) -> pd.Series:
+        """Get snapshots data."""
         return self.ds["/snapshots"] if "/snapshots" in self.ds else None
 
     def get_investment_periods(self) -> pd.Series:
+        """Get investment periods data."""
         return (
             self.ds["/investment_periods"] if "/investment_periods" in self.ds else None
         )
 
     def get_static(self, list_name: str) -> pd.DataFrame:
+        """Get static components data."""
         if "/" + list_name not in self.ds:
             return None
 
@@ -516,6 +664,7 @@ class ImporterHDF5(Importer):
         return df
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get dynamic components data."""
         for tab in self.ds:
             if tab.startswith("/" + list_name + "_t/"):
                 attr = tab[len("/" + list_name + "_t/") :]
@@ -525,7 +674,20 @@ class ImporterHDF5(Importer):
 
 
 class ExporterHDF5(Exporter):
+    """Exporter class for HDF5 files."""
+
     def __init__(self, path: str | Path, **kwargs: Any) -> None:
+        """
+        Initialize exporter for HDF5 files.
+
+        Parameters
+        ----------
+        path : str | Path
+            Path to save the HDF5 file.
+        **kwargs : Any
+            Additional keyword arguments for the HDFStore.
+
+        """
         check_optional_dependency(
             "tables",
             "Missing optional dependencies to use HDF5 files. Install them via "
@@ -539,9 +701,11 @@ class ExporterHDF5(Exporter):
     def __exit__(
         self, exc_type: type, exc_val: BaseException, exc_tb: TracebackType
     ) -> None:
+        """Exit the context manager."""
         super().__exit__(exc_type, exc_val, exc_tb)
 
     def save_attributes(self, attrs: dict) -> None:
+        """Save generic network attributes."""
         name = attrs.pop("name")
         self.ds.put(
             "/network",
@@ -551,15 +715,19 @@ class ExporterHDF5(Exporter):
         )
 
     def save_meta(self, meta: dict) -> None:
+        """Save meta data (`n.meta`)."""
         self.ds.put("/meta", pd.Series(json.dumps(meta)))
 
     def save_crs(self, crs: dict) -> None:
+        """Save CRS of shapes of network."""
         self.ds.put("/crs", pd.Series(json.dumps(crs)))
 
     def save_snapshots(self, snapshots: Sequence) -> None:
+        """Save snapshots data."""
         self.ds.put("/snapshots", snapshots, format="table", index=False)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        """Save investment periods data."""
         self.ds.put(
             "/investment_periods",
             investment_periods,
@@ -568,23 +736,37 @@ class ExporterHDF5(Exporter):
         )
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        """Save a static components data."""
         df = df.rename_axis(index="name")
         self.index[list_name] = df.index
         df = df.reset_index()
         self.ds.put("/" + list_name, df, format="table", index=False)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save dynamic components data."""
         df = df.set_axis(self.index[list_name].get_indexer(df.columns), axis="columns")
         self.ds.put("/" + list_name + "_t/" + attr, df, format="table", index=False)
 
     def finish(self) -> None:
+        """Postprocessing of exporting process."""
         self._hdf5_handle.close()
 
 
 class ImporterNetCDF(Importer):
+    """Importer class for netCDF files."""
+
     ds: xr.Dataset
 
     def __init__(self, path: str | Path | xr.Dataset) -> None:
+        """
+        Initialize the importer for netCDF files.
+
+        Parameters
+        ----------
+        path : str | Path | xr.Dataset
+            Path to the netCDF file or an xarray.Dataset.
+
+        """
         self.path = path
         if isinstance(path, (str | Path)):
             if validators.url(str(path)):
@@ -595,6 +777,7 @@ class ImporterNetCDF(Importer):
             self.ds = path
 
     def __enter__(self) -> ImporterNetCDF:
+        """Enter the context manager."""
         if isinstance(self.path, (str | Path)):
             super().__init__()
         return self
@@ -605,10 +788,12 @@ class ImporterNetCDF(Importer):
         exc_val: BaseException,
         exc_tb: TracebackType,
     ) -> None:
+        """Exit the context manager."""
         if isinstance(self.path, (str | Path)):
             super().__exit__(exc_type, exc_val, exc_tb)
 
     def get_attributes(self) -> dict:
+        """Get generic network attributes."""
         return {
             attr[len("network_") :]: val
             for attr, val in self.ds.attrs.items()
@@ -616,18 +801,23 @@ class ImporterNetCDF(Importer):
         }
 
     def get_meta(self) -> dict:
+        """Get meta data (`n.meta`)."""
         return json.loads(self.ds.attrs.get("meta", "{}"))
 
     def get_crs(self) -> dict:
+        """Get CRS of shapes of network."""
         return json.loads(self.ds.attrs.get("crs", "{}"))
 
     def get_snapshots(self) -> pd.DataFrame:
+        """Get snapshots data."""
         return self.get_static("snapshots", "snapshots")
 
     def get_investment_periods(self) -> pd.DataFrame:
+        """Get investment periods data."""
         return self.get_static("investment_periods", "investment_periods")
 
     def get_static(self, list_name: str, index_name: str | None = None) -> pd.DataFrame:
+        """Get static components data."""
         t = list_name + "_"
         i = len(t)
         if index_name is None:
@@ -642,6 +832,7 @@ class ImporterNetCDF(Importer):
         return df
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
+        """Get dynamic components data."""
         t = list_name + "_t_"
         for attr in self.ds.data_vars.keys():
             if attr.startswith(t):
@@ -652,59 +843,90 @@ class ImporterNetCDF(Importer):
 
 
 class ExporterNetCDF(Exporter):
+    """Exporter class for netCDF files."""
+
     def __init__(
         self,
         path: str | None,
-        compression: dict | None = {"zlib": True, "complevel": 4},
+        compression: dict | None = None,
         float32: bool = False,
     ) -> None:
+        """
+        Initialize exporter for netCDF files.
+
+        Parameters
+        ----------
+        path : str | None
+            Path to save the netCDF file.
+        compression : dict | None, default None
+            Compression settings for the netCDF file.
+        float32 : bool, default False
+            If True, typecast float64 to float32.
+
+        """
         self.path = path
+        if compression is None:
+            compression = {"zlib": True, "complevel": 4}
         self.compression = compression
         self.float32 = float32
         self.ds = xr.Dataset()
 
     def save_attributes(self, attrs: dict) -> None:
+        """Save generic network attributes."""
         self.ds.attrs.update(("network_" + attr, val) for attr, val in attrs.items())
 
     def save_meta(self, meta: dict) -> None:
+        """Save meta data (`n.meta`)."""
         self.ds.attrs["meta"] = json.dumps(meta)
 
     def save_crs(self, crs: dict) -> None:
+        """Save CRS of shapes of network."""
         self.ds.attrs["crs"] = json.dumps(crs)
 
     def save_snapshots(self, snapshots: pd.Index) -> None:
+        """Save snapshots data."""
         snapshots = snapshots.rename_axis(index="snapshots")
         for attr in snapshots.columns:
             self.ds["snapshots_" + attr] = snapshots[attr]
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
+        """Save investment periods data."""
         investment_periods = investment_periods.rename_axis(index="investment_periods")
         for attr in investment_periods.columns:
             self.ds["investment_periods_" + attr] = investment_periods[attr]
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
+        """Save a static components data."""
         df = df.rename_axis(index=list_name + "_i")
         self.ds[list_name + "_i"] = df.index
         for attr in df.columns:
             self.ds[list_name + "_" + attr] = df[attr]
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
+        """Save a dynamic components data."""
         df = df.rename_axis(index="snapshots", columns=list_name + "_t_" + attr + "_i")
         self.ds[list_name + "_t_" + attr] = df
 
     def set_compression_encoding(self) -> None:
+        """Set compression encoding for all variables."""
         logger.debug(f"Setting compression encodings: {self.compression}")
         for v in self.ds.data_vars:
             if self.ds[v].dtype.kind not in ["U", "O"]:
                 self.ds[v].encoding.update(self.compression)
 
     def typecast_float32(self) -> None:
+        """Typecast float64 to float32 for all variables."""
         logger.debug("Typecasting float64 to float32.")
         for v in self.ds.data_vars:
             if self.ds[v].dtype == np.float64:
                 self.ds[v] = self.ds[v].astype(np.float32)
 
     def finish(self) -> None:
+        """
+        Finish the export process.
+
+        Runs post-processing, compression and saving to disk.
+        """
         if self.float32:
             self.typecast_float32()
         if self.compression:
@@ -731,10 +953,15 @@ def _export_to_exporter(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to export.
     exporter : Exporter
         Initialized exporter instance
     basename : str
         Basename, used for logging
+    quotechar : str, default '"'
+        String of length 1. Character used to denote the start and end of a
+        quoted item. Quoted items can include "," and it will be ignored
     export_standard_types : boolean, default False
         If True, then standard types are exported too (upon reimporting you
         should then set "ignore_standard_types" when initialising the netowrk).
@@ -866,6 +1093,8 @@ def import_from_csv_folder(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     csv_folder_name : string
         Name of folder
     encoding : str, default None
@@ -916,6 +1145,8 @@ def export_to_csv_folder(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to export.
     csv_folder_name : string
         Name of folder to which to export.
     encoding : str, default None
@@ -960,10 +1191,13 @@ def import_from_excel(
 ) -> None:
     """
     Import network data from an Excel file.
+
     The Excel file must follow the standard form with appropriate sheets.
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     excel_file_path : string or Path
         Path to the Excel file
     skip_time : bool, default False
@@ -1008,6 +1242,8 @@ def export_to_excel(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to export.
     excel_file_path : string or Path
         Path to the Excel file to which to export.
     export_standard_types : boolean, default False
@@ -1045,6 +1281,8 @@ def import_from_hdf5(n: Network, path: str | Path, skip_time: bool = False) -> N
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     path : string, Path
         Name of HDF5 store. The string could be a URL.
     skip_time : bool, default False
@@ -1076,6 +1314,8 @@ def export_to_hdf5(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to export.
     path : string
         Name of hdf5 file to which to export (if it exists, it is overwritten)
     export_standard_types : boolean, default False
@@ -1119,6 +1359,8 @@ def import_from_netcdf(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     path : string|xr.Dataset
         Path to netCDF dataset or instance of xarray Dataset.
         The string could be a URL.
@@ -1155,6 +1397,8 @@ def export_to_netcdf(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to export.
     path : string|None
         Name of netCDF file to which to export (if it exists, it is overwritten);
         if None is passed, no file is exported.
@@ -1205,6 +1449,12 @@ def _import_from_importer(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
+    importer : Any
+        Importer to import from.
+    basename : str
+        Name of the network.
     skip_time : bool
         Skip importing time
 
@@ -1359,8 +1609,13 @@ def import_components_from_dataframe(
     If columns are missing then defaults are used. If extra columns are added, these
     are left in the resulting component dataframe.
 
+    !!! warning "Deprecated in v0.34"
+        Use :py:meth:`pypsa.Network.add` instead.
+
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     dataframe : pandas.DataFrame
         A DataFrame whose index is the names of the components and
         whose columns are the non-default attributes.
@@ -1394,6 +1649,8 @@ def import_series_from_dataframe(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     dataframe : pandas.DataFrame
         A DataFrame whose index is ``n.snapshots`` and
         whose columns are a subset of the relevant components.
@@ -1420,11 +1677,15 @@ def _import_components_from_df(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     df : pandas.DataFrame
         A DataFrame whose index is the names of the components and
         whose columns are the non-default attributes.
     cls_name : string
         Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
+    overwrite : bool, default False
+        If True, overwrite existing components.
 
     """
     attrs = n.components[cls_name]["attrs"]
@@ -1539,6 +1800,8 @@ def _import_series_from_df(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     df : pandas.DataFrame
         A DataFrame whose index is ``n.snapshots`` and
         whose columns are a subset of the relevant components.
@@ -1546,6 +1809,8 @@ def _import_series_from_df(
         Name of class of component
     attr : string
         Name of time-varying series attribute
+    overwrite : bool, default False
+        If True, overwrite existing time series.
 
     """
     static = n.static(cls_name)
@@ -1698,8 +1963,12 @@ def import_from_pypower_ppc(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     ppc : PYPOWER PPC dict
+        PYPOWER PPC dictionary to import from.
     overwrite_zero_s_nom : Float or None, default None
+        If a float, all branches with s_nom of 0 will be set to this value.
 
     Examples
     --------
@@ -1919,7 +2188,10 @@ def import_from_pandapower_net(
 
     Parameters
     ----------
+    n : pypsa.Network
+        Network to import to.
     net : pandapower network
+        pandapower network to import from.
     extra_line_data : boolean, default: False
         if True, the line data for all parameters is imported instead of only the type
     use_pandapower_index : boolean, default: False

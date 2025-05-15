@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-"""
-This module contains functions for retrieving/loading example networks provided
-by the PyPSA project.
-"""
+"""Retrieve PyPSA example networks."""
 
 from __future__ import annotations
 
@@ -34,11 +30,10 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
 
 
 def ac_dc_meshed(
-    update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
+    update: bool = False, from_master: bool = False, remove_link_p_set: bool = False
 ) -> Network:
     """
-    Load the meshed AC-DC network example of pypsa stored in the PyPSA
-    repository.
+    Load the meshed AC-DC example network.
 
     Parameters
     ----------
@@ -46,6 +41,8 @@ def ac_dc_meshed(
         Whether to update the locally stored network data. The default is False.
     from_master : bool, optional
         Whether to retrieve from the master branch of the pypsa repository.
+    remove_link_p_set : bool, optional
+        Whether to remove the link `p_set` attribute from the links.
 
     .. deprecated:: 0.35.0
           `from_master` and `update` are deprecated and do not have any effect.
@@ -56,9 +53,10 @@ def ac_dc_meshed(
     pypsa.Network
 
     """
-    if update or from_master:
+    if update or from_master or remove_link_p_set:
         warnings.warn(
-            "The 'update' and 'from_master' parameters are deprecated and do not have any effect. "
+            "The 'update' 'from_master' and 'remove_link_p_set' parameters are "
+            "deprecated and do not have any effect. "
             "Example networks are always updated and retrieved for the current version."
             "Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
