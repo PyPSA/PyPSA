@@ -207,7 +207,8 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
             setattr(self, key, value)
         else:
             # TODO: Is this to strict?
-            raise KeyError(f"'{key}' not found in Component")
+            msg = f"'{key}' not found in Component"
+            raise KeyError(msg)
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -583,7 +584,8 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
     def n_save(self) -> Any:
         """A save property to access the network (component must be attached)."""
         if not self.attached:
-            raise AttributeError("Component must be attached to a Network.")
+            msg = "Component must be attached to a Network."
+            raise AttributeError(msg)
         return self.n
 
     @property
@@ -743,7 +745,8 @@ class SubNetworkComponents:
         if key in {"_wrapped_data", "_wrapper_func"}:
             super().__setattr__(key, value)
         else:
-            raise AttributeError("SubNetworkComponents is read-only")
+            msg = "SubNetworkComponents is read-only"
+            raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """
@@ -764,4 +767,5 @@ class SubNetworkComponents:
             If attribute deletion is attempted.
 
         """
-        raise AttributeError("SubNetworkComponents is read-only")
+        msg = "SubNetworkComponents is read-only"
+        raise AttributeError(msg)

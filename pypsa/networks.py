@@ -354,9 +354,8 @@ class Network:
             elif isinstance(import_name, Path) and import_name.is_dir():
                 self.import_from_csv_folder(import_name)
             else:
-                raise ValueError(
-                    f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
-                )
+                msg = f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
+                raise ValueError(msg)
 
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -671,7 +670,8 @@ class Network:
     def meta(self, new: dict) -> None:
         """Set the network meta data."""
         if not isinstance(new, (dict | Dict)):
-            raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
+            msg = f"Meta must be a dictionary, received a {type(new)}"
+            raise TypeError(msg)
         self._meta = new
 
     @property
@@ -797,7 +797,8 @@ class Network:
             self._snapshots = pd.Index(snapshots, name="snapshot")
 
         if len(self._snapshots) == 0:
-            raise ValueError("Snapshots must not be empty.")
+            msg = "Snapshots must not be empty."
+            raise ValueError(msg)
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
             self._snapshots, fill_value=default_snapshot_weightings
@@ -1080,7 +1081,8 @@ class Network:
     @snapshot_weightings.setter
     def snapshot_weightings(self, df: pd.DataFrame) -> None:
         if not df.index.equals(self.snapshots):
-            raise ValueError("Weightings not defined for all snapshots.")
+            msg = "Weightings not defined for all snapshots."
+            raise ValueError(msg)
 
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
@@ -1116,19 +1118,18 @@ class Network:
             and periods_.is_unique
             and periods_.is_monotonic_increasing
         ):
-            raise ValueError(
+            msg = (
                 "Investment periods are not strictly increasing integers, "
                 "which is required for multi-period investment optimisation."
             )
+            raise ValueError(msg)
         if isinstance(self.snapshots, pd.MultiIndex):
             if not periods_.isin(self.snapshots.unique("period")).all():
-                raise ValueError(
-                    "Not all investment periods are in level `period` of snapshots."
-                )
+                msg = "Not all investment periods are in level `period` of snapshots."
+                raise ValueError(msg)
             if len(periods_) < len(self.snapshots.unique(level="period")):
-                raise NotImplementedError(
-                    "Investment periods do not equal first level values of snapshots."
-                )
+                msg = "Investment periods do not equal first level values of snapshots."
+                raise NotImplementedError(msg)
         else:
             # Convenience case:
             logger.info(
@@ -1175,7 +1176,8 @@ class Network:
     @investment_period_weightings.setter
     def investment_period_weightings(self, df: pd.DataFrame) -> None:
         if not df.index.equals(self.investment_periods):
-            raise ValueError("Weightings not defined for all investment periods.")
+            msg = "Weightings not defined for all investment periods."
+            raise ValueError(msg)
         if isinstance(df, pd.Series):
             logger.info(
                 "Applying weightings to all columns of `investment_period_weightings`"
@@ -2096,9 +2098,8 @@ class SubNetwork:
                     buses = self.buses_i()
                     return value[value.bus.isin(buses)]
                 else:
-                    raise ValueError(
-                        f"Component {c.name} not supported for sub-networks"
-                    )
+                    msg = f"Component {c.name} not supported for sub-networks"
+                    raise ValueError(msg)
             elif key == "dynamic":
                 dynamic = Dict()
                 index = self.static(c.name).index

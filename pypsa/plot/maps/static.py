@@ -172,9 +172,8 @@ class MapPlotter:
     ) -> None:
         """Set the plot boundaries."""
         if value is not None and len(value) != 4:
-            raise ValueError(
-                "Boundaries must be a sequence of 4 values (xmin, xmax, ymin, ymax)"
-            )
+            msg = "Boundaries must be a sequence of 4 values (xmin, xmax, ymin, ymax)"
+            raise ValueError(msg)
         self._boundaries = value
 
     @property
@@ -195,7 +194,8 @@ class MapPlotter:
         else:
             axis_type = (Axes, GeoAxesSubplot)  # type: ignore
         if value is not None and not isinstance(value, axis_type):
-            raise ValueError("ax must be either matplotlib Axes or GeoAxesSubplot")
+            msg = "ax must be either matplotlib Axes or GeoAxesSubplot"
+            raise ValueError(msg)
         self._ax = value
 
     @property
@@ -207,7 +207,8 @@ class MapPlotter:
     def area_factor(self, value: float | int | None) -> None:
         """Set the area factor for scaling."""
         if value is not None and not isinstance(value, int | float):
-            raise ValueError("area_factor must be a number")
+            msg = "area_factor must be a number"
+            raise ValueError(msg)
         self._area_factor = float(value) if value is not None else 1.0
 
     def set_layout(self, layouter: Callable | None = None) -> None:
@@ -1132,7 +1133,8 @@ class MapPlotter:
         )
 
         if self.ax is None:
-            raise ValueError("No axis passed or created.")
+            msg = "No axis passed or created."
+            raise ValueError(msg)
 
         if flow is not None:
             if (
@@ -1413,7 +1415,8 @@ class HandlerCircle(HandlerPatch):
         """Create the artists for the legend."""
         fig = legend.get_figure()
         if fig is None:
-            raise ValueError("Legend must be placed on a figure. No figure found.")
+            msg = "Legend must be placed on a figure. No figure found."
+            raise ValueError(msg)
 
         ax = legend.axes
 
@@ -1457,7 +1460,8 @@ class WedgeHandler(HandlerPatch):
         """Create the artists for the legend."""
         fig = legend.get_figure()
         if fig is None:
-            raise ValueError("Legend must be placed on a figure. No figure found.")
+            msg = "Legend must be placed on a figure. No figure found."
+            raise ValueError(msg)
         ax = legend.axes
         center = 5 - xdescent, 3 - ydescent
         unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
@@ -1512,7 +1516,8 @@ class HandlerArrow(HandlerPatch):
         """Create the artists for the legend."""
         fig = legend.get_figure()
         if fig is None:
-            raise ValueError("Legend must be placed on a figure. No figure found.")
+            msg = "Legend must be placed on a figure. No figure found."
+            raise ValueError(msg)
         ax = legend.axes
         unit = min(np.diff(ax.transData.transform([(0, 0), (1, 1)]), axis=0)[0])
         norm = (self.scale_factor / fig.dpi) * unit
@@ -1740,7 +1745,8 @@ def add_legend_semicircles(
     labels = np.atleast_1d(labels)
 
     if len(sizes) != len(labels):
-        raise ValueError("Sizes and labels must have the same length.")
+        msg = "Sizes and labels must have the same length."
+        raise ValueError(msg)
 
     if hasattr(ax, "projection"):
         warnings.warn(

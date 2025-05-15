@@ -74,7 +74,8 @@ class OptionsNode:
 
         child = self._children[name]
         if isinstance(child, OptionsNode):
-            raise InvalidOptionError(f"Cannot set value for category '{name}'.")
+            msg = f"Cannot set value for category '{name}'."
+            raise InvalidOptionError(msg)
         child.value = value
 
     def _add_option(self, path: str, default: Any = None, docs: str = "") -> None:
@@ -87,9 +88,8 @@ class OptionsNode:
             if part not in node._children:
                 node._children[part] = OptionsNode(part)
             elif not isinstance(node._children[part], OptionsNode):
-                raise ValueError(
-                    f"Cannot add category '{part}' because an option already exists at this path."
-                )
+                msg = f"Cannot add category '{part}' because an option already exists at this path."
+                raise ValueError(msg)
             node = node._children[part]
 
         # Add the option at the leaf
@@ -97,9 +97,8 @@ class OptionsNode:
         if leaf_name in node._children and isinstance(
             node._children[leaf_name], OptionsNode
         ):
-            raise ValueError(
-                f"Cannot add option '{leaf_name}' because a category already exists at this path."
-            )
+            msg = f"Cannot add option '{leaf_name}' because a category already exists at this path."
+            raise ValueError(msg)
 
         node._children[leaf_name] = Option(default, default, docs)
 
@@ -220,7 +219,8 @@ def option_context(*args: Any) -> Generator[None, None, None]:
 
     """
     if len(args) % 2 != 0:
-        raise ValueError("Arguments must be paired option_names and values")
+        msg = "Arguments must be paired option_names and values"
+        raise ValueError(msg)
 
     # Get the original values and set the temporary ones
     pairs = [(args[i], args[i + 1]) for i in range(0, len(args), 2)]

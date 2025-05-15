@@ -195,20 +195,22 @@ def iplot(
     # Plot branches:
     if isinstance(line_widths, pd.Series):
         if isinstance(line_widths.index, pd.MultiIndex):
-            raise DeprecationWarning(
+            msg = (
                 "Index of argument 'line_widths' is a Multiindex, "
                 "this is not support since pypsa v0.17 and will be removed in v1.0. "
                 "Set differing widths with arguments 'line_widths', "
                 "'link_widths' and 'transformer_widths'."
             )
+            raise DeprecationWarning(msg)
     if isinstance(line_colors, pd.Series):
         if isinstance(line_colors.index, pd.MultiIndex):
-            raise DeprecationWarning(
+            msg = (
                 "Index of argument 'line_colors' is a Multiindex, "
                 "this is not support since pypsa v0.17. and will be removed in v1.0. "
                 "Set differing colors with arguments 'line_colors', "
                 "'link_colors' and 'transformer_colors'."
             )
+            raise DeprecationWarning(msg)
 
     if branch_components is None:
         branch_components = n.branch_components

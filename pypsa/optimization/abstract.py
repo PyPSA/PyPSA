@@ -101,10 +101,11 @@ def discretized_capacity(
 
     """
     if min_units is not None:
-        raise DeprecationWarning(
+        msg = (
             "The `min_units` parameter is deprecated and will be removed in future "
             "versions. Deprecated in version 0.32 and will be removed in version 1.0."
         )
+        raise DeprecationWarning(msg)
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
 
     if min_units is not None:
@@ -403,9 +404,8 @@ def optimize_security_constrained(
         branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
         if diff := set(branch_outages) - set(all_passive_branches):
-            raise ValueError(
-                f"The following passive branches are not in the network: {diff}"
-            )
+            msg = f"The following passive branches are not in the network: {diff}"
+            raise ValueError(msg)
 
     if not len(all_passive_branches):
         return n.optimize(
@@ -491,7 +491,8 @@ def optimize_with_rolling_horizon(
         snapshots = n.snapshots
 
     if horizon <= overlap:
-        raise ValueError("overlap must be smaller than horizon")
+        msg = "overlap must be smaller than horizon"
+        raise ValueError(msg)
 
     starting_points = range(0, len(snapshots), horizon - overlap)
     for i, start in enumerate(starting_points):
@@ -623,7 +624,8 @@ def optimize_mga(
     ):
         sense = -1
     else:
-        raise ValueError(f"Could not parse optimization sense {sense}")
+        msg = f"Could not parse optimization sense {sense}"
+        raise ValueError(msg)
 
     # build alternate objective
     objective = []

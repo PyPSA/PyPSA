@@ -657,7 +657,8 @@ def define_nodal_balance_constraints(
     rhs = DataArray(rhs)
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
-            raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
+            msg = "Empty LHS with non-zero RHS in nodal balance constraint."
+            raise ValueError(msg)
 
         mask = ~empty_nodal_balance
     else:

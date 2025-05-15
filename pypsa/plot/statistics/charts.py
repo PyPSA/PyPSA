@@ -211,7 +211,8 @@ class ChartGenerator(PlotsGenerator, ABC):
     def _validate(self, data: pd.DataFrame) -> pd.DataFrame:
         """Validate data has required columns and types."""
         if "value" not in data.columns:
-            raise ValueError("Data must contain 'value' column")
+            msg = "Data must contain 'value' column"
+            raise ValueError(msg)
 
         return data
 
@@ -347,7 +348,8 @@ class ChartGenerator(PlotsGenerator, ABC):
             else:
                 g.map_dataframe(sns.histplot, x=x, y=y, hue=color, **kwargs)
         else:
-            raise ValueError(f"Unsupported plot type: {kind}")
+            msg = f"Unsupported plot type: {kind}"
+            raise ValueError(msg)
 
         # Add legend if color is specified (for non-area plots, area plots handle this separately)
         if color is not None:
@@ -577,7 +579,8 @@ class ChartGenerator(PlotsGenerator, ABC):
             fig.update_traces(line={"width": 0})
             fig.update_layout(hovermode="x")
         else:
-            raise ValueError(f"Unsupported plot type: {kind}")
+            msg = f"Unsupported plot type: {kind}"
+            raise ValueError(msg)
 
         # Update layout
         fig.update_layout(

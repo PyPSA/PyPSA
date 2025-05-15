@@ -201,10 +201,11 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             objective.append((var * cost).sum())
 
     if not len(objective):
-        raise ValueError(
+        msg = (
             "Objective function could not be created. "
             "Please make sure the components have assigned costs."
         )
+        raise ValueError(msg)
 
     m.objective = sum(objective) if is_quadratic else merge(objective)
 

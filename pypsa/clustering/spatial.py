@@ -133,10 +133,11 @@ def make_consense(component: str, attr: str) -> Callable:
     def consense(x: Series) -> object:
         v = x.iat[0]
         if not (x == v).all() and not x.isnull().all():
-            raise ValueError(
+            msg = (
                 f"In {component} cluster {x.name}, the values of attribute "
                 f"{attr} do not agree:\n{x}"
             )
+            raise ValueError(msg)
         return v
 
     return consense
@@ -663,11 +664,12 @@ def busmap_by_kmeans(
 
     """
     if find_spec("sklearn") is None:
-        raise ModuleNotFoundError(
+        msg = (
             "Optional dependency 'sklearn' not found."
             "Install via 'conda install -c conda-forge scikit-learn' "
             "or 'pip install scikit-learn'"
         )
+        raise ModuleNotFoundError(msg)
 
     from sklearn.cluster import KMeans
 
@@ -784,11 +786,12 @@ def busmap_by_hac(
 
     """
     if find_spec("sklearn") is None:
-        raise ModuleNotFoundError(
+        msg = (
             "Optional dependency 'sklearn' not found."
             "Install via 'conda install -c conda-forge scikit-learn' "
             "or 'pip install scikit-learn'"
         )
+        raise ModuleNotFoundError(msg)
 
     from sklearn.cluster import AgglomerativeClustering as HAC
 
@@ -922,10 +925,11 @@ def busmap_by_greedy_modularity(
 
     """
     if parse(nx.__version__) < Version("2.8"):
-        raise NotImplementedError(
+        msg = (
             "The fuction `busmap_by_greedy_modularity` requires `networkx>=2.8`, "
             f"but version `networkx={nx.__version__}` is installed."
         )
+        raise NotImplementedError(msg)
 
     if buses_i is None:
         buses_i = n.buses.index

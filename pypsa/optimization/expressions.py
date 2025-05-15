@@ -94,7 +94,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 return expr.multiply(weights, axis=0).groupby(level=0).sum().T
             return expr @ weights
         else:
-            raise ValueError(f"Aggregation method {agg} not supported.")
+            msg = f"Aggregation method {agg} not supported."
+            raise ValueError(msg)
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
@@ -110,7 +111,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         res = ln.merge(exprs)
         if not (index := res.indexes[res.dims[0]]).is_unique:
             if agg != "sum":
-                raise ValueError(f"Aggregation method {agg} not supported.")
+                msg = f"Aggregation method {agg} not supported."
+                raise ValueError(msg)
             non_unique_groups = pd.DataFrame(list(index), columns=index.names)
             res = res.groupby(non_unique_groups).sum()
         return res
@@ -140,7 +142,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, expr: LinearExpression, agg: Callable | str
     ) -> LinearExpression:
         if agg != "sum":
-            raise ValueError(f"Aggregation method {agg} not supported.")
+            msg = f"Aggregation method {agg} not supported."
+            raise ValueError(msg)
         if check_if_empty(expr):
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
@@ -432,9 +435,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 )
                 coeffs = -coeffs.clip(max=0)
             elif kind is not None:
-                raise ValueError(
-                    f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
-                )
+                msg = f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
+                raise ValueError(msg)
             p = var.where(coeffs != 0) * coeffs
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 

@@ -82,7 +82,8 @@ class StatisticPlotter:
         """
         # Get the correct plot function
         if kind not in CHART_TYPES + ["map", None]:
-            raise ValueError(f"Unknown plot type '{kind}'.")
+            msg = f"Unknown plot type '{kind}'."
+            raise ValueError(msg)
         # Apply schema to kind kwarg
         stats_name = self._bound_method.__name__
         kind_ = apply_parameter_schema(stats_name, "plot", {"kind": kind})["kind"]
@@ -477,7 +478,8 @@ class StatisticInteractivePlotter:
         """
         # Get the correct plot function
         if kind not in ["bar", "line", "area", None]:
-            raise ValueError(f"Unknown plot type '{kind}'.")
+            msg = f"Unknown plot type '{kind}'."
+            raise ValueError(msg)
         # Apply schema to kind kwarg
         stats_name = self._bound_method.__name__
         kind_ = apply_parameter_schema(stats_name, "plot", {"kind": kind})["kind"]

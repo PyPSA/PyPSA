@@ -123,7 +123,8 @@ class MethodHandlerWrapper:
             return self
 
         if self.func is None:
-            raise TypeError("Method has not been set correctly in MethodHandlerWrapper")
+            msg = "Method has not been set correctly in MethodHandlerWrapper"
+            raise TypeError(msg)
 
         # Create a bound method wrapper
         bound_method = self.func.__get__(obj, objtype)
@@ -359,10 +360,11 @@ def rename_deprecated_kwargs(
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
-                raise DeprecationWarning(
+                msg = (
                     f"{func_name} received both {alias} and {new} as arguments!"
                     f" {alias} is deprecated, use {new} instead."
                 )
+                raise DeprecationWarning(msg)
 
             message = f"`{alias}` is deprecated as an argument to `{func_name}`; use `{new}` instead."
             if deprecated_in:
@@ -573,9 +575,8 @@ def list_as_string(
     elif style == "bullet-list":
         return prefix + "- " + f"\n{prefix}- ".join(list_)
     else:
-        raise ValueError(
-            f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
-        )
+        msg = f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
+        raise ValueError(msg)
 
 
 def pass_none_if_keyerror(func: Callable) -> Callable:

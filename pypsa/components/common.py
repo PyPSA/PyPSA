@@ -44,4 +44,5 @@ def as_components(n: Network, value: str | Components) -> Components:
             raise ValueError(msg)
         return value
     else:
-        raise TypeError("Value must be a string or Components class instance.")
+        msg = "Value must be a string or Components class instance."
+        raise TypeError(msg)

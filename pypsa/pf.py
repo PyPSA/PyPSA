@@ -518,8 +518,9 @@ def sub_network_pf(
         elif all(i in sn_buses for i in slack_weights.index):
             bus_slack_weights_b = True
         else:
+            msg = "Custom slack weights pd.Series/dict must only have the"
             raise ValueError(
-                "Custom slack weights pd.Series/dict must only have the",
+                msg,
                 "generators or buses of the sub-network as index/keys.",
             )
 
@@ -1551,4 +1552,5 @@ def sub_network_lpf(
 @deprecated_common_kwargs
 def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
     """Batched linear power flow with numpy.dot for several snapshots."""
-    raise NotImplementedError("Batch linear power flow not supported yet.")
+    msg = "Batch linear power flow not supported yet."
+    raise NotImplementedError(msg)

@@ -343,9 +343,8 @@ class AbstractStatisticsAccessor(ABC):
         elif isinstance(bus_carrier, list):
             mask = port_carriers.isin(bus_carrier)
         else:
-            raise ValueError(
-                f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
-            )
+            msg = f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
+            raise ValueError(msg)
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
         return obj.loc[ports.index[mask]]
@@ -372,8 +371,7 @@ class AbstractStatisticsAccessor(ABC):
         elif isinstance(carrier, Sequence):
             mask = carriers.isin(carrier)
         else:
-            raise ValueError(
-                f"Argument `carrier` must be a string or list, got {type(carrier)}"
-            )
+            msg = f"Argument `carrier` must be a string or list, got {type(carrier)}"
+            raise ValueError(msg)
 
         return obj.loc[carriers.index[mask]]

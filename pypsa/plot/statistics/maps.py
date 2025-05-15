@@ -230,9 +230,8 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         if draw_legend_arrows and hasattr(self.ax, "figure"):
             if not transmission_flow:
-                raise ValueError(
-                    "Cannot draw arrow legend if transmission_flow is False. Use draw_legend_lines instead."
-                )
+                msg = "Cannot draw arrow legend if transmission_flow is False. Use draw_legend_lines instead."
+                raise ValueError(msg)
 
             legend_representatives = get_legend_representatives(
                 branch_flows, n_significant=1, base_unit=unit
@@ -256,9 +255,8 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         if draw_legend_lines and hasattr(self.ax, "figure"):
             if transmission_flow:
-                raise ValueError(
-                    "Cannot draw line legend if transmission_flow is True. Use draw_legend_arrows instead."
-                )
+                msg = "Cannot draw line legend if transmission_flow is True. Use draw_legend_arrows instead."
+                raise ValueError(msg)
 
             legend_representatives = get_legend_representatives(
                 branch_widths, n_significant=1, base_unit=unit

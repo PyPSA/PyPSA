@@ -19,7 +19,8 @@ class Dict(dict):
     def __setattr__(self, name: str, value: Any) -> None:
         """Setattr is called when the syntax a.b = 2 is used to set a value."""
         if hasattr(Dict, name):
-            raise AttributeError(f"'Dict' object attribute '{name}' is read-only")
+            msg = f"'Dict' object attribute '{name}' is read-only"
+            raise AttributeError(msg)
         self[name] = value
 
     def __getattr__(self, item: str) -> Any:

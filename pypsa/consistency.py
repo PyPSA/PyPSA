@@ -840,11 +840,12 @@ def consistency_check(
     if "all" in strict:
         strict = strict_options
     if not all(s in strict_options for s in strict):
-        raise ValueError(
+        msg = (
             f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
             f"Valid options are {strict_options}. Please check the documentation for "
             "more details on them."
         )
+        raise ValueError(msg)
 
     n.calculate_dependent_values()
 
@@ -916,11 +917,12 @@ def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> No
         strict = strict_options
 
     if not all(s in strict_options for s in strict):
-        raise ValueError(
+        msg = (
             f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
             f"Valid options are {strict_options}. Please check the documentation for "
             "more details on them."
         )
+        raise ValueError(msg)
 
     for c in n.iterate_components():
         check_for_unknown_carriers(n, c, strict="unknown_carriers" in strict)

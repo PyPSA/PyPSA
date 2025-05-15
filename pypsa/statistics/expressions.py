@@ -2070,9 +2070,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 elif direction == "output":
                     df = df.clip(lower=0)
                 else:
-                    raise ValueError(
-                        f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
-                    )
+                    msg = f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
+                    raise ValueError(msg)
             revenue = df * prices
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(revenue, weights, agg=aggregate_time)

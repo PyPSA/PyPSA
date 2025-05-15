@@ -96,10 +96,11 @@ class Component:
                 stacklevel=2,
             )
         if investment_periods is not None:
-            raise DeprecationWarning(
+            msg = (
                 "The 'investment_periods' attribute is deprecated. Pass 'n' instead."
                 "Deprecated in version 0.31 and will be removed in version 1.0."
             )
+            raise DeprecationWarning(msg)
 
         if name:
             ctype_ = get_component_type(name)
@@ -111,7 +112,8 @@ class Component:
         if component_class is not None:
             instance = component_class(ctype=ctype_)
         else:
-            raise UnexpectedError(f"Component type '{ctype_.name}' not found.")
+            msg = f"Component type '{ctype_.name}' not found."
+            raise UnexpectedError(msg)
 
         if n is not None:
             instance.n = n

@@ -537,7 +537,8 @@ def bus_carrier_unit(n: Network, bus_carrier: str | Sequence[str] | None) -> str
 
     not_included = set(bus_carrier) - set(n.buses.carrier.unique())
     if not_included:
-        raise ValueError(f"Bus carriers {not_included} not in network")
+        msg = f"Bus carriers {not_included} not in network"
+        raise ValueError(msg)
     unit = n.buses[n.buses.carrier.isin(bus_carrier)].unit.unique()
     if len(unit) > 1:
         logger.warning(f"Multiple units found for carrier {bus_carrier}: {unit}")

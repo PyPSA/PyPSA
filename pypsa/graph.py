@@ -63,7 +63,8 @@ def graph(
             branch_components = n.n.passive_branch_components
         buses_i = n.buses_i()
     else:
-        raise TypeError("graph must be called with a Network or a SubNetwork")
+        msg = "graph must be called with a Network or a SubNetwork"
+        raise TypeError(msg)
 
     graph = OrderedGraph()
 
@@ -138,7 +139,8 @@ def adjacency_matrix(
         if busorder is None:
             busorder = n.buses_i()
     else:
-        raise TypeError(" must be called with a Network or a SubNetwork")
+        msg = " must be called with a Network or a SubNetwork"
+        raise TypeError(msg)
 
     no_buses = len(busorder)
     no_branches = 0
@@ -207,9 +209,8 @@ def incidence_matrix(
         if busorder is None:
             busorder = n.buses_i()
     else:
-        raise ValueError(
-            "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
-        )
+        msg = "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
+        raise ValueError(msg)
 
     no_buses = len(busorder)
     no_branches = 0

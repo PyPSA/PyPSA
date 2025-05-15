@@ -99,7 +99,8 @@ class _ComponentsDescriptors(_ComponentsABC):
         active = {}
         for period in np.atleast_1d(investment_period):
             if period not in self.n_save.investment_periods:
-                raise ValueError("Investment period not in `n.investment_periods`")
+                msg = "Investment period not in `n.investment_periods`"
+                raise ValueError(msg)
             active[period] = self.static.eval(
                 "build_year <= @period < build_year + lifetime"
             )

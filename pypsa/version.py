@@ -30,7 +30,8 @@ __version__ = version("pypsa")
 # e.g. "0.17.0"
 match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
 if not match:
-    raise ValueError(f"Could not determine release_version of pypsa: {__version__}")
+    msg = f"Could not determine release_version of pypsa: {__version__}"
+    raise ValueError(msg)
 
 __version_semver__ = match.group(0)
 __version_semver_tuple__ = tuple(map(int, __version_semver__.split(".")))
@@ -38,9 +39,8 @@ __version_semver_tuple__ = tuple(map(int, __version_semver__.split(".")))
 match = re.match(r"(\d+\.\d+)", __version__)
 
 if not match:
-    raise ValueError(
-        f"Could not determine release_version_short of pypsa: {__version__}"
-    )
+    msg = f"Could not determine release_version_short of pypsa: {__version__}"
+    raise ValueError(msg)
 
 __version_short__ = match.group(1)
 __version_short_tuple__ = tuple(map(int, __version_short__.split(".")))
