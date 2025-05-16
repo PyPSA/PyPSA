@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 
 
@@ -40,7 +41,6 @@ class PlotsGenerator(ABC):
         method_name: str = "",  # make required
     ) -> dict[str, Any]:
         """Handle default statistics kwargs based on provided plot kwargs."""
-        pass
 
     def get_carrier_colors(
         self, carriers: Sequence | None = None, nice_names: bool = True
@@ -65,5 +65,4 @@ class PlotsGenerator(ABC):
         if nice_names:
             names = self._n.carriers.nice_name[carriers]
             return names.where(names != "", carriers)
-        else:
-            return pd.Series(carriers, index=carriers)
+        return pd.Series(carriers, index=carriers)

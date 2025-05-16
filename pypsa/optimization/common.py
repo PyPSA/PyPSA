@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Use common methods for optimization problem definition with Linopy.
 """
@@ -31,6 +30,7 @@ def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     -------
     ds
         Reindexed dataarray with renamed dimension.
+
     """
     return ds.sel({dim: index}).rename({dim: index.name})
 
@@ -60,6 +60,7 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     Returns
     -------
     pandas series of all meshed buses.
+
     """
     all_buses = pd.Series(
         hstack([ravel(c.static.filter(like="bus")) for c in n.iterate_components()])

@@ -95,9 +95,12 @@ def test_rename_deprecated_kwargs_multiple_aliases(mock_version_semver):
         assert len(w) == 2
 
     # Check that the arguments were renamed
-    assert "new_arg1" in kwargs and "new_arg2" in kwargs
-    assert "old_arg1" not in kwargs and "old_arg2" not in kwargs
-    assert kwargs["new_arg1"] == "value1" and kwargs["new_arg2"] == "value2"
+    assert "new_arg1" in kwargs
+    assert "new_arg2" in kwargs
+    assert "old_arg1" not in kwargs
+    assert "old_arg2" not in kwargs
+    assert kwargs["new_arg1"] == "value1"
+    assert kwargs["new_arg2"] == "value2"
 
 
 def test_rename_deprecated_kwargs_version_error(mock_version_semver):

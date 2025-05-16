@@ -27,13 +27,13 @@ def test_optimize_post_discretization():
     )
 
     line_unit_size = 500
-    link_unit_size = dict(HVDC=600)
+    link_unit_size = {"HVDC": 600}
 
     status, _ = n.optimize.optimize_transmission_expansion_iteratively(
         max_iterations=1,
         line_unit_size=line_unit_size,
         link_unit_size=link_unit_size,
-        link_threshold=dict(HVDC=0.4),
+        link_threshold={"HVDC": 0.4},
     )
 
     assert status == "ok"

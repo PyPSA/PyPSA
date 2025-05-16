@@ -75,7 +75,7 @@ def iplot(
     mapbox: bool = False,
     mapbox_style: str = "open-street-map",
     mapbox_token: str = "",
-    mapbox_parameters: dict = {},
+    mapbox_parameters: dict | None = None,
 ) -> dict:
     """
     Plot the network buses and lines interactively using plotly.
@@ -162,11 +162,12 @@ def iplot(
 
     """
     if fig is None:
-        fig = dict(data=[], layout={})
+        fig = {"data": [], "layout": {}}
 
     if bus_text is None:
         bus_text = "Bus " + n.buses.index
-
+    if mapbox_parameters is None:
+        mapbox_parameters = {}
     x, y = apply_layouter(n, layouter=layouter, inplace=False)
 
     rng = np.random.default_rng()  # Create a random number generator
@@ -174,16 +175,16 @@ def iplot(
         x = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
         y = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
 
-    bus_trace = dict(
-        x=x,
-        y=y,
-        text=bus_text,
-        type="scatter",
-        mode="markers",
-        hoverinfo="text",
-        opacity=bus_alpha,
-        marker=dict(color=bus_colors, size=bus_sizes),
-    )
+    bus_trace = {
+        "x": x,
+        "y": y,
+        "text": bus_text,
+        "type": "scatter",
+        "mode": "markers",
+        "hoverinfo": "text",
+        "opacity": bus_alpha,
+        "marker": {"color": bus_colors, "size": bus_sizes},
+    }
 
     if bus_cmap is not None:
         bus_trace["marker"]["colorscale"] = bus_cmap
@@ -192,22 +193,26 @@ def iplot(
         bus_trace["marker"]["colorbar"] = bus_colorbar
 
     # Plot branches:
-    if isinstance(line_widths, pd.Series):
-        if isinstance(line_widths.index, pd.MultiIndex):
-            raise DeprecationWarning(
-                "Index of argument 'line_widths' is a Multiindex, "
-                "this is not support since pypsa v0.17 and will be removed in v1.0. "
-                "Set differing widths with arguments 'line_widths', "
-                "'link_widths' and 'transformer_widths'."
-            )
-    if isinstance(line_colors, pd.Series):
-        if isinstance(line_colors.index, pd.MultiIndex):
-            raise DeprecationWarning(
-                "Index of argument 'line_colors' is a Multiindex, "
-                "this is not support since pypsa v0.17. and will be removed in v1.0. "
-                "Set differing colors with arguments 'line_colors', "
-                "'link_colors' and 'transformer_colors'."
-            )
+    if isinstance(line_widths, pd.Series) and isinstance(
+        line_widths.index, pd.MultiIndex
+    ):
+        msg = (
+            "Index of argument 'line_widths' is a Multiindex, "
+            "this is not support since pypsa v0.17 and will be removed in v1.0. "
+            "Set differing widths with arguments 'line_widths', "
+            "'link_widths' and 'transformer_widths'."
+        )
+        raise DeprecationWarning(msg)
+    if isinstance(line_colors, pd.Series) and isinstance(
+        line_colors.index, pd.MultiIndex
+    ):
+        msg = (
+            "Index of argument 'line_colors' is a Multiindex, "
+            "this is not support since pypsa v0.17. and will be removed in v1.0. "
+            "Set differing colors with arguments 'line_colors', "
+            "'link_colors' and 'transformer_colors'."
+        )
+        raise DeprecationWarning(msg)
 
     if branch_components is None:
         branch_components = n.branch_components
@@ -244,29 +249,31 @@ def iplot(
         y0 = c.static.bus0.map(y)
         y1 = c.static.bus1.map(y)
 
-        for b in c.static.index:
-            shapes.append(
-                dict(
-                    type="line",
-                    opacity=0.8,
-                    x0=x0[b],
-                    y0=y0[b],
-                    x1=x1[b],
-                    y1=y1[b],
-                    line=dict(color=b_colors[b], width=b_widths[b]),
-                )
-            )
+        shapes.extend(
+            [
+                {
+                    "type": "line",
+                    "opacity": 0.8,
+                    "x0": x0[b],
+                    "y0": y0[b],
+                    "x1": x1[b],
+                    "y1": y1[b],
+                    "line": {"color": b_colors[b], "width": b_widths[b]},
+                }
+                for b in c.static.index
+            ]
+        )
 
         shape_traces.append(
-            dict(
-                x=0.5 * (x0 + x1),
-                y=0.5 * (y0 + y1),
-                text=b_text,
-                type="scatter",
-                mode="markers",
-                hoverinfo="text",
-                marker=dict(opacity=0.0),
-            )
+            {
+                "x": 0.5 * (x0 + x1),
+                "y": 0.5 * (y0 + y1),
+                "text": b_text,
+                "type": "scatter",
+                "mode": "markers",
+                "hoverinfo": "text",
+                "marker": {"opacity": 0.0},
+            }
         )
 
     if mapbox:
@@ -292,13 +299,13 @@ def iplot(
     else:
         fig["data"].extend([bus_trace] + shape_traces)
 
-    fig["layout"].update(dict(title=title, hovermode="closest", showlegend=False))
+    fig["layout"].update({"title": title, "hovermode": "closest", "showlegend": False})
 
     if size is not None:
         if len(size) != 2:
             msg = "Parameter size must specify a tuple (width, height)."
             raise ValueError(msg)
-        fig["layout"].update(dict(width=size[0], height=size[1]))
+        fig["layout"].update({"width": size[0], "height": size[1]})
 
     if mapbox:
         if mapbox_token != "":
@@ -306,21 +313,23 @@ def iplot(
 
         mapbox_parameters.setdefault("style", mapbox_style)
 
-        if mapbox_parameters["style"] in _token_required_mb_styles:
-            if "accesstoken" not in mapbox_parameters.keys():
-                msg = (
-                    "Using Mapbox layout styles requires a valid access token from "
-                    "https://www.mapbox.com/, style which do not require a token "
-                    "are:\n{', '.join(_open__mb_styles)}."
-                )
-                raise ValueError(msg)
+        if (
+            mapbox_parameters["style"] in _token_required_mb_styles
+            and "accesstoken" not in mapbox_parameters
+        ):
+            msg = (
+                "Using Mapbox layout styles requires a valid access token from "
+                "https://www.mapbox.com/, style which do not require a token "
+                "are:\n{', '.join(_open__mb_styles)}."
+            )
+            raise ValueError(msg)
 
-        if "center" not in mapbox_parameters.keys():
+        if "center" not in mapbox_parameters:
             lon = (n.buses.x.min() + n.buses.x.max()) / 2
             lat = (n.buses.y.min() + n.buses.y.max()) / 2
-            mapbox_parameters["center"] = dict(lat=lat, lon=lon)
+            mapbox_parameters["center"] = {"lat": lat, "lon": lon}
 
-        if "zoom" not in mapbox_parameters.keys():
+        if "zoom" not in mapbox_parameters:
             mapbox_parameters["zoom"] = 2
 
         fig["layout"]["mapbox"] = mapbox_parameters
@@ -430,7 +439,7 @@ def explore(
 
         if num_invalid := sum(~valid_rows):
             logger.info(
-                f"Omitting {num_invalid} transformers due to missing coordinates"
+                "Omitting %d transformers due to missing coordinates", num_invalid
             )
 
         gdf_transformers = gpd.GeoDataFrame(
@@ -464,7 +473,7 @@ def explore(
         valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
 
         if num_invalid := sum(~valid_rows):
-            logger.info(f"Omitting {num_invalid} lines due to missing coordinates.")
+            logger.info("Omitting %d lines due to missing coordinates.", num_invalid)
 
         gdf_lines = gpd.GeoDataFrame(
             n.lines[valid_rows],
@@ -493,7 +502,7 @@ def explore(
         valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
 
         if num_invalid := sum(~valid_rows):
-            logger.info(f"Omitting {num_invalid} links due to missing coordinates.")
+            logger.info("Omitting %d links due to missing coordinates.", num_invalid)
 
         gdf_links = gpd.GeoDataFrame(
             n.links[valid_rows],
@@ -590,11 +599,13 @@ def explore(
 
     if len(components_present) > 0:
         logger.info(
-            f"Components rendered on the map: {', '.join(sorted(components_present))}."
+            "Components rendered on the map: %s",
+            ", ".join(sorted(components_present)),
         )
     if len(set(components) - set(components_present)) > 0:
         logger.info(
-            f"Components omitted as they are missing or not selected: {', '.join(sorted(set(components_possible) - set(components_present)))}."
+            "Components omitted as they are missing or not selected: %s",
+            ", ".join(sorted(set(components_possible) - set(components_present))),
         )
 
     # Set the default view to the bounds of the elements in the map

@@ -1,11 +1,4 @@
-#!/usr/bin/env python3
-"""
-Created on Mon Jan 31 18:29:48 2022.
-
-@author: fabian
-"""
-
-import os
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -30,7 +23,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
 
 
-@pytest.fixture()
+@pytest.fixture
 def scipy_network():
     n = pypsa.examples.scigrid_de()
     n.generators.control = "PV"
@@ -46,18 +39,13 @@ def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 
 
-@pytest.fixture()  # scope="session")
+@pytest.fixture  # scope="session")
 def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "data",
-        "ac-dc-meshed",
-        "results-lopf",
-    )
+    csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
     return pypsa.Network(csv_folder)
 
 
-@pytest.fixture()
+@pytest.fixture
 def ac_dc_network_mi(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
@@ -68,7 +56,7 @@ def ac_dc_network_mi(ac_dc_network):
     return n
 
 
-@pytest.fixture()
+@pytest.fixture
 def ac_dc_network_shapes(ac_dc_network):
     n = ac_dc_network
 
@@ -104,7 +92,7 @@ def storage_hvdc_network():
     return pypsa.examples.storage_hvdc()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def all_networks(
     ac_dc_network,
     # ac_dc_network_r,

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Sequence
+
     from pypsa import Network
 
 import pandas as pd
@@ -34,20 +35,18 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     """Get the operation time series of a component."""
     if c in n.branch_components:
         return n.dynamic(c).p0
-    elif c == "Store":
+    if c == "Store":
         return n.dynamic(c).e
-    else:
-        return n.dynamic(c).p
+    return n.dynamic(c).p
 
 
 def get_weightings(n: Network, c: str) -> pd.Series:
     """Get the relevant snapshot weighting for a component."""
     if c == "Generator":
         return n.snapshot_weightings["generators"]
-    elif c in ["StorageUnit", "Store"]:
+    if c in ["StorageUnit", "Store"]:
         return n.snapshot_weightings["stores"]
-    else:
-        return n.snapshot_weightings["objective"]
+    return n.snapshot_weightings["objective"]
 
 
 def port_efficiency(
@@ -199,9 +198,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if isinstance(weights.index, pd.MultiIndex):
                 return df.multiply(weights, axis=0).groupby(level=0).sum().T
             return weights @ df
-        else:
-            # Todo: here we leave out the weights, is that correct?
-            return df.agg(agg)
+        # Todo: here we leave out the weights, is that correct?
+        return df.agg(agg)
 
     def _aggregate_components_groupby(
         self, vals: pd.DataFrame, grouping: dict, agg: Callable | str
@@ -247,9 +245,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None,
         round: int | None,
     ) -> pd.DataFrame:
-        # nice_names_ = (
-        #     options.params.statistics.nice_names if nice_names is None else nice_names
-        # )
         # TODO move nice names here and drop from groupers
         round_ = options.params.statistics.round if round is None else round
         drop_zero_ = (
@@ -1163,11 +1158,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     term = self._aggregate_timeseries(opex, weights, agg=aggregate_time)
                     result.append(term)
 
-            mapping = dict(
-                start_up_cost="start_up",
-                shut_down_cost="shut_down",
-                stand_by_cost="status",
-            )
+            mapping = {
+                "start_up_cost": "start_up",
+                "shut_down_cost": "shut_down",
+                "stand_by_cost": "status",
+            }
             for cost_type, attr in mapping.items():
                 if (
                     cost_type in cost_types_
@@ -1628,7 +1623,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
@@ -1710,6 +1705,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         n = self._n
 
         if (
@@ -1951,17 +1948,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        kwargs = dict(
-            comps=comps,
-            groupby=groupby,
-            aggregate_across_components=aggregate_across_components,
-            at_port=at_port,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            drop_zero=drop_zero,
-            round=round,
-        )
+        kwargs = {
+            "comps": comps,
+            "groupby": groupby,
+            "aggregate_across_components": aggregate_across_components,
+            "at_port": at_port,
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "nice_names": nice_names,
+            "drop_zero": drop_zero,
+            "round": round,
+        }
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
@@ -2071,9 +2068,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 elif direction == "output":
                     df = df.clip(lower=0)
                 else:
-                    raise ValueError(
-                        f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
-                    )
+                    msg = f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
+                    raise ValueError(msg)
             revenue = df * prices
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(revenue, weights, agg=aggregate_time)
@@ -2177,19 +2173,19 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        kwargs = dict(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
-            aggregate_across_components=aggregate_across_components,
-            groupby=groupby,
-            at_port=at_port,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            drop_zero=drop_zero,
-            round=round,
-        )
+        kwargs = {
+            "comps": comps,
+            "aggregate_time": aggregate_time,
+            "aggregate_groups": aggregate_groups,
+            "aggregate_across_components": aggregate_across_components,
+            "groupby": groupby,
+            "at_port": at_port,
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "nice_names": nice_names,
+            "drop_zero": drop_zero,
+            "round": round,
+        }
         df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"

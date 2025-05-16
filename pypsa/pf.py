@@ -1,11 +1,8 @@
-"""
-Power flow functionality.
-"""
+"""Power flow functionality."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
@@ -30,6 +27,8 @@ from pypsa.descriptors import (
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from components import Network, SubNetwork
 
 pd.Series.zsum = zsum
@@ -209,8 +208,7 @@ def _network_prepare_and_run_pf(
             )
     if not linear:
         return Dict({"n_iter": itdf, "error": difdf, "converged": cnvdf})
-    else:
-        return None
+    return None
 
 
 @deprecated_common_kwargs
@@ -228,6 +226,8 @@ def network_pf(
 
     Parameters
     ----------
+    n : pypsa.Network
+        The network to run the power flow on.
     snapshots : list-like|single snapshot
         A subset or an elements of n.snapshots on which to run
         the power flow, defaults to n.snapshots
@@ -259,6 +259,7 @@ def network_pf(
         Dictionary with keys 'n_iter', 'converged', 'error' and dataframe
         values indicating number of iterations, convergence status, and
         iteration error for each snapshot (rows) and sub_network (columns)
+
     """
     return _network_prepare_and_run_pf(
         n,
@@ -330,6 +331,8 @@ def sub_network_pf_singlebus(
 
     Parameters
     ----------
+    sub_network : pypsa.SubNetwork
+        The sub-network to run the power flow on.
     snapshots : list-like|single snapshot
         A subset or an elements of n.snapshots on which to run
         the power flow, defaults to n.snapshots
@@ -345,11 +348,16 @@ def sub_network_pf_singlebus(
         ('p_set'). Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
         Custom weights can be provided via a pandas.Series/dict
         that has the generators of the single bus as index/keys.
+    linear : bool, default False
+        If ``True``, use linear power flow instead of non-linear power flow.
+
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")
     n = sub_network.n
     logger.info(
-        f"Balancing power on single-bus sub-network {sub_network} for snapshots {snapshots}"
+        "Balancing power on single-bus sub-network %s for snapshots %s",
+        sub_network,
+        snapshots,
     )
 
     if not skip_pre:
@@ -434,6 +442,8 @@ def sub_network_pf(
 
     Parameters
     ----------
+    sub_network : pypsa.SubNetwork
+        The sub-network to run the power flow on.
     snapshots : list-like|single snapshot
         A subset or an elements of n.snapshots on which to run
         the power flow, defaults to n.snapshots
@@ -460,6 +470,7 @@ def sub_network_pf(
     -------
     Tuple of three pandas.Series indicating number of iterations,
     remaining error, and convergence status for each snapshot
+
     """
     if not isinstance(slack_weights, (str | pd.Series | dict)):
         msg = (
@@ -481,14 +492,12 @@ def sub_network_pf(
 
     sns = as_index(sub_network.n, snapshots, "snapshots")
     logger.info(
-        "Performing non-linear load-flow on {} sub-network {} for snapshots {}".format(
-            sub_network.n.sub_networks.at[sub_network.name, "carrier"],
-            sub_network,
-            sns,
-        )
+        "Performing non-linear load-flow on %s sub-network %s for snapshots %s",
+        sub_network.n.sub_networks.at[sub_network.name, "carrier"],
+        sub_network,
+        sns,
     )
 
-    # _sub_network_prepare_pf(sub_network, snapshots, skip_pre, calculate_Y)
     n = sub_network.n
 
     if not skip_pre:
@@ -510,8 +519,9 @@ def sub_network_pf(
         elif all(i in sn_buses for i in slack_weights.index):
             bus_slack_weights_b = True
         else:
+            msg = "Custom slack weights pd.Series/dict must only have the"
             raise ValueError(
-                "Custom slack weights pd.Series/dict must only have the",
+                msg,
                 "generators or buses of the sub-network as index/keys.",
             )
 
@@ -698,7 +708,7 @@ def sub_network_pf(
         convs[now] = converged
     if not convs.all():
         not_converged = sns[~convs]
-        logger.warning(f"Power flow did not converge for {list(not_converged)}.")
+        logger.warning("Power flow did not converge for %s.", list(not_converged))
 
     # now set everything
     if distribute_slack:
@@ -727,7 +737,7 @@ def sub_network_pf(
 
     i0 = np.empty((len(sns), sub_network.Y0.shape[0]), dtype=complex)
     i1 = np.empty((len(sns), sub_network.Y1.shape[0]), dtype=complex)
-    for i, now in enumerate(sns):
+    for i, _ in enumerate(sns):
         i0[i] = sub_network.Y0 * V[i]
         i1[i] = sub_network.Y1 * V[i]
 
@@ -797,11 +807,9 @@ def sub_network_pf(
                     if all(bus_generators_p_nom) == 0:
                         bus_generators_p_nom = 1
                     bus_generator_shares = bus_generators_p_nom.pipe(normed).fillna(0)
-                n.generators_t.p.loc[sns, group.index] += (
-                    distributed_slack_power.loc[
-                        sns, bus
-                    ].apply(lambda row: row * bus_generator_shares)
-                )  # fmt: skip
+                n.generators_t.p.loc[sns, group.index] += distributed_slack_power.loc[
+                    sns, bus
+                ].apply(lambda row, shares=bus_generator_shares: row * shares)
     else:
         n.generators_t.p.loc[sns, sub_network.slack_generator] += (
             n.buses_t.p.loc[sns, sub_network.slack_bus] - ss[:, slack_index].real
@@ -829,6 +837,8 @@ def network_lpf(
 
     Parameters
     ----------
+    n : pypsa.Network
+        The network to run the power flow on.
     snapshots : list-like|single snapshot
         A subset or an elements of n.snapshots on which to run
         the power flow, defaults to n.snapshots
@@ -839,6 +849,7 @@ def network_lpf(
     Returns
     -------
     None
+
     """
     sns = as_index(n, snapshots, "snapshots")
     _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
@@ -846,9 +857,7 @@ def network_lpf(
 
 @deprecated_common_kwargs
 def apply_line_types(n: Network) -> None:
-    """
-    Calculate line electrical parameters x, r, b, g from standard types.
-    """
+    """Calculate line electrical parameters x, r, b, g from standard types."""
     lines_with_types_b = n.lines.type != ""
     if lines_with_types_b.zsum() == 0:
         return
@@ -886,9 +895,7 @@ def apply_line_types(n: Network) -> None:
 
 @deprecated_common_kwargs
 def apply_transformer_types(n: Network) -> None:
-    """
-    Calculate transformer electrical parameters x, r, b, g from standard types.
-    """
+    """Calculate transformer electrical parameters x, r, b, g from standard types."""
     trafos_with_types_b = n.transformers.type != ""
     if trafos_with_types_b.zsum() == 0:
         return
@@ -949,14 +956,18 @@ def wye_to_delta(
 
     Parameters
     ----------
-        z1 (int, float, or complex): First impedance value
-        z2 (int, float, or complex): Second impedance value
-        z3 (int, float, or complex): Third impedance value
+    z1 : float
+        First impedance value
+    z2 : float
+        Second impedance value
+    z3 : float
+        Third impedance value
 
     Returns
     -------
-        tuple[float, float, float]:
-            A tuple containing the three transformed impedance values
+    tuple[float, float, float]:
+        A tuple containing the three transformed impedance values
+
     """
     summand = z1 * z2 + z2 * z3 + z3 * z1
     return (summand / z2, summand / z1, summand / z3)
@@ -965,8 +976,12 @@ def wye_to_delta(
 @deprecated_common_kwargs
 def apply_transformer_t_model(n: Network) -> None:
     """
-    Convert given T-model parameters to PI-model parameters using wye-delta
-    transformation.
+    Convert given T-model parameters to PI-model parameters.
+
+    Notes
+    -----
+    Uses wye-delta transformation.
+
     """
     z_series = n.transformers.r_pu + 1j * n.transformers.x_pu
     y_shunt = n.transformers.g_pu + 1j * n.transformers.b_pu
@@ -988,10 +1003,7 @@ def apply_transformer_t_model(n: Network) -> None:
 
 @deprecated_common_kwargs
 def calculate_dependent_values(n: Network) -> None:
-    """
-    Calculate per unit impedances and append voltages to lines and shunt
-    impedances.
-    """
+    """Calculate per unit impedances and append voltages to lines and shunt impedances."""
     apply_line_types(n)
     apply_transformer_types(n)
 
@@ -1027,13 +1039,10 @@ def calculate_dependent_values(n: Network) -> None:
 
 
 def find_slack_bus(sub_network: SubNetwork) -> None:
-    """
-    Find the slack bus in a connected sub-network.
-    """
+    """Find the slack bus in a connected sub-network."""
     gens = sub_network.generators()
 
     if len(gens) == 0:
-        #        logger.warning("No generators in sub-network {}, better hope power is already balanced".format(sub_network.name))
         sub_network.slack_generator = None
         sub_network.slack_bus = sub_network.buses_i()[0]
 
@@ -1046,7 +1055,9 @@ def find_slack_bus(sub_network: SubNetwork) -> None:
                 "Slack"
             )
             logger.debug(
-                f"No slack generator found in sub-network {sub_network.name}, using {sub_network.slack_generator} as the slack generator"
+                "No slack generator found in sub-network %s, using %s as the slack generator",
+                sub_network.name,
+                sub_network.slack_generator,
             )
 
         elif len(slacks) == 1:
@@ -1055,7 +1066,9 @@ def find_slack_bus(sub_network: SubNetwork) -> None:
             sub_network.slack_generator = slacks[0]
             sub_network.n.generators.loc[slacks[1:], "control"] = "PV"
             logger.debug(
-                f"More than one slack generator found in sub-network {sub_network.name}, using {sub_network.slack_generator} as the slack generator"
+                "More than one slack generator found in sub-network %s, using %s as the slack generator",
+                sub_network.name,
+                sub_network.slack_generator,
             )
 
         sub_network.slack_bus = gens.bus[sub_network.slack_generator]
@@ -1064,7 +1077,7 @@ def find_slack_bus(sub_network: SubNetwork) -> None:
     sub_network.n.sub_networks.at[sub_network.name, "slack_bus"] = sub_network.slack_bus
 
     logger.debug(
-        f"Slack bus for sub-network {sub_network.name} is {sub_network.slack_bus}"
+        "Slack bus for sub-network %s is %s", sub_network.name, sub_network.slack_bus
     )
 
 
@@ -1106,9 +1119,7 @@ def find_bus_controls(sub_network: SubNetwork) -> None:
 
 
 def calculate_B_H(sub_network: SubNetwork, skip_pre: bool = False) -> None:
-    """
-    Calculate B and H matrices for AC or DC sub-networks.
-    """
+    """Calculate B and H matrices for AC or DC sub-networks."""
     n = sub_network.n
 
     if not skip_pre:
@@ -1171,9 +1182,11 @@ def calculate_PTDF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
     Parameters
     ----------
     sub_network : pypsa.SubNetwork
+        The sub-network to calculate the PTDF for.
     skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values,
         finding bus controls and computing B and H.
+
     """
     if not skip_pre:
         calculate_B_H(sub_network)
@@ -1203,9 +1216,7 @@ def calculate_PTDF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
 def calculate_Y(
     sub_network: SubNetwork, skip_pre: bool = False, active_branches_only: bool = True
 ) -> None:
-    """
-    Calculate bus admittance matrices for AC sub-networks.
-    """
+    """Calculate bus admittance matrices for AC sub-networks."""
     if not skip_pre:
         calculate_dependent_values(sub_network.n)
 
@@ -1297,8 +1308,10 @@ def calculate_Y(
 
 def aggregate_multi_graph(sub_network: SubNetwork) -> None:
     """
-    Aggregate branches between same buses and replace with a single branch with
-    aggregated properties (e.g. s_nom is summed, length is averaged).
+    Aggregate branches between same buses.
+
+    Instead a single branch with aggregated properties (e.g. s_nom is
+    summed, length is averaged) is created.
     """
     n = sub_network.n
 
@@ -1344,9 +1357,10 @@ def aggregate_multi_graph(sub_network: SubNetwork) -> None:
 
 def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     """
-    Get the spanning tree of the graph, choose the node with the highest degree
-    as a central "tree slack" and then see for each branch which paths from the
-    slack to each node go through the branch.
+    Get the spanning tree of the graph.
+
+    Choose the node with the highest degree as a central "tree slack" and then see for
+    each branch which paths from the slack to each node go through the branch.
     """
     branches_bus0 = sub_network.branches()["bus0"]
     branches_i = branches_bus0.index
@@ -1433,6 +1447,8 @@ def sub_network_lpf(
 
     Parameters
     ----------
+    sub_network : pypsa.SubNetwork
+        The sub-network to perform the power flow on.
     snapshots : list-like|single snapshot
         A subset or an elements of n.snapshots on which to run
         the power flow, defaults to n.snapshots
@@ -1443,6 +1459,7 @@ def sub_network_lpf(
     Returns
     -------
     None
+
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")
     logger.info(
@@ -1539,7 +1556,6 @@ def sub_network_lpf(
 
 @deprecated_common_kwargs
 def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
-    """
-    Batched linear power flow with numpy.dot for several snapshots.
-    """
-    raise NotImplementedError("Batch linear power flow not supported yet.")
+    """Batched linear power flow with numpy.dot for several snapshots."""
+    msg = "Batch linear power flow not supported yet."
+    raise NotImplementedError(msg)
