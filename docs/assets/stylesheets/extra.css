@@ -1,0 +1,15 @@
+:root  > * {
+  --md-primary-fg-color:        #292F36;
+  --md-primary-fg-color--light: #ECB7B7;
+  --md-primary-fg-color--dark:  #90030C;
+  --md-primary-bg-color:           white;
+  --md-accent-fg-color: rgba(209, 10, 73, 0.5);
+  --md-typeset-a-color:    #d10a49;
+}
+
+.md-banner {
+    text-align: center;
+    background-color: #0A8754;
+    --md-typeset-a-color:    #292F36;
+    --md-accent-fg-color: white;
+}
