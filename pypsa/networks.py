@@ -2201,7 +2201,7 @@ class Network:
         Examples
         --------
         >>> n.component("Bus")
-            'Bus' Components
+        'Bus' Components
         ----------------
         Attached to PyPSA Network 'AC-DC'
         Components: 9

@@ -754,7 +754,7 @@ def sub_network_pf(
     s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
     for i in np.arange(len(sns)):
         s_calc[i] = V[i] * np.conj(sub_network.Y * V[i])
-    slack_index = buses_o.get_loc(sub_network.slack_bus)
+    slack_index = int(buses_o.get_loc(sub_network.slack_bus))
     if distribute_slack:
         n.buses_t.p.loc[sns, sn_buses] = s_calc.real[:, buses_indexer(sn_buses)]
     else:
