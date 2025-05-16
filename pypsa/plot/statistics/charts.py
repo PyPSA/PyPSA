@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -11,8 +10,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
 from pypsa.consistency import (
     plotting_consistency_check,
@@ -20,8 +17,10 @@ from pypsa.consistency import (
 from pypsa.plot.statistics.base import PlotsGenerator
 
 if TYPE_CHECKING:
-    pass
+    from collections.abc import Iterator, Sequence
 
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure
 
 CHART_TYPES = [
     "area",
@@ -211,7 +210,8 @@ class ChartGenerator(PlotsGenerator, ABC):
     def _validate(self, data: pd.DataFrame) -> pd.DataFrame:
         """Validate data has required columns and types."""
         if "value" not in data.columns:
-            raise ValueError("Data must contain 'value' column")
+            msg = "Data must contain 'value' column"
+            raise ValueError(msg)
 
         return data
 
@@ -347,7 +347,8 @@ class ChartGenerator(PlotsGenerator, ABC):
             else:
                 g.map_dataframe(sns.histplot, x=x, y=y, hue=color, **kwargs)
         else:
-            raise ValueError(f"Unsupported plot type: {kind}")
+            msg = f"Unsupported plot type: {kind}"
+            raise ValueError(msg)
 
         # Add legend if color is specified (for non-area plots, area plots handle this separately)
         if color is not None:
@@ -574,13 +575,16 @@ class ChartGenerator(PlotsGenerator, ABC):
                 fig = positives.add_traces(negatives.data).add_traces(artificials.data)
             else:
                 fig = px.area(ldata, **kwargs)
-            fig.update_traces(line=dict(width=0))
+            fig.update_traces(line={"width": 0})
             fig.update_layout(hovermode="x")
         else:
-            raise ValueError(f"Unsupported plot type: {kind}")
+            msg = f"Unsupported plot type: {kind}"
+            raise ValueError(msg)
 
         # Update layout
-        fig.update_layout(template="plotly_white", margin=dict(l=50, r=50, t=50, b=50))
+        fig.update_layout(
+            template="plotly_white", margin={"l": 50, "r": 50, "t": 50, "b": 50}
+        )
 
         if not sharex and sharex is not None:
             fig.update_xaxes(matches=None)
@@ -611,10 +615,7 @@ class ChartGenerator(PlotsGenerator, ABC):
 
         """
         filtered = ["value", "component", "snapshot"]
-        filtered_cols = []
-        for c in args:  # Iterate through the args tuple
-            if c not in filtered and c is not None:
-                filtered_cols.append(c)
+        filtered_cols = [c for c in args if c not in filtered and c is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}
 

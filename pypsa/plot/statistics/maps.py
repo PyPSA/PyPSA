@@ -87,7 +87,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         colors = self.get_carrier_colors(nice_names=False)
         plotting_consistency_check(n)
         boundaries = boundaries or self.boundaries
-        (x_min, x_max, y_min, y_max) = boundaries
+        (x_min, x_max, y_min, y_max) = boundaries  # type: ignore
 
         # Get non-transmission carriers
         # TODO solve circular import by refactoring to descriptors.py
@@ -153,21 +153,21 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         branch_colors = n.branches().carrier[branch_widths_scaled.index].map(colors)
 
         # Set default plot arguments
-        plot_args = dict(
-            bus_sizes=bus_sizes * bus_size_scaling_factor,
-            bus_split_circles=bus_split_circles,
-            bus_colors=colors,
-            line_flow=branch_flow_scaled.get("Line"),
-            line_widths=branch_widths_scaled.get("Line", 0),
-            line_colors=branch_colors.get("Line", "k"),
-            link_flow=branch_flow_scaled.get("Link"),
-            link_widths=branch_widths_scaled.get("Link", 0),
-            link_colors=branch_colors.get("Link", "k"),
-            transformer_flow=branch_flow_scaled.get("Transformer"),
-            transformer_widths=branch_widths_scaled.get("Transformer", 0),
-            transformer_colors=branch_colors.get("Transformer", "k"),
-            auto_scale_branches=False,
-        )
+        plot_args = {
+            "bus_sizes": bus_sizes * bus_size_scaling_factor,
+            "bus_split_circles": bus_split_circles,
+            "bus_colors": colors,
+            "line_flow": branch_flow_scaled.get("Line"),
+            "line_widths": branch_widths_scaled.get("Line", 0),
+            "line_colors": branch_colors.get("Line", "k"),
+            "link_flow": branch_flow_scaled.get("Link"),
+            "link_widths": branch_widths_scaled.get("Link", 0),
+            "link_colors": branch_colors.get("Link", "k"),
+            "transformer_flow": branch_flow_scaled.get("Transformer"),
+            "transformer_widths": branch_widths_scaled.get("Transformer", 0),
+            "transformer_colors": branch_colors.get("Transformer", "k"),
+            "auto_scale_branches": False,
+        }
 
         # Override with user-provided arguments
         if kwargs:
@@ -230,9 +230,8 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         if draw_legend_arrows and hasattr(self.ax, "figure"):
             if not transmission_flow:
-                raise ValueError(
-                    "Cannot draw arrow legend if transmission_flow is False. Use draw_legend_lines instead."
-                )
+                msg = "Cannot draw arrow legend if transmission_flow is False. Use draw_legend_lines instead."
+                raise ValueError(msg)
 
             legend_representatives = get_legend_representatives(
                 branch_flows, n_significant=1, base_unit=unit
@@ -256,9 +255,8 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         if draw_legend_lines and hasattr(self.ax, "figure"):
             if transmission_flow:
-                raise ValueError(
-                    "Cannot draw line legend if transmission_flow is True. Use draw_legend_arrows instead."
-                )
+                msg = "Cannot draw line legend if transmission_flow is True. Use draw_legend_arrows instead."
+                raise ValueError(msg)
 
             legend_representatives = get_legend_representatives(
                 branch_widths, n_significant=1, base_unit=unit

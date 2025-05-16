@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Define optimisation variables from PyPSA networks with Linopy.
 """
@@ -6,13 +5,14 @@ Define optimisation variables from PyPSA networks with Linopy.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from pypsa.descriptors import get_activity_mask
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if n.static(c).empty:
         return
@@ -48,7 +49,7 @@ def define_status_variables(n: Network, sns: Sequence, c: str) -> None:
     active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
+    kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
     n.model.add_variables(
         coords=coords, name=f"{c}-status", mask=active, binary=is_binary, **kwargs
     )
@@ -63,7 +64,7 @@ def define_start_up_variables(n: Network, sns: Sequence, c: str) -> None:
     active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
+    kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
     n.model.add_variables(
         coords=coords, name=f"{c}-start_up", mask=active, binary=is_binary, **kwargs
     )
@@ -78,7 +79,7 @@ def define_shut_down_variables(n: Network, sns: Sequence, c: str) -> None:
     active = get_activity_mask(n, c, sns, com_i)
     coords = (sns, com_i)
     is_binary = not n._linearized_uc
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
+    kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
     n.model.add_variables(
         coords=coords, name=f"{c}-shut_down", binary=is_binary, **kwargs, mask=active
     )
@@ -96,6 +97,7 @@ def define_nominal_variables(n: Network, c: str, attr: str) -> None:
         network component of which the nominal capacity should be defined
     attr : str
         name of the variable, e.g. 'p_nom'
+
     """
     ext_i = n.get_extendable_i(c)
     if ext_i.empty:
@@ -117,6 +119,7 @@ def define_modular_variables(n: Network, c: str, attr: str) -> None:
         network component of which the nominal capacity should be defined
     attr : str
         name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
+
     """
     mod_i = n.static(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
     mod_i = mod_i.rename(f"{c}-ext")

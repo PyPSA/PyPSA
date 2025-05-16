@@ -1,6 +1,4 @@
-"""
-Functionality to help with georeferencing and calculate distances/areas.
-"""
+"""Functionality to help with georeferencing and calculate distances/areas."""
 
 from __future__ import annotations
 
@@ -47,6 +45,7 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     >>> b = np.array([[10.8, 52.1], [-34, 56.]])
     >>> haversine_pts(a, b)
     array([  73.15416698, 2903.73511621])
+
     """
     lon0, lat0 = np.deg2rad(np.asarray(a, dtype=float)).T
     lon1, lat1 = np.deg2rad(np.asarray(b, dtype=float)).T
@@ -85,16 +84,16 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     See Also
     --------
     haversine_pts : Determine pointwise crow-fly distance
+
     """
 
-    #
     def ensure_dimensions(a: np.ndarray | ArrayLike) -> np.ndarray:
         """
         Ensure correct shape for haversine calculation.
 
         Parameters
         ----------
-        arr : array-like
+        a : array-like
             Array to check
 
         Returns

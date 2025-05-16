@@ -6,10 +6,28 @@ import pytest
 
 from pypsa.common import (
     MethodHandlerWrapper,
+    UnexpectedError,
     as_index,
     equals,
     list_as_string,
 )
+
+
+def test_unexpected_error_message_formatting():
+    """Test that UnexpectedError correctly formats the error message with the issue tracker URL."""
+    # Test with a custom message
+    custom_message = "Something unexpected happened"
+    error = UnexpectedError(custom_message)
+
+    # Verify the error message contains both the custom message and the URL
+    assert custom_message in str(error)
+    assert UnexpectedError.URL_CREATE_ISSUE in str(error)
+    assert "Please track this issue in our issue tracker:" in str(error)
+
+    # Test with an empty message
+    empty_error = UnexpectedError()
+    assert "Please track this issue in our issue tracker:" in str(empty_error)
+    assert UnexpectedError.URL_CREATE_ISSUE in str(empty_error)
 
 
 def test_decorator_with_arguments():
@@ -88,7 +106,7 @@ def test_class_method_access():
 
 
 @pytest.mark.parametrize(
-    "attr, expected_name",
+    ("attr", "expected_name"),
     [
         ("snapshots", "snapshot"),
         ("investment_periods", "period"),
@@ -128,7 +146,7 @@ def test_as_index(ac_dc_network_mi, attr, expected_name):
 # Tests for the Comparator class
 class TestEquals:
     @pytest.mark.parametrize(
-        "a, b, expected",
+        ("a", "b", "expected"),
         [
             (1, 1, True),
             (1, 2, False),
@@ -149,8 +167,8 @@ class TestEquals:
             ({}, {}, True),
             ((1, 2), (1, 2), True),
             ((1, 2), (1, 3), False),
-            (set([1, 2]), set([1, 2]), True),
-            (set([1, 2]), set([1, 3]), False),
+            ({1, 2}, {1, 2}, True),
+            ({1, 2}, {1, 3}, False),
             # Same object identity
             (lambda x: x, lambda x: x, False),  # Functions with different identity
         ],
@@ -159,7 +177,7 @@ class TestEquals:
         assert equals(a, b) == expected
 
     @pytest.mark.parametrize(
-        "a, b",
+        ("a", "b"),
         [
             (1, 2),
             ("a", "b"),

@@ -1,13 +1,10 @@
-"""
-General utility functions for PyPSA.
-"""
+"""General utility functions for PyPSA."""
 
 from __future__ import annotations
 
 import functools
 import logging
 import warnings
-from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -21,6 +18,8 @@ from pypsa.definitions.structures import Dict
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
@@ -34,6 +33,24 @@ class UnexpectedError(AssertionError):
     )
 
     def __init__(self, message: str = "") -> None:
+        """
+        Initialize the UnexpectedError.
+
+        Parameters
+        ----------
+        message : str, optional
+            Message to be displayed.
+
+        Examples
+        --------
+        >>> try:
+        ...     raise UnexpectedError("This is an unexpected error.")
+        ... except UnexpectedError as e:
+        ...     print(str(e))  # doctest: +ELLIPSIS
+        This is an unexpected error.
+        Please track this issue in our issue tracker: https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml
+
+        """
         track_message = (
             f"Please track this issue in our issue tracker: {self.URL_CREATE_ISSUE}"
         )
@@ -93,6 +110,7 @@ class MethodHandlerWrapper:
             passed, and the values are the names of the attributes in the handler
             class. If None, no attributes are passed. Pass only strings, not
             attributes of the instance.
+
         """
         self.func = func
         self.handler_class = handler_class
@@ -111,7 +129,8 @@ class MethodHandlerWrapper:
             return self
 
         if self.func is None:
-            raise TypeError("Method has not been set correctly in MethodHandlerWrapper")
+            msg = "Method has not been set correctly in MethodHandlerWrapper"
+            raise TypeError(msg)
 
         # Create a bound method wrapper
         bound_method = self.func.__get__(obj, objtype)
@@ -158,6 +177,7 @@ def as_index(
     Returns
     -------
     pd.Index: values as a pd.Index object.
+
     """
     n_attr = getattr(n, network_attribute)
 
@@ -177,21 +197,12 @@ def as_index(
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    # if n_attr.nlevels != values_.nlevels:
-    #     raise ValueError(
-    #         f"Number of levels of the given MultiIndex does not match the number"
-    #         f" of levels of the network attribute '{network_attribute}'. Please"
-    #         f" set them for the network first."
-    #     )
-
-    if force_subset:
-        if not values_.isin(n_attr).all():
-            msg = (
-                f"Values must be a subset of the network attribute "
-                f"'{network_attribute}'. Pass force_subset=False to disable this check."
-            )
-            raise ValueError(msg)
-    assert isinstance(values_, pd.Index)
+    if force_subset and not values_.isin(n_attr).all():
+        msg = (
+            f"Values must be a subset of the network attribute "
+            f"'{network_attribute}'. Pass force_subset=False to disable this check."
+        )
+        raise ValueError(msg)
 
     return values_
 
@@ -231,6 +242,7 @@ def equals(
     -------
     bool
         True if the objects are equal, False otherwise.
+
     """
     if not isinstance(log_mode, str):
         msg = "'log_mode' must be a string, not {type(log_mode)}."
@@ -245,7 +257,7 @@ def equals(
     def handle_diff(message: str) -> bool:
         if log_mode == "strict":
             raise ValueError(message)
-        elif log_mode == "verbose":
+        if log_mode == "verbose":
             logger.warning(message)
         return False
 
@@ -257,9 +269,9 @@ def equals(
             msg = f"Types differ at '{current_path}'\n\n{a} ({type(a)})\n\n!=\n\n{b} ({type(b)})\n"
             return handle_diff(msg)
 
-    if ignored_classes is not None:
-        if isinstance(a, tuple(ignored_classes)):
-            return True
+    if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
+        return True
+    from pypsa.components.store import ComponentsStore
 
     # Classes with equality methods
     if isinstance(a, np.ndarray):
@@ -278,6 +290,12 @@ def equals(
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
+
+    elif isinstance(a, ComponentsStore):
+        if a != b:
+            msg = f"ComponentsStore objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
+
     # Iterators
     elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
@@ -306,10 +324,9 @@ def equals(
         pass
 
     # Other objects
-    else:
-        if a != b:
-            msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
-            return handle_diff(msg)
+    elif a != b:
+        msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+        return handle_diff(msg)
 
     return True
 
@@ -323,6 +340,7 @@ def rename_deprecated_kwargs(
 ) -> None:
     """
     Helper function for deprecating function arguments.
+
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
     Parameters
@@ -337,6 +355,7 @@ def rename_deprecated_kwargs(
         Version in which the argument was deprecated.
     removed_in : str
         Version in which the argument will be removed.
+
     """
     if (
         version.parse(deprecated_in) > version.parse(__version_semver__)
@@ -351,10 +370,11 @@ def rename_deprecated_kwargs(
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
-                raise DeprecationWarning(
+                msg = (
                     f"{func_name} received both {alias} and {new} as arguments!"
                     f" {alias} is deprecated, use {new} instead."
                 )
+                raise DeprecationWarning(msg)
 
             message = f"`{alias}` is deprecated as an argument to `{func_name}`; use `{new}` instead."
             if deprecated_in:
@@ -373,6 +393,7 @@ def rename_deprecated_kwargs(
 def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Callable:
     """
     Decorator for deprecated function and method arguments.
+
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
     Parameters
@@ -396,6 +417,7 @@ def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Ca
     ...     print(id_object)
     >>> some_func(object_id=1) # doctest: +SKIP
     1
+
     """
 
     def deco(f: Callable) -> Callable:
@@ -413,7 +435,11 @@ def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Ca
 
 def deprecated_common_kwargs(f: Callable) -> Callable:
     """
-    Decorator that predefines the 'a' keyword to be renamed to 'b'.
+    Decorator that predefines common kwarg deprecations.
+
+    Backwards compatibility is given and just adds more deprecated kwargs without
+    having to specify them in each decorator call.
+
     This allows its usage as `@deprecated_ab` without parentheses.
 
     Parameters
@@ -424,7 +450,8 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     Returns
     -------
     Callable
-        A decorated function that renames 'a' to 'b'.
+        A decorated function that renames 'network' to 'n'.
+
     """
     return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
 
@@ -484,6 +511,7 @@ def deprecated_namespace(
     -------
     Callable
         A wrapper function that warns about the deprecated namespace.
+
     """
     current_version = version.parse(__version_semver__)
     if version.parse(deprecated_in) > current_version and __version_semver__ != "0.0":
@@ -545,6 +573,7 @@ def list_as_string(
     --------
     >>> list_as_string(['a', 'b', 'c'])
     'a, b, c'
+
     """
     if isinstance(list_, dict):
         list_ = list(list_.keys())
@@ -553,15 +582,28 @@ def list_as_string(
 
     if style == "comma-seperated":
         return prefix + ", ".join(list_)
-    elif style == "bullet-list":
+    if style == "bullet-list":
         return prefix + "- " + f"\n{prefix}- ".join(list_)
-    else:
-        raise ValueError(
-            f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
-        )
+    msg = f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
+    raise ValueError(msg)
 
 
 def pass_none_if_keyerror(func: Callable) -> Callable:
+    """
+    Decorator that passes None if a KeyError or AttributeError is raised.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to decorate.
+
+    Returns
+    -------
+    Callable
+        The decorated function.
+
+    """
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -573,6 +615,21 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
 
 
 def pass_empty_series_if_keyerror(func: Callable) -> Callable:
+    """
+    Decorator that passes an empty series if a KeyError or AttributeError is raised.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to decorate.
+
+    Returns
+    -------
+    Callable
+        The decorated function.
+
+    """
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> pd.Series:
         try:
@@ -591,13 +648,11 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
     """
     try:
         __import__(module_name)
-    except ImportError:
-        raise ImportError(install_message)
+    except ImportError as e:
+        raise ImportError(install_message) from e
 
 
-def _convert_to_series(
-    variable: dict | Sequence | float | int, index: pd.Index
-) -> pd.Series:
+def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd.Series:
     """
     Convert a variable to a pandas Series with the given index.
 
@@ -619,7 +674,7 @@ def _convert_to_series(
     """
     if isinstance(variable, dict):
         return pd.Series(variable)
-    elif not isinstance(variable, pd.Series):
+    if not isinstance(variable, pd.Series):
         return pd.Series(variable, index=index)
     return variable
 
@@ -644,6 +699,7 @@ def resample_timeseries(
     pd.DataFrame
         Resampled DataFrame with numeric columns aggregated by mean
         and non-numeric columns forward-filled
+
     """
     if not isinstance(df.index, pd.DatetimeIndex):
         df = df.set_index(pd.to_datetime(df.index))

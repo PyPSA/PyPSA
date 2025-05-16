@@ -179,7 +179,7 @@ def test_add_varying_single(n_5bus_7sn):
     assert n_5bus_7sn.loads.index.name == "Load"
     assert (n_5bus_7sn.loads.index == "load_1").all()
     assert (n_5bus_7sn.loads.bus == buses[0]).all()
-    assert (n_5bus_7sn.loads_t.p_set.T == p_set).all().all()
+    assert (p_set == n_5bus_7sn.loads_t.p_set.T).all().all()
     assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
 
     # Test different snapshots shape

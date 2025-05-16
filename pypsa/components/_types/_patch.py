@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pypsa.components.components import Components
 from pypsa.components.types import get as get_component_type
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def create_docstring_parameters(component_name: str) -> str:

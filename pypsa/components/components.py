@@ -17,7 +17,6 @@ Generic functionality is implemented in the abstract module.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -29,13 +28,15 @@ from pypsa.common import equals
 from pypsa.components.descriptors import _ComponentsDescriptors
 from pypsa.components.transform import _ComponentsTransform
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network
+    from pypsa.definitions.components import ComponentType
 
 # TODO attachment todos
 # - crs
@@ -207,9 +208,10 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
             setattr(self, key, value)
         else:
             # TODO: Is this to strict?
-            raise KeyError(f"'{key}' not found in Component")
+            msg = f"'{key}' not found in Component"
+            raise KeyError(msg)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check if two Components are equal.
 
@@ -583,7 +585,8 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
     def n_save(self) -> Any:
         """A save property to access the network (component must be attached)."""
         if not self.attached:
-            raise AttributeError("Component must be attached to a Network.")
+            msg = "Component must be attached to a Network."
+            raise AttributeError(msg)
         return self.n
 
     @property
@@ -678,7 +681,7 @@ class SubNetworkComponents:
 
     Also See
     --------
-    pypsa.components.abstract.Components : Base class for all PyPSA components in the
+    pypsa.Components : Base class for all PyPSA components in the
     network.
     """
 
@@ -743,7 +746,8 @@ class SubNetworkComponents:
         if key in {"_wrapped_data", "_wrapper_func"}:
             super().__setattr__(key, value)
         else:
-            raise AttributeError("SubNetworkComponents is read-only")
+            msg = "SubNetworkComponents is read-only"
+            raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """
@@ -764,4 +768,53 @@ class SubNetworkComponents:
             If attribute deletion is attempted.
 
         """
-        raise AttributeError("SubNetworkComponents is read-only")
+        msg = "SubNetworkComponents is read-only"
+        raise AttributeError(msg)
+
+    def __str__(self) -> str:
+        """
+        Get string representation of sub-network components.
+
+        Returns
+        -------
+        str
+            String representation of sub-network components.
+
+        Examples
+        --------
+        >>> str(sub_network.components.generators)
+        "'Generator' SubNetworkComponents"
+
+        """
+        return f"'{self.ctype.name}' SubNetworkComponents"
+
+    def __repr__(self) -> str:
+        """
+        Get representation of sub-network components.
+
+        Returns
+        -------
+        str
+            Representation of sub-network components.
+
+        Examples
+        --------
+        >>> sub_network.components.generators
+        'Generator' SubNetworkComponents
+        --------------------------------
+        Attached to Sub-Network of PyPSA Network 'AC-DC'
+        Components: 6
+
+        """
+        num_components = len(self._wrapped_data.static)
+        if not num_components:
+            return f"Empty {self}"
+        text = f"{self}\n" + "-" * len(str(self)) + "\n"
+
+        # Add attachment status
+        if self.attached:
+            text += f"Attached to Sub-Network of {str(self.n)}\n"
+
+        text += f"Components: {len(self._wrapped_data.static)}"
+
+        return text

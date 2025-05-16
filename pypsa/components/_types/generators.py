@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any
 
 from pypsa.components._types._patch import patch_docstrings
 from pypsa.components.components import Components
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    import pandas as pd
 
 
 @patch_docstrings
