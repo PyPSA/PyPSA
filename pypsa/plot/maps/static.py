@@ -160,11 +160,10 @@ class MapPlotter:
         self._margin = value
 
     @property
-    def boundaries(self) -> tuple[float, float, float, float]:
+    def boundaries(self) -> tuple[float, float, float, float] | None:
         """Get the plot boundaries."""
         if self._boundaries is None:
             self.set_boundaries(self._boundaries, self.margin, self._n.buses.index)
-
         return self._boundaries
 
     @boundaries.setter

@@ -167,12 +167,8 @@ select = [
     'RUF013',   # ruff
     'ERA',      # eradicate
     'TRY'       # tryceratops
-
-
-    
-
-
 ]
+
 # Include once available
 # https://github.com/astral-sh/ruff/issues/2310
 ignore = [
@@ -185,12 +181,13 @@ ignore = [
     'D401', # First line should be in imperative mood
     'SIM105', 
     'SIM108',
+    'SIM118',
     'PLR0911',
     'PLR0913',
     'PLR0915',
     'PLR2004',
     # Could be implemented
-    'PLR0912', # Too many branches
+    'PLR0912',
     'PT011',
     'PLW2901',
     ]

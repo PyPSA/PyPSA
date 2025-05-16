@@ -105,26 +105,6 @@ class OptionsNode:
 
         node._children[leaf_name] = Option(default, default, docs)
 
-    def _remove_option(self, path: str) -> None:
-        """Remove an option at the specified path."""
-        parts = path.split(".")
-        node = self
-
-        # Navigate to the parent
-        for part in parts[:-1]:
-            if part not in node._children or not isinstance(
-                node._children[part], OptionsNode
-            ):
-                raise InvalidOptionError(option_path=part)
-            node = node._children[part]
-
-        # Remove the option
-        leaf_name = parts[-1]
-        if leaf_name not in node._children:
-            raise InvalidOptionError(option_path=leaf_name)
-
-        del node._children[leaf_name]
-
     def get_option(self, path: str) -> Any:
         """
         Get the value of an option at the specified path.

@@ -87,7 +87,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         colors = self.get_carrier_colors(nice_names=False)
         plotting_consistency_check(n)
         boundaries = boundaries or self.boundaries
-        (x_min, x_max, y_min, y_max) = boundaries
+        (x_min, x_max, y_min, y_max) = boundaries  # type: ignore
 
         # Get non-transmission carriers
         # TODO solve circular import by refactoring to descriptors.py

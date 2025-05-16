@@ -245,6 +245,9 @@ class ImporterCSV(Importer):
                 )
                 yield attr, df
 
+    def finish(self) -> None:
+        """Finish the import process."""
+
 
 class ExporterCSV(Exporter):
     """Exporter class for CSV files."""
@@ -338,6 +341,9 @@ class ExporterCSV(Exporter):
         fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
         if fn.exists():
             fn.unlink()
+
+    def finish(self) -> None:
+        """Finish the export process."""
 
 
 class ImporterExcel(Importer):
@@ -464,6 +470,9 @@ class ImporterExcel(Importer):
                 attr = sheet_name[len(list_name) + 1 :]
                 df = df.set_index(df.columns[0])
                 yield attr, df
+
+    def finish(self) -> None:
+        """Finish the import process."""
 
 
 class ExporterExcel(Exporter):
@@ -631,11 +640,13 @@ class ImporterHDF5(Importer):
 
     def get_snapshots(self) -> pd.Series:
         """Get snapshots data."""
-        return self.ds.get("/snapshots", None)
+        return self.ds["/snapshots"] if "/snapshots" in self.ds else None  # noqa: SIM401
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
-        return self.ds.get("/investment_periods", None)
+        return (
+            self.ds["/investment_periods"] if "/investment_periods" in self.ds else None  # noqa: SIM401
+        )
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
@@ -658,6 +669,9 @@ class ImporterHDF5(Importer):
                 df = self.ds[tab]
                 df.columns = self.index[list_name][df.columns]
                 yield attr, df
+
+    def finish(self) -> None:
+        """Finish the import process."""
 
 
 class ExporterHDF5(Exporter):
@@ -811,7 +825,7 @@ class ImporterNetCDF(Importer):
             return None
         index = self.ds.coords[index_name].to_index().rename("name")
         df = pd.DataFrame(index=index)
-        for attr in self.ds.data_vars:
+        for attr in self.ds.data_vars.keys():
             if attr.startswith(t) and attr[i : i + 2] != "t_":
                 df[attr[i:]] = self.ds[attr].to_pandas()
         return df
@@ -819,12 +833,15 @@ class ImporterNetCDF(Importer):
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
         t = list_name + "_t_"
-        for attr in self.ds.data_vars:
+        for attr in self.ds.data_vars.keys():
             if attr.startswith(t):
                 df = self.ds[attr].to_pandas()
                 df.index.name = "name"
                 df.columns.name = "name"
                 yield attr[len(t) :], df
+
+    def finish(self) -> None:
+        """Finish the import process."""
 
 
 class ExporterNetCDF(Exporter):

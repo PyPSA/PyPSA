@@ -213,7 +213,7 @@ def optimize_transmission_expansion_iteratively(
         )
         logger.info(
             "Mean square difference after iteration %d is %f",
-            iteration,
+            iteration,  # type: ignore
             lines_err,
         )
         return lines_err

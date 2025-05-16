@@ -92,9 +92,9 @@ class Groupers:
     def _get_generic_grouper(self, n: Network, c: str, key: str) -> pd.Series:
         try:
             return n.static(c)[key].rename(key)
-        except KeyError:
+        except KeyError as e:
             msg = f"Unknown grouper {key}."
-            raise ValueError(msg) from None
+            raise KeyError(msg) from e
 
     def list_groupers(self) -> dict:
         """

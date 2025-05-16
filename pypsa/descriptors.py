@@ -208,6 +208,9 @@ def free_output_series_dataframes(
         Components to free. If None, all components are freed.
 
     """
+    if components is None:
+        components = n.all_components
+
     for component in components:
         attrs = n.components[component]["attrs"]
         dynamic = n.dynamic(component)
