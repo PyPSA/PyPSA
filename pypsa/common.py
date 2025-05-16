@@ -299,14 +299,14 @@ def equals(
     # Iterators
     elif isinstance(a, (dict | Dict)):
         for k, v in a.items():
-            if k not in b.keys():
+            if k not in b:
                 msg = f"Key '{k}' missing from second dict at '{current_path}'"
                 return handle_diff(msg)
             if not equals(v, b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
                 return False
         # Check for extra keys in b
-        for k in b.keys():
-            if k not in a.keys():
+        for k in b:
+            if k not in a:
                 msg = f"Key '{k}' missing from first dict at '{current_path}'"
                 return handle_diff(msg)
 

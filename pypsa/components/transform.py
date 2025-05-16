@@ -84,22 +84,54 @@ class _ComponentsTransform:
 
         Examples
         --------
+        The example is shown for Generator component, but the same applies to all
+        component types.
+
+        >>> n = pypsa.Network()
+        >>> c = n.components.generators
+        >>> c
+        Empty 'Generator' Components
+
         Add a single component:
 
-        >>> c = n.buses
-        >>> n.add("Bus", "my_bus_1", v_nom=380)
-        Index(['my_bus_1'], dtype='object')
+        >>> c.add("my-generator-1", carrier="AC")
+
+        A new generator is added to the components instance:
+        >>> c
+        'Generator' Components
+        ----------------------
+        Attached to Unnamed PyPSA Network
+        Components: 1
+
+        With static data (and default values for all attributes):
+        >>> c.static[["carrier", "p_nom"]]
+                        carrier  p_nom
+        Generator
+        my-generator-1      AC    0.0
 
         Add multiple components with static attributes:
 
-        >>> c = n.loads
-        >>> c.add(["load 1", "load 2"],
-        ...       bus=["1", "2"],
-        ...       p_set=np.random.rand(len(n.snapshots), 2))
-        Index(['load 1', 'load 2'], dtype='object')
+        >>> c.add(["my-generator-2", "my-generator-3"],
+        ...       carrier=["AC", "DC"],
+        ...       p_nom=10)
 
-        Add multiple components with time-varying attributes:
+        A new generator is added to the components instance:
+        >>> c
+        'Generator' Components
+        ----------------------
+        Attached to Unnamed PyPSA Network
+        Components: 3
 
+        With static data:
+        >>> c.static[["carrier", "p_nom"]]
+                    carrier  p_nom
+        Generator
+        my-generator-1      AC    0.0
+        my-generator-2      AC   10.0
+        my-generator-3      DC   10.0
+
+        The single value for `p_nom` is broadcasted to all components. So you could also
+        pass `[10, 10]` instead of `10`.
 
         See Also
         --------

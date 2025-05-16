@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from pypsa.components._types._patch import patch_docstrings
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
 if TYPE_CHECKING:
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-@patch_docstrings
+@patch_add_docstring
 class Generators(Components):
     """
     Generators components class.
@@ -39,6 +39,7 @@ class Generators(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
+        """Wrapper for Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
