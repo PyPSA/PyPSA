@@ -1,10 +1,15 @@
 """Loads components module."""
 
-from __future__ import annotations
+from collections.abc import Sequence
+from typing import Any
 
+import pandas as pd
+
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
 
+@patch_add_docstring
 class Loads(Components):
     """
     Loads components class.
@@ -22,3 +27,18 @@ class Loads(Components):
     pypsa.components.abstract.Components : Base class for all components.
 
     """
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrapper for Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )

@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 import numpy as np
 import pandas as pd
 
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 from pypsa.geo import haversine_pts
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
+
+@patch_add_docstring
 class Lines(Components):
     """
     Lines components class.
@@ -26,6 +33,21 @@ class Lines(Components):
     pypsa.components.abstract.Components : Base class for all components.
 
     """
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrapper for Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )
 
     def calculate_line_length(self) -> pd.Series:
         """

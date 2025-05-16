@@ -36,9 +36,25 @@ def test_pypower_case():
     results, success = runpf(ppc, ppopt)
 
     # branches
-    columns = "bus0, bus1, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax, p0, q0, p1, q1".split(
-        ", "
-    )
+    columns = [
+        "bus0",
+        "bus1",
+        "r",
+        "x",
+        "b",
+        "rateA",
+        "rateB",
+        "rateC",
+        "ratio",
+        "angle",
+        "status",
+        "angmin",
+        "angmax",
+        "p0",
+        "q0",
+        "p1",
+        "q1",
+    ]
     results_df = {"branch": pd.DataFrame(data=results["branch"], columns=columns)}
     # buses
     columns = [
@@ -61,9 +77,29 @@ def test_pypower_case():
     )
 
     # generators
-    columns = "bus, p, q, q_max, q_min, Vg, mBase, status, p_max, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(
-        ", "
-    )
+    columns = [
+        "bus",
+        "p",
+        "q",
+        "q_max",
+        "q_min",
+        "Vg",
+        "mBase",
+        "status",
+        "p_max",
+        "p_min",
+        "Pc1",
+        "Pc2",
+        "Qc1min",
+        "Qc1max",
+        "Qc2min",
+        "Qc2max",
+        "ramp_agc",
+        "ramp_10",
+        "ramp_30",
+        "ramp_q",
+        "apf",
+    ]
     results_df["gen"] = pd.DataFrame(data=results["gen"], columns=columns)
 
     # now compute in PyPSA

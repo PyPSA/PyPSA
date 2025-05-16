@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Define optimisation constraints from PyPSA networks with Linopy.
 """
@@ -6,7 +5,6 @@ Define optimisation constraints from PyPSA networks with Linopy.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import linopy
@@ -29,7 +27,9 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
 
 if TYPE_CHECKING:
-    from xarray import DataArray
+    from collections.abc import Sequence
+
+    from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
 
@@ -52,6 +52,7 @@ def define_operational_constraints_for_non_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     dispatch_lower: DataArray | tuple
     dispatch_upper: DataArray | tuple
@@ -99,6 +100,7 @@ def define_operational_constraints_for_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     lhs_lower: DataArray | tuple
     lhs_upper: DataArray | tuple
@@ -145,6 +147,7 @@ def define_operational_constraints_for_committables(
         Snapshots of the constraint.
     c : str
         name of the network component
+
     """
     com_i = n.get_committable_i(c)
 
@@ -374,6 +377,7 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     ext_i = n.get_extendable_i(c)
 
@@ -399,6 +403,7 @@ def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) 
     n : pypsa.Network
     c : str
         name of the network component
+
     """
     m = n.model
 
@@ -652,7 +657,8 @@ def define_nodal_balance_constraints(
     rhs = DataArray(rhs)
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
-            raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
+            msg = "Empty LHS with non-zero RHS in nodal balance constraint."
+            raise ValueError(msg)
 
         mask = ~empty_nodal_balance
     else:
@@ -715,12 +721,12 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
                 ds = Dataset({"coeffs": coeffs, "vars": vars})
                 exprs_list.append(LinearExpression(ds, m))
 
-        if len(exprs_list):
+        if exprs_list:
             exprs = merge(exprs_list, dim="cycles")
             exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
             lhs.append(exprs)
 
-    if len(lhs):
+    if lhs:
         lhs = merge(lhs, dim="snapshot")
         m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
@@ -737,6 +743,7 @@ def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if attr + "_set" not in n.static(c):
         return
@@ -765,6 +772,7 @@ def define_modular_constraints(n: Network, c: str, attr: str) -> None:
         name of the network component
     attr : str
         name of the variable, e.g. 'n_opt'
+
     """
     m = n.model
     mod_i = n.static(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
@@ -794,6 +802,7 @@ def define_fixed_operation_constraints(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if attr + "_set" not in n.dynamic(c):
         return

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
-import os
 import warnings
-from collections.abc import Collection, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -91,13 +89,15 @@ from pypsa.typing import is_1d_list_like
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterator, Sequence
+
     import linopy
     from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
 
 
-dir_name = os.path.dirname(__file__)
+dir_name = Path(__file__).parent
 
 standard_types_dir_name = "data/standard_types"
 
@@ -105,7 +105,9 @@ standard_types_dir_name = "data/standard_types"
 inf = float("inf")
 
 
-def create_component_property(property_type: str, component: str) -> property:
+def _create_component_property(property_type: str, component: str) -> property:
+    """Helper function to create a property for all components on the network."""
+
     def getter(self: Any) -> Any:
         return self.components.get(component).get(property_type)
 
@@ -116,44 +118,7 @@ def create_component_property(property_type: str, component: str) -> property:
 
 
 class Network:
-    """
-    Network container for all buses, one-ports and branches.
-
-    Parameters
-    ----------
-    import_name : string, Path
-        Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
-        import network data. The string could be a URL. If cloudpathlib is installed,
-        the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
-    name : string, default ""
-        Network name.
-    ignore_standard_types : boolean, default False
-        If True, do not read in PyPSA standard types into standard types
-        DataFrames.
-    override_components : pandas.DataFrame
-        If you want to override the standard PyPSA components in
-        :meth:`n.default_components <pypsa.Network.default_components>`, pass it a
-        DataFrame indexed by component names and.
-        See :doc:`/user-guide/components` for more information.
-    override_component_attrs : pypsa.descriptors.Dict of pandas.DataFrame
-        If you want to override
-        :meth:`n.default_component_attrs <pypsa.Network.default_component_attrs>`.
-        See :doc:`/user-guide/components` for more information.
-    kwargs
-        Any remaining attributes to set
-
-    Returns
-    -------
-    None
-
-    Examples
-    --------
-    >>> nw1 = pypsa.Network("network.nc") # doctest: +SKIP
-    >>> nw2 = pypsa.Network("/my/folder") # doctest: +SKIP
-    >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc") # doctest: +SKIP
-    >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc") # doctest: +SKIP
-
-    """
+    """Network container for all buses, one-ports and branches."""
 
     # Type hints
     # ----------------
@@ -241,6 +206,12 @@ class Network:
         details="Use `n.plot.iplot()` as a drop-in replacement instead.",
     )
     def iplot(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Plot the network on a map using Plotly.
+
+        !!! warning "Deprecated in v0.34"
+            Use `n.plot.iplot()` as a drop-in replacement instead.
+        """
         return iplot(self, *args, **kwargs)
 
     @deprecated(
@@ -249,6 +220,12 @@ class Network:
         details="Use `n.plot.explore()` as a drop-in replacement instead.",
     )
     def explore(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Plot the network on a map using Folium.
+
+        !!! warning "Deprecated in v0.34"
+            Use `n.plot.explore()` as a drop-in replacement instead.
+        """
         return explore(self, *args, **kwargs)
 
     # from pypsa.contingency
@@ -282,6 +259,44 @@ class Network:
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
     ) -> None:
+        """
+        Initialize a new PyPSA Network.
+
+        Parameters
+        ----------
+        import_name : string, Path
+            Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
+            import network data. The string could be a URL. If cloudpathlib is installed,
+            the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
+        name : string, default ""
+            Network name.
+        ignore_standard_types : boolean, default False
+            If True, do not read in PyPSA standard types into standard types
+            DataFrames.
+        override_components : pandas.DataFrame
+            If you want to override the standard PyPSA components in
+            :meth:`n.default_components <pypsa.Network.default_components>`, pass it a
+            DataFrame indexed by component names and.
+            See :doc:`/user-guide/components` for more information.
+        override_component_attrs : pypsa.descriptors.Dict of pandas.DataFrame
+            If you want to override
+            :meth:`n.default_component_attrs <pypsa.Network.default_component_attrs>`.
+            See :doc:`/user-guide/components` for more information.
+        kwargs
+            Any remaining attributes to set
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> nw1 = pypsa.Network("network.nc") # doctest: +SKIP
+        >>> nw2 = pypsa.Network("/my/folder") # doctest: +SKIP
+        >>> nw3 = pypsa.Network("https://github.com/PyPSA/PyPSA/raw/master/examples/scigrid-de/scigrid-with-load-gen-trafos.nc") # doctest: +SKIP
+        >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc") # doctest: +SKIP
+
+        """
         if override_components is not None or override_component_attrs is not None:
             msg = (
                 "The arguments `override_components` and `override_component_attrs` "
@@ -323,7 +338,7 @@ class Network:
         self._initialize_components()
 
         if not ignore_standard_types:
-            self.read_in_default_standard_types()
+            self._read_in_default_standard_types()
 
         if import_name:
             if not validators.url(str(import_name)):
@@ -339,17 +354,19 @@ class Network:
             elif isinstance(import_name, Path) and import_name.is_dir():
                 self.import_from_csv_folder(import_name)
             else:
-                raise ValueError(
-                    f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
-                )
+                msg = f"import_name '{import_name}' is not a valid .h5 file, .nc file or directory."
+                raise ValueError(msg)
 
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     def __str__(self) -> str:
+        """Human Readable string representation of the network."""
         return f"PyPSA Network '{self.name}'" if self.name else "Unnamed PyPSA Network"
 
     def __repr__(self) -> str:
+        """String representation for the REPL."""
+        # TODO make this actually for the REPL
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
@@ -371,7 +388,7 @@ class Network:
         """Merge all components of two networks."""
         self.merge(other)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check for equality of two networks.
 
@@ -388,6 +405,7 @@ class Network:
         See Also
         --------
         pypsa.Network.equals : Check for equality of two networks.
+
         """
         return self.equals(other)
 
@@ -497,15 +515,16 @@ class Network:
             setattr(
                 type(self),
                 ctype.list_name,
-                create_component_property("static", ctype.list_name),
+                _create_component_property("static", ctype.list_name),
             )
             setattr(
                 type(self),
                 ctype.list_name + "_t",
-                create_component_property("dynamic", ctype.list_name),
+                _create_component_property("dynamic", ctype.list_name),
             )
 
-    def read_in_default_standard_types(self) -> None:
+    def _read_in_default_standard_types(self) -> None:
+        """Read in the default standard types from the data folder."""
         for std_type in self.standard_type_components:
             self.add(
                 std_type,
@@ -525,6 +544,22 @@ class Network:
         Access all components of the network via `n.c.<component>`. Same as
         :py:attr:`pypsa.Network.components`.
 
+        Examples
+        --------
+        >>> n.c # doctest: +ELLIPSIS
+        PyPSA Components Store
+        ======================
+        - 0 'SubNetwork' Components
+        - 9 'Bus' Components
+        ...
+
+        Access a component:
+        >>> n.c.generators
+        'Generator' Components
+        ----------------------
+        Attached to PyPSA Network 'AC-DC'
+        Components: 6
+
         Returns
         -------
         ComponentsStore
@@ -542,6 +577,7 @@ class Network:
         Parameters
         ----------
         component_name : string
+            Name of the component.
 
         Returns
         -------
@@ -555,12 +591,15 @@ class Network:
     )
     def static(self, component_name: str) -> pd.DataFrame:
         """
-        Return the DataFrame of static components for component_name, i.e.
-        n.component_names.
+        Return the DataFrame of static components for component_name.
+
+        !!! warning "Deprecated in v1.0"
+            Use `self.components.<component>.static` instead.
 
         Parameters
         ----------
         component_name : string
+            Name of the component.
 
         Returns
         -------
@@ -576,9 +615,13 @@ class Network:
         """
         Alias for :py:meth:`pypsa.Network.dynamic`.
 
+        !!! warning "Deprecated in v1.0"
+            Use `self.components.<component>.dynamic` instead.
+
         Parameters
         ----------
         component_name : string
+            Name of the component.
 
         Returns
         -------
@@ -592,16 +635,20 @@ class Network:
     )
     def dynamic(self, component_name: str) -> Dict:
         """
-        Return the dictionary of DataFrames of varying components for
-        component_name, i.e. n.component_names_t.
+        Return the dictionary of DataFrames of varying components.
+
+        !!! warning "Deprecated in v1.0"
+            Use `self.components.<component>.dynamic` instead.
 
         Parameters
         ----------
         component_name : string
+            Name of the component.
 
         Returns
         -------
         dict of pandas.DataFrame
+
 
         """
         return self.components[component_name].dynamic
@@ -632,33 +679,74 @@ class Network:
 
     @property
     def meta(self) -> dict:
-        """Dictionary of the network meta data."""
+        """
+        Dictionary of the network meta data.
+
+        Examples
+        --------
+        >>> n.meta
+        {}
+
+        """
         return self._meta
 
     @meta.setter
     def meta(self, new: dict) -> None:
+        """Set the network meta data."""
         if not isinstance(new, (dict | Dict)):
-            raise TypeError(f"Meta must be a dictionary, received a {type(new)}")
+            msg = f"Meta must be a dictionary, received a {type(new)}"
+            raise TypeError(msg)
         self._meta = new
 
     @property
     def crs(self) -> Any:
-        """Coordinate reference system of the network's geometries (n.shapes)."""
+        """
+        Coordinate reference system of the network's geometries.
+
+        Examples
+        --------
+        >>> n.crs
+        <Geographic 2D CRS: EPSG:4326>
+        Name: WGS 84
+        Axis Info [ellipsoidal]:
+        - Lat[north]: Geodetic latitude (degree)
+        - Lon[east]: Geodetic longitude (degree)
+        Area of Use:
+        - name: World.
+        - bounds: (-180.0, -90.0, 180.0, 90.0)
+        Datum: World Geodetic System 1984 ensemble
+        - Ellipsoid: WGS 84
+        - Prime Meridian: Greenwich
+
+        """
         return self._crs
 
     @crs.setter
     def crs(self, new: Any) -> None:
         """
-        Set the coordinate reference system of the network's geometries
-        (n.shapes).
+        Set the coordinate reference system of the network's geometries.
+
+        See Also
+        --------
+        pypsa.Network.srid : Spatial reference system identifier of the network's
+            geometries.
+        pypsa.Network.shapes : Geometries of the network
+
         """
         self.shapes.set_crs(new)
         self._crs = self.shapes.crs
 
     def to_crs(self, new: int | str | pyproj.CRS) -> None:
         """
-        Convert the network's geometries and bus coordinates to a new
-        coordinate reference system.
+        Convert the network's geometries and bus coordinates to a new crs.
+
+        See Also
+        --------
+        pypsa.Network.crs : Coordinate reference system of the network's geometries
+        pypsa.Network.srid : Spatial reference system identifier of the network's
+            geometries.
+        pypsa.Network.shapes : Geometries of the network
+
         """
         current = self.crs
         self.shapes.to_crs(new, inplace=True)
@@ -671,16 +759,31 @@ class Network:
     @property
     def srid(self) -> int:
         """
-        Spatial reference system identifier of the network's geometries
-        (n.shapes).
+        Spatial reference system identifier of the network's geometries.
+
+        Examples
+        --------
+        >>> n.srid
+        4326
+
+        See Also
+        --------
+        pypsa.Network.crs : Coordinate reference system of the network's geometries
+        pypsa.Network.shapes : Geometries of the network
+
         """
         return self.crs.to_epsg()
 
     @srid.setter
     def srid(self, new: str | int) -> None:
         """
-        Set the spatial reference system identifier of the network's geometries
-        (n.shapes).
+        Set the spatial reference system identifier of the network's geometries.
+
+        See Also
+        --------
+        pypsa.Network.crs : Coordinate reference system of the network's geometries
+        pypsa.Network.shapes : Geometries of the network
+
         """
         self.crs = pyproj.CRS.from_epsg(new)
 
@@ -705,6 +808,15 @@ class Network:
         This will reindex all components time-dependent DataFrames
         (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
         that quantity.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(pd.date_range("2015-01-01", freq="h", periods=3))
+        >>> n.snapshots
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq='h')
 
         Parameters
         ----------
@@ -741,7 +853,8 @@ class Network:
             self._snapshots = pd.Index(snapshots, name="snapshot")
 
         if len(self._snapshots) == 0:
-            raise ValueError("Snapshots must not be empty.")
+            msg = "Snapshots must not be empty."
+            raise ValueError(msg)
 
         self.snapshot_weightings = self.snapshot_weightings.reindex(
             self._snapshots, fill_value=default_snapshot_weightings
@@ -756,7 +869,7 @@ class Network:
                 .apply(lambda x: x.total_seconds() / 3600)
             )
             self._snapshot_weightings = pd.DataFrame(
-                {c: hours_per_step for c in self._snapshot_weightings.columns}
+                dict.fromkeys(self._snapshot_weightings.columns, hours_per_step)
             )
         elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             logger.info(
@@ -767,7 +880,7 @@ class Network:
             dynamic = self.dynamic(component)
             attrs = self.components[component]["attrs"]
 
-            for k in dynamic.keys():
+            for k in dynamic:
                 if dynamic[k].empty:  # avoid expensive reindex operation
                     dynamic[k].index = self._snapshots
                 elif k in attrs.default[attrs.varying]:
@@ -801,6 +914,14 @@ class Network:
         pd.Index or pd.MultiIndex
             Snapshots of the network, either as a single index or a multi-index.
 
+        Examples
+        --------
+        >>> n.snapshots # doctest: +ELLIPSIS
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00', '2015-01-01 03:00:00',
+                      ...
+                      dtype='datetime64[ns]', name='snapshot', freq=None)
+
         See Also
         --------
         pypsa.networks.Network.timesteps : Get the timestep level only.
@@ -812,6 +933,7 @@ class Network:
         only levels of the snapshots dimension, similar to coords in xarray.
         This is because timesteps and periods are not necessarily unique or complete
         across snapshots.
+
         """
         return self._snapshots
 
@@ -823,12 +945,13 @@ class Network:
         Parameters
         ----------
         snapshots : Sequence
-
+            Snapshots to be set.
 
         See Also
         --------
         pypsa.networks.Network.snapshots : Getter method
         pypsa.networks.Network.set_snapshots : Setter method
+
         """
         self.set_snapshots(snapshots)
 
@@ -845,6 +968,38 @@ class Network:
         pd.Index
             Timesteps of the network.
 
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(pd.date_range("2015-01-01", freq="h", periods=3))
+
+        For a Network without investment periods, the timesteps are identical to the
+        snapshots:
+        >>> n.timesteps
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq='h')
+        >>> n.snapshots
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq='h')
+
+        For a Network with investment periods, the timesteps are are the unqiue set
+        of timesteps in across all investment periods:
+        >>> n.investment_periods = [1, 2]
+        >>> n.timesteps
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='timestep', freq=None)
+        >>> n.snapshots
+        MultiIndex([(1, '2015-01-01 00:00:00'),
+                (1, '2015-01-01 01:00:00'),
+                (1, '2015-01-01 02:00:00'),
+                (2, '2015-01-01 00:00:00'),
+                (2, '2015-01-01 01:00:00'),
+                (2, '2015-01-01 02:00:00')],
+               name='snapshot')
+
         See Also
         --------
         pypsa.networks.Network.snapshots : Get the snapshots dimension.
@@ -853,8 +1008,7 @@ class Network:
         """
         if "timestep" in self.snapshots.names:
             return self.snapshots.get_level_values("timestep").unique()
-        else:
-            return self.snapshots
+        return self.snapshots
 
     @timesteps.setter
     def timesteps(self, timesteps: Sequence) -> None:
@@ -867,10 +1021,12 @@ class Network:
         Parameters
         ----------
         timesteps : Sequence
+            Timesteps to be set.
 
         Also see
         --------
         pypsa.networks.Network.timesteps : Getter method
+
         """
         msg = "Setting `timesteps` is not supported. Please set `snapshots` instead."
         raise NotImplementedError(msg)
@@ -889,6 +1045,31 @@ class Network:
         pd.Index
             Periods of the network.
 
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus") # doctest: +SKIP
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=3)
+        >>> n.snapshots
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq='h')
+
+        Add investment periods:
+        >>> n.periods = [1, 2]
+        >>> n.periods
+        Index([1, 2], dtype='int64', name='period')
+
+        Which will also cast snapshots to a MultiIndex:
+        >>> n.snapshots
+        MultiIndex([(1, '2015-01-01 00:00:00'),
+                (1, '2015-01-01 01:00:00'),
+                (1, '2015-01-01 02:00:00'),
+                (2, '2015-01-01 00:00:00'),
+                (2, '2015-01-01 01:00:00'),
+                (2, '2015-01-01 02:00:00')],
+               name='snapshot')
+
         See Also
         --------
         pypsa.networks.Network.snapshots : Get the snapshots dimension.
@@ -897,8 +1078,7 @@ class Network:
         """
         if "period" in self.snapshots.names:
             return self.snapshots.get_level_values("period").unique()
-        else:
-            return pd.Index([], name="period")
+        return pd.Index([], name="period")
 
     @periods.setter
     def periods(self, periods: Sequence) -> None:
@@ -908,11 +1088,12 @@ class Network:
         Parameters
         ----------
         periods : Sequence
-
+            Investment periods to be set.
         Also see
         --------
         pypsa.networks.Network.periods : Getter method
         pypsa.networks.Network.set_investment_periods : Setter method
+
         """
         self.set_investment_periods(periods)
 
@@ -926,10 +1107,23 @@ class Network:
         bool
             True if network has investment periods, otherwise False.
 
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus") # doctest: +SKIP
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=3)
+        >>> n.has_periods
+        False
+
+        Add investment periods:
+        >>> n.periods = [1, 2]
+        >>> n.has_periods
+        True
+
         See Also
         --------
         pypsa.networks.Network.snapshots : Snapshots dimension of the network.
-        pypsa.networks.Network.periods : Periods level of snapshots dimension.
+
         """
         return not self.periods.empty
 
@@ -948,6 +1142,31 @@ class Network:
         -------
         pd.Index
             Investment periods of the network.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus") # doctest: +SKIP
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=3)
+        >>> n.snapshots
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq='h')
+
+        Add investment periods:
+        >>> n.investment_periods = [1, 2]
+        >>> n.investment_periods
+        Index([1, 2], dtype='int64', name='period')
+
+        Which will also cast snapshots to a MultiIndex:
+        >>> n.snapshots
+        MultiIndex([(1, '2015-01-01 00:00:00'),
+                (1, '2015-01-01 01:00:00'),
+                (1, '2015-01-01 02:00:00'),
+                (2, '2015-01-01 00:00:00'),
+                (2, '2015-01-01 01:00:00'),
+                (2, '2015-01-01 02:00:00')],
+               name='snapshot')
 
         See Also
         --------
@@ -968,11 +1187,13 @@ class Network:
         Parameters
         ----------
         periods : Sequence
+            Investment periods to be set.
 
         Also see
         --------
         pypsa.networks.Network.periods : Getter method
         pypsa.networks.Network.set_investment_periods : Setter method
+
         """
         self.periods = periods
 
@@ -988,10 +1209,24 @@ class Network:
         bool
             True if network has investment periods, otherwise False.
 
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus") # doctest: +SKIP
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=3)
+        >>> n.has_investment_periods
+        False
+
+        Add investment periods:
+        >>> n.periods = [1, 2]
+        >>> n.has_investment_periods
+        True
+
         See Also
         --------
         pypsa.networks.Network.snapshots : Snapshots dimension of the network.
         pypsa.networks.Network.periods : Periods level of snapshots dimension.
+
         """
         return self.has_periods
 
@@ -1009,17 +1244,40 @@ class Network:
         * Store weightings define the elapsed hours for the charge, discharge
           standing loss and spillage of storage units and stores in order to
           determine the state of charge.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus") # doctest: +SKIP
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=3)
+        >>> n.snapshot_weightings
+                         objective  stores  generators
+        snapshot
+        2015-01-01 00:00:00        1.0     1.0         1.0
+        2015-01-01 01:00:00        1.0     1.0         1.0
+        2015-01-01 02:00:00        1.0     1.0         1.0
+
+        Change the snapshot weightings:
+        >>> n.snapshot_weightings.objective = [5, 7, 9]
+        >>> n.snapshot_weightings
+                         objective  stores  generators
+        snapshot
+        2015-01-01 00:00:00          5     1.0         1.0
+        2015-01-01 01:00:00          7     1.0         1.0
+        2015-01-01 02:00:00          9     1.0         1.0
+
         """
         return self._snapshot_weightings
 
     @snapshot_weightings.setter
     def snapshot_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(self.snapshots), (
-            "Weightings not defined for all snapshots."
-        )
+        if not df.index.equals(self.snapshots):
+            msg = "Weightings not defined for all snapshots."
+            raise ValueError(msg)
+
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
-            df = pd.DataFrame({c: df for c in self._snapshot_weightings.columns})
+            df = pd.DataFrame(dict.fromkeys(self._snapshot_weightings.columns, df))
         self._snapshot_weightings = df
 
     def set_investment_periods(self, periods: Sequence) -> None:
@@ -1050,19 +1308,18 @@ class Network:
             and periods_.is_unique
             and periods_.is_monotonic_increasing
         ):
-            raise ValueError(
+            msg = (
                 "Investment periods are not strictly increasing integers, "
                 "which is required for multi-period investment optimisation."
             )
+            raise ValueError(msg)
         if isinstance(self.snapshots, pd.MultiIndex):
             if not periods_.isin(self.snapshots.unique("period")).all():
-                raise ValueError(
-                    "Not all investment periods are in level `period` of snapshots."
-                )
+                msg = "Not all investment periods are in level `period` of snapshots."
+                raise ValueError(msg)
             if len(periods_) < len(self.snapshots.unique(level="period")):
-                raise NotImplementedError(
-                    "Investment periods do not equal first level values of snapshots."
-                )
+                msg = "Investment periods do not equal first level values of snapshots."
+                raise NotImplementedError(msg)
         else:
             # Convenience case:
             logger.info(
@@ -1073,9 +1330,9 @@ class Network:
             for component in self.all_components:
                 dynamic = self.dynamic(component)
 
-                for k in dynamic.keys():
+                for k in dynamic:
                     dynamic[k] = pd.concat(
-                        {p: dynamic[k] for p in periods_}, names=names
+                        dict.fromkeys(periods_, dynamic[k]), names=names
                     )
                     dynamic[k].index.name = "snapshot"
 
@@ -1084,7 +1341,7 @@ class Network:
             )
             self._snapshots.name = "snapshot"
             self._snapshot_weightings = pd.concat(
-                {p: self.snapshot_weightings for p in periods_}, names=names
+                dict.fromkeys(periods_, self.snapshot_weightings), names=names
             )
             self._snapshot_weightings.index.name = "snapshot"
 
@@ -1095,29 +1352,51 @@ class Network:
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
         """
-        Weightings applied to each investment period during the optimization
-        (LOPF).
+        Weightings applied to each investment period during the optimization (LOPF).
 
-        * Objective weightings are multiplied with all cost coefficients in the
-          objective function of the respective investment period
-          (e.g. to include a social discount rate).
+        Objective weightings are multiplied with all cost coefficients in the
+        objective function of the respective investment period (e.g. to include a
+        social discount rate).
+        Years weightings denote the elapsed time until the subsequent investment period
+        (e.g. used for global constraints CO2 emissions).
 
-        * Years weightings denote the elapsed time until the subsequent investment period
-          (e.g. used for global constraints CO2 emissions).
+        Examples
+        --------
+        Create a network with investment periods:
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", "bus") # doctest: +SKIP
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=2)
+        >>> n.investment_periods = [1, 2]
+
+        >>> n.investment_period_weightings
+                objective  years
+        period
+        1             1.0    1.0
+        2             1.0    1.0
+
+        Change the investment period weightings:
+        >>> n.investment_period_weightings.objective = [5, 7]
+        >>> n.investment_period_weightings.years = [1, 2]
+        >>> n.investment_period_weightings
+                objective  years
+        period
+        1             5    1
+        2             7    2
+
         """
         return self._investment_period_weightings
 
     @investment_period_weightings.setter
     def investment_period_weightings(self, df: pd.DataFrame) -> None:
-        assert df.index.equals(self.investment_periods), (
-            "Weightings not defined for all investment periods."
-        )
+        if not df.index.equals(self.investment_periods):
+            msg = "Weightings not defined for all investment periods."
+            raise ValueError(msg)
         if isinstance(df, pd.Series):
             logger.info(
                 "Applying weightings to all columns of `investment_period_weightings`"
             )
             df = pd.DataFrame(
-                {c: df for c in self._investment_period_weightings.columns}
+                dict.fromkeys(self._investment_period_weightings.columns, df)
             )
         self._investment_period_weightings = df
 
@@ -1175,6 +1454,7 @@ class Network:
         --------
         Add a single component:
 
+        >>> n = pypsa.Network()
         >>> n.add("Bus", "my_bus_0")
         Index(['my_bus_0'], dtype='object')
         >>> n.add("Bus", "my_bus_1", v_nom=380)
@@ -1279,20 +1559,21 @@ class Network:
                         if len(v) == 1:
                             v = v.iloc[0]
                             logger.debug(
-                                f"Single value sequence for {k} is treated as a scalar "
-                                f"and broadcasted to all components. It is recommended "
-                                f"to explicitly pass a scalar instead."
+                                "Single value sequence for %s is treated as a scalar "
+                                "and broadcasted to all components. It is recommended "
+                                "to explicitly pass a scalar instead.",
+                                k,
                             )
                         else:
                             v.index = names
-                except ValueError:
+                except ValueError as e:
                     expec_str = (
                         f"{len(self.snapshots)} for each snapshot."
                         if single_component
                         else f"{len(names)} for each component name."
                     )
                     msg = f"Data for {k} has length {len(v)} but expected {expec_str}"
-                    raise ValueError(msg)
+                    raise ValueError(msg) from e
             # Convert 2-dim array to pandas.DataFrame
             if isinstance(v, np.ndarray):
                 if v.shape == (len(self.snapshots), len(names)):
@@ -1364,13 +1645,51 @@ class Network:
             Component class name
         name : str, int, list-like or pandas.Index
             Component name(s)
-        suffix : str, default ''
-
+        suffix : str, default=''
+            Suffix to be added to the component name(s)
 
         Examples
         --------
-        >>> n.remove("Line", "0")
-        >>> n.remove("Line", ["1","2"])
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=2)
+        >>> n.add("Bus", ["bus0", "bus1"])
+        Index(['bus0', 'bus1'], dtype='object')
+        >>> n.add("Bus", "bus2", p_min_pu=[1, 1])
+        Index(['bus2'], dtype='object', name='Bus')
+        >>> n.components.buses.static
+              v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
+        Bus                         ...
+        bus0    1.0       0.0  0.0  ...          inf      PQ
+        bus1    1.0       0.0  0.0  ...          inf      PQ
+        bus2    1.0       0.0  0.0  ...          inf      PQ
+        <BLANKLINE>
+        [3 rows x 13 columns]
+
+        Remove a single component:
+        >>> n.remove("Bus", "bus2")
+
+
+        Any component data is dropped from the component DataFrames.
+        >>> n.components.buses.static
+            v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
+        Bus                         ...
+        bus0    1.0       0.0  0.0  ...          inf      PQ
+        bus1    1.0       0.0  0.0  ...          inf      PQ
+        <BLANKLINE>
+        [2 rows x 13 columns]
+        >>> n.components.buses.dynamic.p_min_pu
+        Empty DataFrame
+        Columns: []
+        Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00]
+
+        Remove multiple components:
+        >>> n.remove("Bus", ["bus0", "bus1"])
+
+        >>> n.components.buses.static
+        Empty DataFrame
+        Columns: [v_nom, type, x, y, carrier, unit, location, v_mag_pu_set, v_mag_pu_min, v_mag_pu_max, control, generator, sub_network]
+        Index: []
+
         """
         c = as_components(self, class_name)
 
@@ -1503,7 +1822,27 @@ class Network:
 
         Examples
         --------
+        With a simple reference the network is not copied:
+        >>> network_copy = n
+        >>> id(network_copy) == id(n)
+        True
+
+        Use the copy method to create a new network object:
         >>> network_copy = n.copy()
+        >>> id(network_copy) == id(n)
+        False
+
+        You can also filter on a subset of snapshots (or investment periods):
+        >>> n.snapshots
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00', '2015-01-01 03:00:00',
+                       '2015-01-01 04:00:00', '2015-01-01 05:00:00',
+                       '2015-01-01 06:00:00', '2015-01-01 07:00:00',
+                       '2015-01-01 08:00:00', '2015-01-01 09:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq=None)
+        >>> network_copy = n.copy(snapshots=n.snapshots[0])
+        >>> network_copy.snapshots
+        DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
         # Use copy.deepcopy if no arguments are passed
@@ -1552,10 +1891,11 @@ class Network:
             # Apply time-varying data
             for component in self.iterate_components():
                 dynamic = getattr(n, component.list_name + "_t")
-                for k in component.dynamic.keys():
-                    try:
+                for k in component.dynamic:
+                    # Check if all snapshots_ are in the index
+                    if set(snapshots_).issubset(component.dynamic[k].index):
                         dynamic[k] = component.dynamic[k].loc[snapshots_].copy()
-                    except KeyError:
+                    else:
                         dynamic[k] = component.dynamic[k].reindex(snapshots_).copy()
 
             # Apply investment periods
@@ -1579,17 +1919,17 @@ class Network:
             "objective_constant",
             "now",
         ]:
-            try:
+            if hasattr(self, attr):
                 setattr(n, attr, getattr(self, attr))
-            except AttributeError:
-                pass
 
         return n
 
     def __getitem__(self, key: str) -> Network:
         """
-        Returns a shallow slice of the Network object containing only the
-        selected buses and all the connected components.
+        Returns a shallow slice of the Network object.
+
+        A shallow slice will only include the selected buses and all the connected
+        components.
 
         Parameters
         ----------
@@ -1676,6 +2016,31 @@ class Network:
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
     def branches(self) -> pd.DataFrame:
+        """
+        Get branches.
+
+        Branches are Lines, Links and Transformers.
+
+        !!! note
+            This method will return a merged copy of all branches of the network.
+            Changes to the returned DataFrame will not be reflected in the network.
+
+        Examples
+        --------
+        >>> n.branches() # doctest: +ELLIPSIS
+                                    active    b  b_pu  ...         x x_pu x_pu_eff
+        component name                                  ...
+        Line      0                    True  0.0   0.0  ...  0.796878  0.0      0.0
+                  1                    True  0.0   0.0  ...  0.391560  0.0      0.0
+                  2                    True  0.0   0.0  ...  0.000000  0.0      0.0
+        ...
+
+        See Also
+        --------
+        n.passive_branches
+        n.controllable_branches
+
+        """
         return pd.concat(
             (self.static(c) for c in self.branch_components),
             keys=self.branch_components,
@@ -1684,6 +2049,30 @@ class Network:
         )
 
     def passive_branches(self) -> pd.DataFrame:
+        """
+        Get passive branches.
+
+        Passive branches are Lines and Transformers.
+
+        !!! note
+            This method will return a merged copy of all passive branches of the network.
+            Changes to the returned DataFrame will not be reflected in the network.
+
+        Examples
+        --------
+        >>> n.passive_branches() # doctest: +ELLIPSIS
+                                active    b  b_pu  ...         x x_pu x_pu_eff
+        Line 0               True  0.0   0.0  ...  0.796878  0.0      0.0
+            1               True  0.0   0.0  ...  0.391560  0.0      0.0
+            2               True  0.0   0.0  ...  0.000000  0.0      0.0
+        ...
+
+        See Also
+        --------
+        n.branches
+        n.controllable_branches
+
+        """
         return pd.concat(
             (self.static(c) for c in self.passive_branch_components),
             keys=self.passive_branch_components,
@@ -1691,6 +2080,30 @@ class Network:
         )
 
     def controllable_branches(self) -> pd.DataFrame:
+        """
+        Get controllable branches.
+
+        Controllable branches are Links.
+
+        !!! note
+            This method will return a merged copy of all controllable branches of the network.
+            Changes to the returned DataFrame will not be reflected in the network.
+
+        Examples
+        --------
+        >>> n.controllable_branches() # doctest: +ELLIPSIS
+                                        active  build_year  ... type up_time_before
+            Link                                   ...
+        Link Norwich Converter    True           0  ...                   1
+            Norway Converter     True           0  ...                   1
+        ...
+
+        See Also
+        --------
+        n.branches
+        n.passive_branches
+
+        """
         return pd.concat(
             (self.static(c) for c in self.controllable_branch_components),
             keys=self.controllable_branch_components,
@@ -1701,7 +2114,7 @@ class Network:
         self,
         investment_period: int | str | None = None,
         skip_isolated_buses: bool = False,
-    ) -> None:
+    ) -> Network:
         """
         Build sub_networks from topology.
 
@@ -1736,16 +2149,19 @@ class Network:
 
             if carrier not in ["AC", "DC"] and len(buses_i) > 1:
                 logger.warning(
-                    f"Warning, sub network {i} is not electric but "
+                    "Warning, sub network %d is not electric but "
                     "contains multiple buses\nand branches. Passive "
-                    "flows are not allowed for non-electric networks!"
+                    "flows are not allowed for non-electric networks!",
+                    i,
                 )
 
             if (self.buses.carrier.iloc[buses_i] != carrier).any():
                 logger.warning(
-                    f"Warning, sub network {i} contains buses with "
+                    "Warning, sub network %d contains buses with "
                     "mixed carriers! Value counts:"
-                    f"\n{self.buses.carrier.iloc[buses_i].value_counts()}"
+                    "\n%s",
+                    i,
+                    self.buses.carrier.iloc[buses_i].value_counts(),
                 )
 
             self.add("SubNetwork", i, carrier=carrier)
@@ -1769,16 +2185,47 @@ class Network:
             find_cycles(sub)
             sub.find_bus_controls()
 
+        return self
+
     @deprecated_in_next_major(
-        details="Use `self.components.<component>` instead.",
+        details="Use `n.components.<component>` instead.",
     )
     def component(self, c_name: str) -> Component:
+        """
+        Get a component from the network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `n.components.<component>` or `n.components[component_name]` instead.
+
+        Examples
+        --------
+        >>> n.component("Bus")
+        'Bus' Components
+        ----------------
+        Attached to PyPSA Network 'AC-DC'
+        Components: 9
+
+        """
         return self.components[c_name]
 
-    @deprecated_in_next_major(details="Use `self.components` instead.")
+    @deprecated_in_next_major(details="Use `for component in n.components` instead.")
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
+        """
+        Iterate over components.
+
+        !!! warning "Deprecated in v1.0"
+            Use `for component in n.components` instead.
+
+        Examples
+        --------
+        >>> for component in n.iterate_components(): # doctest: +SKIP
+        ...     print(component)
+        ...     break
+        'Bus' Components
+
+        """
         if components is None:
             components = self.all_components
 
@@ -1841,10 +2288,10 @@ class Network:
 
 class SubNetwork:
     """
-    Connected network of electric buses (AC or DC) with passive flows or
-    isolated non-electric buses.
+    SubNetwork for electric buses (AC or DC).
 
-    Generated by n.determine_network_topology().
+    SubNetworks are generated by `n.determine_network_topology()` for electric buses
+    with passive flows or isolated non-electric buses.
     """
 
     # Type hints
@@ -1885,6 +2332,17 @@ class SubNetwork:
 
     @deprecated_common_kwargs
     def __init__(self, n: Network, name: str) -> None:
+        """
+        Initialize a sub-network.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+            The parent network of the sub-network.
+        name : str
+            The name of the sub-network.
+
+        """
         self._n = ref(n)
         self.name = name
 
@@ -1893,34 +2351,82 @@ class SubNetwork:
         deprecated_in="0.32", removed_in="1.0", details="Use the `n` property instead."
     )
     def network(self) -> Network:
+        """
+        Get the parent network of the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.n` instead.
+        """
         return self._n()  # type: ignore
 
     @property
     def n(self) -> Network:
+        """
+        Get the parent network of the sub-network.
+
+        Examples
+        --------
+        >>> sub_network.n # doctest: +ELLIPSIS
+        PyPSA Network 'AC-DC'
+        ---------------------
+        Components:
+         - Bus: 9
+         ...
+
+        """
         return self._n()  # type: ignore
 
     @property
     def components(self) -> ComponentsStore:
+        """
+        Get the components for the sub-network.
+
+        Sub network components behave like Components in a basic pypsa.Network, but are
+        a special class (SubNetworkComponents) to only return a view from the parent
+        network.
+
+        Examples
+        --------
+        Get single component:
+        >>> sub_network.components.generators
+        'Generator' SubNetworkComponents
+        --------------------------------
+        Attached to Sub-Network of PyPSA Network 'AC-DC'
+        Components: 6
+
+        Getting a component is also possible via getitem:
+        >>> sub_network.components['generators'] # doctest: +ELLIPSIS
+        'Generator' SubNetworkComponents
+        ...
+
+        Or with the component name instead of list notation:
+        >>> sub_network.components['Generator'] # doctest: +ELLIPSIS
+        'Generator' SubNetworkComponents
+        ...
+
+        See Also
+        --------
+        pypsa.Network.components
+
+        """
+
         def filter_down(key: str, c: Components) -> Any:
             value = c[key]
             if key == "static":
                 if c.name in {"Bus"} | self.n.passive_branch_components:
                     return value[value.sub_network == self.name]
-                elif c.name in self.n.one_port_components:
+                if c.name in self.n.one_port_components:
                     buses = self.buses_i()
                     return value[value.bus.isin(buses)]
-                else:
-                    raise ValueError(
-                        f"Component {c.name} not supported for sub-networks"
-                    )
-            elif key == "dynamic":
+                msg = f"Component {c.name} not supported for sub-networks"
+                raise ValueError(msg)
+            if key == "dynamic":
                 dynamic = Dict()
                 index = self.static(c.name).index
                 for k, v in self.n.dynamic(c.name).items():
                     dynamic[k] = v[index.intersection(v.columns)]
                 return dynamic
-            else:
-                return value
+            return value
 
         return ComponentsStore(
             {
@@ -1931,25 +2437,89 @@ class SubNetwork:
 
     @property
     def c(self) -> ComponentsStore:
+        """
+        Get the components for the sub-network.
+
+        Alias for `sub_network.components`.
+
+        See Also
+        --------
+        sub_network.components
+
+        """
         return self.components
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
+        """
+        Get the snapshots for the sub-network.
+
+        See Also
+        --------
+        pypsa.Network.snapshots
+
+        """
         return self.n.snapshots
 
     @property
     def snapshot_weightings(self) -> pd.DataFrame:
+        """
+        Get the snapshot weightings for the sub-network.
+
+        See Also
+        --------
+        pypsa.Network.snapshot_weightings
+
+        """
         return self.n.snapshot_weightings
 
     @property
     def investment_periods(self) -> pd.Index:
+        """
+        Get the investment periods for the sub-network.
+
+        See Also
+        --------
+        pypsa.Network.investment_periods
+
+        """
         return self.n.investment_periods
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
+        """
+        Get the investment period weightings for the sub-network.
+
+        See Also
+        --------
+        pypsa.Network.investment_period_weightings
+
+        """
         return self.n.investment_period_weightings
 
     def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
+        """
+        Get the index of the branches in the sub-network.
+
+        Parameters
+        ----------
+        active_only : bool, default False
+            If True, only return the index of the active branches.
+
+        Returns
+        -------
+        pd.MultiIndex
+            The index of the branches in the sub-network.
+
+        Examples
+        --------
+        >>> sub_network.branches_i()
+        MultiIndex([('Line', '0'),
+                    ('Line', '1'),
+                    ('Line', '5')],
+                    names=['type', 'name'])
+
+        """
         types = []
         names = []
         for c in self.iterate_components(self.n.passive_branch_components):
@@ -1959,121 +2529,333 @@ class SubNetwork:
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
 
     def branches(self) -> pd.DataFrame:
+        """
+        Get the branches in the sub-network.
+
+        See Also
+        --------
+        pypsa.Network.branches
+
+        """
         branches = self.n.passive_branches()
         return branches[branches.sub_network == self.name]
 
     @deprecated_in_next_major(
-        details="Use `self.components.<c_name>` instead.",
+        details="Use `sub_network.components.<c_name>` instead.",
     )
     def component(self, c_name: str) -> SubNetworkComponents:
+        """
+        Get a component from the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.<c_name>` instead.
+
+        See Also
+        --------
+        pypsa.Network.components
+
+        """
         return self.components[c_name]
 
     @deprecated_in_next_major(
-        details="Use `self.components.<c_name>.static` instead.",
+        details="Use `sub_network.components.<c_name>.static` instead.",
     )
     def df(self, c_name: str) -> pd.DataFrame:
+        """
+        Get a static component from the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.<c_name>.static` instead.
+
+        See Also
+        --------
+        pypsa.Network.static
+
+        """
         return self.static(c_name)
 
     @deprecated_in_next_major(
-        details="Use `self.components.<c_name>.static` instead.",
+        details="Use `sub_network.components.<c_name>.static` instead.",
     )
     def static(self, c_name: str) -> pd.DataFrame:
+        """
+        Get a static component from the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.<c_name>.static` instead.
+
+        See Also
+        --------
+        pypsa.Network.static
+
+        """
         return self.components[c_name].static
 
     @deprecated_in_next_major(
-        details="Use `self.components.<c_name>.dynamic` instead.",
+        details="Use `sub_network.components.<c_name>.dynamic` instead.",
     )
     def pnl(self, c_name: str) -> Dict:
+        """
+        Get a dynamic component from the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.<c_name>.dynamic` instead.
+
+        See Also
+        --------
+        pypsa.Network.dynamic
+
+        """
         return self.dynamic(c_name)
 
     @deprecated_in_next_major(
-        details="Use `self.components.<c_name>.dynamic` instead.",
+        details="Use `sub_network.components.<c_name>.dynamic` instead.",
     )
     def dynamic(self, c_name: str) -> Dict:
+        """
+        Get a dynamic component from the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.<c_name>.dynamic` instead.
+
+        See Also
+        --------
+        pypsa.Network.dynamic
+
+        """
         return self.components[c_name].dynamic
 
     @deprecated_in_next_major(
-        details="Use `self.components.buses.static.index` instead.",
+        details="Use `sub_network.components.buses.static.index` instead.",
     )
     def buses_i(self) -> pd.Index:
+        """
+        Get the index of the buses in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.buses.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.buses_i
+
+        """
         return self.components.buses.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.lines.static.index` instead.",
+        details="Use `sub_network.components.lines.static.index` instead.",
     )
     def lines_i(self) -> pd.Index:
+        """
+        Get the index of the lines in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.lines.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.lines_i
+
+        """
         return self.components.lines.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.transformers.static.index` instead.",
+        details="Use `sub_network.components.transformers.static.index` instead.",
     )
     def transformers_i(self) -> pd.Index:
+        """
+        Get the index of the transformers in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.transformers.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.transformers_i
+
+        """
         return self.components.transformers.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.generators.static.index` instead.",
+        details="Use `sub_network.components.generators.static.index` instead.",
     )
     def generators_i(self) -> pd.Index:
+        """
+        Get the index of the generators in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.generators.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.generators_i
+
+        """
         return self.components.generators.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.loads.static.index` instead.",
+        details="Use `sub_network.components.loads.static.index` instead.",
     )
     def loads_i(self) -> pd.Index:
+        """
+        Get the index of the loads in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.loads.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.loads_i
+
+        """
         return self.components.loads.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.shunt_impedances.static.index` instead.",
+        details="Use `sub_network.components.shunt_impedances.static.index` instead.",
     )
     def shunt_impedances_i(self) -> pd.Index:
+        """
+        Get the index of the shunt impedances in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.shunt_impedances.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.shunt_impedances_i
+
+        """
         return self.components.shunt_impedances.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.storage_units.static.index` instead.",
+        details="Use `sub_network.components.storage_units.static.index` instead.",
     )
     def storage_units_i(self) -> pd.Index:
+        """
+        Get the index of the storage units in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.storage_units.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.storage_units_i
+
+        """
         return self.components.storage_units.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.stores.index.static` instead.",
+        details="Use `sub_network.components.stores.index.static` instead.",
     )
     def stores_i(self) -> pd.Index:
+        """
+        Get the index of the stores in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.stores.static.index` instead.
+
+        See Also
+        --------
+        pypsa.Network.stores_i
+
+        """
         return self.components.stores.static.index
 
     @deprecated_in_next_major(
-        details="Use `self.components.buses.static` instead.",
+        details="Use `sub_network.components.buses.static` instead.",
     )
     def buses(self) -> pd.DataFrame:
+        """
+        Get the buses in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.buses.static` instead.
+
+        See Also
+        --------
+        pypsa.Network.buses
+
+        """
         return self.components.buses.static
 
     @deprecated_in_next_major(
-        details="Use `self.components.generators.static` instead.",
+        details="Use `sub_network.components.generators.static` instead.",
     )
     def generators(self) -> pd.DataFrame:
+        """
+        Get the generators in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.generators.static` instead.
+
+        See Also
+        --------
+        pypsa.Network.generators
+
+        """
         return self.components.generators.static
 
     @deprecated_in_next_major(
-        details="Use `self.components.loads.static` instead.",
+        details="Use `sub_network.components.loads.static` instead.",
     )
     def loads(self) -> pd.DataFrame:
+        """
+        Get the loads in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.loads.static` instead.
+
+        See Also
+        --------
+        pypsa.Network.loads
+
+        """
         return self.components.loads.static
 
     @deprecated_in_next_major(
-        details="Use `self.components.shunt_impedances.static` instead.",
+        details="Use `sub_network.components.shunt_impedances.static` instead.",
     )
     def shunt_impedances(self) -> pd.DataFrame:
+        """
+        Get the shunt impedances in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.shunt_impedances.static` instead.
+
+        See Also
+        --------
+        pypsa.Network.shunt_impedances
+
+        """
         return self.components.shunt_impedances.static
 
     @deprecated_in_next_major(
-        details="Use `self.components.storage_units.static` instead.",
+        details="Use `sub_network.components.storage_units.static` instead.",
     )
     def storage_units(self) -> pd.DataFrame:
+        """
+        Get the storage units in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.storage_units.static` instead.
+
+        See Also
+        --------
+        pypsa.Network.storage_units
+
+        """
         return self.components.storage_units.static
 
     @deprecated_in_next_major(
-        details="Use `self.components.stores.static` instead.",
+        details="Use `!!! deprecated.components.stores.static` instead.",
     )
     def stores(self) -> pd.DataFrame:
+        """
+        Get the stores in the sub-network.
+
+        !!! warning "Deprecated in v1.0"
+            Use `sub_network.components.stores.static` instead.
+        """
         return self.components.stores.static
 
     @deprecated_in_next_major(details="Use `self.components` instead.")
@@ -2082,8 +2864,7 @@ class SubNetwork:
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[SubNetworkComponents]:
         """
-        Iterate over components of the sub-network and extract corresponding
-        data.
+        Iterate over components of the sub-network.
 
         Parameters
         ----------
@@ -2093,6 +2874,10 @@ class SubNetwork:
         skip_empty : bool, optional
             Whether to skip a components with no assigned assets,
             by default True
+
+        See Also
+        --------
+        pypsa.Network.iterate_components
 
         Yields
         ------

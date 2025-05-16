@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Created on Tue Feb  1 15:20:12 2022.
-
-@author: fabian
-"""
-
 import pandas as pd
 import pytest
 
@@ -29,7 +22,7 @@ def describe_storage_unit_contraints(n):
     sus = n.storage_units
     sus_i = sus.index
     if sus_i.empty:
-        return
+        return None
     sns = n.snapshots
     c = "StorageUnit"
     dynamic = n.dynamic(c)
@@ -155,7 +148,7 @@ def describe_store_contraints(n):
     stores = n.stores
     stores_i = stores.index
     if stores_i.empty:
-        return
+        return None
     sns = n.snapshots
     c = "Store"
     dynamic = n.dynamic(c)

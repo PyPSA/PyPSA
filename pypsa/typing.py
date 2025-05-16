@@ -1,6 +1,4 @@
-"""
-Typing utilities.
-"""
+"""Typing utilities."""
 
 from typing import Any
 
@@ -22,6 +20,7 @@ def is_1d_list_like(x: Any) -> bool:
     -------
     bool
         True if x is a 1D list-like object.
+
     """
     if isinstance(x, np.ndarray):
         return x.ndim == 1
@@ -29,5 +28,4 @@ def is_1d_list_like(x: Any) -> bool:
     if isinstance(x, pd.DataFrame):
         return False  # DataFrame has always 2 dimensions
 
-    else:
-        return is_list_like(x)
+    return is_list_like(x)

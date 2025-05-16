@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -9,12 +9,12 @@ import pypsa
 
 @pytest.fixture
 def target_gen_p():
-    target_path = os.path.join(
-        os.path.dirname(__file__),
-        "data",
-        "storage-hvdc",
-        "results-lopf",
-        "generators-p.csv",
+    target_path = (
+        Path(__file__).parent
+        / "data"
+        / "storage-hvdc"
+        / "results-lopf"
+        / "generators-p.csv"
     )
     return pd.read_csv(target_path, index_col=0, parse_dates=True)
 

@@ -38,7 +38,7 @@ def test_mga():
     opt_capacity = n.generators.p_nom_opt
     opt_cost = (n.statistics.capex() + n.statistics.opex()).sum()
 
-    weights = dict(Generator=dict(p_nom={"coal": 1}))
+    weights = {"Generator": {"p_nom": {"coal": 1}}}
     slack = 0.05
     n.optimize.optimize_mga(slack=0.05, weights=weights)
 

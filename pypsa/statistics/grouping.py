@@ -8,11 +8,12 @@ grouping module directly.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from inspect import signature
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network
 
 import warnings
@@ -91,9 +92,9 @@ class Groupers:
     def _get_generic_grouper(self, n: Network, c: str, key: str) -> pd.Series:
         try:
             return n.static(c)[key].rename(key)
-        except KeyError:
+        except KeyError as e:
             msg = f"Unknown grouper {key}."
-            raise ValueError(msg)
+            raise KeyError(msg) from e
 
     def list_groupers(self) -> dict:
         """

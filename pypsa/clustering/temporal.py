@@ -1,3 +1,1 @@
-"""
-Functions for temporal clustering of networks.
-"""
+"""Functions for temporal clustering of networks."""

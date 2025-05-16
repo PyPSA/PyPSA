@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
@@ -8,12 +8,7 @@ import pypsa
 
 @pytest.fixture
 def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "data",
-        "ac-dc-meshed",
-        "results-lpf",
-    )
+    csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lpf"
     return pypsa.Network(csv_folder)
 
 

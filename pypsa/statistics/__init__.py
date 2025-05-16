@@ -41,6 +41,7 @@ __all__ = [
     "get_weightings",
     "get_operation",
     "port_efficiency",
+    # Deprecated
     "pass_empty_series_if_keyerror",
     "get_carrier",
     "get_bus_carrier",

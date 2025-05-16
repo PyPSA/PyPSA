@@ -7,7 +7,6 @@ Mainly used in the `Network.consistency_check()` method.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -16,6 +15,8 @@ import pandas as pd
 from pypsa.common import deprecated_common_kwargs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
     from pypsa.components import Components
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class ConsistencyError(ValueError):
-    pass
+    """Error raised when a consistency check fails."""
 
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
@@ -34,8 +35,7 @@ def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     formatted_message = message % args if args else message
     if strict:
         raise ConsistencyError(formatted_message)
-    else:
-        logger.warning(message, *args)
+    logger.warning(message, *args)
 
 
 @deprecated_common_kwargs
@@ -615,18 +615,15 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
             )
             if strict:
                 raise ValueError(msg)
-            else:
-                _log_or_raise(strict, msg)
-    else:
-        if constraint_periods:
-            msg = (
-                "The global constraints contain investment periods but "
-                "snapshots are not multi-indexed."
-            )
-            if strict:
-                raise ValueError(msg)
-            else:
-                _log_or_raise(strict, msg)
+            _log_or_raise(strict, msg)
+    elif constraint_periods:
+        msg = (
+            "The global constraints contain investment periods but "
+            "snapshots are not multi-indexed."
+        )
+        if strict:
+            raise ValueError(msg)
+        _log_or_raise(strict, msg)
 
 
 @deprecated_common_kwargs
@@ -762,7 +759,7 @@ def consistency_check(
     n: Network, check_dtypes: bool = False, strict: Sequence | None = None
 ) -> None:
     """
-    Check network for consistency
+    Check network for consistency.
 
     Runs a series of checks on the network to ensure that it is consistent, e.g. that
     all components are connected to existing buses and that no impedances are singular.
@@ -840,11 +837,12 @@ def consistency_check(
     if "all" in strict:
         strict = strict_options
     if not all(s in strict_options for s in strict):
-        raise ValueError(
+        msg = (
             f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
             f"Valid options are {strict_options}. Please check the documentation for "
             "more details on them."
         )
+        raise ValueError(msg)
 
     n.calculate_dependent_values()
 
@@ -916,11 +914,12 @@ def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> No
         strict = strict_options
 
     if not all(s in strict_options for s in strict):
-        raise ValueError(
+        msg = (
             f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
             f"Valid options are {strict_options}. Please check the documentation for "
             "more details on them."
         )
+        raise ValueError(msg)
 
     for c in n.iterate_components():
         check_for_unknown_carriers(n, c, strict="unknown_carriers" in strict)

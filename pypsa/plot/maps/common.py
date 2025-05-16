@@ -111,5 +111,4 @@ def apply_layouter(
     if inplace:
         n.buses[["x", "y"]] = coordinates
         return None
-    else:
-        return coordinates.x, coordinates.y
+    return coordinates.x, coordinates.y

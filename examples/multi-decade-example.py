@@ -98,9 +98,7 @@ n.lopf(pyomo=False, multi_investment_periods=True)
 
 
 def get_social_discount(t, r=0.01):
-    """
-    Calaculate social discount rate.
-    """
+    """Calculate social discount rate."""
     return 1 / (1 + r) ** t
 
 

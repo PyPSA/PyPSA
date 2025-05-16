@@ -23,7 +23,7 @@ def test_snapshot_weightings_with_timedelta(time_index):
         .apply(lambda x: x.total_seconds() / 3600)
     )
 
-    df_true = pd.DataFrame({c: hours_per_step for c in n.snapshot_weightings.columns})
+    df_true = pd.DataFrame(dict.fromkeys(n.snapshot_weightings.columns, hours_per_step))
 
     n.set_snapshots(time_index, weightings_from_timedelta=True)
     df_actual = n.snapshot_weightings
@@ -35,7 +35,7 @@ def test_default_snapshot_weightings(time_index):
     n = pypsa.Network()
 
     weightings = pd.Series(2.0, index=time_index)
-    df_true = pd.DataFrame({c: weightings for c in n.snapshot_weightings.columns})
+    df_true = pd.DataFrame(dict.fromkeys(n.snapshot_weightings.columns, weightings))
     df_true.index.name = "snapshot"
 
     n.set_snapshots(time_index, default_snapshot_weightings=2.0)

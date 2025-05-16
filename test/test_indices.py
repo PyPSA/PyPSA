@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def network(ac_dc_network):
     return ac_dc_network  # Change scope of existing fixture to function
 
