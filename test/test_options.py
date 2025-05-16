@@ -179,3 +179,7 @@ def test_nested_option_context():
         with pypsa.option_context("test.nested.test_option", val):
             assert pypsa.options.test.nested.test_option == val
         assert pypsa.options.test.nested.test_option is True
+
+
+pypsa.options._remove_option("test.test_option")
+pypsa.options._remove_option("test.nested.test_option")

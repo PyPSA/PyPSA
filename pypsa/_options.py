@@ -105,8 +105,48 @@ class OptionsNode:
 
         node._children[leaf_name] = Option(default, default, docs)
 
+    def _remove_option(self, path: str) -> None:
+        """Remove an option at the specified path."""
+        parts = path.split(".")
+        node = self
+
+        # Navigate to the parent
+        for part in parts[:-1]:
+            if part not in node._children or not isinstance(
+                node._children[part], OptionsNode
+            ):
+                raise InvalidOptionError(option_path=part)
+            node = node._children[part]
+
+        # Remove the option
+        leaf_name = parts[-1]
+        if leaf_name not in node._children:
+            raise InvalidOptionError(option_path=leaf_name)
+
+        del node._children[leaf_name]
+
     def get_option(self, path: str) -> Any:
-        """Get the value of an option at the specified path."""
+        """
+        Get the value of an option at the specified path.
+
+        Parameters
+        ----------
+        path : str
+            Path to the option. Must be in the format "category.option_name" or "category.subcategory.option_name"
+
+        Returns
+        -------
+        Any
+            The value of the option.
+
+        Examples
+        --------
+        >>> pypsa.options.get_option("params.statistics.drop_zero")
+        True
+        >>> pypsa.options.get_option("params.statistics.nice_names")
+        True
+
+        """
         parts = path.split(".")
         node = self
 
@@ -128,7 +168,23 @@ class OptionsNode:
         return node._children[leaf_name].value
 
     def set_option(self, path: str, value: Any) -> None:
-        """Set the value of an option at the specified path."""
+        """
+        Set the value of an option at the specified path.
+
+        Parameters
+        ----------
+        path : str
+            Path to the option. Must be in the format "category.option_name" or "category.subcategory.option_name"
+        value : Any
+            Value to set for the option.
+
+        Examples
+        --------
+        >>> pypsa.options.set_option("params.statistics.drop_zero", False)
+        >>> pypsa.options.get_option("params.statistics.drop_zero")
+        False
+
+        """
         parts = path.split(".")
         node = self
 
@@ -158,7 +214,50 @@ class OptionsNode:
                 child.reset_all()
 
     def describe_options(self, prefix: str = "") -> None:
-        """Print documentation for all options."""
+        """
+        Print documentation for all options.
+
+        Parameters
+        ----------
+        prefix : str
+            Prefix for the option path. Used for nested options.
+            If empty, the root options are printed.
+
+        Examples
+        --------
+        Print only params.statistics options:
+
+        >>> pypsa.options.params.statistics.describe_options()
+        PyPSA Options
+        =============
+        drop_zero:
+            Default: True
+            Description: Default value for the 'drop_zero' parameter in statistics module.
+        nice_names:
+            Default: True
+            Description: Default value for the 'nice_names' parameter in statistics module.
+        round:
+            Default: 5
+            Description: Default value for the 'round' parameter in statistics module.
+
+        Or print all options:
+        >>> pypsa.options.describe_options()
+        PyPSA Options
+        =============
+        params.statistics.drop_zero:
+            Default: True
+            Description: Default value for the 'drop_zero' parameter in statistics module.
+        params.statistics.nice_names:
+            Default: True
+            Description: Default value for the 'nice_names' parameter in statistics module.
+        params.statistics.round:
+            Default: 5
+            Description: Default value for the 'round' parameter in statistics module.
+        warnings.components_store_iter:
+            Default: True
+            Description: Some Description
+
+        """
         if not prefix:
             print("PyPSA Options\n=============")  # noqa: T201
 
@@ -166,9 +265,9 @@ class OptionsNode:
             path = f"{prefix}.{name}" if prefix else name
 
             if isinstance(child, Option):
-                print("%s:", path)  # noqa: T201
-                print("    Default: %s", child._default)  # noqa: T201
-                print("    Description: %s", child._docs)  # noqa: T201
+                print(f"{path}:")  # noqa: T201
+                print(f"    Default: {child._default}")  # noqa: T201
+                print(f"    Description: {child._docs}")  # noqa: T201
             else:
                 child.describe_options(path)
 
@@ -196,7 +295,9 @@ class OptionsNode:
         params.statistics.round:
             Default: 5
             Description: Default value for the 'round' parameter in statistics module.
-        ...
+        warnings.components_store_iter:
+            Default: True
+            Description: Some Description
 
         """
         self.describe_options()

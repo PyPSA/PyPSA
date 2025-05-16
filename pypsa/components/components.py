@@ -681,7 +681,7 @@ class SubNetworkComponents:
 
     Also See
     --------
-    pypsa.components.abstract.Components : Base class for all PyPSA components in the
+    pypsa.Components : Base class for all PyPSA components in the
     network.
     """
 
@@ -770,3 +770,51 @@ class SubNetworkComponents:
         """
         msg = "SubNetworkComponents is read-only"
         raise AttributeError(msg)
+
+    def __str__(self) -> str:
+        """
+        Get string representation of sub-network components.
+
+        Returns
+        -------
+        str
+            String representation of sub-network components.
+
+        Examples
+        --------
+        >>> str(sub_network.components.generators)
+        "'Generator' SubNetworkComponents"
+
+        """
+        return f"'{self.ctype.name}' SubNetworkComponents"
+
+    def __repr__(self) -> str:
+        """
+        Get representation of sub-network components.
+
+        Returns
+        -------
+        str
+            Representation of sub-network components.
+
+        Examples
+        --------
+        >>> sub_network.components.generators
+        'Generator' SubNetworkComponents
+        --------------------------------
+        Attached to Sub-Network of PyPSA Network 'AC-DC'
+        Components: 6
+
+        """
+        num_components = len(self._wrapped_data.static)
+        if not num_components:
+            return f"Empty {self}"
+        text = f"{self}\n" + "-" * len(str(self)) + "\n"
+
+        # Add attachment status
+        if self.attached:
+            text += f"Attached to Sub-Network of {str(self.n)}\n"
+
+        text += f"Components: {len(self._wrapped_data.static)}"
+
+        return text

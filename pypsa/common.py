@@ -43,7 +43,12 @@ class UnexpectedError(AssertionError):
 
         Examples
         --------
-        >>> raise UnexpectedError("This is an unexpected error.")
+        >>> try:
+        ...     raise UnexpectedError("This is an unexpected error.")
+        ... except UnexpectedError as e:
+        ...     print(str(e))  # doctest: +ELLIPSIS
+        This is an unexpected error.
+        Please track this issue in our issue tracker: https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml
 
         """
         track_message = (
