@@ -63,7 +63,7 @@ class NetworkCollection:
         if not isinstance(networks, pd.Series):
             # Format and validate index
             if index is None and not isinstance(networks, pd.Series):
-                names = [n.name.replace("", "network") for n in networks]
+                names = ["network" if not n.name else n.name for n in networks]
 
                 # Add a unique suffix to each network name to avoid duplicates, if necessary
                 counts = {}
@@ -228,7 +228,7 @@ class MemberProxy:
         instance.__init__(*args, **kwargs)
 
         # Immediately end recursion for non callable returns
-        first_accessor = instance.accessor_func(instance.collection.networks[0])
+        first_accessor = instance.accessor_func(instance.collection.networks.iloc[0])
         if not callable(first_accessor):
             processor = instance.get_processor()
             return processor(is_call=False)
@@ -354,9 +354,8 @@ class MemberProxy:
 
             elif axis == 1:
                 result.columns.names = (
-                    self.collection.networks.columns.names
-                    or ["network"] + first_result.columns.names
-                )
+                    self.collection.networks.index.names or ["network"]
+                ) + first_result.columns.names
             else:
                 msg = "Axis must be 0 or 1"
                 raise AssertionError(msg)
@@ -400,7 +399,7 @@ class MemberProxy:
         This is used for properties that are expected to be the same across all networks.
         """
         # Get the first network
-        first_network = self.collection.networks[0]
+        first_network = self.collection.networks.iloc[0]
         accessor = self.accessor_func(first_network)
         if is_call:
             result = accessor(*args, **kwargs)

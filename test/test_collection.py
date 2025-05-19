@@ -59,8 +59,8 @@ def test_collection_init_list(network1, network2):
     assert collection.networks.index.equals(
         pd.Index(["network", "network_1"], name="network")
     )
-    assert collection[0] == network1
-    assert collection[1] == network2
+    assert collection["network"] == network1
+    assert collection["network_1"] == network2
 
 
 def test_collection_init_list_with_index(network1, network2):
