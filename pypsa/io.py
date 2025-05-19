@@ -33,8 +33,7 @@ if TYPE_CHECKING:
     from pandapower.auxiliary import pandapowerNet
 
     from pypsa import Network
-
-
+    from pypsa.typing import NetworkType
 logger = logging.getLogger(__name__)
 
 
@@ -1669,7 +1668,7 @@ def import_series_from_dataframe(
 
 
 def _import_components_from_df(
-    n: Network, df: pd.DataFrame, cls_name: str, overwrite: bool = False
+    n: NetworkType, df: pd.DataFrame, cls_name: str, overwrite: bool = False
 ) -> None:
     """
     Import components from a pandas DataFrame.
@@ -1731,7 +1730,7 @@ def _import_components_from_df(
     for attr in [attr for attr in df if attr.startswith("bus")]:
         # allow empty buses for multi-ports
         port = int(attr[-1]) if attr[-1].isdigit() else 0
-        mask = ~df[attr].isin(n.buses.index)
+        mask = ~df[attr].isin(n.buses.index)  # type: ignore
         if port > 1:
             mask &= df[attr].ne("")
         missing = df.index[mask]
@@ -1765,7 +1764,7 @@ def _import_components_from_df(
         new_static = pd.concat((old_static, new_static), sort=False)
 
     if cls_name == "Shape":
-        new_static = gpd.GeoDataFrame(new_static, crs=n.crs)
+        new_static = gpd.GeoDataFrame(new_static, crs=n.crs)  # type: ignore
 
     # Align index (component names) and columns (attributes)
     new_static = _sort_attrs(new_static, attrs.index, axis=1)
