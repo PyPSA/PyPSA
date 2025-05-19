@@ -67,6 +67,7 @@ from pypsa.io import (
     import_series_from_dataframe,
     merge,
 )
+from pypsa.network.components import _NetworkComponents
 from pypsa.network.index import _NetworkIndex
 from pypsa.network.transform import _NetworkTransform
 from pypsa.optimization.optimize import OptimizationAccessor
@@ -117,7 +118,7 @@ def _create_component_property(property_type: str, component: str) -> property:
     return property(getter, setter)
 
 
-class Network(_NetworkTransform, _NetworkIndex):
+class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
     """Network container for all buses, one-ports and branches."""
 
     # Type hints
@@ -137,32 +138,6 @@ class Network(_NetworkTransform, _NetworkIndex):
     controllable_branch_components: set[str]
     controllable_one_port_components: set[str]
     one_port_components: set[str]
-
-    # Components
-    buses: pd.DataFrame
-    carriers: pd.DataFrame
-    global_constraints: pd.DataFrame
-    lines: pd.DataFrame
-    line_types: pd.DataFrame
-    transformers: pd.DataFrame
-    transformer_types: pd.DataFrame
-    links: pd.DataFrame
-    loads: pd.DataFrame
-    generators: pd.DataFrame
-    storage_units: pd.DataFrame
-    stores: pd.DataFrame
-    shunt_impedances: pd.DataFrame
-    shapes: pd.DataFrame
-
-    # Components (time-dependent data)
-    buses_t: Dict
-    generators_t: Dict
-    loads_t: Dict
-    lines_t: Dict
-    links_t: Dict
-    transformers_t: Dict
-    storage_units_t: Dict
-    stores_t: Dict
 
     # Optimization
     model: linopy.Model
@@ -512,17 +487,6 @@ class Network(_NetworkTransform, _NetworkIndex):
 
             self.components[ctype.list_name] = Component(ctype=ctype, n=self)
 
-            setattr(
-                type(self),
-                ctype.list_name,
-                _create_component_property("static", ctype.list_name),
-            )
-            setattr(
-                type(self),
-                ctype.list_name + "_t",
-                _create_component_property("dynamic", ctype.list_name),
-            )
-
     def _read_in_default_standard_types(self) -> None:
         """Read in the default standard types from the data folder."""
         for std_type in self.standard_type_components:
@@ -733,8 +697,8 @@ class Network(_NetworkTransform, _NetworkIndex):
         pypsa.Network.shapes : Geometries of the network
 
         """
-        self.shapes.set_crs(new)
-        self._crs = self.shapes.crs
+        self.components.shapes.static.set_crs(new)
+        self._crs = self.components.shapes.static.crs
 
     def to_crs(self, new: int | str | pyproj.CRS) -> None:
         """

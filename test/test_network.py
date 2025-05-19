@@ -501,3 +501,32 @@ def test_components_repr(ac_dc_network):
     n = pypsa.Network()
     assert repr(n).startswith("Empty Unnamed PyPSA Network")
     assert len(repr(n)) > len(str(n))
+
+
+@pytest.mark.parametrize("legacy_components", [True, False])
+def test_api_components_legacy(legacy_components):
+    """
+    Test the API of the components module.
+    """
+    import pypsa
+
+    with pypsa.option_context("api.legacy_components", legacy_components):
+        n = pypsa.examples.ac_dc_meshed()
+
+        if legacy_components:
+            assert n.buses is n.components.buses.static
+            assert n.buses_t is n.components.buses.dynamic
+            assert n.lines is n.components.lines.static
+            assert n.lines_t is n.components.lines.dynamic
+            assert n.generators is n.components.generators.static
+            assert n.generators_t is n.components.generators.dynamic
+        else:
+            assert n.buses is n.components.buses
+            with pytest.raises(DeprecationWarning):
+                assert n.buses_t is n.components.buses.dynamic
+            assert n.lines is n.components.lines
+            with pytest.raises(DeprecationWarning):
+                assert n.lines_t is n.components.lines.dynamic
+            assert n.generators is n.components.generators
+            with pytest.raises(DeprecationWarning):
+                assert n.generators_t is n.components.generators.dynamic
