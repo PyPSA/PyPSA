@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import math
@@ -49,6 +50,7 @@ def _retrieve_from_url(
 ) -> Network: ...
 
 
+@functools.lru_cache(maxsize=128)
 def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Network:
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         file_path = Path(temp_file.name)
