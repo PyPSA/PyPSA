@@ -8,10 +8,10 @@ from pypsa.components.components import Components
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from pypsa.typing import NetworkType
 
 
-def as_components(n: Network, value: str | Components) -> Components:
+def as_components(n: NetworkType, value: str | Components) -> Components:
     """
     Get component instance from string.
 
