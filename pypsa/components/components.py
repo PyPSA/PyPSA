@@ -26,6 +26,7 @@ from pyproj import CRS
 
 from pypsa.common import equals
 from pypsa.components.descriptors import _ComponentsDescriptors
+from pypsa.components.index import _ComponentsIndex
 from pypsa.components.transform import _ComponentsTransform
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.structures import Dict
@@ -70,7 +71,9 @@ class ComponentsData:
     dynamic: dict
 
 
-class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
+class Components(
+    ComponentsData, _ComponentsDescriptors, _ComponentsTransform, _ComponentsIndex
+):
     """
     Components base class.
 
@@ -508,31 +511,6 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
 
         """
         return self.ctype.defaults
-
-    @property
-    def component_names(self) -> pd.Index:
-        """Unique names of the components."""
-        return self.static.index.get_level_values(self.ctype.name).unique()
-
-    @property
-    def snapshots(self) -> pd.Index | pd.MultiIndex:
-        """Snapshots of the network."""
-        return self.n_save.snapshots
-
-    @property
-    def timesteps(self) -> pd.Index:
-        """Time steps of the network."""
-        return self.n_save.timesteps
-
-    @property
-    def investment_periods(self) -> pd.Index:
-        """Investment periods of the network."""
-        return self.n_save.investment_periods
-
-    @property
-    def has_investment_periods(self) -> bool:
-        """Indicator whether network has investment persios."""
-        return self.n_save.has_investment_periods
 
     @property
     def empty(self) -> bool:
