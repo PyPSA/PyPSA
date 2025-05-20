@@ -53,6 +53,7 @@ website/examples/*.py
 
 .vscode
 .devcontainer
+.github/copilot-instructions.md
 
 .idea
 
