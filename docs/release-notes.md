@@ -52,7 +52,7 @@ hides:
 
 
 - Added new single node capacity expansion example in style of model.energy.
-  It can be loaded with ``pypsa.examples.model_energy()``.
+  It can be loaded with [`pypsa.examples.model_energy()`][pypsa.examples.model_energy].
 
 - Add new example for how to run MGA ('modelling-to-generate-alternatives') optimisation.
 
@@ -62,15 +62,15 @@ hides:
 
 ### Features
 
-- New supported file formats for import and export: Excel
+- New supported file formats for import and export: **Excel**
 
-  - Use :meth:`n.import_from_excel <pypsa.io.import_from_excel>` and 
-    :meth:`n.export_to_excel <pypsa.io.export_to_excel>` to import and export Networks
-    from and to Excel files.
-     
-  - `openpyxl` and `python-calamine` are required dependencies for this feature, but
-    different engines can be passed. By default they are not installed, but can be
-    installed via ``pip install pypsa[excel]``.
+    - Use [`n.import_from_excel`][pypsa.Network.import_from_excel] and 
+      [`n.export_to_excel`][pypsa.Network.export_to_excel] to import and export Networks
+      from and to Excel files.
+
+    - `openpyxl` and `python-calamine` are required dependencies for this feature, but
+      different engines can be passed. By default they are not installed, but can be
+      installed via ``pip install pypsa[excel]``.
 
 - New plotting library
 
@@ -144,7 +144,6 @@ hides:
   or `at_port` is set to True. This is in line with the behavior of the statistics 
   functions (`statistics.installed_capacity`, `statistics.optimal_capacity`). 
   Before, the efficiency was allowed to be negative, which lead to inconsistent results.
-
 
 ## [**v0.33.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.33.1) <small>3rd March 2025</small> { id="v0.33.1" }
 
@@ -374,8 +373,8 @@ hides:
     components using the new argument ``overwrite``. Because of the more strict 
     alignment checks, this might be a **breaking change** for some users.
   
-  - Therefore the methods :meth:`n.madd <pypsa.Network.madd>` and 
-    :meth:`n.mremove <pypsa.Network.mremove>` are now deprecated and will point to
+  - Therefore the methods [`n.madd`][pypsa.Network.madd] and 
+    [`n.mremove`][pypsa.Network.mremove] are now deprecated and will point to
     their generalised counterparts.
 
 * New function :meth:`n.optimize_and_run_non_linear_powerflow <pypsa.optimization.optimize.OptimizationAccessor.optimize_and_run_non_linear_powerflow>`
@@ -1328,7 +1327,7 @@ documentation's examples section as well as compatibility and bug fixes.
   with multi-indexed snapshots.
 
 * Many example notebooks are now also integrated in the
-  documentation. See :doc:`/getting-started/quick-start`, :doc:`/examples-index/lopf`,
+  documentation. See :doc:`/getting-started/quickstart`, :doc:`/examples-index/lopf`,
   :doc:`/examples-index/sector-coupling` and :doc:`/examples-index/other`.
 
 

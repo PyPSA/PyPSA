@@ -1,10 +1,12 @@
 
 # Open-Source Models Based on PyPSA
 
+PyPSA is the software framework to build open-source energy system models. Many model implementations by different [users](users.md) already exist and some are open source and actively maintained. Below is a list of some of the most notable models based on PyPSA.
+
 ## Regional Models
 
 ### Global
-- **[PyPSA-Earth](https://github.com/pypsa-meets-earth/pypsa-earth)**: Global energy system model, maintained by [pypsa-meets-earth](https://pypsa-meets-earth.github.io/).
+- **[PyPSA-Earth](https://github.com/pypsa-meets-earth/pypsa-earth)**: Global energy system model, maintained by [pypsa-meets-earth](https://pypsa-meets-earth.github.io/)
 
 ### Europe
 - **[PyPSA-Eur](https://github.com/PyPSA/pypsa-eur)**: European energy system model, maintained by [pypsa.org](https://pypsa.org)

@@ -1415,6 +1415,10 @@ class Network:
         Pass a list of names to add multiple components at once or pass a single name
         to add a single component.
 
+        !!! warning "Deprecated in v1.0"
+            Use `n.add_component` instead.
+
+
         When a single component is added, all non-scalar attributes are assumed to be
         time-varying and indexed by snapshots.
         When multiple components are added, all non-scalar attributes are assumed to be

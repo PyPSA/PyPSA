@@ -1,1 +1,0 @@
-::: pypsa.components.Component

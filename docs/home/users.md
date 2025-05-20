@@ -1,3 +1,8 @@
+---
+tags:
+- todo
+---
+
 # Users
 
 
@@ -7,11 +12,9 @@ Research publications that cite the [PyPSA research paper](https://doi.org/10.53
 
 The PyPSA user meetings give further insight into the use of PyPSA in the energy sector.
 
-![type:video](https://www.youtube.com/watch?v=43DK6_kFfN0)
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/43DK6_kFfN0?si=-96_gUd8ACmq3Tix" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Find the 1st PyPSA user meeting in 10/2022 [here](https://www.youtube.com/embed/fmwDxNpSMM4>).
-
-.. _academic-mentions:
 
 ## Universities and Research Institutes
 

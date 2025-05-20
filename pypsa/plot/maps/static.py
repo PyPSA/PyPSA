@@ -1035,8 +1035,8 @@ class MapPlotter:
             with widths in display units. The latter is useful for plotting
             consistent branch widths and flows in different zoom levels.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         line_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
             Flow to be for each line branch. If an element of
             n.snapshots is given, the flow at this timestamp will be

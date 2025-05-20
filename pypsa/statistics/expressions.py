@@ -440,8 +440,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure.
             Defaults to `capital_cost`.
@@ -539,8 +539,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure.
             Defaults to `capital_cost`.
@@ -645,8 +645,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure.
             Defaults to `capital_cost`.
@@ -759,8 +759,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         storage : bool, default=False
             Whether to consider only storage capacities of the components
             `Store` and `StorageUnit`.
@@ -871,8 +871,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         storage : bool, default=False
             Whether to consider only storage capacities of the components
             `Store` and `StorageUnit`.
@@ -1092,8 +1092,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1256,8 +1256,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1366,8 +1366,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1465,8 +1465,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1564,8 +1564,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1679,8 +1679,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1813,8 +1813,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1919,8 +1919,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -2029,8 +2029,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -2152,8 +2152,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when

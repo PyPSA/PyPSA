@@ -66,10 +66,12 @@ dev = [
     "ruff",
     "mypy"
 ]
-docs = [
+docs = [    
     "mkdocs-material",
     "mkdocs-obsidian-interactive-graph-plugin",
     "mkdocs-ezlinks-plugin",
+    "mkdocs-autolinks-plugin",
+    "mkdocs-redirects",
     "mkdocs-video",
     "mkdocs-git-revision-date-localized-plugin",
     "mkdocs-open-in-new-tab",
@@ -192,7 +194,7 @@ ignore = [
 
 
 [tool.ruff.lint.per-file-ignores]
-"{test,examples,doc}/**" = [
+"{test,examples,doc,docs}/**" = [
     'D',     # pydocstyle
     'ERA',   # eradicate
     'S',     # flake8-bandit

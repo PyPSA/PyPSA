@@ -1,8 +1,5 @@
 version: 2
 
-mkdocs:
-  configuration: mkdocs.yml
-
 build:
   os: ubuntu-24.04
   tools:
@@ -12,6 +9,10 @@ build:
     - git fetch --unshallow # Needed to get version tags
     pre_install:
     - pip install mkdocs-material
+
+mkdocs:
+  configuration: mkdocs.yml
+  fail_on_warning: true
 
 python:
   install:
