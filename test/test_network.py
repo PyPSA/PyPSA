@@ -508,8 +508,6 @@ def test_api_components_legacy(legacy_components):
     """
     Test the API of the components module.
     """
-    import pypsa
-
     with pypsa.option_context("api.legacy_components", legacy_components):
         n = pypsa.examples.ac_dc_meshed()
 
@@ -530,3 +528,28 @@ def test_api_components_legacy(legacy_components):
             assert n.generators is n.components.generators
             with pytest.raises(DeprecationWarning):
                 assert n.generators_t is n.components.generators.dynamic
+
+
+@pytest.mark.parametrize("legacy_components", [True, False])
+def test_api_legacy_components(component_name, legacy_components):
+    """
+    Test the API of the components module.
+    """
+
+    with pypsa.option_context("api.legacy_components", legacy_components):
+        n = pypsa.examples.ac_dc_meshed()
+        if legacy_components:
+            assert n.static(component_name) is n.c[component_name].static
+            assert n.dynamic(component_name) is n.c[component_name].dynamic
+
+            setattr(n, component_name, "test")
+            assert n.static(component_name) == "test"
+            setattr(n, f"{component_name}_t", "test")
+            assert n.dynamic(component_name) == "test"
+        else:
+            assert n.static(component_name) is n.c[component_name].static
+            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.raises(AttributeError):
+                setattr(n, component_name, "test")
+            with pytest.raises(DeprecationWarning):
+                setattr(n, f"{component_name}_t", "test")

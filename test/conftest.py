@@ -9,6 +9,29 @@ from shapely.geometry import Polygon
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
+COMPONENT_NAMES = [
+    "sub_networks",
+    "buses",
+    "carriers",
+    "global_constraints",
+    "lines",
+    "line_types",
+    "transformers",
+    "transformer_types",
+    "links",
+    "loads",
+    "generators",
+    "storage_units",
+    "stores",
+    "shunt_impedances",
+    "shapes",
+]
+
+
+@pytest.fixture(params=COMPONENT_NAMES)
+def component_name(request):
+    return request.param
+
 
 def pytest_addoption(parser):
     parser.addoption(

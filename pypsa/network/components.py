@@ -17,7 +17,6 @@ pypsa.network.index
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import TYPE_CHECKING
 
 from pypsa.network.abstract import _NetworkABC
@@ -45,7 +44,25 @@ from pypsa._options import options
 logger = logging.getLogger(__name__)
 
 # TODO Change to UserWarning when they are all resolved and raised
-# TODO Handle setters
+
+
+_STATIC_SETTER_WARNING = (
+    "You are overwriting the network components with a new object. This is "
+    "not supported, since it may lead to unexpected behavior. See #TODO. "
+    "for more information."
+)
+
+_DYNAMIC_GETTER_WARNING = (
+    "With PyPSA 1.0, the API for how to access components data has changed. "
+    "See #TODO for more information. Use `n.{0}.dynamic` as a "
+    "drop-in replacement for `n.{0}_t`."
+)
+
+_DYNAMIC_SETTER_WARNING = (
+    "With PyPSA 1.0, the API for how to access components data has changed. "
+    "See #TODO for more information. `n.{0}_t` is deprecated and "
+    "cannot be set."
+)
 
 
 class _NetworkComponents(_NetworkABC):
@@ -66,34 +83,19 @@ class _NetworkComponents(_NetworkABC):
     @sub_networks.setter
     def sub_networks(self, value: SubNetworks) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "You are overwriting the network components with a new object. This is "
-                "not supported, since it may lead to unexpected behavior. See #TODO. "
-                "for more information."
-            )
-            raise ValueError(msg)
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.sub_networks.static = value
 
     @property
     def sub_networks_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.sub_networks.dynamic` as a "
-                "drop-in replacement for `n.sub_networks_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("sub_networks"))
         return self.c.sub_networks.dynamic
 
     @sub_networks_t.setter
     def sub_networks_t(self, value: None) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. `n.sub_networks_t` is deprecated and "
-                "cannot be set."
-            )
-            raise ValueError(msg)
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("sub_networks"))
         self.c.sub_networks.dynamic = value
 
     @property
@@ -103,25 +105,20 @@ class _NetworkComponents(_NetworkABC):
     @buses.setter
     def buses(self, value: Buses) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `buses` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.buses.static = value
 
     @property
     def buses_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.buses.dynamic` as a "
-                "drop-in replacement for `n.buses_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("buses"))
         return self.c.buses.dynamic
+
+    @buses_t.setter
+    def buses_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("buses"))
+        self.c.buses.dynamic = value
 
     @property
     def carriers(self) -> Carriers:
@@ -132,25 +129,20 @@ class _NetworkComponents(_NetworkABC):
     @carriers.setter
     def carriers(self, value: Carriers) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `carriers` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.carriers.static = value
 
     @property
     def carriers_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.carriers.dynamic` as a "
-                "drop-in replacement for `n.carrier_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("carriers"))
         return self.c.carriers.dynamic
+
+    @carriers_t.setter
+    def carriers_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("carriers"))
+        self.c.carriers.dynamic = value
 
     @property
     def global_constraints(self) -> GlobalConstraints:
@@ -163,25 +155,24 @@ class _NetworkComponents(_NetworkABC):
     @global_constraints.setter
     def global_constraints(self, value: GlobalConstraints) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `global_constraints` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.global_constraints.static = value
 
     @property
     def global_constraints_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.global_constraints.dynamic` as a "
-                "drop-in replacement for `n.global_constraint_t`."
+            raise DeprecationWarning(
+                _DYNAMIC_GETTER_WARNING.format("global_constraints")
             )
-            raise DeprecationWarning(msg)
         return self.c.global_constraints.dynamic
+
+    @global_constraints_t.setter
+    def global_constraints_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(
+                _DYNAMIC_SETTER_WARNING.format("global_constraints")
+            )
+        self.c.global_constraints.dynamic = value
 
     @property
     def lines(self) -> Lines:
@@ -190,25 +181,20 @@ class _NetworkComponents(_NetworkABC):
     @lines.setter
     def lines(self, value: Lines) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `lines` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.lines.static = value
 
     @property
     def lines_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.lines.dynamic` as a "
-                "drop-in replacement for `n.lines_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("lines"))
         return self.c.lines.dynamic
+
+    @lines_t.setter
+    def lines_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("lines"))
+        self.c.lines.dynamic = value
 
     @property
     def line_types(self) -> LineTypes:
@@ -221,25 +207,20 @@ class _NetworkComponents(_NetworkABC):
     @line_types.setter
     def line_types(self, value: LineTypes) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `line_types` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.line_types.static = value
 
     @property
     def line_types_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.line_types.dynamic` as a "
-                "drop-in replacement for `n.line_types_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("line_types"))
         return self.c.line_types.dynamic
+
+    @line_types_t.setter
+    def line_types_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("line_types"))
+        self.c.line_types.dynamic = value
 
     @property
     def transformers(self) -> Transformers:
@@ -252,25 +233,20 @@ class _NetworkComponents(_NetworkABC):
     @transformers.setter
     def transformers(self, value: Transformers) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `transformers` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.transformers.static = value
 
     @property
     def transformers_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.transformers.dynamic` as a "
-                "drop-in replacement for `n.transformers_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("transformers"))
         return self.c.transformers.dynamic
+
+    @transformers_t.setter
+    def transformers_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("transformers"))
+        self.c.transformers.dynamic = value
 
     @property
     def transformer_types(self) -> TransformerTypes:
@@ -283,25 +259,24 @@ class _NetworkComponents(_NetworkABC):
     @transformer_types.setter
     def transformer_types(self, value: TransformerTypes) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `transformer_types` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.transformer_types.static = value
 
     @property
     def transformer_types_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.transformer_types.dynamic` as a "
-                "drop-in replacement for `n.transformer_types_t`."
+            raise DeprecationWarning(
+                _DYNAMIC_GETTER_WARNING.format("transformer_types")
             )
-            raise DeprecationWarning(msg)
         return self.c.transformer_types.dynamic
+
+    @transformer_types_t.setter
+    def transformer_types_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(
+                _DYNAMIC_SETTER_WARNING.format("transformer_types")
+            )
+        self.c.transformer_types.dynamic = value
 
     @property
     def links(self) -> Links:
@@ -310,25 +285,20 @@ class _NetworkComponents(_NetworkABC):
     @links.setter
     def links(self, value: Links) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `links` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.links.static = value
 
     @property
     def links_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.links.dynamic` as a "
-                "drop-in replacement for `n.links_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("links"))
         return self.c.links.dynamic
+
+    @links_t.setter
+    def links_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("links"))
+        self.c.links.dynamic = value
 
     @property
     def loads(self) -> Loads:
@@ -337,25 +307,20 @@ class _NetworkComponents(_NetworkABC):
     @loads.setter
     def loads(self, value: Loads) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `loads` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.loads.static = value
 
     @property
     def loads_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.loads.dynamic` as a "
-                "drop-in replacement for `n.loads_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("loads"))
         return self.c.loads.dynamic
+
+    @loads_t.setter
+    def loads_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("loads"))
+        self.c.loads.dynamic = value
 
     @property
     def generators(self) -> Generators:
@@ -368,25 +333,20 @@ class _NetworkComponents(_NetworkABC):
     @generators.setter
     def generators(self, value: Generators) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `generators` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.generators.static = value
 
     @property
     def generators_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.generators.dynamic` as a "
-                "drop-in replacement for `n.generators_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("generators"))
         return self.c.generators.dynamic
+
+    @generators_t.setter
+    def generators_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("generators"))
+        self.c.generators.dynamic = value
 
     @property
     def storage_units(self) -> StorageUnits:
@@ -399,25 +359,20 @@ class _NetworkComponents(_NetworkABC):
     @storage_units.setter
     def storage_units(self, value: StorageUnits) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `storage_units` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.storage_units.static = value
 
     @property
     def storage_units_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.storage_units.dynamic` as a "
-                "drop-in replacement for `n.storage_units_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("storage_units"))
         return self.c.storage_units.dynamic
+
+    @storage_units_t.setter
+    def storage_units_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("storage_units"))
+        self.c.storage_units.dynamic = value
 
     @property
     def stores(self) -> Stores:
@@ -426,25 +381,20 @@ class _NetworkComponents(_NetworkABC):
     @stores.setter
     def stores(self, value: Stores) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `stores` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.stores.static = value
 
     @property
     def stores_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.stores.dynamic` as a "
-                "drop-in replacement for `n.stores_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("stores"))
         return self.c.stores.dynamic
+
+    @stores_t.setter
+    def stores_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("stores"))
+        self.c.stores.dynamic = value
 
     @property
     def shunt_impedances(self) -> ShuntImpedances:
@@ -457,25 +407,20 @@ class _NetworkComponents(_NetworkABC):
     @shunt_impedances.setter
     def shunt_impedances(self, value: ShuntImpedances) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `shunt_impedances` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.shunt_impedances.static = value
 
     @property
     def shunt_impedances_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.shunt_impedances.dynamic` as a "
-                "drop-in replacement for `n.shunt_impedances_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("shunt_impedances"))
         return self.c.shunt_impedances.dynamic
+
+    @shunt_impedances_t.setter
+    def shunt_impedances_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("shunt_impedances"))
+        self.c.shunt_impedances.dynamic = value
 
     @property
     def shapes(self) -> Shapes:
@@ -484,22 +429,17 @@ class _NetworkComponents(_NetworkABC):
     @shapes.setter
     def shapes(self, value: Shapes) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `shapes` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.shapes.static = value
 
     @property
     def shapes_t(self) -> None:
         if not options.api.legacy_components:
-            msg = (
-                "With PyPSA 1.0, the API for how to access components data has changed. "
-                "See #TODO for more information. Use `n.shapes.dynamic` as a "
-                "drop-in replacement for `n.shapes_t`."
-            )
-            raise DeprecationWarning(msg)
+            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("shapes"))
         return self.c.shapes.dynamic
+
+    @shapes_t.setter
+    def shapes_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("shapes"))
+        self.c.shapes.dynamic = value
