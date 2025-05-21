@@ -545,7 +545,7 @@ def deprecated_namespace(
 
 
 def list_as_string(
-    list_: Sequence | dict, prefix: str = "", style: str = "comma-seperated"
+    list_: Sequence | dict, prefix: str = "", style: str = "comma-separated"
 ) -> str:
     """
     Convert a list to a formatted string.
@@ -580,11 +580,11 @@ def list_as_string(
     if len(list_) == 0:
         return ""
 
-    if style == "comma-seperated":
+    if style == "comma-separated":
         return prefix + ", ".join(list_)
     if style == "bullet-list":
         return prefix + "- " + f"\n{prefix}- ".join(list_)
-    msg = f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
+    msg = f"Style '{style}' not recognized. Use 'comma-separated' or 'bullet-list'."
     raise ValueError(msg)
 
 
