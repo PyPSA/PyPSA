@@ -1732,7 +1732,7 @@ def _import_components_from_df(
     for attr in [attr for attr in df if attr.startswith("bus")]:
         # allow empty buses for multi-ports
         port = int(attr[-1]) if attr[-1].isdigit() else 0
-        mask = ~df[attr].isin(n.components.buses.static.index)  # type: ignore
+        mask = ~df[attr].isin(n.components.buses.static.index)
         if port > 1:
             mask &= df[attr].ne("")
         missing = df.index[mask]

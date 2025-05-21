@@ -531,6 +531,11 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
         """
         return self.components
 
+    # TODO Disallow setter
+    @c.setter
+    def c(self, value: ComponentsStore) -> None:
+        self.components = value
+
     @deprecated_in_next_major(
         details="Use `self.components.<component>.dynamic` instead."
     )
