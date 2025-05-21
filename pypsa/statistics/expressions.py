@@ -380,7 +380,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return pd.concat(res, axis=1).sort_index(axis=0)
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def capex(
+    def capex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -482,7 +482,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def installed_capex(
+    def installed_capex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -588,7 +588,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def expanded_capex(
+    def expanded_capex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -699,7 +699,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def optimal_capacity(
+    def optimal_capacity(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -811,7 +811,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def installed_capacity(
+    def installed_capacity(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -1031,7 +1031,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def opex(
+    def opex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1197,7 +1197,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def system_cost(
+    def system_cost(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1307,7 +1307,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def supply(
+    def supply(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1406,7 +1406,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def withdrawal(
+    def withdrawal(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1505,7 +1505,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def transmission(
+    def transmission(  # noqa: D417
         self,
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
@@ -1617,7 +1617,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
-    def energy_balance(
+    def energy_balance(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1753,7 +1753,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def curtailment(
+    def curtailment(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1862,7 +1862,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def capacity_factor(
+    def capacity_factor(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",
@@ -1968,7 +1968,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
-    def revenue(
+    def revenue(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -2092,7 +2092,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def market_value(
+    def market_value(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",

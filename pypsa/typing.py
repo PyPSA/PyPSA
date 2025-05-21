@@ -5,6 +5,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_list_like
+from typing_extensions import TypeVar
+
+from pypsa.network.abstract import _NetworkABC
+
+NetworkType = TypeVar("NetworkType", bound=_NetworkABC)
 
 
 def is_1d_list_like(x: Any) -> bool:

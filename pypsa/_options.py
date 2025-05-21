@@ -224,6 +224,9 @@ class OptionsNode:
         >>> pypsa.options.describe_options()
         PyPSA Options
         =============
+        api.legacy_components:
+            Default: True
+            Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -235,7 +238,7 @@ class OptionsNode:
             Description: Default value for the 'round' parameter in statistics module.
         warnings.components_store_iter:
             Default: True
-            Description: Some Description
+            Description: If False, suppresses the deprecatio warning when iterating over components.
 
         """
         if not prefix:
@@ -266,6 +269,9 @@ class OptionsNode:
         >>> pypsa.options.describe() # doctest: +ELLIPSIS
         PyPSA Options
         =============
+        api.legacy_components:
+            Default: True
+            Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -277,7 +283,7 @@ class OptionsNode:
             Description: Default value for the 'round' parameter in statistics module.
         warnings.components_store_iter:
             Default: True
-            Description: Some Description
+            Description: If False, suppresses the deprecatio warning when iterating over components.
 
         """
         self.describe_options()
@@ -325,8 +331,22 @@ def option_context(*args: Any) -> Generator[None, None, None]:
 # Setup default options
 # =====================
 
+# API
+options._add_option(
+    "api.legacy_components",
+    True,
+    "WARNING: Experimental feature. Not all PyPSA functionality is supported yet. "
+    "Use legacy components API for backwards compatibility to PyPSA versions prior to "
+    "1.0.0. It is still recommended to use the new API and not to rely on the legacy "
+    "API. This option will be removed with PyPSA 2.0.0.",
+)
+
 # Warnings category
-options._add_option("warnings.components_store_iter", True, "Some Description")
+options._add_option(
+    "warnings.components_store_iter",
+    True,
+    "If False, suppresses the deprecatio warning when iterating over components. ",
+)
 
 # Parameters category
 options._add_option(

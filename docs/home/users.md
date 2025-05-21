@@ -114,7 +114,7 @@ Find the 1st PyPSA user meeting in 10/2022 [here](https://www.youtube.com/embed/
 * `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_ and `this project description <https://www.apg.at/projekte/zusammen-2040/>`_.
 
 * `Centre for Net Zero <https://www.centrefornetzero.org/>`_, a research unit
-  founded by `Octupus Energy <https://octupus.energy>`_, used PyPSA in a `report
+  founded by `Octopus Energy <https://octopus.energy>`_, used PyPSA in a `report
   <https://www.centrefornetzero.org/work/whole-system-modelling-of-future-energy-scenarios-domestic-gb-demand-flexibility/>`_
   to investigate the role of demand flexibility in future UK energy systems.
 

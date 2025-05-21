@@ -49,7 +49,7 @@ q_set=100)
 
 ```
 
-Note that fixed values of active and reactive power are set with `p_set` and `q_set` respectively. After initializing, there are plenty of options what you can do with your network. The examples section gives a broad overview.
+Note that fixed values of active and reactive power are set with `p_set` and `q_set` respectively. After initializing, there are plenty of options for what you can do with your network. The examples section gives a broad overview.
 
 ## Basic Examples
 

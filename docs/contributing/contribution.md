@@ -4,7 +4,7 @@ Contributing
 
 First of all, thank you for thinking about contributing to PyPSA! 
 
-We strongly welcome anyone interested in PyPSA and all it's related projects, be it
+We strongly welcome anyone interested in PyPSA and all its related projects, be it
 with new ideas, suggestions, submitting bug reports or contributing code changes.
 
 **How to contribute**

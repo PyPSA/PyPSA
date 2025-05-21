@@ -304,8 +304,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if attr is None:
                 return None
             var = n.model.variables[f"{c}-{attr}"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost")
-            weights = get_weightings(n, c)
+            sns = var.indexes["snapshot"]
+            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -358,10 +359,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            sns = var.indexes["snapshot"]
             idx = transmission_branches.get_loc_level(c)[1].rename(c)
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(efficiency, pd.DataFrame):
+                efficiency = efficiency.loc[sns]
             p = var.loc[:, idx] * efficiency[idx]
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -421,10 +425,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(efficiency, pd.DataFrame):
+                efficiency = efficiency.loc[sns]
             sign = n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             coeffs = DataArray(efficiency * sign)
             if kind == "supply":
                 coeffs = coeffs.clip(min=0)
@@ -566,12 +573,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
             idx = capacity.indexes[c]
-            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx])
             operation = self._get_operational_variable(c).loc[:, idx]
+            sns = operation.indexes["snapshot"]
+            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(curtailment, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -619,7 +627,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
-            weights = get_weightings(n, c)
+            sns = operation.indexes["snapshot"]
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(operation, weights, agg=aggregate_time)
 
         return self._aggregate_components(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import math
@@ -33,8 +34,7 @@ if TYPE_CHECKING:
     from pandapower.auxiliary import pandapowerNet
 
     from pypsa import Network
-
-
+    from pypsa.typing import NetworkType
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +50,7 @@ def _retrieve_from_url(
 ) -> Network: ...
 
 
+@functools.lru_cache(maxsize=128)
 def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Network:
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         file_path = Path(temp_file.name)
@@ -1669,7 +1670,7 @@ def import_series_from_dataframe(
 
 
 def _import_components_from_df(
-    n: Network, df: pd.DataFrame, cls_name: str, overwrite: bool = False
+    n: NetworkType, df: pd.DataFrame, cls_name: str, overwrite: bool = False
 ) -> None:
     """
     Import components from a pandas DataFrame.
@@ -1731,7 +1732,7 @@ def _import_components_from_df(
     for attr in [attr for attr in df if attr.startswith("bus")]:
         # allow empty buses for multi-ports
         port = int(attr[-1]) if attr[-1].isdigit() else 0
-        mask = ~df[attr].isin(n.buses.index)
+        mask = ~df[attr].isin(n.components.buses.static.index)
         if port > 1:
             mask &= df[attr].ne("")
         missing = df.index[mask]
@@ -1765,13 +1766,13 @@ def _import_components_from_df(
         new_static = pd.concat((old_static, new_static), sort=False)
 
     if cls_name == "Shape":
-        new_static = gpd.GeoDataFrame(new_static, crs=n.crs)
+        new_static = gpd.GeoDataFrame(new_static, crs=n.crs)  # type: ignore
 
     # Align index (component names) and columns (attributes)
     new_static = _sort_attrs(new_static, attrs.index, axis=1)
 
     new_static.index.name = cls_name
-    setattr(n, n.components[cls_name]["list_name"], new_static)
+    n.components[cls_name].static = new_static
 
     # Now deal with time-dependent properties
 
@@ -1788,7 +1789,7 @@ def _import_components_from_df(
             new_components = df.index.difference(duplicated_components)
             dynamic[k].loc[:, new_components] = df.loc[new_components, k].values
 
-    setattr(n, n.components[cls_name]["list_name"] + "_t", dynamic)
+    n.components[cls_name].dynamic = dynamic
 
 
 def _import_series_from_df(

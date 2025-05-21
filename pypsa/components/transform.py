@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from pypsa.definitions.structures import Dict
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +30,7 @@ class _ComponentsTransform:
     """
 
     static: pd.DataFrame
-    dynamic: dict[str, pd.DataFrame]
+    dynamic: Dict
     attached: Any
     n_save: Any
     name: Any

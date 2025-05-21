@@ -754,7 +754,7 @@ class MapPlotter:
         alpha: float = 1,
     ) -> PatchCollection:
         """Helper function to generate arrows from flow data."""
-        # this funtion is used for diplaying arrows representing the network flow
+        # this function is used for diplaying arrows representing the network flow
         data = pd.DataFrame(
             {
                 "arrowsize": flow.abs().pipe(np.sqrt).clip(lower=1e-8),
@@ -936,7 +936,7 @@ class MapPlotter:
         """
         return abs(flow) ** 0.5 * width_factor
 
-    def draw_map(
+    def draw_map(  # noqa: D417
         self,
         ax: Axes | None = None,
         projection: Any = None,

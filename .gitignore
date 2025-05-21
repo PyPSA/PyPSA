@@ -49,3 +49,4 @@ dev
 .venv
 .aider*
 uv.lock
+.github/copilot-instructions.md

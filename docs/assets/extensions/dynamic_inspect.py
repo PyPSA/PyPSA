@@ -18,12 +18,12 @@ class InspectSpecificObjects(griffe.Extension):
     def on_instance(self, *, obj: griffe.Object, **kwargs) -> None:
         if obj.path not in self.objects:
             return
-        logger.info(f"Using InspectSpecificObjects for {obj.path}")
+        logger.info("Using InspectSpecificObjects for %s", obj.path)
 
         try:
             runtime_obj = griffe.dynamic_import(obj.path)
         except ImportError as error:
-            logger.warning(f"Could not import {obj.path}: {error}")
+            logger.warning("Could not import %s: %s", obj.path, error)
             return
 
         if obj.docstring:
