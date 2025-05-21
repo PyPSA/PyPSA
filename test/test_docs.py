@@ -79,7 +79,7 @@ def test_sphinx_build(pytestconfig):
         (r"DeprecationWarning: nodes.reprunicode", 1),
         (r"DeprecationWarning: The `docutils.utils.error_reporting` module is", 2),
         (r"UserWarning: resource_tracker", 1),
-        (r"WARNING: The the file [^ ]+ couldn't be copied\. Error:", 1),
+        (r"WARNING: The file [^ ]+ couldn't be copied\. Error:", 1),
     ]
 
     shutil.rmtree(build_dir, ignore_errors=True)
