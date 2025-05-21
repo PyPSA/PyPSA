@@ -15,13 +15,14 @@ if TYPE_CHECKING:
 
     from pypsa import Network
     from pypsa.components.types import ComponentType
+    from pypsa.definitions.structures import Dict
 
 
 class _ComponentsABC(ABC):
     ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
-    dynamic: dict
+    dynamic: Dict
 
     @property
     @abstractmethod

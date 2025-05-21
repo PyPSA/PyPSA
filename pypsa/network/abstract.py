@@ -26,4 +26,5 @@ class _NetworkABC(ABC):
     static: pd.DataFrame
     dynamic: Callable
     components: ComponentsStore
+    c: ComponentsStore
     _import_series_from_df: Callable

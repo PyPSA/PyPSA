@@ -68,7 +68,7 @@ class ComponentsData:
     ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
-    dynamic: dict
+    dynamic: Dict
 
 
 class Components(
