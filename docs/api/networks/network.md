@@ -1,1 +1,0 @@
-::: pypsa.networks.Network
