@@ -66,13 +66,12 @@ class _NetworkComponents(_NetworkABC):
     @sub_networks.setter
     def sub_networks(self, value: SubNetworks) -> None:
         if not options.api.legacy_components:
-            warnings.warn(
-                "You are setting the `sub_networks` attribute directly. This is not "
-                "recommended, since it may lead to unexpected behavior. See #TODO for "
-                "more information.",
-                DeprecationWarning,
-                stacklevel=2,
+            msg = (
+                "You are overwriting the network components with a new object. This is "
+                "not supported, since it may lead to unexpected behavior. See #TODO. "
+                "for more information."
             )
+            raise ValueError(msg)
         self.c.sub_networks.static = value
 
     @property
@@ -85,6 +84,17 @@ class _NetworkComponents(_NetworkABC):
             )
             raise DeprecationWarning(msg)
         return self.c.sub_networks.dynamic
+
+    @sub_networks_t.setter
+    def sub_networks_t(self, value: None) -> None:
+        if not options.api.legacy_components:
+            msg = (
+                "With PyPSA 1.0, the API for how to access components data has changed. "
+                "See #TODO for more information. `n.sub_networks_t` is deprecated and "
+                "cannot be set."
+            )
+            raise ValueError(msg)
+        self.c.sub_networks.dynamic = value
 
     @property
     def buses(self) -> Buses:
