@@ -89,7 +89,7 @@ Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fu
 
 <div class="grid cards" markdown>
 
--   :material-new-box:{ .lg .middle } **User Guide**
+-   :material-bookshelf:{ .lg .middle } **User Guide**
 
     ---
 

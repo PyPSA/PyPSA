@@ -164,9 +164,7 @@ class _ComponentsTransform:
         **kwargs
             Mapping of old names to new names.
 
-        Returns
-        -------
-        None
+
 
         Examples
         --------

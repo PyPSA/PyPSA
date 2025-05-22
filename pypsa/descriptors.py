@@ -173,9 +173,7 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
     series : dict
         Dictionary of components and their attributes to populate (see example)
 
-    Returns
-    -------
-    None
+
 
     Examples
     --------

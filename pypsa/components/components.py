@@ -49,19 +49,33 @@ class ComponentsData:
     """
     Dataclass for Components.
 
-    Dataclass to store all data of a Components object and used to separate data from
-    logic.
+    This class is used to store all data of a Components object. Other classes inherit
+    from this class to implement logic and methods, but do not store any data next
+    to the data in here.
+
+    All attributes can therefore also be accessed directly from
+    any [`Components`][pypsa.components.Components] object (which defines all
+    attributes and properties which are available for all component types) as well as
+    in specific type classes as [`Generators`][pypsa.components.Generators] (which
+    define logic and methods specific to the component type).
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Components](/user-guide/components)
 
     Attributes
     ----------
     ctype : ComponentType
-        Component type information containing all default values and attributes.
+        Component type information containing all default values and attributes. #TODO
     n : Network | None
-        Network object to which the component might be attached.
+        Network to which the component might be attached.
     static : pd.DataFrame
-        Static data of components.
+        Static data of components as a pandas DataFrame. Columns are the attributes
+        and the index is the component name.
     dynamic : dict
-        Dynamic data of components.
+        Dynamic (time-varying) data of components as a dict-like object of pandas
+        DataFrames. Keys of the dict are the attribute names and each value is a pandas
+        DataFrame with snapshots as index and the component names as columns.
 
     """
 
@@ -675,9 +689,6 @@ class SubNetworkComponents:
             Custom getter function to delegate attribute access to the wrapped data
             object and allow for custom attribute handling.
 
-        Returns
-        -------
-        None
 
         """
         self._wrapped_data = wrapped_data
@@ -711,9 +722,6 @@ class SubNetworkComponents:
         value : Any
             Attribute value to set.
 
-        Returns
-        -------
-        None
 
         Raises
         ------
@@ -736,9 +744,7 @@ class SubNetworkComponents:
         name : str
             Attribute name to delete.
 
-        Returns
-        -------
-        None
+
 
         Raises
         ------

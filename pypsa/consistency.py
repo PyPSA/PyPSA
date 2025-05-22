@@ -486,9 +486,7 @@ def check_generators(component: Components, strict: bool = False) -> None:
     strict : bool, optional
         If True, raise an error instead of logging a warning.
 
-    Returns
-    -------
-    None
+
 
     See Also
     --------
@@ -775,9 +773,7 @@ def consistency_check(
         of strings with the names of the checks to be strict about. If 'all' is passed,
         all checks will be strict. The default is no strict checks.
 
-    Returns
-    -------
-    None
+
 
     Raises
     ------
@@ -891,9 +887,7 @@ def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> No
         of strings with the names of the checks to be strict about. If 'all' is passed,
         all checks will be strict. The default is no strict checks.
 
-    Returns
-    -------
-    None
+
 
     See Also
     --------

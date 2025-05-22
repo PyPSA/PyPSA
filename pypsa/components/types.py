@@ -57,9 +57,7 @@ def add_component_type(
     standard_types_df : pandas.DataFrame, optional
         Standard types of the component type.
 
-    Returns
-    -------
-    None
+
 
     Examples
     --------

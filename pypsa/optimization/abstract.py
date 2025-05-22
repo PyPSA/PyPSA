@@ -388,9 +388,7 @@ def optimize_security_constrained(
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
         `problem_fn` or solver options directly passed to the solver.
 
-    Returns
-    -------
-    None
+
 
     """
     if model_kwargs is None:
@@ -482,9 +480,7 @@ def optimize_with_rolling_horizon(
     **kwargs:
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
-    Returns
-    -------
-    None
+
 
     """
     if snapshots is None:

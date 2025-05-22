@@ -846,9 +846,7 @@ def network_lpf(
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
 
-    Returns
-    -------
-    None
+
 
     """
     sns = as_index(n, snapshots, "snapshots")
@@ -1456,9 +1454,7 @@ def sub_network_lpf(
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
 
-    Returns
-    -------
-    None
+
 
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")

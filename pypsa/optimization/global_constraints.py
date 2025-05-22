@@ -33,10 +33,6 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
-
     """
     m = n.model
     glcs = n.global_constraints.loc[
@@ -106,10 +102,6 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
     n : pypsa.Network
     sns : list-like
         Set of snapshots to which the constraint should be applied.
-
-    Returns
-    -------
-    None.
 
     """
     m = n.model
@@ -252,10 +244,6 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
-
     """
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
@@ -331,10 +319,6 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
-
     """
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
@@ -400,9 +384,6 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
 
     """
     m = n.model
@@ -462,10 +443,6 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     n : pypsa.Network
     sns : list-like
         Set of snapshots to which the constraint should be applied.
-
-    Returns
-    -------
-    None.
 
     """
     m = n.model

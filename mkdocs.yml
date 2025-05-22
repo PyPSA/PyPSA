@@ -89,6 +89,7 @@ nav:
   - Networks:
     - Network:
       - General: api/networks/network.md
+      - Components: api/networks/components.md
       - Descriptors: api/networks/descriptors.md
       - Optimize: api/networks/optimize.md
       - Cluster: api/networks/cluster.md
@@ -96,7 +97,9 @@ nav:
       - Statistics: api/networks/statistics.md
       - Plotting: api/networks/plotting.md
     - SubNetwork: api/networks/subnetwork.md
+    - Utilities: api/common.md
   - Components:
+    - ComponentsData: api/components/components_data.md
     - Components: api/components/components.md
     - Component Types:
       - Sub-Network: api/components/types/sub_networks.md
@@ -111,7 +114,7 @@ nav:
       - Transformer: api/components/types/transformers.md
       - Link: api/components/types/links.md
       - Shapes: api/components/types/shapes.md
-    - Utils: api/components/common.md
+    - Utilities: api/components/common.md
   - Other:
     - Network Collection: api/network-collection.md
     - Examples: api/other/api-examples.md
@@ -255,7 +258,7 @@ plugins:
             ignore_init_summary: true
           docstring_section_style: list
           filters:
-          - "!^_"
+          - "!^_[^_]"
           - "!logger"
           heading_level: 1
           merge_init_into_class: true

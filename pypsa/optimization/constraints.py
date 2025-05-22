@@ -1061,9 +1061,7 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     sns : Sequence
         A list of snapshots (time steps) over which the constraints are applied.
 
-    Returns
-    -------
-    None
+
 
     """
     sns_ = as_index(n, sns, "snapshots")
