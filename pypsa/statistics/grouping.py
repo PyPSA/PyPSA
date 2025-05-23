@@ -82,9 +82,7 @@ class Groupers:
         value : Callable
             Custom grouper function.
 
-        Returns
-        -------
-        None
+
 
         """
         raise NotImplementedError()
@@ -197,9 +195,6 @@ class Groupers:
             * port (str): Component port as integer string
             * nice_names (bool, optional): Whether to use nice carrier names
 
-        Returns
-        -------
-        None
 
         """
         setattr(self, name, func)

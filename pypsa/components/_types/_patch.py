@@ -21,7 +21,7 @@ def create_docstring_parameters(component_name: str) -> str:
         "    Component attributes to add. See Additinal Parameters for list of default"
         "    attributes but any attribute could be added.\n"
         "\n"
-        "Additional Parameters\n"
+        "Other Parameters\n"
         "---------------------\n"
     )
     ct = get_component_type(component_name)

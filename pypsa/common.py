@@ -20,7 +20,7 @@ from pypsa.version import __version_semver__
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from pypsa.networks import Network
+    from pypsa.typing import NetworkType
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class MethodHandlerWrapper:
 
 
 def as_index(
-    n: Network, values: Any, network_attribute: str, force_subset: bool = True
+    n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
     """
     Returns a pd.Index object from a list-like or scalar object.
@@ -719,3 +719,13 @@ def resample_timeseries(
 
     # Combine the results
     return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
+
+
+def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
+    """
+    Helper function to quickly expand a series to a dataframe.
+
+    Columns are the given series and every single column being the equal to
+    the given series.
+    """
+    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)

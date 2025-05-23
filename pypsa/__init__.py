@@ -22,7 +22,6 @@ from pypsa import (
     descriptors,
     examples,
     geo,
-    io,
     optimization,
     pf,
     plot,
@@ -33,6 +32,7 @@ from pypsa._options import (
     options,
 )
 from pypsa.components.components import Components
+from pypsa.network import io
 from pypsa.networks import Network, SubNetwork
 from pypsa.version import __version__, __version_semver__, __version_short__
 

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 
+import networkx as nx
 import numpy as np
 import scipy as sp
 
 from pypsa.common import deprecated_common_kwargs
-from pypsa.descriptors import OrderedGraph
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
@@ -16,6 +17,13 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from pypsa import Network, SubNetwork
+
+
+class OrderedGraph(nx.MultiGraph):
+    """Ordered graph."""
+
+    node_dict_factory = OrderedDict
+    adjlist_dict_factory = OrderedDict
 
 
 @deprecated_common_kwargs
