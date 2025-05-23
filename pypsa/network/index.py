@@ -9,7 +9,7 @@ and convert the Network accordingly.
 
 Also See
 --------
-pypsa.network.index
+pypsa.components.index
 
 """
 

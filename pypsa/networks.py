@@ -8,40 +8,32 @@ import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
-from deprecation import deprecated
-
-from pypsa.common import deprecated_in_next_major, equals
-from pypsa.components.common import as_components
-from pypsa.components.components import Components
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.statistics.abstract import AbstractStatisticsAccessor
-
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
     from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pyproj
 import validators
+from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
-from pypsa.common import as_index, deprecated_common_kwargs
-from pypsa.components.components import SubNetworkComponents
+from pypsa.common import (
+    as_index,
+    deprecated_common_kwargs,
+    deprecated_in_next_major,
+    equals,
+)
+from pypsa.components.common import as_components
+from pypsa.components.components import Components, SubNetworkComponents
 from pypsa.components.store import ComponentsStore
 from pypsa.consistency import consistency_check
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.definitions.structures import Dict
-from pypsa.descriptors import (
-    get_active_assets,
-    get_committable_i,
-    get_extendable_i,
-    get_non_extendable_i,
-    get_switchable_as_dense,
-)
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
     _import_series_from_df,
@@ -60,6 +52,7 @@ from pypsa.io import (
     merge,
 )
 from pypsa.network.components import _NetworkComponents
+from pypsa.network.descriptors import _NetworkDescriptors
 from pypsa.network.index import _NetworkIndex
 from pypsa.network.transform import _NetworkTransform
 from pypsa.optimization.optimize import OptimizationAccessor
@@ -79,6 +72,7 @@ from pypsa.pf import (
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
@@ -101,7 +95,9 @@ standard_types_dir_name = "data/standard_types"
 inf = float("inf")
 
 
-class Network(_NetworkComponents, _NetworkTransform, _NetworkIndex):
+class Network(
+    _NetworkComponents, _NetworkDescriptors, _NetworkTransform, _NetworkIndex
+):
     """Network container for all buses, one-ports and branches."""
 
     # Core attributes
@@ -178,13 +174,6 @@ class Network(_NetworkComponents, _NetworkTransform, _NetworkIndex):
     graph = graph
     incidence_matrix = incidence_matrix
     adjacency_matrix = adjacency_matrix
-
-    # from pypsa.descriptors
-    get_committable_i = get_committable_i
-    get_extendable_i = get_extendable_i
-    get_switchable_as_dense = get_switchable_as_dense
-    get_non_extendable_i = get_non_extendable_i
-    get_active_assets = get_active_assets
 
     # from pypsa.consistency
     consistency_check = consistency_check
@@ -934,7 +923,7 @@ class Network(_NetworkComponents, _NetworkTransform, _NetworkIndex):
             c.static["sub_network"] = c.static.bus0.map(self.buses["sub_network"])
 
             if investment_period is not None:
-                active = get_active_assets(self, c.name, investment_period)
+                active = self.get_active_assets(c.name, investment_period)
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 

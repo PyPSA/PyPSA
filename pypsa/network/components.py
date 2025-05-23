@@ -10,7 +10,7 @@ are set.
 
 Also See
 --------
-pypsa.network.index
+pypsa.components.index
 
 """
 
@@ -72,7 +72,7 @@ class _NetworkComponents(_NetworkABC):
     """
 
     def __init__(self) -> None:
-        self._components = None
+        self._components: ComponentsStore | None = None
 
     def _read_in_default_standard_types(self) -> None:
         """Read in the default standard types from the data folder."""

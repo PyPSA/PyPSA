@@ -20,7 +20,7 @@ from pypsa.version import __version_semver__
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from pypsa.networks import Network
+    from pypsa.typing import NetworkType
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +153,7 @@ class MethodHandlerWrapper:
 
 
 def as_index(
-    n: Network, values: Any, network_attribute: str, force_subset: bool = True
+    n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
     """
     Returns a pd.Index object from a list-like or scalar object.

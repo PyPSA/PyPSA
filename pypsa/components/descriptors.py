@@ -64,6 +64,45 @@ class _ComponentsDescriptors(_ComponentsABC):
     Class only inherits to Components and should not be used directly.
     """
 
+    @property
+    def _operational_attrs(self) -> dict[str, str]:
+        """
+        Get operational attributes of component for optimization.
+
+        Provides a dictionary of attribute patterns used in optimization constraints,
+        based on the component type. This makes constraint formulation more modular
+        by avoiding hardcoded attribute names.
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of operational attribute names
+
+        """
+        # TODO: refactor component attrs store
+
+        base = {
+            "Generator": "p",
+            "Line": "s",
+            "Link": "p",
+            "Load": "p",
+            "StorageUnit": "p",
+            "Store": "e",
+            "Transformer": "s",
+        }[self.name]
+
+        return {
+            "base": base,
+            "nom": f"{base}_nom",
+            "nom_extendable": f"{base}_nom_extendable",
+            "nom_min": f"{base}_nom_min",
+            "nom_max": f"{base}_nom_max",
+            "nom_set": f"{base}_nom_set",
+            "min_pu": f"{base}_min_pu",
+            "max_pu": f"{base}_max_pu",
+            "set": f"{base}_set",
+        }
+
     def get_active_assets(
         self,
         investment_period: int | str | Sequence | None = None,
@@ -106,3 +145,57 @@ class _ComponentsDescriptors(_ComponentsABC):
                 "build_year <= @period < build_year + lifetime"
             )
         return pd.DataFrame(active).any(axis=1) & self.static.active
+
+    @property
+    def extendables(self) -> pd.Index:
+        """
+        Get the index of extendable components of this component type.
+
+        Returns
+        -------
+        pd.Index
+            Index of extendable components.
+
+        """
+        extendable_col = self._operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static[extendable_col]].index
+
+        return idx.rename(f"{self.name}-ext")
+
+    @property
+    def fixed(self) -> pd.Index:
+        """
+        Get the index of non-extendable components of this component type.
+
+        Returns
+        -------
+        pd.Index
+            Index of non-extendable components.
+
+        """
+        extendable_col = self._operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[~self.static[extendable_col]].index
+        return idx.rename(f"{self.name}-fix")
+
+    @property
+    def committables(self) -> pd.Index:
+        """
+        Get the index of committable components of this component type.
+
+        Returns
+        -------
+        pd.Index
+            Index of committable components.
+
+        """
+        if "committable" not in self.static:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static["committable"]].index
+        return idx.rename(f"{self.name}-com")
