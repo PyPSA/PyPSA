@@ -9,7 +9,7 @@ and convert the Network accordingly.
 
 Also See
 --------
-pypsa.network.index
+pypsa.components.index
 
 """
 
@@ -75,10 +75,6 @@ class _NetworkIndex(_NetworkABC):
         weightings_from_timedelta: bool
             Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if
             `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
-
-        Returns
-        -------
-        None
 
         """
         # Check if snapshots contain timezones
@@ -296,13 +292,8 @@ class _NetworkIndex(_NetworkABC):
 
         Parameters
         ----------
-        n : pypsa.Network
         periods : list
             List of periods to be selected/initialized.
-
-        Returns
-        -------
-        None.
 
         """
         periods_ = pd.Index(periods, name="period")

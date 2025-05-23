@@ -260,10 +260,6 @@ class OptionsNode:
 
         This is a convenience method to call describe_options() without a prefix.
 
-        Returns
-        -------
-        None
-
         Examples
         --------
         >>> pypsa.options.describe() # doctest: +ELLIPSIS
@@ -303,9 +299,6 @@ def option_context(*args: Any) -> Generator[None, None, None]:
         Must be passed in pairs of option_name and value.
         Option_name must be in the format "category.option_name" or "category.subcategory.option_name"
 
-    Returns
-    -------
-    None
 
     """
     if len(args) % 2 != 0:
