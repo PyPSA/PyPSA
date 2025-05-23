@@ -35,25 +35,10 @@ from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.definitions.structures import Dict
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
-from pypsa.io import (
-    _import_series_from_df,
-    export_to_csv_folder,
-    export_to_excel,
-    export_to_hdf5,
-    export_to_netcdf,
-    import_components_from_dataframe,
-    import_from_csv_folder,
-    import_from_excel,
-    import_from_hdf5,
-    import_from_netcdf,
-    import_from_pandapower_net,
-    import_from_pypower_ppc,
-    import_series_from_dataframe,
-    merge,
-)
 from pypsa.network.components import _NetworkComponents
 from pypsa.network.descriptors import _NetworkDescriptors
 from pypsa.network.index import _NetworkIndex
+from pypsa.network.io import _NetworkIO
 from pypsa.network.transform import _NetworkTransform
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.pf import (
@@ -96,7 +81,11 @@ inf = float("inf")
 
 
 class Network(
-    _NetworkComponents, _NetworkDescriptors, _NetworkTransform, _NetworkIndex
+    _NetworkComponents,
+    _NetworkIO,
+    _NetworkDescriptors,
+    _NetworkTransform,
+    _NetworkIndex,
 ):
     """Network container for all buses, one-ports and branches."""
 
@@ -116,22 +105,6 @@ class Network(
 
     # Methods
     # -------
-
-    # from pypsa.io
-    import_from_csv_folder = import_from_csv_folder
-    export_to_csv_folder = export_to_csv_folder
-    import_from_excel = import_from_excel
-    export_to_excel = export_to_excel
-    import_from_hdf5 = import_from_hdf5
-    export_to_hdf5 = export_to_hdf5
-    import_from_netcdf = import_from_netcdf
-    export_to_netcdf = export_to_netcdf
-    import_from_pypower_ppc = import_from_pypower_ppc
-    import_from_pandapower_net = import_from_pandapower_net
-    merge = merge
-    import_components_from_dataframe = import_components_from_dataframe  # Deprecated
-    _import_series_from_df = _import_series_from_df
-    import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
     # from pypsa.pf
     calculate_dependent_values = calculate_dependent_values

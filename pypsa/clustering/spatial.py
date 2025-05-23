@@ -14,8 +14,8 @@ from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
 
-from pypsa import io
 from pypsa.geo import haversine_pts
+from pypsa.network import io
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable
@@ -581,7 +581,7 @@ def get_clustering_from_busmap(
         )
         clustered.add(one_port, new_static.index, **new_static)
         for attr, df in new_dynamic.items():
-            io._import_series_from_df(clustered, df, one_port, attr)
+            clustered._import_series_from_df(df, one_port, attr)
 
     # Collect remaining one ports
 
@@ -595,7 +595,7 @@ def get_clustering_from_busmap(
         for c in n.iterate_components(one_port_components):
             for attr, df in c.dynamic.items():
                 if not df.empty:
-                    io._import_series_from_df(clustered, df, c.name, attr)
+                    clustered._import_series_from_df(df, c.name, attr)
 
     new_links = (
         n.links.assign(bus0=n.links.bus0.map(busmap), bus1=n.links.bus1.map(busmap))
