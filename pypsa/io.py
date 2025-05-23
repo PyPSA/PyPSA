@@ -22,7 +22,7 @@ from pyproj import CRS
 from typing_extensions import Self
 
 from pypsa.common import check_optional_dependency, deprecated_common_kwargs
-from pypsa.descriptors import update_linkports_component_attrs
+from pypsa.descriptors import _update_linkports_component_attrs
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -1546,7 +1546,7 @@ def _import_from_importer(
             continue
 
         if component == "Link":
-            update_linkports_component_attrs(n, where=df)
+            _update_linkports_component_attrs(n, where=df)
 
         n.add(component, df.index, **df)
 
@@ -1698,7 +1698,7 @@ def _import_components_from_df(
     non_static_attrs = attrs[~attrs.static]
 
     if cls_name == "Link":
-        update_linkports_component_attrs(n, where=df)
+        _update_linkports_component_attrs(n, where=df)
 
     # Clean dataframe and ensure correct types
     df = pd.DataFrame(df)

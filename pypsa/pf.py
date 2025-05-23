@@ -18,18 +18,27 @@ from scipy.sparse.linalg import spsolve
 
 from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.definitions.structures import Dict
-from pypsa.descriptors import (
-    additional_linkports,
-    allocate_series_dataframes,
-    update_linkports_component_attrs,
-    zsum,
-)
+from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from components import Network, SubNetwork
+
+
+def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
+    """
+    Custom zsum function.
+
+    Pandas 0.21.0 changes sum() behavior so that the result of applying sum
+    over an empty DataFrame is NaN.
+
+    Meant to be set as pd.Series.zsum = zsum.
+    """
+    # TODO Remove
+    return 0 if s.empty else s.sum(*args, **kwargs)
+
 
 pd.Series.zsum = zsum
 logger = logging.getLogger(__name__)
@@ -151,7 +160,7 @@ def _network_prepare_and_run_pf(
     if not n.links.empty:
         p_set = get_as_dense(n, "Link", "p_set", sns)
         n.links_t.p0.loc[sns] = p_set.loc[sns]
-        for i in ["1"] + additional_linkports(n):
+        for i in ["1"] + n.c.links.additional_ports:
             eff_name = "efficiency" if i == "1" else f"efficiency{i}"
             efficiency = get_as_dense(n, "Link", eff_name, sns)
             links = n.links.index[n.links[f"bus{i}"] != ""]
@@ -209,6 +218,34 @@ def _network_prepare_and_run_pf(
     if not linear:
         return Dict({"n_iter": itdf, "error": difdf, "converged": cnvdf})
     return None
+
+
+@deprecated_common_kwargs
+def allocate_series_dataframes(n: Network, series: dict) -> None:
+    """
+    Populate time-varying outputs with default values.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    series : dict
+        Dictionary of components and their attributes to populate (see example)
+
+    Examples
+    --------
+    >>> allocate_series_dataframes(n, {'Generator': ['p'], 'Load': ['p']})
+
+    """
+    for component, attributes in series.items():
+        static = n.static(component)
+        dynamic = n.dynamic(component)
+
+        for attr in attributes:
+            dynamic[attr] = dynamic[attr].reindex(
+                columns=static.index,
+                fill_value=n.components[component]["attrs"].at[attr, "default"],
+            )
 
 
 @deprecated_common_kwargs
@@ -846,10 +883,6 @@ def network_lpf(
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
 
-    Returns
-    -------
-    None
-
     """
     sns = as_index(n, snapshots, "snapshots")
     _network_prepare_and_run_pf(n, sns, skip_pre, linear=True)
@@ -1035,7 +1068,7 @@ def calculate_dependent_values(n: Network) -> None:
 
     n.stores.loc[n.stores.carrier == "", "carrier"] = n.stores.bus.map(n.buses.carrier)
 
-    update_linkports_component_attrs(n)
+    _update_linkports_component_attrs(n)
 
 
 def find_slack_bus(sub_network: SubNetwork) -> None:
@@ -1455,10 +1488,6 @@ def sub_network_lpf(
     skip_pre : bool, default False
         Skip the preliminary steps of computing topology, calculating
         dependent values and finding bus controls.
-
-    Returns
-    -------
-    None
 
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")

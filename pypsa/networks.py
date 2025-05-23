@@ -8,48 +8,32 @@ import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
-from deprecation import deprecated
-
-from pypsa._options import option_context
-from pypsa.common import deprecated_in_next_major, equals
-from pypsa.components.common import as_components
-from pypsa.components.components import Components
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.statistics.abstract import AbstractStatisticsAccessor
-
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
     from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pyproj
 import validators
+from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
-from pypsa.common import as_index, deprecated_common_kwargs
-from pypsa.components.components import SubNetworkComponents
-from pypsa.components.legacy import Component
+from pypsa.common import (
+    as_index,
+    deprecated_common_kwargs,
+    deprecated_in_next_major,
+    equals,
+)
+from pypsa.components.common import as_components
+from pypsa.components.components import Components, SubNetworkComponents
 from pypsa.components.store import ComponentsStore
-from pypsa.components.types import (
-    component_types_df,
-)
-from pypsa.components.types import (
-    get as get_component_type,
-)
 from pypsa.consistency import consistency_check
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.definitions.structures import Dict
-from pypsa.descriptors import (
-    get_active_assets,
-    get_committable_i,
-    get_extendable_i,
-    get_non_extendable_i,
-    get_switchable_as_dense,
-)
 from pypsa.graph import adjacency_matrix, graph, incidence_matrix
 from pypsa.io import (
     _import_series_from_df,
@@ -68,6 +52,7 @@ from pypsa.io import (
     merge,
 )
 from pypsa.network.components import _NetworkComponents
+from pypsa.network.descriptors import _NetworkDescriptors
 from pypsa.network.index import _NetworkIndex
 from pypsa.network.transform import _NetworkTransform
 from pypsa.optimization.optimize import OptimizationAccessor
@@ -87,6 +72,7 @@ from pypsa.pf import (
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
 from pypsa.statistics import StatisticsAccessor
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
@@ -94,6 +80,9 @@ if TYPE_CHECKING:
 
     import linopy
     from scipy.sparse import spmatrix
+
+    from pypsa.components.legacy import Component
+
 
 logger = logging.getLogger(__name__)
 
@@ -106,38 +95,13 @@ standard_types_dir_name = "data/standard_types"
 inf = float("inf")
 
 
-def _create_component_property(property_type: str, component: str) -> property:
-    """Helper function to create a property for all components on the network."""
-
-    def getter(self: Any) -> Any:
-        return self.components.get(component).get(property_type)
-
-    def setter(self: Any, value: Any) -> None:
-        setattr(self.components[component], property_type, value)
-
-    return property(getter, setter)
-
-
-class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
+class Network(
+    _NetworkComponents, _NetworkDescriptors, _NetworkTransform, _NetworkIndex
+):
     """Network container for all buses, one-ports and branches."""
-
-    # Type hints
-    # ----------------
 
     # Core attributes
     name: str
-    components: ComponentsStore
-    sub_networks: pd.DataFrame
-
-    # Component sets
-    all_components: set[str]
-    branch_components: set[str]
-    passive_branch_components: set[str]
-    passive_one_port_components: set[str]
-    standard_type_components: set[str]
-    controllable_branch_components: set[str]
-    controllable_one_port_components: set[str]
-    one_port_components: set[str]
 
     # Optimization
     model: linopy.Model
@@ -211,13 +175,6 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
     incidence_matrix = incidence_matrix
     adjacency_matrix = adjacency_matrix
 
-    # from pypsa.descriptors
-    get_committable_i = get_committable_i
-    get_extendable_i = get_extendable_i
-    get_switchable_as_dense = get_switchable_as_dense
-    get_non_extendable_i = get_non_extendable_i
-    get_active_assets = get_active_assets
-
     # from pypsa.consistency
     consistency_check = consistency_check
 
@@ -260,9 +217,11 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
         kwargs
             Any remaining attributes to set
 
-        Returns
-        -------
-        None
+        Deprecation
+        ------------
+        [:material-tag-outline: v0.33.0](/release-notes/#v0.33.0): Parameters
+        `override_components` and `override_component_attrs` are deprecated and do not.
+        Please check the release notes for more information.
 
         Examples
         --------
@@ -274,7 +233,7 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
         """
         if override_components is not None or override_component_attrs is not None:
             msg = (
-                "The arguments `override_components` and `override_component_attrs` "
+                "Parameters `override_components` and `override_component_attrs` "
                 "are deprecated. Please check the release notes: "
                 "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0."
                 "Deprecated in version 0.33 and will be removed in version 1.0."
@@ -305,12 +264,15 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
         self.statistics: StatisticsAccessor = StatisticsAccessor(self)
+        """
+        Accessor to the [statistics module][pypsa.statistics.expressions.StatisticsAccessor] of PyPSA.
+        """
         self.plot: PlotAccessor = PlotAccessor(self)
+        """
+        Accessor for plotting the network.
+        """
 
-        # Define component sets
-        self._initialize_component_sets()
-
-        self._initialize_components()
+        _NetworkComponents.__init__(self)
 
         if not ignore_standard_types:
             self._read_in_default_standard_types()
@@ -450,197 +412,6 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
             return False
 
         return not not_equal
-
-    # ----------------
-    # Initialization
-    # ----------------
-    def _initialize_component_sets(self) -> None:
-        # TODO merge with components.types
-        for category in set(component_types_df.category.unique()):
-            if not isinstance(category, float):
-                setattr(
-                    self,
-                    category + "_components",
-                    set(
-                        component_types_df.index[
-                            component_types_df.category == category
-                        ]
-                    ),
-                )
-
-        self.one_port_components = (
-            self.passive_one_port_components | self.controllable_one_port_components
-        )
-
-        self.branch_components = (
-            self.passive_branch_components | self.controllable_branch_components
-        )
-
-        self.all_components = set(component_types_df.index) - {"Network"}
-
-    def _initialize_components(self) -> None:
-        components = component_types_df.index.to_list()
-
-        self.components = ComponentsStore()
-        for c_name in components:
-            ctype = get_component_type(c_name)
-
-            self.components[ctype.list_name] = Component(ctype=ctype, n=self)
-
-    def _read_in_default_standard_types(self) -> None:
-        """Read in the default standard types from the data folder."""
-        for std_type in self.standard_type_components:
-            self.add(
-                std_type,
-                self.components[std_type].ctype.standard_types.index,
-                **self.components[std_type].ctype.standard_types,
-            )
-
-    # ----------------
-    # Components Store and Properties
-    # ----------------
-
-    @property
-    def c(self) -> ComponentsStore:
-        """
-        Alias for network components.
-
-        Access all components of the network via `n.c.<component>`. Same as
-        :py:attr:`pypsa.Network.components`.
-
-        Examples
-        --------
-        >>> n.c # doctest: +ELLIPSIS
-        PyPSA Components Store
-        ======================
-        - 0 'SubNetwork' Components
-        - 9 'Bus' Components
-        ...
-
-        Access a component:
-        >>> n.c.generators
-        'Generator' Components
-        ----------------------
-        Attached to PyPSA Network 'AC-DC'
-        Components: 6
-
-        Returns
-        -------
-        ComponentsStore
-
-        """
-        return self.components
-
-    # TODO Disallow setter
-    @c.setter
-    def c(self, value: ComponentsStore) -> None:
-        self.components = value
-
-    @deprecated_in_next_major(
-        details="Use `self.components.<component>.dynamic` instead."
-    )
-    def df(self, component_name: str) -> pd.DataFrame:
-        """
-        Alias for :py:meth:`pypsa.Network.static`.
-
-        Parameters
-        ----------
-        component_name : string
-            Name of the component.
-
-        Returns
-        -------
-        pandas.DataFrame
-
-        """
-        return self.static(component_name)
-
-    @deprecated_in_next_major(
-        details="Use `self.components.<component>.static` instead."
-    )
-    def static(self, component_name: str) -> pd.DataFrame:
-        """
-        Return the DataFrame of static components for component_name.
-
-        !!! warning "Deprecated in v1.0"
-            Use `self.components.<component>.static` instead.
-
-        Parameters
-        ----------
-        component_name : string
-            Name of the component.
-
-        Returns
-        -------
-        pandas.DataFrame
-
-        """
-        return self.components[component_name].static
-
-    @deprecated_in_next_major(
-        details="Use `self.components.<component>.dynamic` instead.",
-    )
-    def pnl(self, component_name: str) -> Dict:
-        """
-        Alias for :py:meth:`pypsa.Network.dynamic`.
-
-        !!! warning "Deprecated in v1.0"
-            Use `self.components.<component>.dynamic` instead.
-
-        Parameters
-        ----------
-        component_name : string
-            Name of the component.
-
-        Returns
-        -------
-        dict of pandas.DataFrame
-
-        """
-        return self.dynamic(component_name)
-
-    @deprecated_in_next_major(
-        details="Use `self.components.<component>.dynamic` instead.",
-    )
-    def dynamic(self, component_name: str) -> Dict:
-        """
-        Return the dictionary of DataFrames of varying components.
-
-        !!! warning "Deprecated in v1.0"
-            Use `self.components.<component>.dynamic` instead.
-
-        Parameters
-        ----------
-        component_name : string
-            Name of the component.
-
-        Returns
-        -------
-        dict of pandas.DataFrame
-
-
-        """
-        return self.components[component_name].dynamic
-
-    @property
-    @deprecated_in_next_major(
-        details="Use `self.components.<component>.defaults` instead.",
-    )
-    def component_attrs(self) -> pd.DataFrame:
-        """
-        Alias for :py:meth:`pypsa.Network.get`.
-
-        Parameters
-        ----------
-        component_name : string
-
-        Returns
-        -------
-        pandas.DataFrame
-
-        """
-        with option_context("warnings.components_store_iter", False):
-            return Dict({value.name: value.defaults for value in self.components})
 
     # ----------------
     # Meta data
@@ -1152,7 +923,7 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
             c.static["sub_network"] = c.static.bus0.map(self.buses["sub_network"])
 
             if investment_period is not None:
-                active = get_active_assets(self, c.name, investment_period)
+                active = self.get_active_assets(c.name, investment_period)
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 
@@ -1226,9 +997,6 @@ class Network(_NetworkTransform, _NetworkIndex, _NetworkComponents):
         **kwargs
             Mapping of old names to new names.
 
-        Returns
-        -------
-        None
 
         Examples
         --------

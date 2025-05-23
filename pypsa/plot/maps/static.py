@@ -448,10 +448,6 @@ class MapPlotter:
 
         Parameters
         ----------
-        x : numpy.ndarray
-            X data to add jitter to.
-        y : numpy.ndarray
-            Y data to add jitter to.
         jitter : float
             The amount of jitter to add. Function adds a random number between -jitter and
             jitter to each element in the data arrays.
@@ -940,7 +936,7 @@ class MapPlotter:
         """
         return abs(flow) ** 0.5 * width_factor
 
-    def draw_map(
+    def draw_map(  # noqa: D417
         self,
         ax: Axes | None = None,
         projection: Any = None,
@@ -983,18 +979,8 @@ class MapPlotter:
 
         Parameters
         ----------
-        n : pypsa.Network
-            Network to plot
-        layouter : networkx.drawing.layout, default None
-            Layouting function from `networkx <https://networkx.github.io/>`_ which
-            overrules coordinates given in ``n.buses[['x', 'y']]``. See
-            `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
-            of available options.
         boundaries : list/tuple, default None
             Boundaries of the plot in format [x1, x2, y1, y2]
-        margin : float, defaults to 0.05
-            Margin at the sides as proportion of distance between max/min x, y
-            Will be ignored if boundaries are given.
         ax : matplotlib.pyplot.Axes, defaults to None
             Axis to plot on. Defaults to plt.gca() if geomap is False, otherwise
             to plt.axes(projection=projection).
@@ -1016,9 +1002,6 @@ class MapPlotter:
             If False, no geographical features are plotted.
         title : string, default ""
             Graph title
-        jitter : float, default None
-            Amount of random noise to add to bus positions to distinguish
-            overlapping buses
         branch_components : list, default n.branch_components
             Branch components to be plotted
         bus_sizes : float/dict/pandas.Series
@@ -1052,8 +1035,8 @@ class MapPlotter:
             with widths in display units. The latter is useful for plotting
             consistent branch widths and flows in different zoom levels.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         line_flow : str/callable/dict/pandas.Series/Network.snapshots, default None
             Flow to be for each line branch. If an element of
             n.snapshots is given, the flow at this timestamp will be

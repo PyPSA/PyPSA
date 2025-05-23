@@ -15,7 +15,7 @@ from linopy import Model, merge
 from linopy.solvers import available_solvers
 
 from pypsa.common import as_index
-from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
+from pypsa.descriptors import get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import (
     optimize_and_run_non_linear_powerflow,
@@ -361,7 +361,7 @@ def assign_solution(n: Network) -> None:
             elif c == "Link" and attr == "p":
                 set_from_frame(n, c, "p0", df)
 
-                for i in ["1"] + additional_linkports(n):
+                for i in ["1"] + n.c.links.additional_ports:
                     i_eff = "" if i == "1" else i
                     eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                     set_from_frame(n, c, f"p{i}", -df * eff)
@@ -487,7 +487,7 @@ def post_processing(n: Network) -> None:
         ("Link", "p0", "bus0"),
         ("Link", "p1", "bus1"),
     ]
-    ca.extend([("Link", f"p{i}", f"bus{i}") for i in additional_linkports(n)])
+    ca.extend([("Link", f"p{i}", f"bus{i}") for i in n.c.links.additional_ports])
 
     def sign(c: str) -> int:
         return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
