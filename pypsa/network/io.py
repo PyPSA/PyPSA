@@ -1725,7 +1725,7 @@ class _NetworkIO(_NetworkABC):
             new_static = pd.concat((old_static, new_static), sort=False)
 
         if cls_name == "Shape":
-            new_static = gpd.GeoDataFrame(new_static, crs=self.crs)  # type: ignore
+            new_static = gpd.GeoDataFrame(new_static, crs=self.crs)
 
         # Align index (component names) and columns (attributes)
         new_static = _sort_attrs(new_static, attrs.index, axis=1)

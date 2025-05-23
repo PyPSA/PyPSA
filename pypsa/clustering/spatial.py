@@ -15,7 +15,6 @@ from packaging.version import Version, parse
 from pandas import Series
 
 from pypsa.geo import haversine_pts
-from pypsa.network import io
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable
@@ -548,7 +547,7 @@ def get_clustering_from_busmap(
             )
         for attr, df in lines_t.items():
             if not df.empty:
-                io._import_series_from_df(clustered, df, "Line", attr)
+                clustered._import_series_from_df(df, "Line", attr)
 
     one_port_components = n.one_port_components.copy()
 
@@ -568,7 +567,7 @@ def get_clustering_from_busmap(
         if with_time:
             for attr, df in generators_dynamic.items():
                 if not df.empty:
-                    io._import_series_from_df(clustered, df, "Generator", attr)
+                    clustered._import_series_from_df(df, "Generator", attr)
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
@@ -620,7 +619,7 @@ def get_clustering_from_busmap(
     if with_time:
         for attr, df in n.links_t.items():
             if not df.empty:
-                io._import_series_from_df(clustered, df, "Link", attr)
+                clustered._import_series_from_df(df, "Link", attr)
 
     clustered.add("Carrier", n.carriers.index, **n.carriers)
 

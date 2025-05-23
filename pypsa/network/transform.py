@@ -427,7 +427,7 @@ class _NetworkTransform(_NetworkABC):
         components_to_skip: Collection[str] | None = None,
         inplace: bool = False,
         with_time: bool = True,
-    ) -> Network | None:
+    ) -> Any:
         """
         Merge the components of two networks.
 
