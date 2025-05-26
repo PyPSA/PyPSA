@@ -180,7 +180,7 @@ def _combine_schemas() -> dict:
                     "allowed": allowed_by_default,
                 }
 
-                # Allow if additional parameters selection again
+                # Allow if Other Parameters selection again
                 if param in SCHEMA_ADDITIONAL_PARAMETERS.get(stat_name, []):
                     combined_schema[stat_name][plot_type][param]["allowed"] = True
 

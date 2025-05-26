@@ -240,7 +240,7 @@ class AbstractStatisticsAccessor(ABC):
         if is_one_component := isinstance(comps, str):
             comps = [comps]
         if comps is None:
-            comps = n.branch_components | n.one_port_components
+            comps = sorted(n.branch_components | n.one_port_components)
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names

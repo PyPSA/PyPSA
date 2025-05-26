@@ -64,9 +64,6 @@ class _ComponentsTransform:
 
         Parameters
         ----------
-        class_name : str
-            Component class name in ("Bus", "Generator", "Load", "StorageUnit",
-            "Store", "ShuntImpedance", "Line", "Transformer", "Link").
         name : str or int or list of str or list of int
             Component name(s)
         suffix : str, default ""
@@ -166,10 +163,6 @@ class _ComponentsTransform:
         ----------
         **kwargs
             Mapping of old names to new names.
-
-        Returns
-        -------
-        None
 
         Examples
         --------

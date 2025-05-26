@@ -7,7 +7,7 @@ Only defines a base class for all Network helper classes which inherit to
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -22,9 +22,25 @@ class _NetworkABC(ABC):
     snapshots: pd.Index | pd.MultiIndex
     _snapshot_weightings: pd.DataFrame
     _investment_period_weightings: pd.DataFrame
-    all_components: set[str]
     static: pd.DataFrame
     dynamic: Callable
-    components: ComponentsStore
-    c: ComponentsStore
     _import_series_from_df: Callable
+    add: Callable
+
+    @property
+    @abstractmethod
+    def all_components(self) -> set[str]:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
+    def components(self) -> ComponentsStore:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
+    def c(self) -> ComponentsStore:
+        """Read only placeholder."""
+        ...
