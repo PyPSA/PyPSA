@@ -91,10 +91,13 @@ class NetworkCollection:
                 )
                 raise TypeError(msg)
 
-        networks = pd.Series(networks, index=index)
+            networks = pd.Series(networks, index=index)
 
         # Only set default index name for non-MultiIndex
-        if not isinstance(networks.index, pd.MultiIndex):
+        if (
+            not isinstance(networks.index, pd.MultiIndex)
+            and networks.index.name is None
+        ):
             networks.index.name = "network"
 
         self.networks = networks

@@ -64,4 +64,6 @@ dev
 
 .venv
 .aider*
+CLAUDE.md
+.claude/
 uv.lock

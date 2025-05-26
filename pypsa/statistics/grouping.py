@@ -25,6 +25,50 @@ logger = logging.getLogger(__name__)
 class Groupers:
     """Container for all the get_ methods."""
 
+    def _map_with_multiindex(
+        self, component_series: pd.Series, mapping_series: pd.Series
+    ) -> pd.Series:
+        """
+        Helper method to map values across MultiIndex DataFrames.
+
+        This handles the case where both series have MultiIndex (NetworkCollection case)
+        by dropping scenario levels from the mapping series and removing duplicates.
+
+        Parameters
+        ----------
+        component_series : pd.Series
+            Series from component (e.g., generator buses)
+        mapping_series : pd.Series
+            Series to map to (e.g., bus carriers)
+
+        Returns
+        -------
+        pd.Series
+            Mapped series with same index as component_series
+
+        """
+        # Handle MultiIndex case (NetworkCollection)
+        if isinstance(component_series.index, pd.MultiIndex) and isinstance(
+            mapping_series.index, pd.MultiIndex
+        ):
+            # Drop all levels except the last one from mapping series
+            n_levels_to_drop = len(mapping_series.index.names) - 1
+            if n_levels_to_drop > 0:
+                simplified_mapping = mapping_series.droplevel(
+                    list(range(n_levels_to_drop))
+                )
+                # Remove duplicates (keep first occurrence)
+                simplified_mapping = simplified_mapping[
+                    ~simplified_mapping.index.duplicated(keep="first")
+                ]
+            else:
+                simplified_mapping = mapping_series
+            # Do the mapping
+            return component_series.map(simplified_mapping)
+        else:
+            # Original behavior for single networks
+            return component_series.map(mapping_series)
+
     def __repr__(self) -> str:
         """
         Return a string representation of the grouper container.
@@ -256,7 +300,11 @@ class Groupers:
         """
         bus = f"bus{port}"
         buses_carrier = self.carrier(n, "Bus", nice_names=nice_names)
-        return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
+        component_buses = n.static(c)[bus]
+
+        return self._map_with_multiindex(component_buses, buses_carrier).rename(
+            "bus_carrier"
+        )
 
     def bus(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
@@ -300,7 +348,11 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        return n.static(c)[bus].map(n.buses.country).rename("country")
+        component_buses = n.static(c)[bus]
+        buses_country = n.buses.country
+        return self._map_with_multiindex(component_buses, buses_country).rename(
+            "country"
+        )
 
     def location(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
@@ -322,7 +374,11 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        return n.static(c)[bus].map(n.buses.location).rename("location")
+        component_buses = n.static(c)[bus]
+        buses_location = n.buses.location
+        return self._map_with_multiindex(component_buses, buses_location).rename(
+            "location"
+        )
 
     def unit(self, n: Network, c: str, port: str = "") -> pd.Series:
         """
@@ -344,7 +400,9 @@ class Groupers:
 
         """
         bus = f"bus{port}"
-        return n.static(c)[bus].map(n.buses.unit).rename("unit")
+        component_buses = n.static(c)[bus]
+        buses_unit = n.buses.unit
+        return self._map_with_multiindex(component_buses, buses_unit).rename("unit")
 
     def name(self, n: Network, c: str) -> pd.Series:
         """
