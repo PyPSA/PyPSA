@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
 
 logger = logging.getLogger(__name__)
@@ -145,6 +146,56 @@ class _ComponentsDescriptors(_ComponentsABC):
                 "build_year <= @period < build_year + lifetime"
             )
         return pd.DataFrame(active).any(axis=1) & self.static.active
+
+    def get_activity_mask(
+        self,
+        sns: Sequence | None = None,
+        index: pd.Index | None = None,
+    ) -> pd.DataFrame:
+        """
+        Get active components mask indexed by snapshots.
+
+        Wrapper around the
+        `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
+        Get's the boolean mask for active components, but indexed by snapshots and
+        components instead of just components.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+            Network instance
+        c : string
+            Component name
+        sns : pandas.Index, default None
+            Set of snapshots for the mask. If None (default) all snapshots are returned.
+        index : pd.Index, default None
+            Subset of the component elements. If None (default) all components are returned.
+
+        """
+        sns_ = as_index(self.n_save, sns, "snapshots")
+
+        if getattr(self.n_save, "_multi_invest", False):
+            active_assets_per_period = {
+                period: self.get_active_assets(period)
+                for period in self.investment_periods
+            }
+            mask = (
+                pd.concat(active_assets_per_period, axis=1)
+                .T.reindex(self.snapshots, level=0)
+                .loc[sns_]
+            )
+        else:
+            active_assets = self.get_active_assets()
+            mask = pd.DataFrame(
+                np.tile(active_assets, (len(sns_), 1)),
+                index=sns_,
+                columns=active_assets.index,
+            )
+
+        if index is not None:
+            mask = mask.reindex(columns=index)
+
+        return mask
 
     @property
     def extendables(self) -> pd.Index:

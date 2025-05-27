@@ -21,7 +21,7 @@ from pypsa.common import (
     deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
-from pypsa.descriptors import bus_carrier_unit, nominal_attrs
+from pypsa.descriptors import nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
@@ -1821,7 +1821,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
 
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
+        df.attrs["unit"] = n.bus_carrier_unit(bus_carrier)
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})

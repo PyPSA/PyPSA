@@ -689,7 +689,6 @@ class SubNetworkComponents:
             Custom getter function to delegate attribute access to the wrapped data
             object and allow for custom attribute handling.
 
-
         """
         self._wrapped_data = wrapped_data
         self._wrapper_func = wrapped_get
@@ -722,7 +721,6 @@ class SubNetworkComponents:
         value : Any
             Attribute value to set.
 
-
         Raises
         ------
         AttributeError
@@ -743,8 +741,6 @@ class SubNetworkComponents:
         ----------
         name : str
             Attribute name to delete.
-
-
 
         Raises
         ------

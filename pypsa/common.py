@@ -292,9 +292,21 @@ def equals(
                 return handle_diff(msg)
 
     elif isinstance(a, ComponentsStore):
-        if a != b:
-            msg = f"ComponentsStore objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
-            return handle_diff(msg)
+        for k, v in a.items():
+            if not hasattr(b, k):
+                msg = (
+                    f"Key '{k}' missing from second ComponentsStore at '{current_path}'"
+                )
+                return handle_diff(msg)
+            if not equals(v, b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
+                return False
+        # Check for extra keys in b
+        for k in b.keys():
+            if not hasattr(a, k):
+                msg = (
+                    f"Key '{k}' missing from first ComponentsStore at '{current_path}'"
+                )
+                return handle_diff(msg)
 
     # Iterators
     elif isinstance(a, (dict | Dict)):
@@ -719,3 +731,13 @@ def resample_timeseries(
 
     # Combine the results
     return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
+
+
+def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
+    """
+    Helper function to quickly expand a series to a dataframe.
+
+    Columns are the given series and every single column being the equal to
+    the given series.
+    """
+    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)

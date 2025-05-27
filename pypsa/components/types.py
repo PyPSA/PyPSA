@@ -58,7 +58,6 @@ def add_component_type(
         Standard types of the component type.
 
 
-
     Examples
     --------
     >>> import pandas as pd

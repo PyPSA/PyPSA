@@ -15,10 +15,8 @@ from numpy import inf, isfinite
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
-from pypsa.common import as_index
+from pypsa.common import as_index, expand_series
 from pypsa.descriptors import (
-    additional_linkports,
-    expand_series,
     get_activity_mask,
     get_bounds_pu,
     nominal_attrs,
@@ -603,7 +601,7 @@ def define_nodal_balance_constraints(
     ]
 
     if not n.links.empty:
-        for i in additional_linkports(n):
+        for i in n.components.links.additional_ports:
             eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
@@ -633,7 +631,7 @@ def define_nodal_balance_constraints(
         cbuses = n.static(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
 
         #  drop non-existent multiport buses which are ''
-        if column in ["bus" + i for i in additional_linkports(n)]:
+        if column in ["bus" + i for i in n.c.links.additional_ports]:
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel({c: cbuses.index})

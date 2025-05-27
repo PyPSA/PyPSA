@@ -773,8 +773,6 @@ def consistency_check(
         of strings with the names of the checks to be strict about. If 'all' is passed,
         all checks will be strict. The default is no strict checks.
 
-
-
     Raises
     ------
     ConsistencyError : If any of the checks fail and strict mode is activated.
@@ -886,7 +884,6 @@ def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> No
         If some checks should raise an error instead of logging a warning, pass a list
         of strings with the names of the checks to be strict about. If 'all' is passed,
         all checks will be strict. The default is no strict checks.
-
 
 
     See Also

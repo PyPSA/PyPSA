@@ -164,8 +164,6 @@ class _ComponentsTransform:
         **kwargs
             Mapping of old names to new names.
 
-
-
         Examples
         --------
         Define some network

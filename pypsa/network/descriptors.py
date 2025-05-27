@@ -229,3 +229,41 @@ class _NetworkDescriptors(_NetworkABC):
             )
             for sn in snapshots
         )
+
+    def bus_carrier_unit(self, bus_carrier: str | Sequence[str] | None) -> str:
+        """
+        Determine the unit associated with a specific bus carrier in the network.
+
+        Parameters
+        ----------
+        bus_carrier : str | Sequence[str] | None
+            The carrier type of the bus to query.
+
+        Returns
+        -------
+        str: The unit associated with the specified bus carrier. If no bus carrier is provided,
+            returns "carrier dependent".
+
+        Raises
+        ------
+        ValueError: If the specified bus carrier is not found in the network or if multiple units
+                    are found for the specified bus carrier.
+
+        """
+        if bus_carrier is None:
+            return "carrier dependent"
+
+        if isinstance(bus_carrier, str):
+            bus_carrier = [bus_carrier]
+
+        not_included = set(bus_carrier) - set(self.c.buses.static.carrier.unique())
+        if not_included:
+            msg = f"Bus carriers {not_included} not in network"
+            raise ValueError(msg)
+        unit = self.c.buses.static[
+            self.c.buses.static.carrier.isin(bus_carrier)
+        ].unit.unique()
+        if len(unit) > 1:
+            logger.warning("Multiple units found for carrier %s: %s", bus_carrier, unit)
+            return "carrier dependent"
+        return unit.item()
