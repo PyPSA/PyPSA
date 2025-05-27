@@ -15,7 +15,10 @@ from matplotlib.figure import Figure, SubFigure
 
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
-from pypsa.plot.statistics.schema import apply_parameter_schema
+from pypsa.plot.statistics.schema import (
+    apply_parameter_schema,
+    get_relevant_plot_values,
+)
 
 if TYPE_CHECKING:
     from pypsa.networks import Network
@@ -253,16 +256,34 @@ class StatisticPlotter(ABC):
 
         plotter = ChartGenerator(self._n)
 
+        # Create context for schema application
+        context = {"index_names": self._n._index_names}
+
+        # Auto-faceting logic
+        if context["index_names"] and facet_col is None and facet_row is None:
+            if len(context["index_names"]) == 1:
+                facet_col = context["index_names"][0]
+            elif len(context["index_names"]) >= 2:
+                facet_row = context["index_names"][0]
+                facet_col = context["index_names"][1]
+
+        # Update plot_kwargs with auto-faceting
+        plot_kwargs.update(
+            {
+                k: v
+                for k, v in [("facet_col", facet_col), ("facet_row", facet_row)]
+                if v is not None
+            }
+        )
+
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
+        plot_kwargs = apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs, context
+        )
 
-        relevant_plot_kwargs = [
-            value
-            for key, value in plot_kwargs.items()
-            if key in {"x", "y", "color", "facet_col", "facet_row"}
-            and value not in plotter._n._index_names
-        ]
+        # Use helper for filtering
+        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
             *relevant_plot_kwargs,
@@ -273,7 +294,9 @@ class StatisticPlotter(ABC):
         stats_kwargs.update(base_stats_kwargs)
 
         # Apply schema to statistics kwargs
-        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
+        stats_kwargs = apply_parameter_schema(
+            stats_name, chart_type, stats_kwargs, context
+        )
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
@@ -637,16 +660,34 @@ class StatisticInteractivePlotter(ABC):
 
         plotter = ChartGenerator(self._n)
 
+        # Create context for schema application
+        context = {"index_names": self._n._index_names}
+
+        # Auto-faceting logic
+        if context["index_names"] and facet_col is None and facet_row is None:
+            if len(context["index_names"]) == 1:
+                facet_col = context["index_names"][0]
+            elif len(context["index_names"]) >= 2:
+                facet_row = context["index_names"][0]
+                facet_col = context["index_names"][1]
+
+        # Update plot_kwargs with auto-faceting
+        plot_kwargs.update(
+            {
+                k: v
+                for k, v in [("facet_col", facet_col), ("facet_row", facet_row)]
+                if v is not None
+            }
+        )
+
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
+        plot_kwargs = apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs, context
+        )
 
-        relevant_plot_kwargs = [
-            value
-            for key, value in plot_kwargs.items()
-            if key in {"x", "y", "color", "facet_col", "facet_row"}
-            and value not in plotter._n._index_names
-        ]
+        # Use helper for filtering
+        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
             *relevant_plot_kwargs,
@@ -657,7 +698,9 @@ class StatisticInteractivePlotter(ABC):
         stats_kwargs.update(base_stats_kwargs)
 
         # Apply schema to statistics kwargs
-        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
+        stats_kwargs = apply_parameter_schema(
+            stats_name, chart_type, stats_kwargs, context
+        )
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)

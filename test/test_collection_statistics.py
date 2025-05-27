@@ -59,6 +59,46 @@ def simple_network():
     return n
 
 
+class TestNetworkCollectionIndexValidation:
+    """Test index validation for NetworkCollection."""
+
+    def test_single_index_without_name_gets_default(self, simple_network):
+        """Test that single index without name gets default name."""
+        n1 = simple_network.copy()
+        n2 = simple_network.copy()
+
+        index = pd.Index(["a", "b"])  # No name
+        nc = pypsa.NetworkCollection([n1, n2], index=index)
+        assert nc.networks.index.name == "network"  # Should get default name
+
+    def test_multiindex_without_names_raises_error(self, simple_network):
+        """Test that MultiIndex without names raises ValueError."""
+        networks = []
+        for _ in range(4):
+            networks.append(simple_network.copy())
+
+        # Create MultiIndex without names
+        index = pd.MultiIndex.from_product([["a", "b"], ["1", "2"]])
+        with pytest.raises(
+            ValueError, match="All levels of MultiIndex must have names"
+        ):
+            pypsa.NetworkCollection(networks, index=index)
+
+    def test_multiindex_with_partial_names_raises_error(self, simple_network):
+        """Test that MultiIndex with partial names raises ValueError."""
+        networks = []
+        for _ in range(4):
+            networks.append(simple_network.copy())
+
+        # Create MultiIndex with only one name
+        index = pd.MultiIndex.from_product([["a", "b"], ["1", "2"]])
+        index = index.set_names(["scenario", None])
+        with pytest.raises(
+            ValueError, match="All levels of MultiIndex must have names"
+        ):
+            pypsa.NetworkCollection(networks, index=index)
+
+
 def test_network_collection_statistics_basic(optimized_network_collection_from_ac_dc):
     """Test basic statistics functionality on NetworkCollection."""
     nc = optimized_network_collection_from_ac_dc

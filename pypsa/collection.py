@@ -102,6 +102,11 @@ class NetworkCollection:
 
         self.networks = networks
 
+        # Validate index names
+        if isinstance(self.networks.index, pd.MultiIndex):
+            if any(name is None for name in self.networks.index.names):
+                raise ValueError("All levels of MultiIndex must have names")
+
         # Initialize accessors which support NetworkCollections and don't need a proxy
         # member
         self.statistics = StatisticsAccessor(self)
