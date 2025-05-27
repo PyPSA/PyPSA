@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
+    import pandas as pd
+
+
+@patch_add_docstring
 class Links(Components):
     """
     Links components class.
@@ -22,3 +31,46 @@ class Links(Components):
     pypsa.components.abstract.Components : Base class for all components.
 
     """
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrapper for Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )
+
+    @property
+    def additional_ports(self) -> list[str]:
+        """
+        Identify additional link ports (bus connections) beyond predefined ones.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+            Network instance.
+        where : iterable of strings, default None
+            Subset of columns to consider. Takes link columns by default.
+
+        Returns
+        -------
+        list of strings
+            List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
+
+        Also see
+        ---------
+        pypsa.Components.ports
+
+        """
+        return [
+            i[3:]
+            for i in self.static.columns
+            if i.startswith("bus") and i not in ["bus0", "bus1"]
+        ]

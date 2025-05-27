@@ -20,13 +20,20 @@ try:
 except ImportError:
     cartopy_available = False
 
+sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
 # Warning: Keep in sync with settings in doc/conf.py
+n_solved = pypsa.examples.ac_dc_meshed()
+n_solved.optimize()
+
 doctest_globals = {
     "np": np,
     "pd": pd,
     "pypsa": pypsa,
     "n": pypsa.examples.ac_dc_meshed(),
+    "n_solved": n_solved,
     "c": pypsa.examples.ac_dc_meshed().components.generators,
+    "sub_network_parent": pypsa.examples.ac_dc_meshed().determine_network_topology(),
+    "sub_network": sub_network_parent.sub_networks.loc["0", "obj"],
 }
 
 modules = [
@@ -44,7 +51,7 @@ modules = [
 @pytest.mark.parametrize("module", modules)
 def test_doctest(module):
     finder = doctest.DocTestFinder()
-    runner = doctest.DocTestRunner()
+    runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
     tests = finder.find(module)
 
     failures = 0
@@ -76,7 +83,7 @@ def test_sphinx_build(pytestconfig):
         (r"DeprecationWarning: nodes.reprunicode", 1),
         (r"DeprecationWarning: The `docutils.utils.error_reporting` module is", 2),
         (r"UserWarning: resource_tracker", 1),
-        (r"WARNING: The the file [^ ]+ couldn't be copied\. Error:", 1),
+        (r"WARNING: The file [^ ]+ couldn't be copied\. Error:", 1),
     ]
 
     shutil.rmtree(build_dir, ignore_errors=True)
@@ -101,7 +108,7 @@ def test_sphinx_build(pytestconfig):
     except subprocess.CalledProcessError as e:
         lines = e.stderr.splitlines()
         # Save lines to file for debugging
-        with open("sphinx_build_stderr.txt", "w") as f:
+        with Path("sphinx_build_stderr.txt").open("w") as f:
             f.write("\n".join(lines))
 
         filtered_stderr = []
@@ -118,7 +125,7 @@ def test_sphinx_build(pytestconfig):
                 filtered_stderr.append(lines[i])
                 i += 1
 
-        with open("sphinx_build_stderr_filtered.txt", "w") as f:
+        with Path("sphinx_build_stderr_filtered.txt").open("w") as f:
             f.write("\n".join(filtered_stderr))
 
         if filtered_stderr:

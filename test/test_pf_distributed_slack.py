@@ -41,7 +41,7 @@ def test_pf_distributed_slack(scipy_network):
         normed, axis=1
     )
 
-    for index, row in slack_shares_by_capacity.iterrows():
+    for _, row in slack_shares_by_capacity.iterrows():
         equal(n.generators.p_nom.pipe(normed).fillna(0.0), row)
 
     # by custom weights (mirror 'capacity' via custom slack weights by bus)

@@ -1,21 +1,29 @@
-"""
-Graph helper functions, which are attached to network and sub_network.
-"""
+"""Graph helper functions, which are attached to network and sub_network."""
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 
+import networkx as nx
 import numpy as np
-import pandas as pd
 import scipy as sp
 
 from pypsa.common import deprecated_common_kwargs
-from pypsa.descriptors import OrderedGraph
 
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable
+
+    import pandas as pd
+
     from pypsa import Network, SubNetwork
+
+
+class OrderedGraph(nx.MultiGraph):
+    """Ordered graph."""
+
+    node_dict_factory = OrderedDict
+    adjlist_dict_factory = OrderedDict
 
 
 @deprecated_common_kwargs
@@ -32,24 +40,25 @@ def graph(
     Parameters
     ----------
     n : Network|SubNetwork
-
+        Network or sub-network.
     branch_components : [str]
         Components to use as branches. The default are
         passive_branch_components in the case of a SubNetwork and
         branch_components in the case of a Network.
-
     weight : str
         Branch attribute to use as weight
-
     inf_weight : bool|float
         How to treat infinite weights (default: False). True keeps the infinite
         weight. False skips edges with infinite weight. If a float is given it
         is used instead.
+    include_inactive : bool
+        Whether to include inactive branches in the graph.
 
     Returns
     -------
     graph : OrderedGraph
         NetworkX graph
+
     """
     from pypsa import Network, SubNetwork
 
@@ -64,7 +73,8 @@ def graph(
             branch_components = n.n.passive_branch_components
         buses_i = n.buses_i()
     else:
-        raise TypeError("graph must be called with a Network or a SubNetwork")
+        msg = "graph must be called with a Network or a SubNetwork"
+        raise TypeError(msg)
 
     graph = OrderedGraph()
 
@@ -80,7 +90,7 @@ def graph(
                 if weight is None:
                     data = {}
                 else:
-                    data = dict(weight=getattr(branch, weight, 0))
+                    data = {"weight": getattr(branch, weight, 0)}
                     if np.isinf(data["weight"]) and inf_weight is not True:
                         if inf_weight is False:
                             continue
@@ -102,13 +112,17 @@ def adjacency_matrix(
     weights: pd.Series | None = None,
 ) -> sp.sparse.coo_matrix:
     """
-    Construct a sparse adjacency matrix (directed)
+    Construct a sparse adjacency matrix (directed).
 
     Parameters
     ----------
+    n : Network | SubNetwork
+        Network or sub-network.
     branch_components : iterable sublist of `branch_components`
-       Buses connected by any of the selected branches are adjacent
-       (default: branch_components (network) or passive_branch_components (sub_network))
+        Buses connected by any of the selected branches are adjacent
+        (default: branch_components (network) or passive_branch_components (sub_network))
+    investment_period : int | str | None
+        Investment period to use for the matrix representation of the adjacency matrix.
     busorder : pd.Index subset of n.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
@@ -120,6 +134,7 @@ def adjacency_matrix(
     -------
     adjacency_matrix : sp.sparse.coo_matrix
        Directed adjacency matrix
+
     """
     from pypsa import Network, SubNetwork
 
@@ -134,7 +149,8 @@ def adjacency_matrix(
         if busorder is None:
             busorder = n.buses_i()
     else:
-        raise TypeError(" must be called with a Network or a SubNetwork")
+        msg = " must be called with a Network or a SubNetwork"
+        raise TypeError(msg)
 
     no_buses = len(busorder)
     no_branches = 0
@@ -171,13 +187,15 @@ def incidence_matrix(
     busorder: pd.Index | None = None,
 ) -> sp.sparse.csr_matrix:
     """
-    Construct a sparse incidence matrix (directed)
+    Construct a sparse incidence matrix (directed).
 
     Parameters
     ----------
+    n : Network | SubNetwork
+        Network or sub-network.
     branch_components : iterable sublist of `branch_components`
-       Buses connected by any of the selected branches are adjacent
-       (default: branch_components (network) or passive_branch_components (sub_network))
+        Buses connected by any of the selected branches are adjacent
+        (default: branch_components (network) or passive_branch_components (sub_network))
     busorder : pd.Index subset of n.buses.index
        Basis to use for the matrix representation of the adjacency matrix
        (default: buses.index (network) or buses_i() (sub_network))
@@ -186,6 +204,7 @@ def incidence_matrix(
     -------
     incidence_matrix : sp.sparse.csr_matrix
        Directed incidence matrix
+
     """
     from pypsa import Network, SubNetwork
 
@@ -200,9 +219,8 @@ def incidence_matrix(
         if busorder is None:
             busorder = n.buses_i()
     else:
-        raise ValueError(
-            "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
-        )
+        msg = "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
+        raise TypeError(msg)
 
     no_buses = len(busorder)
     no_branches = 0

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Build optimisation problems from PyPSA networks with Linopy.
 """
@@ -6,9 +5,8 @@ Build optimisation problems from PyPSA networks with Linopy.
 from __future__ import annotations
 
 import logging
-import os
-from collections.abc import Callable, Sequence
 from functools import wraps
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -17,7 +15,7 @@ from linopy import Model, merge
 from linopy.solvers import available_solvers
 
 from pypsa.common import as_index
-from pypsa.descriptors import additional_linkports, get_committable_i, nominal_attrs
+from pypsa.descriptors import get_committable_i, nominal_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.abstract import (
     optimize_and_run_non_linear_powerflow,
@@ -65,12 +63,14 @@ from pypsa.optimization.variables import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network, SubNetwork
 logger = logging.getLogger(__name__)
 
 
 lookup = pd.read_csv(
-    os.path.join(os.path.dirname(__file__), "..", "data", "variables.csv"),
+    Path(__file__).parent / ".." / "data" / "variables.csv",
     index_col=["component", "variable"],
 )
 
@@ -200,11 +200,12 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             var = m[f"{c}-{attr}"]
             objective.append((var * cost).sum())
 
-    if not len(objective):
-        raise ValueError(
+    if not objective:
+        msg = (
             "Objective function could not be created. "
             "Please make sure the components have assigned costs."
         )
+        raise ValueError(msg)
 
     m.objective = sum(objective) if is_quadratic else merge(objective)
 
@@ -243,6 +244,7 @@ def create_model(
     Returns
     -------
     linopy.model
+
     """
     sns = as_index(n, snapshots, "snapshots")
     n._linearized_uc = int(linearized_unit_commitment)
@@ -359,7 +361,7 @@ def assign_solution(n: Network) -> None:
             elif c == "Link" and attr == "p":
                 set_from_frame(n, c, "p0", df)
 
-                for i in ["1"] + additional_linkports(n):
+                for i in ["1"] + n.c.links.additional_ports:
                     i_eff = "" if i == "1" else i
                     eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                     set_from_frame(n, c, f"p{i}", -df * eff)
@@ -397,6 +399,7 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
     assign_all_duals : bool, default False
         Whether to assign all dual values or only those that already
         have a designated place in the network.
+
     """
     m = n.model
     unassigned = []
@@ -438,8 +441,8 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
 
     if unassigned:
         logger.info(
-            f"The shadow-prices of the constraints {', '.join(unassigned)} were "
-            "not assigned to the network."
+            "The shadow-prices of the constraints %s were not assigned to the network.",
+            ", ".join(unassigned),
         )
 
 
@@ -484,8 +487,7 @@ def post_processing(n: Network) -> None:
         ("Link", "p0", "bus0"),
         ("Link", "p1", "bus1"),
     ]
-    for i in additional_linkports(n):
-        ca.append(("Link", f"p{i}", f"bus{i}"))
+    ca.extend([("Link", f"p{i}", f"bus{i}") for i in n.c.links.additional_ports])
 
     def sign(c: str) -> int:
         return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
@@ -527,11 +529,11 @@ def optimize(
     multi_investment_periods: bool = False,
     transmission_losses: int = 0,
     linearized_unit_commitment: bool = False,
-    model_kwargs: dict = {},
+    model_kwargs: dict | None = None,
     extra_functionality: Callable | None = None,
     assign_all_duals: bool = False,
     solver_name: str = "highs",
-    solver_options: dict = {},
+    solver_options: dict | None = None,
     compute_infeasibilities: bool = False,
     **kwargs: Any,
 ) -> tuple[str, str]:
@@ -585,7 +587,14 @@ def optimize(
         The termination condition of the optimization, either
         "optimal" or one of the codes listed in
         https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+
     """
+    if model_kwargs is None:
+        model_kwargs = {}
+
+    if solver_options is None:
+        solver_options = {}
+
     sns = as_index(n, snapshots, "snapshots")
     n._multi_invest = int(multi_investment_periods)
     n._linearized_uc = linearized_unit_commitment
@@ -640,7 +649,7 @@ class OptimizationAccessor:
         self,
         extra_functionality: Callable | None = None,
         solver_name: str = "highs",
-        solver_options: dict = {},
+        solver_options: dict | None = None,
         assign_all_duals: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
@@ -670,7 +679,11 @@ class OptimizationAccessor:
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+
         """
+        if solver_options is None:
+            solver_options = {}
+
         n = self.n
         if extra_functionality:
             extra_functionality(n, n.snapshots)
@@ -772,6 +785,7 @@ class OptimizationAccessor:
             Price of the load shedding. The default is 1e2.
         p_nom : float/Series, optional
             Maximal load shedding. The default is 1e9 (kW).
+
         """
         n = self.n
         if "Load" not in n.carriers.index:

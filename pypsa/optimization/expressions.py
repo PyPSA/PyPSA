@@ -1,11 +1,8 @@
-"""
-Statistics Expression Accessor.
-"""
+"""Statistics Expression Accessor."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any
 
 import linopy as ln
@@ -25,6 +22,8 @@ from pypsa.statistics import (
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Sequence
+
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
@@ -40,8 +39,7 @@ def check_if_empty(expr: LinearExpression) -> bool:
     """
     if USE_EMPTY_PROPERTY:
         return expr.empty
-    else:
-        return expr.empty()
+    return expr.empty()
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
@@ -95,8 +93,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if isinstance(weights.index, pd.MultiIndex):
                 return expr.multiply(weights, axis=0).groupby(level=0).sum().T
             return expr @ weights
-        else:
-            raise ValueError(f"Aggregation method {agg} not supported.")
+        msg = f"Aggregation method {agg} not supported."
+        raise ValueError(msg)
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
@@ -116,7 +114,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         res = ln.merge(exprs)
         if not (index := res.indexes[res.dims[0]]).is_unique:
             if agg != "sum":
-                raise ValueError(f"Aggregation method {agg} not supported.")
+                msg = f"Aggregation method {agg} not supported."
+                raise ValueError(msg)
             non_unique_groups = pd.DataFrame(list(index), columns=index.names)
             res = res.groupby(non_unique_groups).sum()
         return res
@@ -146,7 +145,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, expr: LinearExpression, agg: Callable | str
     ) -> LinearExpression:
         if agg != "sum":
-            raise ValueError(f"Aggregation method {agg} not supported.")
+            msg = f"Aggregation method {agg} not supported."
+            raise ValueError(msg)
         if check_if_empty(expr):
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
@@ -162,7 +162,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
-            assert set(["p_store", "p_dispatch"]) <= set(attr)
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
         attr = attr.item()
         return m.variables[f"{c}-{attr}"]
@@ -299,6 +298,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated
             using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
+
         """
         from pypsa.optimization.optimize import lookup
 
@@ -308,8 +308,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if attr is None:
                 return None
             var = n.model.variables[f"{c}-{attr}"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost")
-            weights = get_weightings(n, c)
+            sns = var.indexes["snapshot"]
+            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -352,6 +353,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+
         """
         if comps is None:
             comps = self._n.branch_components
@@ -361,10 +363,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            sns = var.indexes["snapshot"]
             idx = transmission_branches.get_loc_level(c)[1].rename(c)
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(efficiency, pd.DataFrame):
+                efficiency = efficiency.loc[sns]
             p = var.loc[:, idx] * efficiency[idx]
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -385,7 +390,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -409,6 +414,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         if (
             self._n.buses.carrier.unique().size > 1
             and groupby is None
@@ -422,10 +429,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(efficiency, pd.DataFrame):
+                efficiency = efficiency.loc[sns]
             sign = n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             coeffs = DataArray(efficiency * sign)
             if kind == "supply":
                 coeffs = coeffs.clip(min=0)
@@ -435,9 +445,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 )
                 coeffs = -coeffs.clip(max=0)
             elif kind is not None:
-                raise ValueError(
-                    f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
-                )
+                msg = f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
+                raise ValueError(msg)
             p = var.where(coeffs != 0) * coeffs
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -459,7 +468,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -475,6 +484,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -494,7 +505,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
@@ -510,6 +521,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -553,6 +566,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+
         """
 
         @pass_none_if_keyerror
@@ -563,12 +577,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
             idx = capacity.indexes[c]
-            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx])
             operation = self._get_operational_variable(c).loc[:, idx]
+            sns = operation.indexes["snapshot"]
+            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
-            # curtailment = capacity * p_max_pu - operation
+            # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(curtailment, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -610,12 +625,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
+
         """
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
-            weights = get_weightings(n, c)
+            sns = operation.indexes["snapshot"]
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(operation, weights, agg=aggregate_time)
 
         return self._aggregate_components(

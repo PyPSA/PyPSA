@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
@@ -15,11 +14,13 @@ from pypsa.common import (
     deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
-from pypsa.descriptors import bus_carrier_unit, nominal_attrs
+from pypsa.descriptors import nominal_attrs
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Collection, Sequence
+
     from pypsa import Network
 
 
@@ -30,20 +31,18 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     """Get the operation time series of a component."""
     if c in n.branch_components:
         return n.dynamic(c).p0
-    elif c == "Store":
+    if c == "Store":
         return n.dynamic(c).e
-    else:
-        return n.dynamic(c).p
+    return n.dynamic(c).p
 
 
 def get_weightings(n: Network, c: str) -> pd.Series:
     """Get the relevant snapshot weighting for a component."""
     if c == "Generator":
         return n.snapshot_weightings["generators"]
-    elif c in ["StorageUnit", "Store"]:
+    if c in ["StorageUnit", "Store"]:
         return n.snapshot_weightings["stores"]
-    else:
-        return n.snapshot_weightings["objective"]
+    return n.snapshot_weightings["objective"]
 
 
 def port_efficiency(
@@ -156,7 +155,70 @@ class StatisticHandler:
 
 
 class StatisticsAccessor(AbstractStatisticsAccessor):
-    """Accessor to calculate different statistical values."""
+    """
+    Accessor to calculate different metrics from the network.
+
+    The accessor can be used with any [pypsa.Network][] instance via `n.statistics`. All
+    statistics methods are another level of accessors, which means that they can yield
+    statistics as pandas DataFrames or plots based on them. See the examples for more
+    details.
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Statistics](/user-guide/statistics)
+
+    Examples
+    --------
+    The examples below can be used with any statistical method. The default arguments
+    used and the plot type yielded will vary.
+
+    Get aggregated statistics in a single DataFrame:
+
+    >>> n_solved.statistics()
+                        Optimal Capacity  ...  Market Value
+    Generator gas          982.03448  ...   1559.511099
+              wind        7292.13406  ...    589.813549
+    Line      AC          5613.82931  ...    -43.277041
+    Link      DC          4003.90110  ...      0.132018
+    Load      load           0.00000  ...           NaN
+    <BLANKLINE>
+    [5 rows x 12 columns]
+
+    Get the energy balance:
+
+    >>> n_solved.statistics.energy_balance()
+    component  carrier  bus_carrier
+    Generator  gas      AC              1465.27439
+               wind     AC             31082.35370
+    Load       load     AC            -32547.62808
+    dtype: float64
+
+    Get the optimal capacity:
+
+    >>> n_solved.statistics.optimal_capacity()
+    component  carrier
+    Generator  gas         982.03448
+               wind       7292.13406
+    Line       AC         5613.82931
+    Link       DC         4003.90110
+    dtype: float64
+
+    Create a basic plot on any statistic:
+
+    >>> n_solved.statistics.energy_balance.plot() # doctest: +SKIP
+    #TODO Add plot
+
+    Choose a specific plot type:
+
+    >>> n_solved.statistics.energy_balance.plot("bar") # doctest: +SKIP
+    #TODO Add plot
+
+    Create a interactive plot:
+
+    >>> n_solved.statistics.energy_balance.iplot() # doctest: +SKIP
+    #TODO Add plot
+
+    """
 
     _methods = [
         "system_cost",
@@ -195,9 +257,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if isinstance(weights.index, pd.MultiIndex):
                 return df.multiply(weights, axis=0).groupby(level=0).sum().T
             return weights @ df
-        else:
-            # Todo: here we leave out the weights, is that correct?
-            return df.agg(agg)
+        # Todo: here we leave out the weights, is that correct?
+        return df.agg(agg)
 
     def _aggregate_components_groupby(
         self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str
@@ -211,7 +272,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             elif isinstance(grouping_df, list):
                 grouping_df = pd.concat(grouping_df, axis=1)
             elif not isinstance(grouping_df, pd.DataFrame):
-                raise ValueError("grouping_df must be a DataFrame or Series")
+                msg = "grouping_df must be a DataFrame or Series"
+                raise TypeError(msg)
 
             was_series = False
             if isinstance(vals, pd.Series):
@@ -267,9 +329,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None,
         round: int | None,
     ) -> pd.DataFrame:
-        # nice_names_ = (
-        #     options.params.statistics.nice_names if nice_names is None else nice_names
-        # )
         # TODO move nice names here and drop from groupers
         round_ = options.params.statistics.round if round is None else round
         drop_zero_ = (
@@ -308,7 +367,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         aggregate_time: None = None,
     ) -> pd.DataFrame:
         """
-        Calculate statistical values for a network.
+        Calculate **multiple statistical values** for a network.
 
         This function calls multiple function in the background in order to
         derive a full table of relevant network information. It groups the
@@ -361,6 +420,16 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df :
             pandas.DataFrame with columns given the different quantities.
 
+        Examples
+        --------
+        >>> n_solved.statistics.optimal_capacity()
+        component  carrier
+        Generator  gas         982.03448
+                   wind       7292.13406
+        Line       AC         5613.82931
+        Link       DC         4003.90110
+        dtype: float64
+
         """
         if aggregate_time is not None:
             warnings.warn(
@@ -405,7 +474,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return pd.concat(res, axis=1).sort_index(axis=0)
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def capex(
+    def capex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -420,7 +489,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """
-        Calculate the capital expenditure.
+        Calculate the **capital expenditure**.
 
         Includes newly installed and existing assets, measured in the specified
         currency.
@@ -465,8 +534,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for more
             information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure.
             Defaults to `capital_cost`.
@@ -477,9 +546,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Capital expenditure with components as rows and a single column of
             aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.capex()
+        Examples
+        --------
+        >>> n_solved.statistics.capex()
         Series([], dtype: float64)
 
         """
@@ -507,7 +576,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def installed_capex(
+    def installed_capex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -522,7 +591,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """
-        Calculate the capital expenditure of already built capacities.
+        Calculate the **capital expenditure** of already built capacities.
 
         Parameters
         ----------
@@ -564,8 +633,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for more
             information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure.
             Defaults to `capital_cost`.
@@ -576,11 +645,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Capital expenditure of already built capacities with components as rows and
             a single column of aggregated values.
 
-        Example
-        -------
-
-
-        >>> n.statistics.installed_capex().sort_index()
+        Examples
+        --------
+        >>> n_solved.statistics.installed_capex()
         component  carrier
         Generator  gas        2.120994e+07
                    wind       6.761698e+05
@@ -613,7 +680,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def expanded_capex(
+    def expanded_capex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -628,7 +695,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
         """
-        Calculate the capital expenditure of expanded capacities.
+        Calculate the **capital expenditure** of expanded capacities.
 
         Parameters
         ----------
@@ -670,8 +737,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for more
             information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         cost_attribute : str
             Network attribute that should be used to calculate Capital Expenditure.
             Defaults to `capital_cost`.
@@ -682,9 +749,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Capital expenditure of expanded capacities with components as rows and
             a single column of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.expanded_capex().sort_index() # doctest: +ELLIPSIS
+        Examples
+        --------
+        >>> n_solved.statistics.expanded_capex()
         component  carrier
         Generator  gas       -2.120994e+07
                    wind      -6.761698e+05
@@ -724,7 +791,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def optimal_capacity(
+    def optimal_capacity(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -739,7 +806,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         storage: bool = False,
     ) -> pd.DataFrame:
         """
-        Calculate the optimal capacity of the network components in MW.
+        Calculate the **optimal capacity** of the network components in MW.
 
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
@@ -784,8 +851,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for more
             information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         storage : bool, default=False
             Whether to consider only storage capacities of the components
             `Store` and `StorageUnit`.
@@ -796,11 +863,15 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Optimal capacity of the network components with components as rows and
             a single column of aggregated values.
 
-        Example
-        -------
-
-        >>> n.statistics.optimal_capacity()
-        Series([], dtype: float64)
+        Examples
+        --------
+        >>> n_solved.statistics.optimal_capacity()
+        component  carrier
+        Generator  gas         982.03448
+                   wind       7292.13406
+        Line       AC         5613.82931
+        Link       DC         4003.90110
+        dtype: float64
 
         """
         if storage:
@@ -836,7 +907,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def installed_capacity(
+    def installed_capacity(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_groups: Callable | str = "sum",
@@ -851,7 +922,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         storage: bool = False,
     ) -> pd.DataFrame:
         """
-        Calculate the installed capacity of the network components in MW.
+        Calculate the **installed capacity** of the network components in MW.
 
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
@@ -896,8 +967,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         storage : bool, default=False
             Whether to consider only storage capacities of the components
             `Store` and `StorageUnit`.
@@ -908,10 +979,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 Installed capacity of the network components with components as rows and
                 a single column of aggregated values.
 
-        Example
-        -------
-
-        >>> n.statistics.installed_capacity().sort_index()
+        Examples
+        --------
+        >>> n_solved.statistics.installed_capacity()
         component  carrier
         Generator  gas        150000.0
                    wind          290.0
@@ -967,7 +1037,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the expanded capacity of the network components in MW.
+        Calculate the **expanded capacity** of the network components in MW.
 
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
@@ -1018,10 +1088,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Expanded capacity of the network components with components as rows and
             a single column of aggregated values.
 
-        Example
-        -------
-
-        >>> n.statistics.expanded_capacity()
+        Examples
+        --------
+        >>> n_solved.statistics.expanded_capacity()
         Series([], dtype: float64)
 
         """
@@ -1056,7 +1125,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def opex(
+    def opex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1072,7 +1141,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         cost_types: str | Sequence[str] | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the operational expenditure in the network in given currency.
+        Calculate the **operational expenditure** in the network in given currency.
 
         Operational expenditures include the marginal, marginal quadratic,
         storage holding, spillage, start-up, shut-down and stand-by costs.
@@ -1117,8 +1186,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1137,10 +1206,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-
-        >>> n.statistics.opex()
+        Examples
+        --------
+        >>> n_solved.statistics.opex()
         Series([], dtype: float64)
 
         """
@@ -1183,11 +1251,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     term = self._aggregate_timeseries(opex, weights, agg=aggregate_time)
                     result.append(term)
 
-            mapping = dict(
-                start_up_cost="start_up",
-                shut_down_cost="shut_down",
-                stand_by_cost="status",
-            )
+            mapping = {
+                "start_up_cost": "start_up",
+                "shut_down_cost": "shut_down",
+                "stand_by_cost": "status",
+            }
             for cost_type, attr in mapping.items():
                 if (
                     cost_type in cost_types_
@@ -1222,7 +1290,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def system_cost(
+    def system_cost(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1237,7 +1305,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the total system cost.
+        Calculate the **total system cost**.
 
         Sum of the capital and operational expenditures.
 
@@ -1281,8 +1349,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1295,9 +1363,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             System cost with components as rows and a single column of
             aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.system_cost()
+        Examples
+        --------
+        >>> n_solved.statistics.system_cost()
         Series([], dtype: float64)
 
         """
@@ -1338,7 +1406,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def supply(
+    def supply(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1353,7 +1421,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the supply of components in the network.
+        Calculate the **supply** of components in the network.
 
         Units depend on the regarded bus carrier.
 
@@ -1397,8 +1465,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1412,9 +1480,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.supply()
+        Examples
+        --------
+        >>> n_solved.statistics.supply()
         Series([], dtype: float64)
 
         """
@@ -1437,7 +1505,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def withdrawal(
+    def withdrawal(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1452,7 +1520,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the withdrawal of components in the network.
+        Calculate the **withdrawal** of components in the network.
 
         Units depend on the regarded bus carrier.
 
@@ -1496,8 +1564,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1511,9 +1579,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.withdrawal()
+        Examples
+        --------
+        >>> n_solved.statistics.withdrawal()
         Series([], dtype: float64)
 
         """
@@ -1536,7 +1604,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def transmission(
+    def transmission(  # noqa: D417
         self,
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
@@ -1551,7 +1619,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the transmission of branch components in the network.
+        Calculate the **transmission** of branch components in the network.
 
         Units depend on the regarded bus carrier.
 
@@ -1595,8 +1663,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1610,9 +1678,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.transmission()
+        Examples
+        --------
+        >>> n_solved.statistics.transmission()
         Series([], dtype: object)
 
         """
@@ -1648,13 +1716,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
-    def energy_balance(
+    def energy_balance(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
         aggregate_groups: Callable | str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         carrier: str | Sequence[str] | None = None,
         bus_carrier: str | Sequence[str] | None = None,
@@ -1664,7 +1732,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         direction: str | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate energy balance of components in network.
+        Calculate the **energy balance** of components in network.
 
         This method computes the energy balance across various network components, where
         positive values represent supply and negative values represent withdrawal. Units
@@ -1710,8 +1778,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1730,12 +1798,14 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             (if aggregate_time=False) or a single column of aggregated values.
             Units depend on the bus carrier and aggregation method.
 
-        Example
-        -------
-        >>> n.statistics.energy_balance()
+        Examples
+        --------
+        >>> n_solved.statistics.energy_balance()
         Series([], dtype: float64)
 
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         n = self._n
 
         if (
@@ -1778,11 +1848,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         )
 
         df.attrs["name"] = "Energy Balance"
-        df.attrs["unit"] = bus_carrier_unit(n, bus_carrier)
+        df.attrs["unit"] = n.bus_carrier_unit(bus_carrier)
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def curtailment(
+    def curtailment(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -1797,7 +1867,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the curtailment of components in the network in MWh.
+        Calculate the **curtailment** of components in the network in MWh.
 
         The calculation only considers assets with a `p_max_pu` time
         series, which is used to quantify the available power potential.
@@ -1842,8 +1912,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1857,9 +1927,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.curtailment()
+        Examples
+        --------
+        >>> n_solved.statistics.curtailment()
         Series([], Name: generators, dtype: float64)
 
         """
@@ -1891,7 +1961,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def capacity_factor(
+    def capacity_factor(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",
@@ -1906,7 +1976,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the capacity factor of components in the network.
+        Calculate the **capacity factor** of components in the network.
 
         Parameters
         ----------
@@ -1948,8 +2018,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -1963,9 +2033,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.capacity_factor()
+        Examples
+        --------
+        >>> n_solved.statistics.capacity_factor()
         Series([], dtype: float64)
 
         """
@@ -1977,17 +2047,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
-        kwargs = dict(
-            comps=comps,
-            groupby=groupby,
-            aggregate_across_components=aggregate_across_components,
-            at_port=at_port,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            drop_zero=drop_zero,
-            round=round,
-        )
+        kwargs = {
+            "comps": comps,
+            "groupby": groupby,
+            "aggregate_across_components": aggregate_across_components,
+            "at_port": at_port,
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "nice_names": nice_names,
+            "drop_zero": drop_zero,
+            "round": round,
+        }
         df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
         capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
@@ -1997,7 +2067,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
-    def revenue(
+    def revenue(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -2013,7 +2083,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         direction: str | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the revenue of components in the network in given currency.
+        Calculate the **revenue** of components in the network in given currency.
 
         The revenue is defined as the net revenue of an asset, i.e cost
         of input - revenue of output.
@@ -2058,8 +2128,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -2076,9 +2146,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.revenue()
+        Examples
+        --------
+        >>> n_solved.statistics.revenue()
         Series([], dtype: float64)
 
         """
@@ -2097,9 +2167,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 elif direction == "output":
                     df = df.clip(lower=0)
                 else:
-                    raise ValueError(
-                        f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
-                    )
+                    msg = f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
+                    raise ValueError(msg)
             revenue = df * prices
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(revenue, weights, agg=aggregate_time)
@@ -2122,7 +2191,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    def market_value(
+    def market_value(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",
@@ -2137,7 +2206,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
     ) -> pd.DataFrame:
         """
-        Calculate the market value of components in the network.
+        Calculate the **market value** of components in the network.
 
         Curreny is currency/MWh or currency/unit_{bus_carrier} where unit_{bus_carrier}
         is the unit of the bus carrier.
@@ -2182,8 +2251,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             option (default: 2). See `pypsa.options.params.statistics.describe()` for
             more information.
 
-        Additional Parameters
-        ---------------------
+        Other Parameters
+        ----------------
         aggregate_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
@@ -2197,25 +2266,25 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             either time steps as columns (if aggregate_time=False) or a single column
             of aggregated values.
 
-        Example
-        -------
-        >>> n.statistics.market_value()
+        Examples
+        --------
+        >>> n_solved.statistics.market_value()
         Series([], dtype: float64)
 
         """
-        kwargs = dict(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
-            aggregate_across_components=aggregate_across_components,
-            groupby=groupby,
-            at_port=at_port,
-            carrier=carrier,
-            bus_carrier=bus_carrier,
-            nice_names=nice_names,
-            drop_zero=drop_zero,
-            round=round,
-        )
+        kwargs = {
+            "comps": comps,
+            "aggregate_time": aggregate_time,
+            "aggregate_groups": aggregate_groups,
+            "aggregate_across_components": aggregate_across_components,
+            "groupby": groupby,
+            "at_port": at_port,
+            "carrier": carrier,
+            "bus_carrier": bus_carrier,
+            "nice_names": nice_names,
+            "drop_zero": drop_zero,
+            "round": round,
+        }
         df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"

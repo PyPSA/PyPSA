@@ -2,16 +2,8 @@
 
 from __future__ import annotations
 
-from abc import ABC
-from collections.abc import Callable, Sequence
 from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
-
-import numpy as np
-import plotly.graph_objects as go
-import seaborn as sns
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure, SubFigure
 
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
@@ -21,10 +13,18 @@ from pypsa.plot.statistics.schema import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    import numpy as np
+    import plotly.graph_objects as go
+    import seaborn as sns
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure, SubFigure
+
     from pypsa.networks import Network
 
 
-class StatisticPlotter(ABC):
+class StatisticPlotter:
     """
     Create plots based on output of statistics functions.
 
@@ -86,7 +86,8 @@ class StatisticPlotter(ABC):
         """
         # Get the correct plot function
         if kind not in CHART_TYPES + ["map", None]:
-            raise ValueError(f"Unknown plot type '{kind}'.")
+            msg = f"Unknown plot type '{kind}'."
+            raise ValueError(msg)
         # Apply schema to kind kwarg
         stats_name = self._bound_method.__name__
         kind_ = apply_parameter_schema(stats_name, "plot", {"kind": kind})["kind"]
@@ -444,7 +445,7 @@ class StatisticPlotter(ABC):
         )
 
 
-class StatisticInteractivePlotter(ABC):
+class StatisticInteractivePlotter:
     """
     Create interactive plots based on output of statistics functions.
 
@@ -503,7 +504,8 @@ class StatisticInteractivePlotter(ABC):
         """
         # Get the correct plot function
         if kind not in ["bar", "line", "area", None]:
-            raise ValueError(f"Unknown plot type '{kind}'.")
+            msg = f"Unknown plot type '{kind}'."
+            raise ValueError(msg)
         # Apply schema to kind kwarg
         stats_name = self._bound_method.__name__
         kind_ = apply_parameter_schema(stats_name, "plot", {"kind": kind})["kind"]

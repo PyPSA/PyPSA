@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
@@ -8,7 +7,6 @@ from __future__ import annotations
 
 import gc
 import logging
-from collections.abc import Sequence
 from itertools import product
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +18,8 @@ from linopy import LinearExpression, QuadraticExpression, merge
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
@@ -98,12 +98,14 @@ def discretized_capacity(
     ... threshold = 0.1,
     ... fractional_last_unit_size = False)
     4
+
     """
     if min_units is not None:
-        raise DeprecationWarning(
+        msg = (
             "The `min_units` parameter is deprecated and will be removed in future "
             "versions. Deprecated in version 0.32 and will be removed in version 1.0."
         )
+        raise DeprecationWarning(msg)
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
 
     if min_units is not None:
@@ -113,19 +115,16 @@ def discretized_capacity(
     if nom_max % unit_size == 0:
         return block_capacity
 
-    else:
-        if (nom_max - nom_opt) < unit_size:
-            if (
-                fractional_last_unit_size
-                and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
-            ):
-                return nom_max
-            elif nom_max < unit_size:
-                return nom_max
-            else:
-                return (nom_opt // unit_size) * unit_size
-        else:
-            return block_capacity
+    if (nom_max - nom_opt) < unit_size:
+        if (
+            fractional_last_unit_size
+            and ((nom_opt % unit_size) / (nom_max % unit_size)) >= threshold
+        ):
+            return nom_max
+        if nom_max < unit_size:
+            return nom_max
+        return (nom_opt // unit_size) * unit_size
+    return block_capacity
 
 
 def optimize_transmission_expansion_iteratively(
@@ -183,6 +182,7 @@ def optimize_transmission_expansion_iteratively(
         Whether only multiples of the unit size or in case of a maximum capacity fractions of unit size is allowed.
     **kwargs
         Keyword arguments of the `n.optimize` function which runs at each iteration
+
     """
     n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
     ext_i = n.get_extendable_i("Line").copy()
@@ -198,7 +198,7 @@ def optimize_transmission_expansion_iteratively(
 
     def update_line_params(n: Network, s_nom_prev: float | pd.Series) -> None:
         factor = n.lines.s_nom_opt / s_nom_prev
-        for attr, carrier in (("x", "AC"), ("r", "DC")):
+        for attr, carrier in (("x", "AC"), ("r", "DC")):  # noqa: B007
             ln_i = n.lines.query("carrier == @carrier").index.intersection(
                 ext_untyped_i
             )
@@ -212,7 +212,9 @@ def optimize_transmission_expansion_iteratively(
             / n.lines["s_nom_opt"].mean()
         )
         logger.info(
-            f"Mean square difference after iteration {iteration} is {lines_err}"  # type: ignore
+            "Mean square difference after iteration %d is %f",
+            iteration,  # type: ignore
+            lines_err,
         )
         return lines_err
 
@@ -258,7 +260,7 @@ def optimize_transmission_expansion_iteratively(
             for carrier in link_unit_size.keys() & n.links.carrier.unique():
                 idx = n.links.carrier == carrier
                 n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
-                    lambda row: discretized_capacity(
+                    lambda row, carrier=carrier: discretized_capacity(
                         nom_opt=row["p_nom_opt"],
                         nom_max=row["p_nom_max"],
                         unit_size=link_unit_size[carrier],
@@ -280,8 +282,9 @@ def optimize_transmission_expansion_iteratively(
     while diff >= msq_threshold or iteration < min_iterations:
         if iteration > max_iterations:
             logger.info(
-                f"Iteration {iteration} beyond max_iterations "
-                f"{max_iterations}. Stopping ..."
+                "Iteration %d beyond max_iterations %d. Stopping ...",
+                iteration,
+                max_iterations,
             )
             break
 
@@ -357,7 +360,7 @@ def optimize_security_constrained(
     snapshots: Sequence | None = None,
     branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
     multi_investment_periods: bool = False,
-    model_kwargs: dict = {},
+    model_kwargs: dict | None = None,
     **kwargs: Any,
 ) -> tuple[str, str]:
     """
@@ -385,10 +388,11 @@ def optimize_security_constrained(
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
         `problem_fn` or solver options directly passed to the solver.
 
-    Returns
-    -------
-    None
+
     """
+    if model_kwargs is None:
+        model_kwargs = {}
+
     all_passive_branches = n.passive_branches().index
 
     if branch_outages is None:
@@ -397,9 +401,8 @@ def optimize_security_constrained(
         branch_outages = pd.MultiIndex.from_product([("Line",), branch_outages])
 
         if diff := set(branch_outages) - set(all_passive_branches):
-            raise ValueError(
-                f"The following passive branches are not in the network: {diff}"
-            )
+            msg = f"The following passive branches are not in the network: {diff}"
+            raise ValueError(msg)
 
     if not len(all_passive_branches):
         return n.optimize(
@@ -476,22 +479,25 @@ def optimize_with_rolling_horizon(
     **kwargs:
         Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
-    Returns
-    -------
-    None
+
     """
     if snapshots is None:
         snapshots = n.snapshots
 
     if horizon <= overlap:
-        raise ValueError("overlap must be smaller than horizon")
+        msg = "overlap must be smaller than horizon"
+        raise ValueError(msg)
 
     starting_points = range(0, len(snapshots), horizon - overlap)
     for i, start in enumerate(starting_points):
         end = min(len(snapshots), start + horizon)
         sns = snapshots[start:end]
         logger.info(
-            f"Optimizing network for snapshot horizon [{sns[0]}:{sns[-1]}] ({i + 1}/{len(starting_points)})."
+            "Optimizing network for snapshot horizon [%s:%s] (%d/%d).",
+            sns[0],
+            sns[-1],
+            i + 1,
+            len(starting_points),
         )
 
         if i:
@@ -505,7 +511,9 @@ def optimize_with_rolling_horizon(
         status, condition = n.optimize(sns, **kwargs)  # type: ignore
         if status != "ok":
             logger.warning(
-                f"Optimization failed with status {status} and condition {condition}"
+                "Optimization failed with status %s and condition %s",
+                status,
+                condition,
             )
     return n
 
@@ -517,7 +525,7 @@ def optimize_mga(
     weights: dict | None = None,
     sense: str | int = "min",
     slack: float = 0.05,
-    model_kwargs: dict = {},
+    model_kwargs: dict | None = None,
     **kwargs: Any,
 ) -> tuple[str, str]:
     """
@@ -563,8 +571,11 @@ def optimize_mga(
     if snapshots is None:
         snapshots = n.snapshots
 
+    if model_kwargs is None:
+        model_kwargs = {}
+
     if weights is None:
-        weights = dict(Generator=dict(p_nom=pd.Series(1, index=n.generators.index)))
+        weights = {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
 
     # check that network has been solved
     if not hasattr(n, "objective"):
@@ -613,7 +624,8 @@ def optimize_mga(
     ):
         sense = -1
     else:
-        raise ValueError(f"Could not parse optimization sense {sense}")
+        msg = f"Could not parse optimization sense {sense}"
+        raise ValueError(msg)
 
     # build alternate objective
     objective = []
@@ -641,12 +653,11 @@ def optimize_mga(
     def convert_to_dict(obj: Any) -> Any:
         if isinstance(obj, pd.DataFrame):
             return obj.to_dict(orient="list")
-        elif isinstance(obj, pd.Series):
+        if isinstance(obj, pd.Series):
             return obj.to_dict()
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return {k: convert_to_dict(v) for k, v in obj.items()}
-        else:
-            return obj
+        return obj
 
     n.meta["weights"] = convert_to_dict(weights)
 
@@ -693,6 +704,7 @@ def optimize_and_run_non_linear_powerflow(
         - optimization status
         - optimization condition
         - dictionary of power flow results for all snapshots
+
     """
     if snapshots is None:
         snapshots = n.snapshots
@@ -702,13 +714,15 @@ def optimize_and_run_non_linear_powerflow(
 
     if status != "ok":
         logger.warning(
-            f"Optimization failed with status {status} and condition {condition}"
+            "Optimization failed with status %s and condition %s",
+            status,
+            condition,
         )
-        return dict(status=status, terminantion_condition=condition)
+        return {"status": status, "terminantion_condition": condition}
 
     for c in n.one_port_components:
         n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
-    for c in {"Link"}:
+    for c in ("Link",):
         n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
 
     n.generators.control = "PV"

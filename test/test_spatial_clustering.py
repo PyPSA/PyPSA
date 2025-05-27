@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Created on Mon Jan 31 18:11:09 2022.
 
@@ -79,7 +78,7 @@ def test_aggregate_generators_consent_error(ac_dc_network):
 
     busmap = pd.Series("all", n.buses.index)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         df, dynamic = aggregateoneport(n, busmap, "Generator")
 
 

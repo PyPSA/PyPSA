@@ -4,7 +4,7 @@ Contributing
 
 First of all, thank you for thinking about contributing to PyPSA! 
 
-We strongly welcome anyone interested in PyPSA and all it's related projects, be it
+We strongly welcome anyone interested in PyPSA and all its related projects, be it
 with new ideas, suggestions, submitting bug reports or contributing code changes.
 
 **How to contribute**
@@ -87,7 +87,7 @@ To use the linter in your CLI, run:
 
     ruff check . --fix
 
-This will check all files in the repository and gives you hints on what to improve. The 
+This will check all files in the repository and give you hints on what to improve. The 
 ``--fix`` flag will also automatically fix some of the issues, if possible. Some 
 issues need to be fixed manually.
 

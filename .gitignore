@@ -63,7 +63,8 @@ dev-scripts
 dev
 
 .venv
+uv.lock
 .aider*
 CLAUDE.md
 .claude/
-uv.lock
+.github/copilot-instructions.md

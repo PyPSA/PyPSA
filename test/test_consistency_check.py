@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-"""
-Created on Fri Sep 23 10:37:48 2022.
-
-@author: fabian
-"""
-
 import os
 
 import numpy as np

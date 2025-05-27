@@ -17,7 +17,6 @@ Generic functionality is implemented in the abstract module.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -27,15 +26,18 @@ from pyproj import CRS
 
 from pypsa.common import equals
 from pypsa.components.descriptors import _ComponentsDescriptors
+from pypsa.components.index import _ComponentsIndex
 from pypsa.components.transform import _ComponentsTransform
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network
+    from pypsa.definitions.components import ComponentType
 
 # TODO attachment todos
 # - crs
@@ -47,29 +49,45 @@ class ComponentsData:
     """
     Dataclass for Components.
 
-    Dataclass to store all data of a Components object and used to separate data from
-    logic.
+    This class is used to store all data of a Components object. Other classes inherit
+    from this class to implement logic and methods, but do not store any data next
+    to the data in here.
+
+    All attributes can therefore also be accessed directly from
+    any [`Components`][pypsa.components.Components] object (which defines all
+    attributes and properties which are available for all component types) as well as
+    in specific type classes as [`Generators`][pypsa.components.Generators] (which
+    define logic and methods specific to the component type).
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Components](/user-guide/components)
 
     Attributes
     ----------
     ctype : ComponentType
-        Component type information containing all default values and attributes.
+        Component type information containing all default values and attributes. #TODO
     n : Network | None
-        Network object to which the component might be attached.
+        Network to which the component might be attached.
     static : pd.DataFrame
-        Static data of components.
+        Static data of components as a pandas DataFrame. Columns are the attributes
+        and the index is the component name.
     dynamic : dict
-        Dynamic data of components.
+        Dynamic (time-varying) data of components as a dict-like object of pandas
+        DataFrames. Keys of the dict are the attribute names and each value is a pandas
+        DataFrame with snapshots as index and the component names as columns.
 
     """
 
     ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
-    dynamic: dict
+    dynamic: Dict
 
 
-class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
+class Components(
+    ComponentsData, _ComponentsDescriptors, _ComponentsTransform, _ComponentsIndex
+):
     """
     Components base class.
 
@@ -207,9 +225,10 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
             setattr(self, key, value)
         else:
             # TODO: Is this to strict?
-            raise KeyError(f"'{key}' not found in Component")
+            msg = f"'{key}' not found in Component"
+            raise KeyError(msg)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check if two Components are equal.
 
@@ -508,31 +527,6 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
         return self.ctype.defaults
 
     @property
-    def component_names(self) -> pd.Index:
-        """Unique names of the components."""
-        return self.static.index.get_level_values(self.ctype.name).unique()
-
-    @property
-    def snapshots(self) -> pd.Index | pd.MultiIndex:
-        """Snapshots of the network."""
-        return self.n_save.snapshots
-
-    @property
-    def timesteps(self) -> pd.Index:
-        """Time steps of the network."""
-        return self.n_save.timesteps
-
-    @property
-    def investment_periods(self) -> pd.Index:
-        """Investment periods of the network."""
-        return self.n_save.investment_periods
-
-    @property
-    def has_investment_periods(self) -> bool:
-        """Indicator whether network has investment persios."""
-        return self.n_save.has_investment_periods
-
-    @property
     def empty(self) -> bool:
         """Check if component is empty."""
         return self.static.empty
@@ -583,7 +577,8 @@ class Components(ComponentsData, _ComponentsDescriptors, _ComponentsTransform):
     def n_save(self) -> Any:
         """A save property to access the network (component must be attached)."""
         if not self.attached:
-            raise AttributeError("Component must be attached to a Network.")
+            msg = "Component must be attached to a Network."
+            raise AttributeError(msg)
         return self.n
 
     @property
@@ -678,7 +673,7 @@ class SubNetworkComponents:
 
     Also See
     --------
-    pypsa.components.abstract.Components : Base class for all PyPSA components in the
+    pypsa.Components : Base class for all PyPSA components in the
     network.
     """
 
@@ -693,10 +688,6 @@ class SubNetworkComponents:
         wrapped_get : Callable
             Custom getter function to delegate attribute access to the wrapped data
             object and allow for custom attribute handling.
-
-        Returns
-        -------
-        None
 
         """
         self._wrapped_data = wrapped_data
@@ -730,10 +721,6 @@ class SubNetworkComponents:
         value : Any
             Attribute value to set.
 
-        Returns
-        -------
-        None
-
         Raises
         ------
         AttributeError
@@ -743,7 +730,8 @@ class SubNetworkComponents:
         if key in {"_wrapped_data", "_wrapper_func"}:
             super().__setattr__(key, value)
         else:
-            raise AttributeError("SubNetworkComponents is read-only")
+            msg = "SubNetworkComponents is read-only"
+            raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
         """
@@ -754,14 +742,59 @@ class SubNetworkComponents:
         name : str
             Attribute name to delete.
 
-        Returns
-        -------
-        None
-
         Raises
         ------
         AttributeError
             If attribute deletion is attempted.
 
         """
-        raise AttributeError("SubNetworkComponents is read-only")
+        msg = "SubNetworkComponents is read-only"
+        raise AttributeError(msg)
+
+    def __str__(self) -> str:
+        """
+        Get string representation of sub-network components.
+
+        Returns
+        -------
+        str
+            String representation of sub-network components.
+
+        Examples
+        --------
+        >>> str(sub_network.components.generators)
+        "'Generator' SubNetworkComponents"
+
+        """
+        return f"'{self.ctype.name}' SubNetworkComponents"
+
+    def __repr__(self) -> str:
+        """
+        Get representation of sub-network components.
+
+        Returns
+        -------
+        str
+            Representation of sub-network components.
+
+        Examples
+        --------
+        >>> sub_network.components.generators
+        'Generator' SubNetworkComponents
+        --------------------------------
+        Attached to Sub-Network of PyPSA Network 'AC-DC'
+        Components: 6
+
+        """
+        num_components = len(self._wrapped_data.static)
+        if not num_components:
+            return f"Empty {self}"
+        text = f"{self}\n" + "-" * len(str(self)) + "\n"
+
+        # Add attachment status
+        if self.attached:
+            text += f"Attached to Sub-Network of {str(self.n)}\n"
+
+        text += f"Components: {len(self._wrapped_data.static)}"
+
+        return text

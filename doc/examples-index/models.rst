@@ -6,8 +6,8 @@ Open-source models using PyPSA
 This section provides examples of open-source models using PyPSA:
 
 
-- **European** energy system model `PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>`_, maintained by `pypsa.org <pypsa.org>`_
-- **German** energy system model `PyPSA-DE <https://github.com/PyPSA/pypsa-de>`_, maintained by `pypsa.org <pypsa.org>`_
+- **European** energy system model `PyPSA-Eur <https://github.com/PyPSA/pypsa-eur>`_, maintained by `pypsa.org <https://pypsa.org>`_
+- **German** energy system model `PyPSA-DE <https://github.com/PyPSA/pypsa-de>`_, maintained by `pypsa.org <https://pypsa.org>`_
 - **Global** energy system model `PyPSA-Earth <https://github.com/pypsa-meets-earth/pypsa-earth>`_, maintained by `pypsa-meets-earth <https://pypsa-meets-earth.github.io/>`_
 - **United States** energy system model `PyPSA-USA <https://github.com/pypsa/pypsa-usa>`_, maintained by Stanford University
 - **Chinese** power and heat sector-coupling model `PyPSA-China-PIK <https://github.com/pik-piam/PyPSA-China-PIK>`__, maintained by `PIK <https://www.pik-potsdam.de>`__ based on a `previous version <https://github.com/Xiaowei-Z/PyPSA-China>`_
@@ -17,7 +17,7 @@ This section provides examples of open-source models using PyPSA:
 - **Polish** power system model `PyPSA-PL <https://github.com/instrat-pl/pypsa-pl>`_, developed by Instrat.pl
 - **United Kingdom** power system model `PyPSA-UK <https://github.com/ember-climate/pypsa-uk>`__, maintained by Ember
 - **Great Britain** power system model `PyPSA-GB <https://github.com/andrewlyden/PyPSA-GB>`__, maintained by the University of Edinburgh
-- **Great Britain** power system model `PyPSA-FES <https://github.com/centrefornetzero/pypsa-fes>`__, maintained by Octupus Energy's `Centre for Net Zero <https://www.centrefornetzero.org/>`__.
+- **Great Britain** power system model `PyPSA-FES <https://github.com/centrefornetzero/pypsa-fes>`__, maintained by Octopus Energy's `Centre for Net Zero <https://www.centrefornetzero.org/>`__.
 - **Spanish** energy system model `PyPSA-Spain <https://github.com/cristobal-GC/pypsa-spain>`__, maintained by Polytechnic University of Madrid
 - **Central and Eastern Europe** power system model `PyPSA-CEE <https://github.com/ember-climate/pypsa-cee>`__, maintained by Ember
 - **Brazilian** power system model `PyPSA-Brazil <https://gitlab.com/dlr-ve/esy/open-brazil-energy-data/open-brazilian-energy-data>`_ from `this paper <https://doi.org/10.1038/s41597-023-01992-9>`__, developed by the German Aerospace Center (DLR)

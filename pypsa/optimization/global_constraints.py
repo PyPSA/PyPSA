@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Define global constraints for optimisation problems with Linopy.
 """
@@ -7,7 +6,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -19,6 +17,8 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,6 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     glcs = n.global_constraints.loc[
@@ -106,9 +103,6 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
@@ -184,6 +178,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     n : pypsa.Network
     sns : list-like
         Set of snapshots to which the constraint should be applied.
+
     """
     if not n._multi_invest:
         return
@@ -249,9 +244,6 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
@@ -327,9 +319,6 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
@@ -395,9 +384,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
+
     """
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
@@ -457,9 +444,6 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
