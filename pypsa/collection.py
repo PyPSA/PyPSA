@@ -29,6 +29,7 @@ class NetworkCollection:
             NetworkCollections, since via the step above the NetworkCollection can
             already duck-type to a Network. If this is the case, the accessor is
             directly initialised with a NetworkCollection instead.
+
     """
 
     def __init__(
@@ -43,6 +44,7 @@ class NetworkCollection:
         ----------
         *networks : Network
             One or more Network objects to include in the collection.
+
         """
         # if not networks:
         #     raise ValueError("At least one network must be provided")
@@ -155,6 +157,7 @@ class NetworkCollection:
         -------
         pd.Index
             The index of the NetworkCollection.
+
         """
         return self.networks.index
 
@@ -167,6 +170,7 @@ class NetworkCollection:
         -------
         list[str]
             The names of the index of the NetworkCollection.
+
         """
         return self.index.names or [self.index.name]
 
@@ -180,6 +184,7 @@ class NetworkCollection:
         pd.DataFrame
             A DataFrame containing the unique carriers found in all networks,
             indexed by carrier name.
+
         """
         all_carriers = [n.carriers for n in self.networks]
         combined_carriers = pd.concat(all_carriers)
@@ -260,6 +265,7 @@ class MemberProxy:
             Function that returns the appropriate accessor for a given network
         accessor_path : str, optional
             The dot-separated path of accessor names from NetworkCollection to this wrapper
+
         """
         self.collection = collection
         self.accessor_func = accessor_func
