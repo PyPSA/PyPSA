@@ -1243,7 +1243,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "spill_cost",
             ]:
                 if cost_type in cost_types_ and cost_type in n.static(c):
-                    attr = lookup.query(cost_type).loc[c].index.item()
+                    attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
                     p = n.dynamic(c)[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
@@ -1270,7 +1270,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     result.append(term)
             if not result:
                 return pd.Series()
-            return pd.concat(result).groupby(level=0).sum()
+            result = pd.concat(result)
+            return result.groupby(level=list(range(result.index.nlevels))).sum()
 
         df = self._aggregate_components(
             func,

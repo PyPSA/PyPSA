@@ -3,7 +3,6 @@
 import logging
 import re
 from collections.abc import Callable, Iterator, Sequence
-from itertools import product
 from typing import Any
 
 import pandas as pd
@@ -324,21 +323,24 @@ class MemberProxy:
     # -------------------------------
 
     def _concat_indexes(self, results: dict) -> Any:
-        # Extract all values from indices
-        values_list = [list(idx) for idx in results.values()]
+        # Build names list based on the network collection index and result index names
+        network_names = self.collection._index_names
 
-        # Get all combinations of values
-        combinations = list(product(*values_list))
+        # Get the names from the first result index (they should all be the same)
+        first_result = next(iter(results.values()))
+        result_names = [first_result.name] if first_result.name else []
 
-        # Get names from keys (handle both string and tuple cases)
-        if all(isinstance(k, str) for k in results.keys()):
-            # All keys are strings
-            names = list(results.keys())
-        else:
-            # All keys are tuples
-            names = [item for tup in results.keys() for item in tup]
+        # Combine network names with result names
+        all_names = network_names + result_names
 
-        return pd.MultiIndex.from_tuples(combinations, names=names)
+        # Flatten the combinations to include network index values
+        flattened_combinations = []
+        for idx, result_idx in results.items():
+            # idx can be a string or tuple depending on whether collection has MultiIndex
+            idx_values = (idx,) if isinstance(idx, str) else idx
+            flattened_combinations.extend([idx_values + (val,) for val in result_idx])
+
+        return pd.MultiIndex.from_tuples(flattened_combinations, names=all_names)
 
     def _do_concat(self, results: Any, axis: int) -> Any:
         # Check if values are dictionaries
@@ -425,3 +427,24 @@ class MemberProxy:
             result = accessor
 
         return result
+
+    def index_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+        """
+        Concatenate indexes from all networks in the collection into a MultiIndex.
+
+        This function collects indexes from each network and combines them into a
+        MultiIndex where the network identifier(s) form the first level(s) and the
+        original index values form the subsequent levels.
+        """
+        results = {}
+
+        for idx, network in self.collection.networks.items():
+            accessor = self.accessor_func(network)
+            if is_call:
+                result = accessor(*args, **kwargs)
+            else:
+                result = accessor
+            results[idx] = result
+
+        # Use the _concat_indexes helper which already handles MultiIndex creation
+        return self._concat_indexes(results)
