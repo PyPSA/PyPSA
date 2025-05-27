@@ -1,3 +1,5 @@
+"""NetworkCollection class for handling multiple PyPSA networks."""
+
 import logging
 import re
 from collections.abc import Callable, Iterator, Sequence
@@ -42,16 +44,12 @@ class NetworkCollection:
 
         Parameters
         ----------
-        *networks : Network
+        networks : Network
             One or more Network objects to include in the collection.
+        index : pd.Index, pd.MultiIndex, Sequence, or None, optional
+            The index to use for the collection. If None, a default index will be created.
 
         """
-        # if not networks:
-        #     raise ValueError("At least one network must be provided")
-
-        # if not all(isinstance(n, Network) for n in networks):
-        #     raise TypeError("All arguments must be Network instances")
-
         if isinstance(networks, pd.Series) and index is not None:
             msg = (
                 "When passing a pandas Series, the index must be None, "
@@ -60,7 +58,8 @@ class NetworkCollection:
             raise ValueError(msg)
 
         if not all(isinstance(n, Network) for n in networks):
-            raise TypeError("All values in the Series must be PyPSA Network objects.")
+            msg = "All values in the Series must be PyPSA Network objects."
+            raise TypeError(msg)
 
         if not isinstance(networks, pd.Series):
             # Format and validate index
@@ -105,9 +104,10 @@ class NetworkCollection:
         self.networks = networks
 
         # Validate index names
-        if isinstance(self.networks.index, pd.MultiIndex):
+        if isinstance(self.networks.index, pd.MultiIndex):  # noqa: SIM102
             if any(name is None for name in self.networks.index.names):
-                raise ValueError("All levels of MultiIndex must have names")
+                msg = "All levels of MultiIndex must have names"
+                raise ValueError(msg)
 
         # Initialize accessors which support NetworkCollections and don't need a proxy
         # member
@@ -140,12 +140,11 @@ class NetworkCollection:
         return self.networks[key]
 
     def __len__(self) -> int:
+        """Get the number of networks in the collection."""
         return len(self.networks)
 
     def __iter__(self) -> Iterator[Network]:
-        """
-        Iterate over the Network objects in the container.
-        """
+        """Iterate over the Network objects in the container."""
         return iter(self.networks)
 
     @property
@@ -212,7 +211,6 @@ class MemberProxy:
         r"stores|shunt_impedances|shapes|"
         r"static|"
         r"get_active_assets|"
-        r"get_committable_i|"
         # statistics and all statistics expressions
         r"statistics|"
         r"statistics\.[^\.\s]+)"
@@ -221,13 +219,17 @@ class MemberProxy:
         r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
         r"transformers|transformer_types|links|loads|generators|storage_units|"
         r"stores|shunt_impedances|shapes)_t|"
-        r"dynamic"
+        r"dynamic|"
+        r"get_switchable_as_dense"
         r"$",  # End of string
         "return_from_first": r"^"
         r"\S+_components|"
         r"snapshots|"
-        r"snapshot_weightings"
+        r"snapshot_weightings|"
+        r"bus_carrier_unit"
         r"$",  # End of string
+        "index_concat": r"^"  # Start of string
+        r"get_committable_i",
     }
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
@@ -293,9 +295,8 @@ class MemberProxy:
         """
         # Get the attribute from the first accessor to determine its type
         if len(self.collection.networks) == 0:
-            raise AttributeError(
-                f"Cannot access attribute '{name}' on empty collection"
-            )
+            msg = f"Cannot access attribute '{name}' on empty collection"
+            raise AttributeError(msg)
 
         # Create the new accessor path by appending the attribute name
         new_path = f"{self.accessor_path}.{name}" if self.accessor_path else name
@@ -306,6 +307,7 @@ class MemberProxy:
         )
 
     def get_processor(self) -> Any:
+        """Determine the appropriate processor for the current accessor path."""
         # Check for pattern-based method processor
         for processor_name, pattern in self._method_patterns.items():
             if re.match(pattern, self.accessor_path):
@@ -382,6 +384,7 @@ class MemberProxy:
     # -----------------
 
     def vertical_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+        """Concatenate results vertically (axis=0) from all networks in the collection."""
         results = {}
 
         for idx, network in self.collection.networks.items():
@@ -395,6 +398,7 @@ class MemberProxy:
         return self._do_concat(results, axis=0)
 
     def horizontal_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+        """Concatenate results horizontally across networks."""
         results = {}
         for idx, network in self.collection.networks.items():
             accessor = self.accessor_func(network)
@@ -421,14 +425,3 @@ class MemberProxy:
             result = accessor
 
         return result
-
-    def statistics_plot(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
-        if not is_call:
-            msg = "Arguments are not allowed for property accessors"
-            raise ValueError(msg)
-
-        # self.collection._statistics.installed_capacity.plot()
-
-    # wrapped_callable = MethodHandlerWrapper(
-    #     handler_class=StatisticHandler, inject_attrs={"n": "_n"}
-    # )(your_callable)

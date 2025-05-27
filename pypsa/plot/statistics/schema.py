@@ -249,6 +249,19 @@ def apply_parameter_schema(
     for param in to_remove:
         kwargs.pop(param)
 
+    # Auto-faceting logic
+    if (
+        context is not None
+        and context.get("index_names")
+        and kwargs.get("facet_col") is None
+        and kwargs.get("facet_row") is None
+    ):
+        if len(context["index_names"]) == 1:
+            kwargs["facet_col"] = context["index_names"][0]
+        elif len(context["index_names"]) >= 2:
+            kwargs["facet_row"] = context["index_names"][0]
+            kwargs["facet_col"] = context["index_names"][1]
+
     return kwargs
 
 
@@ -270,9 +283,11 @@ def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> 
 
     """
     index_names = context.get("index_names", []) if context else []
-    return [
+    res = [
         value
         for key, value in plot_kwargs.items()
         if key in {"x", "y", "color", "facet_col", "facet_row"}
         and value not in index_names
+        and value is not None
     ]
+    return list(set(res))  # Remove duplicates

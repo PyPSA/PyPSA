@@ -260,23 +260,6 @@ class StatisticPlotter:
         # Create context for schema application
         context = {"index_names": self._n._index_names}
 
-        # Auto-faceting logic
-        if context["index_names"] and facet_col is None and facet_row is None:
-            if len(context["index_names"]) == 1:
-                facet_col = context["index_names"][0]
-            elif len(context["index_names"]) >= 2:
-                facet_row = context["index_names"][0]
-                facet_col = context["index_names"][1]
-
-        # Update plot_kwargs with auto-faceting
-        plot_kwargs.update(
-            {
-                k: v
-                for k, v in [("facet_col", facet_col), ("facet_row", facet_row)]
-                if v is not None
-            }
-        )
-
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
         plot_kwargs = apply_parameter_schema(
@@ -295,12 +278,15 @@ class StatisticPlotter:
         stats_kwargs.update(base_stats_kwargs)
 
         # Apply schema to statistics kwargs
-        stats_kwargs = apply_parameter_schema(
-            stats_name, chart_type, stats_kwargs, context
-        )
+        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
+        if data.empty:
+            msg = (
+                f"The statistics function '{stats_name}' returned an empty DataFrame. "
+            )
+            raise ValueError(msg)
         return plotter.plot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
 
     def map(
@@ -665,29 +651,11 @@ class StatisticInteractivePlotter:
         # Create context for schema application
         context = {"index_names": self._n._index_names}
 
-        # Auto-faceting logic
-        if context["index_names"] and facet_col is None and facet_row is None:
-            if len(context["index_names"]) == 1:
-                facet_col = context["index_names"][0]
-            elif len(context["index_names"]) >= 2:
-                facet_row = context["index_names"][0]
-                facet_col = context["index_names"][1]
-
-        # Update plot_kwargs with auto-faceting
-        plot_kwargs.update(
-            {
-                k: v
-                for k, v in [("facet_col", facet_col), ("facet_row", facet_row)]
-                if v is not None
-            }
-        )
-
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
         plot_kwargs = apply_parameter_schema(
             stats_name, chart_type, plot_kwargs, context
         )
-
         # Use helper for filtering
         relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
@@ -700,10 +668,13 @@ class StatisticInteractivePlotter:
         stats_kwargs.update(base_stats_kwargs)
 
         # Apply schema to statistics kwargs
-        stats_kwargs = apply_parameter_schema(
-            stats_name, chart_type, stats_kwargs, context
-        )
+        stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
+        if data.empty:
+            msg = (
+                f"The statistics function '{stats_name}' returned an empty DataFrame. "
+            )
+            raise ValueError(msg)
         return plotter.iplot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore

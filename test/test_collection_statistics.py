@@ -73,9 +73,7 @@ class TestNetworkCollectionIndexValidation:
 
     def test_multiindex_without_names_raises_error(self, simple_network):
         """Test that MultiIndex without names raises ValueError."""
-        networks = []
-        for _ in range(4):
-            networks.append(simple_network.copy())
+        networks = [simple_network.copy() for _ in range(4)]
 
         # Create MultiIndex without names
         index = pd.MultiIndex.from_product([["a", "b"], ["1", "2"]])
@@ -86,9 +84,7 @@ class TestNetworkCollectionIndexValidation:
 
     def test_multiindex_with_partial_names_raises_error(self, simple_network):
         """Test that MultiIndex with partial names raises ValueError."""
-        networks = []
-        for _ in range(4):
-            networks.append(simple_network.copy())
+        networks = [simple_network.copy() for _ in range(4)]
 
         # Create MultiIndex with only one name
         index = pd.MultiIndex.from_product([["a", "b"], ["1", "2"]])
@@ -343,3 +339,22 @@ def test_network_collection_default_energy_balance_groupby(
     assert "carrier" in result.index.names
     assert "bus_carrier" in result.index.names
     assert "scenario" in result.index.names  # Uses 'scenario' as index name
+
+
+def test_network_collection_opex_and_capex(
+    optimized_network_collection_from_ac_dc,
+):
+    """Test OPEX and CAPEX statistics with NetworkCollection."""
+    nc = optimized_network_collection_from_ac_dc
+
+    # Test OPEX calculation
+    opex_result = nc.statistics.opex()
+    assert isinstance(opex_result, pd.Series)
+    assert not opex_result.empty
+    assert "scenario" in opex_result.index.names
+
+    # Test CAPEX calculation
+    capex_result = nc.statistics.capex()
+    assert isinstance(capex_result, pd.Series)
+    assert not capex_result.empty
+    assert "scenario" in capex_result.index.names

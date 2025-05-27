@@ -213,7 +213,7 @@ def test_collection_iteration(network1, network2):
     """Test iterating over the NetworkCollection object."""
     networks = [network1, network2]
     collection = pypsa.NetworkCollection(networks)
-    iterated_list = [n for n in collection]
+    iterated_list = list(collection)
     assert iterated_list == networks
 
 

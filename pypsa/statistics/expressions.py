@@ -1229,7 +1229,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         else:
             cost_types_ = list(cost_types)
 
-        @pass_empty_series_if_keyerror
+        # @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             result = []
             weights = get_weightings(n, c)
