@@ -1,5 +1,4 @@
-"""
-Components types module.
+"""Components types module.
 
 Contains module wide component types. Default types are loaded from the package data.
 Additional types can be added by the user.
@@ -35,8 +34,7 @@ def add_component_type(
     defaults_df: pd.DataFrame,
     standard_types_df: pd.DataFrame | None = None,
 ) -> None:
-    """
-    Add component type to package wide component types library.
+    """Add component type to package wide component types library.
 
     The function is used to add the package default components but can also be used to
     add custom components, which then again can be used during the network creation.
@@ -136,8 +134,7 @@ def add_component_type(
 def _load_default_component_types(
     component_df: pd.DataFrame, attrs_path: Path, standard_types_path: Path
 ) -> None:
-    """
-    Load default component types from package data.
+    """Load default component types from package data.
 
     Function is called during package import and should not be used otherwise.
 
@@ -180,8 +177,7 @@ def _load_default_component_types(
 
 
 def get(name: str) -> ComponentType:
-    """
-    Get component type instance from package wide component types library.
+    """Get component type instance from package wide component types library.
 
     The function is used to get the package default components but can also be used to
     get custom components. During network creation, the type instance is not needed but

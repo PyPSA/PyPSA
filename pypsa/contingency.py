@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def calculate_BODF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
-    """
-    Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
+    """Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
 
     Sets sub_network.BODF as a (dense) numpy array.
 
@@ -69,8 +68,7 @@ def network_lpf_contingency(
     snapshots: Sequence | str | int | pd.Timestamp | None = None,
     branch_outages: Sequence | None = None,
 ) -> pd.DataFrame:
-    """
-    Computes linear power flow for a selection of branch outages.
+    """Compute linear power flow for a selection of branch outages.
 
     Parameters
     ----------

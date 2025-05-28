@@ -24,8 +24,7 @@ if TYPE_CHECKING:
 
 
 class MapPlotGenerator(PlotsGenerator, MapPlotter):
-    """
-    Main statistics map plot accessor providing access to different plot types.
+    """Main statistics map plot accessor providing access to different plot types.
 
     This class combines functionality from both StatisticsPlotAccessor and NetworkMapPlotter
     to create geographic visualizations of network statistics.
@@ -34,8 +33,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
     _n: "Network"
 
     def __init__(self, n: "Network") -> None:
-        """
-        Initialize the MapPlotter with a PyPSA network.
+        """Initialize the MapPlotter with a PyPSA network.
 
         Parameters
         ----------

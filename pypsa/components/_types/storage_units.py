@@ -11,8 +11,7 @@ from pypsa.components.components import Components
 
 @patch_add_docstring
 class StorageUnits(Components):
-    """
-    StorageUnits components class.
+    """StorageUnits components class.
 
     This class is used for storage unit components. All functionality specific to
     storage units is implemented here. Functionality for all components is implemented
@@ -35,7 +34,7 @@ class StorageUnits(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,

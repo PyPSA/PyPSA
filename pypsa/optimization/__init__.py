@@ -1,6 +1,4 @@
-"""
-Build optimisation problems from PyPSA networks with Linopy.
-"""
+"""Build optimisation problems from PyPSA networks with Linopy."""
 
 from pypsa.optimization import abstract, constraints, optimize, variables
 from pypsa.optimization.optimize import create_model

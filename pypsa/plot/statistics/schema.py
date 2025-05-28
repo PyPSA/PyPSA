@@ -1,5 +1,4 @@
-"""
-Schema for plotting statistics in PyPSA.
+"""Schema for plotting statistics in PyPSA.
 
 Statistics can be plotted in any statistics/ plotting combination. E.g.
 n.plot.supply.line() or n.plot.transmission.area(). Different combinations require
@@ -148,8 +147,7 @@ SCHEMA: dict = {
 
 
 def _combine_schemas() -> dict:
-    """
-    Combine the default schema with the specific schema for statistics and plot types.
+    """Combine the default schema with the specific schema for statistics and plot types.
 
     Returns
     -------
@@ -209,8 +207,7 @@ schema = _combine_schemas()
 def apply_parameter_schema(
     stats_name: str, plot_name: str, kwargs: dict, context: dict | None = None
 ) -> dict:
-    """
-    Apply parameter schema to kwargs.
+    """Apply parameter schema to kwargs.
 
     The schema is used to for different statistics functions signatures based on
     plot type/ choosed statistics function. The schema is defined in

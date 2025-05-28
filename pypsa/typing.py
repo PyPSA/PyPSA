@@ -13,8 +13,7 @@ NetworkType = TypeVar("NetworkType", bound=_NetworkABC)
 
 
 def is_1d_list_like(x: Any) -> bool:
-    """
-    Check if x is a 1D list-like object.
+    """Check if x is a 1D list-like object.
 
     Parameters
     ----------

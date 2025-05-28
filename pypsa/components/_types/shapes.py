@@ -11,8 +11,7 @@ from pypsa.components.components import Components
 
 @patch_add_docstring
 class Shapes(Components):
-    """
-    Shapes components class.
+    """Shapes components class.
 
     This class is used for shape components. All functionality specific to
     shapes is implemented here. Functionality for all components is implemented in
@@ -36,7 +35,7 @@ class Shapes(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,

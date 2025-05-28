@@ -84,8 +84,7 @@ DEFAULT_LINE_STRATEGIES = {
 
 
 def normed_or_uniform(x: pd.Series) -> pd.Series:
-    """
-    Normalize a series by dividing it by its sum.
+    """Normalize a series by dividing it by its sum.
 
     When the sum is zero, a uniform distribution is returned instead.
 
@@ -106,8 +105,7 @@ def normed_or_uniform(x: pd.Series) -> pd.Series:
 
 
 def make_consense(component: str, attr: str) -> Callable:
-    """
-    Returns a function to verify attribute values of a cluster in a component.
+    """Return a function to verify attribute values of a cluster in a component.
 
     The values should either be the same or all null.
 
@@ -144,8 +142,7 @@ def make_consense(component: str, attr: str) -> Callable:
 
 
 def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
-    """
-    Aligns the given strategies with the given keys.
+    """Aligns the given strategies with the given keys.
 
     Parameters
     ----------
@@ -182,8 +179,7 @@ def aggregateoneport(
     with_time: bool = True,
     custom_strategies: dict | None = None,
 ) -> tuple[pd.DataFrame, dict]:
-    """
-    Aggregate one port components in the network based on the given busmap.
+    """Aggregate one port components in the network based on the given busmap.
 
     Parameters
     ----------
@@ -304,8 +300,7 @@ def aggregateoneport(
 def aggregatebuses(
     n: Network, busmap: dict, custom_strategies: dict | None = None
 ) -> pd.DataFrame:
-    """
-    Aggregate buses in the network based on the given busmap.
+    """Aggregate buses in the network based on the given busmap.
 
     Parameters
     ----------
@@ -348,8 +343,7 @@ def aggregatelines(
     bus_strategies: dict | None = None,
     custom_line_groupers: Iterable = [],
 ) -> tuple[pd.DataFrame, dict, pd.Series]:
-    """
-    Aggregate lines in the network based on the given busmap.
+    """Aggregate lines in the network based on the given busmap.
 
     Parameters
     ----------
@@ -480,8 +474,7 @@ class Clustering:
         details="Use `clustering.n` instead.",
     )
     def network(self) -> Network:
-        """
-        Get the network.
+        """Get the network.
 
         !!! warning "Deprecated in 0.32"
             Use `clustering.n` instead.
@@ -640,8 +633,7 @@ def busmap_by_kmeans(
     buses_i: pd.Index | None = None,
     **kwargs: Any,
 ) -> pd.Series:
-    """
-    Create a bus map from the clustering of buses in space with a weighting.
+    """Create a bus map from the clustering of buses in space with a weighting.
 
     Parameters
     ----------
@@ -701,8 +693,7 @@ def kmeans_clustering(
     line_length_factor: float = 1.0,
     **kwargs: Any,
 ) -> Clustering:
-    """
-    Cluster the network according to k-means clustering of the buses.
+    """Cluster the network according to k-means clustering of the buses.
 
     Buses can be weighted by an integer in the series `bus_weightings`.
 
@@ -745,8 +736,7 @@ def busmap_by_hac(
     linkage: str = "ward",
     **kwargs: Any,
 ) -> pd.Series:
-    """
-    Create a busmap according to Hierarchical Agglomerative Clustering.
+    """Create a busmap according to Hierarchical Agglomerative Clustering.
 
     Parameters
     ----------
@@ -838,8 +828,7 @@ def hac_clustering(
     line_length_factor: float = 1.0,
     **kwargs: Any,
 ) -> Clustering:
-    """
-    Cluster the network using Hierarchical Agglomerative Clustering.
+    """Cluster the network using Hierarchical Agglomerative Clustering.
 
     Parameters
     ----------
@@ -897,8 +886,7 @@ def hac_clustering(
 def busmap_by_greedy_modularity(
     n: Network, n_clusters: int, buses_i: pd.Index | None = None
 ) -> pd.Series:
-    """
-    Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
+    """Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
 
     See [CNM2004_1]_ for more details.
 
@@ -964,8 +952,7 @@ def greedy_modularity_clustering(
     buses_i: pd.Index | None = None,
     line_length_factor: float = 1.0,
 ) -> Clustering:
-    """
-    Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
+    """Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
 
     See [CNM2004_2]_ for more details.
 
@@ -1004,8 +991,7 @@ def greedy_modularity_clustering(
 def busmap_by_stubs(
     n: Network, matching_attrs: Iterable[str] | None = None
 ) -> pd.Series:
-    """
-    Create a busmap by reducing stubs and stubby trees.
+    """Create a busmap by reducing stubs and stubby trees.
 
     In other words sequentially reducing dead-ends.
 

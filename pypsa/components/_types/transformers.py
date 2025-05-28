@@ -15,8 +15,7 @@ if TYPE_CHECKING:
 
 @patch_add_docstring
 class Transformers(Components):
-    """
-    Transformers components class.
+    """Transformers components class.
 
     This class is used for transformer components. All functionality specific to
     transformers is implemented here. Functionality for all components is implemented in
@@ -39,7 +38,7 @@ class Transformers(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,

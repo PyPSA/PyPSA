@@ -12,8 +12,7 @@ if TYPE_CHECKING:
 
 
 def as_components(n: NetworkType, value: str | Components) -> Components:
-    """
-    Get component instance from string.
+    """Get component instance from string.
 
     E.g. pass 'Generator', 'generators' or Components class instance to get the
     corresponding Components class instance.

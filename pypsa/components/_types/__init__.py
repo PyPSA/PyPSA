@@ -1,5 +1,4 @@
-"""
-Components types package.
+"""Components types package.
 
 Contains all classes for specific component types. They all inherit from the Components
 base class and might add additional functionality or override existing methods.

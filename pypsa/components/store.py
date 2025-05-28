@@ -1,5 +1,4 @@
-"""
-Components store module.
+"""Components store module.
 
 Contains store class which is used to store all different components in the network.
 """
@@ -54,8 +53,7 @@ class ComponentsStore(dict):
     transformers: Transformers
 
     def __repr__(self) -> str:
-        """
-        Get representation of component store.
+        """Get representation of component store.
 
         Returns
         -------
@@ -96,8 +94,7 @@ class ComponentsStore(dict):
         self[name] = value
 
     def __getitem__(self, item: str | list | set) -> Any:
-        """
-        Index single and multiple items from the dictionary.
+        """Index single and multiple items from the dictionary.
 
         Similar behavior to pandas.DataFrame.__getitem__.
 
@@ -139,8 +136,7 @@ class ComponentsStore(dict):
         return super().__getitem__(item)
 
     def __getattr__(self, item: str) -> Any:
-        """
-        Get attribute from the dictionary.
+        """Get attribute from the dictionary.
 
         Examples
         --------

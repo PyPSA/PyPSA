@@ -14,8 +14,7 @@ if TYPE_CHECKING:
 
 
 class PlotsGenerator(ABC):
-    """
-    Base plot generator class for statistics plots.
+    """Base plot generator class for statistics plots.
 
     This class provides a common interface for all plot generators which build up
     on statistics functions of :mod:`pypsa.statistics`. Defined methods need
@@ -25,8 +24,7 @@ class PlotsGenerator(ABC):
     _n: Network
 
     def __init__(self, n: Network) -> None:
-        """
-        Initialize plot generator.
+        """Initialize plot generator.
 
         Parameters
         ----------

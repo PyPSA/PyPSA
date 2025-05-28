@@ -17,8 +17,7 @@ if TYPE_CHECKING:
 
 @patch_add_docstring
 class Lines(Components):
-    """
-    Lines components class.
+    """Lines components class.
 
     This class is used for line components. All functionality specific to
     lines is implemented here. Functionality for all components is implemented in
@@ -41,7 +40,7 @@ class Lines(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
@@ -50,8 +49,7 @@ class Lines(Components):
         )
 
     def calculate_line_length(self) -> pd.Series:
-        """
-        Get length of the lines in meters.
+        """Get length of the lines in meters.
 
         Based on coordinates of attached buses. Buses must have 'x' and 'y' attributes,
         otherwise no line length can be calculated. By default the haversine formula is

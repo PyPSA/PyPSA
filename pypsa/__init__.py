@@ -1,5 +1,4 @@
-"""
-Python for Power Systems Analysis (PyPSA).
+"""Python for Power Systems Analysis (PyPSA).
 
 Energy system modelling library.
 """

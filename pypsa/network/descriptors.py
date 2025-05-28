@@ -1,5 +1,4 @@
-"""
-Network descriptors module.
+"""Network descriptors module.
 
 Contains single helper class (_NetworkDescriptors) which is used to inherit
 to Network class. Should not be used directly.
@@ -33,8 +32,7 @@ class _NetworkDescriptors(_NetworkABC):
         details="Use `n.components[c].extendables` instead.",
     )
     def get_extendable_i(self, c: str) -> pd.Index:
-        """
-        Getter function.
+        """Getter function.
 
         Get the index of extendable elements of a given component.
 
@@ -44,8 +42,7 @@ class _NetworkDescriptors(_NetworkABC):
 
     @deprecated_in_next_major(details="Use `n.components[c].fixed` instead.")
     def get_non_extendable_i(self, c: str) -> pd.Index:
-        """
-        Getter function.
+        """Getter function.
 
         Get the index of non-extendable elements of a given component.
 
@@ -55,8 +52,7 @@ class _NetworkDescriptors(_NetworkABC):
 
     @deprecated_in_next_major(details="Use `n.components[c].committables` instead.")
     def get_committable_i(self, c: str) -> pd.Index:
-        """
-        Getter function.
+        """Getter function.
 
         Get the index of commitable elements of a given component.
 
@@ -72,8 +68,7 @@ class _NetworkDescriptors(_NetworkABC):
         c: str,
         investment_period: int | str | Sequence | None = None,
     ) -> pd.Series:
-        """
-        Get active components mask of component type in investment period(s).
+        """Get active components mask of component type in investment period(s).
 
         See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
 
@@ -100,8 +95,7 @@ class _NetworkDescriptors(_NetworkABC):
         snapshots: Sequence | None = None,
         inds: pd.Index | None = None,
     ) -> pd.DataFrame:
-        """
-        Return a Dataframe for a time-varying component attribute .
+        """Return a Dataframe for a time-varying component attribute .
 
         Values for all non-time-varying components are filled in with the default
         values for the attribute.
@@ -155,8 +149,7 @@ class _NetworkDescriptors(_NetworkABC):
         snapshots: Sequence,
         inds: pd.Index | None = None,
     ) -> pd.DataFrame:
-        """
-        Return an iterator over snapshots for a time-varying component attribute.
+        """Return an iterator over snapshots for a time-varying component attribute.
 
         Values for all non-time-varying components are filled in with the default
         values for the attribute.
@@ -231,8 +224,7 @@ class _NetworkDescriptors(_NetworkABC):
         )
 
     def bus_carrier_unit(self, bus_carrier: str | Sequence[str] | None) -> str:
-        """
-        Determine the unit associated with a specific bus carrier in the network.
+        """Determine the unit associated with a specific bus carrier in the network.
 
         Parameters
         ----------

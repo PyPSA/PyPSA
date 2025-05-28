@@ -1,5 +1,4 @@
-"""
-Network index module.
+"""Network index module.
 
 Contains single helper class (_NetworkIndex) which is used to inherit
 to Network class. Should not be used directly.
@@ -29,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class _NetworkIndex(_NetworkABC):
-    """
-    Helper class for components array methods.
+    """Helper class for components array methods.
 
     Class only inherits to Components and should not be used directly.
     """
@@ -45,8 +43,7 @@ class _NetworkIndex(_NetworkABC):
         default_snapshot_weightings: float = 1.0,
         weightings_from_timedelta: bool = False,
     ) -> None:
-        """
-        Set the snapshots/time steps and reindex all time-dependent data.
+        """Set the snapshots/time steps and reindex all time-dependent data.
 
         Snapshot weightings, typically representing the hourly length of each snapshot,
         is filled with the `default_snapshot_weighintgs` value, or uses the timedelta
@@ -146,8 +143,7 @@ class _NetworkIndex(_NetworkABC):
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
-        """
-        Snapshots dimension of the network.
+        """Snapshots dimension of the network.
 
         If snapshots are a pandas.MultiIndex, the first level are investment periods
         and the second level are timesteps. If snapshots are single indexed, the only
@@ -183,8 +179,7 @@ class _NetworkIndex(_NetworkABC):
 
     @snapshots.setter
     def snapshots(self, snapshots: Sequence) -> None:
-        """
-        Setter for snapshots dimension.
+        """Setter for snapshots dimension.
 
         Parameters
         ----------
@@ -203,8 +198,7 @@ class _NetworkIndex(_NetworkABC):
     # ---------
     @property
     def timesteps(self) -> pd.Index:
-        """
-        Timestep level of snapshots dimension.
+        """Timestep level of snapshots dimension.
 
         If snapshots is single indexed, timesteps and snapshots yield the same result.
         Otherwise only the timestep level will be returned.
@@ -258,8 +252,7 @@ class _NetworkIndex(_NetworkABC):
 
     @timesteps.setter
     def timesteps(self, timesteps: Sequence) -> None:
-        """
-        Setter for timesteps level of snapshots dimension.
+        """Setter for timesteps level of snapshots dimension.
 
         .. warning::
             Setting `timesteps` is not supported. Please set `snapshots` instead.
@@ -281,8 +274,7 @@ class _NetworkIndex(_NetworkABC):
     # ---------
 
     def set_investment_periods(self, periods: Sequence) -> None:
-        """
-        Set the investment periods of the network.
+        """Set the investment periods of the network.
 
         If the network snapshots are a pandas.MultiIndex, the investment periods
         have to be a subset of the first level. If snapshots are a single index,
@@ -347,8 +339,7 @@ class _NetworkIndex(_NetworkABC):
 
     @property
     def periods(self) -> pd.Index:
-        """
-        Periods level of snapshots dimension.
+        """Periods level of snapshots dimension.
 
         If snapshots is single indexed, periods will always be empty, since there no
         investment periods without timesteps are defined. Otherwise only the period
@@ -396,8 +387,7 @@ class _NetworkIndex(_NetworkABC):
 
     @periods.setter
     def periods(self, periods: Sequence) -> None:
-        """
-        Setter for periods level of snapshots dimension.
+        """Setter for periods level of snapshots dimension.
 
         Parameters
         ----------
@@ -413,8 +403,7 @@ class _NetworkIndex(_NetworkABC):
 
     @property
     def has_periods(self) -> bool:
-        """
-        Check if network has investment periods assigned to snapshots dimension.
+        """Check if network has investment periods assigned to snapshots dimension.
 
         Returns
         -------
@@ -443,8 +432,7 @@ class _NetworkIndex(_NetworkABC):
 
     @property
     def investment_periods(self) -> pd.Index:
-        """
-        Periods level of snapshots dimension.
+        """Periods level of snapshots dimension.
 
         If snapshots is single indexed, periods will always be empty, since there no
         investment periods without timesteps are defined. Otherwise only the period
@@ -493,8 +481,7 @@ class _NetworkIndex(_NetworkABC):
 
     @investment_periods.setter
     def investment_periods(self, periods: Sequence) -> None:
-        """
-        Setter for periods level of snapshots dimension.
+        """Setter for periods level of snapshots dimension.
 
         .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
 
@@ -513,8 +500,7 @@ class _NetworkIndex(_NetworkABC):
 
     @property
     def has_investment_periods(self) -> bool:
-        """
-        Check if network has investment periods assigned to snapshots dimension.
+        """Check if network has investment periods assigned to snapshots dimension.
 
         .. Note :: Alias for :py:meth:`pypsa.Network.has_periods`.
 
@@ -549,8 +535,7 @@ class _NetworkIndex(_NetworkABC):
 
     @property
     def snapshot_weightings(self) -> pd.DataFrame:
-        """
-        Weightings applied to each snapshots during the optimization (LOPF).
+        """Weightings applied to each snapshots during the optimization (LOPF).
 
         * Objective weightings multiply the operational cost in the
           objective function.
@@ -599,8 +584,7 @@ class _NetworkIndex(_NetworkABC):
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
-        """
-        Weightings applied to each investment period during the optimization (LOPF).
+        """Weightings applied to each investment period during the optimization (LOPF).
 
         Objective weightings are multiplied with all cost coefficients in the
         objective function of the respective investment period (e.g. to include a

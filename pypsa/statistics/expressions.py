@@ -218,8 +218,7 @@ def get_transmission_carriers(
 
 
 class StatisticHandler:
-    """
-    Statistic method handler.
+    """Statistic method handler.
 
     This class wraps a statistic method and provides a callable instance. To get
     the statistic output as a DataFrame, call the instance with the desired arguments.
@@ -231,8 +230,7 @@ class StatisticHandler:
     """
 
     def __init__(self, bound_method: Callable, n: Network) -> None:
-        """
-        Initialize the statistic handler.
+        """Initialize the statistic handler.
 
         Parameters
         ----------
@@ -251,8 +249,7 @@ class StatisticHandler:
         return self._bound_method(*args, **kwargs)
 
     def __repr__(self) -> str:
-        """
-        Return the string representation of the statistic handler.
+        """Return the string representation of the statistic handler.
 
         Returns
         -------
@@ -270,8 +267,7 @@ class StatisticHandler:
 
 
 class StatisticsAccessor(AbstractStatisticsAccessor):
-    """
-    Accessor to calculate different metrics from the network.
+    """Accessor to calculate different metrics from the network.
 
     The accessor can be used with any [pypsa.Network][] instance via `n.statistics`. All
     statistics methods are another level of accessors, which means that they can yield
@@ -481,8 +477,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         aggregate_time: None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate **multiple statistical values** for a network.
+        """Calculate **multiple statistical values** for a network.
 
         This function calls multiple function in the background in order to
         derive a full table of relevant network information. It groups the
@@ -603,8 +598,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
-        """
-        Calculate the **capital expenditure**.
+        """Calculate the **capital expenditure**.
 
         Includes newly installed and existing assets, measured in the specified
         currency.
@@ -705,8 +699,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
-        """
-        Calculate the **capital expenditure** of already built capacities.
+        """Calculate the **capital expenditure** of already built capacities.
 
         Parameters
         ----------
@@ -809,8 +802,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         cost_attribute: str = "capital_cost",
     ) -> pd.DataFrame:
-        """
-        Calculate the **capital expenditure** of expanded capacities.
+        """Calculate the **capital expenditure** of expanded capacities.
 
         Parameters
         ----------
@@ -920,8 +912,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         storage: bool = False,
     ) -> pd.DataFrame:
-        """
-        Calculate the **optimal capacity** of the network components in MW.
+        """Calculate the **optimal capacity** of the network components in MW.
 
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
@@ -1036,8 +1027,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         storage: bool = False,
     ) -> pd.DataFrame:
-        """
-        Calculate the **installed capacity** of the network components in MW.
+        """Calculate the **installed capacity** of the network components in MW.
 
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
@@ -1151,8 +1141,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **expanded capacity** of the network components in MW.
+        """Calculate the **expanded capacity** of the network components in MW.
 
         Positive capacity values correspond to production capacities and
         negative values to consumption capacities.
@@ -1255,8 +1244,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         cost_types: str | Sequence[str] | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **operational expenditure** in the network in given currency.
+        """Calculate the **operational expenditure** in the network in given currency.
 
         Operational expenditures include the marginal, marginal quadratic,
         storage holding, spillage, start-up, shut-down and stand-by costs.
@@ -1420,8 +1408,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **total system cost**.
+        """Calculate the **total system cost**.
 
         Sum of the capital and operational expenditures.
 
@@ -1536,8 +1523,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **supply** of components in the network.
+        """Calculate the **supply** of components in the network.
 
         Units depend on the regarded bus carrier.
 
@@ -1635,8 +1621,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **withdrawal** of components in the network.
+        """Calculate the **withdrawal** of components in the network.
 
         Units depend on the regarded bus carrier.
 
@@ -1734,8 +1719,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **transmission** of branch components in the network.
+        """Calculate the **transmission** of branch components in the network.
 
         Units depend on the regarded bus carrier.
 
@@ -1848,8 +1832,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         direction: str | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **energy balance** of components in network.
+        """Calculate the **energy balance** of components in network.
 
         This method computes the energy balance across various network components, where
         positive values represent supply and negative values represent withdrawal. Units
@@ -1983,8 +1966,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **curtailment** of components in the network in MWh.
+        """Calculate the **curtailment** of components in the network in MWh.
 
         The calculation only considers assets with a `p_max_pu` time
         series, which is used to quantify the available power potential.
@@ -2092,8 +2074,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **capacity factor** of components in the network.
+        """Calculate the **capacity factor** of components in the network.
 
         Parameters
         ----------
@@ -2199,8 +2180,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         round: int | None = None,
         direction: str | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **revenue** of components in the network in given currency.
+        """Calculate the **revenue** of components in the network in given currency.
 
         The revenue is defined as the net revenue of an asset, i.e cost
         of input - revenue of output.
@@ -2326,8 +2306,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero: bool | None = None,
         round: int | None = None,
     ) -> pd.DataFrame:
-        """
-        Calculate the **market value** of components in the network.
+        """Calculate the **market value** of components in the network.
 
         Curreny is currency/MWh or currency/unit_{bus_carrier} where unit_{bus_carrier}
         is the unit of the bus carrier.
