@@ -24,7 +24,7 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
-    from pypsa import Network
+    from pypsa import Network, NetworkCollection
 logger = logging.getLogger(__name__)
 
 
@@ -51,7 +51,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def _get_grouping(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
         port: str | None = None,

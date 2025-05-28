@@ -21,7 +21,7 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
-    from pypsa import Network
+    from pypsa import Network, NetworkCollection
 
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ def port_efficiency(
 
 
 def get_transmission_branches(
-    n: Network, bus_carrier: str | Sequence[str] | None = None
+    n: Network | NetworkCollection, bus_carrier: str | Sequence[str] | None = None
 ) -> pd.MultiIndex:
     """Get list of assets which transport between buses of the carrier `bus_carrier`."""
     # Check if this is a NetworkCollection (has MultiIndex buses)
@@ -72,7 +72,7 @@ def get_transmission_branches(
 
     if is_network_collection:
         # For NetworkCollection, process each network separately and combine results
-        network_results = []
+        network_results: list[tuple[str, pd.Index]] = []
 
         # Get the bus carrier mapping - drop network levels for mapping
         bus_carrier_series = n.buses.carrier
@@ -90,7 +90,7 @@ def get_transmission_branches(
             elif bus_carrier is None:
                 bus_carrier_list = bus_carrier_map.unique()
             else:
-                bus_carrier_list = bus_carrier
+                bus_carrier_list = list(bus_carrier)
 
             for carrier in bus_carrier_list:
                 matching_idx = (
@@ -1374,7 +1374,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if not result:
                 return pd.Series()
             result = pd.concat(result)
-            return result.groupby(level=list(range(result.index.nlevels))).sum()
+            return result.groupby(level=list(range(result.index.nlevels))).sum()  # type: ignore
 
         df = self._aggregate_components(
             func,
