@@ -327,6 +327,103 @@ def test_network_collection_custom_grouper(ac_dc_network_r):
     assert "first_letter" in result.index.names
 
 
+def test_network_collection_get_transmission_branches(simple_network):
+    """Test get_transmission_branches function with NetworkCollection."""
+    from pypsa.statistics.expressions import get_transmission_branches
+
+    # Add a line between AC buses to test transmission branch detection
+    simple_network.add("Line", "ac_line", bus0="bus_ac1", bus1="bus_ac2", r=0.1, x=0.1)
+
+    # Create a NetworkCollection with different bus carriers
+    nc = pypsa.NetworkCollection(
+        [simple_network, simple_network.copy()],
+        index=pd.Index(["s1", "s2"], name="scenario"),
+    )
+
+    # Test getting transmission branches for AC buses
+    branches = get_transmission_branches(nc, bus_carrier="AC")
+    assert isinstance(branches, pd.MultiIndex)
+    # Should include scenario level in the index
+    assert branches.names == ["scenario", "component", "name"]
+
+    # Should find the line between AC buses for both scenarios
+    assert "Line" in branches.get_level_values("component")
+    assert "ac_line" in branches.get_level_values("name")
+    assert "s1" in branches.get_level_values("scenario")
+    assert "s2" in branches.get_level_values("scenario")
+
+    # Should have 2 entries (one for each scenario)
+    assert len(branches) == 2
+
+    # Should NOT find the ac_dc_link since it connects different carriers
+    assert "ac_dc_link" not in branches.get_level_values("name")
+
+    # Test with DC buses - should be empty since we only have one DC bus
+    branches_dc = get_transmission_branches(nc, bus_carrier="DC")
+    assert len(branches_dc) == 0
+    # Should still have correct structure even when empty
+    assert branches_dc.names == ["scenario", "component", "name"]
+
+    # Test with multiple bus carriers
+    branches_multi = get_transmission_branches(nc, bus_carrier=["AC", "DC"])
+    assert isinstance(branches_multi, pd.MultiIndex)
+    # Should only find AC line since DC has no transmission branches
+    assert "ac_line" in branches_multi.get_level_values("name")
+    assert len(branches_multi) == 2  # Two scenarios
+
+    # Test with None (all bus carriers)
+    branches_all = get_transmission_branches(nc, bus_carrier=None)
+    assert isinstance(branches_all, pd.MultiIndex)
+    assert "ac_line" in branches_all.get_level_values("name")
+    assert len(branches_all) == 2  # Two scenarios
+
+
+def test_network_collection_get_transmission_carriers(simple_network):
+    """Test get_transmission_carriers function with NetworkCollection."""
+    from pypsa.statistics.expressions import get_transmission_carriers
+
+    # Add carriers for transmission components
+    simple_network.add("Carrier", "transmission")
+
+    # Add a line between AC buses with transmission carrier
+    simple_network.add(
+        "Line",
+        "ac_line",
+        bus0="bus_ac1",
+        bus1="bus_ac2",
+        r=0.1,
+        x=0.1,
+        carrier="transmission",
+    )
+
+    # Create a NetworkCollection
+    nc = pypsa.NetworkCollection(
+        [simple_network, simple_network.copy()],
+        index=pd.Index(["s1", "s2"], name="scenario"),
+    )
+
+    # Test getting transmission carriers for AC buses
+    carriers = get_transmission_carriers(nc, bus_carrier="AC")
+    assert isinstance(carriers, pd.MultiIndex)
+    # Should include scenario level in the index
+    assert carriers.names == ["scenario", "component", "carrier"]
+
+    # Should find the transmission carrier for lines in both scenarios
+    assert "Line" in carriers.get_level_values("component")
+    assert "transmission" in carriers.get_level_values("carrier")
+    assert "s1" in carriers.get_level_values("scenario")
+    assert "s2" in carriers.get_level_values("scenario")
+
+    # Should have 2 entries (one for each scenario)
+    assert len(carriers) == 2
+
+    # Test with DC buses - should be empty
+    carriers_dc = get_transmission_carriers(nc, bus_carrier="DC")
+    assert len(carriers_dc) == 0
+    # Should still have correct structure even when empty
+    assert carriers_dc.names == ["scenario", "component", "carrier"]
+
+
 def test_network_collection_default_energy_balance_groupby(
     optimized_network_collection_from_ac_dc,
 ):
@@ -358,3 +455,34 @@ def test_network_collection_opex_and_capex(
     assert isinstance(capex_result, pd.Series)
     assert not capex_result.empty
     assert "scenario" in capex_result.index.names
+
+
+def test_network_collection_transmission(
+    optimized_network_collection_from_ac_dc,
+):
+    """Test transmission statistics with NetworkCollection."""
+    nc = optimized_network_collection_from_ac_dc
+
+    # Test transmission statistics
+    transmission_result = nc.statistics.transmission()
+    assert isinstance(transmission_result, pd.Series)
+    assert not transmission_result.empty
+    assert "scenario" in transmission_result.index.names
+
+
+def test_network_collection_revenue(
+    optimized_network_collection_from_ac_dc,
+):
+    """Test revenue statistics with NetworkCollection."""
+    nc = optimized_network_collection_from_ac_dc
+
+    # Test revenue calculation
+    revenue_result = nc.statistics.revenue()
+    assert isinstance(revenue_result, pd.Series)
+    assert not revenue_result.empty
+    assert "scenario" in revenue_result.index.names
+
+    # Check that revenue is non-negative for each scenario (typical for generators)
+    for scenario in nc.networks.index:
+        scenario_revenue = revenue_result.xs(scenario, level="scenario")
+        assert (scenario_revenue >= 0).all()

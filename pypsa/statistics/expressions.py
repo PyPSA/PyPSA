@@ -67,24 +67,90 @@ def get_transmission_branches(
     n: Network, bus_carrier: str | Sequence[str] | None = None
 ) -> pd.MultiIndex:
     """Get list of assets which transport between buses of the carrier `bus_carrier`."""
-    index = {}
-    for c in n.branch_components:
-        bus_map = (
-            n.static(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
+    # Check if this is a NetworkCollection (has MultiIndex buses)
+    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+
+    if is_network_collection:
+        # For NetworkCollection, process each network separately and combine results
+        network_results = []
+
+        # Get the bus carrier mapping - drop network levels for mapping
+        bus_carrier_series = n.buses.carrier
+        bus_carrier_map = bus_carrier_series.droplevel(
+            list(range(bus_carrier_series.index.nlevels - 1))
         )
-        if isinstance(bus_carrier, str):
-            bus_carrier = [bus_carrier]
-        elif bus_carrier is None:
-            bus_carrier = n.buses.carrier.unique()
-        res = set()
-        for carrier in bus_carrier:
-            res |= set(
-                bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
+        bus_carrier_map = bus_carrier_map[~bus_carrier_map.index.duplicated()]
+
+        for c in n.branch_components:
+            bus_map = (
+                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
             )
-        index[c] = pd.Index(res)
-    return pd.MultiIndex.from_tuples(
-        [(c, i) for c, idx in index.items() for i in idx], names=["component", "name"]
-    )
+            if isinstance(bus_carrier, str):
+                bus_carrier_list = [bus_carrier]
+            elif bus_carrier is None:
+                bus_carrier_list = bus_carrier_map.unique()
+            else:
+                bus_carrier_list = bus_carrier
+
+            for carrier in bus_carrier_list:
+                matching_idx = (
+                    bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
+                )
+                # Keep the full MultiIndex for NetworkCollection
+                network_results.extend((c, idx) for idx in matching_idx)
+
+        # Create MultiIndex with network levels + component and name
+        if network_results:
+            # Get network index names
+            network_names = list(
+                n.buses.carrier.index.names[:-1]
+            )  # All except last level
+            result_names = network_names + ["component", "name"]
+
+            # Flatten tuples: (component, (network_levels..., component_name))
+            flattened_results = []
+            for component, full_idx in network_results:
+                if isinstance(full_idx, tuple):
+                    network_parts = full_idx[:-1]
+                    component_name = full_idx[-1]
+                    flattened_results.append(
+                        network_parts + (component, component_name)
+                    )
+                else:
+                    # Single level case - shouldn't happen with NetworkCollection but handle it
+                    flattened_results.append((full_idx, component, full_idx))
+
+            return pd.MultiIndex.from_tuples(flattened_results, names=result_names)
+        else:
+            # Empty result - create empty MultiIndex with correct structure
+            network_names = list(n.buses.carrier.index.names[:-1])
+            result_names = network_names + ["component", "name"]
+            return pd.MultiIndex.from_tuples([], names=result_names)
+
+    else:
+        # Original logic for regular Network
+        index = {}
+        bus_carrier_map = n.buses.carrier
+
+        for c in n.branch_components:
+            bus_map = (
+                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
+            )
+            if isinstance(bus_carrier, str):
+                bus_carrier = [bus_carrier]
+            elif bus_carrier is None:
+                bus_carrier = bus_carrier_map.unique()
+            res = set()
+            for carrier in bus_carrier:
+                matching_idx = (
+                    bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
+                )
+                res |= set(matching_idx)
+            index[c] = pd.Index(res)
+        return pd.MultiIndex.from_tuples(
+            [(c, i) for c, idx in index.items() for i in idx],
+            names=["component", "name"],
+        )
 
 
 def get_transmission_carriers(
@@ -92,14 +158,63 @@ def get_transmission_carriers(
 ) -> pd.MultiIndex:
     """Get the carriers which transport between buses of the carrier `bus_carrier`."""
     branches = get_transmission_branches(n, bus_carrier)
-    carriers = {}
-    for c in branches.unique(0):
-        idx = branches[branches.get_loc(c)].get_level_values(1)
-        carriers[c] = n.static(c).carrier[idx].unique()
-    return pd.MultiIndex.from_tuples(
-        [(c, i) for c, idx in carriers.items() for i in idx],
-        names=["component", "carrier"],
-    )
+
+    # Check if this is a NetworkCollection
+    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+
+    if is_network_collection and len(branches) > 0:
+        # For NetworkCollection, branches has structure: (network_levels..., component, name)
+        # We need to extract carriers for each (network, component, name) combination
+        network_results = []
+
+        # Process each branch
+        for branch_tuple in branches:
+            network_part = branch_tuple[:-2]
+            component = branch_tuple[-2]
+            component_name = branch_tuple[-1]
+
+            # Find carrier for this specific component in this network
+            try:
+                # Build the full index for this component
+                full_component_idx = network_part + (component_name,)
+                carrier = n.static(component).carrier.loc[full_component_idx]
+                network_results.append(network_part + (component, carrier))
+            except KeyError:
+                # Component not found, skip
+                continue
+
+        if network_results:
+            # Get network index names
+            network_names = list(
+                n.buses.carrier.index.names[:-1]
+            )  # All except last level
+            result_names = network_names + ["component", "carrier"]
+            return pd.MultiIndex.from_tuples(network_results, names=result_names)
+        else:
+            # Empty result
+            network_names = list(n.buses.carrier.index.names[:-1])
+            result_names = network_names + ["component", "carrier"]
+            return pd.MultiIndex.from_tuples([], names=result_names)
+
+    elif not is_network_collection and len(branches) > 0:
+        # Original logic for regular Network
+        carriers = {}
+        for c in branches.unique(0):
+            idx = branches[branches.get_loc(c)].get_level_values(1)
+            carriers[c] = n.static(c).carrier[idx].unique()
+        return pd.MultiIndex.from_tuples(
+            [(c, i) for c, idx in carriers.items() for i in idx],
+            names=["component", "carrier"],
+        )
+
+    else:
+        # Empty branches - return empty MultiIndex with correct structure
+        if is_network_collection:
+            network_names = list(n.buses.carrier.index.names[:-1])
+            result_names = network_names + ["component", "carrier"]
+        else:
+            result_names = ["component", "carrier"]
+        return pd.MultiIndex.from_tuples([], names=result_names)
 
 
 class StatisticHandler:
@@ -1694,7 +1809,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            p = n.dynamic(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
+            idx = transmission_branches.get_loc_level(c, level="component")[1]
+            p = n.dynamic(c)[f"p{port}"][idx]
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -2159,6 +2275,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
             df = sign * n.dynamic(c)[f"p{port}"]
             buses = n.static(c)[f"bus{port}"][df.columns]
+            # catch multiindex case
+            buses = (
+                buses.to_frame("bus")
+                .set_index("bus", append=True)
+                .droplevel("Generator")
+                .index
+            )
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values
