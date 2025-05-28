@@ -24,9 +24,7 @@ def collection_single_index(ac_dc_network_r):
 @pytest.fixture
 def collection_multiindex(ac_dc_network_r):
     """Create NetworkCollection with MultiIndex for autofaceting tests."""
-    networks = []
-    for _ in range(6):
-        networks.append(ac_dc_network_r.copy())
+    networks = [ac_dc_network_r.copy() for _ in range(6)]
 
     index = pd.MultiIndex.from_product(
         [["2030", "2040", "2050"], ["low", "high"]], names=["year", "cost"]
@@ -40,7 +38,7 @@ def test_iplot_exists(ac_dc_network_r):
 
 
 @pytest.mark.parametrize(
-    "plot_type,expected_trace_type",
+    ("plot_type", "expected_trace_type"),
     [
         ("bar", go.Bar),
         ("line", go.Scatter),
@@ -58,7 +56,7 @@ def test_iplot_plot_types(ac_dc_network_r, plot_type, expected_trace_type):
 
 
 @pytest.mark.parametrize(
-    "param_name,param_value",
+    ("param_name", "param_value"),
     [
         ("color", "carrier"),
         ("facet_col", "carrier"),
@@ -136,7 +134,7 @@ def test_iplot_unstacked_area_plot(ac_dc_network_r):
 
 
 @pytest.mark.parametrize(
-    "sharex,sharey",
+    ("sharex", "sharey"),
     [
         (False, True),
         (True, False),
