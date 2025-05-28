@@ -1,5 +1,4 @@
-"""
-Components descriptor module.
+"""Components descriptor module.
 
 Contains single helper class (__ComponentsDescriptors) which is used to inherit
 to Components class. Should not be used directly. Descriptor functions only describe
@@ -28,8 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
-    """
-    Deprecated function to get active assets. Use `c.get_active_assets`.
+    """Get active assets. Use `c.get_active_assets` instead.
 
     Examples
     --------
@@ -59,16 +57,14 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
 
 
 class _ComponentsDescriptors(_ComponentsABC):
-    """
-    Helper class for components descriptors methods.
+    """Helper class for components descriptors methods.
 
     Class only inherits to Components and should not be used directly.
     """
 
     @property
     def _operational_attrs(self) -> dict[str, str]:
-        """
-        Get operational attributes of component for optimization.
+        """Get operational attributes of component for optimization.
 
         Provides a dictionary of attribute patterns used in optimization constraints,
         based on the component type. This makes constraint formulation more modular
@@ -108,8 +104,7 @@ class _ComponentsDescriptors(_ComponentsABC):
         self,
         investment_period: int | str | Sequence | None = None,
     ) -> pd.Series:
-        """
-        Get active components mask of componen type in investment period(s).
+        """Get active components mask of componen type in investment period(s).
 
         A component is considered active when:
 
@@ -152,8 +147,7 @@ class _ComponentsDescriptors(_ComponentsABC):
         sns: Sequence | None = None,
         index: pd.Index | None = None,
     ) -> pd.DataFrame:
-        """
-        Get active components mask indexed by snapshots.
+        """Get active components mask indexed by snapshots.
 
         Wrapper around the
         `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
@@ -199,8 +193,7 @@ class _ComponentsDescriptors(_ComponentsABC):
 
     @property
     def extendables(self) -> pd.Index:
-        """
-        Get the index of extendable components of this component type.
+        """Get the index of extendable components of this component type.
 
         Returns
         -------
@@ -218,8 +211,7 @@ class _ComponentsDescriptors(_ComponentsABC):
 
     @property
     def fixed(self) -> pd.Index:
-        """
-        Get the index of non-extendable components of this component type.
+        """Get the index of non-extendable components of this component type.
 
         Returns
         -------
@@ -236,8 +228,7 @@ class _ComponentsDescriptors(_ComponentsABC):
 
     @property
     def committables(self) -> pd.Index:
-        """
-        Get the index of committable components of this component type.
+        """Get the index of committable components of this component type.
 
         Returns
         -------

@@ -1,5 +1,4 @@
-"""
-Components module.
+"""Components module.
 
 Contains classes and properties relevant to all component types in PyPSA. Also imports
 logic from other modules:
@@ -46,8 +45,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class ComponentsData:
-    """
-    Dataclass for Components.
+    """Dataclass for Components.
 
     This class is used to store all data of a Components object. Other classes inherit
     from this class to implement logic and methods, but do not store any data next
@@ -88,8 +86,7 @@ class ComponentsData:
 class Components(
     ComponentsData, _ComponentsDescriptors, _ComponentsTransform, _ComponentsIndex
 ):
-    """
-    Components base class.
+    """Components base class.
 
     Abstract base class for Container of energy system related assets, such as
     generators or transmission lines. Use the specific subclasses for concrete or
@@ -111,8 +108,7 @@ class Components(
         names: str | int | Sequence[int | str] | None = None,
         suffix: str = "",
     ) -> None:
-        """
-        Initialize Components object.
+        """Initialize Components object.
 
         Parameters
         ----------
@@ -139,8 +135,7 @@ class Components(
         super().__init__(ctype, n=None, static=static, dynamic=dynamic)
 
     def __str__(self) -> str:
-        """
-        Get string representation of component.
+        """Get string representation of component.
 
         Returns
         -------
@@ -156,8 +151,7 @@ class Components(
         return f"'{self.ctype.name}' Components"
 
     def __repr__(self) -> str:
-        """
-        Get representation of component.
+        """Get representation of component.
 
         Returns
         -------
@@ -188,8 +182,7 @@ class Components(
         return text
 
     def __getitem__(self, key: str) -> Any:
-        """
-        Get attribute of component.
+        """Get attribute of component.
 
         Parameters
         ----------
@@ -205,8 +198,7 @@ class Components(
         return getattr(self, key)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        """
-        Set attribute of component.
+        """Set attribute of component.
 
         Parameters
         ----------
@@ -229,8 +221,7 @@ class Components(
             raise KeyError(msg)
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check if two Components are equal.
+        """Check if two Components are equal.
 
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
@@ -254,8 +245,7 @@ class Components(
         return self.equals(other)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
-        """
-        Check if two Components are equal.
+        """Check if two Components are equal.
 
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
@@ -333,8 +323,7 @@ class Components(
 
     @property
     def standard_types(self) -> pd.DataFrame | None:
-        """
-        Get standard types of component.
+        """Get standard types of component.
 
         It is an alias for the `standard_types` attribute of the underlying
         :class:`pypsa.definitions.ComponentType`.
@@ -349,8 +338,7 @@ class Components(
 
     @property
     def name(self) -> str:
-        """
-        Name of component type.
+        """Name of component type.
 
         Returns
         -------
@@ -373,8 +361,7 @@ class Components(
 
     @property
     def list_name(self) -> str:
-        """
-        List name of component type.
+        """List name of component type.
 
         Returns
         -------
@@ -397,8 +384,7 @@ class Components(
 
     @property
     def description(self) -> str:
-        """
-        Description of component.
+        """Description of component.
 
         Returns
         -------
@@ -421,8 +407,7 @@ class Components(
 
     @property
     def category(self) -> str:
-        """
-        Category of component.
+        """Category of component.
 
         Returns
         -------
@@ -445,8 +430,7 @@ class Components(
 
     @property
     def type(self) -> str:
-        """
-        Get category of component.
+        """Get category of component.
 
         .. note ::
             While not actively deprecated yet, :meth:`category` is the preferred method
@@ -468,8 +452,7 @@ class Components(
 
     @property
     def attrs(self) -> pd.DataFrame:
-        """
-        Default values of corresponding component type.
+        """Default values of corresponding component type.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -493,8 +476,7 @@ class Components(
 
     @property
     def defaults(self) -> pd.DataFrame:
-        """
-        Default values of corresponding component type.
+        """Default values of corresponding component type.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -532,8 +514,7 @@ class Components(
         return self.static.empty
 
     def get(self, attribute_name: str, default: Any = None) -> Any:
-        """
-        Get attribute of component.
+        """Get attribute of component.
 
         Just an alias for built-in getattr and allows for default values.
 
@@ -554,8 +535,7 @@ class Components(
 
     @property
     def attached(self) -> bool:
-        """
-        Check if component is attached to a Network.
+        """Check if component is attached to a Network.
 
         Some functionality of the component is only available when attached to a
         Network.
@@ -583,8 +563,7 @@ class Components(
 
     @property
     def df(self) -> pd.DataFrame:
-        """
-        Get static data of all components as pandas DataFrame.
+        """Get static data of all components as pandas DataFrame.
 
         .. note::
             While not actively deprecated yet, :meth:`static` is the preferred method
@@ -600,8 +579,7 @@ class Components(
 
     @property
     def pnl(self) -> dict:
-        """
-        Get dynamic data of all components as a dictionary of pandas DataFrames.
+        """Get dynamic data of all components as a dictionary of pandas DataFrames.
 
         .. note::
             While not actively deprecated yet, :meth:`dynamic` is the preferred method
@@ -619,8 +597,7 @@ class Components(
 
     @property
     def units(self) -> pd.Series:
-        """
-        Get units of all attributes of components.
+        """Get units of all attributes of components.
 
         Returns
         -------
@@ -644,8 +621,7 @@ class Components(
 
     @property
     def ports(self) -> list:
-        """
-        Get ports of all components.
+        """Get ports of all components.
 
         Returns
         -------
@@ -663,8 +639,7 @@ class Components(
 
 
 class SubNetworkComponents:
-    """
-    Wrapper class to allow for custom attribute handling of components.
+    """Wrapper class to allow for custom attribute handling of components.
 
     SubNetworkComponents are read-only and delegate attribute access to it's wrapped
     Components object of the PyPSA Network. This allows for custom attribute handling
@@ -678,8 +653,7 @@ class SubNetworkComponents:
     """
 
     def __init__(self, wrapped_data: Components, wrapped_get: Callable) -> None:
-        """
-        Initialize SubNetworkComponents.
+        """Initialize SubNetworkComponents.
 
         Parameters
         ----------
@@ -694,8 +668,7 @@ class SubNetworkComponents:
         self._wrapper_func = wrapped_get
 
     def __getattr__(self, item: str) -> Any:
-        """
-        Delegate attribute access to the wrapped data object.
+        """Delegate attribute access to the wrapped data object.
 
         Parameters
         ----------
@@ -711,8 +684,7 @@ class SubNetworkComponents:
         return self._wrapper_func(item, self._wrapped_data)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        """
-        Prevent setting of attributes.
+        """Prevent setting of attributes.
 
         Parameters
         ----------
@@ -734,8 +706,7 @@ class SubNetworkComponents:
             raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
-        """
-        Prevent deletion of attributes.
+        """Prevent deletion of attributes.
 
         Parameters
         ----------
@@ -752,8 +723,7 @@ class SubNetworkComponents:
         raise AttributeError(msg)
 
     def __str__(self) -> str:
-        """
-        Get string representation of sub-network components.
+        """Get string representation of sub-network components.
 
         Returns
         -------
@@ -769,8 +739,7 @@ class SubNetworkComponents:
         return f"'{self.ctype.name}' SubNetworkComponents"
 
     def __repr__(self) -> str:
-        """
-        Get representation of sub-network components.
+        """Get representation of sub-network components.
 
         Returns
         -------

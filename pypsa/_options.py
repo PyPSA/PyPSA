@@ -106,8 +106,7 @@ class OptionsNode:
         node._children[leaf_name] = Option(default, default, docs)
 
     def get_option(self, path: str) -> Any:
-        """
-        Get the value of an option at the specified path.
+        """Get the value of an option at the specified path.
 
         Parameters
         ----------
@@ -148,8 +147,7 @@ class OptionsNode:
         return node._children[leaf_name].value
 
     def set_option(self, path: str, value: Any) -> None:
-        """
-        Set the value of an option at the specified path.
+        """Set the value of an option at the specified path.
 
         Parameters
         ----------
@@ -194,8 +192,7 @@ class OptionsNode:
                 child.reset_all()
 
     def describe_options(self, prefix: str = "") -> None:
-        """
-        Print documentation for all options.
+        """Print documentation for all options.
 
         Parameters
         ----------
@@ -255,8 +252,7 @@ class OptionsNode:
                 child.describe_options(path)
 
     def describe(self) -> None:
-        """
-        Print documentation for all options.
+        """Print documentation for all options.
 
         This is a convenience method to call describe_options() without a prefix.
 
@@ -290,8 +286,7 @@ options = OptionsNode()
 
 @contextmanager
 def option_context(*args: Any) -> Generator[None, None, None]:
-    """
-    Context manager to temporarily set options.
+    """Context manager to temporarily set options.
 
     Parameters
     ----------

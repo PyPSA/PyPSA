@@ -1,5 +1,4 @@
-"""
-Network transform module.
+"""Network transform module.
 
 Contains single helper class (_NetworkTransform) which is used to inherit
 to Components class. It should not be used directly.
@@ -33,8 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 class _NetworkTransform(_NetworkABC):
-    """
-    Helper class for components array methods.
+    """Helper class for components array methods.
 
     Class only inherits to Components and should not be used directly.
     """
@@ -47,8 +45,7 @@ class _NetworkTransform(_NetworkABC):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """
-        Add components to the network.
+        """Add components to the network.
 
         Handles addition of single and multiple components along with their attributes.
         Pass a list of names to add multiple components at once or pass a single name
@@ -273,8 +270,7 @@ class _NetworkTransform(_NetworkABC):
         name: str | int | Sequence[int | str],
         suffix: str = "",
     ) -> None:
-        """
-        Removes a single component or a list of components from the network.
+        """Remove a single component or a list of components from the network.
 
         Removes it from component DataFrames.
 
@@ -357,8 +353,7 @@ class _NetworkTransform(_NetworkABC):
         suffix: str = "",
         **kwargs: Any,
     ) -> pd.Index:
-        """
-        Add multiple components to the network, along with their attributes.
+        """Add multiple components to the network, along with their attributes.
 
         .. deprecated:: 0.31
           ``n.madd`` is deprecated and will be removed in a future version. Use
@@ -396,8 +391,7 @@ class _NetworkTransform(_NetworkABC):
         details="Use `n.remove` as a drop-in replacement instead.",
     )
     def mremove(self, class_name: str, names: Sequence) -> None:
-        """
-        Removes multiple components from the network.
+        """Remove multiple components from the network.
 
         .. deprecated:: 0.31
           ``n.mremove`` is deprecated and will be removed in a future version. Use
