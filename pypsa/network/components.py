@@ -624,8 +624,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def _index_names(self) -> list[str]:
-        """
-        Compatibility property for NetworkCollection object.
+        """Compatibility property for NetworkCollection object.
 
         Returns
         -------

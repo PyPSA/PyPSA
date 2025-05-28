@@ -263,8 +263,7 @@ def apply_parameter_schema(
 
 
 def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> list:
-    """
-    Extract values relevant for statistics, excluding index names.
+    """Extract values relevant for statistics, excluding index names.
 
     Parameters
     ----------

@@ -28,8 +28,7 @@ class Groupers:
     def _map_with_multiindex(
         self, component_series: pd.Series, mapping_series: pd.Series
     ) -> pd.Series:
-        """
-        Helper method to map values across MultiIndex DataFrames.
+        """Helper method to map values across MultiIndex DataFrames.
 
         This handles the case where both series have MultiIndex (NetworkCollection case)
         by dropping scenario levels from the mapping series and removing duplicates.

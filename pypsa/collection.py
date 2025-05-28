@@ -15,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class NetworkCollection:
-    """
-    A collection of networks that can be accessed like a single network.
+    """A collection of networks that can be accessed like a single network.
 
     Note:
     ----
@@ -38,8 +37,7 @@ class NetworkCollection:
         networks: pd.Series | Sequence[Network],
         index: pd.Index | pd.MultiIndex | Sequence | None = None,
     ) -> None:
-        """
-        Initialize the NetworkCollection with one or more networks.
+        """Initialize the NetworkCollection with one or more networks.
 
         Parameters
         ----------
@@ -108,8 +106,7 @@ class NetworkCollection:
         self.statistics = StatisticsAccessor(self)
 
     def __getattr__(self, name: str) -> Any:
-        """
-        Get attribute from all networks in the collection.
+        """Get attribute from all networks in the collection.
 
         Returns an MemberProxy that will either call the method on each network
         when invoked or retrieve the property values when accessed.
@@ -143,8 +140,7 @@ class NetworkCollection:
 
     @property
     def index(self) -> pd.Index:
-        """
-        Get the index of the NetworkCollection.
+        """Get the index of the NetworkCollection.
 
         Returns
         -------
@@ -156,8 +152,7 @@ class NetworkCollection:
 
     @property
     def _index_names(self) -> list[str]:
-        """
-        Get the names of the index of the NetworkCollection.
+        """Get the names of the index of the NetworkCollection.
 
         Returns
         -------
@@ -168,8 +163,7 @@ class NetworkCollection:
         return self.index.names or [self.index.name]
 
     def __repr__(self) -> str:
-        """
-        Return a string representation of the NetworkCollection.
+        """Return a string representation of the NetworkCollection.
 
         Returns
         -------
@@ -203,8 +197,7 @@ class NetworkCollection:
 
     @property
     def carriers(self) -> pd.DataFrame:
-        """
-        Get a unique DataFrame of carriers across all contained networks.
+        """Get a unique DataFrame of carriers across all contained networks.
 
         Returns
         -------
@@ -223,8 +216,7 @@ class NetworkCollection:
 
 
 class MemberProxy:
-    """
-    Wrapper for network accessors that combines results from multiple networks.
+    """Wrapper for network accessors that combines results from multiple networks.
 
     This class handles arbitrary nesting of accessor methods and properties,
     dynamically proxying calls to the underlying network objects.
@@ -261,8 +253,7 @@ class MemberProxy:
     }
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
-        """
-        Create new instance of MemberProxy.
+        """Create new instance of MemberProxy.
 
         If no Wrapper is needed, since the return value is not a callable, immediately
         return the result of the default processor function.
@@ -284,8 +275,7 @@ class MemberProxy:
         accessor_func: Callable,
         accessor_path: str = "",
     ) -> None:
-        """
-        Initialize the wrapper.
+        """Initialize the wrapper.
 
         Parameters
         ----------
@@ -302,8 +292,7 @@ class MemberProxy:
         self.accessor_path = accessor_path
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Handle direct calls to the accessor.
+        """Handle direct calls to the accessor.
 
         For methods with custom implementations defined by regex patterns,
         uses the matching handler method. Otherwise uses the default behavior
@@ -313,8 +302,7 @@ class MemberProxy:
         return processor(True, *args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
-        """
-        Handle attribute access on the accessor.
+        """Handle attribute access on the accessor.
 
         This method handles three cases:
         1. The attribute is another accessor object (returns a new MemberProxy)
@@ -442,8 +430,7 @@ class MemberProxy:
         return self._do_concat(results, axis=1)
 
     def return_from_first(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
-        """
-        Return the result from the first network in the collection.
+        """Return the result from the first network in the collection.
 
         This is used for properties that are expected to be the same across all networks.
         """
@@ -458,8 +445,7 @@ class MemberProxy:
         return result
 
     def index_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
-        """
-        Concatenate indexes from all networks in the collection into a MultiIndex.
+        """Concatenate indexes from all networks in the collection into a MultiIndex.
 
         This function collects indexes from each network and combines them into a
         MultiIndex where the network identifier(s) form the first level(s) and the
