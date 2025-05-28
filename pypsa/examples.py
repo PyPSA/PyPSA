@@ -31,8 +31,7 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
 def ac_dc_meshed(
     update: bool = False, from_master: bool = False, remove_link_p_set: bool = False
 ) -> Network:
-    """
-    Load the meshed AC-DC example network.
+    """Load the meshed AC-DC example network.
 
     Parameters
     ----------
@@ -84,8 +83,7 @@ def ac_dc_meshed(
 
 
 def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the storage network example of PyPSA.
+    """Load the storage network example of PyPSA.
 
     Parameters
     ----------
@@ -135,8 +133,7 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
 
 
 def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the SciGrid network example of PyPSA.
+    """Load the SciGrid network example of PyPSA.
 
     Parameters
     ----------
@@ -185,8 +182,7 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
 
 
 def model_energy(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the single-node capacity expansion model in style of model.energy.
+    """Load the single-node capacity expansion model in style of model.energy.
 
     Check out the [model.energy website](https://model.energy/) for more information.
 

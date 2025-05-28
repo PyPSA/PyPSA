@@ -1,6 +1,4 @@
-"""
-Define optimisation constraints from PyPSA networks with Linopy.
-"""
+"""Define optimisation constraints from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
@@ -37,8 +35,7 @@ logger = logging.getLogger(__name__)
 def define_operational_constraints_for_non_extendables(
     n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
-    """
-    Sets power dispatch constraints for non-extendable and non-commitable
+    """Set power dispatch constraints for non-extendable and non-commitable
     assets for a given component and a given attribute.
 
     Parameters
@@ -85,8 +82,7 @@ def define_operational_constraints_for_non_extendables(
 def define_operational_constraints_for_extendables(
     n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
-    """
-    Sets power dispatch constraints for extendable devices for a given
+    """Set power dispatch constraints for extendable devices for a given
     component and a given attribute.
 
     Parameters
@@ -132,8 +128,7 @@ def define_operational_constraints_for_extendables(
 def define_operational_constraints_for_committables(
     n: Network, sns: pd.Index, c: str
 ) -> None:
-    """
-    Sets power dispatch constraints for committable devices for a given
+    """Set power dispatch constraints for committable devices for a given
     component and a given attribute. The linearized approximation of the unit
     commitment problem is inspired by Hua et al. (2017) DOI:
     10.1109/TPWRS.2017.2735026.
@@ -362,11 +357,11 @@ def define_operational_constraints_for_committables(
 
 
 def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) -> None:
-    """
-    Sets capacity expansion constraints for extendable assets for a given
+    """Set capacity expansion constraints for extendable assets for a given
     component and a given attribute.
 
-    Note: As GLPK does not like inf values on the right-hand-side we as masking these out.
+    Note: As GLPK does not like inf values on the right-hand-side we as
+    masking these out.
 
     Parameters
     ----------
@@ -393,8 +388,7 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
 
 
 def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) -> None:
-    """
-    Defines ramp limits for assets with valid ramplimit.
+    """Define ramp limits for assets with valid ramplimit.
 
     Parameters
     ----------
@@ -580,9 +574,7 @@ def define_nodal_balance_constraints(
     buses: Sequence | None = None,
     suffix: str = "",
 ) -> None:
-    """
-    Defines nodal balance constraints.
-    """
+    """Define nodal balance constraints."""
     m = n.model
     if buses is None:
         buses = n.buses.index
@@ -671,9 +663,7 @@ def define_nodal_balance_constraints(
 
 
 def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Defines Kirchhoff voltage constraints.
-    """
+    """Define Kirchhoff voltage constraints."""
     m = n.model
     n.calculate_dependent_values()
 
@@ -730,8 +720,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
-    """
-    Sets constraints for fixing static variables of a given component and
+    """Set constraints for fixing static variables of a given component and
     attribute to the corresponding values in `n.static(c)[attr + '_set']`.
 
     Parameters
@@ -758,8 +747,7 @@ def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
 
 
 def define_modular_constraints(n: Network, c: str, attr: str) -> None:
-    """
-    Sets constraints for fixing modular variables of a given component. It
+    """Set constraints for fixing modular variables of a given component. It
     allows to define optimal capacity of a component as multiple of the nominal
     capacity of the single module.
 
@@ -789,8 +777,7 @@ def define_modular_constraints(n: Network, c: str, attr: str) -> None:
 def define_fixed_operation_constraints(
     n: Network, sns: pd.Index, c: str, attr: str
 ) -> None:
-    """
-    Sets constraints for fixing time-dependent variables of a given component
+    """Set constraints for fixing time-dependent variables of a given component
     and attribute to the corresponding values in `n.dynamic(c)[attr + '_set']`.
 
     Parameters
@@ -820,9 +807,9 @@ def define_fixed_operation_constraints(
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Defines energy balance constraints for storage units. In principal the
-    constraints states:
+    """Define energy balance constraints for storage units.
+
+    In principal the constraints states:
 
     previous_soc + p_store - p_dispatch + inflow - spill == soc
     """
@@ -909,9 +896,9 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Defines energy balance constraints for stores. In principal the constraints
-    states:
+    """Define energy balance constraints for stores.
+
+    In principal the constraints states:
 
     previous_e - p == e
     """
@@ -1037,8 +1024,7 @@ def define_generators_constraints(n: Network, sns: Sequence) -> None:
 
 
 def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
-    """
-    Defines energy sum constraints for generators in the network model.
+    """Define energy sum constraints for generators in the network model.
 
     This function adds constraints to the network model to ensure that the total
     energy generated by each generator over the specified snapshots meets the
@@ -1058,8 +1044,6 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
         The network object containing the model and generator data.
     sns : Sequence
         A list of snapshots (time steps) over which the constraints are applied.
-
-
 
     """
     sns_ = as_index(n, sns, "snapshots")

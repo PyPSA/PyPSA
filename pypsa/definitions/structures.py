@@ -10,8 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class Dict(dict):
-    """
-    Subclass of dict, which allows to use attribute syntax to get and set items.
+    """Subclass of dict, which allows to use attribute syntax to get and set items.
 
     Stripped down from addict https://github.com/mewwts/addict/ .
     """
@@ -37,8 +36,7 @@ class Dict(dict):
     _re_pattern = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
 
     def __dir__(self) -> list[str]:
-        """
-        Return a list of object attributes.
+        """Return a list of object attributes.
 
         This includes key names of any dict entries, filtered to the
         subset of valid attribute names (e.g. alphanumeric strings

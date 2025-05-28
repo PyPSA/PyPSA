@@ -34,8 +34,7 @@ def graph(
     inf_weight: bool | float = False,
     include_inactive: bool = True,
 ) -> OrderedGraph:
-    """
-    Build NetworkX graph.
+    """Build NetworkX graph.
 
     Parameters
     ----------
@@ -111,8 +110,7 @@ def adjacency_matrix(
     busorder: pd.Index | None = None,
     weights: pd.Series | None = None,
 ) -> sp.sparse.coo_matrix:
-    """
-    Construct a sparse adjacency matrix (directed).
+    """Construct a sparse adjacency matrix (directed).
 
     Parameters
     ----------
@@ -186,8 +184,7 @@ def incidence_matrix(
     branch_components: Collection[str] | None = None,
     busorder: pd.Index | None = None,
 ) -> sp.sparse.csr_matrix:
-    """
-    Construct a sparse incidence matrix (directed).
+    """Construct a sparse incidence matrix (directed).
 
     Parameters
     ----------

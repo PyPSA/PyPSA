@@ -1,5 +1,4 @@
-"""
-Consistency check functions for PyPSA networks.
+"""Consistency check functions for PyPSA networks.
 
 Mainly used in the `Network.consistency_check()` method.
 """
@@ -42,8 +41,7 @@ def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
 def check_for_unknown_buses(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check if buses are attached to component but are not defined in the network.
+    """Check if buses are attached to component but are not defined in the network.
 
     Activate strict mode in general consistency check by passing `['unknown_buses']` to
     the `strict` argument.
@@ -79,8 +77,7 @@ def check_for_unknown_buses(
 
 @deprecated_common_kwargs
 def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
-    """
-    Check if network has buses that are not connected to any component.
+    """Check if network has buses that are not connected to any component.
 
     Activate strict mode in general consistency check by passing `['disconnected_buses']`
     the `strict` argument.
@@ -116,8 +113,7 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
 def check_for_unknown_carriers(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check if carriers are attached to component but are not defined in the network.
+    """Check if carriers are attached to component but are not defined in the network.
 
     Activate strict mode in general consistency check by passing `['unknown_carriers']`
     the `strict` argument.
@@ -157,8 +153,7 @@ def check_for_unknown_carriers(
 def check_for_zero_impedances(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check if component has zero impedances. Only checks passive branch components.
+    """Check if component has zero impedances. Only checks passive branch components.
 
     Activate strict mode in general consistency check by passing `['zero_impedances']`
     the `strict` argument.
@@ -195,8 +190,7 @@ def check_for_zero_impedances(
 
 @deprecated_common_kwargs
 def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
-    """
-    Check if component has zero s_nom. Only checks transformers.
+    """Check if component has zero s_nom. Only checks transformers.
 
     Activate strict mode in general consistency check by passing `['zero_s_nom']` to
     the `strict` argument.
@@ -228,8 +222,7 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
 
 @deprecated_common_kwargs
 def check_time_series(n: Network, component: Components, strict: bool = False) -> None:
-    """
-    Check if time series of component are aligned with network snapshots.
+    """Check if time series of component are aligned with network snapshots.
 
     Activate strict mode in general consistency check by passing `['time_series']` to
     the `strict` argument.
@@ -280,8 +273,7 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
 def check_static_power_attributes(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check static attrs p_now, s_nom, e_nom in any component.
+    """Check static attrs p_now, s_nom, e_nom in any component.
 
     Activate strict mode in general consistency check by passing `['static_power_attrs']`
     the `strict` argument.
@@ -336,8 +328,7 @@ def check_static_power_attributes(
 def check_time_series_power_attributes(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
+    """Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
 
     Activate strict mode in general consistency check by passing `['time_series_power_attrs']`
     the `strict` argument.
@@ -431,8 +422,7 @@ def check_time_series_power_attributes(
 
 @deprecated_common_kwargs
 def check_assets(n: Network, component: Components, strict: bool = False) -> None:
-    """
-    Check if assets are only committable or extendable, but not both.
+    """Check if assets are only committable or extendable, but not both.
 
     Activate strict mode in general consistency check by passing `['assets']` to the
     `strict` argument.
@@ -469,8 +459,7 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
 @deprecated_common_kwargs
 def check_generators(component: Components, strict: bool = False) -> None:
-    """
-    Check the consistency of generator attributes before the simulation.
+    """Check the consistency of generator attributes before the simulation.
 
     This function performs the following checks on generator components:
     1. Ensures that committable generators are not both up and down before the simulation.
@@ -523,8 +512,7 @@ def check_generators(component: Components, strict: bool = False) -> None:
 
 @deprecated_common_kwargs
 def check_dtypes_(component: Components, strict: bool = False) -> None:
-    """
-    Check if the dtypes of the attributes in the component are as expected.
+    """Check if the dtypes of the attributes in the component are as expected.
 
     Activate strict mode in general consistency check by passing `['dtypes']` to the
     `strict` argument.
@@ -584,8 +572,7 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
 @deprecated_common_kwargs
 def check_investment_periods(n: Network, strict: bool = False) -> None:
-    """
-    Check if investment periods are aligned with snapshots.
+    """Check if investment periods are aligned with snapshots.
 
     Activate strict mode in general consistency check by passing `['investment_periods']`
     to the `strict` argument.
@@ -626,8 +613,7 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
 
 @deprecated_common_kwargs
 def check_shapes(n: Network, strict: bool = False) -> None:
-    """
-    Check if shapes are aligned with related components.
+    """Check if shapes are aligned with related components.
 
     Activate strict mode in general consistency check by passing `['shapes']` to the
     `strict` argument.
@@ -665,8 +651,7 @@ def check_shapes(n: Network, strict: bool = False) -> None:
 def check_nans_for_component_default_attrs(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check for missing values in component attributes.
+    """Check for missing values in component attributes.
 
     Activate strict mode in general consistency check by passing `['nans_for_component_default_attrs']`
     the `strict` argument.
@@ -733,8 +718,7 @@ def check_nans_for_component_default_attrs(
 
 
 def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
-    """
-    Check if carriers are missing colors.
+    """Check if carriers are missing colors.
 
     Parameters
     ----------
@@ -756,8 +740,7 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
 def consistency_check(
     n: Network, check_dtypes: bool = False, strict: Sequence | None = None
 ) -> None:
-    """
-    Check network for consistency.
+    """Check network for consistency.
 
     Runs a series of checks on the network to ensure that it is consistent, e.g. that
     all components are connected to existing buses and that no impedances are singular.
@@ -873,8 +856,7 @@ def consistency_check(
 
 
 def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> None:
-    """
-    Check network for consistency for plotting functions.
+    """Check network for consistency for plotting functions.
 
     Parameters
     ----------

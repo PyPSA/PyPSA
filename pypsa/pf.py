@@ -28,8 +28,7 @@ if TYPE_CHECKING:
 
 
 def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
-    """
-    Custom zsum function.
+    """Define a custom zsum function.
 
     Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
@@ -222,8 +221,7 @@ def _network_prepare_and_run_pf(
 
 @deprecated_common_kwargs
 def allocate_series_dataframes(n: Network, series: dict) -> None:
-    """
-    Populate time-varying outputs with default values.
+    """Populate time-varying outputs with default values.
 
     Parameters
     ----------
@@ -258,8 +256,7 @@ def network_pf(
     distribute_slack: bool = False,
     slack_weights: str = "p_set",
 ) -> Dict:
-    """
-    Full non-linear power flow for generic network.
+    """Full non-linear power flow for generic network.
 
     Parameters
     ----------
@@ -319,8 +316,7 @@ def newton_raphson_sparse(
     distribute_slack: bool = False,
     slack_weights: np.ndarray | None = None,
 ) -> tuple[np.ndarray, int, Any, bool]:
-    """
-    Solve f(x) = 0 with initial guess for x and dfdx(x).
+    """Solve f(x) = 0 with initial guess for x and dfdx(x).
 
     dfdx(x) should return a sparse Jacobian.  Terminate if error on norm
     of f(x) is < x_tol or there were more than lim_iter iterations.
@@ -363,8 +359,7 @@ def sub_network_pf_singlebus(
     slack_weights: str | pd.Series = "p_set",
     linear: bool = False,
 ) -> tuple[int, float, bool]:
-    """
-    Non-linear power flow for a sub-network consiting of a single bus.
+    """Non-linear power flow for a sub-network consiting of a single bus.
 
     Parameters
     ----------
@@ -474,8 +469,7 @@ def sub_network_pf(
     distribute_slack: bool = False,
     slack_weights: pd.Series | dict | str = "p_set",
 ) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """
-    Non-linear power flow for connected sub-network.
+    """Non-linear power flow for connected sub-network.
 
     Parameters
     ----------
@@ -869,8 +863,7 @@ def sub_network_pf(
 def network_lpf(
     n: Network, snapshots: Sequence | None = None, skip_pre: bool = False
 ) -> None:
-    """
-    Linear power flow for generic network.
+    """Linear power flow for generic network.
 
     Parameters
     ----------
@@ -984,8 +977,7 @@ def wye_to_delta(
     z2: float,
     z3: float,
 ) -> tuple[float, float, float]:
-    """
-    Follows http://home.earthlink.net/~w6rmk/math/wyedelta.html.
+    """Follows http://home.earthlink.net/~w6rmk/math/wyedelta.html.
 
     Parameters
     ----------
@@ -1008,8 +1000,7 @@ def wye_to_delta(
 
 @deprecated_common_kwargs
 def apply_transformer_t_model(n: Network) -> None:
-    """
-    Convert given T-model parameters to PI-model parameters.
+    """Convert given T-model parameters to PI-model parameters.
 
     Notes
     -----
@@ -1115,8 +1106,7 @@ def find_slack_bus(sub_network: SubNetwork) -> None:
 
 
 def find_bus_controls(sub_network: SubNetwork) -> None:
-    """
-    Find slack and all PV and PQ buses for a sub_network.
+    """Find slack and all PV and PQ buses for a sub_network.
 
     This function also fixes sub_network.buses_o, a DataFrame ordered by
     control type.
@@ -1207,8 +1197,7 @@ def calculate_B_H(sub_network: SubNetwork, skip_pre: bool = False) -> None:
 
 
 def calculate_PTDF(sub_network: SubNetwork, skip_pre: bool = False) -> None:
-    """
-    Calculate the Power Transfer Distribution Factor (PTDF) for sub_network.
+    """Calculate the Power Transfer Distribution Factor (PTDF) for sub_network.
 
     Sets sub_network.PTDF as a (dense) numpy array.
 
@@ -1340,8 +1329,7 @@ def calculate_Y(
 
 
 def aggregate_multi_graph(sub_network: SubNetwork) -> None:
-    """
-    Aggregate branches between same buses.
+    """Aggregate branches between same buses.
 
     Instead a single branch with aggregated properties (e.g. s_nom is
     summed, length is averaged) is created.
@@ -1389,8 +1377,7 @@ def aggregate_multi_graph(sub_network: SubNetwork) -> None:
 
 
 def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
-    """
-    Get the spanning tree of the graph.
+    """Get the spanning tree of the graph.
 
     Choose the node with the highest degree as a central "tree slack" and then see for
     each branch which paths from the slack to each node go through the branch.
@@ -1421,8 +1408,7 @@ def find_tree(sub_network: SubNetwork, weight: str = "x_pu") -> None:
 
 
 def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
-    """
-    Find all cycles in the sub_network and record them in sub_network.C.
+    """Find all cycles in the sub_network and record them in sub_network.C.
 
     networkx collects the cycles with more than 2 edges; then the 2-edge
     cycles from the MultiGraph must be collected separately (for cases
@@ -1475,8 +1461,7 @@ def sub_network_lpf(
     snapshots: Sequence | None = None,
     skip_pre: bool = False,
 ) -> None:
-    """
-    Linear power flow for connected sub-network.
+    """Linear power flow for connected sub-network.
 
     Parameters
     ----------

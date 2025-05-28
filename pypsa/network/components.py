@@ -1,5 +1,4 @@
-"""
-Network components module.
+"""Network components module.
 
 Contains single helper class (_NetworkComponents) which is used to inherit
 to Network class. Should not be used directly.
@@ -64,8 +63,7 @@ _DYNAMIC_SETTER_WARNING = (
 
 
 class _NetworkComponents(_NetworkABC):
-    """
-    Helper class for components array methods.
+    """Helper class for components array methods.
 
     Class only inherits to [Network][pypsa.Network] and should not be used
     directly. All attributes and methods can be used within any Network instance.
@@ -85,8 +83,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def components(self) -> ComponentsStore:
-        """
-        Network components store.
+        """Network components store.
 
         Access all components of the network via `n.components.<component>`.
 
@@ -129,8 +126,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def c(self) -> ComponentsStore:
-        """
-        Network components store.
+        """Network components store.
 
         Access all components of the network via `n.c.<component>`. Alias for
         [`n.components`][pypsa.Network.components].
@@ -516,8 +512,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def controllable_branch_components(self) -> set[str]:
-        """
-        Controllable branch components of the network as set of strings.
+        """Controllable branch components of the network as set of strings.
 
         Examples
         --------
@@ -529,8 +524,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def controllable_one_port_components(self) -> set[str]:
-        """
-        Controllable one port components of the network as set of strings.
+        """Controllable one port components of the network as set of strings.
 
         Examples
         --------
@@ -542,8 +536,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def passive_branch_components(self) -> set[str]:
-        """
-        Passive branch components of the network as set of strings.
+        """Passive branch components of the network as set of strings.
 
         Examples
         --------
@@ -555,8 +548,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def passive_one_port_components(self) -> set[str]:
-        """
-        Passive one port components of the network as set of strings.
+        """Passive one port components of the network as set of strings.
 
         Examples
         --------
@@ -568,8 +560,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def standard_type_components(self) -> set[str]:
-        """
-        Standard type components of the network as set of strings.
+        """Standard type components of the network as set of strings.
 
         Examples
         --------
@@ -581,8 +572,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def one_port_components(self) -> set[str]:
-        """
-        One port components of the network as set of strings.
+        """One port components of the network as set of strings.
 
         Examples
         --------
@@ -594,8 +584,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def branch_components(self) -> set[str]:
-        """
-        Branch components of the network as set of strings.
+        """Branch components of the network as set of strings.
 
         Examples
         --------
@@ -607,8 +596,7 @@ class _NetworkComponents(_NetworkABC):
 
     @property
     def all_components(self) -> set[str]:
-        """
-        All components of the network as set of strings.
+        """All components of the network as set of strings.
 
         Examples
         --------
@@ -639,8 +627,7 @@ class _NetworkComponents(_NetworkABC):
         details="Use `self.components.<component>.defaults` instead.",
     )
     def component_attrs(self) -> pd.DataFrame:
-        """
-        Component attributes.
+        """Component attributes.
 
         Deprecation
         -----------
@@ -670,8 +657,7 @@ class _NetworkComponents(_NetworkABC):
         details="Use `self.components[<component>].static` instead."
     )
     def df(self, component_name: str) -> pd.DataFrame:
-        """
-        Alias for [`n.static`][pypsa.Network.static].
+        """Alias for [`n.static`][pypsa.Network.static].
 
         Deprecation
         -----------
@@ -701,8 +687,7 @@ class _NetworkComponents(_NetworkABC):
         details="Use `self.components.<component>.static` instead."
     )
     def static(self, component_name: str) -> pd.DataFrame:
-        """
-        Return the DataFrame of static components for component_name.
+        """Return the DataFrame of static components for component_name.
 
         Deprecation
         -----------
@@ -732,8 +717,7 @@ class _NetworkComponents(_NetworkABC):
         details="Use `self.components.<component>.dynamic` instead.",
     )
     def pnl(self, component_name: str) -> Dict:
-        """
-        Alias for [`n.dynamic`][pypsa.Network.dynamic].
+        """Alias for [`n.dynamic`][pypsa.Network.dynamic].
 
         Deprecation
         -----------
@@ -763,8 +747,7 @@ class _NetworkComponents(_NetworkABC):
         details="Use `self.components.<component>.dynamic` instead.",
     )
     def dynamic(self, component_name: str) -> Dict:
-        """
-        Return the dictionary of DataFrames of varying components.
+        """Return the dictionary of DataFrames of varying components.
 
         Deprecation
         -----------

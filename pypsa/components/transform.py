@@ -1,5 +1,4 @@
-"""
-Components transform module.
+"""Components transform module.
 
 Contains single helper class (_ComponentsTransform) which is used to inherit
 to Components class. Should not be used directly.  Transform methods are methods which
@@ -23,8 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class _ComponentsTransform:
-    """
-    Helper class for components descriptors methods.
+    """Helper class for components descriptors methods.
 
     Class only inherits to Components and should not be used directly.
     """
@@ -42,8 +40,7 @@ class _ComponentsTransform:
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """
-        Add new components.
+        """Add new components.
 
         Handles addition of single and multiple components along with their attributes.
         Pass a list of names to add multiple components at once or pass a single name
@@ -153,8 +150,7 @@ class _ComponentsTransform:
         )
 
     def rename_component_names(self, **kwargs: str) -> None:
-        """
-        Rename component names.
+        """Rename component names.
 
         Rename components and also update all cross-references of the component in
         the network.

@@ -20,8 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
-    """
-    Determine crow-flies distance between points in a and b.
+    """Determine crow-flies distance between points in a and b.
 
     ie. distance[i] = crow-fly-distance between a[i] and b[i]
 
@@ -58,8 +57,7 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
 
 
 def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
-    """
-    Compute the distance in km between two sets of points in long/lat.
+    """Compute the distance in km between two sets of points in long/lat.
 
     One dimension of a* should be 2; longitude then latitude. Uses haversine
     formula.
@@ -88,8 +86,7 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     """
 
     def ensure_dimensions(a: np.ndarray | ArrayLike) -> np.ndarray:
-        """
-        Ensure correct shape for haversine calculation.
+        """Ensure correct shape for haversine calculation.
 
         Parameters
         ----------
@@ -122,8 +119,7 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
 def compute_bbox(
     x: ArrayLike, y: ArrayLike, margin: float = 0
 ) -> tuple[tuple[float, float], tuple[float, float]]:
-    """
-    Compute bounding box for given x, y coordinates.
+    """Compute bounding box for given x, y coordinates.
 
     Also adds a margin around the bounding box, if desired. Defaults to 0.
 
@@ -157,8 +153,7 @@ def compute_bbox(
 
 
 def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
-    """
-    Get cartopy projection from EPSG code or proj4 string.
+    """Get cartopy projection from EPSG code or proj4 string.
 
     If the projection is not found, a warning is issued and the default
     PlateCarree projection is returned.
@@ -211,8 +206,7 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
 def get_projected_area_factor(
     ax: GeoAxes, original_crs: int | str = DEFAULT_EPSG
 ) -> float:
-    """
-    Get scale of current vs original projection in terms of area.
+    """Get scale of current vs original projection in terms of area.
 
     The default 'original crs' is assumed to be 4326, which translates
     to the cartopy default cartopy.crs.PlateCarree()

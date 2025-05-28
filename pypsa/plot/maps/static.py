@@ -72,8 +72,7 @@ class MapPlotter:
         jitter: float | None = None,
         buses: pd.Index | None = None,
     ) -> None:
-        """
-        Initialize MapPlotGenerator instance.
+        """Initialize MapPlotGenerator instance.
 
         Parameters
         ----------
@@ -213,8 +212,7 @@ class MapPlotter:
         self._area_factor = float(value) if value is not None else 1.0
 
     def set_layout(self, layouter: Callable | None = None) -> None:
-        """
-        Set the layout for node positions.
+        """Set the layout for node positions.
 
         Parameters
         ----------
@@ -249,8 +247,7 @@ class MapPlotter:
         margin: float = 0.05,
         buses: pd.Index | None = None,
     ) -> None:
-        """
-        Set the plot boundaries.
+        """Set the plot boundaries.
 
         Parameters
         ----------
@@ -294,8 +291,7 @@ class MapPlotter:
         boundaries: tuple[float, float, float, float] | None = None,
         title: str = "",
     ) -> None:
-        """
-        Initialize the plot axis with geographic features if requested.
+        """Initialize the plot axis with geographic features if requested.
 
         Parameters
         ----------
@@ -382,8 +378,7 @@ class MapPlotter:
         resolution: Literal["10m", "50m", "110m"] = "50m",
         geomap_colors: dict | None = None,
     ) -> None:
-        """
-        Add geographic features to the map using cartopy.
+        """Add geographic features to the map using cartopy.
 
         Parameters
         ----------
@@ -443,8 +438,7 @@ class MapPlotter:
         )
 
     def add_jitter(self, jitter: float) -> tuple[pd.Series, pd.Series]:
-        """
-        Add random jitter to data.
+        """Add random jitter to data.
 
         Parameters
         ----------
@@ -473,8 +467,7 @@ class MapPlotter:
         alpha: float | pd.Series,
         split_circles: bool,
     ) -> list[Wedge]:
-        """
-        Create patches for buses with multi-indexed size data.
+        """Create patches for buses with multi-indexed size data.
 
         Parameters
         ----------
@@ -536,8 +529,7 @@ class MapPlotter:
         colors: pd.Series,
         alpha: float | pd.Series,
     ) -> list[Circle]:
-        """
-        Create patches for buses with single-indexed size data.
+        """Create patches for buses with single-indexed size data.
 
         Parameters
         ----------
@@ -578,8 +570,7 @@ class MapPlotter:
         flow: pd.Series | str | float | Callable | None,
         c_name: str,
     ) -> pd.Series | None:
-        """
-        Convert flow argument to pandas Series.
+        """Convert flow argument to pandas Series.
 
         Parameters
         ----------
@@ -621,8 +612,7 @@ class MapPlotter:
         geometry: pd.Series,
         auto_scale_branches: bool = True,
     ) -> LineCollection | PatchCollection:
-        """
-        Create a collection of branches for a single component.
+        """Create a collection of branches for a single component.
 
         Parameters
         ----------
@@ -753,7 +743,7 @@ class MapPlotter:
         area_factor: float,
         alpha: float = 1,
     ) -> PatchCollection:
-        """Helper function to generate arrows from flow data."""
+        """Generate arrows from flow data."""
         # this function is used for diplaying arrows representing the network flow
         data = pd.DataFrame(
             {
@@ -816,8 +806,7 @@ class MapPlotter:
         colors: pd.Series,
         alpha: pd.Series,
     ) -> PatchCollection:
-        """
-        Create a flow arrow collection for a single branch component.
+        """Create a flow arrow collection for a single branch component.
 
         Parameters
         ----------
@@ -854,8 +843,7 @@ class MapPlotter:
         y_max: float,
         target_area_fraction: float = 0.1,
     ) -> float:
-        """
-        Scale series for plotting.
+        """Scale series for plotting.
 
         Makes sure that the total area of all area contributions
         takes up approximately the specified fraction of the plot area.
@@ -888,8 +876,7 @@ class MapPlotter:
     def aggregate_flow_by_connection(
         flow: pd.Series, branches: pd.DataFrame
     ) -> pd.Series:
-        """
-        Aggregate flow values by bus connections irrespective of direction.
+        """Aggregate flow values by bus connections irrespective of direction.
 
         This method aggregates flow values from different branch components between
         the same pair of buses, ensuring consistent directional representation.
@@ -923,8 +910,7 @@ class MapPlotter:
 
     @staticmethod
     def flow_to_width(flow: pd.Series, width_factor: float = 0.2) -> pd.Series:
-        """
-        Calculate the width of a line based on the flow value.
+        """Calculate the width of a line based on the flow value.
 
         Parameters
         ----------
@@ -974,8 +960,7 @@ class MapPlotter:
         flow: str | Callable | dict | pd.Series = None,
         auto_scale_branches: bool = True,
     ) -> dict:
-        """
-        Plot the network buses and lines using matplotlib and cartopy.
+        """Plot the network buses and lines using matplotlib and cartopy.
 
         Parameters
         ----------
@@ -1370,8 +1355,7 @@ def plot(  # noqa: D103
 
 
 class HandlerCircle(HandlerPatch):
-    """
-    Legend Handler used to create circles for legend entries.
+    """Legend Handler used to create circles for legend entries.
 
     This handler resizes the circles in order to match the same
     dimensional scaling as in the applied axis.
@@ -1415,8 +1399,7 @@ class HandlerCircle(HandlerPatch):
 
 
 class WedgeHandler(HandlerPatch):
-    """
-    Legend Handler used to create sermi-circles for legend entries.
+    """Legend Handler used to create sermi-circles for legend entries.
 
     This handler resizes the semi-circles in order to match the same
     dimensional scaling as in the applied axis.
@@ -1470,8 +1453,7 @@ class HandlerArrow(HandlerPatch):
     def __init__(
         self, width_ratio: float = 0.2, scale_factor: float | None = None
     ) -> None:
-        """
-        Initialize the HandlerArrow.
+        """Initialize the HandlerArrow.
 
         Parameters
         ----------
@@ -1528,8 +1510,7 @@ def add_legend_lines(
     patch_kw: dict[str, Any] | None = None,
     legend_kw: dict[str, Any] | None = None,
 ) -> Legend:
-    """
-    Add a legend for lines and links.
+    """Add a legend for lines and links.
 
     Parameters
     ----------
@@ -1586,8 +1567,7 @@ def add_legend_patches(
     patch_kw: dict[str, Any] | None = None,
     legend_kw: dict[str, Any] | None = None,
 ) -> Legend:
-    """
-    Add patches for color references.
+    """Add patches for color references.
 
     Parameters
     ----------
@@ -1633,8 +1613,7 @@ def add_legend_circles(
     patch_kw: dict[str, Any] | None = None,
     legend_kw: dict[str, Any] | None = None,
 ) -> Legend:
-    """
-    Add a legend for reference circles.
+    """Add a legend for reference circles.
 
     .. warning::
         When combining ``n.plot()`` with other plots on a geographical axis,
@@ -1700,8 +1679,7 @@ def add_legend_semicircles(
     patch_kw: dict[str, Any] | None = None,
     legend_kw: dict[str, Any] | None = None,
 ) -> Legend:
-    """
-    Add a legend for reference semi-circles.
+    """Add a legend for reference semi-circles.
 
     .. warning::
         When combining ``n.plot()`` with other plots on a geographical axis,
@@ -1773,8 +1751,7 @@ def add_legend_arrows(
     patch_kw: dict[str, Any] | None = None,
     legend_kw: dict[str, Any] | None = None,
 ) -> Legend:
-    """
-    Add a legend for flow arrows.
+    """Add a legend for flow arrows.
 
     Parameters
     ----------
@@ -1858,8 +1835,7 @@ def round_to_significant_digits(x: float, n: int = 2) -> int | float:
 
 
 def scaled_legend_label(value: float, base_unit: str = "MWh") -> str:
-    """
-    Scale a value to an appropriate unit for legend labels.
+    """Scale a value to an appropriate unit for legend labels.
 
     This function scales the value to a more human-readable format. Ensures scaled
     values >= 1 are integers.
@@ -1920,8 +1896,7 @@ def get_legend_representatives(
     base_unit: str = "MWh",
     group_on_first_level: bool = False,
 ) -> list[tuple[int | float, str]]:
-    """
-    Get representative values from a numeric series for legend visualization.
+    """Get representative values from a numeric series for legend visualization.
 
     Automatic unit scaling is applied. Values >= 1 are returned as integers.
 

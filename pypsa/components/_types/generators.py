@@ -15,8 +15,7 @@ if TYPE_CHECKING:
 
 @patch_add_docstring
 class Generators(Components):
-    """
-    Generators components class.
+    """Generators components class.
 
     This class is used for generator components. All functionality specific to
     generators is implemented here. Functionality for all components is implemented in
@@ -39,7 +38,7 @@ class Generators(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,

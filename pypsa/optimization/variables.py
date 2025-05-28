@@ -1,6 +1,4 @@
-"""
-Define optimisation variables from PyPSA networks with Linopy.
-"""
+"""Define optimisation variables from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
@@ -19,8 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def define_operational_variables(n: Network, sns: Sequence, c: str, attr: str) -> None:
-    """
-    Initializes variables for power dispatch for a given component and a given
+    """Initialize variables for power dispatch for a given component and a given
     attribute.
 
     Parameters
@@ -86,8 +83,7 @@ def define_shut_down_variables(n: Network, sns: Sequence, c: str) -> None:
 
 
 def define_nominal_variables(n: Network, c: str, attr: str) -> None:
-    """
-    Initializes variables for nominal capacities for a given component and a
+    """Initialize variables for nominal capacities for a given component and a
     given attribute.
 
     Parameters
@@ -107,8 +103,7 @@ def define_nominal_variables(n: Network, c: str, attr: str) -> None:
 
 
 def define_modular_variables(n: Network, c: str, attr: str) -> None:
-    """
-    Initializes variables 'attr' for a given component c to allow a modular
+    """Initialize variables 'attr' for a given component c to allow a modular
     expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
     optimal number of installed modules.
 
@@ -131,9 +126,7 @@ def define_modular_variables(n: Network, c: str, attr: str) -> None:
 
 
 def define_spillage_variables(n: Network, sns: Sequence) -> None:
-    """
-    Defines the spillage variables for storage units.
-    """
+    """Define the spillage variables for storage units."""
     c = "StorageUnit"
     if n.static(c).empty:
         return
@@ -147,9 +140,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
 
 
 def define_loss_variables(n: Network, sns: Sequence, c: str) -> None:
-    """
-    Initializes variables for transmission losses.
-    """
+    """Initialize variables for transmission losses."""
     if n.static(c).empty or c not in n.passive_branch_components:
         return
 

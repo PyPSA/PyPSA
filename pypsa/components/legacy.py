@@ -55,8 +55,7 @@ _CLASS_MAPPING = {
 
 
 class Component:
-    """
-    Legacy component class.
+    """Legacy component class.
 
     Allows to keep functionallity of previous dataclass/ named tuple and wraps
     around new structure.

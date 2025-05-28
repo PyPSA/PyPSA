@@ -40,8 +40,7 @@ def facet_iter(
     facet_col: str | None,
     split_by_sign: bool = False,
 ) -> Iterator[tuple[Axes, pd.DataFrame]]:
-    """
-    Generator function that yields (axis, filtered_data) for each facet in a FacetGrid.
+    """Generate (axis, filtered_data) for each facet in a FacetGrid.
 
     Parameters
     ----------
@@ -111,8 +110,7 @@ def map_dataframe_pandas_plot(
     ylim: tuple[float, float] | None = None,
     **kwargs: Any,
 ) -> sns.FacetGrid:
-    """
-    Handle the creation of area or bar plots for FacetGrid.
+    """Handle the creation of area or bar plots for FacetGrid.
 
     Parameters
     ----------
@@ -216,8 +214,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         return data
 
     def _to_long_format(self, data: pd.DataFrame | pd.Series) -> pd.DataFrame:
-        """
-        Convert data to long format suitable for plotting.
+        """Convert data to long format suitable for plotting.
 
         Parameters
         ----------
@@ -598,8 +595,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         *args: Any,
         method_name: str = "",  # make required
     ) -> dict[str, Any]:
-        """
-        Extract plotting specification rules including groupby columns and component aggregation.
+        """Extract plotting specification rules including groupby columns and component aggregation.
 
         Parameters
         ----------
