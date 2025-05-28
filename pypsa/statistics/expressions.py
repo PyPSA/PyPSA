@@ -2277,10 +2277,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             buses = n.static(c)[f"bus{port}"][df.columns]
             # catch multiindex case
             buses = (
-                buses.to_frame("bus")
-                .set_index("bus", append=True)
-                .droplevel("Generator")
-                .index
+                buses.to_frame("bus").set_index("bus", append=True).droplevel(c).index
             )
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0
