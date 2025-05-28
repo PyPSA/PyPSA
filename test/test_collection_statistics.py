@@ -485,4 +485,7 @@ def test_network_collection_revenue(
     # Check that revenue is non-negative for each scenario (typical for generators)
     for scenario in nc.networks.index:
         scenario_revenue = revenue_result.xs(scenario, level="scenario")
-        assert (scenario_revenue >= 0).all()
+        network_revenue = nc.networks.loc[scenario].statistics.revenue()
+        assert (scenario_revenue == network_revenue).all(), (
+            f"Revenue mismatch for scenario {scenario}"
+        )
