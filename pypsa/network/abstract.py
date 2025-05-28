@@ -1,5 +1,4 @@
-"""
-Abstract network module.
+"""Abstract network module.
 
 Only defines a base class for all Network helper classes which inherit to
 `Network` class.

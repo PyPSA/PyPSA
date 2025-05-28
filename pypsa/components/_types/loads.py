@@ -11,8 +11,7 @@ from pypsa.components.components import Components
 
 @patch_add_docstring
 class Loads(Components):
-    """
-    Loads components class.
+    """Loads components class.
 
     This class is used for load components. All functionality specific to
     loads is implemented here. Functionality for all components is implemented in
@@ -35,7 +34,7 @@ class Loads(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,

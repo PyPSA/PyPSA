@@ -11,8 +11,7 @@ from pypsa.components.components import Components
 
 @patch_add_docstring
 class ShuntImpedances(Components):
-    """
-    Shunt impedances components class.
+    """Shunt impedances components class.
 
     This class is used for shunt impedance components. All functionality specific to
     shunt impedances is implemented here. Functionality for all components is implemented in
@@ -36,7 +35,7 @@ class ShuntImpedances(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,

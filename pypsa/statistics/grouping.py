@@ -1,5 +1,4 @@
-"""
-Groupers for PyPSA statistics.
+"""Groupers for PyPSA statistics.
 
 Use them via the groupers instance via `pypsa.statistics.groupers`. Do not use the
 grouping module directly.
@@ -27,8 +26,7 @@ class Groupers:
     """Container for all the get_ methods."""
 
     def __repr__(self) -> str:
-        """
-        Return a string representation of the grouper container.
+        """Return a string representation of the grouper container.
 
         Returns
         -------
@@ -42,8 +40,7 @@ class Groupers:
         )
 
     def __getitem__(self, keys: str | Callable | Sequence[str | Callable]) -> Callable:
-        """
-        Get a single or multi-indexed grouper method.
+        """Get a single or multi-indexed grouper method.
 
         Parameters
         ----------
@@ -71,8 +68,7 @@ class Groupers:
         return self._multi_grouper(keys)
 
     def __setitem__(self, key: str, value: Callable) -> None:
-        """
-        Set a custom grouper method.
+        """Set a custom grouper method.
 
         Parameters
         ----------
@@ -95,8 +91,7 @@ class Groupers:
             raise KeyError(msg) from e
 
     def list_groupers(self) -> dict:
-        """
-        List all available groupers which are avaliable on the module level.
+        """List all available groupers which are avaliable on the module level.
 
         Returns
         -------
@@ -117,8 +112,7 @@ class Groupers:
     def _multi_grouper(
         self, keys: str | Callable | Sequence[str | Callable]
     ) -> Callable:
-        """
-        Get a single or multi-indexed grouper method.
+        """Get a single or multi-indexed grouper method.
 
         Should be used via groupers __getitem__ method and not directly.
 
@@ -176,8 +170,7 @@ class Groupers:
         return multi_grouper
 
     def add_grouper(self, name: str, func: Callable) -> None:
-        """
-        Add a custom grouper to groupers on module level.
+        """Add a custom grouper to groupers on module level.
 
         After registering a custom grouper, it can be accessed via the groupers module
         level object and used in the statistics methods or as a groupers method.
@@ -200,8 +193,7 @@ class Groupers:
         setattr(self, name, func)
 
     def carrier(self, n: Network, c: str, nice_names: bool = True) -> pd.Series:
-        """
-        Grouper method to group by the carrier of the components.
+        """Grouper method to group by the carrier of the components.
 
         Parameters
         ----------
@@ -230,8 +222,7 @@ class Groupers:
     def bus_carrier(
         self, n: Network, c: str, port: str = "", nice_names: bool = True
     ) -> pd.Series:
-        """
-        Grouper method to group by the carrier of the attached bus of a component.
+        """Grouper method to group by the carrier of the attached bus of a component.
 
         Parameters
         ----------
@@ -255,8 +246,7 @@ class Groupers:
         return n.static(c)[bus].map(buses_carrier).rename("bus_carrier")
 
     def bus(self, n: Network, c: str, port: str = "") -> pd.Series:
-        """
-        Grouper method to group by the attached bus of the components.
+        """Grouper method to group by the attached bus of the components.
 
         Parameters
         ----------
@@ -277,8 +267,7 @@ class Groupers:
         return n.static(c)[bus].rename("bus")
 
     def country(self, n: Network, c: str, port: str = "") -> pd.Series:
-        """
-        Grouper method to group by the country of the components corresponding bus.
+        """Grouper method to group by the country of the components corresponding bus.
 
         Parameters
         ----------
@@ -299,8 +288,7 @@ class Groupers:
         return n.static(c)[bus].map(n.buses.country).rename("country")
 
     def location(self, n: Network, c: str, port: str = "") -> pd.Series:
-        """
-        Grouper method to group by the location of the components corresponding bus.
+        """Grouper method to group by the location of the components corresponding bus.
 
         Parameters
         ----------
@@ -321,8 +309,7 @@ class Groupers:
         return n.static(c)[bus].map(n.buses.location).rename("location")
 
     def unit(self, n: Network, c: str, port: str = "") -> pd.Series:
-        """
-        Grouper method to group by the unit of the components corresponding bus.
+        """Grouper method to group by the unit of the components corresponding bus.
 
         Parameters
         ----------
@@ -343,8 +330,7 @@ class Groupers:
         return n.static(c)[bus].map(n.buses.unit).rename("unit")
 
     def name(self, n: Network, c: str) -> pd.Series:
-        """
-        Grouper method to group by the name of components.
+        """Grouper method to group by the name of components.
 
         Parameters
         ----------
@@ -383,8 +369,7 @@ new_grouper_access = {
 
 
 def deprecated_grouper(func: Callable) -> Callable:
-    """
-    Deprecate old grouper methods with custom deprecation warning.
+    """Deprecate old grouper methods with custom deprecation warning.
 
     Parameters
     ----------
@@ -412,8 +397,7 @@ def deprecated_grouper(func: Callable) -> Callable:
 
 
 class DeprecatedGroupers:
-    """
-    Grouper class to allow full backwards compatiblity with old grouper methods.
+    """Grouper class to allow full backwards compatiblity with old grouper methods.
 
     Allows access to the old grouper methods, points them to new structure on
     module level and raises a DeprecationWarning.
@@ -421,110 +405,62 @@ class DeprecatedGroupers:
 
     @deprecated_grouper
     def get_carrier(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers.carrier` instead.
-        """
+        """Use `pypsa.statistics.groupers.carrier` instead."""
         return groupers.carrier(*args, **kwargs)
 
     @deprecated_grouper
     def get_bus_carrier(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers.bus_carrier` instead.
-        """
+        """Use `pypsa.statistics.groupers.bus_carrier` instead."""
         return groupers.bus_carrier(*args, **kwargs)
 
     @deprecated_grouper
     def get_bus(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers.bus` instead.
-        """
+        """Use `pypsa.statistics.groupers.bus` instead."""
         return groupers.bus(*args, **kwargs)
 
     @deprecated_grouper
     def get_country(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers.country` instead.
-        """
+        """Use `pypsa.statistics.groupers.country` instead."""
         return groupers.country(*args, **kwargs)
 
     @deprecated_grouper
     def get_unit(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers.unit` instead.
-        """
+        """Use `pypsa.statistics.groupers.unit` instead."""
         return groupers.unit(*args, **kwargs)
 
     @deprecated_grouper
     def get_name(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers.name` instead.
-        """
+        """Use `pypsa.statistics.groupers.name` instead."""
         return groupers.name(*args, **kwargs)
 
     @deprecated_grouper
     def get_bus_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers["bus", "carrier"]` instead.
-        """
+        """Use `pypsa.statistics.groupers["bus", "carrier"]` instead."""
         return groupers["bus", "carrier"](*args, **kwargs)
 
     @deprecated_grouper
     def get_bus_unit_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers["bus", "unit", "carrier"]` instead.
-        """
+        """Use `pypsa.statistics.groupers["bus", "unit", "carrier"]` instead."""
         return groupers["bus", "unit", "carrier"](*args, **kwargs)
 
     @deprecated_grouper
     def get_name_bus_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers["name", "bus", "carrier"]` instead.
-        """
+        """Use `pypsa.statistics.groupers["name", "bus", "carrier"]` instead."""
         return groupers["name", "bus", "carrier"](*args, **kwargs)
 
     @deprecated_grouper
     def get_country_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers["country", "carrier"]` instead.
-        """
+        """Use `pypsa.statistics.groupers["country", "carrier"]` instead."""
         return groupers["country", "carrier"](*args, **kwargs)
 
     @deprecated_grouper
     def get_bus_and_carrier_and_bus_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers["bus", "carrier", "bus_carrier"]` instead.
-        """
+        """Use `pypsa.statistics.groupers["bus", "carrier", "bus_carrier"]` instead."""
         return groupers["bus", "carrier", "bus_carrier"](*args, **kwargs)
 
     @deprecated_grouper
     def get_carrier_and_bus_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """
-        Deprecated grouper method.
-
-        Use `pypsa.statistics.groupers["carrier", "bus_carrier"]` instead.
-        """
+        """Use `pypsa.statistics.groupers["carrier", "bus_carrier"]` instead."""
         return groupers["carrier", "bus_carrier"](*args, **kwargs)
 
 

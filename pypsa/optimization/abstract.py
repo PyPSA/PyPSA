@@ -1,5 +1,4 @@
-"""
-Build abstracted, extended optimisation problems from PyPSA networks with
+"""Build abstracted, extended optimisation problems from PyPSA networks with
 Linopy.
 """
 
@@ -32,8 +31,7 @@ def discretized_capacity(
     fractional_last_unit_size: bool,
     min_units: int | None = None,
 ) -> float:
-    """
-    Discretize a optimal capacity to a capacity that is either a multiple of a unit size
+    """Discretize a optimal capacity to a capacity that is either a multiple of a unit size
     or the maximum capacity, depending on the variable `fractional_last_unit_size`.
 
     This function checks if the optimal capacity is within the threshold of the unit
@@ -141,8 +139,7 @@ def optimize_transmission_expansion_iteratively(
     fractional_last_unit_size: bool = False,
     **kwargs: Any,
 ) -> tuple[str, str]:
-    """
-    Iterative linear optimization updating the line parameters for passive AC
+    """Perform iterative linear optimization updating the line parameters for passive AC
     and DC lines. This is helpful when line expansion is enabled. After each
     successful solving, line impedances and line resistance are recalculated
     based on the optimization result. If warmstart is possible, it uses the
@@ -236,8 +233,7 @@ def optimize_transmission_expansion_iteratively(
         link_threshold: dict | None,
         fractional_last_unit_size: bool = False,
     ) -> None:
-        """
-        Discretizes the branch components of a network based on the specified
+        """Discretizes the branch components of a network based on the specified
         unit sizes and thresholds.
         """
         # TODO: move default value definition to main function (unnest)
@@ -363,8 +359,7 @@ def optimize_security_constrained(
     model_kwargs: dict | None = None,
     **kwargs: Any,
 ) -> tuple[str, str]:
-    """
-    Computes Security-Constrained Linear Optimal Power Flow (SCLOPF).
+    """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
 
     This ensures that no branch is overloaded even given the branch outages.
 
@@ -464,8 +459,7 @@ def optimize_with_rolling_horizon(
     overlap: int = 0,
     **kwargs: Any,
 ) -> Network:
-    """
-    Optimizes the network in a rolling horizon fashion.
+    """Optimizes the network in a rolling horizon fashion.
 
     Parameters
     ----------
@@ -528,8 +522,7 @@ def optimize_mga(
     model_kwargs: dict | None = None,
     **kwargs: Any,
 ) -> tuple[str, str]:
-    """
-    Run modelling-to-generate-alternatives (MGA) on network to find near-
+    """Run modelling-to-generate-alternatives (MGA) on network to find near-
     optimal solutions.
 
     Parameters
@@ -674,8 +667,7 @@ def optimize_and_run_non_linear_powerflow(
     slack_weights: str = "p_set",
     **kwargs: Any,
 ) -> dict:
-    """
-    Optimizes the network and then performs a non-linear power flow for all snapshots.
+    """Optimizes the network and then performs a non-linear power flow for all snapshots.
 
     Parameters
     ----------

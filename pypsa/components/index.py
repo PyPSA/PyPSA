@@ -1,5 +1,4 @@
-"""
-Components index module.
+"""Components index module.
 
 Contains single helper class (_ComponentsIndex) which is used to inherit
 to Components class. Should not be used directly.

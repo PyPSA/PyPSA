@@ -77,8 +77,7 @@ def iplot(
     mapbox_token: str = "",
     mapbox_parameters: dict | None = None,
 ) -> dict:
-    """
-    Plot the network buses and lines interactively using plotly.
+    """Plot the network buses and lines interactively using plotly.
 
     Parameters
     ----------
@@ -353,8 +352,7 @@ def explore(
     tiles: str = "OpenStreetMap",
     components: set[str] | None = None,
 ) -> Any | None:  # TODO: returns a FoliunMap or None
-    """
-    Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
+    """Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
 
     This function generates a Folium map showing buses, lines, links, and transformers from the provided network object.
 

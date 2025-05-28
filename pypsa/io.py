@@ -149,8 +149,7 @@ class ImporterCSV(Importer):
     def __init__(
         self, csv_folder_name: str | Path, encoding: str | None, quotechar: str
     ) -> None:
-        """
-        Initialize the importer for CSV files.
+        """Initialize the importer for CSV files.
 
         Parameters
         ----------
@@ -256,8 +255,7 @@ class ExporterCSV(Exporter):
     def __init__(
         self, csv_folder_name: Path | str, encoding: str | None, quotechar: str
     ) -> None:
-        """
-        Initialize the exporter for CSV files.
+        """Initialize the exporter for CSV files.
 
         Parameters
         ----------
@@ -323,8 +321,7 @@ class ExporterCSV(Exporter):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def remove_static(self, list_name: str) -> None:
-        """
-        Remove static components data.
+        """Remove static components data.
 
         Needed to not have stale sheets for empty components.
         """
@@ -334,8 +331,7 @@ class ExporterCSV(Exporter):
             logger.warning("Stale csv file(s) %s removed", ", ".join(fns))
 
     def remove_series(self, list_name: str, attr: str) -> None:
-        """
-        Remove dynamic components data.
+        """Remove dynamic components data.
 
         Needed to not have stale sheets for empty components.
         """
@@ -351,8 +347,7 @@ class ImporterExcel(Importer):
     """Importer class for Excel files."""
 
     def __init__(self, path: str | Path, engine: str = "calamine") -> None:
-        """
-        Initialize the importer for Excel files.
+        """Initialize the importer for Excel files.
 
         Parameters
         ----------
@@ -480,8 +475,7 @@ class ExporterExcel(Exporter):
     """Exporter class for Excel files."""
 
     def __init__(self, excel_file_path: Path | str, engine: str = "openpyxl") -> None:
-        """
-        Initialize the exporter for Excel files.
+        """Initialize the exporter for Excel files.
 
         Parameters
         ----------
@@ -511,8 +505,7 @@ class ExporterExcel(Exporter):
 
     @property
     def writer(self) -> pd.ExcelWriter:
-        """
-        Get the Excel writer object.
+        """Get the Excel writer object.
 
         If the writer object is not already created, create it.
         """
@@ -567,8 +560,7 @@ class ExporterExcel(Exporter):
         df.to_excel(self.writer, sheet_name=sheet_name)
 
     def remove_static(self, list_name: str) -> None:
-        """
-        Remove static components data.
+        """Remove static components data.
 
         Needed to not have stale sheets for empty components.
 
@@ -578,8 +570,7 @@ class ExporterExcel(Exporter):
             logger.warning("Stale sheet %s removed", list_name)
 
     def remove_series(self, list_name: str, attr: str) -> None:
-        """
-        Remove dynamic components data.
+        """Remove dynamic components data.
 
         Needed to not have stale sheets for empty components.
         """
@@ -602,8 +593,7 @@ class ImporterHDF5(Importer):
     """Importer class for HDF5 files."""
 
     def __init__(self, path: str | pd.HDFStore) -> None:
-        """
-        Initialize the importer for HDF5 files.
+        """Initialize the importer for HDF5 files.
 
         Parameters
         ----------
@@ -679,8 +669,7 @@ class ExporterHDF5(Exporter):
     """Exporter class for HDF5 files."""
 
     def __init__(self, path: str | Path, **kwargs: Any) -> None:
-        """
-        Initialize exporter for HDF5 files.
+        """Initialize exporter for HDF5 files.
 
         Parameters
         ----------
@@ -758,8 +747,7 @@ class ImporterNetCDF(Importer):
     ds: xr.Dataset
 
     def __init__(self, path: str | Path | xr.Dataset) -> None:
-        """
-        Initialize the importer for netCDF files.
+        """Initialize the importer for netCDF files.
 
         Parameters
         ----------
@@ -854,8 +842,7 @@ class ExporterNetCDF(Exporter):
         compression: dict | None = None,
         float32: bool = False,
     ) -> None:
-        """
-        Initialize exporter for netCDF files.
+        """Initialize exporter for netCDF files.
 
         Parameters
         ----------
@@ -925,8 +912,7 @@ class ExporterNetCDF(Exporter):
                 self.ds[v] = self.ds[v].astype(np.float32)
 
     def finish(self) -> None:
-        """
-        Finish the export process.
+        """Finish the export process.
 
         Runs post-processing, compression and saving to disk.
         """
@@ -948,8 +934,7 @@ def _export_to_exporter(
     quotechar: str = '"',
     export_standard_types: bool = False,
 ) -> None:
-    """
-    Export to exporter.
+    """Export to exporter.
 
     Both static and series attributes of components are exported, but only
     if they have non-default values.
@@ -1089,8 +1074,7 @@ def import_from_csv_folder(
     quotechar: str = '"',
     skip_time: bool = False,
 ) -> None:
-    """
-    Import network data from CSVs in a folder.
+    """Import network data from CSVs in a folder.
 
     The CSVs must follow the standard form, see ``pypsa/examples``.
 
@@ -1130,8 +1114,7 @@ def export_to_csv_folder(
     quotechar: str = '"',
     export_standard_types: bool = False,
 ) -> None:
-    """
-    Export network and components to a folder of CSVs.
+    """Export network and components to a folder of CSVs.
 
     Both static and series attributes of all components are exported, but only
     if they have non-default values.
@@ -1192,8 +1175,7 @@ def import_from_excel(
     skip_time: bool = False,
     engine: str = "calamine",
 ) -> None:
-    """
-    Import network data from an Excel file.
+    """Import network data from an Excel file.
 
     The Excel file must follow the standard form with appropriate sheets.
 
@@ -1226,8 +1208,7 @@ def export_to_excel(
     export_standard_types: bool = False,
     engine: str = "openpyxl",
 ) -> None:
-    """
-    Export network and components to an Excel file.
+    """Export network and components to an Excel file.
 
     It is recommended to only use the Excel format if needed and for small networks.
     Excel files are not as efficient as other formats and can be slow to read/write.
@@ -1279,8 +1260,7 @@ def export_to_excel(
 
 @deprecated_common_kwargs
 def import_from_hdf5(n: Network, path: str | Path, skip_time: bool = False) -> None:
-    """
-    Import network data from HDF5 store at `path`.
+    """Import network data from HDF5 store at `path`.
 
     Parameters
     ----------
@@ -1305,8 +1285,7 @@ def export_to_hdf5(
     export_standard_types: bool = False,
     **kwargs: Any,
 ) -> None:
-    """
-    Export network and components to an HDF store.
+    """Export network and components to an HDF store.
 
     Both static and series attributes of components are exported, but only
     if they have non-default values.
@@ -1355,8 +1334,7 @@ def export_to_hdf5(
 def import_from_netcdf(
     n: Network, path: str | Path | xr.Dataset, skip_time: bool = False
 ) -> None:
-    """
-    Import network data from netCDF file or xarray Dataset at `path`.
+    """Import network data from netCDF file or xarray Dataset at `path`.
 
     ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
 
@@ -1384,8 +1362,7 @@ def export_to_netcdf(
     compression: dict | None = None,
     float32: bool = False,
 ) -> xr.Dataset:
-    """
-    Export network and components to a netCDF file.
+    """Export network and components to a netCDF file.
 
     Both static and series attributes of components are exported, but only
     if they have non-default values.
@@ -1447,8 +1424,7 @@ def export_to_netcdf(
 def _import_from_importer(
     n: Network, importer: Any, basename: str, skip_time: bool = False
 ) -> None:
-    """
-    Import network data from importer.
+    """Import network data from importer.
 
     Parameters
     ----------
@@ -1567,8 +1543,7 @@ def _import_from_importer(
 
 
 def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFrame:
-    """
-    Sort axis of DataFrame according to the order of attrs_list.
+    """Sort axis of DataFrame according to the order of attrs_list.
 
     Attributes not in attrs_list are appended at the end. Attributes in the list but
     not in the DataFrame are ignored.
@@ -1603,8 +1578,7 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
 def import_components_from_dataframe(
     n: Network, dataframe: pd.DataFrame, cls_name: str
 ) -> None:
-    """
-    Import components from a pandas DataFrame.
+    """Import components from a pandas DataFrame.
 
     This function is deprecated. Use :py:meth`pypsa.Network.add` instead. To get the
     same behavior for importing components from a DataFrame, use
@@ -1642,8 +1616,7 @@ def import_components_from_dataframe(
 def import_series_from_dataframe(
     n: Network, dataframe: pd.DataFrame, cls_name: str, attr: str
 ) -> None:
-    """
-    Import time series from a pandas DataFrame.
+    """Import time series from a pandas DataFrame.
 
     This function is deprecated. Use :py:meth:`pypsa.Network.add` instead, but it will
     not work with the same data structure. To get a similar behavior, use
@@ -1672,8 +1645,7 @@ def import_series_from_dataframe(
 def _import_components_from_df(
     n: NetworkType, df: pd.DataFrame, cls_name: str, overwrite: bool = False
 ) -> None:
-    """
-    Import components from a pandas DataFrame.
+    """Import components from a pandas DataFrame.
 
     If columns are missing then defaults are used.
 
@@ -1799,8 +1771,7 @@ def _import_series_from_df(
     attr: str,
     overwrite: bool = False,
 ) -> None:
-    """
-    Import time series from a pandas DataFrame.
+    """Import time series from a pandas DataFrame.
 
     Parameters
     ----------
@@ -1884,8 +1855,7 @@ def merge(
     inplace: bool = False,
     with_time: bool = True,
 ) -> Network | None:
-    """
-    Merge the components of two networks.
+    """Merge the components of two networks.
 
     Requires disjunct sets of component indices and, if time-dependent data is
     merged, identical snapshots and snapshot weightings.
@@ -1967,8 +1937,7 @@ def merge(
 def import_from_pypower_ppc(
     n: Network, ppc: dict, overwrite_zero_s_nom: float | None = None
 ) -> None:
-    """
-    Import network from PYPOWER PPC dictionary format version 2.
+    """Import network from PYPOWER PPC dictionary format version 2.
 
     Converts all baseMVA to base power of 1 MVA.
 
@@ -2220,8 +2189,7 @@ def import_from_pandapower_net(
     extra_line_data: bool = False,
     use_pandapower_index: bool = False,
 ) -> None:
-    """
-    Import PyPSA network from pandapower net.
+    """Import PyPSA network from pandapower net.
 
     Importing from pandapower is still in beta;
     not all pandapower components are supported.

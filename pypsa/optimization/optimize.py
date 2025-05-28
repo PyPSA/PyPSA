@@ -1,6 +1,4 @@
-"""
-Build optimisation problems from PyPSA networks with Linopy.
-"""
+"""Build optimisation problems from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
@@ -76,9 +74,7 @@ lookup = pd.read_csv(
 
 
 def define_objective(n: Network, sns: pd.Index) -> None:
-    """
-    Defines and writes out the objective function.
-    """
+    """Define and write out the objective function."""
     m = n.model
     objective = []
     is_quadratic = False
@@ -219,8 +215,7 @@ def create_model(
     consistency_check: bool = True,
     **kwargs: Any,
 ) -> Model:
-    """
-    Create a linopy.Model instance from a pypsa network.
+    """Create a linopy.Model instance from a pypsa network.
 
     The model is stored at `n.model`.
 
@@ -336,9 +331,7 @@ def create_model(
 
 
 def assign_solution(n: Network) -> None:
-    """
-    Map solution to network components.
-    """
+    """Map solution to network components."""
     m = n.model
     sns = n.model.parameters.snapshots.to_index()
 
@@ -390,8 +383,7 @@ def assign_solution(n: Network) -> None:
 
 
 def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
-    """
-    Map dual values i.e. shadow prices to network components.
+    """Map dual values i.e. shadow prices to network components.
 
     Parameters
     ----------
@@ -447,8 +439,7 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
 
 
 def post_processing(n: Network) -> None:
-    """
-    Post-process the optimized network.
+    """Post-process the optimized network.
 
     This calculates quantities derived from the optimized values such as
     power injection per bus and snapshot, voltage angle.
@@ -537,8 +528,7 @@ def optimize(
     compute_infeasibilities: bool = False,
     **kwargs: Any,
 ) -> tuple[str, str]:
-    """
-    Optimize the pypsa network using linopy.
+    """Optimize the pypsa network using linopy.
 
     Parameters
     ----------
@@ -629,9 +619,7 @@ def optimize(
 
 
 class OptimizationAccessor:
-    """
-    Optimization accessor for building and solving models using linopy.
-    """
+    """Optimization accessor for building and solving models using linopy."""
 
     def __init__(self, n: Network) -> None:
         self.n = n
@@ -653,8 +641,7 @@ class OptimizationAccessor:
         assign_all_duals: bool = False,
         **kwargs: Any,
     ) -> tuple[str, str]:
-        """
-        Solve an already created model and assign its solution to the network.
+        """Solve an already created model and assign its solution to the network.
 
         Parameters
         ----------
@@ -732,8 +719,7 @@ class OptimizationAccessor:
         return optimize_and_run_non_linear_powerflow(self.n, *args, **kwargs)
 
     def fix_optimal_capacities(self) -> None:
-        """
-        Fix capacities of extendable assets to optimized capacities.
+        """Fix capacities of extendable assets to optimized capacities.
 
         Use this function when a capacity expansion optimization was
         already performed and a operational optimization should be done
@@ -746,8 +732,7 @@ class OptimizationAccessor:
             n.static(c)[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
-        """
-        Fix dispatch of all assets to optimized values.
+        """Fix dispatch of all assets to optimized values.
 
         Use this function when the optimal dispatch should be used as an
         starting point for power flow calculation (`Network.pf`).
@@ -766,8 +751,7 @@ class OptimizationAccessor:
         marginal_cost: float | pd.Series = 1e2,
         p_nom: float | pd.Series = 1e9,
     ) -> pd.Index:
-        """
-        Add load shedding in form of generators to all or a subset of buses.
+        """Add load shedding in form of generators to all or a subset of buses.
 
         For more information on load shedding see
         http://journal.frontiersin.org/article/10.3389/fenrg.2015.00055/full
