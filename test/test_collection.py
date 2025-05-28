@@ -52,15 +52,16 @@ def network3():
 
 def test_collection_init_list(network1, network2):
     """Test initialization with a list of networks."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
     networks = [network1, network2]
     collection = pypsa.NetworkCollection(networks)
     assert len(collection) == 2
     assert isinstance(collection.networks, pd.Series)
-    assert collection.networks.index.equals(
-        pd.Index(["network", "network_1"], name="network")
-    )
-    assert collection["network"] == network1
-    assert collection["network_1"] == network2
+    assert collection.networks.index.equals(pd.Index(["net1", "net2"], name="network"))
+    assert collection["net1"] == network1
+    assert collection["net2"] == network2
 
 
 def test_collection_init_list_with_index(network1, network2):
@@ -124,6 +125,30 @@ def test_collection_init_invalid_type():
         pypsa.NetworkCollection("just a string")
 
 
+def test_collection_init_duplicate_names():
+    """Test that duplicate network names raise an error."""
+    # Create networks with duplicate names
+    n1 = pypsa.Network(name="base")
+    n2 = pypsa.Network(name="base")
+    n3 = pypsa.Network(name="scenario")
+
+    with pytest.raises(ValueError, match="Duplicate network names found: \\['base'\\]"):
+        pypsa.NetworkCollection([n1, n2, n3])
+
+    # Test with default names (empty name)
+    n1 = pypsa.Network()
+    n2 = pypsa.Network()
+
+    with pytest.raises(
+        ValueError, match="Duplicate network names found: \\['network'\\]"
+    ):
+        pypsa.NetworkCollection([n1, n2])
+
+    # Should work with custom index even if names are duplicated
+    collection = pypsa.NetworkCollection([n1, n2], index=["net_A", "net_B"])
+    assert len(collection) == 2
+
+
 def test_collection_init_index_mismatch(network1, network2):
     """Test initialization with mismatched index length."""
     with pytest.raises(ValueError):
@@ -132,6 +157,9 @@ def test_collection_init_index_mismatch(network1, network2):
 
 def test_collection_index_names(network1, network2):
     """Test the index names of the NetworkCollection object."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
     networks = [network1, network2]
     collection = pypsa.NetworkCollection(networks)
     assert collection.index.names == ["network"]
@@ -141,9 +169,9 @@ def test_collection_index_names(network1, network2):
     # Test custom single index overwrite
     custom_index = pd.Index(["net_A", "net_B"], name="scenario")
     collection_custom = pypsa.NetworkCollection(networks, index=custom_index)
-    assert collection_custom.index.names == ["network"]
-    assert collection_custom.networks.index.name == "network"
-    assert collection_custom._index_names == ["network"]
+    assert collection_custom.index.names == ["scenario"]
+    assert collection_custom.networks.index.name == "scenario"
+    assert collection_custom._index_names == ["scenario"]
 
     # test with multiindex
     multi_index = pd.MultiIndex.from_tuples(
@@ -156,6 +184,9 @@ def test_collection_index_names(network1, network2):
 
 def test_collection_not_implemented_members(network1, network2):
     """Test that not implemented members raise NotImplementedError."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
     collection = pypsa.NetworkCollection([network1, network2])
     with pytest.raises(NotImplementedError):
         collection.add("Generator", "gen", bus="bus1", p_nom=100)
@@ -167,6 +198,10 @@ def test_collection_not_implemented_members(network1, network2):
 
 def test_collection_carriers_property(network1, network2, network3):
     """Test the carriers property."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
+    network3.name = "net3"
     collection = pypsa.NetworkCollection([network1, network2, network3])
     expected_carriers = pd.concat(
         [network1.carriers, network2.carriers, network3.carriers]
@@ -180,8 +215,8 @@ def test_collection_carriers_property(network1, network2, network3):
 
 def test_collection_carriers_property_empty():
     """Test the carriers property when networks have no carriers."""
-    n1 = pypsa.Network()
-    n2 = pypsa.Network()
+    n1 = pypsa.Network(name="n1")
+    n2 = pypsa.Network(name="n2")
     collection = pypsa.NetworkCollection([n1, n2])
     expected_carriers = pd.DataFrame(
         index=pd.Index([], name="Carrier"), columns=n1.carriers.columns, dtype=int
@@ -196,21 +231,28 @@ def test_collection_carriers_property_empty():
 
 def test_collection_getitem_slice(network1, network2, network3):
     """Test slicing the NetworkCollection object."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
+    network3.name = "net3"
     networks = [network1, network2, network3]
     collection = pypsa.NetworkCollection(networks)
     sliced_networks = collection[1:]
     assert isinstance(sliced_networks, pypsa.NetworkCollection)
     assert len(sliced_networks) == 2
-    assert sliced_networks[0] == network2  # Original index 1
-    assert sliced_networks[1] == network3  # Original index 2
+    assert sliced_networks["net2"] == network2  # Original index 1
+    assert sliced_networks["net3"] == network3  # Original index 2
     pd.testing.assert_index_equal(
         sliced_networks.networks.index,
-        pd.Index(["network_1", "network_2"], name="network"),
+        pd.Index(["net2", "net3"], name="network"),
     )
 
 
 def test_collection_iteration(network1, network2):
     """Test iterating over the NetworkCollection object."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
     networks = [network1, network2]
     collection = pypsa.NetworkCollection(networks)
     iterated_list = list(collection)
@@ -219,17 +261,23 @@ def test_collection_iteration(network1, network2):
 
 def test_collection_static_data(network1, network2):
     """Test static data access."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
     collection = pypsa.NetworkCollection(
         [network1, network2], index=pd.Index(["net1", "net2"], name="scenario")
     )
 
     assert collection.generators.loc["net1"].equals(network1.generators)
     assert "Generator" in collection.generators.index.names
-    assert "network" in collection.generators.index.names
+    assert "scenario" in collection.generators.index.names
 
 
 def test_collection_dynamic_data(network1, network2):
     """Test dynamic data access."""
+    # Give networks unique names
+    network1.name = "net1"
+    network2.name = "net2"
     network1.snapshots = [1, 2]
     network2.snapshots = [1, 2]
     network1.add("Generator", "dyn-gen", bus="bus1", p_min_pu=[0, 1])
@@ -241,14 +289,57 @@ def test_collection_dynamic_data(network1, network2):
     assert collection.generators_t.p_min_pu["net1"].equals(
         network1.generators_t.p_min_pu
     )
-    assert "network" in collection.generators_t.p_min_pu.columns.names
+    assert "scenario" in collection.generators_t.p_min_pu.columns.names
 
 
 def test_collection_statistics_nonexistent_method(network1):
     """Test calling a method that doesn't exist on the accessor."""
+    # Give network a unique name
+    network1.name = "net1"
     collection = pypsa.NetworkCollection([network1])
     with pytest.raises(
         AttributeError,
         match="Only members as they are defined in any Network class can be accessed.",
     ):
         collection.nonexistent_method()
+
+
+def test_collection_repr(network1, network2, network3):
+    """Test the string representation of NetworkCollection."""
+    # Test with networks having unique names
+    network1.name = "net1"
+    network2.name = "net2"
+    network3.name = "net3"
+
+    collection = pypsa.NetworkCollection([network1, network2])
+    repr_str = repr(collection)
+    assert "NetworkCollection with 2 networks" in repr_str
+    assert "Index name: 'network'" in repr_str
+    assert "['net1', 'net2']" in repr_str
+
+    # Test with custom index
+    custom_index = pd.Index(["net_A", "net_B", "net_C"], name="scenario")
+    collection = pypsa.NetworkCollection(
+        [network1, network2, network3], index=custom_index
+    )
+    repr_str = repr(collection)
+    assert "NetworkCollection with 3 networks" in repr_str
+    assert "Index name: 'scenario'" in repr_str
+    assert "['net_A', 'net_B', 'net_C']" in repr_str
+
+    # Test with MultiIndex
+    multi_index = pd.MultiIndex.from_tuples(
+        [("base", 2030), ("high_renewables", 2030)], names=["scenario", "year"]
+    )
+    collection = pypsa.NetworkCollection([network1, network2], index=multi_index)
+    repr_str = repr(collection)
+    assert "NetworkCollection with 2 networks" in repr_str
+    assert "MultiIndex with 2 levels: ['scenario', 'year']" in repr_str
+    assert "[('base', 2030), ('high_renewables', 2030)]" in repr_str
+
+    # Test with many networks (to check truncation)
+    many_networks = [pypsa.Network(name=f"net_{i}") for i in range(10)]
+    collection = pypsa.NetworkCollection(many_networks)
+    repr_str = repr(collection)
+    assert "NetworkCollection with 10 networks" in repr_str
+    assert "... and 5 more" in repr_str

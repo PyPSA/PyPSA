@@ -65,19 +65,14 @@ class NetworkCollection:
             if index is None and not isinstance(networks, pd.Series):
                 names = ["network" if not n.name else n.name for n in networks]
 
-                # Add a unique suffix to each network name to avoid duplicates, if necessary
-                counts = {}
-                for i, item in enumerate(names):
-                    if item in counts:
-                        counts[item] += 1
-                        names[i] = f"{item}_{counts[item]}"
-                        logger.info(
-                            'Network "%s" is duplicated, renamed one to "%s"',
-                            item,
-                            names[i],
-                        )
-                    else:
-                        counts[item] = 0
+                # Check for duplicate names
+                if len(names) != len(set(names)):
+                    duplicates = [name for name in set(names) if names.count(name) > 1]
+                    msg = (
+                        f"Duplicate network names found: {duplicates}. "
+                        "Please provide a custom index or ensure all networks have unique names."
+                    )
+                    raise ValueError(msg)
                 index = pd.Index(names, name="network")
             elif isinstance(index, Sequence):
                 if len(index) != len(networks):
@@ -172,6 +167,40 @@ class NetworkCollection:
         """
         return self.index.names or [self.index.name]
 
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the NetworkCollection.
+
+        Returns
+        -------
+        str
+            A string representation showing the number of networks and index information.
+
+        """
+        n_networks = len(self.networks)
+
+        # Show index information
+        if isinstance(self.networks.index, pd.MultiIndex):
+            index_info = f"MultiIndex with {self.networks.index.nlevels} levels: {list(self.networks.index.names)}"
+            # Show first few entries of the MultiIndex
+            if n_networks > 0:
+                sample_size = min(5, n_networks)
+                sample_entries = list(self.networks.index[:sample_size])
+                index_info += f"\n  First {sample_size} entries: {sample_entries}"
+                if n_networks > sample_size:
+                    index_info += f"\n  ... and {n_networks - sample_size} more"
+        else:
+            index_name = self.networks.index.name or "network"
+            index_info = f"Index name: '{index_name}'"
+            if n_networks > 0:
+                sample_size = min(5, n_networks)
+                sample_entries = list(self.networks.index[:sample_size])
+                index_info += f"\n  Entries: {sample_entries}"
+                if n_networks > sample_size:
+                    index_info += f" ... and {n_networks - sample_size} more"
+
+        return f"NetworkCollection with {n_networks} network{'s' if n_networks != 1 else ''}\n{index_info}"
+
     @property
     def carriers(self) -> pd.DataFrame:
         """
@@ -239,7 +268,7 @@ class MemberProxy:
         return the result of the default processor function.
         """
         instance = super().__new__(cls)
-        instance.__init__(*args, **kwargs)
+        cls.__init__(instance, *args, **kwargs)
 
         # Immediately end recursion for non callable returns
         first_accessor = instance.accessor_func(instance.collection.networks.iloc[0])
