@@ -78,7 +78,7 @@ class StatisticPlotter:
 
         Examples
         --------
-        >>> fig, ax, g = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
+        >>> fig, ax, g = n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function
@@ -477,7 +477,7 @@ class StatisticInteractivePlotter:
 
         Examples
         --------
-        >>> fig = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
+        >>> fig = n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function

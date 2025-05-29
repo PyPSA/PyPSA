@@ -445,9 +445,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero_ = (
             options.params.statistics.drop_zero if drop_zero is None else drop_zero
         )
-        if round_ is not None:
+        if round_:
             df = df.round(round_)
-        if drop_zero_ is not None:
+        if drop_zero_:
             df = df[df != 0]
 
         return df
