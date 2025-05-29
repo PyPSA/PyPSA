@@ -15,7 +15,7 @@ class PlotAccessor:
     """Accessor for plotting statistics.
 
     The class inherits from StatisticsAccessor and provides the same statistic
-    functions, but returns a StatisticsPlotter object instead of a DataFrame.
+    functions, but returns a StatisticPlotter object instead of a DataFrame.
     """
 
     """Abstract accessor to calculate different statistical values."""

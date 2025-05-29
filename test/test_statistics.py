@@ -79,6 +79,16 @@ def test_grouping_by_new_registered_key(ac_dc_network_r):
     assert df.index.nlevels == 2
 
 
+def test_drop_zero(ac_dc_network):
+    n = ac_dc_network
+    df = n.statistics.optimal_capacity(drop_zero=True)
+    assert df.empty
+
+    df = n.statistics.optimal_capacity(drop_zero=False)
+    assert not df.empty
+    assert np.any(df == 0)
+
+
 def test_zero_profit_rule_branches(ac_dc_network_r):
     n = ac_dc_network_r
     revenue = n.statistics.revenue(aggregate_time="sum")

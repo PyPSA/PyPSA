@@ -144,8 +144,10 @@ class MethodHandlerWrapper:
                 )
                 raise AttributeError(msg)
 
-        # Create a callable instance with the bound method and optional attributes
         wrapper = self.handler_class(bound_method, **handler_kwargs)
+        wrapper.__name__ = self.func.__name__
+        wrapper.__doc__ = self.func.__doc__
+
         return wrapper
 
 

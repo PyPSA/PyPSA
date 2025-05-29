@@ -204,7 +204,9 @@ def _combine_schemas() -> dict:
 schema = _combine_schemas()
 
 
-def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dict:
+def apply_parameter_schema(
+    stats_name: str, plot_name: str, kwargs: dict, context: dict | None = None
+) -> dict:
     """Apply parameter schema to kwargs.
 
     The schema is used to for different statistics functions signatures based on
@@ -219,6 +221,8 @@ def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dic
         Name of the plot type.
     kwargs : dict
         Dictionary of keyword arguments to be filtered based on the schema.
+    context : dict | None, optional
+        Additional context for parameter processing (e.g., {"index_names": [...]})
 
     Returns
     -------
@@ -242,4 +246,44 @@ def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dic
     for param in to_remove:
         kwargs.pop(param)
 
+    # Auto-faceting logic
+    if (
+        context is not None
+        and context.get("index_names")
+        and kwargs.get("facet_col") is None
+        and kwargs.get("facet_row") is None
+    ):
+        if len(context["index_names"]) == 1:
+            kwargs["facet_col"] = context["index_names"][0]
+        elif len(context["index_names"]) >= 2:
+            kwargs["facet_row"] = context["index_names"][0]
+            kwargs["facet_col"] = context["index_names"][1]
+
     return kwargs
+
+
+def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> list:
+    """Extract values relevant for statistics, excluding index names.
+
+    Parameters
+    ----------
+    plot_kwargs : dict
+        Plot keyword arguments
+    context : dict | None
+        Context containing index_names
+
+    Returns
+    -------
+    list
+        Values that should be passed to derive_statistic_parameters
+
+    """
+    index_names = context.get("index_names", []) if context else []
+    res = [
+        value
+        for key, value in plot_kwargs.items()
+        if key in {"x", "y", "color", "facet_col", "facet_row"}
+        and value not in index_names
+        and value is not None
+    ]
+    return list(set(res))  # Remove duplicates
