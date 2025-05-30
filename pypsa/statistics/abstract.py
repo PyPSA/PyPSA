@@ -249,7 +249,11 @@ class AbstractStatisticsAccessor(ABC):
             if n.static(c).empty:
                 continue
 
-            ports = [match.group(1) for col in n.static(c) if (match := re.search(r"^bus(\d*)$", str(col)))]
+            ports = [
+                match.group(1)
+                for col in n.static(c)
+                if (match := re.search(r"^bus(\d*)$", str(col)))
+            ]
             if not at_port:
                 ports = [ports[0]]
 

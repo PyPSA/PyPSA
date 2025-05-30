@@ -660,7 +660,11 @@ class Components(
         ['0', '1']
 
         """
-        return [match.group(1) for col in self.static if (match := re.search(r"^bus(\d*)$", col))]
+        return [
+            match.group(1)
+            for col in self.static
+            if (match := re.search(r"^bus(\d*)$", col))
+        ]
 
 
 class SubNetworkComponents:

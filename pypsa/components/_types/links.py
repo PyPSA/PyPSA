@@ -70,4 +70,8 @@ class Links(Components):
         pypsa.Components.ports
 
         """
-        return [match.group(1) for col in self.static.columns if (match := re.search(r"^bus([2-9]\d*)$", col))]
+        return [
+            match.group(1)
+            for col in self.static.columns
+            if (match := re.search(r"^bus([2-9]\d*)$", col))
+        ]

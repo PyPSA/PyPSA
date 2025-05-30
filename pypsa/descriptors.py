@@ -459,7 +459,9 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     """
     if where is None:
         where = n.links.columns
-    return [match.group(1) for col in where if (match := re.search(r"^bus([2-9]\d*)$", col))]
+    return [
+        match.group(1) for col in where if (match := re.search(r"^bus([2-9]\d*)$", col))
+    ]
 
 
 @deprecated(
