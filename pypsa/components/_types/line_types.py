@@ -27,7 +27,7 @@ class LineTypes(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
+    [pypsa.Components][] : Base class for all components.
 
     """
 

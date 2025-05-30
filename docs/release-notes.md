@@ -149,7 +149,7 @@ hides:
 
 ### Minor improvements
 
-- Added a ``quotechar`` parameter to [pypsa.import_from_csv_folder][] and
+- Added a ``quotechar`` parameter to [pypsa.Network.import_from_csv_folder][]   and
   :func:`io.export_to_csv_folder` to handle non-standard field quoting in CSV
   import/export, aligning with :func:`pandas.read_csv` and
   :func:`pandas.to_csv`. (:octicons-git-pull-request-16:1143)

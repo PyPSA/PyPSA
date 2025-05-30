@@ -23,7 +23,6 @@ from pypsa import (
     geo,
     io,
     optimization,
-    pf,
     plot,
     statistics,
 )

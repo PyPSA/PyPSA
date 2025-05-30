@@ -10,10 +10,13 @@ from __future__ import annotations
 import posixpath
 import re
 from re import Match
+from typing import TYPE_CHECKING
 
-from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.structure.files import File, Files
-from mkdocs.structure.pages import Page
+if TYPE_CHECKING:
+    from mkdocs.config.defaults import MkDocsConfig
+    from mkdocs.structure.files import File, Files
+    from mkdocs.structure.pages import Page
+
 
 # -----------------------------------------------------------------------------
 # Hooks
@@ -112,8 +115,8 @@ def _resolve(file: File, page: Page):
     try:
         path = posixpath.relpath(file.src_uri, page.file.src_uri)
         return posixpath.sep.join(path.split(posixpath.sep)[1:])
-    except:
-        raise Exception(f"Cannot resolve path for {file} relative to {page}")
+    except Exception as e:
+        raise Exception(f"Cannot resolve path for {file} relative to {page}") from e
 
 
 # -----------------------------------------------------------------------------

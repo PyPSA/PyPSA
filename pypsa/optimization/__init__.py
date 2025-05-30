@@ -1,7 +1,7 @@
 """Build optimisation problems from PyPSA networks with Linopy."""
 
 from pypsa.optimization import abstract, constraints, optimize, variables
-from pypsa.optimization.optimize import create_model
+from pypsa.optimization.optimize import OptimizationAccessor, create_model
 
 __all__ = [
     "abstract",
@@ -9,4 +9,5 @@ __all__ = [
     "optimize",
     "variables",
     "create_model",
+    "OptimizationAccessor",
 ]

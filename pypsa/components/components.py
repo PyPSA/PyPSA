@@ -24,9 +24,9 @@ import pandas as pd
 from pyproj import CRS
 
 from pypsa.common import equals
-from pypsa.components.descriptors import _ComponentsDescriptors
-from pypsa.components.index import _ComponentsIndex
-from pypsa.components.transform import _ComponentsTransform
+from pypsa.components.descriptors import ComponentsDescriptorsMixin
+from pypsa.components.index import ComponentsIndexMixin
+from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.structures import Dict
 
@@ -84,7 +84,10 @@ class ComponentsData:
 
 
 class Components(
-    ComponentsData, _ComponentsDescriptors, _ComponentsTransform, _ComponentsIndex
+    ComponentsData,
+    ComponentsDescriptorsMixin,
+    ComponentsTransformMixin,
+    ComponentsIndexMixin,
 ):
     """Components base class.
 
@@ -238,7 +241,7 @@ class Components(
 
         See Also
         --------
-        pypsa.components.abstract.Components.equals :
+        [pypsa.Components.equals][] :
             Check for equality of two networks.
 
         """
@@ -325,9 +328,6 @@ class Components(
     def standard_types(self) -> pd.DataFrame | None:
         """Get standard types of component.
 
-        It is an alias for the `standard_types` attribute of the underlying
-        :class:`pypsa.definitions.ComponentType`.
-
         Returns
         -------
         pd.DataFrame
@@ -344,12 +344,6 @@ class Components(
         -------
         str
             Name of component.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------
@@ -368,12 +362,6 @@ class Components(
         str
             List name of component.
 
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
-
         Examples
         --------
         >>> n.components.generators.list_name
@@ -391,12 +379,6 @@ class Components(
         str
             Description of component.
 
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
-
         Examples
         --------
         >>> n.components.generators.description
@@ -413,12 +395,6 @@ class Components(
         -------
         str
             Category of component.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------
@@ -441,12 +417,6 @@ class Components(
         str
             Category of component.
 
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
-
         """
         return self.ctype.category
 
@@ -464,13 +434,6 @@ class Components(
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
 
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
-
-
         """
         return self.ctype.defaults
 
@@ -487,12 +450,6 @@ class Components(
         pd.DataFrame
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------

@@ -1,8 +1,5 @@
----
-tags: 
-- todo
----
 
+todo: general update
 # Features
 
 ## Functionality
@@ -48,12 +45,25 @@ analysis. PyPSA is free software and can be arbitrarily extended.
 ## Screenshots
 
 [PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) optimising capacities of generation, storage and transmission lines (9% line volume expansion allowed) for a 95% reduction in CO2 emissions in Europe compared to 1990 levels:
-![](../assets/images/elec_s_256_lv1.09_Co2L-3H.png)
+<figure markdown="span">
+  ![Buses](../assets/images/elec_s_256_lv1.09_Co2L-3H.png){ width="600" }
+  <figcaption>todo</figcaption>
+</figure>
 
 [SciGRID model](https://power.scigrid.de/) simulating the German power system for 2015. Interactive plots also be generated with the [plotly](https://plot.ly/python/) library, as shown in this [Notebook](https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html)
-![](../assets/images/stacked-gen_and_storage-scigrid.png):
-![](../assets/images/lmp_and_line-loading.png)
-![](../assets/images/reactive-power.png)
+
+<figure markdown="span">
+  ![Buses](../assets/images/stacked-gen_and_storage-scigrid.png){ width="600" }
+  <figcaption>todo</figcaption>
+</figure>
+<figure markdown="span">
+  ![Buses](../assets/images/lmp_and_line-loading.png){ width="600" }
+  <figcaption>todo</figcaption>
+</figure>
+<figure markdown="span">
+  ![Buses](../assets/images/reactive-power.png){ width="600" }
+  <figcaption>todo</figcaption>
+</figure>
 
 Small meshed AC-DC toy model:
 

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Sequence
 
     from pypsa import Network, SubNetwork
-    from pypsa.typing import NetworkType
+    from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 @deprecated(
     deprecated_in="0.35",
     removed_in="1.0",
-    details="Use `pypsa.graph.OrderedGraph` instead.",
+    details="Use `pypsa.graph.network.OrderedGraph` instead.",
 )
 class OrderedGraph(nx.MultiGraph):
     """Ordered graph."""
@@ -37,7 +37,6 @@ class OrderedGraph(nx.MultiGraph):
 
 @deprecated_in_next_major(details="Use `n.get_switchable_as_dense` instead.")
 @deprecated_common_kwargs
-@deprecated_in_next_major(details="Use `n.get_switchable_as_dense` instead.")
 def get_switchable_as_dense(
     n: Network,
     component: str,
@@ -57,7 +56,6 @@ def get_switchable_as_dense(
 
 @deprecated_in_next_major(details="Use `n.get_switchable_as_iter` instead.")
 @deprecated_common_kwargs
-@deprecated_in_next_major(details="Use `n.get_switchable_as_iter` instead.")
 def get_switchable_as_iter(
     n: Network,
     component: str,

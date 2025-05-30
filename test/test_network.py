@@ -393,12 +393,18 @@ def test_copy_snapshots(all_networks):
         copied_n = n.copy(snapshots=n.snapshots[:5])
         n.set_snapshots(n.snapshots[:5])
         try:
-            assert copied_n == n
+            assert copied_n.equals(n)
         except AssertionError:
             from deepdiff import DeepDiff
 
             differences = DeepDiff(copied_n, n)
             raise AssertionError(f"DeepDiff: {differences}")
+
+
+def test_copy_solved(ac_dc_network):
+    ac_dc_network.optimize()
+    with pytest.raises(NotImplementedError, match="not supported yet."):
+        copied_n = ac_dc_network.copy()  # noqa: F841
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):

@@ -1,8 +1,10 @@
 """Components descriptor module.
 
-Contains single helper class (__ComponentsDescriptors) which is used to inherit
-to Components class. Should not be used directly. Descriptor functions only describe
-data and do not modify it.
+Contains single mixin class which is used to inherit to [pypsa.Components][] class.
+Should not be used directly.
+
+Descriptor functions only describe data and do not modify it.
+
 """
 
 from __future__ import annotations
@@ -56,10 +58,12 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     return c.get_active_assets(*args, **kwargs)
 
 
-class _ComponentsDescriptors(_ComponentsABC):
-    """Helper class for components descriptors methods.
+class ComponentsDescriptorsMixin(_ComponentsABC):
+    """Mixin class for components descriptors methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class only inherits to [pypsa.Components][] and should not be used directly.
+    All attributes and methods can be used within any Components instance.
+
     """
 
     @property

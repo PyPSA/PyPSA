@@ -2,7 +2,7 @@
 
 !!! hint
 
-    If this is your first time with Python, check out the [first time user](first-time-users.md) guide.
+    If this is your first time with Python, check out the [First Time Users¶](first-time-users.md) guide.
 
 You can install PyPSA via all common package managers:
 
@@ -24,7 +24,7 @@ You can install PyPSA via all common package managers:
     uv add pypsa
     ```
 
-PyPSA is written and tested to be compatible with Python 3.10 and above.
+PyPSA is written and tested to be compatible with Python 3.10 and above. We recommend to use the latest version with active support (see [endoflife.date](https://endoflife.date/python)).
 
 ## Getting a solver
 
@@ -77,7 +77,7 @@ To upgrade PyPSA, run:
 
 === "uv"
 
-    #TODO
+    todo
 
 Check the [release notes](https://pypsa.readthedocs.io/en/latest/release-notes.html) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes. If you are coming from a very old version (< `v1.0.0`), it makes sense to update gradually and fix any deprecation warnings before updating to the latest version.
 

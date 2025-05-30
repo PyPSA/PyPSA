@@ -64,7 +64,8 @@ dev = [
     "scikit-learn",
     "pre-commit", 
     "ruff",
-    "mypy"
+    "mypy",
+    "deepdiff"
 ]
 docs = [    
     "mkdocs-material",
@@ -78,6 +79,7 @@ docs = [
     "mkdocs-argref-plugin",
     "mkdocstrings-python",
     "mkdocs-jupyter",
+    "cairosvg",
 ]
 
 # setuptools_scm settings

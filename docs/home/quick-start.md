@@ -22,7 +22,7 @@ for i in range(n_buses):
     network.add("Bus", "My bus {}".format(i),  v_nom=20.)
 ```
 
-The same counts for lines, generators and loads. See the list of [all components](../user-guide/components.md) in the user guide section.
+The same counts for lines, generators and loads. See the list of all components in the [:material-bookshelf: user guide section](/user-guide/components.md).
 
 ``` python
 

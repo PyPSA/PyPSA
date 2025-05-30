@@ -22,15 +22,14 @@ except ImportError:
 
 sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
 # Warning: Keep in sync with settings in doc/conf.py
-n_solved = pypsa.examples.ac_dc_meshed()
-n_solved.optimize()
+n = pypsa.examples.ac_dc_meshed()
+n.optimize()
 
 doctest_globals = {
     "np": np,
     "pd": pd,
     "pypsa": pypsa,
-    "n": pypsa.examples.ac_dc_meshed(),
-    "n_solved": n_solved,
+    "n": n,
     "c": pypsa.examples.ac_dc_meshed().components.generators,
     "sub_network_parent": pypsa.examples.ac_dc_meshed().determine_network_topology(),
     "sub_network": sub_network_parent.sub_networks.loc["0", "obj"],

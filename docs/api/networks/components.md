@@ -1,3 +1,3 @@
-::: pypsa.network.components._NetworkComponents
+::: pypsa.network.components.NetworkComponentsMixin
     options:
         members_order: source
