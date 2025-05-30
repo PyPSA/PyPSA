@@ -145,8 +145,7 @@ class Network(
         details="Use `n.plot.iplot()` as a drop-in replacement instead.",
     )
     def iplot(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Plot the network on a map using Plotly.
+        """Plot the network on a map using Plotly.
 
         !!! warning "Deprecated in v0.34"
             Use `n.plot.iplot()` as a drop-in replacement instead.
@@ -159,8 +158,7 @@ class Network(
         details="Use `n.plot.explore()` as a drop-in replacement instead.",
     )
     def explore(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Plot the network on a map using Folium.
+        """Plot the network on a map using Folium.
 
         !!! warning "Deprecated in v0.34"
             Use `n.plot.explore()` as a drop-in replacement instead.
@@ -191,8 +189,7 @@ class Network(
         override_component_attrs: Dict | None = None,
         **kwargs: Any,
     ) -> None:
-        """
-        Initialize a new PyPSA Network.
+        """Initialize a new PyPSA Network.
 
         Parameters
         ----------
@@ -302,7 +299,7 @@ class Network(
         return f"PyPSA Network '{self.name}'" if self.name else "Unnamed PyPSA Network"
 
     def __repr__(self) -> str:
-        """String representation for the REPL."""
+        """Return a string representation for the REPL."""
         # TODO make this actually for the REPL
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
@@ -326,8 +323,7 @@ class Network(
         self.merge(other)
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check for equality of two networks.
+        """Check for equality of two networks.
 
         Parameters
         ----------
@@ -347,8 +343,7 @@ class Network(
         return self.equals(other)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
-        """
-        Check for equality of two networks.
+        """Check for equality of two networks.
 
         Parameters
         ----------
@@ -419,8 +414,7 @@ class Network(
 
     @property
     def meta(self) -> dict:
-        """
-        Dictionary of the network meta data.
+        """Dictionary of the network meta data.
 
         Examples
         --------
@@ -440,8 +434,7 @@ class Network(
 
     @property
     def crs(self) -> Any:
-        """
-        Coordinate reference system of the network's geometries.
+        """Coordinate reference system of the network's geometries.
 
         Examples
         --------
@@ -463,8 +456,7 @@ class Network(
 
     @crs.setter
     def crs(self, new: Any) -> None:
-        """
-        Set the coordinate reference system of the network's geometries.
+        """Set the coordinate reference system of the network's geometries.
 
         See Also
         --------
@@ -477,8 +469,7 @@ class Network(
         self._crs = self.components.shapes.static.crs
 
     def to_crs(self, new: int | str | pyproj.CRS) -> None:
-        """
-        Convert the network's geometries and bus coordinates to a new crs.
+        """Convert the network's geometries and bus coordinates to a new crs.
 
         See Also
         --------
@@ -498,8 +489,7 @@ class Network(
 
     @property
     def srid(self) -> int:
-        """
-        Spatial reference system identifier of the network's geometries.
+        """Spatial reference system identifier of the network's geometries.
 
         Examples
         --------
@@ -516,8 +506,7 @@ class Network(
 
     @srid.setter
     def srid(self, new: str | int) -> None:
-        """
-        Set the spatial reference system identifier of the network's geometries.
+        """Set the spatial reference system identifier of the network's geometries.
 
         See Also
         --------
@@ -534,8 +523,7 @@ class Network(
         ignore_standard_types: bool = False,
         with_time: bool | None = None,
     ) -> Network:
-        """
-        Returns a deep copy of Network objec    t.
+        """Return a deep copy of Network object.
 
         If only default arguments are passed, the copy will be created via
         :func:`copy.deepcopy` and will contain all components and time-varying data.
@@ -671,8 +659,7 @@ class Network(
         return n
 
     def __getitem__(self, key: str) -> Network:
-        """
-        Returns a shallow slice of the Network object.
+        """Return a shallow slice of the Network object.
 
         A shallow slice will only include the selected buses and all the connected
         components.
@@ -762,8 +749,7 @@ class Network(
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
     def branches(self) -> pd.DataFrame:
-        """
-        Get branches.
+        """Get branches.
 
         Branches are Lines, Links and Transformers.
 
@@ -795,8 +781,7 @@ class Network(
         )
 
     def passive_branches(self) -> pd.DataFrame:
-        """
-        Get passive branches.
+        """Get passive branches.
 
         Passive branches are Lines and Transformers.
 
@@ -826,8 +811,7 @@ class Network(
         )
 
     def controllable_branches(self) -> pd.DataFrame:
-        """
-        Get controllable branches.
+        """Get controllable branches.
 
         Controllable branches are Links.
 
@@ -861,8 +845,7 @@ class Network(
         investment_period: int | str | None = None,
         skip_isolated_buses: bool = False,
     ) -> Network:
-        """
-        Build sub_networks from topology.
+        """Build sub_networks from topology.
 
         For the default case investment_period=None, it is not taken
         into account whether the branch components are active (based on
@@ -937,8 +920,7 @@ class Network(
         details="Use `n.components.<component>` instead.",
     )
     def component(self, c_name: str) -> Component:
-        """
-        Get a component from the network.
+        """Get a component from the network.
 
         !!! warning "Deprecated in v1.0"
             Use `n.components.<component>` or `n.components[component_name]` instead.
@@ -958,8 +940,7 @@ class Network(
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[Component]:
-        """
-        Iterate over components.
+        """Iterate over components.
 
         !!! warning "Deprecated in v1.0"
             Use `for component in n.components` instead.
@@ -984,8 +965,7 @@ class Network(
     def rename_component_names(
         self, component: str | Components, **kwargs: str
     ) -> None:
-        """
-        Rename component names.
+        """Rename component names.
 
         Rename components of component type and also update all cross-references of
         the component in network.
@@ -1030,8 +1010,7 @@ class Network(
 
 
 class SubNetwork:
-    """
-    SubNetwork for electric buses (AC or DC).
+    """SubNetwork for electric buses (AC or DC).
 
     SubNetworks are generated by `n.determine_network_topology()` for electric buses
     with passive flows or isolated non-electric buses.
@@ -1075,8 +1054,7 @@ class SubNetwork:
 
     @deprecated_common_kwargs
     def __init__(self, n: Network, name: str) -> None:
-        """
-        Initialize a sub-network.
+        """Initialize a sub-network.
 
         Parameters
         ----------
@@ -1094,8 +1072,7 @@ class SubNetwork:
         deprecated_in="0.32", removed_in="1.0", details="Use the `n` property instead."
     )
     def network(self) -> Network:
-        """
-        Get the parent network of the sub-network.
+        """Get the parent network of the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.n` instead.
@@ -1104,8 +1081,7 @@ class SubNetwork:
 
     @property
     def n(self) -> Network:
-        """
-        Get the parent network of the sub-network.
+        """Get the parent network of the sub-network.
 
         Examples
         --------
@@ -1121,8 +1097,7 @@ class SubNetwork:
 
     @property
     def components(self) -> ComponentsStore:
-        """
-        Get the components for the sub-network.
+        """Get the components for the sub-network.
 
         Sub network components behave like Components in a basic pypsa.Network, but are
         a special class (SubNetworkComponents) to only return a view from the parent
@@ -1180,8 +1155,7 @@ class SubNetwork:
 
     @property
     def c(self) -> ComponentsStore:
-        """
-        Get the components for the sub-network.
+        """Get the components for the sub-network.
 
         Alias for `sub_network.components`.
 
@@ -1194,8 +1168,7 @@ class SubNetwork:
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
-        """
-        Get the snapshots for the sub-network.
+        """Get the snapshots for the sub-network.
 
         See Also
         --------
@@ -1206,8 +1179,7 @@ class SubNetwork:
 
     @property
     def snapshot_weightings(self) -> pd.DataFrame:
-        """
-        Get the snapshot weightings for the sub-network.
+        """Get the snapshot weightings for the sub-network.
 
         See Also
         --------
@@ -1218,8 +1190,7 @@ class SubNetwork:
 
     @property
     def investment_periods(self) -> pd.Index:
-        """
-        Get the investment periods for the sub-network.
+        """Get the investment periods for the sub-network.
 
         See Also
         --------
@@ -1230,8 +1201,7 @@ class SubNetwork:
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
-        """
-        Get the investment period weightings for the sub-network.
+        """Get the investment period weightings for the sub-network.
 
         See Also
         --------
@@ -1241,8 +1211,7 @@ class SubNetwork:
         return self.n.investment_period_weightings
 
     def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
-        """
-        Get the index of the branches in the sub-network.
+        """Get the index of the branches in the sub-network.
 
         Parameters
         ----------
@@ -1272,8 +1241,7 @@ class SubNetwork:
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
 
     def branches(self) -> pd.DataFrame:
-        """
-        Get the branches in the sub-network.
+        """Get the branches in the sub-network.
 
         See Also
         --------
@@ -1287,8 +1255,7 @@ class SubNetwork:
         details="Use `sub_network.components.<c_name>` instead.",
     )
     def component(self, c_name: str) -> SubNetworkComponents:
-        """
-        Get a component from the sub-network.
+        """Get a component from the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.<c_name>` instead.
@@ -1304,8 +1271,7 @@ class SubNetwork:
         details="Use `sub_network.components.<c_name>.static` instead.",
     )
     def df(self, c_name: str) -> pd.DataFrame:
-        """
-        Get a static component from the sub-network.
+        """Get a static component from the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.<c_name>.static` instead.
@@ -1321,8 +1287,7 @@ class SubNetwork:
         details="Use `sub_network.components.<c_name>.static` instead.",
     )
     def static(self, c_name: str) -> pd.DataFrame:
-        """
-        Get a static component from the sub-network.
+        """Get a static component from the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.<c_name>.static` instead.
@@ -1338,8 +1303,7 @@ class SubNetwork:
         details="Use `sub_network.components.<c_name>.dynamic` instead.",
     )
     def pnl(self, c_name: str) -> Dict:
-        """
-        Get a dynamic component from the sub-network.
+        """Get a dynamic component from the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.<c_name>.dynamic` instead.
@@ -1355,8 +1319,7 @@ class SubNetwork:
         details="Use `sub_network.components.<c_name>.dynamic` instead.",
     )
     def dynamic(self, c_name: str) -> Dict:
-        """
-        Get a dynamic component from the sub-network.
+        """Get a dynamic component from the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.<c_name>.dynamic` instead.
@@ -1372,8 +1335,7 @@ class SubNetwork:
         details="Use `sub_network.components.buses.static.index` instead.",
     )
     def buses_i(self) -> pd.Index:
-        """
-        Get the index of the buses in the sub-network.
+        """Get the index of the buses in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.buses.static.index` instead.
@@ -1389,8 +1351,7 @@ class SubNetwork:
         details="Use `sub_network.components.lines.static.index` instead.",
     )
     def lines_i(self) -> pd.Index:
-        """
-        Get the index of the lines in the sub-network.
+        """Get the index of the lines in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.lines.static.index` instead.
@@ -1406,8 +1367,7 @@ class SubNetwork:
         details="Use `sub_network.components.transformers.static.index` instead.",
     )
     def transformers_i(self) -> pd.Index:
-        """
-        Get the index of the transformers in the sub-network.
+        """Get the index of the transformers in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.transformers.static.index` instead.
@@ -1423,8 +1383,7 @@ class SubNetwork:
         details="Use `sub_network.components.generators.static.index` instead.",
     )
     def generators_i(self) -> pd.Index:
-        """
-        Get the index of the generators in the sub-network.
+        """Get the index of the generators in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.generators.static.index` instead.
@@ -1440,8 +1399,7 @@ class SubNetwork:
         details="Use `sub_network.components.loads.static.index` instead.",
     )
     def loads_i(self) -> pd.Index:
-        """
-        Get the index of the loads in the sub-network.
+        """Get the index of the loads in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.loads.static.index` instead.
@@ -1457,8 +1415,7 @@ class SubNetwork:
         details="Use `sub_network.components.shunt_impedances.static.index` instead.",
     )
     def shunt_impedances_i(self) -> pd.Index:
-        """
-        Get the index of the shunt impedances in the sub-network.
+        """Get the index of the shunt impedances in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.shunt_impedances.static.index` instead.
@@ -1474,8 +1431,7 @@ class SubNetwork:
         details="Use `sub_network.components.storage_units.static.index` instead.",
     )
     def storage_units_i(self) -> pd.Index:
-        """
-        Get the index of the storage units in the sub-network.
+        """Get the index of the storage units in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.storage_units.static.index` instead.
@@ -1491,8 +1447,7 @@ class SubNetwork:
         details="Use `sub_network.components.stores.index.static` instead.",
     )
     def stores_i(self) -> pd.Index:
-        """
-        Get the index of the stores in the sub-network.
+        """Get the index of the stores in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.stores.static.index` instead.
@@ -1508,8 +1463,7 @@ class SubNetwork:
         details="Use `sub_network.components.buses.static` instead.",
     )
     def buses(self) -> pd.DataFrame:
-        """
-        Get the buses in the sub-network.
+        """Get the buses in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.buses.static` instead.
@@ -1525,8 +1479,7 @@ class SubNetwork:
         details="Use `sub_network.components.generators.static` instead.",
     )
     def generators(self) -> pd.DataFrame:
-        """
-        Get the generators in the sub-network.
+        """Get the generators in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.generators.static` instead.
@@ -1542,8 +1495,7 @@ class SubNetwork:
         details="Use `sub_network.components.loads.static` instead.",
     )
     def loads(self) -> pd.DataFrame:
-        """
-        Get the loads in the sub-network.
+        """Get the loads in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.loads.static` instead.
@@ -1559,8 +1511,7 @@ class SubNetwork:
         details="Use `sub_network.components.shunt_impedances.static` instead.",
     )
     def shunt_impedances(self) -> pd.DataFrame:
-        """
-        Get the shunt impedances in the sub-network.
+        """Get the shunt impedances in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.shunt_impedances.static` instead.
@@ -1576,8 +1527,7 @@ class SubNetwork:
         details="Use `sub_network.components.storage_units.static` instead.",
     )
     def storage_units(self) -> pd.DataFrame:
-        """
-        Get the storage units in the sub-network.
+        """Get the storage units in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.storage_units.static` instead.
@@ -1593,8 +1543,7 @@ class SubNetwork:
         details="Use `!!! deprecated.components.stores.static` instead.",
     )
     def stores(self) -> pd.DataFrame:
-        """
-        Get the stores in the sub-network.
+        """Get the stores in the sub-network.
 
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.stores.static` instead.
@@ -1606,8 +1555,7 @@ class SubNetwork:
     def iterate_components(
         self, components: Collection[str] | None = None, skip_empty: bool = True
     ) -> Iterator[SubNetworkComponents]:
-        """
-        Iterate over components of the sub-network.
+        """Iterate over components of the sub-network.
 
         Parameters
         ----------

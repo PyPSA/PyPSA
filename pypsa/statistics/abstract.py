@@ -22,8 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class Parameters:
-    """
-    Container for all the parameters.
+    """Container for all the parameters.
 
     Attributes
     ----------
@@ -127,8 +126,7 @@ class AbstractStatisticsAccessor(ABC):
         return self._n
 
     def set_parameters(self, **kwargs: Any) -> None:
-        """
-        Setting the parameters for the statistics accessor.
+        """Set the parameters for the statistics accessor.
 
         To see the list of parameters, one can simply call `n.statistics.parameters`.
         """
@@ -158,8 +156,7 @@ class AbstractStatisticsAccessor(ABC):
 
     @property
     def is_multi_indexed(self) -> bool:
-        """
-        Check if the snapshots are multi-indexed.
+        """Check if the snapshots are multi-indexed.
 
         Returns
         -------

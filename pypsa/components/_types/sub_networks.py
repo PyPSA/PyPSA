@@ -15,8 +15,7 @@ if TYPE_CHECKING:
 
 @patch_add_docstring
 class SubNetworks(Components):
-    """
-    Sub networks components class.
+    """Sub networks components class.
 
     This class is used for sub network components. All functionality specific to
     sub networks is implemented here. Functionality for all components is implemented in
@@ -40,7 +39,7 @@ class SubNetworks(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,

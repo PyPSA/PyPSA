@@ -16,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ComponentType:
-    """
-    Dataclass for network component type.
+    """Dataclass for network component type.
 
     Contains all information about a component type, such as its name and defaults
     attributes. Two different types are for example 'Generator' and 'Carrier'.
@@ -47,8 +46,7 @@ class ComponentType:
     standard_types: pd.DataFrame | None = None
 
     def __eq__(self, other: object) -> bool:
-        """
-        Check if two component types are equal.
+        """Check if two component types are equal.
 
         Parameters
         ----------
@@ -71,8 +69,7 @@ class ComponentType:
         )
 
     def __repr__(self) -> str:
-        """
-        Representation of the component type.
+        """Representation of the component type.
 
         Returns
         -------
@@ -89,8 +86,7 @@ class ComponentType:
         details="Use the 'category' attribute instead.",
     )
     def type(self) -> str:
-        """
-        Getter for the 'type' attribute.
+        """Getter for the 'type' attribute.
 
         Returns
         -------
@@ -106,8 +102,7 @@ class ComponentType:
         details="Use the 'defaults' attribute instead.",
     )
     def attrs(self) -> pd.DataFrame:
-        """
-        Getter for the 'attrs' attribute.
+        """Getter for the 'attrs' attribute.
 
         Returns
         -------

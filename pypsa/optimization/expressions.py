@@ -32,8 +32,7 @@ USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
 
 
 def check_if_empty(expr: LinearExpression) -> bool:
-    """
-    Check if the expression is empty.
+    """Check if the expression is empty.
     This is a workaround for the issue that linopy does not support
     the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
     """
@@ -43,8 +42,7 @@ def check_if_empty(expr: LinearExpression) -> bool:
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
-    """
-    Accessor to calculate different statistical expressions.
+    """Accessor to calculate different statistical expressions.
 
     This class is used to calculate different statistical expressions like
     capital expenditure, capacity, energy balance, etc.
@@ -86,9 +84,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         weights: pd.Series,
         agg: str | Callable,
     ) -> LinearExpression:
-        """
-        Apply weights to a time series.
-        """
+        """Apply weights to a time series."""
         if agg == "sum":
             if isinstance(weights.index, pd.MultiIndex):
                 return expr.multiply(weights, axis=0).groupby(level=0).sum().T
@@ -175,8 +171,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         cost_attribute: str = "capital_cost",
         include_non_extendable: bool = True,
     ) -> LinearExpression:
-        """
-        Calculate the capital expenditure of the network in given currency.
+        """Calculate the capital expenditure of the network in given currency.
 
         If `bus_carrier` is given, only components which are connected to buses
         with carrier `bus_carrier` are considered.
@@ -221,8 +216,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         include_non_extendable: bool = True,
     ) -> LinearExpression:
-        """
-        Calculate the optimal capacity of the network components in MW.
+        """Calculate the optimal capacity of the network components in MW.
 
         If `bus_carrier` is given, the capacity is weighed by the output efficiency
         of components at buses with carrier `bus_carrier`.
@@ -279,8 +273,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the operational expenditure in the network in given currency.
+        """Calculate the operational expenditure in the network in given currency.
 
         If `bus_carrier` is given, only components which are connected to buses
         with carrier `bus_carrier` are considered.
@@ -333,8 +326,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the transmission of branch components in the network. Units
+        """Calculate the transmission of branch components in the network. Units
         depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the flow between buses with
@@ -393,8 +385,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the energy balance of components in the network. Positive
+        """Calculate the energy balance of components in the network. Positive
         values represent a supply and negative a withdrawal. Units depend on
         the regarded bus carrier.
 
@@ -470,8 +461,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the supply of components in the network. Units depend on the
+        """Calculate the supply of components in the network. Units depend on the
         regarded bus carrier.
 
         If `bus_carrier` is given, only the supply to buses with carrier
@@ -507,8 +497,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the withdrawal of components in the network. Units depend on
+        """Calculate the withdrawal of components in the network. Units depend on
         the regarded bus carrier.
 
         If `bus_carrier` is given, only the withdrawal from buses with
@@ -544,8 +533,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the curtailment of components in the network in MWh.
+        """Calculate the curtailment of components in the network in MWh.
 
         The calculation only considers assets with a `p_max_pu` time
         series, which is used to quantify the available power potential.
@@ -606,8 +594,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the operation of components in the network.
+        """Calculate the operation of components in the network.
 
         If `bus_carrier` is given, only the assets are considered which are
         connected to buses with carrier `bus_carrier`.

@@ -1,5 +1,4 @@
-"""
-Version information for PyPSA package.
+"""Version information for PyPSA package.
 
 Use
 - __version__ for full version string (e.g. "0.17.1.dev4+ga3890dc0")

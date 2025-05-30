@@ -33,8 +33,7 @@ class UnexpectedError(AssertionError):
     )
 
     def __init__(self, message: str = "") -> None:
-        """
-        Initialize the UnexpectedError.
+        """Initialize the UnexpectedError.
 
         Parameters
         ----------
@@ -64,8 +63,7 @@ class UnexpectedError(AssertionError):
 
 
 class MethodHandlerWrapper:
-    """
-    Decorator to wrap a method with a handler class.
+    """Decorator to wrap a method with a handler class.
 
     This decorator wraps any method with a handler class that is used to
     process the method's return value. The handler class must be a callable with
@@ -94,8 +92,7 @@ class MethodHandlerWrapper:
         handler_class: Any = None,
         inject_attrs: dict[str, str] | None = None,
     ) -> None:
-        """
-        Initialize the decorator.
+        """Initialize the decorator.
 
         Parameters
         ----------
@@ -155,8 +152,7 @@ class MethodHandlerWrapper:
 def as_index(
     n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
-    """
-    Returns a pd.Index object from a list-like or scalar object.
+    """Return a pd.Index object from a list-like or scalar object.
 
     Also checks if the values are a subset of the corresponding attribute of the
     network object. If values is None, it is also used as the default.
@@ -214,8 +210,7 @@ def equals(
     log_mode: str = "silent",
     path: str = "",
 ) -> bool:
-    """
-    Check if two objects are equal and track the location of differences.
+    """Check if two objects are equal and track the location of differences.
 
     Parameters
     ----------
@@ -350,8 +345,7 @@ def rename_deprecated_kwargs(
     deprecated_in: str,
     removed_in: str,
 ) -> None:
-    """
-    Helper function for deprecating function arguments.
+    """Decorate functions to deprecate function parameters.
 
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
@@ -403,8 +397,7 @@ def rename_deprecated_kwargs(
 
 
 def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Callable:
-    """
-    Decorator for deprecated function and method arguments.
+    """Decorate functions and methods with deprecated arguments.
 
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
@@ -446,8 +439,7 @@ def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Ca
 
 
 def deprecated_common_kwargs(f: Callable) -> Callable:
-    """
-    Decorator that predefines common kwarg deprecations.
+    """Decorate functions with predefined common kwarg deprecations.
 
     Backwards compatibility is given and just adds more deprecated kwargs without
     having to specify them in each decorator call.
@@ -469,8 +461,7 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
 
 
 def deprecated_in_next_major(details: str) -> Callable:
-    """
-    A wrapper for the @deprecated decorator that only requires specifying the details.
+    """Wrap the @deprecated decorator to only require specifying the details.
 
     Deprecates the function in the next major version and removes it in the
     following major version. Currently set to deprecate in version 1.0 and remove
@@ -505,8 +496,7 @@ def deprecated_namespace(
     deprecated_in: str,
     removed_in: str,
 ) -> Callable:
-    """
-    Decorator for functions that have been moved from one namespace to another.
+    """Decorate functions that have been moved from one namespace to another.
 
     Parameters
     ----------
@@ -559,8 +549,7 @@ def deprecated_namespace(
 def list_as_string(
     list_: Sequence | dict, prefix: str = "", style: str = "comma-separated"
 ) -> str:
-    """
-    Convert a list to a formatted string.
+    """Convert a list to a formatted string.
 
     Parameters
     ----------
@@ -601,8 +590,7 @@ def list_as_string(
 
 
 def pass_none_if_keyerror(func: Callable) -> Callable:
-    """
-    Decorator that passes None if a KeyError or AttributeError is raised.
+    """Decorate functions to pass None if a KeyError or AttributeError is raised.
 
     Parameters
     ----------
@@ -627,8 +615,7 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
 
 
 def pass_empty_series_if_keyerror(func: Callable) -> Callable:
-    """
-    Decorator that passes an empty series if a KeyError or AttributeError is raised.
+    """Decorate functions to pass an empty series if a KeyError or AttributeError is raised.
 
     Parameters
     ----------
@@ -653,8 +640,7 @@ def pass_empty_series_if_keyerror(func: Callable) -> Callable:
 
 
 def check_optional_dependency(module_name: str, install_message: str) -> None:
-    """
-    Check if an optional dependency is installed.
+    """Check if an optional dependency is installed.
 
     If not, raise an ImportError with an install message.
     """
@@ -665,8 +651,7 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
 
 
 def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd.Series:
-    """
-    Convert a variable to a pandas Series with the given index.
+    """Convert a variable to a pandas Series with the given index.
 
     Parameters
     ----------
@@ -694,8 +679,7 @@ def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd
 def resample_timeseries(
     df: pd.DataFrame, freq: str, numeric_columns: list[str] | None = None
 ) -> pd.DataFrame:
-    """
-    Resample a DataFrame with proper handling of numeric and non-numeric columns.
+    """Resample a DataFrame with proper handling of numeric and non-numeric columns.
 
     Parameters
     ----------
@@ -734,8 +718,7 @@ def resample_timeseries(
 
 
 def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
-    """
-    Helper function to quickly expand a series to a dataframe.
+    """Expand a series to a dataframe quickly.
 
     Columns are the given series and every single column being the equal to
     the given series.

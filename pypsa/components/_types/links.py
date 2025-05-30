@@ -16,8 +16,7 @@ if TYPE_CHECKING:
 
 @patch_add_docstring
 class Links(Components):
-    """
-    Links components class.
+    """Links components class.
 
     This class is used for link components. All functionality specific to
     links is implemented here. Functionality for all components is implemented in
@@ -40,7 +39,7 @@ class Links(Components):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> pd.Index:
-        """Wrapper for Components.add() and docstring is patched via decorator."""
+        """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
@@ -50,8 +49,7 @@ class Links(Components):
 
     @property
     def additional_ports(self) -> list[str]:
-        """
-        Identify additional link ports (bus connections) beyond predefined ones.
+        """Identify additional link ports (bus connections) beyond predefined ones.
 
         Parameters
         ----------

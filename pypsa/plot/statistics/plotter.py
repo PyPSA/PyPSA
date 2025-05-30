@@ -22,8 +22,7 @@ if TYPE_CHECKING:
 
 
 class StatisticPlotter:
-    """
-    Create plots based on output of statistics functions.
+    """Create plots based on output of statistics functions.
 
     Passed arguments and the specified statistics function are stored and called
     later when the plot is created, depending on the plot type. Also some checks
@@ -31,8 +30,7 @@ class StatisticPlotter:
     """
 
     def __init__(self, bound_method: Callable, n: Network) -> None:
-        """
-        Initialize the statistic handler.
+        """Initialize the statistic handler.
 
         Parameters
         ----------
@@ -57,8 +55,7 @@ class StatisticPlotter:
         tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
         | tuple[Figure | SubFigure | Any, Axes | Any]
     ):
-        """
-        Create simple visualization of the statistic.
+        """Create simple visualization of the statistic.
 
         This function builds up on any statistics function and allows for a simple
         exploration without any further arguments. If a fine grained control is
@@ -121,8 +118,7 @@ class StatisticPlotter:
         gridspec_kws: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
-        """
-        Plot statistics as chart plot.
+        """Plot statistics as chart plot.
 
         This function builds up on any statistics function and creates a chart plot
         based on it's output. Seaborn is used to create the plot.
@@ -305,8 +301,7 @@ class StatisticPlotter:
         storage: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
-        """
-        Plot statistics on a geographic map.
+        """Plot statistics on a geographic map.
 
         This function builds upon any statistics function and creates a geographical
         visualization based on its output. It uses the MapPlotGenerator to render the
@@ -421,8 +416,7 @@ class StatisticPlotter:
 
 
 class StatisticInteractivePlotter:
-    """
-    Create interactive plots based on output of statistics functions.
+    """Create interactive plots based on output of statistics functions.
 
     Passed arguments and the specified statistics function are stored and called
     later when the plot is created, depending on the plot type. Also some checks
@@ -430,8 +424,7 @@ class StatisticInteractivePlotter:
     """
 
     def __init__(self, bound_method: Callable, n: Network) -> None:
-        """
-        Initialize the interactive statistic handler.
+        """Initialize the interactive statistic handler.
 
         Parameters
         ----------
@@ -453,8 +446,7 @@ class StatisticInteractivePlotter:
     def __call__(
         self, kind: str | None = None
     ) -> tuple[go.Figure, go.Figure | np.ndarray]:
-        """
-        Create simple visualization of the statistic.
+        """Create simple visualization of the statistic.
 
         This function builds up on any statistics function and allows for a simple
         exploration without any further arguments. If a fine grained control is
@@ -515,8 +507,7 @@ class StatisticInteractivePlotter:
         title: str | None = None,
         **kwargs: Any,
     ) -> go.Figure:
-        """
-        Plot statistics as interactive chart.
+        """Plot statistics as interactive chart.
 
         This function builds up on any statistics function and creates an interactive chart
         plot based on its output. Plotly is used to create the plot.

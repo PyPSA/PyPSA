@@ -1,5 +1,4 @@
-"""
-Abstract components module.
+"""Abstract components module.
 
 Only defines a base class for all Components helper classes which inherit to
 `Components` class.

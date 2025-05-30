@@ -45,8 +45,7 @@ def get_switchable_as_dense(
     snapshots: Sequence | None = None,
     inds: pd.Index | None = None,
 ) -> pd.DataFrame:
-    """
-    Return a Dataframe for a time-varying component attribute .
+    """Return a Dataframe for a time-varying component attribute .
 
     Deprecation
     ------------
@@ -65,8 +64,7 @@ def get_switchable_as_iter(
     snapshots: Sequence,
     inds: pd.Index | None = None,
 ) -> pd.DataFrame:
-    """
-    Return an iterator over snapshots for a time-varying component attribute.
+    """Return an iterator over snapshots for a time-varying component attribute.
 
     Deprecation
     ------------
@@ -98,8 +96,7 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
 def free_output_series_dataframes(
     n: Network, components: Collection[str] | None = None
 ) -> None:
-    """
-    Free output series dataframes.
+    """Free output series dataframes.
 
     Parameters
     ----------
@@ -126,8 +123,7 @@ def free_output_series_dataframes(
     details="Use `pypsa.pf.zsum` instead.",
 )
 def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
-    """
-    Custom zsum function.
+    """Sum values in a series, returning 0 for empty series.
 
     Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
@@ -155,8 +151,7 @@ nominal_attrs = {
     details="Use `pypsa.common.expand_series` instead.",
 )
 def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
-    """
-    Helper function to quickly expand a series to a dataframe.
+    """Expand a series to a dataframe.
 
     Columns are the given series and every single column being the equal to
     the given series.
@@ -172,8 +167,7 @@ def get_extendable_i(n: Network, c: str) -> pd.Index:
 
 @deprecated_in_next_major(details="Use `n.components[c].fixed` instead.")
 def get_non_extendable_i(n: Network, c: str) -> pd.Index:
-    """
-    Getter function.
+    """Getter function.
 
     Get the index of non-extendable elements of a given component.
 
@@ -184,8 +178,7 @@ def get_non_extendable_i(n: Network, c: str) -> pd.Index:
 
 @deprecated_in_next_major(details="Use `n.components[c].committables` instead.")
 def get_committable_i(n: Network, c: str) -> pd.Index:
-    """
-    Getter function.
+    """Getter function.
 
     Get the index of commitable elements of a given component.
 
@@ -200,8 +193,7 @@ def get_active_assets(
     c: str,
     investment_period: int | str | Sequence | None = None,
 ) -> pd.Series:
-    """
-    Get active components mask of component type in investment period(s).
+    """Get active assets. Use `c.get_active_assets`.
 
     See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
 
@@ -231,8 +223,7 @@ def get_activity_mask(
     sns: Sequence | None = None,
     index: pd.Index | None = None,
 ) -> pd.DataFrame:
-    """
-    Get active components mask indexed by snapshots.
+    """Get active components mask indexed by snapshots.
 
     Wrapper around the
     `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
@@ -263,8 +254,7 @@ def get_bounds_pu(
     index: pd.Index | None = None,
     attr: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Retrieve per unit bounds of a given component.
+    """Retrieve per unit bounds of a given component.
 
     Getter function to retrieve the per unit bounds of a given compoent for
     given snapshots and possible subset of elements (e.g. non-extendables).
@@ -310,8 +300,7 @@ def get_bounds_pu(
 
 
 def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
-    """
-    Update components documentation for link ports.
+    """Update components documentation for link ports.
 
     Multi-linkports require the following changes:
     1. Replaces every occurrence of the substring `j` with `i`.
@@ -342,8 +331,7 @@ def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
     details="Will be removed in the next major release.",
 )
 def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
-    """
-    Update components documentation for link ports.
+    """Update components documentation for link ports.
 
     Multi-linkports require the following changes:
     1. Replaces every occurrence of the substring `j` with `i`.
@@ -369,8 +357,7 @@ def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
 def _update_linkports_component_attrs(
     n: NetworkType, where: Iterable[str] | None = None
 ) -> None:
-    """
-    Update the Link components attributes to add the additional ports.
+    """Update the Link components attributes to add the additional ports.
 
     Parameters
     ----------
@@ -419,8 +406,7 @@ def _update_linkports_component_attrs(
 def update_linkports_component_attrs(
     n: Network, where: Iterable[str] | None = None
 ) -> None:
-    """
-    Update the Link components attributes to add the additional ports.
+    """Update the Link components attributes to add the additional ports.
 
     Parameters
     ----------
@@ -441,8 +427,7 @@ def update_linkports_component_attrs(
     details="Use `n.components.links.additional_ports` instead. Passing `where` will be deprecated.",
 )
 def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list[str]:
-    """
-    Identify additional link ports (bus connections) beyond predefined ones.
+    """Identify additional link ports (bus connections) beyond predefined ones.
 
     Parameters
     ----------
