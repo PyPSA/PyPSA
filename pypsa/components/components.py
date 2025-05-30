@@ -16,6 +16,7 @@ Generic functionality is implemented in the abstract module.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -635,7 +636,11 @@ class Components(
         ['0', '1']
 
         """
-        return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
+        return [
+            match.group(1)
+            for col in self.static
+            if (match := re.search(r"^bus(\d*)$", col))
+        ]
 
 
 class SubNetworkComponents:
