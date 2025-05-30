@@ -28,7 +28,7 @@ class ConsistencyError(ValueError):
 
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
-    return df.columns[df.columns.str.startswith("bus")]
+    return df.columns[df.columns.str.contains(r"^bus\d*$")]
 
 
 def _log_or_raise(strict: bool, message: str, *args: Any) -> None:

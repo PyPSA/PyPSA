@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import warnings
 from collections import OrderedDict
 from itertools import product
@@ -458,7 +459,7 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     """
     if where is None:
         where = n.links.columns
-    return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
+    return [match.group(1) for col in where if (match := re.search(r"^bus([2-9]\d*)$", col))]
 
 
 @deprecated(

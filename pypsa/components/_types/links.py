@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from pypsa.components._types._patch import patch_add_docstring
@@ -69,8 +70,4 @@ class Links(Components):
         pypsa.Components.ports
 
         """
-        return [
-            i[3:]
-            for i in self.static.columns
-            if i.startswith("bus") and i not in ["bus0", "bus1"]
-        ]
+        return [match.group(1) for col in self.static.columns if (match := re.search(r"^bus([2-9]\d*)$", col))]

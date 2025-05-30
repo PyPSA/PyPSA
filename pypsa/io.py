@@ -6,6 +6,7 @@ import functools
 import json
 import logging
 import math
+import re
 import tempfile
 from abc import abstractmethod
 from functools import partial
@@ -1729,7 +1730,7 @@ def _import_components_from_df(
 
     # check all the buses are well-defined
     # TODO use func from consistency checks
-    for attr in [attr for attr in df if attr.startswith("bus")]:
+    for attr in [attr for attr in df if re.search(r"^bus\d*$", attr)]:
         # allow empty buses for multi-ports
         port = int(attr[-1]) if attr[-1].isdigit() else 0
         mask = ~df[attr].isin(n.components.buses.static.index)

@@ -74,7 +74,7 @@ def get_transmission_branches(
     index = {}
     for c in n.branch_components:
         bus_map = (
-            n.static(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
+            n.static(c).filter(regex=r"^bus\d*$").apply(lambda ds: ds.map(n.buses.carrier))
         )
         if isinstance(bus_carrier, str):
             bus_carrier = [bus_carrier]
