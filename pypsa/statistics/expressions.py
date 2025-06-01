@@ -291,16 +291,20 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
               wind        7292.13406  ...    589.813549
     Line      AC          5613.82931  ...    -43.277041
     Link      DC          4003.90110  ...      0.132018
-    Load      load           0.00000  ...           NaN
+    Load      load           0.00000  ...          -inf
     <BLANKLINE>
     [5 rows x 12 columns]
 
     Get the energy balance:
 
-    >>> n_solved.statistics.energy_balance()
+    >>> n_solved.statistics.energy_balance(drop_zero=False)
     component  carrier  bus_carrier
     Generator  gas      AC              1465.27439
                wind     AC             31082.35370
+    Line       AC       AC                 0.00000
+                        DC                 0.00000
+    Link       DC       AC                 0.00000
+                        DC                -0.00000
     Load       load     AC            -32547.62808
     dtype: float64
 

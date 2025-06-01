@@ -84,6 +84,9 @@ def test_drop_zero(ac_dc_network):
     df = n.statistics.optimal_capacity(drop_zero=True)
     assert df.empty
 
+    df = n.statistics.optimal_capacity()
+    assert df.empty
+
     df = n.statistics.optimal_capacity(drop_zero=False)
     assert not df.empty
     assert np.any(df == 0)
