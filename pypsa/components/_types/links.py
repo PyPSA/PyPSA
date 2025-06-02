@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING, Any
 
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
+from pypsa.constants import PATTERN_PORTS_GE_2
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -71,5 +71,5 @@ class Links(Components):
         return [
             match.group(1)
             for col in self.static.columns
-            if (match := re.search(r"^bus([2-9]\d*)$", col))
+            if (match := PATTERN_PORTS_GE_2.search(col))
         ]

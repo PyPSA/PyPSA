@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
@@ -16,6 +15,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
+from pypsa.constants import PATTERN_PORTS
 from pypsa.statistics.grouping import deprecated_groupers, groupers
 
 logger = logging.getLogger(__name__)
@@ -249,7 +249,7 @@ class AbstractStatisticsAccessor(ABC):
             ports = [
                 match.group(1)
                 for col in n.static(c)
-                if (match := re.search(r"^bus(\d*)$", str(col)))
+                if (match := PATTERN_PORTS.search(str(col)))
             ]
             if not at_port:
                 ports = [ports[0]]

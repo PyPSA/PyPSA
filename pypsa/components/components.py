@@ -16,7 +16,6 @@ Generic functionality is implemented in the abstract module.
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -28,7 +27,7 @@ from pypsa.common import equals
 from pypsa.components.descriptors import _ComponentsDescriptors
 from pypsa.components.index import _ComponentsIndex
 from pypsa.components.transform import _ComponentsTransform
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PATTERN_PORTS
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -639,7 +638,7 @@ class Components(
         return [
             match.group(1)
             for col in self.static
-            if (match := re.search(r"^bus(\d*)$", col))
+            if (match := PATTERN_PORTS.search(col))
         ]
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import warnings
 from collections import OrderedDict
 from itertools import product
@@ -14,6 +13,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs, deprecated_in_next_major
+from pypsa.constants import PATTERN_PORTS_GE_2
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Sequence
@@ -445,7 +445,7 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     if where is None:
         where = n.links.columns
     return [
-        match.group(1) for col in where if (match := re.search(r"^bus([2-9]\d*)$", col))
+        match.group(1) for col in where if (match := PATTERN_PORTS_GE_2.search(col))
     ]
 
 

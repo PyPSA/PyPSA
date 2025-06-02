@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from pypsa.common import deprecated_common_kwargs
+from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -27,7 +28,7 @@ class ConsistencyError(ValueError):
 
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
-    return df.columns[df.columns.str.contains(r"^bus\d*$")]
+    return df.columns[df.columns.str.contains(RE_PORTS)]
 
 
 def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
