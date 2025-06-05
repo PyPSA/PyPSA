@@ -78,7 +78,7 @@ jobs:
 
     - name: Run unit tests
       run: |
-        uv run pytest --mpl --cov=pypsa && coverage xml
+        uv run pytest --mpl --cov=pypsa && uv run coverage xml
 
     - name: Upload code coverage report
       uses: codecov/codecov-action@v5

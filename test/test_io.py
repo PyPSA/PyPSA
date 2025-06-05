@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 import pytest
 from geopandas.testing import assert_geodataframe_equal
@@ -380,6 +382,9 @@ def test_io_equality(ac_dc_network, tmp_path):
         assert n.equals(n5, log_mode="strict")
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
+)
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
 def test_import_from_pandapower_network(
