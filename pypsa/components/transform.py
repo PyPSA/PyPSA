@@ -1,8 +1,9 @@
 """Components transform module.
 
-Contains single helper class (_ComponentsTransform) which is used to inherit
-to Components class. Should not be used directly.  Transform methods are methods which
-modify and restructure data.
+Contains single mixin class which is used to inherit to [pypsa.Components][] class.
+Should not be used directly.
+
+Transform methods are methods which modify and restructure data.
 
 """
 
@@ -21,10 +22,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _ComponentsTransform:
-    """Helper class for components descriptors methods.
+class ComponentsTransformMixin:
+    """Mixin class for components descriptors methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class only inherits to [pypsa.Components][] and should not be used directly.
+    All attributes and methods can be used within any Components instance.
     """
 
     static: pd.DataFrame
@@ -131,7 +133,7 @@ class _ComponentsTransform:
 
         See Also
         --------
-        pypsa.Network.add : Add components to the network instance.
+        [pypsa.Network.add][] : Add components to the network instance.
 
         """
         if not self.attached:

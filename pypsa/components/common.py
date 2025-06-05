@@ -8,7 +8,7 @@ from pypsa.components.components import Components
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 if TYPE_CHECKING:
-    from pypsa.typing import NetworkType
+    from pypsa.type_utils import NetworkType
 
 
 def as_components(n: NetworkType, value: str | Components) -> Components:

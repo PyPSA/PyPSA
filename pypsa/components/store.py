@@ -65,7 +65,7 @@ class ComponentsStore(dict):
         >>> n.components
         PyPSA Components Store
         ======================
-        - 0 'SubNetwork' Components
+        - 3 'SubNetwork' Components
         - 9 'Bus' Components
         - 6 'Carrier' Components
         - 1 'GlobalConstraint' Components
@@ -103,7 +103,7 @@ class ComponentsStore(dict):
         >>> n.components
         PyPSA Components Store
         ======================
-        - 0 'SubNetwork' Components
+        - 3 'SubNetwork' Components
         - 9 'Bus' Components
         - 6 'Carrier' Components
         - 1 'GlobalConstraint' Components
