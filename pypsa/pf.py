@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs
+from pypsa.network.power_flow import logger  # noqa: F401
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
