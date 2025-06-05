@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from numpy import hstack, ravel
 
+from pypsa.constants import RE_PORTS
+
 if TYPE_CHECKING:
     import xarray as xr
 
@@ -57,7 +59,7 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
 
     """
     all_buses = pd.Series(
-        hstack([ravel(c.static.filter(like="bus")) for c in n.iterate_components()])
+        hstack([ravel(c.static.filter(regex=RE_PORTS)) for c in n.iterate_components()])
     )
     all_buses = all_buses[all_buses != ""]
     counts = all_buses.value_counts()

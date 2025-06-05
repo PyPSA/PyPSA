@@ -1,14 +1,10 @@
 """Components index module.
 
-Contains single helper class (_ComponentsIndex) which is used to inherit
-to Components class. Should not be used directly.
+Contains single mixin class which is used to inherit to [pypsa.Components][] class.
+Should not be used directly.
 
 Index methods and properties are used to access the different index levels, based on
 the attached parent network.
-
-Also See
---------
-pypsa.network.index
 
 """
 
@@ -25,7 +21,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _ComponentsIndex(_ComponentsABC):
+class ComponentsIndexMixin(_ComponentsABC):
+    """Mixin class for components index methods.
+
+    Class only inherits to [pypsa.Components][] and should not be used directly.
+    All attributes and methods can be used within any Components instance.
+
+    """
+
     @property
     def component_names(self) -> pd.Index:
         """Unique names of the components."""

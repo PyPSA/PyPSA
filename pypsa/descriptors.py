@@ -13,12 +13,13 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs, deprecated_in_next_major
+from pypsa.constants import PATTERN_PORTS_GE_2
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Sequence
 
     from pypsa import Network, SubNetwork
-    from pypsa.typing import NetworkType
+    from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 @deprecated(
     deprecated_in="0.35",
     removed_in="1.0",
-    details="Use `pypsa.graph.OrderedGraph` instead.",
+    details="Use `pypsa.graph.network.OrderedGraph` instead.",
 )
 class OrderedGraph(nx.MultiGraph):
     """Ordered graph."""
@@ -443,7 +444,9 @@ def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list
     """
     if where is None:
         where = n.links.columns
-    return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
+    return [
+        match.group(1) for col in where if (match := PATTERN_PORTS_GE_2.search(col))
+    ]
 
 
 @deprecated(

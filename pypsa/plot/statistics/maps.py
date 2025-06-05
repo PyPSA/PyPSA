@@ -7,7 +7,6 @@ import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
-from pypsa.consistency import plotting_consistency_check
 from pypsa.plot.maps.static import (
     MapPlotter,
     add_legend_arrows,
@@ -84,7 +83,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         """Plot network statistics on a map."""
         n = self._n
         colors = self.get_carrier_colors(nice_names=False)
-        plotting_consistency_check(n)
+        n.consistency_check_plots()
         boundaries = boundaries or self.boundaries
         (x_min, x_max, y_min, y_max) = boundaries  # type: ignore
 

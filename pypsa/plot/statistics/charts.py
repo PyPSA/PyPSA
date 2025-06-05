@@ -11,9 +11,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
 
-from pypsa.consistency import (
-    plotting_consistency_check,
-)
 from pypsa.plot.statistics.base import PlotsGenerator
 
 if TYPE_CHECKING:
@@ -263,7 +260,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to be implemented by subclasses."""
-        plotting_consistency_check(self._n, strict="all")
+        self._n.consistency_check_plots(strict="all")
         ldata = self._to_long_format(data)
         if query:
             ldata = ldata.query(query)
@@ -418,7 +415,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         **kwargs: Any,
     ) -> go.Figure:
         """Interactive plot method creating charts with Plotly Express."""
-        plotting_consistency_check(self._n, strict="all")
+        self._n.consistency_check_plots(strict="all")
         ldata = self._to_long_format(data)
         if query:
             ldata = ldata.query(query)

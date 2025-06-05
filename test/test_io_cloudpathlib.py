@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -57,6 +58,9 @@ def cloudpath_network(request, cloudpath_network_parameterized_ext):
     return cloudpath_network_parameterized_ext
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows leads to permission errors"
+)
 class TestIOCloudpath:
     @pytest.mark.parametrize(
         "cloudpath_network_parameterized_ext", [".nc"], indirect=True, ids=["netcdf"]

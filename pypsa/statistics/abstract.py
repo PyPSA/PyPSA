@@ -12,6 +12,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
+from pypsa.constants import PATTERN_PORTS
 from pypsa.statistics.grouping import deprecated_groupers, groupers
 
 if TYPE_CHECKING:
@@ -245,7 +246,11 @@ class AbstractStatisticsAccessor(ABC):
             if n.static(c).empty:
                 continue
 
-            ports = [str(col)[3:] for col in n.static(c) if str(col).startswith("bus")]
+            ports = [
+                match.group(1)
+                for col in n.static(c)
+                if (match := PATTERN_PORTS.search(str(col)))
+            ]
             if not at_port:
                 ports = [ports[0]]
 
@@ -286,12 +291,13 @@ class AbstractStatisticsAccessor(ABC):
 
             d[c] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
-        df = self._apply_option_kwargs(
-            df,
-            drop_zero=drop_zero,
-            round=round,
-            nice_names=nice_names,  # TODO: nice_names does not have effect here
-        )
+        if not df.empty:
+            df = self._apply_option_kwargs(
+                df,
+                drop_zero=drop_zero,
+                round=round,
+                nice_names=nice_names,  # TODO: nice_names does not have effect here
+            )
 
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)

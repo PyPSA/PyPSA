@@ -30,45 +30,21 @@ from pypsa.common import (
 from pypsa.components.common import as_components
 from pypsa.components.components import Components, SubNetworkComponents
 from pypsa.components.store import ComponentsStore
-from pypsa.consistency import consistency_check
+from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.contingency import calculate_BODF, network_lpf_contingency
 from pypsa.definitions.structures import Dict
-from pypsa.graph import adjacency_matrix, graph, incidence_matrix
-from pypsa.io import (
-    _import_series_from_df,
-    export_to_csv_folder,
-    export_to_excel,
-    export_to_hdf5,
-    export_to_netcdf,
-    import_components_from_dataframe,
-    import_from_csv_folder,
-    import_from_excel,
-    import_from_hdf5,
-    import_from_netcdf,
-    import_from_pandapower_net,
-    import_from_pypower_ppc,
-    import_series_from_dataframe,
-    merge,
-)
-from pypsa.network.components import _NetworkComponents
-from pypsa.network.descriptors import _NetworkDescriptors
-from pypsa.network.index import _NetworkIndex
-from pypsa.network.transform import _NetworkTransform
-from pypsa.optimization.optimize import OptimizationAccessor
-from pypsa.pf import (
-    calculate_B_H,
-    calculate_dependent_values,
-    calculate_PTDF,
-    calculate_Y,
-    find_bus_controls,
+from pypsa.network.components import NetworkComponentsMixin
+from pypsa.network.descriptors import NetworkDescriptorsMixin
+from pypsa.network.graph import NetworkGraphMixin
+from pypsa.network.index import NetworkIndexMixin
+from pypsa.network.io import NetworkIOMixin
+from pypsa.network.power_flow import (
+    NetworkPowerFlowMixin,
+    SubNetworkPowerFlowMixin,
     find_cycles,
-    find_slack_bus,
-    network_lpf,
-    network_pf,
-    sub_network_lpf,
-    sub_network_pf,
 )
+from pypsa.network.transform import NetworkTransformMixin
+from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
@@ -96,7 +72,14 @@ inf = float("inf")
 
 
 class Network(
-    _NetworkComponents, _NetworkDescriptors, _NetworkTransform, _NetworkIndex
+    NetworkComponentsMixin,
+    NetworkDescriptorsMixin,
+    NetworkTransformMixin,
+    NetworkIndexMixin,
+    NetworkConsistencyMixin,
+    NetworkGraphMixin,
+    NetworkPowerFlowMixin,
+    NetworkIOMixin,
 ):
     """Network container for all buses, one-ports and branches."""
 
@@ -113,68 +96,6 @@ class Network(
 
     # Geospatial
     _crs = CRS.from_epsg(DEFAULT_EPSG)
-
-    # Methods
-    # -------
-
-    # from pypsa.io
-    import_from_csv_folder = import_from_csv_folder
-    export_to_csv_folder = export_to_csv_folder
-    import_from_excel = import_from_excel
-    export_to_excel = export_to_excel
-    import_from_hdf5 = import_from_hdf5
-    export_to_hdf5 = export_to_hdf5
-    import_from_netcdf = import_from_netcdf
-    export_to_netcdf = export_to_netcdf
-    import_from_pypower_ppc = import_from_pypower_ppc
-    import_from_pandapower_net = import_from_pandapower_net
-    merge = merge
-    import_components_from_dataframe = import_components_from_dataframe  # Deprecated
-    _import_series_from_df = _import_series_from_df
-    import_series_from_dataframe = import_series_from_dataframe  # Deprecated
-
-    # from pypsa.pf
-    calculate_dependent_values = calculate_dependent_values
-    lpf = network_lpf
-    pf = network_pf
-
-    # from pypsa.plot
-    @deprecated(
-        deprecated_in="0.34",
-        removed_in="1.0",
-        details="Use `n.plot.iplot()` as a drop-in replacement instead.",
-    )
-    def iplot(self, *args: Any, **kwargs: Any) -> Any:
-        """Plot the network on a map using Plotly.
-
-        !!! warning "Deprecated in v0.34"
-            Use `n.plot.iplot()` as a drop-in replacement instead.
-        """
-        return iplot(self, *args, **kwargs)
-
-    @deprecated(
-        deprecated_in="0.34",
-        removed_in="1.0",
-        details="Use `n.plot.explore()` as a drop-in replacement instead.",
-    )
-    def explore(self, *args: Any, **kwargs: Any) -> Any:
-        """Plot the network on a map using Folium.
-
-        !!! warning "Deprecated in v0.34"
-            Use `n.plot.explore()` as a drop-in replacement instead.
-        """
-        return explore(self, *args, **kwargs)
-
-    # from pypsa.contingency
-    lpf_contingency = network_lpf_contingency
-
-    # from pypsa.graph
-    graph = graph
-    incidence_matrix = incidence_matrix
-    adjacency_matrix = adjacency_matrix
-
-    # from pypsa.consistency
-    consistency_check = consistency_check
 
     # ----------------
     # Dunder methods
@@ -269,7 +190,7 @@ class Network(
         Accessor for plotting the network.
         """
 
-        _NetworkComponents.__init__(self)
+        NetworkComponentsMixin.__init__(self)
 
         if not ignore_standard_types:
             self._read_in_default_standard_types()
@@ -337,10 +258,36 @@ class Network(
 
         See Also
         --------
-        pypsa.Network.equals : Check for equality of two networks.
+        [pypsa.Network.equals][] : Check for equality of two networks.
 
         """
         return self.equals(other)
+
+    @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
+        details="Use `n.plot.iplot()` as a drop-in replacement instead.",
+    )
+    def iplot(self, *args: Any, **kwargs: Any) -> Any:
+        """Plot the network on a map using Plotly.
+
+        !!! warning "Deprecated in v0.34"
+            Use `n.plot.iplot()` as a drop-in replacement instead.
+        """
+        return iplot(self, *args, **kwargs)
+
+    @deprecated(
+        deprecated_in="0.34",
+        removed_in="1.0",
+        details="Use `n.plot.explore()` as a drop-in replacement instead.",
+    )
+    def explore(self, *args: Any, **kwargs: Any) -> Any:
+        """Plot the network on a map using Folium.
+
+        !!! warning "Deprecated in v0.34"
+            Use `n.plot.explore()` as a drop-in replacement instead.
+        """
+        return explore(self, *args, **kwargs)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
@@ -460,9 +407,9 @@ class Network(
 
         See Also
         --------
-        pypsa.Network.srid : Spatial reference system identifier of the network's
+        [pypsa.Network.srid][] : Spatial reference system identifier of the network's
             geometries.
-        pypsa.Network.shapes : Geometries of the network
+        [pypsa.Network.shapes][] : Geometries of the network
 
         """
         self.components.shapes.static.set_crs(new)
@@ -473,10 +420,10 @@ class Network(
 
         See Also
         --------
-        pypsa.Network.crs : Coordinate reference system of the network's geometries
-        pypsa.Network.srid : Spatial reference system identifier of the network's
+        [pypsa.Network.crs][] : Coordinate reference system of the network's geometries
+        [pypsa.Network.srid][] : Spatial reference system identifier of the network's
             geometries.
-        pypsa.Network.shapes : Geometries of the network
+        [pypsa.Network.shapes][] : Geometries of the network
 
         """
         current = self.crs
@@ -498,8 +445,8 @@ class Network(
 
         See Also
         --------
-        pypsa.Network.crs : Coordinate reference system of the network's geometries
-        pypsa.Network.shapes : Geometries of the network
+        [pypsa.Network.crs][] : Coordinate reference system of the network's geometries
+        [pypsa.Network.shapes][] : Geometries of the network
 
         """
         return self.crs.to_epsg()
@@ -510,8 +457,8 @@ class Network(
 
         See Also
         --------
-        pypsa.Network.crs : Coordinate reference system of the network's geometries
-        pypsa.Network.shapes : Geometries of the network
+        [pypsa.Network.crs][] : Coordinate reference system of the network's geometries
+        [pypsa.Network.shapes][] : Geometries of the network
 
         """
         self.crs = pyproj.CRS.from_epsg(new)
@@ -557,6 +504,7 @@ class Network(
         Examples
         --------
         With a simple reference the network is not copied:
+        >>> n = pypsa.examples.ac_dc_meshed()
         >>> network_copy = n
         >>> id(network_copy) == id(n)
         True
@@ -579,6 +527,10 @@ class Network(
         DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
+        if hasattr(self, "model") and self.model.solver_model is not None:
+            msg = "Copying solved networks is not supported yet."
+            raise NotImplementedError(msg)
+
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types, with_time]
         if all(arg is None or arg is False for arg in args):
@@ -760,17 +712,27 @@ class Network(
         Examples
         --------
         >>> n.branches() # doctest: +ELLIPSIS
-                                    active    b  b_pu  ...         x x_pu x_pu_eff
+                                 active    b  b_pu  ...         x      x_pu  x_pu_eff
         component name                                  ...
-        Line      0                    True  0.0   0.0  ...  0.796878  0.0      0.0
-                  1                    True  0.0   0.0  ...  0.391560  0.0      0.0
-                  2                    True  0.0   0.0  ...  0.000000  0.0      0.0
-        ...
+
+        Line      0                    True  0.0   0.0  ...  0.796878  0.000006  0.000006
+                  1                    True  0.0   0.0  ...  0.391560  0.000003  0.000003
+                  2                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  3                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  4                    True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                  5                    True  0.0   0.0  ...  0.238800  0.000002  0.000002
+                  6                    True  0.0   0.0  ...  0.400000  0.000003  0.000003
+        Link      Norwich Converter    True  NaN   NaN  ...       NaN       NaN      NaN
+                  Norway Converter     True  NaN   NaN  ...       NaN       NaN      NaN
+                  Bremen Converter     True  NaN   NaN  ...       NaN       NaN      NaN
+                  DC link              True  NaN   NaN  ...       NaN       NaN      NaN
+        <BLANKLINE>
+        [11 rows x 61 columns]
 
         See Also
         --------
-        n.passive_branches
-        n.controllable_branches
+        [pypsa.Network.passive_branches][]
+        [pypsa.Network.controllable_branches][]
 
         """
         return pd.concat(
@@ -792,16 +754,16 @@ class Network(
         Examples
         --------
         >>> n.passive_branches() # doctest: +ELLIPSIS
-                                active    b  b_pu  ...         x x_pu x_pu_eff
-        Line 0               True  0.0   0.0  ...  0.796878  0.0      0.0
-            1               True  0.0   0.0  ...  0.391560  0.0      0.0
-            2               True  0.0   0.0  ...  0.000000  0.0      0.0
-        ...
-
-        See Also
-        --------
-        n.branches
-        n.controllable_branches
+            active    b  b_pu  build_year  ...  v_nom         x      x_pu  x_pu_eff
+        Line 0    True  0.0   0.0           0  ...  380.0  0.796878  0.000006  0.000006
+             1    True  0.0   0.0           0  ...  380.0  0.391560  0.000003  0.000003
+             2    True  0.0   0.0           0  ...  200.0  0.000000  0.000000  0.000000
+             3    True  0.0   0.0           0  ...  200.0  0.000000  0.000000  0.000000
+             4    True  0.0   0.0           0  ...  200.0  0.000000  0.000000  0.000000
+             5    True  0.0   0.0           0  ...  380.0  0.238800  0.000002  0.000002
+             6    True  0.0   0.0           0  ...  380.0  0.400000  0.000003  0.000003
+        <BLANKLINE>
+        [7 rows x 37 columns]
 
         """
         return pd.concat(
@@ -830,8 +792,8 @@ class Network(
 
         See Also
         --------
-        n.branches
-        n.passive_branches
+        [pypsa.Network.branches][]
+        [pypsa.Network.passive_branches][]
 
         """
         return pd.concat(
@@ -1009,7 +971,7 @@ class Network(
         c.rename_component_names(**kwargs)
 
 
-class SubNetwork:
+class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     """SubNetwork for electric buses (AC or DC).
 
     SubNetworks are generated by `n.determine_network_topology()` for electric buses
@@ -1031,26 +993,6 @@ class SubNetwork:
     BODF: spmatrix
 
     list_name = "sub_networks"
-
-    # Methods
-    # ------------------
-
-    # from pypsa.pf
-    lpf = sub_network_lpf
-    pf = sub_network_pf
-    find_bus_controls = find_bus_controls
-    find_slack_bus = find_slack_bus
-    calculate_Y = calculate_Y
-    calculate_PTDF = calculate_PTDF
-    calculate_B_H = calculate_B_H
-
-    # from pypsa.contingency
-    calculate_BODF = calculate_BODF
-
-    # from pypsa.graph
-    graph = graph
-    incidence_matrix = incidence_matrix
-    adjacency_matrix = adjacency_matrix
 
     @deprecated_common_kwargs
     def __init__(self, n: Network, name: str) -> None:
@@ -1124,7 +1066,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.components
+        [pypsa.Network.components][]
 
         """
 
@@ -1161,7 +1103,7 @@ class SubNetwork:
 
         See Also
         --------
-        sub_network.components
+        [pypsa.SubNetwork.components][]
 
         """
         return self.components
@@ -1172,7 +1114,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.snapshots
+        [pypsa.Network.snapshots][]
 
         """
         return self.n.snapshots
@@ -1183,7 +1125,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.snapshot_weightings
+        [pypsa.Network.snapshot_weightings][]
 
         """
         return self.n.snapshot_weightings
@@ -1194,7 +1136,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.investment_periods
+        [pypsa.Network.investment_periods][]
 
         """
         return self.n.investment_periods
@@ -1205,7 +1147,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.investment_period_weightings
+        [pypsa.Network.investment_period_weightings][]
 
         """
         return self.n.investment_period_weightings
@@ -1245,7 +1187,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.branches
+        [pypsa.Network.branches][]
 
         """
         branches = self.n.passive_branches()
@@ -1262,7 +1204,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.components
+        [pypsa.Network.components][]
 
         """
         return self.components[c_name]
@@ -1278,7 +1220,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.static
+        [pypsa.Network.static][]
 
         """
         return self.static(c_name)
@@ -1294,7 +1236,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.static
+        [pypsa.Network.static][]
 
         """
         return self.components[c_name].static
@@ -1310,7 +1252,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.dynamic
+        [pypsa.Network.dynamic][]
 
         """
         return self.dynamic(c_name)
@@ -1326,7 +1268,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.dynamic
+        [pypsa.Network.dynamic][]
 
         """
         return self.components[c_name].dynamic
@@ -1342,7 +1284,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.buses_i
+        [pypsa.Network.buses][]
 
         """
         return self.components.buses.static.index
@@ -1358,7 +1300,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.lines_i
+        [pypsa.Network.lines][]
 
         """
         return self.components.lines.static.index
@@ -1374,7 +1316,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.transformers_i
+        [pypsa.Network.transformers][]
 
         """
         return self.components.transformers.static.index
@@ -1390,7 +1332,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.generators_i
+        [pypsa.Network.generators][]
 
         """
         return self.components.generators.static.index
@@ -1406,7 +1348,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.loads_i
+        [pypsa.Network.loads][]
 
         """
         return self.components.loads.static.index
@@ -1422,7 +1364,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.shunt_impedances_i
+        [pypsa.Network.shunt_impedances][]
 
         """
         return self.components.shunt_impedances.static.index
@@ -1438,7 +1380,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.storage_units_i
+        [pypsa.Network.storage_units][]
 
         """
         return self.components.storage_units.static.index
@@ -1454,7 +1396,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.stores_i
+        [pypsa.Network.stores][]
 
         """
         return self.components.stores.static.index
@@ -1470,7 +1412,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.buses
+        [pypsa.Network.buses][]
 
         """
         return self.components.buses.static
@@ -1486,7 +1428,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.generators
+        [pypsa.Network.generators][]
 
         """
         return self.components.generators.static
@@ -1502,7 +1444,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.loads
+        [pypsa.Network.loads][]
 
         """
         return self.components.loads.static
@@ -1518,7 +1460,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.shunt_impedances
+        [pypsa.Network.shunt_impedances][]
 
         """
         return self.components.shunt_impedances.static
@@ -1534,7 +1476,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.storage_units
+        [pypsa.Network.storage_units][]
 
         """
         return self.components.storage_units.static
@@ -1568,7 +1510,7 @@ class SubNetwork:
 
         See Also
         --------
-        pypsa.Network.iterate_components
+        [pypsa.Network.iterate_components][]
 
         Yields
         ------

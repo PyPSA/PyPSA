@@ -29,7 +29,7 @@ class Lines(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
+    [pypsa.Components][] : Base class for all components.
 
     """
 
@@ -62,7 +62,7 @@ class Lines(Components):
 
         See Also
         --------
-        pypsa.geo.haversine : Function to calculate distance between two points.
+        [pypsa.geo.haversine][] : Function to calculate distance between two points.
 
         Examples
         --------
