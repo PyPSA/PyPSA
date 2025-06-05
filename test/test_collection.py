@@ -313,9 +313,9 @@ def test_collection_repr(network1, network2, network3):
 
     collection = pypsa.NetworkCollection([network1, network2])
     repr_str = repr(collection)
-    assert "NetworkCollection with 2 networks" in repr_str
+    assert "Networks: 2" in repr_str
     assert "Index name: 'network'" in repr_str
-    assert "['net1', 'net2']" in repr_str
+    assert "Entries: ['net1', 'net2']" in repr_str
 
     # Test with custom index
     custom_index = pd.Index(["net_A", "net_B", "net_C"], name="scenario")
@@ -323,9 +323,9 @@ def test_collection_repr(network1, network2, network3):
         [network1, network2, network3], index=custom_index
     )
     repr_str = repr(collection)
-    assert "NetworkCollection with 3 networks" in repr_str
+    assert "Networks: 3" in repr_str
     assert "Index name: 'scenario'" in repr_str
-    assert "['net_A', 'net_B', 'net_C']" in repr_str
+    assert "Entries: ['net_A', 'net_B', 'net_C']" in repr_str
 
     # Test with MultiIndex
     multi_index = pd.MultiIndex.from_tuples(
@@ -333,15 +333,15 @@ def test_collection_repr(network1, network2, network3):
     )
     collection = pypsa.NetworkCollection([network1, network2], index=multi_index)
     repr_str = repr(collection)
-    assert "NetworkCollection with 2 networks" in repr_str
+    assert "Networks: 2" in repr_str
     assert "MultiIndex with 2 levels: ['scenario', 'year']" in repr_str
-    assert "[('base', 2030), ('high_renewables', 2030)]" in repr_str
+    assert "First 2 entries: [('base', 2030), ('high_renewables', 2030)]" in repr_str
 
     # Test with many networks (to check truncation)
     many_networks = [pypsa.Network(name=f"net_{i}") for i in range(10)]
     collection = pypsa.NetworkCollection(many_networks)
     repr_str = repr(collection)
-    assert "NetworkCollection with 10 networks" in repr_str
+    assert "Networks: 10" in repr_str
     assert "... and 5 more" in repr_str
 
 

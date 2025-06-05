@@ -17,8 +17,79 @@ logger = logging.getLogger(__name__)
 class NetworkCollection:
     """A collection of networks that can be accessed like a single network.
 
-    Note:
-    ----
+    **Supported Methods and Properties**
+    The following Network methods and properties are supported for NetworkCollections:
+
+    Components Data:
+        All components data (static and dynamic) can be accessed and is returned as a
+        concatenated pandas DataFrame (e.g. `nc.buses`, `nc.buses_t`, `nc.generators`)
+
+    Statistics:
+        All statistics expressions can be accessed in the same way as for a single
+        network. This includes dataframes and plots. E.g. `nc.statistics.energy_balance()`,
+        `nc.statistics.energy_balance.plot()`, `nc.statistics.energy_balance.plot.bar()`.
+
+    Examples
+    --------
+    Create a collection from file paths:
+
+    >>> nc = pypsa.NetworkCollection(["network1.nc", "network2.nc"]) # doctest: +SKIP
+
+    Create a collection from Network objects:
+
+    >>> n1 = pypsa.examples.ac_dc_meshed()
+    >>> n1.name = "network1"
+    >>> n2 = pypsa.examples.model_energy()
+    >>> n2.name = "network2"
+    >>> nc = pypsa.NetworkCollection([n1, n2])
+    >>> nc
+    NetworkCollection
+    -----------------
+    Networks: 2
+    Index name: 'network'
+    Entries: ['network1', 'network2']
+
+    Access component data across all networks:
+
+    >>> nc.generators
+                                      bus control  ... weight  p_nom_opt
+    network  Generator                             ...
+    network1 Manchester Wind   Manchester      PQ  ...    1.0        0.0
+             Manchester Gas    Manchester      PQ  ...    1.0        0.0
+             Norway Wind           Norway      PQ  ...    1.0        0.0
+             Norway Gas            Norway      PQ  ...    1.0        0.0
+             Frankfurt Wind     Frankfurt      PQ  ...    1.0        0.0
+             Frankfurt Gas      Frankfurt      PQ  ...    1.0        0.0
+    network2 load shedding    electricity      PQ  ...    1.0        0.0
+             wind             electricity      PQ  ...    1.0        0.0
+             solar            electricity      PQ  ...    1.0        0.0
+    <BLANKLINE>
+    [9 rows x 37 columns]
+
+
+    >>> nc.statistics.installed_capacity()
+    component  network   carrier
+    Generator  network1  gas              150000.00
+                         wind                290.00
+               network2  load shedding     10901.16
+    Line       network1  AC               280000.00
+    Link       network1  DC                 4000.00
+    Name: value, dtype: float64
+
+    Use custom index:
+
+    >>> import pandas as pd
+    >>> index = pd.Index(["scenario_A", "scenario_B"])
+    >>> nc = pypsa.NetworkCollection([n1, n2], index=index)
+    >>> nc
+    NetworkCollection
+    -----------------
+    Networks: 2
+    Index name: 'network'
+    Entries: ['scenario_A', 'scenario_B']
+
+    Notes
+    -----
     A single network is mirrored in two ways:
         1. For each nested method or property of a network, the collection will
         dynamically create a new MemberProxy object that wraps around it and allows for
@@ -73,14 +144,14 @@ class NetworkCollection:
                 raise TypeError(msg)
 
         if isinstance(networks, pd.Series):
-            networks = networks.map(_convert_to_network)
+            self.networks = networks.map(_convert_to_network)
         else:
-            networks = [_convert_to_network(n) for n in networks]
+            self.networks = [_convert_to_network(n) for n in networks]
 
-        if not isinstance(networks, pd.Series):
+        if not isinstance(self.networks, pd.Series):
             # Format and validate index
-            if index is None and not isinstance(networks, pd.Series):
-                names = ["network" if not n.name else n.name for n in networks]
+            if index is None and not isinstance(self.networks, pd.Series):
+                names = ["network" if not n.name else n.name for n in self.networks]
 
                 # Check for duplicate names
                 if len(names) != len(set(names)):
@@ -92,7 +163,7 @@ class NetworkCollection:
                     raise ValueError(msg)
                 index = pd.Index(names, name="network")
             elif isinstance(index, Sequence):
-                if len(index) != len(networks):
+                if len(index) != len(self.networks):
                     msg = "The length of the index must match the number of networks provided."
                     raise ValueError(msg)
                 index = pd.Index(index)
@@ -103,22 +174,22 @@ class NetworkCollection:
                 )
                 raise TypeError(msg)
 
-            networks = pd.Series(networks, index=index)
+            self.networks = pd.Series(self.networks, index=index)
 
         # Only set default index name for non-MultiIndex
         if (
-            not isinstance(networks.index, pd.MultiIndex)
-            and networks.index.name is None
+            not isinstance(self.networks.index, pd.MultiIndex)
+            and self.networks.index.name is None
         ):
-            networks.index.name = "network"
-
-        self.networks = networks
+            self.networks.index.name = "network"
 
         # Validate index names
         if isinstance(self.networks.index, pd.MultiIndex):  # noqa: SIM102
             if any(name is None for name in self.networks.index.names):
                 msg = "All levels of MultiIndex must have names"
                 raise ValueError(msg)
+
+        self._validate_network_compatibility()
 
         # Initialize accessors which support NetworkCollections and don't need a proxy
         # member
@@ -144,10 +215,17 @@ class NetworkCollection:
 
     def __getitem__(self, key: Any) -> Any:
         """Get a subset of networks using pandas Series indexing."""
-        if isinstance(key, slice | pd.Series):
-            selected = self.networks[key]
-            return NetworkCollection(selected) if len(selected) > 0 else None
-        return self.networks[key]
+        try:
+            if isinstance(key, slice | pd.Series):
+                selected = self.networks[key]
+                if len(selected) == 0:
+                    msg = f"Selection with key {key} resulted in empty collection"
+                    raise ValueError(msg)
+                return NetworkCollection(selected)
+            return self.networks[key]
+        except KeyError as e:
+            msg = f"Key '{key}' not found in NetworkCollection index: {list(self.networks.index)}"
+            raise KeyError(msg) from e
 
     def __len__(self) -> int:
         """Get the number of networks in the collection."""
@@ -208,11 +286,11 @@ class NetworkCollection:
             if n_networks > 0:
                 sample_size = min(5, n_networks)
                 sample_entries = list(self.networks.index[:sample_size])
-                index_info += f"\n  Entries: {sample_entries}"
+                index_info += f"\nEntries: {sample_entries}"
                 if n_networks > sample_size:
                     index_info += f" ... and {n_networks - sample_size} more"
 
-        return f"NetworkCollection with {n_networks} network{'s' if n_networks != 1 else ''}\n{index_info}"
+        return f"NetworkCollection\n-----------------\nNetworks: {n_networks}\n{index_info}"
 
     @property
     def carriers(self) -> pd.DataFrame:
@@ -232,6 +310,21 @@ class NetworkCollection:
             ~combined_carriers.index.duplicated(keep="first")
         ]
         return unique_carriers.sort_index()
+
+    def _validate_network_compatibility(self) -> None:
+        """Validate basic compatibility between networks in the collection.
+
+        Raises
+        ------
+        ValueError
+            If networks have incompatible structures that would prevent
+            meaningful aggregation.
+
+        """
+        if len(self.networks) <= 1:
+            return  # No validation needed for single network or empty collection
+
+        # TODO: Implement basic validation of network compatibility
 
 
 class MemberProxy:
