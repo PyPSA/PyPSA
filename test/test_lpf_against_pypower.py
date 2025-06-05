@@ -1,29 +1,16 @@
-from packaging.version import Version, parse
-
-# NB: this test doesn't work for other cases because transformer tap
-# ratio and phase angle not supported for lpf
-try:
-    # pypower is not maintained and with recent numpy verion it breaks
-    from pypower.api import case30 as case
-    from pypower.api import ppoption, runpf
-    from pypower.ppver import ppver
-
-    pypower_version = parse(ppver()["Version"])
-except ImportError:
-    pypower_version = Version("0.0.0")
-
 import pandas as pd
-import pytest
 from numpy.testing import assert_array_almost_equal as equal
+from pypower.case30 import case30 as case
+from pypower.ppoption import ppoption
+from pypower.runpf import runpf
 
 import pypsa
 from pypsa.constants import DEFAULT_TIMESTAMP
 
+# NB: this test doesn't work for other cases because transformer tap
+# ratio and phase angle not supported for lpf
 
-@pytest.mark.skipif(
-    pypower_version <= Version("5.0.0"),
-    reason="PyPOWER 5.0.0 is broken with recent numpy and unmaintained since Aug 2017.",
-)
+
 def test_pypower_case():
     # ppopt is a dictionary with the details of the optimization routine to run
     ppopt = ppoption(PF_ALG=2)

@@ -439,7 +439,7 @@ def sub_network_pf_singlebus(
                     .fillna(0)
                 )
             else:
-                bus_generator_shares = slack_weights.pipe(normed).fillna(0)
+                bus_generator_shares = slack_weights.pipe(normed).fillna(0)  # type: ignore
             n.generators_t.p.loc[sns, group.index] += (
                 bus_generator_shares.multiply(
                     -n.buses_t.p.loc[sns, bus], axis=0
@@ -685,8 +685,8 @@ def sub_network_pf(
         elif generator_slack_weights_b:
             # convert generator-based slack weights to bus-based slack weights
             slack_weights_calc = (
-                slack_weights.rename(n.generators.bus)
-                .groupby(slack_weights.index.name)
+                slack_weights.rename(n.generators.bus)  # type: ignore
+                .groupby(slack_weights.index.name)  # type: ignore
                 .sum()
                 .reindex(buses_o)
                 .pipe(normed)
@@ -695,7 +695,7 @@ def sub_network_pf(
 
         elif bus_slack_weights_b:
             # take bus-based slack weights
-            slack_weights_calc = slack_weights.reindex(buses_o).pipe(normed).fillna(0)
+            slack_weights_calc = slack_weights.reindex(buses_o).pipe(normed).fillna(0)  # type: ignore
 
     ss = np.empty((len(sns), len(buses_o)), dtype=complex)
     roots = np.empty(
@@ -745,7 +745,7 @@ def sub_network_pf(
     if distribute_slack:
         last_pq = -1
     else:
-        last_pq = None
+        last_pq = None  # type: ignore
     n.buses_t.v_ang.loc[sns, sub_network.pvpqs] = roots[:, : len(sub_network.pvpqs)]
     n.buses_t.v_mag_pu.loc[sns, sub_network.pqs] = roots[
         :, len(sub_network.pvpqs) : last_pq
@@ -783,7 +783,7 @@ def sub_network_pf(
         n.dynamic(c.name).q1.loc[sns, s1t.columns] = s1t.values.imag
 
     s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
-    for i in np.arange(len(sns)):
+    for i in np.arange(len(sns)):  # type: ignore
         s_calc[i] = V[i] * np.conj(sub_network.Y * V[i])
     slack_index = int(buses_o.get_loc(sub_network.slack_bus))
     if distribute_slack:

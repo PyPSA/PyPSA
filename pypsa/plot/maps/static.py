@@ -343,7 +343,7 @@ class MapPlotter:
                 self.ax = ax
 
             # Transform bus positions to projection, track the new crs
-            x, y, _ = self.ax.projection.transform_points(
+            x, y, _ = self.ax.projection.transform_points(  # type: ignore
                 network_projection, self.x.values, self.y.values
             ).T
             self.x_trans, self.y_trans = (
@@ -359,7 +359,7 @@ class MapPlotter:
                 else:
                     self.add_geomap_features(geomap_resolution)
 
-            self.ax.set_extent(boundaries, crs=network_projection)
+            self.ax.set_extent(boundaries, crs=network_projection)  # type: ignore
 
             self.area_factor = get_projected_area_factor(self.ax, self.n.srid)
         else:
