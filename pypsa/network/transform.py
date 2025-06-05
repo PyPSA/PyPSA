@@ -1,13 +1,9 @@
 """Network transform module.
 
-Contains single helper class (_NetworkTransform) which is used to inherit
-to Components class. It should not be used directly.
+Contains single mixin class which is used to inherit to [pypsa.Networks] class.
+Should not be used directly.
 
 Transform methods are methods which modify, restructure data and add or remove data.
-
-See Also
---------
-pypsa.components.transform
 
 """
 
@@ -23,7 +19,7 @@ from deprecation import deprecated
 from pypsa.components.common import as_components
 from pypsa.io import _import_components_from_df
 from pypsa.network.abstract import _NetworkABC
-from pypsa.typing import is_1d_list_like
+from pypsa.type_utils import is_1d_list_like
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -31,10 +27,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _NetworkTransform(_NetworkABC):
-    """Helper class for components array methods.
+class NetworkTransformMixin(_NetworkABC):
+    """Mixin class for network transform methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class only inherits to [pypsa.Network][] and should not be used directly.
+    All attributes and methods can be used within any Network instance.
     """
 
     def add(

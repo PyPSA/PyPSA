@@ -27,8 +27,7 @@ class TransformerTypes(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
-    pypsa.components.components.GenericComponents : Generic components class.
+    [pypsa.Components][] : Base class for all components.
 
     """
 

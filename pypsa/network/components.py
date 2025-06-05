@@ -1,17 +1,14 @@
 """Network components module.
 
-Contains single helper class (_NetworkComponents) which is used to inherit
-to Network class. Should not be used directly.
+Contains single mixin class which is used to inherit to [pypsa.Networks] class.
+Should not be used directly.
 
 Adds all properties and access methods to the Components of a network. `n.components`
 is already defined during the Network initialization and here just the access properties
 are set.
 
-Also See
---------
-pypsa.components.index
-
 """
+# ruff: noqa: D102
 
 from __future__ import annotations
 
@@ -62,14 +59,18 @@ _DYNAMIC_SETTER_WARNING = (
 )
 
 
-class _NetworkComponents(_NetworkABC):
-    """Helper class for components array methods.
+class NetworkComponentsMixin(_NetworkABC):
+    """Mixin class for network components methods.
 
-    Class only inherits to [Network][pypsa.Network] and should not be used
-    directly. All attributes and methods can be used within any Network instance.
+    Class only inherits to [pypsa.Network][] and should not be used directly.
+    All attributes and methods can be used within any Network instance.
     """
 
     def __init__(self) -> None:
+        """Initialize the NetworkComponentsMixin.
+
+        The class should not be used directly and initialzed outside of PyPSA.
+        """
         self._components: ComponentsStore | None = None
 
     def _read_in_default_standard_types(self) -> None:
@@ -92,7 +93,7 @@ class _NetworkComponents(_NetworkABC):
         >>> n.components # doctest: +ELLIPSIS
         PyPSA Components Store
         ======================
-        - 0 'SubNetwork' Components
+        - 3 'SubNetwork' Components
         - 9 'Bus' Components
         ...
 

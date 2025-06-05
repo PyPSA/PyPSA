@@ -1,14 +1,10 @@
 """Network index module.
 
-Contains single helper class (_NetworkIndex) which is used to inherit
-to Network class. Should not be used directly.
+Contains single mixin class which is used to inherit to [pypsa.Networks] class.
+Should not be used directly.
 
 Index methods and properties are used to access the different index levels, set them
 and convert the Network accordingly.
-
-Also See
---------
-pypsa.components.index
 
 """
 
@@ -27,10 +23,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _NetworkIndex(_NetworkABC):
-    """Helper class for components array methods.
+class NetworkIndexMixin(_NetworkABC):
+    """Mixin class for network index methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class only inherits to [pypsa.Network][] and should not be used directly.
+    All attributes and methods can be used within any Network instance.
     """
 
     # ----------------
@@ -164,8 +161,8 @@ class _NetworkIndex(_NetworkABC):
 
         See Also
         --------
-        pypsa.networks.Network.timesteps : Get the timestep level only.
-        pypsa.networks.Network.periods : Get the period level only.
+        [pypsa.Network.timesteps][] : Get the timestep level only.
+        [pypsa.Network[] : Get the period level only.
 
         Notes
         -----
@@ -188,8 +185,8 @@ class _NetworkIndex(_NetworkABC):
 
         See Also
         --------
-        pypsa.networks.Network.snapshots : Getter method
-        pypsa.networks.Network.set_snapshots : Setter method
+        [pypsa.Network.snapshots][] : Getter method
+        [pypsa.Network.set_snapshots][] : Setter method
 
         """
         self.set_snapshots(snapshots)
@@ -242,8 +239,8 @@ class _NetworkIndex(_NetworkABC):
 
         See Also
         --------
-        pypsa.networks.Network.snapshots : Get the snapshots dimension.
-        pypsa.networks.Network.periods : Get the period level only.
+        [pypsa.Network.snapshots][] : Get the snapshots dimension.
+        [pypsa.Network.periods][] : Get the period level only.
 
         """
         if "timestep" in self.snapshots.names:
@@ -264,7 +261,7 @@ class _NetworkIndex(_NetworkABC):
 
         Also see
         --------
-        pypsa.networks.Network.timesteps : Getter method
+        pypsa.Network.timesteps : Getter method
 
         """
         msg = "Setting `timesteps` is not supported. Please set `snapshots` instead."
@@ -377,8 +374,8 @@ class _NetworkIndex(_NetworkABC):
 
         See Also
         --------
-        pypsa.networks.Network.snapshots : Get the snapshots dimension.
-        pypsa.networks.Network.timesteps : Get the timestep level only.
+        [pypsa.Network.snapshots][] : Get the snapshots dimension.
+        [pypsa.Network.timesteps][] : Get the timestep level only.
 
         """
         if "period" in self.snapshots.names:
@@ -395,8 +392,8 @@ class _NetworkIndex(_NetworkABC):
             Investment periods to be set.
         Also see
         --------
-        pypsa.networks.Network.periods : Getter method
-        pypsa.networks.Network.set_investment_periods : Setter method
+        pypsa.Network.periods : Getter method
+        pypsa.Network.set_investment_periods : Setter method
 
         """
         self.set_investment_periods(periods)
@@ -425,7 +422,7 @@ class _NetworkIndex(_NetworkABC):
 
         See Also
         --------
-        pypsa.networks.Network.snapshots : Snapshots dimension of the network.
+        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
 
         """
         return not self.periods.empty
@@ -472,9 +469,9 @@ class _NetworkIndex(_NetworkABC):
 
         See Also
         --------
-        pypsa.networks.Network.snapshots : Get the snapshots dimension.
-        pypsa.networks.Network.periods : Get the snapshots dimension.
-        pypsa.networks.Network.timesteps : Get the timestep level only.
+        [pypsa.Network.snapshots][] : Get the snapshots dimension.
+        [pypsa.Network.periods][] : Get the snapshots dimension.
+        [pypsa.Network.timesteps][] : Get the timestep level only.
 
         """
         return self.periods
@@ -492,8 +489,8 @@ class _NetworkIndex(_NetworkABC):
 
         Also see
         --------
-        pypsa.networks.Network.periods : Getter method
-        pypsa.networks.Network.set_investment_periods : Setter method
+        pypsa.Network.periods : Getter method
+        pypsa.Network.set_investment_periods : Setter method
 
         """
         self.periods = periods
@@ -524,8 +521,8 @@ class _NetworkIndex(_NetworkABC):
 
         See Also
         --------
-        pypsa.networks.Network.snapshots : Snapshots dimension of the network.
-        pypsa.networks.Network.periods : Periods level of snapshots dimension.
+        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
+        [pypsa.Network.periods][] : Periods level of snapshots dimension.
 
         """
         return self.has_periods

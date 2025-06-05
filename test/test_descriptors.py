@@ -12,7 +12,7 @@ from pypsa.descriptors import (
     get_switchable_as_dense,
     get_switchable_as_iter,
 )
-from pypsa.pf import allocate_series_dataframes
+from pypsa.network.power_flow import allocate_series_dataframes
 
 
 @pytest.fixture

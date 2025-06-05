@@ -1,6 +1,6 @@
 """Abstract network module.
 
-Only defines a base class for all Network helper classes which inherit to
+Only defines a base class for all Network mixin classes which inherit to
 `Network` class.
 """
 
@@ -25,6 +25,22 @@ class _NetworkABC(ABC):
     dynamic: Callable
     _import_series_from_df: Callable
     add: Callable
+
+    sub_networks: pd.DataFrame
+    buses: pd.DataFrame
+    lines: pd.DataFrame
+    links: pd.DataFrame
+    transformers: pd.DataFrame
+    stores: pd.DataFrame
+    shunt_impedances: pd.DataFrame
+
+    passive_branches: pd.DataFrame
+
+    @property
+    @abstractmethod
+    def passive_branch_components(self) -> set[str]:
+        """Read only placeholder."""
+        ...
 
     @property
     @abstractmethod

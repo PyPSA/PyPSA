@@ -34,9 +34,6 @@ def haversine_pts(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     c : N - array of dtype float
         Distance in km
 
-    See Also
-    --------
-    haversine : Matrix of distances between all pairs in a and b
 
     Examples
     --------
@@ -78,10 +75,6 @@ def haversine(a: ArrayLike, b: ArrayLike) -> np.ndarray:
     --------
     >>> haversine([10.1, 52.6], [[10.8, 52.1], [-34, 56.]])
     array([[  73.15416698, 2836.6707696 ]])
-
-    See Also
-    --------
-    haversine_pts : Determine pointwise crow-fly distance
 
     """
 

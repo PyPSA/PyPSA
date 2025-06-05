@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from pandapower.auxiliary import pandapowerNet
 
     from pypsa import Network
-    from pypsa.typing import NetworkType
+    from pypsa.type_utils import NetworkType
 logger = logging.getLogger(__name__)
 
 
@@ -1152,9 +1152,9 @@ def export_to_csv_folder(
 
     See Also
     --------
-    export_to_netcdf : Export to a netCDF file
-    export_to_hdf5 : Export to an HDF5 file
-    export_to_excel : Export to an Excel file
+    [pypsa.Network.export_to_netcdf][] : Export to a netCDF file
+    [pypsa.Network.export_to_hdf5][] : Export to an HDF5 file
+    [pypsa.Network.export_to_excel][] : Export to an Excel file
 
     """
     basename = Path(csv_folder_name).name
@@ -1244,9 +1244,9 @@ def export_to_excel(
 
     See Also
     --------
-    export_to_netcdf : Export to a netCDF file
-    export_to_hdf5 : Export to an HDF5 file
-    export_to_csv_folder : Export to a folder of CSVs
+    [pypsa.Network.export_to_netcdf][] : Export to a netCDF file
+    [pypsa.Network.export_to_hdf5][] : Export to an HDF5 file
+    [pypsa.Network.export_to_csv_folder][] : Export to a folder of CSVs
 
     """
     basename = Path(excel_file_path).stem
@@ -1314,9 +1314,9 @@ def export_to_hdf5(
 
     See Also
     --------
-    export_to_netcdf : Export to a netCDF file
-    export_to_csv_folder : Export to a folder of CSVs
-    export_to_excel : Export to an Excel file
+    [pypsa.Network.export_to_netcdf][] : Export to a netCDF file
+    [pypsa.Network.export_to_csv_folder][] : Export to a folder of CSVs
+    [pypsa.Network.export_to_excel][] : Export to an Excel file
 
     """
     kwargs.setdefault("complevel", 4)
@@ -1405,9 +1405,9 @@ def export_to_netcdf(
 
     See Also
     --------
-    export_to_hdf5 : Export to an HDF5 file
-    export_to_csv_folder : Export to a folder of CSVs
-    export_to_excel : Export to an Excel file
+    [pypsa.Network.export_to_hdf5][] : Export to an HDF5 file
+    [pypsa.Network.export_to_csv_folder][] : Export to a folder of CSVs
+    [pypsa.Network.export_to_excel][] : Export to an Excel file
 
     """
     basename = Path(path).name if path is not None else None
@@ -1600,10 +1600,6 @@ def import_components_from_dataframe(
         whose columns are the non-default attributes.
     cls_name : string
         Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
-
-    See Also
-    --------
-    pypsa.Network.madd
 
     """
     n.add(cls_name, dataframe.index, **dataframe)

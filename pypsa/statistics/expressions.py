@@ -115,7 +115,7 @@ class StatisticHandler:
 
     See Also
     --------
-    pypsa.common.MethodHandlerWrapper
+    [pypsa.common.MethodHandlerWrapper][]
 
     """
 
@@ -159,10 +159,12 @@ class StatisticHandler:
 class StatisticsAccessor(AbstractStatisticsAccessor):
     """Accessor to calculate different metrics from the network.
 
-    The accessor can be used with any [pypsa.Network][] instance via `n.statistics`. All
-    statistics methods are another level of accessors, which means that they can yield
-    statistics as pandas DataFrames or plots based on them. See the examples for more
-    details.
+    All methods and attributes of the accessor can be used with any [pypsa.Network][]
+    instance via `n.statistics`, which is the main facade to the statistics module.
+
+    The statistics methods are another level of accessors, which means that they can
+    yield statistics as pandas DataFrames or plots based on them. See the examples for
+    more details.
 
     User Guide
     ----------
@@ -175,7 +177,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     Get aggregated statistics in a single DataFrame:
 
-    >>> n_solved.statistics()
+    >>> n.statistics()
                         Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
@@ -187,7 +189,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     Get the energy balance:
 
-    >>> n_solved.statistics.energy_balance()
+    >>> n.statistics.energy_balance()
     component  carrier  bus_carrier
     Generator  gas      AC              1465.27439
                wind     AC             31082.35370
@@ -196,7 +198,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     Get the optimal capacity:
 
-    >>> n_solved.statistics.optimal_capacity()
+    >>> n.statistics.optimal_capacity()
     component  carrier
     Generator  gas         982.03448
                wind       7292.13406
@@ -206,17 +208,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     Create a basic plot on any statistic:
 
-    >>> n_solved.statistics.energy_balance.plot() # doctest: +SKIP
+    >>> n.statistics.energy_balance.plot() # doctest: +SKIP
     #TODO Add plot
 
     Choose a specific plot type:
 
-    >>> n_solved.statistics.energy_balance.plot("bar") # doctest: +SKIP
+    >>> n.statistics.energy_balance.plot("bar") # doctest: +SKIP
     #TODO Add plot
 
     Create a interactive plot:
 
-    >>> n_solved.statistics.energy_balance.iplot() # doctest: +SKIP
+    >>> n.statistics.energy_balance.iplot() # doctest: +SKIP
     #TODO Add plot
 
     """
@@ -397,7 +399,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.optimal_capacity()
+        >>> n.statistics.optimal_capacity()
         component  carrier
         Generator  gas         982.03448
                    wind       7292.13406
@@ -522,7 +524,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.capex()
+        >>> n.statistics.capex()
         Series([], dtype: float64)
 
         """
@@ -620,7 +622,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.installed_capex()
+        >>> n.statistics.installed_capex()
         component  carrier
         Generator  gas        2.120994e+07
                    wind       6.761698e+05
@@ -723,7 +725,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.expanded_capex()
+        >>> n.statistics.expanded_capex()
         component  carrier
         Generator  gas       -2.120994e+07
                    wind      -6.761698e+05
@@ -836,7 +838,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.optimal_capacity()
+        >>> n.statistics.optimal_capacity()
         component  carrier
         Generator  gas         982.03448
                    wind       7292.13406
@@ -951,7 +953,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.installed_capacity()
+        >>> n.statistics.installed_capacity()
         component  carrier
         Generator  gas        150000.0
                    wind          290.0
@@ -1059,7 +1061,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.expanded_capacity()
+        >>> n.statistics.expanded_capacity()
         Series([], dtype: float64)
 
         """
@@ -1176,7 +1178,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.opex()
+        >>> n.statistics.opex()
         Series([], dtype: float64)
 
         """
@@ -1332,7 +1334,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.system_cost()
+        >>> n.statistics.system_cost()
         Series([], dtype: float64)
 
         """
@@ -1442,7 +1444,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.supply()
+        >>> n.statistics.supply()
         Series([], dtype: float64)
 
         """
@@ -1540,7 +1542,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.withdrawal()
+        >>> n.statistics.withdrawal()
         Series([], dtype: float64)
 
         """
@@ -1638,7 +1640,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.transmission()
+        >>> n.statistics.transmission()
         Series([], dtype: object)
 
         """
@@ -1757,7 +1759,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.energy_balance()
+        >>> n.statistics.energy_balance()
         Series([], dtype: float64)
 
         """
@@ -1885,7 +1887,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.curtailment()
+        >>> n.statistics.curtailment()
         Series([], Name: generators, dtype: float64)
 
         """
@@ -1990,7 +1992,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.capacity_factor()
+        >>> n.statistics.capacity_factor()
         Series([], dtype: float64)
 
         """
@@ -2102,7 +2104,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.revenue()
+        >>> n.statistics.revenue()
         Series([], dtype: float64)
 
         """
@@ -2221,7 +2223,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Examples
         --------
-        >>> n_solved.statistics.market_value()
+        >>> n.statistics.market_value()
         Series([], dtype: float64)
 
         """

@@ -1,11 +1,9 @@
 """Network descriptors module.
 
-Contains single helper class (_NetworkDescriptors) which is used to inherit
-to Network class. Should not be used directly.
+Contains single mixin class which is used to inherit to [pypsa.Networks] class.
+Should not be used directly.
 
-Also See
---------
-pypsa.components.descriptors
+Descriptor functions only describe data and do not modify it.
 
 """
 
@@ -27,7 +25,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _NetworkDescriptors(_NetworkABC):
+class NetworkDescriptorsMixin(_NetworkABC):
+    """Mixin class for network descriptor methods.
+
+    Class only inherits to [pypsa.Network][] and should not be used directly.
+    All attributes and methods can be used within any Network instance.
+    """
+
     @deprecated_in_next_major(
         details="Use `n.components[c].extendables` instead.",
     )
@@ -233,13 +237,20 @@ class _NetworkDescriptors(_NetworkABC):
 
         Returns
         -------
-        str: The unit associated with the specified bus carrier. If no bus carrier is provided,
-            returns "carrier dependent".
+        str:
+            The unit associated with the specified bus carrier. If no bus carrier is
+            provided, returns `"carrier dependent"`.
 
         Raises
         ------
-        ValueError: If the specified bus carrier is not found in the network or if multiple units
-                    are found for the specified bus carrier.
+        ValueError:
+            If the specified bus carrier is not found in the network or if multiple
+            units are found for the specified bus carrier.
+
+        Examples
+        --------
+        >>> n.bus_carrier_unit('AC')
+        ''
 
         """
         if bus_carrier is None:
