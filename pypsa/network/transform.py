@@ -17,12 +17,13 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa.components.common import as_components
-from pypsa.io import _import_components_from_df
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Collection, Sequence
+
+    from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +254,7 @@ class NetworkTransformMixin(_NetworkABC):
             static_df = pd.DataFrame(static, index=names)
         else:
             static_df = pd.DataFrame(index=names)
-        _import_components_from_df(self, static_df, c.name, overwrite=overwrite)
+        self._import_components_from_df(static_df, c.name, overwrite=overwrite)
 
         # Load time-varying attributes as components
         for k, v in series.items():
@@ -410,3 +411,89 @@ class NetworkTransformMixin(_NetworkABC):
 
         """
         self.remove(class_name=class_name, name=names)
+
+    def merge(
+        self,
+        other: Network,
+        components_to_skip: Collection[str] | None = None,
+        inplace: bool = False,
+        with_time: bool = True,
+    ) -> Any:
+        """Merge the components of two networks.
+
+        Requires disjunct sets of component indices and, if time-dependent data is
+        merged, identical snapshots and snapshot weightings.
+
+        If a component in ``other`` does not have values for attributes present in
+        ``n``, default values are set.
+
+        If a component in ``other`` has attributes which are not present in
+        ``n`` these attributes are ignored.
+
+        Parameters
+        ----------
+        n : pypsa.Network
+            Network to add to.
+        other : pypsa.Network
+            Network to add from.
+        components_to_skip : list-like, default None
+            List of names of components which are not to be merged e.g. "Bus"
+        inplace : bool, default False
+            If True, merge into ``n`` in-place, otherwise a copy is made.
+        with_time : bool, default True
+            If False, only static data is merged.
+
+        Returns
+        -------
+        receiving_n : pypsa.Network
+            Merged network, or None if inplace=True
+
+        """
+        to_skip = {"Network", "SubNetwork", "LineType", "TransformerType"}
+        if components_to_skip:
+            to_skip.update(components_to_skip)
+        to_iterate = other.all_components - to_skip
+        # ensure buses are merged first
+        to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
+        for c in other.iterate_components(to_iterate_list):
+            if not c.static.index.intersection(self.static(c.name).index).empty:
+                msg = f"Component {c.name} has overlapping indices, cannot merge networks."
+                raise ValueError(msg)
+        if with_time:
+            snapshots_aligned = self.snapshots.equals(other.snapshots)
+            if not snapshots_aligned:
+                msg = "Snapshots do not agree, cannot merge networks."
+                raise ValueError(msg)
+            weightings_aligned = self.snapshot_weightings.equals(
+                other.snapshot_weightings
+            )
+            if not weightings_aligned:
+                # Check if only index order is different
+                # TODO fix with #1128
+                if self.snapshot_weightings.reindex(
+                    sorted(self.snapshot_weightings.columns), axis=1
+                ).equals(
+                    other.snapshot_weightings.reindex(
+                        sorted(other.snapshot_weightings.columns), axis=1
+                    )
+                ):
+                    weightings_aligned = True
+                else:
+                    msg = "Snapshot weightings do not agree, cannot merge networks."
+                    raise ValueError(msg)
+        new = self if inplace else self.copy()
+        if other.srid != new.srid:
+            logger.warning(
+                "Spatial Reference System Indentifier of networks do not agree: "
+                "%s, %s. Assuming %s.",
+                new.srid,
+                other.srid,
+                new.srid,
+            )
+        for c in other.iterate_components(to_iterate_list):
+            new.add(c.name, c.static.index, **c.static)
+            if with_time:
+                for k, v in c.dynamic.items():
+                    new._import_series_from_df(v, c.name, k)
+
+        return None if inplace else new
