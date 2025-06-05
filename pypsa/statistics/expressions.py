@@ -6,6 +6,7 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
+from pypsa.constants import RE_PORTS
 from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 
 if TYPE_CHECKING:
@@ -74,7 +75,7 @@ def get_transmission_branches(
     index = {}
     for c in n.branch_components:
         bus_map = (
-            n.static(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
+            n.static(c).filter(regex=RE_PORTS).apply(lambda ds: ds.map(n.buses.carrier))
         )
         if isinstance(bus_carrier, str):
             bus_carrier = [bus_carrier]

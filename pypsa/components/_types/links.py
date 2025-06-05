@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
+from pypsa.constants import PATTERN_PORTS_GE_2
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -68,7 +69,7 @@ class Links(Components):
 
         """
         return [
-            i[3:]
-            for i in self.static.columns
-            if i.startswith("bus") and i not in ["bus0", "bus1"]
+            match.group(1)
+            for col in self.static.columns
+            if (match := PATTERN_PORTS_GE_2.search(col))
         ]

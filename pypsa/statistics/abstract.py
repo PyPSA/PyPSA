@@ -15,6 +15,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
+from pypsa.constants import PATTERN_PORTS
 from pypsa.statistics.grouping import deprecated_groupers, groupers
 
 logger = logging.getLogger(__name__)
@@ -245,7 +246,11 @@ class AbstractStatisticsAccessor(ABC):
             if n.static(c).empty:
                 continue
 
-            ports = [str(col)[3:] for col in n.static(c) if str(col).startswith("bus")]
+            ports = [
+                match.group(1)
+                for col in n.static(c)
+                if (match := PATTERN_PORTS.search(str(col)))
+            ]
             if not at_port:
                 ports = [ports[0]]
 

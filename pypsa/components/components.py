@@ -27,7 +27,7 @@ from pypsa.common import equals
 from pypsa.components.descriptors import _ComponentsDescriptors
 from pypsa.components.index import _ComponentsIndex
 from pypsa.components.transform import _ComponentsTransform
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PATTERN_PORTS
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -635,7 +635,11 @@ class Components(
         ['0', '1']
 
         """
-        return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
+        return [
+            match.group(1)
+            for col in self.static
+            if (match := PATTERN_PORTS.search(col))
+        ]
 
 
 class SubNetworkComponents:

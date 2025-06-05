@@ -22,6 +22,7 @@ from pyproj import CRS
 from typing_extensions import Self
 
 from pypsa.common import check_optional_dependency, deprecated_common_kwargs
+from pypsa.constants import PATTERN_PORTS
 from pypsa.descriptors import _update_linkports_component_attrs
 
 try:
@@ -1701,7 +1702,7 @@ def _import_components_from_df(
 
     # check all the buses are well-defined
     # TODO use func from consistency checks
-    for attr in [attr for attr in df if attr.startswith("bus")]:
+    for attr in [attr for attr in df if PATTERN_PORTS.search(attr)]:
         # allow empty buses for multi-ports
         port = int(attr[-1]) if attr[-1].isdigit() else 0
         mask = ~df[attr].isin(n.components.buses.static.index)
