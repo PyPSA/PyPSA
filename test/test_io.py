@@ -93,6 +93,15 @@ class TestCSVDir:
             check_less_precise=True,
         )
 
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using CSV format.
+        """
+        n = ac_dc_network
+        n.export_to_csv_folder(tmp_path / "network")
+        n3 = pypsa.Network(tmp_path / "network")
+        assert n.equals(n3, log_mode="strict")
+
 
 class TestNetcdf:
     @pytest.mark.parametrize(
@@ -203,6 +212,15 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using netCDF format.
+        """
+        n = ac_dc_network
+        n.export_to_netcdf(tmp_path / "network.nc")
+        n2 = pypsa.Network(tmp_path / "network.nc")
+        assert n.equals(n2, log_mode="strict")
+
 
 @pytest.mark.skipif(not tables_installed, reason="PyTables not installed")
 class TestHDF5:
@@ -257,6 +275,15 @@ class TestHDF5:
             n.shapes,
             check_less_precise=True,
         )
+
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using HDF5 format.
+        """
+        n = ac_dc_network
+        n.export_to_hdf5(tmp_path / "network.h5")
+        n5 = pypsa.Network(tmp_path / "network.h5")
+        assert n.equals(n5, log_mode="strict")
 
 
 @pytest.mark.skipif(not excel_installed, reason="openpyxl not installed")
@@ -325,6 +352,15 @@ class TestExcelIO:
             n.shapes,
             check_less_precise=True,
         )
+
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using Excel format.
+        """
+        n = ac_dc_network
+        n.export_to_excel(tmp_path / "network.xlsx")
+        n4 = pypsa.Network(tmp_path / "network.xlsx")
+        assert n.equals(n4, log_mode="strict")
 
     def test_io_time_dependent_efficiencies_excel(self, tmpdir):
         n = pypsa.Network()

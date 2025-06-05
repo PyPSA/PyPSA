@@ -33,26 +33,11 @@ from pypsa.components.store import ComponentsStore
 from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.structures import Dict
-from pypsa.io import (
-    _import_series_from_df,
-    export_to_csv_folder,
-    export_to_excel,
-    export_to_hdf5,
-    export_to_netcdf,
-    import_components_from_dataframe,
-    import_from_csv_folder,
-    import_from_excel,
-    import_from_hdf5,
-    import_from_netcdf,
-    import_from_pandapower_net,
-    import_from_pypower_ppc,
-    import_series_from_dataframe,
-    merge,
-)
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
 from pypsa.network.graph import NetworkGraphMixin
 from pypsa.network.index import NetworkIndexMixin
+from pypsa.network.io import NetworkIOMixin
 from pypsa.network.power_flow import (
     NetworkPowerFlowMixin,
     SubNetworkPowerFlowMixin,
@@ -94,6 +79,7 @@ class Network(
     NetworkConsistencyMixin,
     NetworkGraphMixin,
     NetworkPowerFlowMixin,
+    NetworkIOMixin,
 ):
     """Network container for all buses, one-ports and branches."""
 
@@ -110,25 +96,6 @@ class Network(
 
     # Geospatial
     _crs = CRS.from_epsg(DEFAULT_EPSG)
-
-    # Methods
-    # -------
-
-    # from pypsa.io
-    import_from_csv_folder = import_from_csv_folder
-    export_to_csv_folder = export_to_csv_folder
-    import_from_excel = import_from_excel
-    export_to_excel = export_to_excel
-    import_from_hdf5 = import_from_hdf5
-    export_to_hdf5 = export_to_hdf5
-    import_from_netcdf = import_from_netcdf
-    export_to_netcdf = export_to_netcdf
-    import_from_pypower_ppc = import_from_pypower_ppc
-    import_from_pandapower_net = import_from_pandapower_net
-    merge = merge
-    import_components_from_dataframe = import_components_from_dataframe  # Deprecated
-    _import_series_from_df = _import_series_from_df
-    import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
     # ----------------
     # Dunder methods
