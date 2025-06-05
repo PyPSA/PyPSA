@@ -73,11 +73,12 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv pip install --compile --system "$(ls dist/*.whl)[dev,hdf5,excel,cartopy]"
+        uv sync --all-extras --no-install-project
+        uv pip install "$(ls dist/*.whl)"
 
     - name: Run unit tests
       run: |
-        pytest --mpl --cov=pypsa && coverage xml
+        uv run pytest --mpl --cov=pypsa && coverage xml
 
     - name: Upload code coverage report
       uses: codecov/codecov-action@v5
@@ -108,13 +109,13 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv pip install --system nbmake requests
-        uv pip install --system "$(ls dist/*.whl)[dev, cartopy, docs]"
+        uv sync --all-extras --no-install-project
+        uv pip install "$(ls dist/*.whl)"
 
     - name: Test docs build
       run: |
         sudo apt-get install -y pandoc
-        pytest test/test_docs.py --test-docs-build
+        uv run pytest test/test_docs.py --test-docs-build
 
   check-types:
     name: Check types
@@ -140,12 +141,9 @@ jobs:
     - name: Install package and dependencies
       run: |
         python -m pip install uv
-        uv pip install --system nbmake requests
-        uv pip install --system "$(ls dist/*.whl)[dev]"
-
-        # TODO: Remove once types in linopy are resolved
-        uv pip install --system linopy==0.3.14 --reinstall
+        uv sync --all-extras --no-install-project
+        uv pip install "$(ls dist/*.whl)"
 
     - name: Run type checker (mypy)
       run: |
-        mypy .
+        uv run mypy .

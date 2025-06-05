@@ -286,12 +286,13 @@ class AbstractStatisticsAccessor(ABC):
 
             d[c] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
-        df = self._apply_option_kwargs(
-            df,
-            drop_zero=drop_zero,
-            round=round,
-            nice_names=nice_names,  # TODO: nice_names does not have effect here
-        )
+        if not df.empty:
+            df = self._apply_option_kwargs(
+                df,
+                drop_zero=drop_zero,
+                round=round,
+                nice_names=nice_names,  # TODO: nice_names does not have effect here
+            )
 
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)
