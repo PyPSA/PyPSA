@@ -294,12 +294,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     Get aggregated statistics in a single DataFrame:
 
     >>> n.statistics()
-                        Optimal Capacity  ...  Market Value
+                    Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
     Line      AC          5613.82931  ...    -43.277041
     Link      DC          4003.90110  ...      0.132018
-    Load      load           0.00000  ...          -inf
+    Load      load           0.00000  ...           NaN
     <BLANKLINE>
     [5 rows x 12 columns]
 

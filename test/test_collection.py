@@ -118,11 +118,11 @@ def test_collection_init_series_with_multiindex(network1, network2):
 def test_collection_init_invalid_type():
     """Test initialization with invalid types."""
     with pytest.raises(TypeError):
-        pypsa.NetworkCollection([pypsa.Network(), "not a network"])
+        pypsa.NetworkCollection([pypsa.Network(), 123])
     with pytest.raises(TypeError):
         pypsa.NetworkCollection(pd.Series([pypsa.Network(), 5]))
     with pytest.raises(TypeError):
-        pypsa.NetworkCollection("just a string")
+        pypsa.NetworkCollection("single_string")
 
 
 def test_collection_init_duplicate_names():
@@ -343,3 +343,48 @@ def test_collection_repr(network1, network2, network3):
     repr_str = repr(collection)
     assert "NetworkCollection with 10 networks" in repr_str
     assert "... and 5 more" in repr_str
+
+
+def test_collection_init_with_strings():
+    """Test initialization with string paths."""
+    # Use example networks from the examples directory
+    example_path1 = "examples/networks/ac-dc-meshed/ac-dc-meshed.nc"
+    example_path2 = "examples/networks/scigrid-de/scigrid-de.nc"
+
+    # Test with list of strings
+    collection = pypsa.NetworkCollection([example_path1, example_path2])
+    assert len(collection) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection.networks)
+
+    # Test with pandas Series containing strings
+    networks_series = pd.Series([example_path1, example_path2], index=["net1", "net2"])
+    collection_series = pypsa.NetworkCollection(networks_series)
+    assert len(collection_series) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection_series.networks)
+
+
+def test_collection_init_mixed_networks_and_strings(network1):
+    """Test initialization with mixed Network objects and strings."""
+    network1.name = "manual_net"
+    example_path = "examples/networks/ac-dc-meshed/ac-dc-meshed.nc"
+
+    # Test with mixed list
+    collection = pypsa.NetworkCollection([network1, example_path])
+    assert len(collection) == 2
+    assert all(isinstance(n, pypsa.Network) for n in collection.networks)
+    assert collection["manual_net"] == network1
+
+    # Test with custom index
+    custom_index = pd.Index(["net_A", "net_B"], name="scenario")
+    collection_custom = pypsa.NetworkCollection(
+        [network1, example_path], index=custom_index
+    )
+    assert len(collection_custom) == 2
+    assert collection_custom["net_A"] == network1
+
+
+def test_collection_init_empty_string():
+    """Test initialization with empty string (creates empty network)."""
+    collection = pypsa.NetworkCollection([""])
+    assert len(collection) == 1
+    assert isinstance(collection.networks.iloc[0], pypsa.Network)

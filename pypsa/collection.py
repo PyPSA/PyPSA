@@ -34,17 +34,21 @@ class NetworkCollection:
 
     def __init__(
         self,
-        networks: pd.Series | Sequence[Network],
+        networks: pd.Series | Sequence[Network | str],
         index: pd.Index | pd.MultiIndex | Sequence | None = None,
     ) -> None:
         """Initialize the NetworkCollection with one or more networks.
 
         Parameters
         ----------
-        networks : Network
-            One or more Network objects to include in the collection.
+        networks : pd.Series | Sequence[Network | str]
+            Sequence or pd.Series of Network objects or strings (file paths/ urls) to
+            include in the collection. If strings are provided, they will be passed to
+            pypsa.Network() to create Network objects.
         index : pd.Index, pd.MultiIndex, Sequence, or None, optional
-            The index to use for the collection. If None, a default index will be created.
+            The index to use for the collection. If `networks` is of type `pd.Series`,
+            no index is allowed and it will be retrieved from the Series. If None, a
+            default index based on the network names will be created.
 
         """
         if isinstance(networks, pd.Series) and index is not None:
@@ -54,9 +58,24 @@ class NetworkCollection:
             )
             raise ValueError(msg)
 
-        if not all(isinstance(n, Network) for n in networks):
-            msg = "All values in the Series must be PyPSA Network objects."
+        # Validate that networks is not a single string (which would iterate char by char)
+        if isinstance(networks, str):
+            msg = "Single strings are not supported. Pass a list of strings or Network objects."
             raise TypeError(msg)
+
+        def _convert_to_network(item: Any) -> Network:
+            if isinstance(item, Network):
+                return item
+            elif isinstance(item, str):
+                return Network(item)
+            else:
+                msg = f"All values must be PyPSA Network objects or strings, got {type(item)}."
+                raise TypeError(msg)
+
+        if isinstance(networks, pd.Series):
+            networks = networks.map(_convert_to_network)
+        else:
+            networks = [_convert_to_network(n) for n in networks]
 
         if not isinstance(networks, pd.Series):
             # Format and validate index
