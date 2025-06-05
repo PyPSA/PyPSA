@@ -222,9 +222,17 @@ class MemberProxy:
     dynamically proxying calls to the underlying network objects.
     """
 
+    collection: NetworkCollection
+
     # Method patterns for special handling
     _method_patterns = {
-        "vertical_concat": r"^"  # Start of string
+        # run_per_network
+        # ---------------
+        "run_per_network": r"^"
+        r"(consistency_check_plots)+"
+        r"$",
+        # ---------------
+        "vertical_concat": r"^"
         # Static component dataframes
         r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
         r"transformers|transformer_types|links|loads|generators|storage_units|"
@@ -234,21 +242,24 @@ class MemberProxy:
         # statistics and all statistics expressions
         r"statistics|"
         r"statistics\.[^\.\s]+)"
-        r"$",  # End of string
-        "horizontal_concat": r"^"  # Start of string
+        r"$",
+        # ---------------
+        "horizontal_concat": r"^"
         r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
         r"transformers|transformer_types|links|loads|generators|storage_units|"
         r"stores|shunt_impedances|shapes)_t|"
         r"dynamic|"
         r"get_switchable_as_dense"
-        r"$",  # End of string
+        r"$",
+        # ---------------
         "return_from_first": r"^"
         r"\S+_components|"
         r"snapshots|"
         r"snapshot_weightings|"
         r"bus_carrier_unit"
-        r"$",  # End of string
-        "index_concat": r"^"  # Start of string
+        r"$",
+        # ---------------
+        "index_concat": r"^"
         r"get_committable_i",
     }
 
@@ -401,6 +412,18 @@ class MemberProxy:
     # Any custom processor are defined below. They need to be added with the same
     # signature and added to the _method_patterns list above.
     # -----------------
+
+    def run_per_network(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
+        """Run the accessor function for each network in the collection."""
+        results = []
+        for _, network in self.collection.networks.items():  # noqa: PERF102
+            accessor = self.accessor_func(network)
+            if is_call:
+                result = accessor(*args, **kwargs)
+            else:
+                result = accessor
+            results.append(result)
+        return results
 
     def vertical_concat(self, is_call: bool, *args: Any, **kwargs: Any) -> Any:
         """Concatenate results vertically (axis=0) from all networks in the collection."""

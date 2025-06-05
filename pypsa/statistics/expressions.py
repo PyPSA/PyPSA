@@ -309,10 +309,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     component  carrier  bus_carrier
     Generator  gas      AC              1465.27439
                wind     AC             31082.35370
-    Line       AC       AC                 0.00000
-                        DC                 0.00000
-    Link       DC       AC                 0.00000
-                        DC                -0.00000
     Load       load     AC            -32547.62808
     dtype: float64
 
@@ -1386,7 +1382,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             if not result:
                 return pd.Series()
             result = pd.concat(result)
-            return result.groupby(level=list(range(result.index.nlevels))).sum()  # type: ignore
+            return result.groupby(level=list(range(result.index.nlevels))).sum()
 
         df = self._aggregate_components(
             func,
