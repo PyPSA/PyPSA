@@ -28,7 +28,7 @@ def calculate_BODF(sub_network: SubNetwork, *args: Any, **kwargs: Any) -> Any:
 @deprecated(
     deprecated_in="0.35",
     removed_in="1.0",
-    details="Use `n.calculate_BODF` instead.",
+    details="Use `n.lpf_contingency` instead.",
 )
 @deprecated_common_kwargs
 def network_lpf_contingency(n: Network, *args: Any, **kwargs: Any) -> Any:
