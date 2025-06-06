@@ -176,6 +176,17 @@ def as_index(
     -------
     pd.Index: values as a pd.Index object.
 
+    Examples
+    --------
+    >>> # Convert list to Index using network snapshots
+    >>> first_two = list(n.snapshots[:2])
+    >>> pypsa.common.as_index(n, first_two, 'snapshots')  # doctest: +ELLIPSIS
+    DatetimeIndex([..., ...], dtype='datetime64[ns]', name='snapshot', freq=None)
+
+    >>> # Using None returns all snapshots
+    >>> pypsa.common.as_index(n, None, 'snapshots')  # doctest: +ELLIPSIS
+    DatetimeIndex([..., ...], dtype='datetime64[ns]', name='snapshot', freq=None)
+
     """
     n_attr = getattr(n, network_attribute)
 
@@ -239,6 +250,22 @@ def equals(
     -------
     bool
         True if the objects are equal, False otherwise.
+
+    Examples
+    --------
+    >>> # Compare pandas DataFrames
+    >>> df1 = pd.DataFrame({'a': [1, 2], 'b': [3, 4]})
+    >>> df2 = pd.DataFrame({'a': [1, 2], 'b': [3, 4]})
+    >>> pypsa.common.equals(df1, df2)
+    True
+
+    >>> # Compare lists
+    >>> pypsa.common.equals([1, 2, 3], [1, 2, 4])
+    False
+
+    >>> # Handle NaN values correctly
+    >>> pypsa.common.equals(np.nan, np.nan)
+    True
 
     """
     if not isinstance(log_mode, str):
@@ -577,6 +604,9 @@ def list_as_string(
     >>> list_as_string(['a', 'b', 'c'])
     'a, b, c'
 
+    >>> list_as_string(['x', 'y'], prefix='  ')
+    '  x, y'
+
     """
     if isinstance(list_, dict):
         list_ = list(list_.keys())
@@ -670,6 +700,16 @@ def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd
     c    3
     dtype: int64
 
+    >>> _convert_to_series({'a': 10, 'c': 30}, pd.Index(['a', 'b', 'c']))
+    a    10
+    c    30
+    dtype: int64
+
+    >>> _convert_to_series(5.0, pd.Index(['x', 'y']))
+    x    5.0
+    y    5.0
+    dtype: float64
+
     """
     if isinstance(variable, dict):
         return pd.Series(variable)
@@ -698,6 +738,20 @@ def resample_timeseries(
         Resampled DataFrame with numeric columns aggregated by mean
         and non-numeric columns forward-filled
 
+    Examples
+    --------
+    >>> # Create time series with mixed data types
+    >>> dates = pd.date_range('2020-01-01', periods=4, freq='15min')
+    >>> df = pd.DataFrame({
+    ...     'value': [1.0, 2.0, 3.0, 4.0],
+    ...     'label': ['A', 'A', 'B', 'B']
+    ... }, index=dates)
+    >>> resampled = pypsa.common.resample_timeseries(df, '30min')
+    >>> resampled['value'].iloc[0]  # Mean of first two values
+    np.float64(1.5)
+    >>> resampled['label'].iloc[0]  # Forward-filled non-numeric
+    'A'
+
     """
     if not isinstance(df.index, pd.DatetimeIndex):
         df = df.set_index(pd.to_datetime(df.index))
@@ -724,5 +778,28 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
 
     Columns are the given series and every single column being the equal to
     the given series.
+
+    Parameters
+    ----------
+    ser : pd.Series
+        Input series to expand.
+    columns : Sequence[str]
+        Column names for the resulting DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with all columns containing the same values as the input series.
+
+    Examples
+    --------
+    >>> ser = pd.Series([1, 2, 3], index=['a', 'b', 'c'])
+    >>> df = pypsa.common.expand_series(ser, ['col1', 'col2'])
+    >>> df
+       col1  col2
+    a   1.0   1.0
+    b   2.0   2.0
+    c   3.0   3.0
+
     """
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)

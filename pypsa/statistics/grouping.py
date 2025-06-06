@@ -76,6 +76,11 @@ class Groupers:
         str
             String representation.
 
+        Examples
+        --------
+        >>> pypsa.statistics.groupers # doctest: +ELLIPSIS
+        Grouper container with the following groupers: bus, bus_carrier, ...
+
         """
         return (
             f"Grouper container with the following groupers: "
@@ -99,12 +104,12 @@ class Groupers:
         --------
         Single indexed grouper
 
-        >>> groupers["carrier"] # doctest: +ELLIPSIS
+        >>> pypsa.statistics.groupers["carrier"] # doctest: +ELLIPSIS
         <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
 
         Multi-indexed grouper
 
-        >>> groupers[["carrier", "bus"]] # doctest: +ELLIPSIS
+        >>> pypsa.statistics.groupers[["carrier", "bus"]] # doctest: +ELLIPSIS
         <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
 
         """
@@ -143,6 +148,10 @@ class Groupers:
             the values are the grouper methods. The keys can be used to directly
             access the grouper in any `groupby` argument.
 
+        Examples
+        --------
+        >>> pypsa.statistics.groupers.list_groupers().keys() # doctest: +ELLIPSIS
+        dict_keys(['bus', 'bus_carrier', ...
 
         """
         no_groupers = ["add_grouper", "list_groupers"]
@@ -173,12 +182,12 @@ class Groupers:
         --------
         Single indexed grouper
 
-        >>> groupers["carrier"] # doctest: +ELLIPSIS
+        >>> pypsa.statistics.groupers["carrier"] # doctest: +ELLIPSIS
         <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
 
         Multi-indexed grouper
 
-        >>> groupers[["carrier", "bus"]] # doctest: +ELLIPSIS
+        >>> pypsa.statistics.groupers[["carrier", "bus"]] # doctest: +ELLIPSIS
         <function Groupers._multi_grouper.<locals>.multi_grouper at 0x...>
 
         """

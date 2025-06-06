@@ -29,6 +29,14 @@ class Buses(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.buses
+    'Bus' Components
+    ----------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 9
+
     """
 
     def add(

@@ -29,6 +29,14 @@ class Carriers(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.carriers
+    'Carrier' Components
+    --------------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 6
+
     """
 
     def add(

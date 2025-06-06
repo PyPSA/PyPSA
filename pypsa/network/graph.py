@@ -145,7 +145,6 @@ class NetworkGraphMixin:
 
         return graph
 
-    @deprecated_common_kwargs
     def adjacency_matrix(
         self,
         branch_components: Collection[str] | None = None,
@@ -175,6 +174,12 @@ class NetworkGraphMixin:
         -------
         adjacency_matrix : sp.sparse.coo_matrix
         Directed adjacency matrix
+
+        Examples
+        --------
+        >>> n.adjacency_matrix()  # doctest: +ELLIPSIS
+        <COOrdinate sparse matrix of dtype 'float64'
+            with ... stored elements and shape (..., ...)>
 
         """
         from pypsa.networks import Network, SubNetwork
@@ -220,7 +225,6 @@ class NetworkGraphMixin:
             (weight_vals, (bus0_inds, bus1_inds)), shape=(no_buses, no_buses)
         )
 
-    @deprecated_common_kwargs
     def incidence_matrix(
         self,
         branch_components: Collection[str] | None = None,
@@ -241,6 +245,12 @@ class NetworkGraphMixin:
         -------
         incidence_matrix : sp.sparse.csr_matrix
         Directed incidence matrix
+
+        Examples
+        --------
+        >>> n.incidence_matrix()
+        <Compressed Sparse Row sparse matrix of dtype 'float64'
+                with 22 stored elements and shape (9, 11)>
 
         """
         from pypsa import Network, SubNetwork

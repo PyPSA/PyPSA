@@ -97,6 +97,15 @@ def normed_or_uniform(x: pd.Series) -> pd.Series:
     pandas.Series
         The normalized series, or a uniform distribution if the input sum is zero.
 
+    Examples
+    --------
+    >>> x = pd.Series([1, 2, 3])
+    >>> normed_or_uniform(x)
+    0    0.166667
+    1    0.333333
+    2    0.500000
+    dtype: float64
+
     """
     if x.sum(skipna=False) > 0:
         return x / x.sum()
@@ -165,7 +174,27 @@ def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
 
 
 def flatten_multiindex(m: pd.MultiIndex, join: str = " ") -> pd.Index:
-    """Flatten a multiindex by joining the levels with the given string."""
+    """Flatten a multiindex by joining the levels with the given string.
+
+    Parameters
+    ----------
+    m : pd.MultiIndex
+        The multiindex to flatten.
+    join : str, optional
+        The string to join the levels with (default is " ").
+
+    Returns
+    -------
+    pd.Index
+        The flattened index.
+
+    Examples
+    --------
+    >>> m = pd.MultiIndex.from_tuples([("a", "b"), ("c", "d")])
+    >>> flatten_multiindex(m)
+    Index(['a b', 'c d'], dtype='object')
+
+    """
     return m if m.nlevels <= 1 else m.to_flat_index().str.join(join).str.strip()
 
 

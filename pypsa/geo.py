@@ -133,8 +133,12 @@ def compute_bbox(
     --------
     >>> x = np.array([1, 2, 3])
     >>> y = np.array([4, 5, 6])
-    >>> compute_bbox(x, y)
+    >>> compute_bbox(x, y)  # doctest: +ELLIPSIS
     ((np.int64(1), np.int64(4)), (np.int64(3), np.int64(6)))
+
+    >>> # With margin to expand the bounding box
+    >>> compute_bbox(x, y, margin=0.1)  # doctest: +ELLIPSIS
+    ((..., ...), (..., ...))
 
     """
     # set margins

@@ -29,6 +29,11 @@ class Stores(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.stores
+    Empty 'Store' Components
+
     """
 
     def add(

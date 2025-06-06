@@ -23,6 +23,7 @@ from pypsa.type_utils import is_1d_list_like
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
+    from pypsa.components.components import Components
     from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
@@ -497,3 +498,49 @@ class NetworkTransformMixin(_NetworkABC):
                     new._import_series_from_df(v, c.name, k)
 
         return None if inplace else new
+
+    def rename_component_names(
+        self, component: str | Components, **kwargs: str
+    ) -> None:
+        """Rename component names.
+
+        Rename components of component type and also update all cross-references of
+        the component in network.
+
+        Parameters
+        ----------
+        component : str or pypsa.Components
+            Component type or instance of pypsa.Components.
+        **kwargs
+            Mapping of old names to new names.
+
+
+        Examples
+        --------
+        Define some network
+
+        >>> n = pypsa.Network()
+        >>> n.add("Bus", ["bus1"])
+        Index(['bus1'], dtype='object')
+        >>> n.add("Generator", ["gen1"], bus="bus1")
+        Index(['gen1'], dtype='object')
+
+        Now rename the bus component
+
+        >>> n.rename_component_names("Bus", bus1="bus2")
+
+        Which updates the bus components
+
+        >>> n.buses.index
+        Index(['bus2'], dtype='object', name='Bus')
+
+        and all references in the network
+
+        >>> n.generators.bus
+        Generator
+        gen1    bus2
+        Name: bus, dtype: object
+
+        """
+        c = as_components(self, component)
+        c.rename_component_names(**kwargs)
