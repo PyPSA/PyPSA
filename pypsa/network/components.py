@@ -624,6 +624,18 @@ class NetworkComponentsMixin(_NetworkABC):
         }
 
     @property
+    def _index_names(self) -> list[str]:
+        """Compatibility property for NetworkCollection object.
+
+        Returns
+        -------
+        list of str
+            Empty list, since the Network class does not have any index names.
+
+        """
+        return []
+
+    @property
     @deprecated_in_next_major(
         details="Use `self.components.<component>.defaults` instead.",
     )

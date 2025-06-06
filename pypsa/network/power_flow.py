@@ -1560,7 +1560,7 @@ class SubNetworkPowerFlowMixin:
             n.dynamic(c.name).q1.loc[sns, s1t.columns] = s1t.values.imag
 
         s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
-        for i in np.arange(len(sns)):  # type: ignore
+        for i in range(len(sns)):
             s_calc[i] = V[i] * np.conj(self.Y * V[i])
         slack_index = int(buses_o.get_loc(self.slack_bus))
         if distribute_slack:

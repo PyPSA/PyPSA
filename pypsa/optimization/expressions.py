@@ -24,7 +24,7 @@ from pypsa.statistics.abstract import AbstractStatisticsAccessor
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
-    from pypsa import Network
+    from pypsa import Network, NetworkCollection
 logger = logging.getLogger(__name__)
 
 
@@ -51,7 +51,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def _get_grouping(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
         port: str | None = None,
@@ -96,7 +96,11 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
 
     def _aggregate_components_groupby(
-        self, vals: LinearExpression, grouping: pd.DataFrame, agg: Callable | str
+        self,
+        vals: LinearExpression,
+        grouping: pd.DataFrame,
+        agg: Callable | str,
+        c: str,
     ) -> pd.DataFrame:
         return vals.groupby(grouping).sum()
 

@@ -64,7 +64,8 @@ dev = [
     "scikit-learn",
     "pre-commit", 
     "ruff",
-    "mypy"
+    "mypy",
+    "jupyter>=1.1.1",
 ]
 docs = [
     "numpydoc==1.8.0",

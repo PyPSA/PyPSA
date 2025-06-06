@@ -29,6 +29,8 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
     to create geographic visualizations of network statistics.
     """
 
+    _n: "Network"
+
     def __init__(self, n: "Network") -> None:
         """Initialize the MapPlotter with a PyPSA network.
 
@@ -38,7 +40,6 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
             PyPSA network object
 
         """
-        # Initialize both parent classes
         PlotsGenerator.__init__(self, n)
         MapPlotter.__init__(self, n)
 

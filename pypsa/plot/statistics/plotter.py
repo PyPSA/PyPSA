@@ -7,7 +7,10 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
-from pypsa.plot.statistics.schema import apply_parameter_schema
+from pypsa.plot.statistics.schema import (
+    apply_parameter_schema,
+    get_relevant_plot_values,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -18,7 +21,7 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure, SubFigure
 
-    from pypsa import Network
+    from pypsa.networks import Network
 
 
 class StatisticPlotter:
@@ -75,7 +78,7 @@ class StatisticPlotter:
 
         Examples
         --------
-        >>> fig, ax, g = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
+        >>> fig, ax, g = n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function
@@ -250,17 +253,20 @@ class StatisticPlotter:
 
         plotter = ChartGenerator(self._n)
 
+        # Create context for schema application
+        context = {"index_names": self._n._index_names}
+
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
+        plot_kwargs = apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs, context
+        )
 
+        # Use helper for filtering
+        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
@@ -272,6 +278,11 @@ class StatisticPlotter:
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
+        if data.empty:
+            msg = (
+                f"The statistics function '{stats_name}' returned an empty DataFrame. "
+            )
+            raise ValueError(msg)
         return plotter.plot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
 
     def map(
@@ -466,7 +477,7 @@ class StatisticInteractivePlotter:
 
         Examples
         --------
-        >>> fig = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
+        >>> fig = n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function
@@ -628,17 +639,19 @@ class StatisticInteractivePlotter:
 
         plotter = ChartGenerator(self._n)
 
+        # Create context for schema application
+        context = {"index_names": self._n._index_names}
+
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
-
+        plot_kwargs = apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs, context
+        )
+        # Use helper for filtering
+        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
@@ -650,4 +663,9 @@ class StatisticInteractivePlotter:
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
+        if data.empty:
+            msg = (
+                f"The statistics function '{stats_name}' returned an empty DataFrame. "
+            )
+            raise ValueError(msg)
         return plotter.iplot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
