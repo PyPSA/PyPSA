@@ -25,6 +25,11 @@ class ShuntImpedances(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.shunt_impedances
+    Empty 'ShuntImpedance' Components
+
     """
 
     def add(

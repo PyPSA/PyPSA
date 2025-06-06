@@ -30,6 +30,14 @@ class Links(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.links
+    'Link' Components
+    -----------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 4
+
     """
 
     def add(
@@ -66,6 +74,14 @@ class Links(Components):
         Also see
         ---------
         pypsa.Components.ports
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3")  # doctest: +ELLIPSIS
+        Index...
+        >>> n.components.links.additional_ports
+        ['2']
 
         """
         return [

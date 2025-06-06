@@ -29,6 +29,14 @@ class Generators(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.generators
+    'Generator' Components
+    ----------------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 6
+
     """
 
     def add(

@@ -29,6 +29,18 @@ def as_components(n: NetworkType, value: str | Components) -> Components:
     Components
         Components class instance.
 
+    Examples
+    --------
+    >>> # Get generators component from string
+    >>> generators = pypsa.components.common.as_components(n, 'generators')
+    >>> generators.name
+    'Generator'
+
+    >>> # Also works with singular form
+    >>> gen = pypsa.components.common.as_components(n, 'Generator')
+    >>> gen.name
+    'Generator'
+
     """
     if isinstance(value, str):
         if value in COMPONENT_ALIAS_DICT:

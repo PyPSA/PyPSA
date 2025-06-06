@@ -18,14 +18,7 @@ class ClusteringAccessor:
 
     @deprecated_common_kwargs
     def __init__(self, n: "Network") -> None:
-        """Initialize the ClusteringAccessor.
-
-        Parameters
-        ----------
-        n : Network
-            Network instance.
-
-        """
+        """Initialize the ClusteringAccessor."""
         self.n = n
 
     @wraps(spatial.busmap_by_hac)

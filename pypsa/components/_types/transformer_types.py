@@ -29,6 +29,14 @@ class TransformerTypes(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.transformer_types
+    'TransformerType' Components
+    ----------------------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 14
+
     """
 
     def add(

@@ -1,10 +1,18 @@
 """Version information for PyPSA package.
 
-Use
-- __version__ for full version string (e.g. "0.17.1.dev4+ga3890dc0")
-- __version_semver__ for semantic version (e.g. "0.17.1")
-- __version_short__ for short version string (e.g. "0.17")
-and ..'_tuple'  for the corresponding tuples.
+Examples
+--------
+>>> pypsa.__version__ # doctest: +SKIP
+'0.34.0.post1.dev44+gf5e415b6'
+>>> pypsa.__version_semver__ # doctest: +SKIP
+'0.34.0'
+>>> pypsa.__version_short__ # doctest: +SKIP
+'0.34'
+>>> pypsa.__version_semver_tuple__ # doctest: +SKIP
+(0, 34, 0)
+>>> pypsa.__version_short_tuple__ # doctest: +SKIP
+(0, 34)
+
 """
 
 import logging

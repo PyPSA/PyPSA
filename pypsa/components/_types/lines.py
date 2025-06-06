@@ -31,6 +31,14 @@ class Lines(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.lines
+    'Line' Components
+    -----------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 7
+
     """
 
     def add(

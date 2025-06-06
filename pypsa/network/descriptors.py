@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from pypsa.common import as_index, deprecated_common_kwargs, deprecated_in_next_major
+from pypsa.common import as_index, deprecated_in_next_major
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -91,7 +91,6 @@ class NetworkDescriptorsMixin(_NetworkABC):
         """
         return self.components[c].get_active_assets(investment_period=investment_period)
 
-    @deprecated_common_kwargs
     def get_switchable_as_dense(
         self,
         component: str,
@@ -145,7 +144,6 @@ class NetworkDescriptorsMixin(_NetworkABC):
         res.columns.name = component
         return res
 
-    @deprecated_common_kwargs
     def get_switchable_as_iter(
         self,
         component: str,
@@ -246,11 +244,6 @@ class NetworkDescriptorsMixin(_NetworkABC):
         ValueError:
             If the specified bus carrier is not found in the network or if multiple
             units are found for the specified bus carrier.
-
-        Examples
-        --------
-        >>> n.bus_carrier_unit('AC')
-        ''
 
         """
         if bus_carrier is None:

@@ -21,7 +21,7 @@ from deprecation import deprecated
 from pyproj import CRS
 from typing_extensions import Self
 
-from pypsa.common import check_optional_dependency, deprecated_common_kwargs
+from pypsa.common import check_optional_dependency
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 
@@ -1257,7 +1257,8 @@ class NetworkIOMixin(_NetworkABC):
 
         Examples
         --------
-        >>> n.import_from_csv_folder(csv_folder_name) # doctest: +SKIP
+        >>> n = pypsa.Network()
+        >>> n.import_from_csv_folder"./my_network") # doctest: +SKIP
 
         """
         basename = Path(csv_folder_name).name
@@ -1304,7 +1305,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Examples
         --------
-        >>> n.export_to_csv_folder(csv_folder_name) # doctest: +SKIP
+        >>> n.export_to_csv_folder("my_network") # doctest: +SKIP
 
         See Also
         --------
@@ -1343,7 +1344,8 @@ class NetworkIOMixin(_NetworkABC):
 
         Examples
         --------
-        >>> n.import_from_excel(excel_file_path) # doctest: +SKIP
+        >>> n = pypsa.Network()
+        >>> n.import_from_excel("my_network.xlsx") # doctest: +SKIP
 
         """
         basename = Path(excel_file_path).stem
@@ -1385,7 +1387,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Examples
         --------
-        >>> n.export_to_excel(excel_file_path) # doctest: +SKIP
+        >>> n.export_to_excel("my_network.xlsx") # doctest: +SKIP
 
         See Also
         --------
@@ -1409,6 +1411,11 @@ class NetworkIOMixin(_NetworkABC):
             Name of HDF5 store. The string could be a URL.
         skip_time : bool, default False
             Skip reading in time dependent attributes
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.import_from_hdf5("my_network.h5") # doctest: +SKIP
 
         """
         basename = Path(path).name
@@ -1444,7 +1451,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Examples
         --------
-        >>> n.export_to_hdf5(filename) # doctest: +SKIP
+        >>> n.export_to_hdf5("my_network.h5") # doctest: +SKIP
 
         See Also
         --------
@@ -1478,12 +1485,16 @@ class NetworkIOMixin(_NetworkABC):
         skip_time : bool, default False
             Skip reading in time dependent attributes
 
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.import_from_netcdf("my_network.nc") # doctest: +SKIP
+
         """
         basename = "" if isinstance(path, xr.Dataset) else Path(path).name
         with ImporterNetCDF(path=path) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
-    @deprecated_common_kwargs
     def export_to_netcdf(
         self,
         path: str | None = None,
@@ -1527,6 +1538,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Examples
         --------
+        >>> n = pypsa.Network()
         >>> n.export_to_netcdf("my_file.nc") # doctest: +SKIP
 
         See Also
@@ -1810,7 +1822,6 @@ class NetworkIOMixin(_NetworkABC):
             self.snapshots, df.columns
         ]
 
-    @deprecated_common_kwargs
     def import_from_pypower_ppc(
         self, ppc: dict, overwrite_zero_s_nom: float | None = None
     ) -> None:
@@ -2062,7 +2073,6 @@ class NetworkIOMixin(_NetworkABC):
             self.generators["v_set_pu"]
         )
 
-    @deprecated_common_kwargs
     def import_from_pandapower_net(
         self,
         net: pandapowerNet,

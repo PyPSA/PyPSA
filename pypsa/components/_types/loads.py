@@ -25,6 +25,14 @@ class Loads(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.loads
+    'Load' Components
+    -----------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 6
+
     """
 
     def add(

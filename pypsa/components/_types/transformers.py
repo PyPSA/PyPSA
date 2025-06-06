@@ -29,6 +29,11 @@ class Transformers(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.transformers
+    Empty 'Transformer' Components
+
     """
 
     def add(

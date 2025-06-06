@@ -29,6 +29,14 @@ class GlobalConstraints(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.global_constraints
+    'GlobalConstraint' Components
+    -----------------------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 1
+
     """
 
     def add(
