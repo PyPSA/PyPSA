@@ -40,6 +40,9 @@ Upcoming Release
 * The components subpackage was further restructured. The known API remains untouched.
   (https://github.com/PyPSA/PyPSA/pull/1223)
 
+* Bugfix: The function ``n.statistics.opex()`` now considers the correct
+  snapshot weightings ``n.snapshot_weightings.objective``. 
+
 Bug Fixes
 --------
 
