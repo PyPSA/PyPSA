@@ -1343,7 +1343,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         # @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             result = []
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.objective
             weights_one = pd.Series(1.0, index=weights.index)
             com_i = n.get_committable_i(c)
 
