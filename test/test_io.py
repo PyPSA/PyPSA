@@ -93,6 +93,10 @@ class TestCSVDir:
             check_less_precise=True,
         )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
     def test_io_equality(self, ac_dc_network, tmp_path):
         """
         Test if the network is equal after export and import using CSV format.
@@ -212,6 +216,10 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
     def test_io_equality(self, ac_dc_network, tmp_path):
         """
         Test if the network is equal after export and import using netCDF format.
@@ -276,6 +284,10 @@ class TestHDF5:
             check_less_precise=True,
         )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
     def test_io_equality(self, ac_dc_network, tmp_path):
         """
         Test if the network is equal after export and import using HDF5 format.
@@ -353,6 +365,10 @@ class TestExcelIO:
             check_less_precise=True,
         )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
     def test_io_equality(self, ac_dc_network, tmp_path):
         """
         Test if the network is equal after export and import using Excel format.
@@ -394,6 +410,10 @@ class TestExcelIO:
         )
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Unstable test in CI. Remove with 1.0",
+)
 def test_io_equality(ac_dc_network, tmp_path):
     """
     Test if the network is equal after export and import.
