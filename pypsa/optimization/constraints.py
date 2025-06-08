@@ -81,13 +81,13 @@ def define_operational_constraints_for_non_extendables(
     if fix_i.empty:
         return
 
-    nominal_fix = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
+    nominal_fix = c.da[c.operational_attrs["nom"]].sel(component=fix_i)
     min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr)
 
     lower = min_pu * nominal_fix
     upper = max_pu * nominal_fix
 
-    active = c.as_xarray("active", sns, fix_i)
+    active = c.da.active.sel(component=fix_i, snapshot=sns)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(component=fix_i)
 
@@ -148,7 +148,7 @@ def define_operational_constraints_for_extendables(
     min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr)
     dispatch = n.model[f"{c.name}-{attr}"].sel(component=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
-    active = c.as_xarray("active", sns, ext_i)
+    active = c.da.active.sel(component=ext_i, snapshot=sns)
 
     lhs_lower = dispatch - min_pu * capacity
     lhs_upper = dispatch - max_pu * capacity
@@ -225,18 +225,18 @@ def define_operational_constraints_for_committables(
     active = c.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = c.as_xarray(c.operational_attrs["nom"], inds=com_i)
+    nominal = c.da[c.operational_attrs["nom"]].sel(component=com_i)
     min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p")
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
-    min_up_time_set = c.as_xarray("min_up_time", inds=com_i)
-    min_down_time_set = c.as_xarray("min_down_time", inds=com_i)
-    ramp_up_limit = nominal * c.as_xarray("ramp_limit_up", inds=com_i).fillna(1)
-    ramp_down_limit = nominal * c.as_xarray("ramp_limit_down", inds=com_i).fillna(1)
-    ramp_start_up = nominal * c.as_xarray("ramp_limit_start_up", inds=com_i)
-    ramp_shut_down = nominal * c.as_xarray("ramp_limit_shut_down", inds=com_i)
-    up_time_before_set = c.as_xarray("up_time_before", inds=com_i)
-    down_time_before_set = c.as_xarray("down_time_before", inds=com_i)
+    min_up_time_set = c.da.min_up_time.sel(component=com_i)
+    min_down_time_set = c.da.min_down_time.sel(component=com_i)
+    ramp_up_limit = nominal * c.da.ramp_limit_up.sel(component=com_i).fillna(1)
+    ramp_down_limit = nominal * c.da.ramp_limit_down.sel(component=com_i).fillna(1)
+    ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(component=com_i)
+    ramp_shut_down = nominal * c.da.ramp_limit_shut_down.sel(component=com_i)
+    up_time_before_set = c.da.up_time_before.sel(component=com_i)
+    down_time_before_set = c.da.down_time_before.sel(component=com_i)
     initially_up = up_time_before_set.astype(bool)
     initially_down = down_time_before_set.astype(bool)
 
