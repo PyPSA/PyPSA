@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -13,6 +14,8 @@ from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    import xarray as xr
 
 
 @patch_add_docstring
@@ -40,6 +43,39 @@ class Lines(Components):
     Components: 7
 
     """
+
+    base_attr = "s"
+    nominal_attr = "s_nom"
+
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Get per unit bounds for lines.
+
+        For passive branch components, min_pu is the negative of max_pu.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "s"
+
+        Returns
+        -------
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
+
+        """
+        max_pu = self.as_xarray("s_max_pu", sns, inds=index)
+        min_pu = -max_pu  # Lines specific: min_pu is the negative of max_pu
+
+        return min_pu, max_pu
 
     def add(
         self,

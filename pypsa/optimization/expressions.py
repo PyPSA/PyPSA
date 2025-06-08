@@ -70,10 +70,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             grouper = by
 
         grouper.insert(0, "component", c)  # for tracking the component
-        return grouper.rename_axis(c)
+        return grouper
 
     def _get_component_index(self, obj: LinearExpression, c: str) -> pd.Index:
-        return obj.indexes[c]
+        return obj.indexes["component"]
 
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
         return ln.merge(list(exprs.values()), dim=c)
@@ -188,11 +188,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
                 query = f"~{nominal_attrs[c]}_extendable"
                 capacity = capacity + n.df(c).query(query)["p_nom"]
-            costs = n.df(c)[cost_attribute][capacity.indexes[c]]
+            costs = n.df(c)[cost_attribute][capacity.indexes["component"]]
             return capacity * costs
 
         return self._aggregate_components(
@@ -241,11 +240,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             m = n.model
             attr = nominal_attrs[c]
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
                 query = f"~{attr}_extendable"
                 capacity = capacity + n.df(c).query(query)[attr]
-            efficiency = port_efficiency(n, c, port=port)[capacity.indexes[c]]
+            efficiency = port_efficiency(n, c, port=port)[capacity.indexes["component"]]
             if not at_port:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
@@ -561,7 +559,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             attr = nominal_attrs[c]
             capacity = (
-                n.model.variables[f"{c}-{attr}"].rename({f"{c}-ext": c})
+                n.model.variables[f"{c}-{attr}"]
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
             idx = capacity.indexes[c]

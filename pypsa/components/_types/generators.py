@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
+
+import pandas as pd
 
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
@@ -11,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pandas as pd
+    import xarray as xr
 
 
 @patch_add_docstring
@@ -38,6 +42,37 @@ class Generators(Components):
     Components: 6
 
     """
+
+    base_attr = "p"
+    nominal_attr = "p_nom"
+
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Get per unit bounds for generators.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "p"
+
+        Returns
+        -------
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
+
+        """
+        min_pu = self.as_xarray("p_min_pu", sns, inds=index)
+        max_pu = self.as_xarray("p_max_pu", sns, inds=index)
+
+        return min_pu, max_pu
 
     def add(
         self,

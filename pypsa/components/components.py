@@ -21,13 +21,16 @@ from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
 import pandas as pd
+import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
+from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PATTERN_PORTS
+from pypsa.definitions.components import ComponentType
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -88,6 +91,7 @@ class Components(
     ComponentsDescriptorsMixin,
     ComponentsTransformMixin,
     ComponentsIndexMixin,
+    ComponentsArrayMixin,
 ):
     """Components base class.
 
@@ -135,7 +139,8 @@ class Components(
             )
             raise NotImplementedError(msg)
         static, dynamic = self._get_data_containers(ctype)
-        super().__init__(ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
         """Get string representation of component.
@@ -308,7 +313,7 @@ class Components(
                 {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
             )
-        static.index.name = ct.name
+        static.index.name = "component"
 
         # # it's currently hard to imagine non-float series,
         # but this could be generalised
@@ -319,7 +324,7 @@ class Components(
         for k in ct.defaults.index[ct.defaults.varying]:
             df = pd.DataFrame(index=snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
-            df.columns.name = ct.name
+            df.columns.name = "component"
             dynamic[k] = df
 
         return static, dynamic
@@ -588,6 +593,17 @@ class Components(
         return self.dynamic
 
     @property
+    def ds(self) -> xarray.Dataset:
+        """Create a xarray data array view of the component."""
+        static_attrs = self.static.columns
+        dynamic_attrs = [
+            attr for attr in self.dynamic.keys() if not self.dynamic[attr].empty
+        ]
+        attrs = {*static_attrs, *dynamic_attrs}
+        data = {attr: self.as_xarray(attr) for attr in attrs}
+        return xarray.Dataset(data)
+
+    @property
     def units(self) -> pd.Series:
         """Get units of all attributes of components.
 
@@ -637,6 +653,100 @@ class Components(
             for col in self.static
             if (match := PATTERN_PORTS.search(col))
         ]
+
+    @property
+    def extendables(self) -> pd.Index:
+        """Get the index of extendable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of extendable elements.
+
+        """
+        index_name = self.name
+        extendable_col = self.operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[self.static[extendable_col]].index
+        return idx
+
+    @property
+    def fixed(self) -> pd.Index:
+        """Get the index of non-extendable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of non-extendable elements.
+
+        """
+        index_name = self.name
+        extendable_col = self.operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[~self.static[extendable_col]].index
+        return idx
+
+    @property
+    def committables(self) -> pd.Index:
+        """Get the index of committable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Index of committable elements.
+
+        """
+        index_name = self.name
+        if "committable" not in self.static:
+            return pd.Index([], name=index_name)
+
+        idx = self.static.loc[self.static["committable"]].index
+        return idx
+
+    @property
+    def operational_attrs(self) -> dict[str, str]:
+        """Get operational attributes of component for optimization.
+
+        Provides a dictionary of attribute patterns used in optimization constraints,
+        based on the component type. This makes constraint formulation more modular
+        by avoiding hardcoded attribute names.
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of operational attribute names
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> c = pypsa.examples.ac_dc_meshed().components.generators
+        >>> c.operational_attrs["min_pu"]
+        'p_min_pu'
+        >>> c.operational_attrs["max_pu"]
+        'p_max_pu'
+        >>> c.operational_attrs["nom"]
+        'p_nom'
+
+        """
+        # TODO: refactor component attrs store
+
+        base = self.base_attr
+
+        return {
+            "base": base,
+            "nom": f"{base}_nom",
+            "nom_extendable": f"{base}_nom_extendable",
+            "nom_min": f"{base}_nom_min",
+            "nom_max": f"{base}_nom_max",
+            "nom_set": f"{base}_nom_set",
+            "min_pu": f"{base}_min_pu",
+            "max_pu": f"{base}_max_pu",
+            "set": f"{base}_set",
+        }
 
 
 class SubNetworkComponents:

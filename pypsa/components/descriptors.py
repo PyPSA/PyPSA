@@ -36,7 +36,7 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     >>> import pytest
     >>> with pytest.warns(DeprecationWarning):
     ...     get_active_assets(c)
-    Generator
+    component
     Manchester Wind    True
     Manchester Gas     True
     Norway Wind        True
@@ -181,17 +181,13 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     ) -> pd.DataFrame:
         """Get active components mask indexed by snapshots.
 
-        Wrapper around the
-        `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
-        Get's the boolean mask for active components, but indexed by snapshots and
+        Gets the boolean mask for active components, indexed by snapshots and
         components instead of just components.
 
         Parameters
         ----------
-        n : pypsa.Network
-            Network instance
-        c : string
-            Component name
+        c : pypsa.Components
+            Components instance.
         sns : pandas.Index, default None
             Set of snapshots for the mask. If None (default) all snapshots are returned.
         index : pd.Index, default None
@@ -221,9 +217,9 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         """
         sns_ = as_index(self.n_save, sns, "snapshots")
 
-        if getattr(self.n_save, "_multi_invest", False):
+        if self.has_investment_periods:
             active_assets_per_period = {
-                period: self.get_active_assets(period)
+                period: self.get_active_assets(investment_period=period)
                 for period in self.investment_periods
             }
             mask = (
@@ -242,55 +238,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         if index is not None:
             mask = mask.reindex(columns=index)
 
+        mask.index.name = "snapshot"
+        if isinstance(mask.index, pd.MultiIndex):
+            mask.index.names = ["period", "timestep"]
+
         return mask
-
-    @property
-    def extendables(self) -> pd.Index:
-        """Get the index of extendable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of extendable components.
-
-        """
-        extendable_col = self._operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static[extendable_col]].index
-
-        return idx.rename(f"{self.name}-ext")
-
-    @property
-    def fixed(self) -> pd.Index:
-        """Get the index of non-extendable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of non-extendable components.
-
-        """
-        extendable_col = self._operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[~self.static[extendable_col]].index
-        return idx.rename(f"{self.name}-fix")
-
-    @property
-    def committables(self) -> pd.Index:
-        """Get the index of committable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of committable components.
-
-        """
-        if "committable" not in self.static:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static["committable"]].index
-        return idx.rename(f"{self.name}-com")
