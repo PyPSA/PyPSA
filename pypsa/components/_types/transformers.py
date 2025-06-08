@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
     import pandas as pd
     import xarray as xr
-    from xarray import DataArray
 
 
 @patch_add_docstring
@@ -44,31 +43,12 @@ class Transformers(Components):
     base_attr = "s"
     nominal_attr = "s_nom"
 
-    @overload
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
         attr: str | None = None,
-        as_xarray: Literal[True] = True,
-    ) -> tuple[xr.DataArray, xr.DataArray]: ...
-
-    @overload
-    def get_bounds_pu(
-        self,
-        sns: Sequence,
-        index: pd.Index | None = None,
-        attr: str | None = None,
-        as_xarray: Literal[False] = False,
-    ) -> tuple[pd.DataFrame, pd.DataFrame]: ...
-
-    def get_bounds_pu(
-        self,
-        sns: Sequence,
-        index: pd.Index | None = None,
-        attr: str | None = None,
-        as_xarray: bool = False,
-    ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for transformers.
 
         For passive branch components, min_pu is the negative of max_pu.
@@ -81,8 +61,6 @@ class Transformers(Components):
             Subset of the component elements
         attr : string, optional
             Attribute name for the bounds, e.g. "s"
-        as_xarray : bool, default False
-            If True, return xarray DataArrays instead of pandas DataFrames
 
         Returns
         -------
@@ -92,10 +70,6 @@ class Transformers(Components):
         """
         max_pu = self.as_xarray("s_max_pu", sns, inds=index)
         min_pu = -max_pu  # Transformers specific: min_pu is the negative of max_pu
-
-        if not as_xarray:
-            min_pu = min_pu.to_dataframe()
-            max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu
 

@@ -82,7 +82,7 @@ def define_operational_constraints_for_non_extendables(
         return
 
     nominal_fix = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
-    min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr, as_xarray=True)
+    min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr)
 
     lower = min_pu * nominal_fix
     upper = max_pu * nominal_fix
@@ -145,7 +145,7 @@ def define_operational_constraints_for_extendables(
     if ext_i.empty:
         return
 
-    min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr, as_xarray=True)
+    min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr)
     dispatch = n.model[f"{c.name}-{attr}"].sel(component=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
     active = c.as_xarray("active", sns, ext_i)
@@ -226,7 +226,7 @@ def define_operational_constraints_for_committables(
 
     # parameters
     nominal = c.as_xarray(c.operational_attrs["nom"], inds=com_i)
-    min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p", as_xarray=True)
+    min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p")
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
     min_up_time_set = c.as_xarray("min_up_time", inds=com_i)
