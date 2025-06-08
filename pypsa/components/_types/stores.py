@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import pandas as pd
-import xarray as xr
-from xarray import DataArray
 
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
+    import pandas as pd
+    import xarray as xr
+    from xarray import DataArray
+
+
+@patch_add_docstring
 class Stores(Components):
-    """
-    Stores components class.
+    """Stores components class.
 
     This class is used for store components. All functionality specific to
     stores is implemented here. Functionality for all components is implemented in
@@ -26,7 +32,12 @@ class Stores(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
+    [pypsa.Components][] : Base class for all components.
+
+    Examples
+    --------
+    >>> n.components.stores
+    Empty 'Store' Components
 
     """
 
@@ -58,8 +69,7 @@ class Stores(Components):
         attr: str | None = None,
         as_xarray: bool = False,
     ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
-        """
-        Get per unit bounds for stores.
+        """Get per unit bounds for stores.
 
         Parameters
         ----------
@@ -86,3 +96,18 @@ class Stores(Components):
             max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrap Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )

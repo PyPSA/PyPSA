@@ -3,26 +3,26 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
-
-if TYPE_CHECKING:
-    from pypsa import Network
-import warnings
 
 import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
+from pypsa.constants import PATTERN_PORTS
 from pypsa.statistics.grouping import deprecated_groupers, groupers
+
+if TYPE_CHECKING:
+    from pypsa import Network, NetworkCollection
 
 logger = logging.getLogger(__name__)
 
 
 class Parameters:
-    """
-    Container for all the parameters.
+    """Container for all the parameters.
 
     Attributes
     ----------
@@ -109,14 +109,14 @@ class Parameters:
 class AbstractStatisticsAccessor(ABC):
     """Abstract accessor to calculate different statistical values."""
 
-    def __init__(self, n: Network) -> None:
+    def __init__(self, n: Network | NetworkCollection) -> None:
         """Initialize the statistics accessor."""
         self._n = n
         self.groupers = deprecated_groupers
         self.parameters = Parameters()
 
     @property
-    def n(self) -> Network:
+    def n(self) -> Network | NetworkCollection:
         """Get the network instance."""
         warnings.warn(
             "Accessing the network instance via `n` is deprecated. Use the network instance directly.",
@@ -126,8 +126,7 @@ class AbstractStatisticsAccessor(ABC):
         return self._n
 
     def set_parameters(self, **kwargs: Any) -> None:
-        """
-        Setting the parameters for the statistics accessor.
+        """Set the parameters for the statistics accessor.
 
         To see the list of parameters, one can simply call `n.statistics.parameters`.
         """
@@ -135,7 +134,7 @@ class AbstractStatisticsAccessor(ABC):
 
     def _get_grouping(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
         port: str | None = None,
@@ -153,12 +152,11 @@ class AbstractStatisticsAccessor(ABC):
         elif groupby is not False:
             msg = f"Argument `groupby` must be a function, list, string, False or dict, got {repr(groupby)}."
             raise ValueError(msg)
-        return dict(by=by, level=level)
+        return {"by": by, "level": level}
 
     @property
     def is_multi_indexed(self) -> bool:
-        """
-        Check if the snapshots are multi-indexed.
+        """Check if the snapshots are multi-indexed.
 
         Returns
         -------
@@ -240,7 +238,7 @@ class AbstractStatisticsAccessor(ABC):
         if is_one_component := isinstance(comps, str):
             comps = [comps]
         if comps is None:
-            comps = n.branch_components | n.one_port_components
+            comps = sorted(n.branch_components | n.one_port_components)
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
@@ -248,7 +246,11 @@ class AbstractStatisticsAccessor(ABC):
             if n.static(c).empty:
                 continue
 
-            ports = [str(col)[3:] for col in n.static(c) if str(col).startswith("bus")]
+            ports = [
+                match.group(1)
+                for col in n.static(c)
+                if (match := PATTERN_PORTS.search(str(col)))
+            ]
             if not at_port:
                 ports = [ports[0]]
 
@@ -279,11 +281,10 @@ class AbstractStatisticsAccessor(ABC):
                     grouping = self._get_grouping(
                         n, c, groupby, port=port, nice_names=nice_names
                     )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg)
-                else:
-                    # Avoid having 'component' as index name in multiindex
-                    if isinstance(vals, pd.DataFrame | pd.Series):
-                        vals = vals.rename_axis(c, axis=0)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg, c)
+                # Avoid having 'component' as index name in multiindex
+                elif isinstance(vals, pd.DataFrame | pd.Series):
+                    vals = vals.rename_axis(c, axis=0)
                 values.append(vals)
 
             if not values:
@@ -293,12 +294,13 @@ class AbstractStatisticsAccessor(ABC):
 
             d[c] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
-        df = self._apply_option_kwargs(
-            df,
-            drop_zero=drop_zero,
-            round=round,
-            nice_names=nice_names,  # TODO: nice_names does not have effect here
-        )
+        if not df.empty:
+            df = self._apply_option_kwargs(
+                df,
+                drop_zero=drop_zero,
+                round=round,
+                nice_names=nice_names,  # TODO: nice_names does not have effect here
+            )
 
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)
@@ -308,7 +310,9 @@ class AbstractStatisticsAccessor(ABC):
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return False
 
-    def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
+    def _filter_active_assets(
+        self, n: Network | NetworkCollection, c: str, obj: Any
+    ) -> Any:
         """For static values iterate over periods and concat values."""
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
@@ -326,7 +330,7 @@ class AbstractStatisticsAccessor(ABC):
 
     def _filter_bus_carrier(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         port: str,
         bus_carrier: str | Sequence[str] | None,
@@ -347,16 +351,15 @@ class AbstractStatisticsAccessor(ABC):
         elif isinstance(bus_carrier, list):
             mask = port_carriers.isin(bus_carrier)
         else:
-            raise ValueError(
-                f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
-            )
+            msg = f"Argument `bus_carrier` must be a string or list, got {type(bus_carrier)}"
+            raise TypeError(msg)
         # links may have empty ports which results in NaNs
         mask = mask.where(mask.notnull(), False)
         return obj.loc[ports.index[mask]]
 
     def _filter_carrier(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         carrier: str | Sequence[str] | None,
         obj: Any,
@@ -376,8 +379,7 @@ class AbstractStatisticsAccessor(ABC):
         elif isinstance(carrier, Sequence):
             mask = carriers.isin(carrier)
         else:
-            raise ValueError(
-                f"Argument `carrier` must be a string or list, got {type(carrier)}"
-            )
+            msg = f"Argument `carrier` must be a string or list, got {type(carrier)}"
+            raise TypeError(msg)
 
         return obj.loc[carriers.index[mask]]

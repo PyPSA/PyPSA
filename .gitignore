@@ -53,6 +53,7 @@ website/examples/*.py
 
 .vscode
 .devcontainer
+.github/copilot-instructions.md
 
 .idea
 
@@ -62,5 +63,8 @@ dev-scripts
 dev
 
 .venv
-.aider*
 uv.lock
+.aider*
+CLAUDE.md
+.claude/
+.github/copilot-instructions.md

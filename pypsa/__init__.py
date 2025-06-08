@@ -1,5 +1,4 @@
-"""
-Python for Power Systems Analysis (PyPSA)
+"""Python for Power Systems Analysis (PyPSA).
 
 Energy system modelling library.
 """
@@ -32,9 +31,18 @@ from pypsa._options import (
     option_context,
     options,
 )
+from pypsa.collection import NetworkCollection
 from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
-from pypsa.version import __version__, __version_semver__, __version_short__
+from pypsa.version import (
+    __version__,
+    __version_semver__,
+    __version_semver_tuple__,
+    __version_short__,
+    __version_short_tuple__,
+)
+
+version = __version__  # Alias for legacy access
 
 
 def __getattr__(name: str) -> Any:
@@ -57,6 +65,9 @@ __all__ = [
     "__version__",
     "__version_semver__",
     "__version_short__",
+    "__version_semver_tuple__",
+    "__version_short_tuple__",
+    "version",
     "options",
     "set_option",
     "get_option",
@@ -75,6 +86,7 @@ __all__ = [
     "plot",
     "statistics",
     "Network",
+    "NetworkCollection",
     "SubNetwork",
     "Components",
 ]

@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import pandas as pd
-import xarray as xr
-from xarray import DataArray
 
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
+    import pandas as pd
+    import xarray as xr
+    from xarray import DataArray
+
+
+@patch_add_docstring
 class Generators(Components):
-    """
-    Generators components class.
+    """Generators components class.
 
     This class is used for generator components. All functionality specific to
     generators is implemented here. Functionality for all components is implemented in
@@ -26,7 +32,15 @@ class Generators(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
+    [pypsa.Components][] : Base class for all components.
+
+    Examples
+    --------
+    >>> n.components.generators
+    'Generator' Components
+    ----------------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 6
 
     """
 
@@ -58,8 +72,7 @@ class Generators(Components):
         attr: str | None = None,
         as_xarray: bool = False,
     ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
-        """
-        Get per unit bounds for generators.
+        """Get per unit bounds for generators.
 
         Parameters
         ----------
@@ -86,3 +99,18 @@ class Generators(Components):
             max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrap Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )

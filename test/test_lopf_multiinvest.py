@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Created on Fri Jul  2 10:21:16 2021.
 
@@ -13,7 +12,7 @@ from pandas import IndexSlice as idx
 import pypsa
 from pypsa.descriptors import get_activity_mask
 
-kwargs = dict(multi_investment_periods=True)
+kwargs = {"multi_investment_periods": True}
 
 
 @pytest.fixture

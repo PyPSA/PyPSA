@@ -1,9 +1,7 @@
-"""
-Abstract components module.
+"""Abstract components module.
 
-Contains classes and properties relevant to all component types in PyPSA. Also imports
-logic from other modules:
-- components.types
+Only defines a base class for all Components helper classes which inherit to
+`Components` class.
 """
 
 from __future__ import annotations
@@ -16,17 +14,14 @@ if TYPE_CHECKING:
 
     from pypsa import Network
     from pypsa.components.types import ComponentType
-# logger = logging.getLogger(__name__)
-
-# if TYPE_CHECKING:
-#     from pypsa import Network
+    from pypsa.definitions.structures import Dict
 
 
 class _ComponentsABC(ABC):
     ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
-    dynamic: dict
+    dynamic: Dict
 
     @property
     @abstractmethod
@@ -100,8 +95,7 @@ class _ComponentsABC(ABC):
         *args: Any,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """
-        Get per unit bounds for components.
+        """Get per unit bounds for components.
 
         Parameters
         ----------

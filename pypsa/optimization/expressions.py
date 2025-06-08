@@ -1,11 +1,8 @@
-"""
-Statistics Expression Accessor.
-"""
+"""Statistics Expression Accessor."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any
 
 import linopy as ln
@@ -25,7 +22,9 @@ from pypsa.statistics import (
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from collections.abc import Callable, Collection, Sequence
+
+    from pypsa import Network, NetworkCollection
 logger = logging.getLogger(__name__)
 
 
@@ -33,20 +32,17 @@ USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
 
 
 def check_if_empty(expr: LinearExpression) -> bool:
-    """
-    Check if the expression is empty.
+    """Check if the expression is empty.
     This is a workaround for the issue that linopy does not support
     the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
     """
     if USE_EMPTY_PROPERTY:
         return expr.empty
-    else:
-        return expr.empty()
+    return expr.empty()
 
 
 class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
-    """
-    Accessor to calculate different statistical expressions.
+    """Accessor to calculate different statistical expressions.
 
     This class is used to calculate different statistical expressions like
     capital expenditure, capacity, energy balance, etc.
@@ -55,7 +51,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def _get_grouping(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
         port: str | None = None,
@@ -88,21 +84,23 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         weights: pd.Series,
         agg: str | Callable,
     ) -> LinearExpression:
-        """
-        Apply weights to a time series.
-        """
+        """Apply weights to a time series."""
         if agg == "sum":
             if isinstance(weights.index, pd.MultiIndex):
                 return expr.multiply(weights, axis=0).groupby(level=0).sum().T
             return expr @ weights
-        else:
-            raise ValueError(f"Aggregation method {agg} not supported.")
+        msg = f"Aggregation method {agg} not supported."
+        raise ValueError(msg)
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return vals is None or (not np.prod(vals.shape) and (vals.const == 0).all())
 
     def _aggregate_components_groupby(
-        self, vals: LinearExpression, grouping: pd.DataFrame, agg: Callable | str
+        self,
+        vals: LinearExpression,
+        grouping: pd.DataFrame,
+        agg: Callable | str,
+        c: str,
     ) -> pd.DataFrame:
         return vals.groupby(grouping).sum()
 
@@ -112,7 +110,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         res = ln.merge(exprs)
         if not (index := res.indexes[res.dims[0]]).is_unique:
             if agg != "sum":
-                raise ValueError(f"Aggregation method {agg} not supported.")
+                msg = f"Aggregation method {agg} not supported."
+                raise ValueError(msg)
             non_unique_groups = pd.DataFrame(list(index), columns=index.names)
             res = res.groupby(non_unique_groups).sum()
         return res
@@ -142,7 +141,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         self, expr: LinearExpression, agg: Callable | str
     ) -> LinearExpression:
         if agg != "sum":
-            raise ValueError(f"Aggregation method {agg} not supported.")
+            msg = f"Aggregation method {agg} not supported."
+            raise ValueError(msg)
         if check_if_empty(expr):
             return expr
         group = expr.indexes["group"].to_frame().drop(columns="component").squeeze()
@@ -158,7 +158,6 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             return LinearExpression(self._n.get_switchable_as_dense(c, "p_set"), m)
         attr = lookup.query("not nominal and not handle_separately").loc[c].index
         if c == "StorageUnit":
-            assert set(["p_store", "p_dispatch"]) <= set(attr)
             return m.variables[f"{c}-p_dispatch"] - m.variables[f"{c}-p_store"]
         attr = attr.item()
         return m.variables[f"{c}-{attr}"]
@@ -176,8 +175,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         cost_attribute: str = "capital_cost",
         include_non_extendable: bool = True,
     ) -> LinearExpression:
-        """
-        Calculate the capital expenditure of the network in given currency.
+        """Calculate the capital expenditure of the network in given currency.
 
         If `bus_carrier` is given, only components which are connected to buses
         with carrier `bus_carrier` are considered.
@@ -221,8 +219,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         include_non_extendable: bool = True,
     ) -> LinearExpression:
-        """
-        Calculate the optimal capacity of the network components in MW.
+        """Calculate the optimal capacity of the network components in MW.
 
         If `bus_carrier` is given, the capacity is weighed by the output efficiency
         of components at buses with carrier `bus_carrier`.
@@ -278,8 +275,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the operational expenditure in the network in given currency.
+        """Calculate the operational expenditure in the network in given currency.
 
         If `bus_carrier` is given, only components which are connected to buses
         with carrier `bus_carrier` are considered.
@@ -293,6 +289,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated
             using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
+
         """
         from pypsa.optimization.optimize import lookup
 
@@ -302,8 +299,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if attr is None:
                 return None
             var = n.model.variables[f"{c}-{attr}"]
-            opex = var * n.get_switchable_as_dense(c, "marginal_cost")
-            weights = get_weightings(n, c)
+            sns = var.indexes["snapshot"]
+            opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -330,8 +328,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the transmission of branch components in the network. Units
+        """Calculate the transmission of branch components in the network. Units
         depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the flow between buses with
@@ -346,6 +343,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+
         """
         if comps is None:
             comps = self._n.branch_components
@@ -355,10 +353,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            sns = var.indexes["snapshot"]
             idx = transmission_branches.get_loc_level(c)[1].rename(c)
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(efficiency, pd.DataFrame):
+                efficiency = efficiency.loc[sns]
             p = var.loc[:, idx] * efficiency[idx]
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -379,15 +380,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the energy balance of components in the network. Positive
+        """Calculate the energy balance of components in the network. Positive
         values represent a supply and negative a withdrawal. Units depend on
         the regarded bus carrier.
 
@@ -403,6 +403,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         if (
             self._n.buses.carrier.unique().size > 1
             and groupby is None
@@ -416,10 +418,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             var = self._get_operational_variable(c)
+            sns = var.indexes["snapshot"]
             # negative branch contributions are considered by the efficiency
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
+            if isinstance(efficiency, pd.DataFrame):
+                efficiency = efficiency.loc[sns]
             sign = n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             coeffs = DataArray(efficiency * sign)
             if kind == "supply":
                 coeffs = coeffs.clip(min=0)
@@ -429,9 +434,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 )
                 coeffs = -coeffs.clip(max=0)
             elif kind is not None:
-                raise ValueError(
-                    f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
-                )
+                msg = f"Got unexpected argument kind={kind}. Must be 'supply', 'withdrawal' or None."
+                raise ValueError(msg)
             p = var.where(coeffs != 0) * coeffs
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -453,14 +457,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the supply of components in the network. Units depend on the
+        """Calculate the supply of components in the network. Units depend on the
         regarded bus carrier.
 
         If `bus_carrier` is given, only the supply to buses with carrier
@@ -469,6 +472,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -488,14 +493,13 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         aggregate_time: str | bool = "sum",
         aggregate_groups: str = "sum",
         aggregate_across_components: bool = False,
-        groupby: str | Sequence[str] | Callable = ["carrier", "bus_carrier"],
+        groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
         bus_carrier: str | Sequence[str] | None = None,
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the withdrawal of components in the network. Units depend on
+        """Calculate the withdrawal of components in the network. Units depend on
         the regarded bus carrier.
 
         If `bus_carrier` is given, only the withdrawal from buses with
@@ -504,6 +508,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         For information on the list of arguments, see the docs in
         `Network.statistics` or `pypsa.statitics.StatisticsAccessor`.
         """
+        if groupby is None:
+            groupby = ["carrier", "bus_carrier"]
         return self.energy_balance(
             comps=comps,
             aggregate_time=aggregate_time,
@@ -529,8 +535,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the curtailment of components in the network in MWh.
+        """Calculate the curtailment of components in the network in MWh.
 
         The calculation only considers assets with a `p_max_pu` time
         series, which is used to quantify the available power potential.
@@ -547,6 +552,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to MWh
             using snapshot weightings. With False the time series is given in MW. Defaults to 'sum'.
+
         """
 
         @pass_none_if_keyerror
@@ -556,13 +562,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 n.model.variables[f"{c}-{attr}"]
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
-            idx = capacity.indexes["component"]
-            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx])
+            idx = capacity.indexes[c]
             operation = self._get_operational_variable(c).loc[:, idx]
+            sns = operation.indexes["snapshot"]
+            p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
-            # curtailment = capacity * p_max_pu - operation
+            # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
-            weights = get_weightings(n, c)
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(curtailment, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -589,8 +596,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """
-        Calculate the operation of components in the network.
+        """Calculate the operation of components in the network.
 
         If `bus_carrier` is given, only the assets are considered which are
         connected to buses with carrier `bus_carrier`.
@@ -604,12 +610,14 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             Type of aggregation when aggregating time series.
             Note that for {'mean', 'sum'} the time series are aggregated to
             using snapshot weightings. With False the time series is given. Defaults to 'mean'.
+
         """
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
-            weights = get_weightings(n, c)
+            sns = operation.indexes["snapshot"]
+            weights = get_weightings(n, c).loc[sns]
             return self._aggregate_timeseries(operation, weights, agg=aggregate_time)
 
         return self._aggregate_components(

@@ -18,6 +18,14 @@ Upcoming Release
     * :meth:`n.statistics.energy_balance.iplot() <pypsa.iplot.statistics.plotter.StatisticInteractivePlotter.__call__>` to get the pre defined default plot
     * :meth:`n.statistics.energy_balance.iplot.bar() <pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar>` to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
 
+
+* New **NetworkCollection** object
+
+  * You can now create a container for multiple `Network` objects. Use is with
+    ``pypsa.NetworkCollection()`` and pass a list of networks and optional pandas index.
+    The main use case is to create a container for multiple networks and run
+    statistics and corresponding plots on all networks at once.
+
 * The function ``n.statistics.opex()`` now includes all operational cost
   components: marginal costs, quadratic marginal costs, storage costs, spill
   costs, start-up costs, shut-down costs, and stand-by costs. Previously, only
@@ -37,9 +45,10 @@ Bug Fixes
 
 * Fixed unaligned statistics index names when ``groupby=False``
   (https://github.com/PyPSA/PyPSA/pull/1205)
-  
-* Fixed interactive area plots in stacked more with `facet_row` and `facet_col`. 
 
+* Fixed interactive area plots in stacked more with `facet_row` and `facet_col`.
+
+* The doc-strings of the statistics function are now properly displayed again, ie. the output of `n.statistics.energy_balance?`.
 
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================

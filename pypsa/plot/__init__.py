@@ -11,7 +11,7 @@ from pypsa.plot.maps.static import add_legend_semicircles as _add_legend_semicir
 from pypsa.plot.maps.static import plot as _plot
 
 # Create wrapped versions
-plot = deprecated_namespace(_plot, "pypsa.plot", deprecated_in="0.34", removed_in="1.0")  # noqa: F811
+plot = deprecated_namespace(_plot, "pypsa.plot", deprecated_in="0.33", removed_in="1.0")  # noqa: F811
 iplot = deprecated_namespace(
     _iplot, "pypsa.plot", deprecated_in="0.34", removed_in="1.0"
 )  # noqa: F811

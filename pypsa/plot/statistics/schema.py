@@ -1,5 +1,4 @@
-"""
-Schema for plotting statistics in PyPSA.
+"""Schema for plotting statistics in PyPSA.
 
 Statistics can be plotted in any statistics/ plotting combination. E.g.
 n.plot.supply.line() or n.plot.transmission.area(). Different combinations require
@@ -148,8 +147,7 @@ SCHEMA: dict = {
 
 
 def _combine_schemas() -> dict:
-    """
-    Combine the default schema with the specific schema for statistics and plot types.
+    """Combine the default schema with the specific schema for statistics and plot types.
 
     Returns
     -------
@@ -166,7 +164,7 @@ def _combine_schemas() -> dict:
         for value in param_list
     }
 
-    for stat_name in SCHEMA.keys():
+    for stat_name in SCHEMA:  # noqa: PLC0206
         combined_schema[stat_name] = {}
 
         for plot_type in plot_types:
@@ -180,7 +178,7 @@ def _combine_schemas() -> dict:
                     "allowed": allowed_by_default,
                 }
 
-                # Allow if additional parameters selection again
+                # Allow if Other Parameters selection again
                 if param in SCHEMA_ADDITIONAL_PARAMETERS.get(stat_name, []):
                     combined_schema[stat_name][plot_type][param]["allowed"] = True
 
@@ -206,9 +204,10 @@ def _combine_schemas() -> dict:
 schema = _combine_schemas()
 
 
-def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dict:
-    """
-    Apply parameter schema to kwargs.
+def apply_parameter_schema(
+    stats_name: str, plot_name: str, kwargs: dict, context: dict | None = None
+) -> dict:
+    """Apply parameter schema to kwargs.
 
     The schema is used to for different statistics functions signatures based on
     plot type/ choosed statistics function. The schema is defined in
@@ -222,6 +221,8 @@ def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dic
         Name of the plot type.
     kwargs : dict
         Dictionary of keyword arguments to be filtered based on the schema.
+    context : dict | None, optional
+        Additional context for parameter processing (e.g., {"index_names": [...]})
 
     Returns
     -------
@@ -238,12 +239,51 @@ def apply_parameter_schema(stats_name: str, plot_name: str, kwargs: dict) -> dic
             kwargs[param] = schema[stats_name][plot_name][param]["default"]
             if not schema[stats_name][plot_name][param]["allowed"]:
                 to_remove.append(param)
-        else:
-            if not schema[stats_name][plot_name][param]["allowed"]:
-                msg = f"Parameter {param} can not be used for {stats_name} {plot_name}."
-                raise ValueError(msg)
+        elif not schema[stats_name][plot_name][param]["allowed"]:
+            msg = f"Parameter {param} can not be used for {stats_name} {plot_name}."
+            raise ValueError(msg)
 
     for param in to_remove:
         kwargs.pop(param)
 
+    # Auto-faceting logic
+    if (
+        context is not None
+        and context.get("index_names")
+        and kwargs.get("facet_col") is None
+        and kwargs.get("facet_row") is None
+    ):
+        if len(context["index_names"]) == 1:
+            kwargs["facet_col"] = context["index_names"][0]
+        elif len(context["index_names"]) >= 2:
+            kwargs["facet_row"] = context["index_names"][0]
+            kwargs["facet_col"] = context["index_names"][1]
+
     return kwargs
+
+
+def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> list:
+    """Extract values relevant for statistics, excluding index names.
+
+    Parameters
+    ----------
+    plot_kwargs : dict
+        Plot keyword arguments
+    context : dict | None
+        Context containing index_names
+
+    Returns
+    -------
+    list
+        Values that should be passed to derive_statistic_parameters
+
+    """
+    index_names = context.get("index_names", []) if context else []
+    res = [
+        value
+        for key, value in plot_kwargs.items()
+        if key in {"x", "y", "color", "facet_col", "facet_row"}
+        and value not in index_names
+        and value is not None
+    ]
+    return list(set(res))  # Remove duplicates

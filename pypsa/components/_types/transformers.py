@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import pandas as pd
-import xarray as xr
-from xarray import DataArray
 
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
+    import pandas as pd
+    import xarray as xr
+    from xarray import DataArray
+
+
+@patch_add_docstring
 class Transformers(Components):
-    """
-    Transformers components class.
+    """Transformers components class.
 
     This class is used for transformer components. All functionality specific to
     transformers is implemented here. Functionality for all components is implemented in
@@ -26,7 +32,12 @@ class Transformers(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
+    [pypsa.Components][] : Base class for all components.
+
+    Examples
+    --------
+    >>> n.components.transformers
+    Empty 'Transformer' Components
 
     """
 
@@ -58,8 +69,7 @@ class Transformers(Components):
         attr: str | None = None,
         as_xarray: bool = False,
     ) -> tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]:
-        """
-        Get per unit bounds for transformers.
+        """Get per unit bounds for transformers.
 
         For passive branch components, min_pu is the negative of max_pu.
 
@@ -88,3 +98,18 @@ class Transformers(Components):
             max_pu = max_pu.to_dataframe()
 
         return min_pu, max_pu
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrap Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )

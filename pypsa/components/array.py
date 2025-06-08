@@ -1,5 +1,4 @@
-"""
-Array module of PyPSA components.
+"""Array module of PyPSA components.
 
 Contains logic to combine static and dynamic pandas DataFrames to single xarray
 DataArray for each variable.
@@ -9,7 +8,7 @@ from __future__ import annotations
 
 import inspect
 import os
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import xarray
@@ -17,10 +16,12 @@ import xarray
 from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-class _ComponentsArray(_ComponentsABC):
-    """
-    Helper class for components array methods.
+
+class ComponentsArrayMixin(_ComponentsABC):
+    """Helper class for components array methods.
 
     Class only inherits to Components and should not be used directly.
     """
@@ -31,8 +32,7 @@ class _ComponentsArray(_ComponentsABC):
         snapshots: Sequence | None = None,
         inds: pd.Index | None = None,
     ) -> pd.DataFrame:
-        """
-        Get an attribute as a dynamic DataFrame.
+        """Get an attribute as a dynamic DataFrame.
 
         Parameters
         ----------
@@ -66,7 +66,7 @@ class _ComponentsArray(_ComponentsABC):
         """
         # Check if we are in a power flow calculation
         stack = inspect.stack()
-        in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)
+        in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)  # noqa: PTH119
 
         sns = as_index(self.n_save, snapshots, "snapshots")
         index = self.static.index
@@ -97,8 +97,7 @@ class _ComponentsArray(_ComponentsABC):
         snapshots: Sequence | None = None,
         inds: Sequence | None = None,
     ) -> xarray.DataArray:
-        """
-        Get an attribute as a xarray DataArray.
+        """Get an attribute as a xarray DataArray.
 
         Converts component data to a flexible xarray DataArray format, which is
         particularly useful for optimization routines. The method provides several
@@ -148,7 +147,7 @@ class _ComponentsArray(_ComponentsABC):
 
         """
         # Strip any index name information
-        # snapshots = getattr(snapshots, "values", snapshots) # TODO
+        # snapshots = getattr(snapshots, "values", snapshots) # TODO # noqa: ERA001
         inds = getattr(inds, "values", inds)
 
         if attr in self.operational_attrs.keys():
@@ -168,6 +167,6 @@ class _ComponentsArray(_ComponentsABC):
             res = xarray.DataArray(data)
 
         # Rename dimension
-        # res = res.rename({self.name: "component"})
+        # res = res.rename({self.name: "component"}) # noqa: ERA001
 
         return res
