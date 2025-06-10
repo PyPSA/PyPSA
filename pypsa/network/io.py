@@ -1148,9 +1148,9 @@ class NetworkIOMixin(_NetworkABC):
         if attrs is not None:
             self.name = attrs.pop("name")
 
-            major = attrs.pop("pypsa_version", [0, 0, 0])[0]
-            minor = attrs.pop("pypsa_version", [0, 0, 0])[1]
-            patch = attrs.pop("pypsa_version", [0, 0, 0])[2]
+            major = int(attrs.pop("pypsa_version", [0, 0, 0])[0])
+            minor = int(attrs.pop("pypsa_version", [0, 0, 0])[1])
+            patch = int(attrs.pop("pypsa_version", [0, 0, 0])[2])
 
             pypsa_version_tuple = (major, minor, patch)
 
