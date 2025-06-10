@@ -219,6 +219,9 @@ class OptionsNode:
         api.legacy_components:
             Default: True
             Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+        general.allow_network_requests:
+            Default: True
+            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -259,6 +262,9 @@ class OptionsNode:
         api.legacy_components:
             Default: True
             Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+        general.allow_network_requests:
+            Default: True
+            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -311,8 +317,19 @@ def option_context(*args: Any) -> Generator[None, None, None]:
             options.set_option(option_name, original_value)
 
 
-# Setup default options
-# =====================
+# Setup options
+# =============
+
+# General category
+options._add_option(
+    "general.allow_network_requests",
+    True,
+    "Allow PyPSA to make network requests. When False, all network requests "
+    "(such as checking for version updates) are disabled. This may be needed "
+    "in restricted environments, offline usage, or for security/privacy reasons. "
+    "This only controls PyPSA's own network requests, dependencies may still "
+    "make network requests independently.",
+)
 
 # API
 options._add_option(

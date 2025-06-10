@@ -6,13 +6,6 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
-from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Sequence
-
-    from pypsa import Network
-
 import pandas as pd
 
 from pypsa._options import options
@@ -22,13 +15,13 @@ from pypsa.common import (
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import nominal_attrs
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
     from pypsa import Network, NetworkCollection
-
 
 logger = logging.getLogger(__name__)
 
