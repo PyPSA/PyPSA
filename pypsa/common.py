@@ -6,6 +6,7 @@ import functools
 import json
 import logging
 import warnings
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from urllib import parse, request
 
@@ -157,6 +158,7 @@ class MethodHandlerWrapper:
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=1)
 def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -> str:
     """Log a message if a newer version is available.
 

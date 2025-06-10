@@ -325,7 +325,7 @@ def test_check_for_update(mock_response, current, latest, expected_message):
     """Test version comparison scenarios."""
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.return_value = mock_response(latest)
-
+        _check_for_update.cache_clear()
         result = _check_for_update(current, "test_owner", "test_repo")
         assert result == expected_message
 
@@ -335,6 +335,7 @@ def test_check_for_update_error_handling():
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.side_effect = Exception("Connection failed")
 
+        _check_for_update.cache_clear()
         result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
         assert result == ""
 
@@ -352,6 +353,7 @@ def test_check_for_update_respects_network_option(mock_response):
     with patch("urllib.request.urlopen") as mock_urlopen:
         mock_urlopen.return_value = mock_response("2.0.0")
 
+        _check_for_update.cache_clear()
         with pypsa.option_context("general.allow_network_requests", True):
             result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
             assert "New version 2.0.0 available!" in result
