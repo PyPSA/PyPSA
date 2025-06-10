@@ -1148,12 +1148,11 @@ class NetworkIOMixin(_NetworkABC):
         if attrs is not None:
             self.name = attrs.pop("name")
 
-            try:
-                pypsa_version_tuple = tuple(
-                    int(s) for s in attrs.pop("pypsa_version").split(".")
-                )
-            except KeyError:
-                pypsa_version_tuple = (0, 0, 0)
+            major = attrs.pop("pypsa_version", [0, 0, 0])[0]
+            minor = attrs.pop("pypsa_version", [0, 0, 0])[1]
+            patch = attrs.pop("pypsa_version", [0, 0, 0])[2]
+
+            pypsa_version_tuple = (major, minor, patch)
 
             for attr, val in attrs.items():
                 if attr in ["model", "objective", "objective_constant"]:

@@ -51,7 +51,7 @@ from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterator, Sequence
+    from collections.abc import Collection, Iterable, Iterator, Sequence
 
     import linopy
     from scipy.sparse import spmatrix
@@ -1121,7 +1121,7 @@ class Network(
             if not (skip_empty and self.static(c_name).empty)
         )
 
-    def __dir__(self) -> list[str]:
+    def __dir__(self) -> Iterable[str]:
         """Return a list of valid attributes and methods of the network.
 
         This method is used by dir() and help() to show available attributes.
