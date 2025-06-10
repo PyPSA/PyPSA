@@ -25,6 +25,19 @@ def is_1d_list_like(x: Any) -> bool:
     bool
         True if x is a 1D list-like object.
 
+    Examples
+    --------
+    >>> pypsa.type_utils.is_1d_list_like([1, 2, 3])
+    True
+    >>> pypsa.type_utils.is_1d_list_like(np.array([1, 2, 3]))
+    True
+    >>> pypsa.type_utils.is_1d_list_like(np.array([[1, 2], [3, 4]]))
+    False
+    >>> pypsa.type_utils.is_1d_list_like(pd.DataFrame({'a': [1, 2]}))
+    False
+    >>> pypsa.type_utils.is_1d_list_like(pd.Series([1, 2, 3]))
+    True
+
     """
     if isinstance(x, np.ndarray):
         return x.ndim == 1

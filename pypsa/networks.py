@@ -27,32 +27,16 @@ from pypsa.common import (
     deprecated_in_next_major,
     equals,
 )
-from pypsa.components.common import as_components
 from pypsa.components.components import Components, SubNetworkComponents
 from pypsa.components.store import ComponentsStore
 from pypsa.consistency import NetworkConsistencyMixin
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.structures import Dict
-from pypsa.io import (
-    _import_series_from_df,
-    export_to_csv_folder,
-    export_to_excel,
-    export_to_hdf5,
-    export_to_netcdf,
-    import_components_from_dataframe,
-    import_from_csv_folder,
-    import_from_excel,
-    import_from_hdf5,
-    import_from_netcdf,
-    import_from_pandapower_net,
-    import_from_pypower_ppc,
-    import_series_from_dataframe,
-    merge,
-)
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
 from pypsa.network.graph import NetworkGraphMixin
 from pypsa.network.index import NetworkIndexMixin
+from pypsa.network.io import NetworkIOMixin
 from pypsa.network.power_flow import (
     NetworkPowerFlowMixin,
     SubNetworkPowerFlowMixin,
@@ -62,8 +46,8 @@ from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
-from pypsa.statistics import StatisticsAccessor
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
+from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
@@ -94,6 +78,7 @@ class Network(
     NetworkConsistencyMixin,
     NetworkGraphMixin,
     NetworkPowerFlowMixin,
+    NetworkIOMixin,
 ):
     """Network container for all buses, one-ports and branches."""
 
@@ -110,25 +95,6 @@ class Network(
 
     # Geospatial
     _crs = CRS.from_epsg(DEFAULT_EPSG)
-
-    # Methods
-    # -------
-
-    # from pypsa.io
-    import_from_csv_folder = import_from_csv_folder
-    export_to_csv_folder = export_to_csv_folder
-    import_from_excel = import_from_excel
-    export_to_excel = export_to_excel
-    import_from_hdf5 = import_from_hdf5
-    export_to_hdf5 = export_to_hdf5
-    import_from_netcdf = import_from_netcdf
-    export_to_netcdf = export_to_netcdf
-    import_from_pypower_ppc = import_from_pypower_ppc
-    import_from_pandapower_net = import_from_pandapower_net
-    merge = merge
-    import_components_from_dataframe = import_components_from_dataframe  # Deprecated
-    _import_series_from_df = _import_series_from_df
-    import_series_from_dataframe = import_series_from_dataframe  # Deprecated
 
     # ----------------
     # Dunder methods
@@ -273,8 +239,31 @@ class Network(
         return header + content
 
     def __add__(self, other: Network) -> None:
-        """Merge all components of two networks."""
-        self.merge(other)
+        """Merge all components of two networks.
+
+        Parameters
+        ----------
+        other : Network
+            Network to merge into this one.
+
+        See Also
+        --------
+        [pypsa.Network.merge][] : Merge second network into network.
+
+        Examples
+        --------
+        >>> n1 = pypsa.Network()
+        >>> n2 = pypsa.Network()
+        >>> n1.add("Bus", "bus1")
+        Index(['bus1'], dtype='object')
+        >>> n2.add("Bus", "bus2")
+        Index(['bus2'], dtype='object')
+        >>> new_network = n1 + n2
+        >>> len(new_network.buses)
+        2
+
+        """
+        return self.__class__.merge(self, other)
 
     def __eq__(self, other: object) -> bool:
         """Check for equality of two networks.
@@ -396,10 +385,16 @@ class Network(
     def meta(self) -> dict:
         """Dictionary of the network meta data.
 
+        Any additional meta data can be added to the network by setting the `meta`
+        attribute. Meta data will be saved on export.
+
         Examples
         --------
+        >>> n = pypsa.Network()
+        >>> n.meta['description'] = 'This is a test network'
+        >>> n.meta['any_key'] = 'Any Key can be added'
         >>> n.meta
-        {}
+        {'description': 'This is a test network', 'any_key': 'Any Key can be added'}
 
         """
         return self._meta
@@ -956,52 +951,6 @@ class Network(
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
-
-    def rename_component_names(
-        self, component: str | Components, **kwargs: str
-    ) -> None:
-        """Rename component names.
-
-        Rename components of component type and also update all cross-references of
-        the component in network.
-
-        Parameters
-        ----------
-        component : str or pypsa.Components
-            Component type or instance of pypsa.Components.
-        **kwargs
-            Mapping of old names to new names.
-
-
-        Examples
-        --------
-        Define some network
-
-        >>> n = pypsa.Network()
-        >>> n.add("Bus", ["bus1"])
-        Index(['bus1'], dtype='object')
-        >>> n.add("Generator", ["gen1"], bus="bus1")
-        Index(['gen1'], dtype='object')
-
-        Now rename the bus component
-
-        >>> n.rename_component_names("Bus", bus1="bus2")
-
-        Which updates the bus components
-
-        >>> n.buses.index
-        Index(['bus2'], dtype='object', name='Bus')
-
-        and all references in the network
-
-        >>> n.generators.bus
-        Generator
-        gen1    bus2
-        Name: bus, dtype: object
-
-        """
-        c = as_components(self, component)
-        c.rename_component_names(**kwargs)
 
 
 class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):

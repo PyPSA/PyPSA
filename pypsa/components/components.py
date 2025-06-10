@@ -27,7 +27,7 @@ from pypsa.common import equals
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PATTERN_PORTS
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -91,10 +91,10 @@ class Components(
 ):
     """Components base class.
 
-    Abstract base class for Container of energy system related assets, such as
+    Base class for container of energy system related assets, such as
     generators or transmission lines. Use the specific subclasses for concrete or
     a generic component type.
-    All data is stored in dataclass :class:`pypsa.components.abstract.ComponentsData`.
+    All data is stored in the dataclass [pypsa.components.components.ComponentsData][].
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
@@ -333,6 +333,10 @@ class Components(
         pd.DataFrame
             DataFrame with standard types of component.
 
+        Examples
+        --------
+        >>> n.components.transformers.standard_types
+
         """
         return self.ctype.standard_types
 
@@ -467,13 +471,32 @@ class Components(
 
     @property
     def empty(self) -> bool:
-        """Check if component is empty."""
+        """Check if component is empty.
+
+        Returns
+        -------
+        bool
+            True if component is empty, otherwise False.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add('Generator', 'g1')  # doctest: +ELLIPSIS
+        Index(['g1'], dtype='object')
+        >>> n.components.generators.empty
+        False
+
+        >>> n.components.buses.empty
+        True
+
+        """
         return self.static.empty
 
     def get(self, attribute_name: str, default: Any = None) -> Any:
         """Get attribute of component.
 
         Just an alias for built-in getattr and allows for default values.
+        #TODO change to handle data access instead
 
         Parameters
         ----------
@@ -512,7 +535,19 @@ class Components(
 
     @property
     def n_save(self) -> Any:
-        """A save property to access the network (component must be attached)."""
+        """A save property to access the network (component must be attached).
+
+        Returns
+        -------
+        Network
+            Network to which the component is attached.
+
+        Raises
+        ------
+        AttributeError
+            If component is not attached to a Network.
+
+        """
         if not self.attached:
             msg = "Component must be attached to a Network."
             raise AttributeError(msg)
@@ -591,8 +626,17 @@ class Components(
         >>> c.ports
         ['0', '1']
 
+        See Also
+        --------
+        [pypsa.components.Links.additional_ports][] :
+            Additional ports of components.
+
         """
-        return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
+        return [
+            match.group(1)
+            for col in self.static
+            if (match := PATTERN_PORTS.search(col))
+        ]
 
 
 class SubNetworkComponents:

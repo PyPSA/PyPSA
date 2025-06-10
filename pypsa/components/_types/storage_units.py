@@ -25,6 +25,11 @@ class StorageUnits(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.storage_units
+    Empty 'StorageUnit' Components
+
     """
 
     def add(

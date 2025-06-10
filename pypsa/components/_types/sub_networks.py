@@ -29,6 +29,14 @@ class SubNetworks(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.sub_networks
+    'SubNetwork' Components
+    -----------------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 3
+
     """
 
     def add(

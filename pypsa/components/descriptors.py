@@ -128,6 +128,34 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         pd.Series
             Boolean mask for active components
 
+        Examples
+        --------
+        Without investment periods
+
+        >>> n = pypsa.Network()
+        >>> n.add("Generator", "g1", active=False)
+        Index(['g1'], dtype='object')
+        >>> n.add("Generator", "g2", active=True)
+        Index(['g2'], dtype='object')
+        >>> n.components.generators.get_active_assets()
+        Generator
+        g1    False
+        g2     True
+        Name: active, dtype: bool
+
+        With investment periods
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
+        Index(['g1'], dtype='object')
+        >>> n.add("Generator", "g2", active=False)
+        Index(['g2'], dtype='object')
+        >>> n.components.generators.get_active_assets()
+        Generator
+        g1     True
+        g2    False
+        Name: active, dtype: bool
+
         """
         if investment_period is None:
             return self.static.active
@@ -168,6 +196,27 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             Set of snapshots for the mask. If None (default) all snapshots are returned.
         index : pd.Index, default None
             Subset of the component elements. If None (default) all components are returned.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)  # doctest: +ELLIPSIS
+        Index(['g1'], dtype='object')
+        >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
+        Index(['g2'], dtype='object')
+        >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
+        Generator          g1     g2
+        period timestep
+        2020   1         True  False
+               2         True  False
+               3         True  False
+        2021   1         True  False
+               2         True  False
+               3         True  False
+        2022   1         True  False
+               2         True  False
+               3         True  False
 
         """
         sns_ = as_index(self.n_save, sns, "snapshots")

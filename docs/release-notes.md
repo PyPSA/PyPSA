@@ -34,9 +34,22 @@ hides:
 - The components subpackage was further restructured. The known API remains untouched.
   (https://github.com/PyPSA/PyPSA/pull/1223)
 
+* New experimental **NetworkCollection**
+
+  * You can now create a container for multiple `Network` objects. Use is with
+    ``pypsa.NetworkCollection()`` and pass a list of networks. The feature is
+    experimental and might change with the next release. Documentation and API
+    reference will follow with a stable version of that feature.
+
+Bug Fixes
+--------
+
 - Fixed unaligned statistics index names when ``groupby=False``
   (:octicons-git-pull-request-16:1205)
-  
+
+* Fixed interactive area plots in stacked more with `facet_row` and `facet_col`.
+
+* The doc-strings of the statistics function are now properly displayed again, ie. the output of `n.statistics.energy_balance?`.
 
 ## [**v0.34.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1) <small>7th April 2025</small> { id="v0.34.1" }
 

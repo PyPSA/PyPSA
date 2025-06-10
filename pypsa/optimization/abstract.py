@@ -380,9 +380,7 @@ class OptimizationAbstractMixin:
                 / n.lines["s_nom_opt"].mean()
             )
             logger.info(
-                "Mean square difference after iteration %d is %f",
-                iteration,
-                lines_err,
+                "Mean square difference after iteration %d is %f", iteration, lines_err
             )
             return lines_err
 

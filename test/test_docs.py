@@ -38,7 +38,7 @@ doctest_globals = {
 modules = [
     importlib.import_module(name)
     for _, name, _ in pkgutil.walk_packages(pypsa.__path__, pypsa.__name__ + ".")
-    if name not in ["pypsa.utils", "pypsa.components.utils"]
+    if name not in ["pypsa.utils", "pypsa.components.utils", "pypsa.typing"]
 ]
 
 

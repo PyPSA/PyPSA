@@ -25,6 +25,11 @@ class Shapes(Components):
     --------
     [pypsa.Components][] : Base class for all components.
 
+    Examples
+    --------
+    >>> n.components.shapes
+    Empty 'Shape' Components
+
     """
 
     def add(

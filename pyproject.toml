@@ -49,7 +49,7 @@ Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
 
 [project.optional-dependencies]
-hdf5 = ["tables; python_version < '3.13'"]
+hdf5 = ["tables"]
 cartopy = ["cartopy>=0.16"]
 excel = ["openpyxl", "python-calamine"]
 gurobipy = ["gurobipy"]
@@ -65,7 +65,7 @@ dev = [
     "pre-commit", 
     "ruff",
     "mypy",
-    "deepdiff"
+    "jupyter>=1.1.1",
 ]
 docs = [    
     "mkdocs-material",
@@ -133,6 +133,17 @@ show_error_code_links = true
 module = "pypsa.*"
 disallow_untyped_defs = true
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "cloudpathlib.*"
+ignore_errors = true
+follow_imports = "skip"
+
+# Remove when typing in linopy are resolved
+[[tool.mypy.overrides]]
+module = "linopy.*"
+ignore_errors = true
+follow_imports = "skip"
 
 # Formatter and linter settings
 

@@ -13,6 +13,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs
+from pypsa.constants import PATTERN_PORTS
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -29,7 +30,7 @@ class ConsistencyError(ValueError):
 
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
-    return df.columns[df.columns.str.startswith("bus")]
+    return df.columns[df.columns.str.contains(PATTERN_PORTS)]
 
 
 def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
@@ -59,8 +60,8 @@ def check_for_unknown_buses(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     for attr in _bus_columns(component.static):
@@ -93,8 +94,8 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     connected_buses = set()
@@ -131,8 +132,8 @@ def check_for_unknown_carriers(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -172,8 +173,8 @@ def check_for_zero_impedances(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -206,8 +207,8 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     if component.name in {"Transformer"}:
@@ -240,8 +241,8 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -291,8 +292,8 @@ def check_static_power_attributes(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -346,8 +347,8 @@ def check_time_series_power_attributes(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     varying_attrs = ["p_max_pu", "e_max_pu"]
@@ -440,8 +441,8 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -481,8 +482,8 @@ def check_generators(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -530,8 +531,8 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -629,8 +630,8 @@ def check_shapes(n: Network, strict: bool = False) -> None:
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -672,9 +673,8 @@ def check_nans_for_component_default_attrs(
 
     See Also
     --------
-    [pypsa.Network.consistency_check][] : General consistency check method, which can be
-                                      runs all consistency checks.
-
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     # Get non-NA and not-empty default attributes for the current component

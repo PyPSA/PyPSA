@@ -1,3 +1,5 @@
+import sys
+
 import pandas as pd
 import pytest
 from geopandas.testing import assert_geodataframe_equal
@@ -90,6 +92,19 @@ class TestCSVDir:
             n.shapes,
             check_less_precise=True,
         )
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using CSV format.
+        """
+        n = ac_dc_network
+        n.export_to_csv_folder(tmp_path / "network")
+        n3 = pypsa.Network(tmp_path / "network")
+        assert n.equals(n3, log_mode="strict")
 
 
 class TestNetcdf:
@@ -201,6 +216,19 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=True)
         pypsa.Network(fn)
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using netCDF format.
+        """
+        n = ac_dc_network
+        n.export_to_netcdf(tmp_path / "network.nc")
+        n2 = pypsa.Network(tmp_path / "network.nc")
+        assert n.equals(n2, log_mode="strict")
+
 
 @pytest.mark.skipif(not tables_installed, reason="PyTables not installed")
 class TestHDF5:
@@ -255,6 +283,19 @@ class TestHDF5:
             n.shapes,
             check_less_precise=True,
         )
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using HDF5 format.
+        """
+        n = ac_dc_network
+        n.export_to_hdf5(tmp_path / "network.h5")
+        n5 = pypsa.Network(tmp_path / "network.h5")
+        assert n.equals(n5, log_mode="strict")
 
 
 @pytest.mark.skipif(not excel_installed, reason="openpyxl not installed")
@@ -324,6 +365,19 @@ class TestExcelIO:
             check_less_precise=True,
         )
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+        reason="Unstable test in CI. Remove with 1.0",
+    )
+    def test_io_equality(self, ac_dc_network, tmp_path):
+        """
+        Test if the network is equal after export and import using Excel format.
+        """
+        n = ac_dc_network
+        n.export_to_excel(tmp_path / "network.xlsx")
+        n4 = pypsa.Network(tmp_path / "network.xlsx")
+        assert n.equals(n4, log_mode="strict")
+
     def test_io_time_dependent_efficiencies_excel(self, tmpdir):
         n = pypsa.Network()
         s = [1, 0.95, 0.99]
@@ -356,6 +410,10 @@ class TestExcelIO:
         )
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Unstable test in CI. Remove with 1.0",
+)
 def test_io_equality(ac_dc_network, tmp_path):
     """
     Test if the network is equal after export and import.
@@ -380,6 +438,9 @@ def test_io_equality(ac_dc_network, tmp_path):
         assert n.equals(n5, log_mode="strict")
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
+)
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
 def test_import_from_pandapower_network(

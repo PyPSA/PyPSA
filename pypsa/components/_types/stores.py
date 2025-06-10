@@ -25,9 +25,16 @@ class Stores(Components):
         This class is under ongoing development and will be subject to changes.
         It is not recommended to use this class outside of PyPSA.
 
+    Examples
+    --------
+    >>> n.components.stores
+    Empty 'Store' Components
+
     See Also
     --------
     [pypsa.Components][] : Base class for all components.
+
+
 
     """
 

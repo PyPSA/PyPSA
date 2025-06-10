@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
@@ -33,20 +33,9 @@ class OrderedGraph(nx.MultiGraph):
     details="Use `n.graph` instead.",
 )
 @deprecated_common_kwargs
-def graph(
-    n: Network | SubNetwork,
-    branch_components: Collection[str] | None = None,
-    weight: str | None = None,
-    inf_weight: bool | float = False,
-    include_inactive: bool = True,
-) -> OrderedGraph:
+def graph(n: Network | SubNetwork, *args: Any, **kwargs: Any) -> Any:
     """Use `n.graph` instead."""
-    return n.graph(
-        branch_components=branch_components,
-        weight=weight,
-        inf_weight=inf_weight,
-        include_inactive=include_inactive,
-    )
+    return n.graph(*args, **kwargs)
 
 
 @deprecated(
@@ -55,20 +44,9 @@ def graph(
     details="Use `n.adjacency_matrix` instead.",
 )
 @deprecated_common_kwargs
-def adjacency_matrix(
-    n: Network | SubNetwork,
-    branch_components: Collection[str] | None = None,
-    investment_period: int | str | None = None,
-    busorder: pd.Index | None = None,
-    weights: pd.Series | None = None,
-) -> sp.sparse.coo_matrix:
+def adjacency_matrix(n: Network | SubNetwork, *args: Any, **kwargs: Any) -> Any:
     """Use `n.adjacency_matrix` instead."""
-    return n.adjacency_matrix(
-        branch_components=branch_components,
-        investment_period=investment_period,
-        busorder=busorder,
-        weights=weights,
-    )
+    return n.adjacency_matrix(*args, **kwargs)
 
 
 @deprecated(
@@ -77,13 +55,9 @@ def adjacency_matrix(
     details="Use `n.incidence_matrix` instead.",
 )
 @deprecated_common_kwargs
-def incidence_matrix(
-    n: Network | SubNetwork,
-    branch_components: Collection[str] | None = None,
-    busorder: pd.Index | None = None,
-) -> sp.sparse.csr_matrix:
+def incidence_matrix(n: Network | SubNetwork, *args: Any, **kwargs: Any) -> Any:
     """Use `n.incidence_matrix` instead."""
-    return n.incidence_matrix(branch_components=branch_components, busorder=busorder)
+    return n.incidence_matrix(*args, **kwargs)
 
 
 class NetworkGraphMixin:
@@ -171,7 +145,6 @@ class NetworkGraphMixin:
 
         return graph
 
-    @deprecated_common_kwargs
     def adjacency_matrix(
         self,
         branch_components: Collection[str] | None = None,
@@ -201,6 +174,12 @@ class NetworkGraphMixin:
         -------
         adjacency_matrix : sp.sparse.coo_matrix
         Directed adjacency matrix
+
+        Examples
+        --------
+        >>> n.adjacency_matrix()  # doctest: +ELLIPSIS
+        <COOrdinate sparse matrix of dtype 'float64'
+            with ... stored elements and shape (..., ...)>
 
         """
         from pypsa.networks import Network, SubNetwork
@@ -246,7 +225,6 @@ class NetworkGraphMixin:
             (weight_vals, (bus0_inds, bus1_inds)), shape=(no_buses, no_buses)
         )
 
-    @deprecated_common_kwargs
     def incidence_matrix(
         self,
         branch_components: Collection[str] | None = None,
@@ -267,6 +245,12 @@ class NetworkGraphMixin:
         -------
         incidence_matrix : sp.sparse.csr_matrix
         Directed incidence matrix
+
+        Examples
+        --------
+        >>> n.incidence_matrix()
+        <Compressed Sparse Row sparse matrix of dtype 'float64'
+                with 22 stored elements and shape (9, 11)>
 
         """
         from pypsa import Network, SubNetwork

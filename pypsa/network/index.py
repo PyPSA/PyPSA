@@ -51,15 +51,6 @@ class NetworkIndexMixin(_NetworkABC):
         (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
         that quantity.
 
-        Examples
-        --------
-        >>> n = pypsa.Network()
-        >>> n.set_snapshots(pd.date_range("2015-01-01", freq="h", periods=3))
-        >>> n.snapshots
-        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
-                       '2015-01-01 02:00:00'],
-                      dtype='datetime64[ns]', name='snapshot', freq='h')
-
         Parameters
         ----------
         snapshots : list, pandas.Index or pd.MultiIndex
@@ -69,6 +60,15 @@ class NetworkIndexMixin(_NetworkABC):
         weightings_from_timedelta: bool
             Wheter to use the timedelta of `snapshots` as `snapshot_weightings` if
             `snapshots` is of type `pd.DatetimeIndex`.  Defaults to False.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(pd.date_range("2015-01-01", freq="h", periods=3))
+        >>> n.snapshots
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq='h')
 
         """
         # Check if snapshots contain timezones
@@ -151,14 +151,6 @@ class NetworkIndexMixin(_NetworkABC):
         pd.Index or pd.MultiIndex
             Snapshots of the network, either as a single index or a multi-index.
 
-        Examples
-        --------
-        >>> n.snapshots # doctest: +ELLIPSIS
-        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
-                       '2015-01-01 02:00:00', '2015-01-01 03:00:00',
-                      ...
-                      dtype='datetime64[ns]', name='snapshot', freq=None)
-
         See Also
         --------
         [pypsa.Network.timesteps][] : Get the timestep level only.
@@ -170,6 +162,14 @@ class NetworkIndexMixin(_NetworkABC):
         only levels of the snapshots dimension, similar to coords in xarray.
         This is because timesteps and periods are not necessarily unique or complete
         across snapshots.
+
+        Examples
+        --------
+        >>> n.snapshots # doctest: +ELLIPSIS
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00', '2015-01-01 03:00:00',
+                      ...
+                      dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
         return self._snapshots
@@ -205,6 +205,11 @@ class NetworkIndexMixin(_NetworkABC):
         pd.Index
             Timesteps of the network.
 
+        See Also
+        --------
+        [pypsa.Network.snapshots][] : Get the snapshots dimension.
+        [pypsa.Network.periods][] : Get the period level only.
+
         Examples
         --------
         >>> n = pypsa.Network()
@@ -236,11 +241,6 @@ class NetworkIndexMixin(_NetworkABC):
                 (2, '2015-01-01 01:00:00'),
                 (2, '2015-01-01 02:00:00')],
                name='snapshot')
-
-        See Also
-        --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the period level only.
 
         """
         if "timestep" in self.snapshots.names:
@@ -283,6 +283,24 @@ class NetworkIndexMixin(_NetworkABC):
         ----------
         periods : list
             List of periods to be selected/initialized.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_snapshots(pd.date_range("2015-01-01", freq="h", periods=3))
+        >>> n.snapshots
+        DatetimeIndex(['2015-01-01 00:00:00', '2015-01-01 01:00:00',
+                       '2015-01-01 02:00:00'],
+                      dtype='datetime64[ns]', name='snapshot', freq='h')
+        >>> n.investment_periods = [1, 2]
+        >>> n.snapshots
+        MultiIndex([(1, '2015-01-01 00:00:00'),
+                (1, '2015-01-01 01:00:00'),
+                (1, '2015-01-01 02:00:00'),
+                (2, '2015-01-01 00:00:00'),
+                (2, '2015-01-01 01:00:00'),
+                (2, '2015-01-01 02:00:00')],
+               name='snapshot')
 
         """
         periods_ = pd.Index(periods, name="period")
@@ -347,6 +365,11 @@ class NetworkIndexMixin(_NetworkABC):
         pd.Index
             Periods of the network.
 
+        See Also
+        --------
+        [pypsa.Network.snapshots][] : Get the snapshots dimension.
+        [pypsa.Network.timesteps][] : Get the timestep level only.
+
         Examples
         --------
         >>> n = pypsa.Network()
@@ -371,11 +394,6 @@ class NetworkIndexMixin(_NetworkABC):
                 (2, '2015-01-01 01:00:00'),
                 (2, '2015-01-01 02:00:00')],
                name='snapshot')
-
-        See Also
-        --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
 
         """
         if "period" in self.snapshots.names:
@@ -407,6 +425,10 @@ class NetworkIndexMixin(_NetworkABC):
         bool
             True if network has investment periods, otherwise False.
 
+        See Also
+        --------
+        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
+
         Examples
         --------
         >>> n = pypsa.Network()
@@ -419,10 +441,6 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.periods = [1, 2]
         >>> n.has_periods
         True
-
-        See Also
-        --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
 
         """
         return not self.periods.empty
@@ -441,6 +459,12 @@ class NetworkIndexMixin(_NetworkABC):
         -------
         pd.Index
             Investment periods of the network.
+
+        See Also
+        --------
+        [pypsa.Network.snapshots][] : Get the snapshots dimension.
+        [pypsa.Network.periods][] : Get the snapshots dimension.
+        [pypsa.Network.timesteps][] : Get the timestep level only.
 
         Examples
         --------
@@ -466,12 +490,6 @@ class NetworkIndexMixin(_NetworkABC):
                 (2, '2015-01-01 01:00:00'),
                 (2, '2015-01-01 02:00:00')],
                name='snapshot')
-
-        See Also
-        --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
 
         """
         return self.periods
@@ -506,6 +524,11 @@ class NetworkIndexMixin(_NetworkABC):
         bool
             True if network has investment periods, otherwise False.
 
+        See Also
+        --------
+        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
+        [pypsa.Network.periods][] : Periods level of snapshots dimension.
+
         Examples
         --------
         >>> n = pypsa.Network()
@@ -518,11 +541,6 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.periods = [1, 2]
         >>> n.has_investment_periods
         True
-
-        See Also
-        --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
-        [pypsa.Network.periods][] : Periods level of snapshots dimension.
 
         """
         return self.has_periods

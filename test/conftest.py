@@ -111,6 +111,14 @@ def ac_dc_network_shapes(ac_dc_network):
 
 
 @pytest.fixture
+def network_collection(ac_dc_network_r):
+    return pypsa.NetworkCollection(
+        [ac_dc_network_r],
+        index=pd.MultiIndex.from_tuples([("a", 2030)], names=["scenario", "year"]),
+    )
+
+
+@pytest.fixture
 def storage_hvdc_network():
     return pypsa.examples.storage_hvdc()
 

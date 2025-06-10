@@ -14,7 +14,6 @@ from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
 
-from pypsa import io
 from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
@@ -98,6 +97,15 @@ def normed_or_uniform(x: pd.Series) -> pd.Series:
     pandas.Series
         The normalized series, or a uniform distribution if the input sum is zero.
 
+    Examples
+    --------
+    >>> x = pd.Series([1, 2, 3])
+    >>> normed_or_uniform(x)
+    0    0.166667
+    1    0.333333
+    2    0.500000
+    dtype: float64
+
     """
     if x.sum(skipna=False) > 0:
         return x / x.sum()
@@ -166,7 +174,27 @@ def align_strategies(strategies: dict, keys: Iterable, component: str) -> dict:
 
 
 def flatten_multiindex(m: pd.MultiIndex, join: str = " ") -> pd.Index:
-    """Flatten a multiindex by joining the levels with the given string."""
+    """Flatten a multiindex by joining the levels with the given string.
+
+    Parameters
+    ----------
+    m : pd.MultiIndex
+        The multiindex to flatten.
+    join : str, optional
+        The string to join the levels with (default is " ").
+
+    Returns
+    -------
+    pd.Index
+        The flattened index.
+
+    Examples
+    --------
+    >>> m = pd.MultiIndex.from_tuples([("a", "b"), ("c", "d")])
+    >>> flatten_multiindex(m)
+    Index(['a b', 'c d'], dtype='object')
+
+    """
     return m if m.nlevels <= 1 else m.to_flat_index().str.join(join).str.strip()
 
 
@@ -541,7 +569,7 @@ def get_clustering_from_busmap(
             )
         for attr, df in lines_t.items():
             if not df.empty:
-                io._import_series_from_df(clustered, df, "Line", attr)
+                clustered._import_series_from_df(df, "Line", attr)
 
     one_port_components = n.one_port_components.copy()
 
@@ -561,7 +589,7 @@ def get_clustering_from_busmap(
         if with_time:
             for attr, df in generators_dynamic.items():
                 if not df.empty:
-                    io._import_series_from_df(clustered, df, "Generator", attr)
+                    clustered._import_series_from_df(df, "Generator", attr)
 
     for one_port in aggregate_one_ports:
         one_port_components.remove(one_port)
@@ -574,7 +602,7 @@ def get_clustering_from_busmap(
         )
         clustered.add(one_port, new_static.index, **new_static)
         for attr, df in new_dynamic.items():
-            io._import_series_from_df(clustered, df, one_port, attr)
+            clustered._import_series_from_df(df, one_port, attr)
 
     # Collect remaining one ports
 
@@ -588,7 +616,7 @@ def get_clustering_from_busmap(
         for c in n.iterate_components(one_port_components):
             for attr, df in c.dynamic.items():
                 if not df.empty:
-                    io._import_series_from_df(clustered, df, c.name, attr)
+                    clustered._import_series_from_df(df, c.name, attr)
 
     new_links = (
         n.links.assign(bus0=n.links.bus0.map(busmap), bus1=n.links.bus1.map(busmap))
@@ -613,7 +641,7 @@ def get_clustering_from_busmap(
     if with_time:
         for attr, df in n.links_t.items():
             if not df.empty:
-                io._import_series_from_df(clustered, df, "Link", attr)
+                clustered._import_series_from_df(df, "Link", attr)
 
     clustered.add("Carrier", n.carriers.index, **n.carriers)
 

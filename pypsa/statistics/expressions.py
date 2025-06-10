@@ -25,7 +25,9 @@ from pypsa.descriptors import nominal_attrs
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from collections.abc import Callable, Collection, Sequence
+
+    from pypsa import Network, NetworkCollection
 
 
 logger = logging.getLogger(__name__)
@@ -68,27 +70,93 @@ def port_efficiency(
 
 
 def get_transmission_branches(
-    n: Network, bus_carrier: str | Sequence[str] | None = None
+    n: Network | NetworkCollection, bus_carrier: str | Sequence[str] | None = None
 ) -> pd.MultiIndex:
     """Get list of assets which transport between buses of the carrier `bus_carrier`."""
-    index = {}
-    for c in n.branch_components:
-        bus_map = (
-            n.static(c).filter(like="bus").apply(lambda ds: ds.map(n.buses.carrier))
+    # Check if this is a NetworkCollection (has MultiIndex buses)
+    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+
+    if is_network_collection:
+        # For NetworkCollection, process each network separately and combine results
+        network_results: list[tuple[str, pd.Index]] = []
+
+        # Get the bus carrier mapping - drop network levels for mapping
+        bus_carrier_series = n.buses.carrier
+        bus_carrier_map = bus_carrier_series.droplevel(
+            list(range(bus_carrier_series.index.nlevels - 1))
         )
-        if isinstance(bus_carrier, str):
-            bus_carrier = [bus_carrier]
-        elif bus_carrier is None:
-            bus_carrier = n.buses.carrier.unique()
-        res = set()
-        for carrier in bus_carrier:
-            res |= set(
-                bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
+        bus_carrier_map = bus_carrier_map[~bus_carrier_map.index.duplicated()]
+
+        for c in n.branch_components:
+            bus_map = (
+                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
             )
-        index[c] = pd.Index(res)
-    return pd.MultiIndex.from_tuples(
-        [(c, i) for c, idx in index.items() for i in idx], names=["component", "name"]
-    )
+            if isinstance(bus_carrier, str):
+                bus_carrier_list = [bus_carrier]
+            elif bus_carrier is None:
+                bus_carrier_list = bus_carrier_map.unique()
+            else:
+                bus_carrier_list = list(bus_carrier)
+
+            for carrier in bus_carrier_list:
+                matching_idx = (
+                    bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
+                )
+                # Keep the full MultiIndex for NetworkCollection
+                network_results.extend((c, idx) for idx in matching_idx)
+
+        # Create MultiIndex with network levels + component and name
+        if network_results:
+            # Get network index names
+            network_names = list(
+                n.buses.carrier.index.names[:-1]
+            )  # All except last level
+            result_names = network_names + ["component", "name"]
+
+            # Flatten tuples: (component, (network_levels..., component_name))
+            flattened_results = []
+            for component, full_idx in network_results:
+                if isinstance(full_idx, tuple):
+                    network_parts = full_idx[:-1]
+                    component_name = full_idx[-1]
+                    flattened_results.append(
+                        network_parts + (component, component_name)
+                    )
+                else:
+                    # Single level case - shouldn't happen with NetworkCollection but handle it
+                    flattened_results.append((full_idx, component, full_idx))
+
+            return pd.MultiIndex.from_tuples(flattened_results, names=result_names)
+        else:
+            # Empty result - create empty MultiIndex with correct structure
+            network_names = list(n.buses.carrier.index.names[:-1])
+            result_names = network_names + ["component", "name"]
+            return pd.MultiIndex.from_tuples([], names=result_names)
+
+    else:
+        # Original logic for regular Network
+        index = {}
+        bus_carrier_map = n.buses.carrier
+
+        for c in n.branch_components:
+            bus_map = (
+                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
+            )
+            if isinstance(bus_carrier, str):
+                bus_carrier = [bus_carrier]
+            elif bus_carrier is None:
+                bus_carrier = bus_carrier_map.unique()
+            res = set()
+            for carrier in bus_carrier:
+                matching_idx = (
+                    bus_map.eq(carrier).astype(int).sum(axis=1)[lambda ds: ds > 1].index
+                )
+                res |= set(matching_idx)
+            index[c] = pd.Index(res)
+        return pd.MultiIndex.from_tuples(
+            [(c, i) for c, idx in index.items() for i in idx],
+            names=["component", "name"],
+        )
 
 
 def get_transmission_carriers(
@@ -96,20 +164,69 @@ def get_transmission_carriers(
 ) -> pd.MultiIndex:
     """Get the carriers which transport between buses of the carrier `bus_carrier`."""
     branches = get_transmission_branches(n, bus_carrier)
-    carriers = {}
-    for c in branches.unique(0):
-        idx = branches[branches.get_loc(c)].get_level_values(1)
-        carriers[c] = n.static(c).carrier[idx].unique()
-    return pd.MultiIndex.from_tuples(
-        [(c, i) for c, idx in carriers.items() for i in idx],
-        names=["component", "carrier"],
-    )
+
+    # Check if this is a NetworkCollection
+    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+
+    if is_network_collection and len(branches) > 0:
+        # For NetworkCollection, branches has structure: (network_levels..., component, name)
+        # We need to extract carriers for each (network, component, name) combination
+        network_results = []
+
+        # Process each branch
+        for branch_tuple in branches:
+            network_part = branch_tuple[:-2]
+            component = branch_tuple[-2]
+            component_name = branch_tuple[-1]
+
+            # Find carrier for this specific component in this network
+            try:
+                # Build the full index for this component
+                full_component_idx = network_part + (component_name,)
+                carrier = n.static(component).carrier.loc[full_component_idx]
+                network_results.append(network_part + (component, carrier))
+            except KeyError:
+                # Component not found, skip
+                continue
+
+        if network_results:
+            # Get network index names
+            network_names = list(
+                n.buses.carrier.index.names[:-1]
+            )  # All except last level
+            result_names = network_names + ["component", "carrier"]
+            return pd.MultiIndex.from_tuples(network_results, names=result_names)
+        else:
+            # Empty result
+            network_names = list(n.buses.carrier.index.names[:-1])
+            result_names = network_names + ["component", "carrier"]
+            return pd.MultiIndex.from_tuples([], names=result_names)
+
+    elif not is_network_collection and len(branches) > 0:
+        # Original logic for regular Network
+        carriers = {}
+        for c in branches.unique(0):
+            idx = branches[branches.get_loc(c)].get_level_values(1)
+            carriers[c] = n.static(c).carrier[idx].unique()
+        return pd.MultiIndex.from_tuples(
+            [(c, i) for c, idx in carriers.items() for i in idx],
+            names=["component", "carrier"],
+        )
+
+    else:
+        # Empty branches - return empty MultiIndex with correct structure
+        if is_network_collection:
+            network_names = list(n.buses.carrier.index.names[:-1])
+            result_names = network_names + ["component", "carrier"]
+        else:
+            result_names = ["component", "carrier"]
+        return pd.MultiIndex.from_tuples([], names=result_names)
 
 
 class StatisticHandler:
     """Statistic method handler.
 
-    This class wraps a statistic method and provides a callable instance. To the get
+    This class wraps a statistic method and provides a callable instance. To get
     the statistic output as a DataFrame, call the instance with the desired arguments.
 
     See Also
@@ -177,7 +294,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     Get aggregated statistics in a single DataFrame:
 
     >>> n.statistics()
-                        Optimal Capacity  ...  Market Value
+                    Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
     Line      AC          5613.82931  ...    -43.277041
@@ -263,8 +380,30 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df.agg(agg)
 
     def _aggregate_components_groupby(
-        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str
+        self, vals: pd.DataFrame, grouping: dict, agg: Callable | str, c: str
     ) -> pd.DataFrame:
+        if isinstance(vals.index, pd.MultiIndex):
+            levels = vals.index.names
+            keep_levels = [l for l in levels if l not in ["component", c]]
+            grouping_df = grouping["by"]
+            if isinstance(grouping_df, pd.Series):
+                grouping_df = grouping_df.to_frame()
+            elif isinstance(grouping_df, list):
+                grouping_df = pd.concat(grouping_df, axis=1)
+            elif not isinstance(grouping_df, pd.DataFrame):
+                msg = "grouping_df must be a DataFrame or Series"
+                raise TypeError(msg)
+
+            was_series = False
+            if isinstance(vals, pd.Series):
+                vals = vals.rename("value").to_frame()
+                was_series = True
+            res = (
+                vals.assign(**grouping_df)
+                .groupby([*keep_levels, *grouping_df.columns])
+                .agg(agg)
+            )
+            return res["value"] if was_series else res
         return vals.groupby(**grouping).agg(agg)
 
     def _aggregate_components_concat_values(
@@ -292,6 +431,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         # Otherwise, use default column names
         elif all(len(x) == 1 for x in index_names):
             col_names = ["component", "name"]
+        elif all(len(x) == 3 for x in index_names):
+            # TODO Handle better
+            col_names = ["network", "component", "carrier"]
         else:
             msg = "Multi-indexed data must have the same index names."
             raise AssertionError(msg)
@@ -311,9 +453,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         drop_zero_ = (
             options.params.statistics.drop_zero if drop_zero is None else drop_zero
         )
-        if round_ is not None:
+        if round_:
             df = df.round(round_)
-        if drop_zero_ is not None:
+        if drop_zero_:
             df = df[df != 0]
 
         return df
@@ -386,8 +528,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
         aggregate_time : None
             Deprecated. Use dedicated functions for individual statistics instead.
 
@@ -506,8 +648,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Other Parameters
         ----------------
@@ -604,8 +746,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Other Parameters
         ----------------
@@ -707,8 +849,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Other Parameters
         ----------------
@@ -820,8 +962,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
+            information.
 
         Other Parameters
         ----------------
@@ -1212,7 +1354,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "spill_cost",
             ]:
                 if cost_type in cost_types_ and cost_type in n.static(c):
-                    attr = lookup.query(cost_type).loc[c].index.item()
+                    attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
                     p = n.dynamic(c)[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
@@ -1239,7 +1381,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     result.append(term)
             if not result:
                 return pd.Series()
-            return pd.concat(result).groupby(level=0).sum()
+            result = pd.concat(result)
+            return result.groupby(level=list(range(result.index.nlevels))).sum()
 
         df = self._aggregate_components(
             func,
@@ -1362,7 +1505,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             drop_zero=drop_zero,
             round=round,
         )
-        df = capex.add(opex, fill_value=0)
+        # TODO It would be better if the empty series return has index names
+        if not capex.empty and not opex.empty:
+            df = capex.add(opex, fill_value=0)
+        elif not capex.empty:
+            df = capex
+        else:
+            df = opex
         df.attrs["name"] = "System Cost"
         df.attrs["unit"] = "currency"
         return df
@@ -1652,7 +1801,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            p = n.dynamic(c)[f"p{port}"][transmission_branches.get_loc_level(c)[1]]
+            idx = transmission_branches.get_loc_level(c, level="component")[1]
+            p = n.dynamic(c)[f"p{port}"][idx]
             weights = get_weightings(n, c)
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -2113,6 +2263,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
             df = sign * n.dynamic(c)[f"p{port}"]
             buses = n.static(c)[f"bus{port}"][df.columns]
+            # catch multiindex case
+            buses = (
+                buses.to_frame("bus").set_index("bus", append=True).droplevel(c).index
+            )
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values

@@ -13,7 +13,19 @@ _T = TypeVar("_T", bound=Components)
 
 
 def create_docstring_parameters(component_name: str) -> str:
-    """Create docstring parameters section for all attributes of component."""
+    """Create docstring parameters section for all attributes of component.
+
+    Parameters
+    ----------
+    component_name : str
+        The name of the component.
+
+    Returns
+    -------
+    str
+        The docstring parameters section.
+
+    """
     # Create the docstring parameters section
 
     docstring = (

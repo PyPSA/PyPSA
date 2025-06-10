@@ -910,6 +910,17 @@ class SubNetworkPowerFlowMixin:
     n: Network
     name: str
 
+    buses_o: pd.Index
+    pvpqs: pd.Index
+    pqs: pd.Index
+    pvs: pd.Index
+    slack_bus: str
+    B: spmatrix
+    K: spmatrix
+    C: spmatrix
+    PTDF: spmatrix
+    BODF: spmatrix
+
     iterate_components: Callable
     branches_i: Callable
 
@@ -920,9 +931,6 @@ class SubNetworkPowerFlowMixin:
     buses: pd.DataFrame
     buses_i: pd.Index
     shunt_impedances_i: pd.Index
-
-    PTDF: spmatrix
-    BODF: spmatrix
 
     def calculate_BODF(self, skip_pre: bool = False) -> None:
         """Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
@@ -1552,7 +1560,7 @@ class SubNetworkPowerFlowMixin:
             n.dynamic(c.name).q1.loc[sns, s1t.columns] = s1t.values.imag
 
         s_calc = np.empty((len(sns), len(buses_o)), dtype=complex)
-        for i in np.arange(len(sns)):  # type: ignore
+        for i in range(len(sns)):
             s_calc[i] = V[i] * np.conj(self.Y * V[i])
         slack_index = int(buses_o.get_loc(self.slack_bus))
         if distribute_slack:

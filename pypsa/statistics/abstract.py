@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
-
-if TYPE_CHECKING:
-    from pypsa import Network
-import warnings
 
 import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
+from pypsa.constants import PATTERN_PORTS
 from pypsa.statistics.grouping import deprecated_groupers, groupers
+
+if TYPE_CHECKING:
+    from pypsa import Network, NetworkCollection
 
 logger = logging.getLogger(__name__)
 
@@ -108,14 +109,14 @@ class Parameters:
 class AbstractStatisticsAccessor(ABC):
     """Abstract accessor to calculate different statistical values."""
 
-    def __init__(self, n: Network) -> None:
+    def __init__(self, n: Network | NetworkCollection) -> None:
         """Initialize the statistics accessor."""
         self._n = n
         self.groupers = deprecated_groupers
         self.parameters = Parameters()
 
     @property
-    def n(self) -> Network:
+    def n(self) -> Network | NetworkCollection:
         """Get the network instance."""
         warnings.warn(
             "Accessing the network instance via `n` is deprecated. Use the network instance directly.",
@@ -133,7 +134,7 @@ class AbstractStatisticsAccessor(ABC):
 
     def _get_grouping(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         groupby: Callable | Sequence[str] | str | bool,
         port: str | None = None,
@@ -245,7 +246,11 @@ class AbstractStatisticsAccessor(ABC):
             if n.static(c).empty:
                 continue
 
-            ports = [str(col)[3:] for col in n.static(c) if str(col).startswith("bus")]
+            ports = [
+                match.group(1)
+                for col in n.static(c)
+                if (match := PATTERN_PORTS.search(str(col)))
+            ]
             if not at_port:
                 ports = [ports[0]]
 
@@ -276,7 +281,7 @@ class AbstractStatisticsAccessor(ABC):
                     grouping = self._get_grouping(
                         n, c, groupby, port=port, nice_names=nice_names
                     )
-                    vals = self._aggregate_components_groupby(vals, grouping, agg)
+                    vals = self._aggregate_components_groupby(vals, grouping, agg, c)
                 values.append(vals)
 
             if not values:
@@ -286,12 +291,13 @@ class AbstractStatisticsAccessor(ABC):
 
             d[c] = df
         df = self._aggregate_components_concat_data(d, is_one_component)
-        df = self._apply_option_kwargs(
-            df,
-            drop_zero=drop_zero,
-            round=round,
-            nice_names=nice_names,  # TODO: nice_names does not have effect here
-        )
+        if not df.empty:
+            df = self._apply_option_kwargs(
+                df,
+                drop_zero=drop_zero,
+                round=round,
+                nice_names=nice_names,  # TODO: nice_names does not have effect here
+            )
 
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)
@@ -301,7 +307,9 @@ class AbstractStatisticsAccessor(ABC):
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:
         return False
 
-    def _filter_active_assets(self, n: Network, c: str, obj: Any) -> Any:
+    def _filter_active_assets(
+        self, n: Network | NetworkCollection, c: str, obj: Any
+    ) -> Any:
         """For static values iterate over periods and concat values."""
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
@@ -319,7 +327,7 @@ class AbstractStatisticsAccessor(ABC):
 
     def _filter_bus_carrier(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         port: str,
         bus_carrier: str | Sequence[str] | None,
@@ -348,7 +356,7 @@ class AbstractStatisticsAccessor(ABC):
 
     def _filter_carrier(
         self,
-        n: Network,
+        n: Network | NetworkCollection,
         c: str,
         carrier: str | Sequence[str] | None,
         obj: Any,

@@ -156,11 +156,6 @@ class OptionsNode:
         value : Any
             Value to set for the option.
 
-        Examples
-        --------
-        >>> pypsa.options.set_option("params.statistics.drop_zero", False)
-        >>> pypsa.options.get_option("params.statistics.drop_zero")
-        False
 
         """
         parts = path.split(".")

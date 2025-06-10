@@ -221,6 +221,7 @@ def create_model(
         transmission_losses,
         linearized_unit_commitment,
         consistency_check,
+        **kwargs,
     )
 
 
