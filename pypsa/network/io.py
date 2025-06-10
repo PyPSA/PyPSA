@@ -21,9 +21,11 @@ from deprecation import deprecated
 from pyproj import CRS
 from typing_extensions import Self
 
-from pypsa.common import check_optional_dependency
+from pypsa._options import options
+from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
+from pypsa.version import __version_semver__, __version_semver_tuple__
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -52,6 +54,11 @@ def _retrieve_from_url(
 
 @functools.lru_cache(maxsize=128)
 def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Network:
+    # Check if network requests are allowed
+    if not options.get_option("general.allow_network_requests"):
+        msg = "Network requests are disabled. Set `pypsa.options.general.allow_network_requests = True` to enable URL loading."
+        raise ValueError(msg)
+
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         file_path = Path(temp_file.name)
         logger.info("Retrieving network data from %s.", url)
@@ -644,7 +651,7 @@ class ImporterHDF5(Importer):
         if "/" + list_name not in self.ds:
             return None
 
-        if self.pypsa_version is None or self.pypsa_version < [0, 13, 1]:  # type: ignore
+        if self.pypsa_version is None or self.pypsa_version < (0, 13, 1):  # type: ignore
             df = self.ds["/" + list_name]
         else:
             df = self.ds["/" + list_name].set_index("name")
@@ -1131,14 +1138,15 @@ class NetworkIOMixin(_NetworkABC):
             crs = CRS.from_wkt(crs)
             self._crs = crs
 
-        current_pypsa_version = [int(s) for s in self.pypsa_version.split(".")]
         pypsa_version = None
 
         if attrs is not None:
             self.name = attrs.pop("name")
 
             try:
-                pypsa_version = [int(s) for s in attrs.pop("pypsa_version").split(".")]
+                pypsa_version = tuple(
+                    int(s) for s in attrs.pop("pypsa_version").split(".")
+                )
             except KeyError:
                 pypsa_version = None
 
@@ -1146,24 +1154,28 @@ class NetworkIOMixin(_NetworkABC):
                 setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version is None or pypsa_version < current_pypsa_version:
+        if pypsa_version is None or pypsa_version < __version_semver_tuple__:
             pypsa_version_str = (
                 ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
             )
-            current_pypsa_version_str = ".".join(map(str, current_pypsa_version))
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
                 "to prepare your network for import.",
                 pypsa_version_str,
-                current_pypsa_version_str,
+                __version_semver__,
             )
 
-        if pypsa_version is None or pypsa_version < [0, 18, 0]:
+        # Check for newer PyPSA version available
+        update_msg = _check_for_update(__version_semver_tuple__, "PyPSA", "pypsa")
+        if update_msg:
+            logger.info(update_msg)
+
+        if pypsa_version is None or pypsa_version < (0, 18, 0):
             self._multi_invest = 0
 
         importer.pypsa_version = pypsa_version
-        importer.current_pypsa_version = current_pypsa_version
+        importer.current_pypsa_version = __version_semver_tuple__
 
         # if there is snapshots.csv, read in snapshot data
         df = importer.get_snapshots()

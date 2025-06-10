@@ -11,10 +11,7 @@ __copyright__ = (
     "MIT License"
 )
 
-import logging
-import re
 import warnings
-from importlib.metadata import version
 from typing import Any
 
 from pypsa import (
@@ -36,8 +33,6 @@ from pypsa._options import (
     options,
 )
 from pypsa.collection import NetworkCollection
-from pypsa.common import check_for_update
-from pypsa.components.abstract import Components
 from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
 from pypsa.version import (
@@ -67,10 +62,6 @@ describe_options = options.describe_options
 get_option = options.get_option
 set_option = options.set_option
 
-# Log update message if available
-update_msg = check_for_update(release_version, "PyPSA", "pypsa")
-if update_msg:
-    logger.info(update_msg)
 
 __all__ = [
     "__version__",
