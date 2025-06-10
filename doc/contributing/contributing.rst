@@ -4,7 +4,7 @@ Contributing
 
 First of all, thank you for thinking about contributing to PyPSA! 
 
-We strongly welcome anyone interested in PyPSA and all it's related projects, be it
+We strongly welcome anyone interested in PyPSA and all its related projects, be it
 with new ideas, suggestions, submitting bug reports or contributing code changes.
 
 **How to contribute**
@@ -15,9 +15,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 
 **Where to go for help**
 
-* In case of code-related **questions**, please post on `stack overflow <https://stackoverflow.com/questions/tagged/pypsa>`_.
-* For non-programming related and more general questions please refer to the `mailing list <https://groups.google.com/group/pypsa>`_.
-* To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the `discord server <https://discord.gg/AnuJBk23FU>`_.
+* To **discuss** with other PyPSA users, organise projects, share news, and get in touch with the community you can use the `Discord server <https://discord.gg/AnuJBk23FU>`_.
 * For **troubleshooting**, please check the `troubleshooting <https://pypsa.readthedocs.io/en/latest/contributing/troubleshooting.html>`_ in the documentation.
 * For **guidelines to contribute** to PyPSA, stay right here.
 
@@ -32,6 +30,7 @@ Code
 
 #. Fork the repository on GitHub
 #. Clone your fork: ``git clone https://github.com/<your-username>/PyPSA.git``
+#. Fetch the upstream tags ``git fetch --tags https://github.com/PyPSA/PyPSA.git``
 #. Install with dependencies in editable mode: ``pip install -e .[dev]``
 #. Setup linter and formatter, e.g ``pre-commit install`` (see :ref:`linting-and-formatting`)
 #. Write your code (preferably on a new branch)
@@ -88,7 +87,7 @@ To use the linter in your CLI, run:
 
     ruff check . --fix
 
-This will check all files in the repository and gives you hints on what to improve. The 
+This will check all files in the repository and give you hints on what to improve. The 
 ``--fix`` flag will also automatically fix some of the issues, if possible. Some 
 issues need to be fixed manually.
 

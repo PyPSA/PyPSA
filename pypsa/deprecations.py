@@ -1,3 +1,5 @@
+"""Deprecated functionality."""
+
 COMPONENT_ALIAS_DICT = {
     "SubNetwork": "sub_networks",
     "Bus": "buses",

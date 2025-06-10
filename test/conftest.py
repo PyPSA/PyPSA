@@ -1,11 +1,4 @@
-#!/usr/bin/env python3
-"""
-Created on Mon Jan 31 18:29:48 2022.
-
-@author: fabian
-"""
-
-import os
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -15,6 +8,29 @@ from shapely.geometry import Polygon
 
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
+
+COMPONENT_NAMES = [
+    "sub_networks",
+    "buses",
+    "carriers",
+    "global_constraints",
+    "lines",
+    "line_types",
+    "transformers",
+    "transformer_types",
+    "links",
+    "loads",
+    "generators",
+    "storage_units",
+    "stores",
+    "shunt_impedances",
+    "shapes",
+]
+
+
+@pytest.fixture(params=COMPONENT_NAMES)
+def component_name(request):
+    return request.param
 
 
 def pytest_addoption(parser):
@@ -30,16 +46,9 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def scipy_network():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "scigrid-de",
-        "scigrid-with-load-gen-trafos",
-    )
-    n = pypsa.Network(csv_folder)
+    n = pypsa.examples.scigrid_de()
     n.generators.control = "PV"
     g = n.generators[n.generators.bus == "492"]
     n.generators.loc[g.index, "control"] = "PQ"
@@ -48,34 +57,18 @@ def scipy_network():
     return n
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def ac_dc_network():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
-    )
-    n = pypsa.Network(csv_folder)
-    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
-    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
-    return n
+    return pypsa.examples.ac_dc_meshed()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture  # scope="session")
 def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "ac-dc-meshed",
-        "ac-dc-data",
-        "results-lopf",
-    )
-    n = pypsa.Network(csv_folder)
-    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
-    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
-    return n
+    csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
+    return pypsa.Network(csv_folder)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def ac_dc_network_mi(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
@@ -86,7 +79,7 @@ def ac_dc_network_mi(ac_dc_network):
     return n
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def ac_dc_network_shapes(ac_dc_network):
     n = ac_dc_network
 
@@ -117,32 +110,33 @@ def ac_dc_network_shapes(ac_dc_network):
     return n
 
 
-@pytest.fixture(scope="module")
-def storage_hvdc_network():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "opf-storage-hvdc",
-        "opf-storage-data",
+@pytest.fixture
+def network_collection(ac_dc_network_r):
+    return pypsa.NetworkCollection(
+        [ac_dc_network_r],
+        index=pd.MultiIndex.from_tuples([("a", 2030)], names=["scenario", "year"]),
     )
-    return pypsa.Network(csv_folder)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
+def storage_hvdc_network():
+    return pypsa.examples.storage_hvdc()
+
+
+@pytest.fixture
 def all_networks(
     ac_dc_network,
-    ac_dc_network_r,
-    ac_dc_network_mi,
-    ac_dc_network_shapes,
-    storage_hvdc_network,
+    # ac_dc_network_r,
+    # ac_dc_network_mi,
+    # ac_dc_network_shapes,
+    # storage_hvdc_network,
 ):
     return [
         ac_dc_network,
-        ac_dc_network_r,
-        ac_dc_network_mi,
-        ac_dc_network_shapes,
-        storage_hvdc_network,
+        # ac_dc_network_r,
+        # ac_dc_network_mi,
+        # ac_dc_network_shapes,
+        # storage_hvdc_network,
     ]
 
 

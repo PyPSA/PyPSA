@@ -1,8 +1,19 @@
 import pandas as pd
 import pytest
 
-from pypsa import Network
-from pypsa.components.components import Component
+from pypsa import Components, Network
+from pypsa.components.legacy import Component
+from pypsa.components.types import get as get_component_type
+
+
+def test_components_non_implemented():
+    """Test that the components module raises an ImportError if imported directly."""
+    ct = get_component_type("Generator")
+    with pytest.raises(NotImplementedError):
+        Components(ctype=ct, names=["Generator"])
+    n = Network()
+    with pytest.raises(NotImplementedError):
+        Components(ctype=ct, n=n)
 
 
 @pytest.fixture

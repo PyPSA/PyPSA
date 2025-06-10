@@ -1,5 +1,4 @@
-"""
-Components types module.
+"""Components types module.
 
 Contains module wide component types. Default types are loaded from the package data.
 Additional types can be added by the user.
@@ -35,8 +34,7 @@ def add_component_type(
     defaults_df: pd.DataFrame,
     standard_types_df: pd.DataFrame | None = None,
 ) -> None:
-    """
-    Add component type to package wide component types library.
+    """Add component type to package wide component types library.
 
     The function is used to add the package default components but can also be used to
     add custom components, which then again can be used during the network creation.
@@ -57,14 +55,11 @@ def add_component_type(
     standard_types_df : pandas.DataFrame, optional
         Standard types of the component type.
 
-    Returns
-    -------
-    None
 
     Examples
     --------
     >>> import pandas as pd
-    >>> import pypsa
+
     >>> defaults_data = {
     ...     "attribute": ["name", "attribute_a"],
     ...     "type": ["string", "float"],
@@ -139,8 +134,7 @@ def add_component_type(
 def _load_default_component_types(
     component_df: pd.DataFrame, attrs_path: Path, standard_types_path: Path
 ) -> None:
-    """
-    Load default component types from package data.
+    """Load default component types from package data.
 
     Function is called during package import and should not be used otherwise.
 
@@ -183,8 +177,7 @@ def _load_default_component_types(
 
 
 def get(name: str) -> ComponentType:
-    """
-    Get component type instance from package wide component types library.
+    """Get component type instance from package wide component types library.
 
     The function is used to get the package default components but can also be used to
     get custom components. During network creation, the type instance is not needed but
@@ -203,7 +196,6 @@ def get(name: str) -> ComponentType:
 
     Examples
     --------
-    >>> import pypsa
     >>> pypsa.components.types.get("Generator")
     'Generator' Component Type
 
@@ -212,13 +204,13 @@ def get(name: str) -> ComponentType:
         name = COMPONENT_ALIAS_DICT[name]
     try:
         return all_components[name]
-    except KeyError:
+    except KeyError as e:
         msg = (
             f"Component type '{name}' not found. If you use a custom component, make "
             f"sure to have it added. Available types are: "
             f"{list_as_string(all_components)}."
         )
-        raise ValueError(msg)
+        raise ValueError(msg) from e
 
 
 # Load default component types

@@ -1,5 +1,4 @@
-"""
-Python for Power Systems Analysis (PyPSA)
+"""Python for Power Systems Analysis (PyPSA).
 
 Energy system modelling library.
 """
@@ -14,7 +13,9 @@ __copyright__ = (
 
 import logging
 import re
+import warnings
 from importlib.metadata import version
+from typing import Any
 
 from pypsa import (
     clustering,
@@ -30,18 +31,41 @@ from pypsa import (
     plot,
     statistics,
 )
+from pypsa._options import (
+    option_context,
+    options,
+)
+from pypsa.collection import NetworkCollection
 from pypsa.common import check_for_update
 from pypsa.components.abstract import Components
+from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
+from pypsa.version import (
+    __version__,
+    __version_semver__,
+    __version_semver_tuple__,
+    __version_short__,
+    __version_short_tuple__,
+)
 
-logger = logging.getLogger("PyPSA")
+version = __version__  # Alias for legacy access
 
-# e.g. "0.17.1" or "0.17.1.dev4+ga3890dc0" (if installed from git)
-__version__ = version("pypsa")
-# e.g. "0.17.0" # TODO, in the network structure it should use the dev version
-match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
-assert match, f"Could not determine release_version of pypsa: {__version__}"
-release_version = match.group(0)
+
+def __getattr__(name: str) -> Any:
+    if name in ["release_version"]:
+        warnings.warn(
+            "The attribute 'release_version' is deprecated and will be removed in a future version. "
+            "Use '__version_semver__' instead. Deprecated in version 0.35 and will be removed in version 1.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return __version_semver__
+
+
+# Module access to options
+describe_options = options.describe_options
+get_option = options.get_option
+set_option = options.set_option
 
 # Log update message if available
 update_msg = check_for_update(release_version, "PyPSA", "pypsa")
@@ -49,6 +73,17 @@ if update_msg:
     logger.info(update_msg)
 
 __all__ = [
+    "__version__",
+    "__version_semver__",
+    "__version_short__",
+    "__version_semver_tuple__",
+    "__version_short_tuple__",
+    "version",
+    "options",
+    "set_option",
+    "get_option",
+    "describe_options",
+    "option_context",
     "clustering",
     "common",
     "components",
@@ -62,6 +97,7 @@ __all__ = [
     "plot",
     "statistics",
     "Network",
+    "NetworkCollection",
     "SubNetwork",
     "Components",
 ]

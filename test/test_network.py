@@ -179,7 +179,7 @@ def test_add_varying_single(n_5bus_7sn):
     assert n_5bus_7sn.loads.index.name == "Load"
     assert (n_5bus_7sn.loads.index == "load_1").all()
     assert (n_5bus_7sn.loads.bus == buses[0]).all()
-    assert (n_5bus_7sn.loads_t.p_set.T == p_set).all().all()
+    assert (p_set == n_5bus_7sn.loads_t.p_set.T).all().all()
     assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
 
     # Test different snapshots shape
@@ -343,12 +343,16 @@ def test_equality_behavior(all_networks):
     """
     for n in all_networks:
         deep_copy = copy.deepcopy(n)
-        assert n == deep_copy
         assert n is not deep_copy
+        assert n.equals(deep_copy, log_mode="strict")
+
+        assert n == deep_copy
 
         # TODO: Could add more property based tests here (hypothesis)
         deep_copy.name = "new_name"
         assert n != deep_copy
+
+        assert n != "other_type"
 
 
 @pytest.mark.skipif(
@@ -388,7 +392,13 @@ def test_copy_snapshots(all_networks):
 
         copied_n = n.copy(snapshots=n.snapshots[:5])
         n.set_snapshots(n.snapshots[:5])
-        assert copied_n == n
+        try:
+            assert copied_n == n
+        except AssertionError:
+            from deepdiff import DeepDiff
+
+            differences = DeepDiff(copied_n, n)
+            raise AssertionError(f"DeepDiff: {differences}")
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):
@@ -401,7 +411,6 @@ def test_single_add_network_static(ac_dc_network, n_5bus):
     THEN    the first network should now contain its original buses and
     also the buses in the second network
     """
-
     n = ac_dc_network.merge(n_5bus, with_time=False)
     new_buses = set(n.buses.index)
     assert new_buses.issuperset(n_5bus.buses.index)
@@ -492,3 +501,55 @@ def test_components_repr(ac_dc_network):
     n = pypsa.Network()
     assert repr(n).startswith("Empty Unnamed PyPSA Network")
     assert len(repr(n)) > len(str(n))
+
+
+@pytest.mark.parametrize("legacy_components", [True, False])
+def test_api_components_legacy(legacy_components):
+    """
+    Test the API of the components module.
+    """
+    with pypsa.option_context("api.legacy_components", legacy_components):
+        n = pypsa.examples.ac_dc_meshed()
+
+        if legacy_components:
+            assert n.buses is n.components.buses.static
+            assert n.buses_t is n.components.buses.dynamic
+            assert n.lines is n.components.lines.static
+            assert n.lines_t is n.components.lines.dynamic
+            assert n.generators is n.components.generators.static
+            assert n.generators_t is n.components.generators.dynamic
+        else:
+            assert n.buses is n.components.buses
+            with pytest.raises(DeprecationWarning):
+                assert n.buses_t is n.components.buses.dynamic
+            assert n.lines is n.components.lines
+            with pytest.raises(DeprecationWarning):
+                assert n.lines_t is n.components.lines.dynamic
+            assert n.generators is n.components.generators
+            with pytest.raises(DeprecationWarning):
+                assert n.generators_t is n.components.generators.dynamic
+
+
+@pytest.mark.parametrize("legacy_components", [True, False])
+def test_api_legacy_components(component_name, legacy_components):
+    """
+    Test the API of the components module.
+    """
+
+    with pypsa.option_context("api.legacy_components", legacy_components):
+        n = pypsa.examples.ac_dc_meshed()
+        if legacy_components:
+            assert n.static(component_name) is n.c[component_name].static
+            assert n.dynamic(component_name) is n.c[component_name].dynamic
+
+            setattr(n, component_name, "test")
+            assert n.static(component_name) == "test"
+            setattr(n, f"{component_name}_t", "test")
+            assert n.dynamic(component_name) == "test"
+        else:
+            assert n.static(component_name) is n.c[component_name].static
+            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.raises(AttributeError):
+                setattr(n, component_name, "test")
+            with pytest.raises(DeprecationWarning):
+                setattr(n, f"{component_name}_t", "test")

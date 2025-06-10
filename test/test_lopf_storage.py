@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -9,31 +9,18 @@ import pypsa
 
 @pytest.fixture
 def target_gen_p():
-    target_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "opf-storage-hvdc",
-        "opf-storage-data",
-        "results",
-        "generators-p.csv",
+    target_path = (
+        Path(__file__).parent
+        / "data"
+        / "storage-hvdc"
+        / "results-lopf"
+        / "generators-p.csv"
     )
     return pd.read_csv(target_path, index_col=0, parse_dates=True)
 
 
-@pytest.fixture
-def n():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "opf-storage-hvdc",
-        "opf-storage-data",
-    )
-    return pypsa.Network(csv_folder)
-
-
-def test_optimize(n, target_gen_p):
+def test_optimize(storage_hvdc_network, target_gen_p):
+    n = storage_hvdc_network
     n.optimize()
     equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 

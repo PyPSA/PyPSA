@@ -9,7 +9,6 @@ def test_meshed_threshold():
     This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
-
     # marginal costs in EUR/MWh
     marginal_costs = {"Wind": 0, "Hydro": 0, "Coal": 30, "Gas": 60, "Oil": 80}
 
@@ -93,13 +92,11 @@ def test_meshed_threshold():
                 p_nom=power_plant_p_nom[country][tech],
                 marginal_cost=marginal_costs[tech],
             )
-        #
         network.add("Load", f"{country} load", bus=country, p_set=loads[country])
         #
         # add transmission as controllable Link
         if country not in transmission:
             continue
-        #
         for other_country in countries:
             if other_country not in transmission[country]:
                 continue

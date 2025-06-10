@@ -69,6 +69,8 @@ Universities and Research Institutes
 
 * `Forschungszentrum Jülich <https://www.fz-juelich.de/>`_ (FZJ) for network calculations
 
+* `Forschungsstelle für Energiewirtschaft (FfE) <https://www.ffe.de/>`_ uses PyPSA for their `HyPTraDe <https://www.ffe.de/tools/hyptrade-global-hydrogen-modellkette/>`__ global hydrogen model chain.
+
 * `Forschungsstelle für Energienetze und Energiespeicher (FENES) <https://www.fenes.net/>`_ at `Ostbayerische Technische Hochschule Regensburg <https://www.oth-regensburg.de/>`_
 
 * `TH Köln <https://www.th-koeln.de/>`_ used PyPSA for `a study on the role of renewables, storage and sector-coupling flexibilities in Germany at varying carbon-dioxide emission levels <https://doi.org/10.3390/su141610379>`_.
@@ -81,6 +83,8 @@ Universities and Research Institutes
 
 * `South and South-East Asia Multidisciplinary Applied Research Network on Transforming Societies of Global South (SMARTS) <https://ait.ac.th/centre/smartscenter/>`_ at `Asian Institute of Technology <https://ait.ac.th/>`_  and `Department of Electrical and Electronic Engineering at International University of Business Agriculture and Technology (IUBAT), Dhaka <https://eee.iubat.edu/>`_ developed an adaptation of PyPSA-Earth, called PyPSA-BD to support the energy transition in Bangladesh `<https://doi.org/10.1016/j.ref.2024.100655>`_
 
+* `RISE Research Institutes of Sweden AB <https://www.ri.se/>`_ (RISE) for energy systems research in `RESILIENT project <https://resilient-project.github.io/>`_ and more.
+
 Companies, Governmental and Non-Governmental Organisations
 ==========================================================
 
@@ -91,6 +95,10 @@ Companies, Governmental and Non-Governmental Organisations
 * `Joint Research Centre (JRC) <https://joint-research-centre.ec.europa.eu/index_en>`_ of the `European Commission <https://ec.europa.eu/info/index_en>`_ in various studies (see :ref:`academic-mentions` for details).
 
 * `TransnetBW <https://www.transnetbw.de/>`_ (the electricity transmission system operator in southwest Germany), `ONTRAS <https://www.ontras.com/>`_, (the gas transmission system operator in eastern Germany) and `d-fine <https://www.d-fine.com/>`_ (the consultancy firm): used PyPSA-Eur-Sec for a study in 2020 of the grid requirements in 2050 with a 90% reduction of carbon dioxide emissions in electricity, buildings and transport, see `Stromnetz 2050 <https://www.transnetbw.de/de/stromnetz2050/>`_, for an article in a 2021 issue of Energiewirtschaftliche Tagesfragen `Die Rolle von Wasserstoff in einem klimaneutralen europäischen Energiesystem – eine modellbasierte Analyse bis 2050 <https://www.d-fine.com/fileadmin/user_upload/Wasserstoff_et_0102-2021.pdf>`_, and for their 2022 study `Energy System 2050 - Towards a decarbonised Europe <https://www.energysystem2050.net/>`_.
+
+* `ENTSO-E (European Network of Transmission System Operators for Electricity) <https://www.entsoe.eu/>`_ launched in collaboration with `Open Energy Transition <https://openenergytransition.org/>`_ a research and innovation project to develop a complementary open-source tool in PyPSA for `Scenario Building and Cost-Benefit Analysis within the TYNDP process <https://www.linkedin.com/posts/entso-e_energytransition-opensource-innovation-activity-7293296246813851649-2ynL>`_.
+
+* `The EU Agency for the Cooperation of Energy Regulators (ACER) <https://www.acer.europa.eu/>`_ is building a PyPSA solution for the `EU-wide flexibility assessment platform <https://www.acer.europa.eu/sites/default/files/documents/en/The_agency/Organisation/Expert_Groups/EG_Flexibility/Flexibility_EG_Open_Letter_2025.pdf>`_.
 
 * `Open Energy Transition <https://openenergytransition.org/>`_, a non-profit software company and environmental think tank: uses, develops and provides commercial support and training for PyPSA. List of projects: `https://openenergytransition.org/projects.html <https://openenergytransition.org/projects.html>`_
 
@@ -105,7 +113,7 @@ Companies, Governmental and Non-Governmental Organisations
 * `Austrian Power Grid (APG) <https://www.apg.at/>`_, the Austrian TSO, uses PyPSA for its system vision of the Austrian energy system up to 2050, as shown in `this talk <https://www.tugraz.at/fileadmin/user_upload/tugrazExternal/738639ca-39a0-4129-b0f0-38b384c12b57/files/pr/Session_A3/132_PR_Spindler.pdf>`_ and `this project description <https://www.apg.at/projekte/zusammen-2040/>`_.
 
 * `Centre for Net Zero <https://www.centrefornetzero.org/>`_, a research unit
-  founded by `Octupus Energy <https://octupus.energy>`_, used PyPSA in a `report
+  founded by `Octopus Energy <https://octopus.energy>`_, used PyPSA in a `report
   <https://www.centrefornetzero.org/work/whole-system-modelling-of-future-energy-scenarios-domestic-gb-demand-flexibility/>`_
   to investigate the role of demand flexibility in future UK energy systems.
 

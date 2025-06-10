@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
-"""
-Define optimisation constraints from PyPSA networks with Linopy.
-"""
+"""Define optimisation constraints from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import linopy
@@ -17,10 +13,8 @@ from numpy import inf, isfinite
 from scipy import sparse
 from xarray import DataArray, Dataset, concat
 
-from pypsa.common import as_index
+from pypsa.common import as_index, expand_series
 from pypsa.descriptors import (
-    additional_linkports,
-    expand_series,
     get_activity_mask,
     get_bounds_pu,
     nominal_attrs,
@@ -29,7 +23,9 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.optimization.common import reindex
 
 if TYPE_CHECKING:
-    from xarray import DataArray
+    from collections.abc import Sequence
+
+    from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
 
@@ -39,8 +35,7 @@ logger = logging.getLogger(__name__)
 def define_operational_constraints_for_non_extendables(
     n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
-    """
-    Sets power dispatch constraints for non-extendable and non-commitable
+    """Set power dispatch constraints for non-extendable and non-commitable
     assets for a given component and a given attribute.
 
     Parameters
@@ -52,6 +47,7 @@ def define_operational_constraints_for_non_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     dispatch_lower: DataArray | tuple
     dispatch_upper: DataArray | tuple
@@ -86,8 +82,7 @@ def define_operational_constraints_for_non_extendables(
 def define_operational_constraints_for_extendables(
     n: Network, sns: pd.Index, c: str, attr: str, transmission_losses: int
 ) -> None:
-    """
-    Sets power dispatch constraints for extendable devices for a given
+    """Set power dispatch constraints for extendable devices for a given
     component and a given attribute.
 
     Parameters
@@ -99,6 +94,7 @@ def define_operational_constraints_for_extendables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     lhs_lower: DataArray | tuple
     lhs_upper: DataArray | tuple
@@ -132,8 +128,7 @@ def define_operational_constraints_for_extendables(
 def define_operational_constraints_for_committables(
     n: Network, sns: pd.Index, c: str
 ) -> None:
-    """
-    Sets power dispatch constraints for committable devices for a given
+    """Set power dispatch constraints for committable devices for a given
     component and a given attribute. The linearized approximation of the unit
     commitment problem is inspired by Hua et al. (2017) DOI:
     10.1109/TPWRS.2017.2735026.
@@ -145,6 +140,7 @@ def define_operational_constraints_for_committables(
         Snapshots of the constraint.
     c : str
         name of the network component
+
     """
     com_i = n.get_committable_i(c)
 
@@ -217,32 +213,38 @@ def define_operational_constraints_for_committables(
     )
 
     # min up time
-    mask = get_activity_mask(n, c, sns[1:], com_i)
-    expr = []
     min_up_time_i = com_i[min_up_time_set.astype(bool)]
     if not min_up_time_i.empty:
+        expr = []
         for g in min_up_time_i:
             su = start_up.loc[:, g]
             expr.append(su.rolling(snapshot=min_up_time_set[g]).sum())
         lhs = -status.loc[:, min_up_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-up-time", mask=mask[min_up_time_i]
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-up-time",
+            mask=DataArray(active[min_up_time_i]).sel(snapshot=sns[1:]),
         )
 
     # min down time
-    expr = []
     min_down_time_i = com_i[min_down_time_set.astype(bool)]
     if not min_down_time_i.empty:
+        expr = []
         for g in min_down_time_i:
             su = shut_down.loc[:, g]
             expr.append(su.rolling(snapshot=min_down_time_set[g]).sum())
         lhs = status.loc[:, min_down_time_i] + merge(expr, dim=com_i.name)
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 1, name=f"{c}-com-down-time", mask=mask[min_down_time_i]
+            lhs,
+            "<=",
+            1,
+            name=f"{c}-com-down-time",
+            mask=DataArray(active[min_down_time_i]).sel(snapshot=sns[1:]),
         )
-
     # up time before
     timesteps = pd.DataFrame([range(1, len(sns) + 1)] * len(com_i), com_i, sns).T
     if initially_up.any():
@@ -261,67 +263,105 @@ def define_operational_constraints_for_committables(
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    cost_equal = all(
+    cost_equal = (
         n.static(c).loc[com_i, "start_up_cost"]
         == n.static(c).loc[com_i, "shut_down_cost"]
-    )
+    ).values
     # only valid additional constraints if start up costs equal to shut down costs
-    if n._linearized_uc and not cost_equal:
+    if n._linearized_uc and not cost_equal.all():
         logger.warning(
             "The linear relaxation of the unit commitment cannot be "
-            "tightened since the start up costs are not equal to the "
-            "shut down costs. Proceed with the linear relaxation "
-            "without the tightening by additional constraints. "
-            "This might result in a longer solving time."
+            "tightened for all generators since the start up costs "
+            "are not equal to the shut down costs. Proceed with the "
+            "linear relaxation without the tightening by additional "
+            "constraints for these. This might result in a longer "
+            "solving time."
         )
-    if n._linearized_uc and cost_equal:
+    if n._linearized_uc and cost_equal.any():
         # dispatch limit for partly start up/shut down for t-1
-        lhs = (
-            p.shift(snapshot=1)
-            - ramp_shut_down * status.shift(snapshot=1)
-            - (upper_p - ramp_shut_down) * (status - start_up)
-        )
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-before", mask=active)
+        p_ce = p.loc[:, cost_equal]
+        start_up_ce = start_up.loc[:, cost_equal]
+        status_ce = status.loc[:, cost_equal]
+        active_ce = DataArray(active.loc[:, cost_equal]).sel(snapshot=sns[1:])
 
-        # dispatch limit for partly start up/shut down for t
-        lhs = p - upper_p * status + (upper_p - ramp_start_up) * start_up
-        lhs = lhs.sel(snapshot=sns[1:])
-        n.model.add_constraints(lhs, "<=", 0, name=f"{c}-com-p-current", mask=active)
+        # parameters
+        upper_p_ce = upper_p.loc[:, cost_equal]
+        lower_p_ce = lower_p.loc[:, cost_equal]
+        ramp_shut_down_ce = ramp_shut_down.loc[cost_equal]
+        ramp_start_up_ce = ramp_start_up.loc[cost_equal]
+        ramp_up_limit_ce = ramp_up_limit.loc[cost_equal]
+        ramp_down_limit_ce = ramp_down_limit.loc[cost_equal]
 
-        # ramp up if committable is only partly active and some capacity is starting up
         lhs = (
-            p
-            - p.shift(snapshot=1)
-            - (lower_p + ramp_up_limit) * status
-            + lower_p * status.shift(snapshot=1)
-            + (lower_p + ramp_up_limit - ramp_start_up) * start_up
+            p_ce.shift(snapshot=1)
+            - ramp_shut_down_ce * status_ce.shift(snapshot=1)
+            - (upper_p_ce - ramp_shut_down_ce) * (status_ce - start_up_ce)
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-start-up", mask=active
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-p-before",
+            mask=active_ce,
+        )
+
+        # dispatch limit for partly start up/shut down for t
+        lhs = (
+            p_ce
+            - upper_p_ce * status_ce
+            + (upper_p_ce - ramp_start_up_ce) * start_up_ce
+        )
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-p-current",
+            mask=active_ce,
+        )
+
+        # ramp up if committable is only partly active and some capacity is starting up
+        lhs = (
+            p_ce
+            - p_ce.shift(snapshot=1)
+            - (lower_p_ce + ramp_up_limit_ce) * status_ce
+            + lower_p_ce * status_ce.shift(snapshot=1)
+            + (lower_p_ce + ramp_up_limit_ce - ramp_start_up_ce) * start_up_ce
+        )
+        lhs = lhs.sel(snapshot=sns[1:])
+        n.model.add_constraints(
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-partly-start-up",
+            mask=active_ce,
         )
 
         # ramp down if committable is only partly active and some capacity is shutting up
         lhs = (
-            p.shift(snapshot=1)
-            - p
-            - ramp_shut_down * status.shift(snapshot=1)
-            + (ramp_shut_down - ramp_down_limit) * status
-            - (lower_p + ramp_down_limit - ramp_shut_down) * start_up
+            p_ce.shift(snapshot=1)
+            - p_ce
+            - ramp_shut_down_ce * status_ce.shift(snapshot=1)
+            + (ramp_shut_down_ce - ramp_down_limit_ce) * status_ce
+            - (lower_p_ce + ramp_down_limit_ce - ramp_shut_down_ce) * start_up_ce
         )
         lhs = lhs.sel(snapshot=sns[1:])
         n.model.add_constraints(
-            lhs, "<=", 0, name=f"{c}-com-partly-shut-down", mask=active
+            lhs,
+            "<=",
+            0,
+            name=f"{c}-com-partly-shut-down",
+            mask=active_ce,
         )
 
 
 def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) -> None:
-    """
-    Sets capacity expansion constraints for extendable assets for a given
+    """Set capacity expansion constraints for extendable assets for a given
     component and a given attribute.
 
-    Note: As GLPK does not like inf values on the right-hand-side we as masking these out.
+    Note: As GLPK does not like inf values on the right-hand-side we as
+    masking these out.
 
     Parameters
     ----------
@@ -330,6 +370,7 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     ext_i = n.get_extendable_i(c)
 
@@ -347,14 +388,14 @@ def define_nominal_constraints_for_extendables(n: Network, c: str, attr: str) ->
 
 
 def define_ramp_limit_constraints(n: Network, sns: pd.Index, c: str, attr: str) -> None:
-    """
-    Defines ramp limits for assets with valid ramplimit.
+    """Define ramp limits for assets with valid ramplimit.
 
     Parameters
     ----------
     n : pypsa.Network
     c : str
         name of the network component
+
     """
     m = n.model
 
@@ -533,9 +574,7 @@ def define_nodal_balance_constraints(
     buses: Sequence | None = None,
     suffix: str = "",
 ) -> None:
-    """
-    Defines nodal balance constraints.
-    """
+    """Define nodal balance constraints."""
     m = n.model
     if buses is None:
         buses = n.buses.index
@@ -554,7 +593,7 @@ def define_nodal_balance_constraints(
     ]
 
     if not n.links.empty:
-        for i in additional_linkports(n):
+        for i in n.components.links.additional_ports:
             eff = get_as_dense(n, "Link", f"efficiency{i}", sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
@@ -584,7 +623,7 @@ def define_nodal_balance_constraints(
         cbuses = n.static(c)[column][lambda ds: ds.isin(buses)].rename("Bus")
 
         #  drop non-existent multiport buses which are ''
-        if column in ["bus" + i for i in additional_linkports(n)]:
+        if column in ["bus" + i for i in n.c.links.additional_ports]:
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel({c: cbuses.index})
@@ -608,7 +647,8 @@ def define_nodal_balance_constraints(
     rhs = DataArray(rhs)
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
-            raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
+            msg = "Empty LHS with non-zero RHS in nodal balance constraint."
+            raise ValueError(msg)
 
         mask = ~empty_nodal_balance
     else:
@@ -623,9 +663,7 @@ def define_nodal_balance_constraints(
 
 
 def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Defines Kirchhoff voltage constraints.
-    """
+    """Define Kirchhoff voltage constraints."""
     m = n.model
     n.calculate_dependent_values()
 
@@ -671,19 +709,18 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
                 ds = Dataset({"coeffs": coeffs, "vars": vars})
                 exprs_list.append(LinearExpression(ds, m))
 
-        if len(exprs_list):
+        if exprs_list:
             exprs = merge(exprs_list, dim="cycles")
             exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
             lhs.append(exprs)
 
-    if len(lhs):
+    if lhs:
         lhs = merge(lhs, dim="snapshot")
         m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
 
 
 def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
-    """
-    Sets constraints for fixing static variables of a given component and
+    """Set constraints for fixing static variables of a given component and
     attribute to the corresponding values in `n.static(c)[attr + '_set']`.
 
     Parameters
@@ -693,6 +730,7 @@ def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if attr + "_set" not in n.static(c):
         return
@@ -709,8 +747,7 @@ def define_fixed_nominal_constraints(n: Network, c: str, attr: str) -> None:
 
 
 def define_modular_constraints(n: Network, c: str, attr: str) -> None:
-    """
-    Sets constraints for fixing modular variables of a given component. It
+    """Set constraints for fixing modular variables of a given component. It
     allows to define optimal capacity of a component as multiple of the nominal
     capacity of the single module.
 
@@ -721,6 +758,7 @@ def define_modular_constraints(n: Network, c: str, attr: str) -> None:
         name of the network component
     attr : str
         name of the variable, e.g. 'n_opt'
+
     """
     m = n.model
     mod_i = n.static(c).query(f"{attr}_extendable and ({attr}_mod>0)").index
@@ -739,8 +777,7 @@ def define_modular_constraints(n: Network, c: str, attr: str) -> None:
 def define_fixed_operation_constraints(
     n: Network, sns: pd.Index, c: str, attr: str
 ) -> None:
-    """
-    Sets constraints for fixing time-dependent variables of a given component
+    """Set constraints for fixing time-dependent variables of a given component
     and attribute to the corresponding values in `n.dynamic(c)[attr + '_set']`.
 
     Parameters
@@ -750,6 +787,7 @@ def define_fixed_operation_constraints(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     if attr + "_set" not in n.dynamic(c):
         return
@@ -769,9 +807,9 @@ def define_fixed_operation_constraints(
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Defines energy balance constraints for storage units. In principal the
-    constraints states:
+    """Define energy balance constraints for storage units.
+
+    In principal the constraints states:
 
     previous_soc + p_store - p_dispatch + inflow - spill == soc
     """
@@ -858,9 +896,9 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Defines energy balance constraints for stores. In principal the constraints
-    states:
+    """Define energy balance constraints for stores.
+
+    In principal the constraints states:
 
     previous_e - p == e
     """
@@ -976,14 +1014,17 @@ def define_loss_constraints(
             )
 
 
-@deprecated("Use define_total_supply_constraints instead.")
+@deprecated(
+    deprecated_in="0.31.2",
+    removed_in="1.0",
+    details="Use define_total_supply_constraints instead.",
+)
 def define_generators_constraints(n: Network, sns: Sequence) -> None:
     return define_total_supply_constraints(n, sns)
 
 
 def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
-    """
-    Defines energy sum constraints for generators in the network model.
+    """Define energy sum constraints for generators in the network model.
 
     This function adds constraints to the network model to ensure that the total
     energy generated by each generator over the specified snapshots meets the
@@ -1004,12 +1045,7 @@ def define_total_supply_constraints(n: Network, sns: Sequence) -> None:
     sns : Sequence
         A list of snapshots (time steps) over which the constraints are applied.
 
-    Returns
-    -------
-    None
-
     """
-
     sns_ = as_index(n, sns, "snapshots")
 
     m = n.model

@@ -40,7 +40,7 @@ jobs:
     steps:
     - name: Generate token for PyPSA Bot
       id: generate-token
-      uses: actions/create-github-app-token@v1
+      uses: actions/create-github-app-token@v2
       with:
         app-id: ${{ vars.PYPSA_BOT_ID }}
         private-key: ${{ secrets.PYPSA_BOT_PRIVATE_KEY }}
@@ -72,6 +72,7 @@ jobs:
         python -m pip install uv
         uv pip install --system toml
         uv pip install --system setuptools_scm
+        uv pip install --system .
 
     - name: Update CITATION.cff
       run: |
@@ -88,6 +89,27 @@ jobs:
 
         with open('CITATION.cff', 'w') as file:
           file.write(updated_cff_content)      
+      shell: python
+
+    - name: Update example notebooks
+      run: |
+        import pypsa
+        # ac-dc-meshed
+        n = pypsa.examples.ac_dc_meshed()
+        n.export_to_csv_folder("examples/networks/ac-dc-meshed/ac-dc-meshed")
+        n.export_to_netcdf("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
+        # storage-hvdc
+        n = pypsa.examples.storage_hvdc()
+        n.export_to_csv_folder("examples/networks/storage-hvdc/storage-hvdc")
+        n.export_to_netcdf("examples/networks/storage-hvdc/storage-hvdc.nc")
+        # scigrid-de
+        n = pypsa.examples.scigrid_de()
+        n.export_to_csv_folder("examples/networks/scigrid-de/scigrid-de")
+        n.export_to_netcdf("examples/networks/scigrid-de/scigrid-de.nc")
+        # model-energy
+        n = pypsa.examples.model_energy()
+        n.export_to_csv_folder("examples/networks/model-energy/model-energy")
+        n.export_to_netcdf("examples/networks/model-energy/model-energy.nc")
       shell: python
 
     # End of preparation script

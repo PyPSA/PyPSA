@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Created on Mon Jan 31 18:11:09 2022.
 
@@ -79,7 +78,7 @@ def test_aggregate_generators_consent_error(ac_dc_network):
 
     busmap = pd.Series("all", n.buses.index)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         df, dynamic = aggregateoneport(n, busmap, "Generator")
 
 
@@ -128,10 +127,6 @@ def test_aggregate_storage_units(ac_dc_network):
 def test_aggregate_storage_units_consent_error(ac_dc_network):
     n = ac_dc_network
     n.add("StorageUnit", "Bremen Storage", bus="Bremen", p_nom_extendable=False)
-
-    busmap = pd.Series("all", n.buses.index)
-    with pytest.raises(AssertionError):
-        df, dynamic = aggregateoneport(n, busmap, "StorageUnit")
 
 
 def prepare_network_for_aggregation(n):

@@ -1,22 +1,22 @@
+"""Definitions for network components."""
+
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
-import pandas as pd
 from deprecation import deprecated
 
-from pypsa.deprecations import COMPONENT_ALIAS_DICT
+if TYPE_CHECKING:
+    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class ComponentType:
-    """
-    Dataclass for network component type.
+    """Dataclass for network component type.
 
     Contains all information about a component type, such as its name and defaults
     attributes. Two different types are for example 'Generator' and 'Carrier'.
@@ -45,10 +45,21 @@ class ComponentType:
     defaults: pd.DataFrame
     standard_types: pd.DataFrame | None = None
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
+        """Check if two component types are equal.
+
+        Parameters
+        ----------
+        other : Any
+            The other object to compare to.
+
+        Returns
+        -------
+        bool
+
+        """
         if not isinstance(other, ComponentType):
             return NotImplemented
-
         return (
             self.name == other.name
             and self.list_name == other.list_name
@@ -58,126 +69,44 @@ class ComponentType:
         )
 
     def __repr__(self) -> str:
+        """Representation of the component type.
+
+        Returns
+        -------
+        str
+
+        """
+        # TODO make this actually for the REPL
         return f"'{self.name}' Component Type"
 
     @property
     @deprecated(
         deprecated_in="0.32.0",
+        removed_in="1.0",
         details="Use the 'category' attribute instead.",
     )
     def type(self) -> str:
+        """Getter for the 'type' attribute.
+
+        Returns
+        -------
+        str
+
+        """
         return self.category
 
     @property
     @deprecated(
         deprecated_in="0.32.0",
+        removed_in="1.0",
         details="Use the 'defaults' attribute instead.",
     )
     def attrs(self) -> pd.DataFrame:
+        """Getter for the 'attrs' attribute.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
         return self.defaults
-
-
-class ComponentsStore(dict):
-    def __repr__(self) -> str:
-        return "PyPSA Components Store\n======================\n- " + "\n- ".join(
-            str(value) for value in self.values()
-        )
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if hasattr(ComponentsStore, name):
-            msg = f"'ComponentsStore' object attribute '{name}' can not be set."
-            raise AttributeError(msg)
-        self[name] = value
-
-    def __getitem__(self, item: str | list | set) -> Any:
-        """
-        Index single and multiple items from the dictionary.
-
-        Similar behavior to pandas.DataFrame.__getitem__.
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.components
-        PyPSA Components Store
-        ======================
-        - 0 'SubNetwork' Components
-        - 9 'Bus' Components
-        - 3 'Carrier' Components
-        - 1 'GlobalConstraint' Components
-        - 7 'Line' Components
-        - 36 'LineType' Components
-        - 0 'Transformer' Components
-        - 14 'TransformerType' Components
-        - 4 'Link' Components
-        - 6 'Load' Components
-        - 6 'Generator' Components
-        - 0 'StorageUnit' Components
-        - 0 'Store' Components
-        - 0 'ShuntImpedance' Components
-        - 0 'Shape' Components
-        >>> n.components["generators"]
-        PyPSA 'Generator' Components
-        ----------------------------
-        Attached to PyPSA Network 'AC-DC'
-        Components: 6
-        """
-        if isinstance(item, (list | set)):
-            return [self[key] for key in item]
-        else:
-            if item in COMPONENT_ALIAS_DICT:
-                # TODO: Activate when changing logic
-                # warnings.warn(
-                #     f"Accessing components in n.components using capitalized singular "
-                #     f"name is deprecated. Use lowercase list name instead: "
-                #     f"'{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.",
-                #     DeprecationWarning,
-                #     stacklevel=2,
-                # )
-                return super().__getitem__(COMPONENT_ALIAS_DICT[item])
-            return super().__getitem__(item)
-
-    def __getattr__(self, item: str) -> Any:
-        """
-        Get attribute from the dictionary.
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-        >>> n.components.generators
-        PyPSA 'Generator' Components
-        ----------------------------
-        Attached to PyPSA Network 'AC-DC'
-        Components: 6
-        """
-        try:
-            return self[item]
-        except KeyError:
-            msg = f"Network has no components '{item}'"
-            raise AttributeError(msg)
-
-    def __delattr__(self, name: str) -> None:
-        """
-        Is invoked when del object.member is called.
-        """
-        del self[name]
-
-    _re_pattern = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
-
-    def __dir__(self) -> list[str]:
-        """
-        Return a list of object attributes including dynamic ones from the dictionary keys.
-        """
-        dict_keys = [
-            k for k in self.keys() if isinstance(k, str) and self._re_pattern.match(k)
-        ]
-        obj_attrs = list(dir(super()))
-        return dict_keys + obj_attrs
-
-    def __iter__(self) -> Any:
-        """
-        Value iterator over components in store.
-        """
-        return iter(self.values())

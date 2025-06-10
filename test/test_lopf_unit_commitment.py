@@ -390,7 +390,11 @@ def test_linearized_unit_commitment():
         min_down_time = rng.integers(0, 6)
         p_nom = rng.integers(1, 10) * 5
         start_up_cost = rng.integers(1, 5) * 100
-        shut_down_cost = rng.integers(1, 5) * 100
+
+        # the constraint tightening proposed in Baldick et al. depends on start_up_cost
+        # and shut_down_cost being equal therefore, we force them to be equal for first
+        # 20 generators
+        shut_down_cost = rng.integers(1, 5) * 100 if i >= 20 else start_up_cost
 
         n.add(
             "Generator",
@@ -466,10 +470,9 @@ def test_dynamic_ramp_rates():
     This test checks that dynamic ramp rates are correctly applied when
     considering a unit outage represented by p_max_pu.
     """
-
     n = pypsa.Network()
 
-    snapshots = range(0, 15)
+    snapshots = range(15)
     n.set_snapshots(snapshots)
     n.add("Bus", "bus")
     n.add("Load", "load", bus="bus", p_set=100)

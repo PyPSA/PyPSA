@@ -82,7 +82,9 @@ CSV, netCDF and HDF5 files in cloud object storage can be imported and exported 
 the :code:`[cloudpath]` optional dependency, installable via :code:`pip install 'pypsa[cloudpath]'`.
 
 :code:`cloudpathlib` supports AWS S3 (:code:`s3://`), Google Cloud Storage (:code:`gs://`) and
-Azure Blob Storage (:code:`az://`) as cloud object storage providers.
+Azure Blob Storage (:code:`az://`) as cloud object storage providers. Users will need to additionally
+install the appropriate cloud storage provider client library to interface with the corresponding
+cloud storage provider via cloudpathlib (e.g. `boto3`, `google-cloud-storage` or `azure-storage-blob`).
 
 .. code-block:: python
 

@@ -1,16 +1,18 @@
+import warnings
+
 import pandas as pd
 import pytest
 
 import pypsa
+from pypsa.common import expand_series
 from pypsa.descriptors import (
     additional_linkports,
-    allocate_series_dataframes,
-    expand_series,
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
     get_switchable_as_iter,
 )
+from pypsa.network.power_flow import allocate_series_dataframes
 
 
 @pytest.fixture
@@ -99,5 +101,9 @@ def test_additional_linkports():
     n.add("Bus", "bus2")
     n.add("Link", "link0", bus0="bus0", bus1="bus1", bus2="bus2")
 
-    ports = additional_linkports(n, n.links.columns)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+        ports = additional_linkports(n, n.links.columns)
     assert ports == ["2"]
+    assert ports == n.c.links.additional_ports
