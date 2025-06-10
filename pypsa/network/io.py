@@ -651,10 +651,7 @@ class ImporterHDF5(Importer):
         if "/" + list_name not in self.ds:
             return None
 
-        if self.pypsa_version is None or self.pypsa_version < (0, 13, 1):  # type: ignore
-            df = self.ds["/" + list_name]
-        else:
-            df = self.ds["/" + list_name].set_index("name")
+        df = self.ds["/" + list_name].set_index("name")
 
         self.index[list_name] = df.index
         return df
@@ -1015,9 +1012,17 @@ class NetworkIOMixin(_NetworkABC):
             if not attr.startswith("__"):
                 value = getattr(self, attr)
                 if isinstance(value, allowed_types):
-                    # skip properties without setter
+                    # TODO: This needs to be refactored with NetworkData class
+                    # Skip properties without setter, but not 'pypsa_version'
                     prop = getattr(self.__class__, attr, None)
-                    if isinstance(prop, property) and prop.fset is None:
+                    if (
+                        isinstance(prop, property)
+                        and prop.fset is None
+                        and attr not in ["pypsa_version"]
+                    ):
+                        continue
+                    # Skip `_name` since it is writable
+                    if attr == "_name":
                         continue
                     _attrs[attr] = value
         exporter.save_attributes(_attrs)
@@ -1138,26 +1143,26 @@ class NetworkIOMixin(_NetworkABC):
             crs = CRS.from_wkt(crs)
             self._crs = crs
 
-        pypsa_version = None
+        pypsa_version_tuple = (0, 0, 0)
 
         if attrs is not None:
             self.name = attrs.pop("name")
 
-            try:
-                pypsa_version = tuple(
-                    int(s) for s in attrs.pop("pypsa_version").split(".")
-                )
-            except KeyError:
-                pypsa_version = None
+            major = int(attrs.pop("pypsa_version", [0, 0, 0])[0])
+            minor = int(attrs.pop("pypsa_version", [0, 0, 0])[1])
+            patch = int(attrs.pop("pypsa_version", [0, 0, 0])[2])
+
+            pypsa_version_tuple = (major, minor, patch)
 
             for attr, val in attrs.items():
-                setattr(self, attr, val)
+                if attr in ["model", "objective", "objective_constant"]:
+                    setattr(self, f"_{attr}", val)
+                else:
+                    setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version is None or pypsa_version < __version_semver_tuple__:
-            pypsa_version_str = (
-                ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
-            )
+        if pypsa_version_tuple < __version_semver_tuple__:
+            pypsa_version_str = ".".join(map(str, pypsa_version_tuple))
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
@@ -1170,12 +1175,6 @@ class NetworkIOMixin(_NetworkABC):
         update_msg = _check_for_update(__version_semver_tuple__, "PyPSA", "pypsa")
         if update_msg:
             logger.info(update_msg)
-
-        if pypsa_version is None or pypsa_version < (0, 18, 0):
-            self._multi_invest = 0
-
-        importer.pypsa_version = pypsa_version
-        importer.current_pypsa_version = __version_semver_tuple__
 
         # if there is snapshots.csv, read in snapshot data
         df = importer.get_snapshots()
