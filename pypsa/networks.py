@@ -82,16 +82,10 @@ class Network(
 ):
     """Network container for all buses, one-ports and branches."""
 
-    # Core attributes
-    name: str
-
     # Optimization
-    model: linopy.Model
     _multi_invest: int
     _linearized_uc: int
-    objective: float
-    objective_constant: float
-    iteration: int
+    iteration: int  # TODO Remove/ use property
 
     # Geospatial
     _crs = CRS.from_epsg(DEFAULT_EPSG)
@@ -160,12 +154,10 @@ class Network(
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        self.name: str = name
-
-        # this will be saved on export
-        self.pypsa_version: str = __version_semver__
-
+        # Use setter for writable attributes
+        self._name = name
         self._meta: dict = {}
+        self._pypsa_version: str = __version_semver__
 
         self._snapshots = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
 
@@ -177,16 +169,38 @@ class Network(
             index=self.investment_periods, columns=cols
         )
 
+        self._model: linopy.Model | None = None
+        self._objective: float | None = None
+        self._objective_constant: float | None = None
+
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
-        self.cluster: ClusteringAccessor = ClusteringAccessor(self)
-        self.statistics: StatisticsAccessor = StatisticsAccessor(self)
+        """Accessor to the network optimization functionality.
+
+        See Also
+        --------
+        [pypsa.optimization.OptimizationAccessor][]
         """
-        Accessor to the [statistics module][pypsa.statistics.expressions.StatisticsAccessor] of PyPSA.
+        self.cluster: ClusteringAccessor = ClusteringAccessor(self)
+        """Accessor to the network clustering functionality.
+
+        See Also
+        --------
+        [pypsa.clustering.ClusteringAccessor][]
+        """
+        self.statistics: StatisticsAccessor = StatisticsAccessor(self)
+        """Accessor to the network statistics functionality.
+
+        See Also
+        --------
+        [pypsa.statistics.StatisticsAccessor][]
         """
         self.plot: PlotAccessor = PlotAccessor(self)
-        """
-        Accessor for plotting the network.
+        """Accessor to the network plotting functionality.
+
+        See Also
+        --------
+        [pypsa.plot.PlotAccessor][]
         """
 
         NetworkComponentsMixin.__init__(self)
@@ -382,6 +396,52 @@ class Network(
     # ----------------
 
     @property
+    def name(self) -> str:
+        """Name of the network.
+
+        The name is set when the network is created. It can also be changed by setting
+        the `name` attribute. It is only descriptive and not used for any
+        functionality.
+
+        Examples
+        --------
+        >>> n.name
+        'AC-DC'
+
+        >>> n = pypsa.Network(name='My Network')
+        >>> n.name
+        'My Network'
+
+        >>> n.name = 'net'
+        >>> n.name
+        'net'
+
+        """
+        return self._name
+
+    @name.setter
+    def name(self, new: str) -> None:
+        """Set the name of the network."""
+        self._name = new
+
+    @property
+    def pypsa_version(self) -> str:
+        """PyPSA version of the network.
+
+        The PyPSA version is set when the network is created and cannot be changed
+        manually. When a network of an older version is imported, the version is
+        automatically updated to the current version.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.pypsa_version # doctest: +SKIP
+        '1.0.0'
+
+        """
+        return self._pypsa_version
+
+    @property
     def meta(self) -> dict:
         """Dictionary of the network meta data.
 
@@ -406,6 +466,115 @@ class Network(
             msg = f"Meta must be a dictionary, received a {type(new)}"
             raise TypeError(msg)
         self._meta = new
+
+    @property
+    def model(self) -> linopy.Model:
+        """Access to linopy model object.
+
+        After optimizing a network, the linopy model object is stored in the network
+        and can be accessed via this property. It cannot be set manually.
+
+        Examples
+        --------
+        >>> n.model
+        Linopy LP model
+        ===============
+        <BLANKLINE>
+        Variables:
+        ----------
+        * Generator-p_nom (Generator-ext)
+        * Line-s_nom (Line-ext)
+        * Link-p_nom (Link-ext)
+        * Generator-p (snapshot, Generator)
+        * Line-s (snapshot, Line)
+        * Link-p (snapshot, Link)
+        * objective_constant
+        <BLANKLINE>
+        Constraints:
+        ------------
+        * Generator-ext-p_nom-lower (Generator-ext)
+        * Generator-ext-p_nom-upper (Generator-ext)
+        * Line-ext-s_nom-lower (Line-ext)
+        * Line-ext-s_nom-upper (Line-ext)
+        * Link-ext-p_nom-lower (Link-ext)
+        * Link-ext-p_nom-upper (Link-ext)
+        * Generator-ext-p-lower (snapshot, Generator-ext)
+        * Generator-ext-p-upper (snapshot, Generator-ext)
+        * Line-ext-s-lower (snapshot, Line-ext)
+        * Line-ext-s-upper (snapshot, Line-ext)
+        * Link-ext-p-lower (snapshot, Link-ext)
+        * Link-ext-p-upper (snapshot, Link-ext)
+        * Bus-nodal_balance (Bus, snapshot)
+        * Kirchhoff-Voltage-Law (snapshot, cycles)
+        * GlobalConstraint-co2_limit
+        <BLANKLINE>
+        Status:
+        -------
+        ok
+
+        """
+        if self._model is None:
+            msg = "The network has not been optimized yet and no model is stored."
+            raise ValueError(msg)
+        return self._model
+
+    @model.deleter
+    def model(self) -> None:
+        """Delete the model object."""
+        self._model = None
+
+    @property
+    def objective(self) -> float:
+        """Objective value of the solved network.
+
+        The property yields the objective value of the solved network. It is set after
+        optimizing the network points to the linopy solution (e.g. is an alias for
+        `n.model.objective.value`). When loading a network from file and the model
+        object is not loaded, the objective value is still available, as it is stored
+        in the network object.
+
+        When optimizing for system costs, the total system costs are the sum of the
+        [pypsa.Network.objective][] and the [pypsa.Network.objective_constant][].
+
+        Examples
+        --------
+        >>> n.objective # doctest: +ELLIPSIS
+        -34742...
+
+        >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
+        np.float64(18441...)
+
+        """
+        if self._objective is None:
+            msg = "The network has not been optimized yet and no objective value is stored."
+            raise ValueError(msg)
+        return self._objective
+
+    @property
+    def objective_constant(self) -> float:
+        """Objective constant of the network.
+
+        The property yields the fixed part of the objective function. It is set after
+        optimizing the network.
+
+        When optimizing for system costs, the total system costs are the sum of the
+        [pypsa.Network.objective][] and the [pypsa.Network.objective_constant][]. When
+        loading a network from file and the model object is not loaded, the objective
+        constant is still available, as it is stored in the network object.
+
+        Examples
+        --------
+        >>> n.objective_constant # doctest: +ELLIPSIS
+        np.float64(21915...)
+
+        >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
+        np.float64(18441...)
+
+        """
+        if self._objective_constant is None:
+            msg = "The network has not been optimized yet and no objective constant is stored."
+            raise ValueError(msg)
+        return self._objective_constant
 
     @property
     def crs(self) -> Any:
@@ -555,7 +724,7 @@ class Network(
         DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
-        if hasattr(self, "model") and self.model.solver_model is not None:
+        if self._model is not None and self._model.solver_model is not None:
             msg = "Copying solved networks is not supported yet."
             raise NotImplementedError(msg)
 
@@ -629,8 +798,8 @@ class Network(
             "_meta",
             "_linearized_uc",
             "_multi_invest",
-            "objective",
-            "objective_constant",
+            "_objective",
+            "_objective_constant",
             "now",
         ]:
             if hasattr(self, attr):
@@ -951,6 +1120,31 @@ class Network(
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
+
+    def __dir__(self) -> list[str]:
+        """Return a list of valid attributes and methods of the network.
+
+        This method is used by dir() and help() to show available attributes.
+        It filters out properties that would raise AttributeError when accessed,
+        because they are not available in the network yet.
+
+        Returns
+        -------
+        list[str]
+            List of valid attribute and method names.
+
+        """
+        attrs = super().__dir__()
+
+        # Filter out properties that would raise AttributeError
+        if self._objective_constant is None:
+            attrs = [attr for attr in attrs if attr != "objective_constant"]
+        if self._objective is None:
+            attrs = [attr for attr in attrs if attr != "objective"]
+        if self._model is None:
+            attrs = [attr for attr in attrs if attr != "model"]
+
+        return attrs
 
 
 class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
