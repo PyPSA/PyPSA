@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import functools
+import json
 import logging
 import warnings
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
+from urllib import parse, request
 
 import numpy as np
 import pandas as pd
@@ -14,6 +17,7 @@ from deprecation import deprecated
 from packaging import version
 from pandas.api.types import is_list_like
 
+from pypsa._options import options
 from pypsa.definitions.structures import Dict
 from pypsa.version import __version_semver__
 
@@ -149,6 +153,62 @@ class MethodHandlerWrapper:
         wrapper.__doc__ = self.func.__doc__
 
         return wrapper
+
+
+logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -> str:
+    """Log a message if a newer version is available.
+
+    Checks the latest release on GitHub and compares it to the current version. Does
+    nothing if the latest version is not available or if the current version is up
+    to date.
+
+    Parameters
+    ----------
+    current_version : tuple
+        The current version of the package as a tuple (major, minor, patch).
+    repo_owner : str
+        The owner of the repository.
+    repo_name : str
+        The name of the repository.
+
+    Returns
+    -------
+    str
+        A message if a newer version is available.
+
+    """
+    # Check if network requests are allowed
+    if not options.get_option("general.allow_network_requests"):
+        return ""
+
+    try:
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+
+        # Validate URL scheme
+        parsed_url = parse.urlparse(url)
+        if parsed_url.scheme not in ("https", "http"):
+            return ""
+
+        headers = {"User-Agent": "Python"}  # GitHub API requires a user-agent
+        req = request.Request(url, headers=headers)  # noqa: S310
+        response = request.urlopen(req)  # noqa: S310
+        latest_version = json.loads(response.read())["tag_name"].replace("v", "")
+
+        # Simple version comparison
+        latest = tuple(map(int, latest_version.split(".")))
+
+        if latest > current_version:
+            current_version_str = ".".join(map(str, current_version))
+            return f"New version {latest_version} available! (Current: {current_version_str})"
+
+    except Exception:  # noqa: S110
+        pass
+
+    return ""
 
 
 def as_index(

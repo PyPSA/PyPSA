@@ -184,3 +184,24 @@ def test_nested_option_context(mocked_pypsa):
         with mocked_pypsa.option_context("test.nested.test_option", val):
             assert mocked_pypsa.options.test.nested.test_option == val
         assert mocked_pypsa.options.test.nested.test_option is True
+
+
+def test_general_allow_network_requests():
+    """Test the general.allow_network_requests option."""
+    import pypsa
+
+    # Test default value
+    assert pypsa.get_option("general.allow_network_requests") is True
+
+    # Test setting to False
+    pypsa.set_option("general.allow_network_requests", False)
+    assert pypsa.get_option("general.allow_network_requests") is False
+
+    # Test setting back to True
+    pypsa.set_option("general.allow_network_requests", True)
+    assert pypsa.get_option("general.allow_network_requests") is True
+
+    # Test using option_context
+    with pypsa.option_context("general.allow_network_requests", False):
+        assert pypsa.get_option("general.allow_network_requests") is False
+    assert pypsa.get_option("general.allow_network_requests") is True

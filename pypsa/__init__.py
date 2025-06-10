@@ -10,6 +10,7 @@ __copyright__ = (
     "Copyright 2015-2025 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/developers.html, "
     "MIT License"
 )
+
 import warnings
 from typing import Any
 
@@ -59,6 +60,7 @@ def __getattr__(name: str) -> Any:
 describe_options = options.describe_options
 get_option = options.get_option
 set_option = options.set_option
+
 
 __all__ = [
     "__version__",

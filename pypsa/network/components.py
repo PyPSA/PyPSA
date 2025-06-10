@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from pypsa._options import option_context
+from pypsa._options import option_context, options
 from pypsa.common import deprecated_in_next_major
 from pypsa.components.legacy import Component
 from pypsa.components.store import ComponentsStore
@@ -30,10 +30,6 @@ from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
     import pandas as pd
-
-
-from pypsa._options import options
-
 logger = logging.getLogger(__name__)
 
 # TODO Change to UserWarning when they are all resolved and raised
