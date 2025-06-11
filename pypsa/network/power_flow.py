@@ -43,6 +43,7 @@ def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
 
 
 pd.Series.zsum = zsum
+
 logger = logging.getLogger(__name__)
 
 
