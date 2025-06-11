@@ -1,78 +1,89 @@
-#!/usr/bin/env python3
-"""
-This module contains functions for retrieving/loading example networks provided
-by the PyPSA project.
-"""
+"""Retrieve PyPSA example networks."""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
-from urllib.error import HTTPError
-from urllib.request import urlretrieve
+import warnings
+from pathlib import Path
 
-import pandas as pd
+from pypsa.networks import Network
+from pypsa.version import __version_semver__, __version_semver_tuple__
 
-from pypsa.components import Network
-from pypsa.io import _data_dir
-
-if TYPE_CHECKING:
-    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 
-def _decrement_version(version: str) -> str:
-    x, y, z = map(int, version.split("."))
-    if z > 0:
-        z -= 1
-    elif y > 0:
-        y -= 1
-        z = 25  # TODO: This is a hack right now
-    elif x > 0:
-        x -= 1
-        y = z = 25  # TODO: This is a hack right now
-    return f"{x}.{y}.{z}"
-
-
-def _repo_url(master: bool = False) -> str:
-    url = "https://github.com/PyPSA/PyPSA/raw/"
-    if master:
-        return f"{url}master/"
-    from pypsa import release_version  # avoid cyclic imports
-
-    assert release_version is not None, "release_version is None"
-    # If the release version is not found, use the latest version, since this is
-    # because we are in a dev branch which has not been released yet.
-    version_with_data = release_version
-    while True:
-        try:
-            urlretrieve(f"{url}v{version_with_data}/".replace("raw", "releases/tag"))
-            break
-        except HTTPError:
-            version_with_data = _decrement_version(version_with_data)
-
-    return f"{url}v{version_with_data}/"
-
-
-def _retrieve_if_not_local(
-    name: str, repofile: str, update: bool = False, from_master: bool = False
+def _repo_url(
+    master: bool = False, url: str = "https://github.com/PyPSA/PyPSA/raw/"
 ) -> str:
-    path = (_data_dir / name).with_suffix(".nc")
+    if master or __version_semver_tuple__ < (0, 35):  # Feature was added in 0.35.0
+        return f"{url}master/"
+    return f"{url}v{__version_semver__}/"
 
-    if not path.exists() or update:
-        url = _repo_url(from_master) + repofile
-        logger.info(f"Retrieving network data from {url}")
-        urlretrieve(url, path)
 
-    return str(path)
+def _retrieve_if_not_local(path: str | Path) -> Network:
+    if not (Path.cwd() / path).exists():
+        path = _repo_url() + str(path)
+        Path.cwd()
+
+    return Network(path)
 
 
 def ac_dc_meshed(
-    update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
+    update: bool = False, from_master: bool = False, remove_link_p_set: bool = False
 ) -> Network:
+    """Load the meshed AC-DC example network.
+
+    Parameters
+    ----------
+    update : bool, optional
+        Whether to update the locally stored network data. The default is False.
+    from_master : bool, optional
+        Whether to retrieve from the master branch of the pypsa repository.
+    remove_link_p_set : bool, optional
+        Whether to remove the link `p_set` attribute from the links.
+
+    Deprecation
+    ------------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master`, `update`, and `remove_link_p_set` are deprecated and do not have
+    any effect. Networks are always updated and retrieved for the current version.
+
+    Returns
+    -------
+    pypsa.Network
+        AC-DC meshed network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> n
+    PyPSA Network 'AC-DC'
+    ---------------------
+    Components:
+     - Bus: 9
+     - Carrier: 6
+     - Generator: 6
+     - GlobalConstraint: 1
+     - Line: 7
+     - Link: 4
+     - Load: 6
+    Snapshots: 10
+
     """
-    Load the meshed AC-DC network example of pypsa stored in the PyPSA
-    repository.
+    if update or from_master or remove_link_p_set:
+        warnings.warn(
+            "The 'update' 'from_master' and 'remove_link_p_set' parameters are "
+            "deprecated and do not have any effect. "
+            "Example networks are always updated and retrieved for the current version."
+            "Deprecated in version 0.35 and will be removed in version 1.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return _retrieve_if_not_local("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
+
+
+def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
+    """Load the storage network example of PyPSA.
 
     Parameters
     ----------
@@ -81,58 +92,145 @@ def ac_dc_meshed(
     from_master : bool, optional
         Whether to retrieve from the master branch of the pypsa repository.
 
-    Returns
-    -------
-    pypsa.Network
-    """
-    name = "ac-dc-meshed"
-    repofile = "examples/ac-dc-meshed/ac-dc-data.nc"
-    path = _retrieve_if_not_local(
-        name, repofile, update=update, from_master=from_master
-    )
-    n = Network(path)
-    if remove_link_p_set:
-        n.links_t.p_set = pd.DataFrame(index=n.snapshots)
-    return n
-
-
-def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the storage network example of pypsa stored in the PyPSA repository.
-
-    Parameters
-    ----------
-    update : bool, optional
-        Whether to update the locally stored network data. The default is False.
+    Deprecation
+    -----------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master` and `update` are deprecated and do not have any effect. Networks
+    are always updated and retrieved for the current version.
 
     Returns
     -------
     pypsa.Network
+        Storage network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.storage_hvdc()
+    >>> n
+    PyPSA Network 'Test 6 bus'
+    --------------------------
+    Components:
+     - Bus: 6
+     - Carrier: 3
+     - Generator: 12
+     - GlobalConstraint: 1
+     - Line: 6
+     - Link: 2
+     - Load: 6
+     - StorageUnit: 6
+    Snapshots: 12
+
     """
-    name = "storage-hvdc"
-    repofile = "examples/opf-storage-hvdc/storage-hvdc.nc"
-    path = _retrieve_if_not_local(
-        name, repofile, update=update, from_master=from_master
-    )
-    return Network(path)
+    if update or from_master:
+        warnings.warn(
+            "The 'update' and 'from_master' parameters are deprecated and do not have any effect. "
+            "Example networks are always updated and retrieved for the current version."
+            "Deprecated in version 0.35 and will be removed in version 1.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return _retrieve_if_not_local("examples/networks/storage-hvdc/storage-hvdc.nc")
 
 
 def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the SciGrid network example of pypsa stored in the PyPSA repository.
+    """Load the SciGrid network example of PyPSA.
 
     Parameters
     ----------
     update : bool, optional
         Whether to update the locally stored network data. The default is False.
+    from_master : bool, optional
+        Whether to retrieve from the master branch of the pypsa repository.
+
+    Deprecation
+    -----------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master` and `update` are deprecated and do not have any effect. Networks
+    are always updated and retrieved for the current version.
 
     Returns
     -------
     pypsa.Network
+        SciGrid network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.scigrid_de()
+    >>> n
+    PyPSA Network 'scigrid-de'
+    --------------------------
+    Components:
+     - Bus: 585
+     - Carrier: 17
+     - Generator: 1423
+     - Line: 852
+     - Load: 489
+     - StorageUnit: 38
+     - Transformer: 96
+    Snapshots: 24
+
     """
-    name = "scigrid-de"
-    repofile = "examples/scigrid-de/scigrid-with-load-gen-trafos.nc"
-    path = _retrieve_if_not_local(
-        name, repofile, update=update, from_master=from_master
-    )
-    return Network(path)
+    if update or from_master:
+        warnings.warn(
+            "The 'update' and 'from_master' parameters are deprecated and do not have any effect. "
+            "Example networks are always updated and retrieved for the current version."
+            "Deprecated in version 0.35 and will be removed in version 1.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return _retrieve_if_not_local("examples/networks/scigrid-de/scigrid-de.nc")
+
+
+def model_energy(update: bool = False, from_master: bool = False) -> Network:
+    """Load the single-node capacity expansion model in style of model.energy.
+
+    Check out the [model.energy website](https://model.energy/) for more information.
+
+    Parameters
+    ----------
+    update : bool, optional
+        Whether to update the locally stored network data. The default is False.
+    from_master : bool, optional
+        Whether to retrieve from the master branch of the pypsa repository.
+
+    Deprecation
+    -----------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master` and `update` are deprecated and do not have any effect. Networks
+    are always updated and retrieved for the current version.
+
+    Returns
+    -------
+    pypsa.Network
+        Single-node capacity expansion model in style of model.energy.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.model_energy()
+    >>> n
+    Unnamed PyPSA Network
+    ---------------------
+    Components:
+     - Bus: 2
+     - Carrier: 9
+     - Generator: 3
+     - Link: 2
+     - Load: 1
+     - StorageUnit: 1
+     - Store: 1
+    Snapshots: 2920
+
+    References
+    ----------
+    [^1]: See https://model.energy/
+
+    """
+    if update or from_master:
+        warnings.warn(
+            "The 'update' and 'from_master' parameters are deprecated and do not have any effect. "
+            "Example networks are always updated and retrieved for the current version."
+            "Deprecated in version 0.35 and will be removed in version 1.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")

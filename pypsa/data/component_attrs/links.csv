@@ -1,0 +1,46 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus0,string,n/a,n/a,Name of first bus to which link is attached.,Input (required)
+bus1,string,n/a,n/a,Name of other bus to which link is attached.,Input (required)
+type,string,n/a,n/a,Placeholder for link type. Not yet implemented.,Input (optional)
+carrier,string,n/a,,"Energy carrier transported by the link: can be ""DC"" for electrical HVDC links, or ""heat"" or ""gas"" etc.",Input (optional)
+efficiency,static or series,per unit,1,Efficiency of power transfer from bus0 to bus1. (Can be time-dependent to represent temperature-dependent Coefficient of Performance of a heat pump from an electric to a heat bus.),Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
+build_year,int,year,0,build year,Input (optional)
+lifetime,float,years,inf,lifetime,Input (optional)
+p_nom,float,MW,0,Limit of active power which can pass through link.,Input (optional)
+p_nom_mod,float,MW,0,Limit of active power of the link module.,Input (optional)
+p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended.,Input (optional)
+p_nom_min,float,MW,0,"If p_nom is extendable, set its minimum value.",Input (optional)
+p_nom_max,float,MW,inf,"If p_nom is extendable, set its maximum value (e.g. limited by potential).",Input (optional)
+p_set,static or series,MW,0,The dispatch set point for p0 of the link in PF.,Input (optional)
+p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch (can also be negative) per unit of p_nom for the link.,Input (optional)
+p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch (can also be negative) per unit of p_nom for the link.,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending p_nom by 1 MW, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
+marginal_cost,static or series,currency/MWh,0.,Marginal cost of transfering 1 MWh (before efficiency losses) from bus0 to bus1. NB: marginal cost only makes sense if p_max_pu >= 0.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost for transferring 1 MWh (before efficiency losses) from bus0 to bus1.,Input (optional)
+stand_by_cost,static or series,currency/h,0.,Stand-by cost for operating the link. This cost is incurred whenever the status is 1 (including when dispatch decision is zero).,Input (optional)
+length,float,km,0,"Length of line, useful for calculating the capital cost.",Input (optional)
+terrain_factor,float,per unit,1,Terrain factor for increasing capital cost.,Input (optional)
+committable,boolean,n/a,False,Use unit commitment (only possible if p_nom is not extendable).,Input (optional)
+start_up_cost,float,currency,0,Cost to start up the link. Only read if committable is True.,Input (optional)
+shut_down_cost,float,currency,0,Cost to shut down the link. Only read if committable is True.,Input (optional)
+min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only read if committable is True.,Input (optional)
+min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0.  Only read if committable is True.,Input (optional)
+up_time_before,int,snapshots,1,Number of snapshots that the link was online before network.snapshots start. Only read if committable is True and min_up_time is non-zero.,Input (optional)
+down_time_before,int,snapshots,0,Number of snapshots that the link was offline before network.snapshots start. Only read if committable is True and min_down_time is non-zero.,Input (optional)
+ramp_limit_up,static or series,per unit,NaN,"Maximum increase from one snapshot to the next, per unit of the bus0 unit. Ignored if NaN.",Input (optional)
+ramp_limit_down,static or series,per unit,NaN,"Maximum decrease from one snapshot to the next, per unit of the bus0 unit. Ignored if NaN.",Input (optional)
+ramp_limit_start_up,float,per unit,1,"Maximumincrease at start up, per unit of bus0 unit.   Only read if committable is True.",Input (optional)
+ramp_limit_shut_down,float,per unit,1,"Maximum decrease at shut down, per unit of bus0 unit.   Only read if committable is True.",Input (optional)
+p0,series,MW,0.,Active power at bus0 (positive if branch is withdrawing power from bus0).,Output
+p1,series,MW,0.,Active power at bus1 (positive if branch is withdrawing power from bus1).,Output
+p_nom_opt,float,MW,0,Optimised capacity for active power.,Output
+status,series,n/a,1.,"Status in the snapshot (1 is on, 0 is off). Only outputted if committable is True.",Output
+start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only outputted if committable is True.",Output
+shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only outputted if committable is True.",Output
+mu_lower,series,currency/MW,0.,Shadow price of lower p_nom limit  -F \leq f. Always non-negative.,Output
+mu_upper,series,currency/MW,0.,Shadow price of upper p_nom limit f \leq F. Always non-negative.,Output
+mu_p_set,series,currency/MWh,0.,Shadow price of fixed power transmission p_set,Output
+mu_ramp_limit_up,series,currency/MWh,0.,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,0.,Shadow price of lower ramp down limit,Output

@@ -4,7 +4,7 @@ import pypsa
 def test_optimize_post_discretization():
     n = pypsa.Network()
 
-    n.madd("Bus", ["a", "b", "c"], v_nom=380.0)
+    n.add("Bus", ["a", "b", "c"], v_nom=380.0)
     n.add("Generator", "generator", bus="a", p_nom=900.0, marginal_cost=10.0)
     n.add("Load", "load", bus="c", p_set=900.0)
     n.add(
@@ -27,13 +27,13 @@ def test_optimize_post_discretization():
     )
 
     line_unit_size = 500
-    link_unit_size = dict(HVDC=600)
+    link_unit_size = {"HVDC": 600}
 
     status, _ = n.optimize.optimize_transmission_expansion_iteratively(
         max_iterations=1,
         line_unit_size=line_unit_size,
         link_unit_size=link_unit_size,
-        link_threshold=dict(HVDC=0.4),
+        link_threshold={"HVDC": 0.4},
     )
 
     assert status == "ok"

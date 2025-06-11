@@ -1,0 +1,49 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,name of bus to which generator is attached,Input (required)
+control,string,n/a,PQ,"P,Q,V control strategy for PF, must be ""PQ"", ""PV"" or ""Slack"".",Input (optional)
+type,string,n/a,n/a,Placeholder for generator type. Not yet implemented.,Input (optional)
+p_nom,float,MW,0,Nominal power for limits in optimization.,Input (optional)
+p_nom_mod,float,MW,0,Nominal power of the generator module.,Input (optional)
+p_nom_extendable,boolean,n/a,False,Switch to allow capacity p_nom to be extended in optimization.,Input (optional)
+p_nom_min,float,MW,0,"If p_nom is extendable in optimization, set its minimum value.",Input (optional)
+p_nom_max,float,MW,inf,"If p_nom is extendable in optimization, set its maximum value (e.g. limited by technical potential).",Input (optional)
+p_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of p_nom for the optimization (e.g. for variable renewable generators this can change due to weather conditions and compulsory feed-in; for conventional generators it represents a minimal dispatch). Note that if comittable is False and p_min_pu > 0, this represents a must-run condition.",Input (optional)
+p_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of p_nom for the optimization (e.g. for variable renewable generators this can change due to weather conditions; for conventional generators it represents a maximum dispatch).,Input (optional)
+p_set,static or series,MW,0.,active power set point (for PF),Input (optional)
+e_sum_min,float,MWh,-inf,The minimum total energy produced during a single optimization horizon.,Input (optional)
+e_sum_max,float,MWh,inf,The maximum total energy produced during a single optimization horizon.,Input (optional)
+q_set,static or series,MVar,0.,reactive power set point (for PF),Input (optional)
+sign,float,n/a,1,power sign,Input (optional)
+carrier,string,n/a,n/a,"Prime mover energy carrier (e.g. coal, gas, wind, solar); required for global constraints on primary energy in optimization",Input (optional)
+marginal_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in basic functionality or not",Input (optional)
+build_year,int,year,0,build year,Input (optional)
+lifetime,float,years,inf,lifetime,Input (optional)
+capital_cost,float,currency/MW,0,"Fixed period costs of extending p_nom by 1 MW, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
+efficiency,static or series,per unit,1,"Ratio between primary energy and electrical energy, e.g. takes value 0.4 MWh_elec/MWh_thermal for gas. This is required for global constraints on primary energy in optimization.",Input (optional)
+committable,boolean,n/a,False,Use unit commitment (only possible if p_nom is not extendable).,Input (optional)
+start_up_cost,float,currency,0,Cost to start up the generator. Only read if committable is True.,Input (optional)
+shut_down_cost,float,currency,0,Cost to shut down the generator. Only read if committable is True.,Input (optional)
+stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when dispatch decision is zero).,Input (optional)
+min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1.  Only read if committable is True.,Input (optional)
+min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0.  Only read if committable is True.,Input (optional)
+up_time_before,int,snapshots,1,Number of snapshots that the generator was online before network.snapshots start. Only read if committable is True and min_up_time is non-zero.,Input (optional)
+down_time_before,int,snapshots,0,Number of snapshots that the generator was offline before network.snapshots start. Only read if committable is True and min_down_time is non-zero.,Input (optional)
+ramp_limit_up,static or series,per unit,NaN,"Maximum active power increase from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
+ramp_limit_down,static or series,per unit,NaN,"Maximum active power decrease from one snapshot to the next, per unit of the nominal power. Ignored if NaN.",Input (optional)
+ramp_limit_start_up,float,per unit,1,"Maximum active power increase at start up, per unit of the nominal power.   Only read if committable is True.",Input (optional)
+ramp_limit_shut_down,float,per unit,1,"Maximum active power decrease at shut down, per unit of the nominal power.   Only read if committable is True.",Input (optional)
+weight,float,n/a,1,"Weighting of a generator. Only used for network clustering.",Input (optional)
+p,series,MW,0.,active power at bus (positive if net generation),Output
+q,series,MVar,0.,reactive power (positive if net generation),Output
+p_nom_opt,float,MW,0.,Optimised nominal power.,Output
+status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only outputted if committable is True.",Output
+start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only outputted if committable is True.",Output
+shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only outputted if committable is True.",Output
+mu_upper,series,currency/MWh,0.,Shadow price of upper p_nom limit,Output
+mu_lower,series,currency/MWh,0.,Shadow price of lower p_nom limit,Output
+mu_p_set,series,currency/MWh,0.,Shadow price of fixed power generation p_set,Output
+mu_ramp_limit_up,series,currency/MWh,0.,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,0.,Shadow price of lower ramp down limit,Output

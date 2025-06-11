@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Created on Fri Jul  2 10:21:16 2021.
 
@@ -13,7 +12,7 @@ from pandas import IndexSlice as idx
 import pypsa
 from pypsa.descriptors import get_activity_mask
 
-kwargs = dict(multi_investment_periods=True)
+kwargs = {"multi_investment_periods": True}
 
 
 @pytest.fixture
@@ -21,11 +20,11 @@ def n():
     n = pypsa.Network(snapshots=range(10))
     n.investment_periods = [2020, 2030, 2040, 2050]
     n.add("Carrier", "gencarrier")
-    n.madd("Bus", [1, 2])
+    n.add("Bus", [1, 2])
 
     for i, period in enumerate(n.investment_periods):
         factor = (10 + i) / 10
-        n.madd(
+        n.add(
             "Generator",
             [f"gen1-{period}", f"gen2-{period}"],
             bus=[1, 2],
@@ -53,7 +52,7 @@ def n():
 
     load = range(100, 100 + len(n.snapshots))
     load = pd.DataFrame({"load1": load, "load2": load}, index=n.snapshots)
-    n.madd(
+    n.add(
         "Load",
         ["load1", "load2"],
         bus=[1, 2],
@@ -67,7 +66,7 @@ def n():
 def n_sus(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.mremove("Generator", n.generators.query('bus == "1"').index)
+    n.remove("Generator", n.generators.query('bus == "1"').index)
     n.generators.capital_cost *= 5
 
     for i, period in enumerate(n.investment_periods):
@@ -89,7 +88,7 @@ def n_sus(n):
 def n_sts(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.mremove("Generator", n.generators.query('bus == "1"').index)
+    n.remove("Generator", n.generators.query('bus == "1"').index)
     n.generators.capital_cost *= 5
 
     n.add("Bus", "1 battery")
@@ -360,28 +359,28 @@ def test_simple_network_store_cyclic_per_period(n_sts):
 def test_global_constraint_primary_energy_storage(n_sus):
     c = "StorageUnit"
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sus.df(c)["state_of_charge_initial"] = 200
-    n_sus.df(c)["cyclic_state_of_charge"] = False
-    n_sus.df(c)["state_of_charge_initial_per_period"] = False
-    n_sus.df(c)["carrier"] = "emitting_carrier"
+    n_sus.static(c)["state_of_charge_initial"] = 200
+    n_sus.static(c)["cyclic_state_of_charge"] = False
+    n_sus.static(c)["state_of_charge_initial_per_period"] = False
+    n_sus.static(c)["carrier"] = "emitting_carrier"
 
     n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = n_sus.optimize(**kwargs)
 
     active = get_activity_mask(n_sus, c)
-    soc_end = n_sus.pnl(c).state_of_charge.where(active).ffill().iloc[-1]
-    soc_diff = n_sus.df(c).state_of_charge_initial - soc_end
-    emissions = n_sus.df(c).carrier.map(n_sus.carriers.co2_emissions)
+    soc_end = n_sus.dynamic(c).state_of_charge.where(active).ffill().iloc[-1]
+    soc_diff = n_sus.static(c).state_of_charge_initial - soc_end
+    emissions = n_sus.static(c).carrier.map(n_sus.carriers.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 
 def test_global_constraint_primary_energy_store(n_sts):
     c = "Store"
     n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sts.df(c)["e_initial"] = 200
-    n_sts.df(c)["e_cyclic"] = False
-    n_sts.df(c)["e_initial_per_period"] = False
+    n_sts.static(c)["e_initial"] = 200
+    n_sts.static(c)["e_cyclic"] = False
+    n_sts.static(c)["e_initial_per_period"] = False
 
     n_sts.buses.loc["1 battery", "carrier"] = "emitting_carrier"
 
@@ -390,9 +389,9 @@ def test_global_constraint_primary_energy_store(n_sts):
     status, cond = n_sts.optimize(**kwargs)
 
     active = get_activity_mask(n_sts, c)
-    soc_end = n_sts.pnl(c).e.where(active).ffill().iloc[-1]
-    soc_diff = n_sts.df(c).e_initial - soc_end
-    emissions = n_sts.df(c).carrier.map(n_sts.carriers.co2_emissions)
+    soc_end = n_sts.dynamic(c).e.where(active).ffill().iloc[-1]
+    soc_diff = n_sts.static(c).e_initial - soc_end
+    emissions = n_sts.static(c).carrier.map(n_sts.carriers.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 

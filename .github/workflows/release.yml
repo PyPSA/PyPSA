@@ -5,18 +5,139 @@ on:
     tags:
     - v*.*.*
 
+env:
+  PREPARATION_COMMIT: '[github-actions.ci] prepare release ${{ github.ref_name }}'
+
 jobs:
+  check-preparation:
+    name: Check if release is prepared
+    runs-on: ubuntu-latest
+    outputs:
+      prepared: ${{ steps.validate.outputs.prepared }}
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Validate commit message
+      id: validate
+      run: |
+        # Check if last commit is the expected commit message
+        COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+        echo "Expected: '${{ env.PREPARATION_COMMIT }}'"
+        echo "Received: '$COMMIT_MESSAGE'"
+
+        prepared="false"
+        if [[ "$COMMIT_MESSAGE" == "${{ env.PREPARATION_COMMIT }}" ]]; then
+          prepared="true"
+        fi
+
+        echo "prepared=$prepared" >> $GITHUB_OUTPUT
+
+  prepare-release:
+    name: Prepare release
+    needs: [check-preparation]
+    if: ${{ needs.check-preparation.outputs.prepared == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Generate token for PyPSA Bot
+      id: generate-token
+      uses: actions/create-github-app-token@v2
+      with:
+        app-id: ${{ vars.PYPSA_BOT_ID }}
+        private-key: ${{ secrets.PYPSA_BOT_PRIVATE_KEY }}
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Find the branch for commit/ tag
+      run: |
+        branch=$(git branch -r --contains ${{ github.sha }} | grep -v 'HEAD' | head -n 1 | sed 's|origin/||' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        echo "Branch found: $branch"
+        echo "BRANCH_NAME=$branch" >> $GITHUB_ENV
+
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ env.BRANCH_NAME }}
+        token: ${{ steps.generate-token.outputs.token }}
+
+    # Start of preparation script
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: Install packages
+      run: |
+        python -m pip install uv
+        uv pip install --system toml
+        uv pip install --system setuptools_scm
+        uv pip install --system .
+
+    - name: Update CITATION.cff
+      run: |
+        import re
+        from setuptools_scm import get_version
+
+        version = get_version()
+
+        with open('CITATION.cff', 'r') as file:
+          cff_content = file.read()
+        cff_content = open('CITATION.cff', 'r').read()
+
+        updated_cff_content = re.sub(r"(?<=version: ).+(?= #)",version,cff_content,flags=re.MULTILINE)
+
+        with open('CITATION.cff', 'w') as file:
+          file.write(updated_cff_content)      
+      shell: python
+
+    - name: Update example notebooks
+      run: |
+        import pypsa
+        # ac-dc-meshed
+        n = pypsa.examples.ac_dc_meshed()
+        n.export_to_csv_folder("examples/networks/ac-dc-meshed/ac-dc-meshed")
+        n.export_to_netcdf("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
+        # storage-hvdc
+        n = pypsa.examples.storage_hvdc()
+        n.export_to_csv_folder("examples/networks/storage-hvdc/storage-hvdc")
+        n.export_to_netcdf("examples/networks/storage-hvdc/storage-hvdc.nc")
+        # scigrid-de
+        n = pypsa.examples.scigrid_de()
+        n.export_to_csv_folder("examples/networks/scigrid-de/scigrid-de")
+        n.export_to_netcdf("examples/networks/scigrid-de/scigrid-de.nc")
+        # model-energy
+        n = pypsa.examples.model_energy()
+        n.export_to_csv_folder("examples/networks/model-energy/model-energy")
+        n.export_to_netcdf("examples/networks/model-energy/model-energy.nc")
+      shell: python
+
+    # End of preparation script
+
+    - name: Remove previous tag
+      run: |
+        git tag -d ${{ github.ref_name }}
+        git push origin --delete ${{ github.ref_name }}
+
+    - name: Commit changes
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        branch: ${{ env.BRANCH_NAME }}
+        commit_message: '${{ env.PREPARATION_COMMIT }}'
+        tagging_message: '${{ github.ref_name }}' # add tag again
+        push_options: '${{ github.ref_name }}'
+
   build:
-    # Build the Python SDist and wheel, performs metadata and readme linting
     name: Build and verify package
+    needs: [check-preparation]
+    if: ${{ needs.check-preparation.outputs.prepared == 'true' }}
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - uses: hynek/build-and-inspect-python-package@v2
 
   release:
-    # Publish a GitHub release from the given git tag
-    name: Create GitHub Release
+    name: Create GitHub release
     needs: [build]
     runs-on: ubuntu-latest
     steps:
@@ -24,18 +145,17 @@ jobs:
     - uses: softprops/action-gh-release@v2
       with:
         body: |
-          Revised release notes are available in the [documentation](https://pypsa.readthedocs.io/en/latest/references/release-notes.html).
+          Revised release notes are available in the [documentation](https://${{ github.event.repository.name }}.readthedocs.io/en/latest/release-notes.html).
         append_body: true
         generate_release_notes: true
 
   publish:
-    # Publish the built SDist and wheel from "dist" job to PyPI
     name: Publish to PyPI
     needs: [build]
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/pypsa/
+      url: https://pypi.org/project/${{ github.event.repository.name }}
     permissions:
       id-token: write
     steps:
@@ -44,45 +164,3 @@ jobs:
         name: Packages
         path: dist
     - uses: pypa/gh-action-pypi-publish@release/v1
-
-  update-version:
-    name: Update version in CITATION.cff
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0 # Needed for setuptools_scm
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: 3.9
-    - run: pip install toml setuptools_scm
-    - run: |
-        import re
-        from setuptools_scm import get_version
-
-        # Fetch version number
-        version = get_version()
-
-        # Read CITATION.cff file
-        with open('CITATION.cff', 'r') as file:
-            cff_content = file.read()
-
-        # Update the version in the .cff file
-        updated_cff_content = re.sub(r"(?<=version: ).+(?= #)",version,cff_content,flags=re.MULTILINE)
-
-        # Write the updated content back to the CITATION.cff file
-        with open('CITATION.cff', 'w') as file:
-            file.write(updated_cff_content)
-      shell: python
-
-    - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v6
-      with:
-        commit-message: '[github-actions.ci] auto update version in `CITATION.cff`'
-        title: 'Auto-update CITATION.cff version'
-        body: 'This PR updates the version in CITATION.cff file.'
-        branch: 'auto-update-citation-cff'
-        base: 'master'

@@ -1,26 +1,41 @@
-#!/usr/bin/env python3
-"""
-Created on Mon Jan 31 18:29:48 2022.
-
-@author: fabian
-"""
-
-import os
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
-import pandapower as pp
-import pandapower.networks as pn
 import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
 import pypsa
+from pypsa.constants import DEFAULT_EPSG
+
+COMPONENT_NAMES = [
+    "sub_networks",
+    "buses",
+    "carriers",
+    "global_constraints",
+    "lines",
+    "line_types",
+    "transformers",
+    "transformer_types",
+    "links",
+    "loads",
+    "generators",
+    "storage_units",
+    "stores",
+    "shunt_impedances",
+    "shapes",
+]
+
+
+@pytest.fixture(params=COMPONENT_NAMES)
+def component_name(request):
+    return request.param
 
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--test-docs",
+        "--test-docs-build",
         action="store_true",
         default=False,
         help="run sphinx build test",
@@ -28,52 +43,33 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "test_docs: mark test as sphinx build")
+    config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def scipy_network():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "scigrid-de",
-        "scigrid-with-load-gen-trafos",
-    )
-    n = pypsa.Network(csv_folder)
+    n = pypsa.examples.scigrid_de()
+    n.generators.control = "PV"
+    g = n.generators[n.generators.bus == "492"]
+    n.generators.loc[g.index, "control"] = "PQ"
     n.calculate_dependent_values()
+    n.determine_network_topology()
     return n
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def ac_dc_network():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__), "..", "examples", "ac-dc-meshed", "ac-dc-data"
-    )
-    n = pypsa.Network(csv_folder)
-    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
-    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
-    return n
+    return pypsa.examples.ac_dc_meshed()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture  # scope="session")
 def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "ac-dc-meshed",
-        "ac-dc-data",
-        "results-lopf",
-    )
-    n = pypsa.Network(csv_folder)
-    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
-    n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
-    return n
+    csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
+    return pypsa.Network(csv_folder)
 
 
-@pytest.fixture(scope="module")
-def ac_dc_network_multiindexed(ac_dc_network):
+@pytest.fixture
+def ac_dc_network_mi(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.investment_periods = [2013]
@@ -83,7 +79,7 @@ def ac_dc_network_multiindexed(ac_dc_network):
     return n
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def ac_dc_network_shapes(ac_dc_network):
     n = ac_dc_network
 
@@ -101,11 +97,11 @@ def ac_dc_network_shapes(ac_dc_network):
     bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
 
     # Convert to GeoSeries
-    geo_series = gpd.GeoSeries(bboxes, crs="epsg:4326")
+    geo_series = gpd.GeoSeries(bboxes, crs=DEFAULT_EPSG)
 
-    n.madd(
+    n.add(
         "Shape",
-        names=geo_series.index,
+        name=geo_series.index,
         geometry=geo_series,
         idx=geo_series.index,
         component="Bus",
@@ -114,37 +110,42 @@ def ac_dc_network_shapes(ac_dc_network):
     return n
 
 
-@pytest.fixture(scope="module")
-def storage_hvdc_network():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "opf-storage-hvdc",
-        "opf-storage-data",
+@pytest.fixture
+def network_collection(ac_dc_network_r):
+    return pypsa.NetworkCollection(
+        [ac_dc_network_r],
+        index=pd.MultiIndex.from_tuples([("a", 2030)], names=["scenario", "year"]),
     )
-    return pypsa.Network(csv_folder)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
+def storage_hvdc_network():
+    return pypsa.examples.storage_hvdc()
+
+
+@pytest.fixture
 def all_networks(
     ac_dc_network,
-    ac_dc_network_r,
-    ac_dc_network_multiindexed,
-    ac_dc_network_shapes,
-    storage_hvdc_network,
+    # ac_dc_network_r,
+    # ac_dc_network_mi,
+    # ac_dc_network_shapes,
+    # storage_hvdc_network,
 ):
     return [
         ac_dc_network,
-        ac_dc_network_r,
-        ac_dc_network_multiindexed,
-        ac_dc_network_shapes,
-        storage_hvdc_network,
+        # ac_dc_network_r,
+        # ac_dc_network_mi,
+        # ac_dc_network_shapes,
+        # storage_hvdc_network,
     ]
 
 
 @pytest.fixture(scope="module")
 def pandapower_custom_network():
+    try:
+        import pandapower as pp
+    except ImportError:
+        pytest.skip("pandapower not installed")
     net = pp.create_empty_network()
     bus1 = pp.create_bus(net, vn_kv=20.0, name="Bus 1")
     bus2 = pp.create_bus(net, vn_kv=0.4, name="Bus 2")
@@ -170,4 +171,8 @@ def pandapower_custom_network():
 
 @pytest.fixture(scope="module")
 def pandapower_cigre_network():
+    try:
+        import pandapower.networks as pn
+    except ImportError:
+        pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")

@@ -1,13 +1,9 @@
-#!/usr/bin/env python3
-"""
-Define global constraints for optimisation problems with Linopy.
-"""
+"""Define global constraints for optimisation problems with Linopy."""
 
 from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -19,13 +15,14 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 logger = logging.getLogger(__name__)
 
 
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
-    """
-    Defines per-carrier and potentially per-bus capacity expansion limits.
+    """Define per-carrier and potentially per-bus capacity expansion limits.
 
     Parameters
     ----------
@@ -33,9 +30,6 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     glcs = n.global_constraints.loc[
@@ -53,14 +47,14 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
             dim = f"{c}-ext"
-            df = n.df(c)
+            static = n.static(c)
 
-            if "carrier" not in df:
+            if "carrier" not in static:
                 continue
 
             ext_i = (
                 n.get_extendable_i(c)
-                .intersection(df.index[df.carrier == carrier])
+                .intersection(static.index[static.carrier == carrier])
                 .rename(dim)
             )
             if period is not None:
@@ -70,7 +64,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
                 continue
 
             bus = "bus0" if c in n.branch_components else "bus"
-            busmap = df.loc[ext_i, bus].rename(busdim).to_xarray()
+            busmap = static.loc[ext_i, bus].rename(busdim).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum()
             lhs_per_bus_list.append(expr)
 
@@ -92,8 +86,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
 
 
 def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> None:
-    """
-    Set an capacity expansion limit for assets of the same carrier at the same
+    """Set an capacity expansion limit for assets of the same carrier at the same
     bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
     `buses` dataframe matching the pattern "nom_{min/max}_{carrier}". In case
     the constraint should only be defined for one investment period, the column
@@ -106,9 +99,6 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
@@ -146,14 +136,14 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
             dim = f"{c}-ext"
-            df = n.df(c)
+            static = n.static(c)
 
-            if c not in n.one_port_components or "carrier" not in df:
+            if c not in n.one_port_components or "carrier" not in static:
                 continue
 
             ext_i = (
                 n.get_extendable_i(c)
-                .intersection(df.index[df.carrier == carrier])
+                .intersection(static.index[static.carrier == carrier])
                 .rename(dim)
             )
             if period is not None:
@@ -162,7 +152,7 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             if ext_i.empty:
                 continue
 
-            busmap = df.loc[ext_i, "bus"].rename(buses.name).to_xarray()
+            busmap = static.loc[ext_i, "bus"].rename(buses.name).to_xarray()
             expr = m[var].loc[ext_i].groupby(busmap).sum().reindex({buses.name: buses})
             lhs.append(expr)
 
@@ -176,14 +166,14 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
 
 
 def define_growth_limit(n: Network, sns: pd.Index) -> None:
-    """
-    Constraint new installed capacity per investment period.
+    """Constraint new installed capacity per investment period.
 
     Parameters
     ----------
     n : pypsa.Network
     sns : list-like
         Set of snapshots to which the constraint should be applied.
+
     """
     if not n._multi_invest:
         return
@@ -203,13 +193,13 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
         dim = f"{c}-ext"
-        df = n.df(c)
+        static = n.static(c)
 
-        if "carrier" not in df:
+        if "carrier" not in static:
             continue
 
         limited_i = (
-            df.index[df.carrier.isin(carrier_i)]
+            static.index[static.carrier.isin(carrier_i)]
             .intersection(n.get_extendable_i(c))
             .rename(dim)
         )
@@ -219,7 +209,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         active = pd.concat({p: n.get_active_assets(c, p) for p in periods}, axis=1)
         active = active.loc[limited_i].rename_axis(columns="periods").T
         first_active = DataArray(active.cumsum() == 1)
-        carriers = df.loc[limited_i, "carrier"].rename("Carrier")
+        carriers = static.loc[limited_i, "carrier"].rename("Carrier")
 
         vars = m[var].sel({dim: limited_i}).where(first_active)
         expr = vars.groupby(carriers.to_xarray()).sum()
@@ -239,9 +229,10 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
 
 
 def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
-    """
-    Defines primary energy constraints. It limits the byproducts of primary
-    energy sources (defined by carriers) such as CO2.
+    """Define primary energy constraints.
+
+    It limits the byproducts of primary energy sources (defined by carriers) such
+    as CO2.
 
     Parameters
     ----------
@@ -249,9 +240,6 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
@@ -317,9 +305,10 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
 
 
 def define_operational_limit(n: Network, sns: pd.Index) -> None:
-    """
-    Defines operational limit constraints. It limits the net production of a
-    carrier taking into account generator, storage units and stores.
+    """Define operational limit constraints.
+
+    It limits the net production of a carrier taking into account generator, storage
+    units and stores.
 
     Parameters
     ----------
@@ -327,9 +316,6 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     weightings = n.snapshot_weightings.loc[sns]
@@ -385,8 +371,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
 
 def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> None:
-    """
-    Set a limit for line volume expansion. For the capacity expansion only the
+    """Set a limit for line volume expansion. For the capacity expansion only the
     carriers 'AC' and 'DC' are considered.
 
     Parameters
@@ -395,9 +380,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
+
     """
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_volume_expansion_limit'")
@@ -420,9 +403,9 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(
-                ext_i.name
-            )
+            ext_i = ext_i.intersection(
+                n.static(c).query("carrier in @car").index
+            ).rename(ext_i.name)
 
             if ext_i.empty:
                 continue
@@ -434,7 +417,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
                     n.get_active_assets(c, sns.unique("period"))[ext_i]
                 ].rename(ext_i.name)
 
-            length = n.df(c).length.reindex(ext_i)
+            length = n.static(c).length.reindex(ext_i)
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((length, vars)).sum())
 
@@ -447,8 +430,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
 
 
 def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
-    """
-    Set a limit for line expansion costs. For the capacity expansion only the
+    """Set a limit for line expansion costs. For the capacity expansion only the
     carriers 'AC' and 'DC' are considered.
 
     Parameters
@@ -457,9 +439,6 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
-    Returns
-    -------
-    None.
     """
     m = n.model
     glcs = n.global_constraints.query("type == 'transmission_expansion_cost_limit'")
@@ -486,9 +465,9 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(n.df(c).query("carrier in @car").index).rename(
-                ext_i.name
-            )
+            ext_i = ext_i.intersection(
+                n.static(c).query("carrier in @car").index
+            ).rename(ext_i.name)
 
             if not isnan(period):
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
@@ -509,7 +488,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             else:
                 weights = 1
 
-            cost = n.df(c).capital_cost.reindex(ext_i) * weights
+            cost = n.static(c).capital_cost.reindex(ext_i) * weights
             vars = m[f"{c}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 

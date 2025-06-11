@@ -17,5 +17,6 @@ API Reference
    ../api/plots
    ../api/clustering
    ../api/examples
+   ../api/options
    
 

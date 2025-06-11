@@ -9,9 +9,8 @@ There is limited functionality to import from Pypower and Pandapower.
 Adding components
 =================
 
-Networks can also be built step-by-step for each component by calling :py:meth:`pypsa.Network.add`. 
-
-Multiple components can be added by calling :py:meth:`pypsa.Network.madd`.
+Networks can also be built step-by-step for each component by calling 
+:py:meth:`pypsa.Network.add` to add a single or multiple components.
 
 To add multiple components whose static attributes are given in a
 pandas DataFrame, use :py:meth:`pypsa.Network.import_components_from_dataframe`
@@ -83,7 +82,9 @@ CSV, netCDF and HDF5 files in cloud object storage can be imported and exported 
 the :code:`[cloudpath]` optional dependency, installable via :code:`pip install 'pypsa[cloudpath]'`.
 
 :code:`cloudpathlib` supports AWS S3 (:code:`s3://`), Google Cloud Storage (:code:`gs://`) and
-Azure Blob Storage (:code:`az://`) as cloud object storage providers.
+Azure Blob Storage (:code:`az://`) as cloud object storage providers. Users will need to additionally
+install the appropriate cloud storage provider client library to interface with the corresponding
+cloud storage provider via cloudpathlib (e.g. `boto3`, `google-cloud-storage` or `azure-storage-blob`).
 
 .. code-block:: python
 

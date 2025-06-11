@@ -53,9 +53,6 @@ PyPSA: Python for Power System Analysis
     :target: CODE_OF_CONDUCT.md
     :alt: Contributor Covenant
 
-.. image:: https://img.shields.io/stackexchange/stackoverflow/t/pypsa
-    :target: https://stackoverflow.com/questions/tagged/pypsa
-    :alt: Stack Exchange questions
 
 | PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
 
@@ -107,11 +104,12 @@ Documentation
 * :doc:`/user-guide/power-flow`
 * :doc:`/user-guide/optimal-power-flow`
 * :doc:`/user-guide/contingency-analysis`
+* :doc:`/user-guide/statistics`
 * :doc:`/user-guide/plotting`
 
 .. toctree::
    :hidden:
-   :maxdepth: 2
+   :maxdepth: 0
    :caption: User Guide
 
    user-guide/design
@@ -120,6 +118,7 @@ Documentation
    user-guide/power-flow
    user-guide/optimal-power-flow
    user-guide/contingency-analysis
+   user-guide/statistics
    user-guide/plotting
 
 **Examples**
@@ -131,7 +130,7 @@ Documentation
 
 .. toctree::
    :hidden:
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Examples
 
    examples-index/lopf
@@ -147,7 +146,7 @@ Documentation
 
 .. toctree::
    :hidden:
-   :maxdepth: 1
+   :maxdepth: 0
    :caption: Contributing & Support
 
    contributing/contributing

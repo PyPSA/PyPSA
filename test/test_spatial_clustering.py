@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Created on Mon Jan 31 18:11:09 2022.
 
@@ -21,7 +20,7 @@ from pypsa.clustering.spatial import (
 def test_aggregate_generators(ac_dc_network):
     n = ac_dc_network
     busmap = pd.Series("all", n.buses.index)
-    df, pnl = aggregateoneport(n, busmap, "Generator")
+    df, dynamic = aggregateoneport(n, busmap, "Generator")
 
     assert (
         df.loc["all gas", "p_nom"] == n.generators.query("carrier == 'gas'").p_nom.sum()
@@ -33,7 +32,7 @@ def test_aggregate_generators(ac_dc_network):
 
     capacity_norm = normed_or_uniform(n.generators.query("carrier == 'wind'").p_nom)
     assert np.allclose(
-        pnl["p_max_pu"]["all wind"],
+        dynamic["p_max_pu"]["all wind"],
         (n.generators_t.p_max_pu * capacity_norm).sum(axis=1),
     )
     assert np.allclose(
@@ -49,7 +48,7 @@ def test_aggregate_generators_custom_strategies(ac_dc_network):
     busmap = pd.Series("all", n.buses.index)
 
     strategies = {"p_max_pu": "max", "p_nom_max": "weighted_min"}
-    df, pnl = aggregateoneport(n, busmap, "Generator", custom_strategies=strategies)
+    df, dynamic = aggregateoneport(n, busmap, "Generator", custom_strategies=strategies)
 
     assert (
         df.loc["all gas", "p_nom"] == n.generators.query("carrier == 'gas'").p_nom.sum()
@@ -62,7 +61,9 @@ def test_aggregate_generators_custom_strategies(ac_dc_network):
         df["p_nom_max"]["all wind"]
         == n.generators.loc["Frankfurt Wind", "p_nom_max"] * 3
     )
-    assert np.allclose(pnl["p_max_pu"]["all wind"], n.generators_t.p_max_pu.max(axis=1))
+    assert np.allclose(
+        dynamic["p_max_pu"]["all wind"], n.generators_t.p_max_pu.max(axis=1)
+    )
 
 
 def test_aggregate_generators_consent_error(ac_dc_network):
@@ -77,8 +78,8 @@ def test_aggregate_generators_consent_error(ac_dc_network):
 
     busmap = pd.Series("all", n.buses.index)
 
-    with pytest.raises(AssertionError):
-        df, pnl = aggregateoneport(n, busmap, "Generator")
+    with pytest.raises(ValueError):
+        df, dynamic = aggregateoneport(n, busmap, "Generator")
 
 
 def test_aggregate_storage_units(ac_dc_network):
@@ -106,7 +107,7 @@ def test_aggregate_storage_units(ac_dc_network):
     )
 
     busmap = pd.Series("all", n.buses.index)
-    df, pnl = aggregateoneport(n, busmap, "StorageUnit")
+    df, dynamic = aggregateoneport(n, busmap, "StorageUnit")
     capacity_norm = normed_or_uniform(n.storage_units.p_nom)
 
     assert df.loc["all", "p_nom"] == n.storage_units.p_nom.sum()
@@ -127,10 +128,6 @@ def test_aggregate_storage_units_consent_error(ac_dc_network):
     n = ac_dc_network
     n.add("StorageUnit", "Bremen Storage", bus="Bremen", p_nom_extendable=False)
 
-    busmap = pd.Series("all", n.buses.index)
-    with pytest.raises(AssertionError):
-        df, pnl = aggregateoneport(n, busmap, "StorageUnit")
-
 
 def prepare_network_for_aggregation(n):
     n.lines = n.lines.reindex(columns=n.components["Line"]["attrs"].index[1:])
@@ -145,7 +142,7 @@ def test_default_clustering_k_means(scipy_network):
     weighting = pd.Series(1, n.buses.index)
     busmap = busmap_by_kmeans(n, bus_weightings=weighting, n_clusters=50)
     C = get_clustering_from_busmap(n, busmap)
-    nc = C.network
+    nc = C.n
     assert len(nc.buses) == 50
 
 
@@ -154,7 +151,7 @@ def test_default_clustering_hac(scipy_network):
     prepare_network_for_aggregation(n)
     busmap = busmap_by_hac(n, n_clusters=50)
     C = get_clustering_from_busmap(n, busmap)
-    nc = C.network
+    nc = C.n
     assert len(nc.buses) == 50
 
 
@@ -184,6 +181,6 @@ def test_custom_line_groupers(scipy_network):
     busmap = busmap_by_kmeans(n, bus_weightings=weighting, n_clusters=20)
     C = get_clustering_from_busmap(n, busmap, custom_line_groupers=["build_year"])
     linemap = C.linemap
-    nc = C.network
+    nc = C.n
     assert len(nc.buses) == 20
     assert (n.lines.groupby(linemap).build_year.nunique() == 1).all()

@@ -1,261 +1,136 @@
-"""
-Descriptors for component attributes.
-"""
+"""Descriptors for component attributes."""
 
 from __future__ import annotations
 
 import logging
-import re
+import warnings
 from collections import OrderedDict
-from collections.abc import Collection, Iterable, Sequence
-from itertools import product, repeat
+from itertools import product
 from typing import TYPE_CHECKING, Any
 
 import networkx as nx
-import numpy as np
 import pandas as pd
-from numpy.typing import ArrayLike
+from deprecation import deprecated
+
+from pypsa.common import deprecated_common_kwargs, deprecated_in_next_major
+from pypsa.constants import PATTERN_PORTS_GE_2
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from collections.abc import Collection, Iterable, Sequence
+
+    from pypsa import Network, SubNetwork
+    from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `pypsa.graph.network.OrderedGraph` instead.",
+)
 class OrderedGraph(nx.MultiGraph):
+    """Ordered graph."""
+
     node_dict_factory = OrderedDict
     adjlist_dict_factory = OrderedDict
 
 
-class Dict(dict):
-    """
-    Dict is a subclass of dict, which allows you to get AND SET items in the
-    dict using the attribute syntax!
-
-    Stripped down from addict https://github.com/mewwts/addict/ .
-    """
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """
-        Setattr is called when the syntax a.b = 2 is used to set a value.
-        """
-        if hasattr(Dict, name):
-            raise AttributeError("'Dict' object attribute " f"'{name}' is read-only")
-        self[name] = value
-
-    def __getattr__(self, item: str) -> Any:
-        try:
-            return self.__getitem__(item)
-        except KeyError as e:
-            raise AttributeError(e.args[0])
-
-    def __delattr__(self, name: str) -> None:
-        """
-        Is invoked when del some_addict.b is called.
-        """
-        del self[name]
-
-    _re_pattern = re.compile("[a-zA-Z_][a-zA-Z0-9_]*")
-
-    def __dir__(self) -> list[str]:
-        """
-        Return a list of object attributes.
-
-        This includes key names of any dict entries, filtered to the
-        subset of valid attribute names (e.g. alphanumeric strings
-        beginning with a letter or underscore).  Also includes
-        attributes of parent dict class.
-        """
-        dict_keys = []
-        for k in self.keys():
-            if isinstance(k, str):
-                if m := self._re_pattern.match(k):
-                    dict_keys.append(m.string)
-
-        obj_attrs = list(dir(Dict))
-
-        return dict_keys + obj_attrs
-
-
+@deprecated_in_next_major(details="Use `n.get_switchable_as_dense` instead.")
+@deprecated_common_kwargs
 def get_switchable_as_dense(
-    network: Network,
+    n: Network,
     component: str,
     attr: str,
     snapshots: Sequence | None = None,
     inds: pd.Index | None = None,
 ) -> pd.DataFrame:
+    """Return a Dataframe for a time-varying component attribute .
+
+    Deprecation
+    ------------
+    Use `n.get_switchable_as_dense` instead.
+
     """
-    Return a Dataframe for a time-varying component attribute with values for
-    all non-time-varying components filled in with the default values for the
-    attribute.
-
-    Parameters
-    ----------
-    network : pypsa.Network
-    component : string
-        Component object name, e.g. 'Generator' or 'Link'
-    attr : string
-        Attribute name
-    snapshots : pandas.Index
-        Restrict to these snapshots rather than network.snapshots.
-    inds : pandas.Index
-        Restrict to these components rather than network.components.index
-
-    Returns
-    -------
-    pandas.DataFrame
-
-    Examples
-    --------
-    >>> get_switchable_as_dense(network, 'Generator', 'p_max_pu')
-    """
-    df = network.df(component)
-    pnl = network.pnl(component)
-
-    index = df.index
-
-    varying_i = pnl[attr].columns
-    fixed_i = df.index.difference(varying_i)
-
-    if inds is not None:
-        index = index.intersection(inds)
-        varying_i = varying_i.intersection(inds)
-        fixed_i = fixed_i.intersection(inds)
-    if snapshots is None:
-        snapshots = network.snapshots
-
-    vals = np.repeat([df.loc[fixed_i, attr].values], len(snapshots), axis=0)
-    static = pd.DataFrame(vals, index=snapshots, columns=fixed_i)
-    varying = pnl[attr].loc[snapshots, varying_i]
-
-    res = pd.merge(static, varying, left_index=True, right_index=True, how="inner")
-    del static
-    del varying
-    res = res.reindex(columns=index)
-    res.index.name = "snapshot"  # reindex with multiindex does not preserve name
-
-    return res
+    return n.get_switchable_as_dense(component, attr, snapshots, inds)
 
 
+@deprecated_in_next_major(details="Use `n.get_switchable_as_iter` instead.")
+@deprecated_common_kwargs
 def get_switchable_as_iter(
-    network: Network,
+    n: Network,
     component: str,
     attr: str,
     snapshots: Sequence,
     inds: pd.Index | None = None,
 ) -> pd.DataFrame:
+    """Return an iterator over snapshots for a time-varying component attribute.
+
+    Deprecation
+    ------------
+    Use `n.get_switchable_as_iter` instead.
+
     """
-    Return an iterator over snapshots for a time-varying component attribute
-    with values for all non-time-varying components filled in with the default
-    values for the attribute.
-
-    Parameters
-    ----------
-    network : pypsa.Network
-    component : string
-        Component object name, e.g. 'Generator' or 'Link'
-    attr : string
-        Attribute name
-    snapshots : pandas.Index
-        Restrict to these snapshots rather than network.snapshots.
-    inds : pandas.Index
-        Restrict to these items rather than all of network.{generators, ..}.index
-
-    Returns
-    -------
-    pandas.DataFrame
-
-    Examples
-    --------
-    >>> get_switchable_as_iter(network, 'Generator', 'p_max_pu', snapshots)
-    """
-    df = network.df(component)
-    pnl = network.pnl(component)
-
-    index = df.index
-    varying_i = pnl[attr].columns
-    fixed_i = df.index.difference(varying_i)
-
-    if inds is not None:
-        inds = pd.Index(inds)
-        index = inds.intersection(index)
-        varying_i = inds.intersection(varying_i)
-        fixed_i = inds.intersection(fixed_i)
-
-    # Short-circuit only fixed
-    if len(varying_i) == 0:
-        return repeat(df.loc[fixed_i, attr], len(snapshots))
-
-    def is_same_indices(i1: pd.Index, i2: pd.Index) -> bool:
-        return len(i1) == len(i2) and (i1 == i2).all()
-
-    if is_same_indices(fixed_i.append(varying_i), index):
-
-        def reindex_maybe(s: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
-            return s
-
-    else:
-
-        def reindex_maybe(s: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
-            return s.reindex(index)
-
-    return (
-        reindex_maybe(df.loc[fixed_i, attr].append(pnl[attr].loc[sn, varying_i]))
-        for sn in snapshots
-    )
+    return n.get_switchable_as_iter(component, attr, snapshots, inds)
 
 
-def allocate_series_dataframes(network: Network, series: dict) -> None:
-    """
-    Populate time-varying outputs with default values.
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `pypsa.pf.allocate_series_dataframes` instead.",
+)
+@deprecated_common_kwargs
+def allocate_series_dataframes(n: Network, series: dict) -> None:
+    """Populate time-varying outputs with default values."""
+    from pypsa.pf import allocate_series_dataframes as allocate_series_dataframes_pf
 
-    Parameters
-    ----------
-    network : pypsa.Network
-    series : dict
-        Dictionary of components and their attributes to populate (see example)
-
-    Returns
-    -------
-    None
-
-    Examples
-    --------
-    >>> allocate_series_dataframes(network, {'Generator': ['p'],
-                                             'Load': ['p']})
-    """
-    for component, attributes in series.items():
-        df = network.df(component)
-        pnl = network.pnl(component)
-
-        for attr in attributes:
-            pnl[attr] = pnl[attr].reindex(
-                columns=df.index,
-                fill_value=network.components[component]["attrs"].at[attr, "default"],
-            )
+    allocate_series_dataframes_pf(n, series)
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Will be removed in the next major release.",
+)
+@deprecated_common_kwargs
 def free_output_series_dataframes(
-    network: Network, components: Collection[str] | None = None
+    n: Network, components: Collection[str] | None = None
 ) -> None:
+    """Free output series dataframes.
+
+    Parameters
+    ----------
+    n : Network
+        Network instance.
+    components : Collection[str] | None
+        Components to free. If None, all components are freed.
+
+    """
     if components is None:
-        components = network.all_components
+        components = n.all_components
 
     for component in components:
-        attrs = network.components[component]["attrs"]
-        pnl = network.pnl(component)
+        attrs = n.components[component]["attrs"]
+        dynamic = n.dynamic(component)
 
         for attr in attrs.index[attrs["varying"] & (attrs["status"] == "Output")]:
-            pnl[attr] = pd.DataFrame(index=network.snapshots, columns=[])
+            dynamic[attr] = pd.DataFrame(index=n.snapshots, columns=[])
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `pypsa.pf.zsum` instead.",
+)
 def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
-    """
+    """Sum values in a series, returning 0 for empty series.
+
     Pandas 0.21.0 changes sum() behavior so that the result of applying sum
     over an empty DataFrame is NaN.
 
     Meant to be set as pd.Series.zsum = zsum.
     """
+    # TODO Remove
     return 0 if s.empty else s.sum(*args, **kwargs)
 
 
@@ -270,97 +145,108 @@ nominal_attrs = {
 }
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `pypsa.common.expand_series` instead.",
+)
 def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
-    """
-    Helper function to quickly expand a series to a dataframe with according
-    column axis and every single column being the equal to the given series.
+    """Expand a series to a dataframe.
+
+    Columns are the given series and every single column being the equal to
+    the given series.
     """
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
 
 
+@deprecated_in_next_major(details="Use `n.components[c].extendables` instead.")
 def get_extendable_i(n: Network, c: str) -> pd.Index:
-    """
-    Getter function.
-
-    Get the index of extendable elements of a given component.
-    """
-    idx = n.df(c)[lambda ds: ds[nominal_attrs[c] + "_extendable"]].index
-    return idx.rename(f"{c}-ext")
+    """Get the index of extendable elements of a given component."""
+    return n.components[c].extendables
 
 
+@deprecated_in_next_major(details="Use `n.components[c].fixed` instead.")
 def get_non_extendable_i(n: Network, c: str) -> pd.Index:
-    """
-    Getter function.
+    """Getter function.
 
     Get the index of non-extendable elements of a given component.
+
+    Deprecated: Use n.components[c].self.fixed instead.
     """
-    idx = n.df(c)[lambda ds: ~ds[nominal_attrs[c] + "_extendable"]].index
-    return idx.rename(f"{c}-fix")
+    return n.components[c].fixed
 
 
+@deprecated_in_next_major(details="Use `n.components[c].committables` instead.")
 def get_committable_i(n: Network, c: str) -> pd.Index:
-    """
-    Getter function.
+    """Getter function.
 
     Get the index of commitable elements of a given component.
+
+    Deprecated: Use n.components[c].get_committable_i() instead.
     """
-    if "committable" not in n.df(c):
-        idx = pd.Index([])
-    else:
-        idx = n.df(c)[lambda ds: ds["committable"]].index
-    return idx.rename(f"{c}-com")
+    return n.components[c].committables
 
 
-def get_active_assets(n: Network, c: str, investment_period: ArrayLike) -> pd.Series:
+@deprecated_in_next_major(details="Use `n.components[c].get_active_assets` instead.")
+def get_active_assets(
+    n: Network | SubNetwork,
+    c: str,
+    investment_period: int | str | Sequence | None = None,
+) -> pd.Series:
+    """Get active assets. Use `c.get_active_assets`.
+
+    See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+    c : string
+        Component name
+    investment_period : int, str, Sequence
+        Investment period(s) to check
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask for active components
+
     """
-    Getter function.
-
-    Get True values for elements of component c which are active at a
-    given investment period. These are calculated from lifetime and the
-    build year.
-    """
-    periods = np.atleast_1d(investment_period)
-    active = {}
-    for period in periods:
-        if period not in n.investment_periods:
-            raise ValueError("Investment period not in `network.investment_periods`")
-        if not {"build_year", "lifetime"}.issubset(n.df(c)):
-            active[period] = pd.Series(True, index=n.df(c).index)
-        else:
-            active[period] = n.df(c).eval(
-                "build_year <= @period < build_year + lifetime"
-            )
-    return pd.DataFrame(active).any(axis=1)
+    return n.component(c).get_active_assets(investment_period=investment_period)
 
 
+@deprecated_in_next_major(details="Use `n.components[c].get_activity_mask` instead.")
+@deprecated_common_kwargs
 def get_activity_mask(
     n: Network,
     c: str,
-    sns: pd.Index | None = None,
+    sns: Sequence | None = None,
     index: pd.Index | None = None,
 ) -> pd.DataFrame:
+    """Get active components mask indexed by snapshots.
+
+    Wrapper around the
+    `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
+    Get's the boolean mask for active components, but indexed by snapshots and
+    components instead of just components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+    c : string
+        Component name
+    sns : pandas.Index, default None
+        Set of snapshots for the mask. If None (default) all snapshots are returned.
+    index : pd.Index, default None
+        Subset of the component elements. If None (default) all components are returned.
+
     """
-    Getter function.
-
-    Get a boolean array with True values for elements of component c
-    which are active at a specific snapshot. If the network is in
-    multi_investment_period mode (given by n._multi_invest), these are
-    calculated from lifetime and the build year. Otherwise all values
-    are set to True.
-    """
-    if sns is None:
-        sns = n.snapshots
-    if getattr(n, "_multi_invest", False):
-        _ = {period: get_active_assets(n, c, period) for period in n.investment_periods}
-        res = pd.concat(_, axis=1).T.reindex(n.snapshots, level=0).loc[sns]
-    else:
-        res = pd.DataFrame(True, sns, n.df(c).index)
-    if index is not None:
-        res = res.reindex(columns=index)
-    res.index.name = "snapshot"
-    return res
+    return n.components[c].get_activity_mask(sns, index)
 
 
+@deprecated_in_next_major(details="Deprecate with new-opt.")
+@deprecated_common_kwargs
 def get_bounds_pu(
     n: Network,
     c: str,
@@ -368,7 +254,8 @@ def get_bounds_pu(
     index: pd.Index | None = None,
     attr: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
+    """Retrieve per unit bounds of a given component.
+
     Getter function to retrieve the per unit bounds of a given compoent for
     given snapshots and possible subset of elements (e.g. non-extendables).
     Depending on the attr you can further specify the bounds of the variable
@@ -377,6 +264,7 @@ def get_bounds_pu(
     Parameters
     ----------
     n : pypsa.Network
+        Network instance.
     c : string
         Component name, e.g. "Generator", "Line".
     sns : pandas.Index/pandas.DateTimeIndex
@@ -386,6 +274,7 @@ def get_bounds_pu(
         elements are returned.
     attr : string, default None
         attribute name for the bounds, e.g. "p", "s", "p_store"
+
     """
     min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
     max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
@@ -398,57 +287,173 @@ def get_bounds_pu(
         if attr == "p_store":
             max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
         if attr == "state_of_charge":
-            max_pu = expand_series(n.df(c).max_hours, sns).T
+            from pypsa.common import expand_series
+
+            max_pu = expand_series(n.static(c).max_hours, sns).T
             min_pu = pd.DataFrame(0, *max_pu.axes)
     else:
         min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
 
     if index is None:
         return min_pu, max_pu
-    else:
-        return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
+    return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
 
 
-def update_linkports_doc_changes(
-    s: str | Collection[str], i: int, j: str
-) -> str | Collection[str]:
+def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
+    """Update components documentation for link ports.
+
+    Multi-linkports require the following changes:
+    1. Replaces every occurrence of the substring `j` with `i`.
+    2. Make attribute required
+
+    Parameters
+    ----------
+    s : An
+        String to update.
+    i : int
+        Integer to replace `j` with.
+    j : string
+        Substring to replace.
+
+    Returns
+    -------
+    Any : Updated string or original value if not a string.
+
+    """
     if not isinstance(s, str) or len(s) == 1:
         return s
     return s.replace(j, str(i)).replace("required", "optional")
 
 
-def update_linkports_component_attrs(
-    n: Network, where: Iterable[str] | None = None
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Will be removed in the next major release.",
+)
+def update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
+    """Update components documentation for link ports.
+
+    Multi-linkports require the following changes:
+    1. Replaces every occurrence of the substring `j` with `i`.
+    2. Make attribute required
+
+    Parameters
+    ----------
+    s : An
+        String to update.
+    i : int
+        Integer to replace `j` with.
+    j : string
+        Substring to replace.
+
+    Returns
+    -------
+    Any : Updated string or original value if not a string.
+
+    """
+    return _update_linkports_doc_changes(s, i, j)
+
+
+def _update_linkports_component_attrs(
+    n: NetworkType, where: Iterable[str] | None = None
 ) -> None:
-    ports = additional_linkports(n, where)
+    """Update the Link components attributes to add the additional ports.
+
+    Parameters
+    ----------
+    n : Network
+        Network instance to which additional ports will be added.
+    where : Iterable[str] or None, optional
+        Filters for specific subsets of data by providing an iterable of tags
+        or identifiers. If None, no filtering is applied and additional link
+        ports are considered for all connectors.
+
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        ports = additional_linkports(n, where)
+    ports.sort(reverse=True)
     c = "Link"
 
     for i, attr in product(ports, ["bus", "efficiency", "p"]):
         target = f"{attr}{i}"
         if target in n.components[c]["attrs"].index:
             continue
-        to_replace = "1"
         j = "1" if attr != "efficiency" else ""
+        base_attr = attr + j
+        base_attr_index = n.components[c]["attrs"].index.get_loc(base_attr)
+        n.components[c]["attrs"].index.insert(base_attr_index + 1, target)
         n.components[c]["attrs"].loc[target] = (
             n.components[c]["attrs"]
             .loc[attr + j]
-            .apply(update_linkports_doc_changes, args=(to_replace, i))
+            .apply(_update_linkports_doc_changes, args=("1", i))
         )
-        n.components[c]["attrs"].loc[target] = (
-            n.components[c]["attrs"]
-            .loc[attr + j]
-            .apply(update_linkports_doc_changes, args=(to_replace, i))
-        )
-        if attr in ["efficiency", "p"] and target not in n.pnl(c).keys():
+        # Also update container for varying attributes
+        if attr in ["efficiency", "p"] and target not in n.dynamic(c):
             df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
-            df.index.name = "snapshot"
             df.columns.name = c
-            n.pnl(c)[target] = df
-        elif attr == "bus" and target not in n.df(c).columns:
-            n.df(c)[target] = n.components[c]["attrs"].loc[target, "default"]
+            n.dynamic(c)[target] = df
+        elif attr == "bus" and target not in n.static(c).columns:
+            n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Will be removed in the next major release.",
+)
+@deprecated_common_kwargs
+def update_linkports_component_attrs(
+    n: Network, where: Iterable[str] | None = None
+) -> None:
+    """Update the Link components attributes to add the additional ports.
+
+    Parameters
+    ----------
+    n : Network
+        Network instance to which additional ports will be added.
+    where : Iterable[str] or None, optional
+        Filters for specific subsets of data by providing an iterable of tags
+        or identifiers. If None, no filtering is applied and additional link
+        ports are considered for all connectors.
+
+    """
+    _update_linkports_component_attrs(n, where)
+
+
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `n.components.links.additional_ports` instead. Passing `where` will be deprecated.",
+)
 def additional_linkports(n: Network, where: Iterable[str] | None = None) -> list[str]:
+    """Identify additional link ports (bus connections) beyond predefined ones.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    where : iterable of strings, default None
+        Subset of columns to consider. Takes link columns by default.
+
+    Returns
+    -------
+    list of strings
+        List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
+
+    """
     if where is None:
         where = n.links.columns
-    return [i[3:] for i in where if i.startswith("bus") and i not in ["bus0", "bus1"]]
+    return [
+        match.group(1) for col in where if (match := PATTERN_PORTS_GE_2.search(col))
+    ]
+
+
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `n.bus_carrier_unit` instead.",
+)
+def bus_carrier_unit(n: Network, bus_carrier: str | Sequence[str] | None) -> str:
+    """Determine the unit associated with a specific bus carrier in the network."""
+    return n.bus_carrier_unit(bus_carrier)

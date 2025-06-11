@@ -16,12 +16,13 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 # sys.path.insert(0, os.path.abspath('.'))
 
-import os
+import doctest
 import sys
 from importlib.metadata import version as get_version
+from pathlib import Path
 
 # Add the pypsa directory to the path
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, str(Path("..").resolve()))
 
 # For some reason is this needed, otherwise autosummary does fail on RTD but not locally
 import pypsa  # noqa
@@ -30,7 +31,7 @@ import pypsa  # noqa
 
 # The short X.Y version.
 release: str = get_version("pypsa")
-version: str = ".".join(release.split(".")[:2])
+version: str = ".".join(release.split(".")[:3])
 
 # -- General configuration ------------------------------------------------
 
@@ -50,10 +51,8 @@ extensions = [
     "sphinx_reredirects",
     "nbsphinx",
     "nbsphinx_link",
-    #    'sphinx.ext.pngmath',
-    #    'sphinxcontrib.tikz',
-    # 'rinoh.frontend.sphinx',
     "sphinx.ext.imgconverter",  # for SVG conversion
+    "sphinx.ext.doctest",
 ]
 
 autodoc_default_flags = ["members"]
@@ -75,7 +74,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "PyPSA"
-copyright = "2015-2024 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
+copyright = "2015-2025 PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
 author = "PyPSA Developers, see https://pypsa.readthedocs.io/en/latest/references/developers.html"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -238,20 +237,17 @@ htmlhelp_basename = "PyPSAdoc"
 nbsphinx_prolog = """
 {% set docname = env.doc2path(env.docname, base=None).replace("nblink", "ipynb").replace("examples/", "examples/notebooks/") %}
 {% if env.config.release != 'master' %}
-    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/v' + env.config.release + '?labpath=' + docname %}
+    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/v' + env.config.version + '?labpath=' + docname %}
 {% else %}
-    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/' + env.config.release + '?labpath=' + docname %}
+    {% set binder_url = 'https://mybinder.org/v2/gh/PyPSA/pypsa/' + env.config.version + '?labpath=' + docname %}
 {% endif %}
 
 .. note::
 
-    You can `download <https://github.com/pypsa/pypsa/tree/{{ env.config.release|e }}/{{ docname }}>`_ this example as a Jupyter notebook
+    You can `download <https://github.com/pypsa/pypsa/tree/v{{ env.config.version|e }}/{{ docname }}>`_ this example as a Jupyter notebook
     or start it `in interactive mode <{{ binder_url }}>`_.
 
 """
-
-nbsphinx_allow_errors = True
-
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -349,6 +345,7 @@ texinfo_documents = [
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
+# Redirects for old URLs
 redirects = {
     # Redirects from old/ similar urls to new ones
     # Getting Started
@@ -380,3 +377,17 @@ redirects = {
     "users.html": "references/users.html",
     "developers.html": "references/developers.html",
 }
+
+# Doctest configuration
+# Warning: Keep in sync with settings in test/test_docs.py
+doctest_global_setup = """
+import pypsa
+import pandas as pd
+import numpy as np
+
+n = pypsa.examples.ac_dc_meshed()
+"""
+
+doctest_default_flags = (
+    doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS | doctest.IGNORE_EXCEPTION_DETAIL
+)

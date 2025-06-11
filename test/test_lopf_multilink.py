@@ -4,7 +4,7 @@ import pypsa
 
 
 @pytest.fixture
-def network():
+def n():
     n = pypsa.Network()
     n.set_snapshots(range(10))
 
@@ -155,11 +155,11 @@ def network():
     return n
 
 
-def test_attribution_assignment(network):
-    assert "bus2" in network.components["Link"]["attrs"].index
-    assert network.components["Link"]["attrs"].loc["bus2", "default"] == ""
+def test_attribution_assignment(n):
+    assert "bus2" in n.components["Link"]["attrs"].index
+    assert n.components["Link"]["attrs"].loc["bus2", "default"] == ""
 
 
-def test_optimize(network):
-    status, condition = network.optimize()
+def test_optimize(n):
+    status, condition = n.optimize()
     assert status == "ok"
