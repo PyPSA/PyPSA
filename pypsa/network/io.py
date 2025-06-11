@@ -1176,6 +1176,9 @@ class NetworkIOMixin(_NetworkABC):
         if update_msg:
             logger.info(update_msg)
 
+        if pypsa_version_tuple < (0, 18, 0):
+            self._multi_invest = 0
+
         # if there is snapshots.csv, read in snapshot data
         df = importer.get_snapshots()
 
