@@ -1,4 +1,5 @@
 import warnings
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -7,6 +8,7 @@ import pytest
 from pypsa.common import (
     MethodHandlerWrapper,
     UnexpectedError,
+    _check_for_update,
     as_index,
     equals,
     list_as_string,
@@ -285,3 +287,112 @@ def test_list_as_string():
     # Test empty lists
     assert list_as_string([]) == ""
     assert list_as_string([], style="bullet-list") == ""
+
+
+@pytest.fixture
+def mock_response():
+    """Create a mock response object."""
+
+    class MockResponse:
+        def __init__(self, data):
+            self._data = data
+
+        def read(self):
+            return f'{{"tag_name": "v{self._data}"}}'.encode()
+
+    return MockResponse
+
+
+@pytest.mark.parametrize(
+    ("current", "latest", "expected_message"),
+    [
+        # Test case format: (current_version, latest_version, expected_message)
+        (
+            (1, 0, 0),
+            "2.0.0",
+            "New version 2.0.0 available! (Current: 1.0.0)",
+        ),  # newer version
+        ((1, 0, 0), "1.0.0", ""),  # same version
+        ((2, 0, 0), "1.0.0", ""),  # current is newer
+        (
+            (1, 2, 2),
+            "1.2.3",
+            "New version 1.2.3 available! (Current: 1.2.2)",
+        ),  # minor update
+    ],
+)
+def test_check_for_update(mock_response, current, latest, expected_message):
+    """Test version comparison scenarios."""
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.return_value = mock_response(latest)
+        _check_for_update.cache_clear()
+        result = _check_for_update(current, "test_owner", "test_repo")
+        assert result == expected_message
+
+
+def test_check_for_update_error_handling():
+    """Test error handling scenarios."""
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = Exception("Connection failed")
+
+        _check_for_update.cache_clear()
+        result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+        assert result == ""
+
+
+def test_check_for_update_respects_network_option(mock_response):
+    """Test that version check respects the allow_network_requests option."""
+    import pypsa
+
+    # Test that version check is skipped when network requests are disabled
+    with pypsa.option_context("general.allow_network_requests", False):
+        result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+        assert result == ""
+
+    # Test that version check works when network requests are allowed
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.return_value = mock_response("2.0.0")
+
+        _check_for_update.cache_clear()
+        with pypsa.option_context("general.allow_network_requests", True):
+            result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+            assert "New version 2.0.0 available!" in result
+
+
+def test_url_loading_respects_network_option():
+    """Test that URL loading respects the allow_network_requests option."""
+    import pypsa
+    from pypsa.network.io import _retrieve_from_url
+
+    # Test that URL loading is blocked when network requests are disabled
+    def dummy_function(x):
+        return None
+
+    with pypsa.option_context("general.allow_network_requests", False):
+        with pytest.raises(ValueError, match="Network requests are disabled"):
+            _retrieve_from_url("https://example.com/test.nc", dummy_function)
+
+    # Test that URL loading works when network requests are allowed
+    with pypsa.option_context("general.allow_network_requests", True):
+        with patch("pypsa.network.io.urlretrieve") as mock_urlretrieve:
+            with patch("tempfile.NamedTemporaryFile") as mock_temp:
+                mock_temp.return_value.__enter__.return_value.name = "/tmp/test"
+
+                def mock_io_function(x):
+                    return "test_result"
+
+                result = _retrieve_from_url(
+                    "https://example.com/test.nc", mock_io_function
+                )
+                assert result == "test_result"
+                mock_urlretrieve.assert_called_once()
+
+
+def test_network_constructor_respects_network_option():
+    """Test that Network constructor respects the allow_network_requests option when loading from URLs."""
+    import pypsa
+
+    # Test that Network loading is blocked when network requests are disabled
+    with pypsa.option_context("general.allow_network_requests", False):
+        with pytest.raises(ValueError, match="Network requests are disabled"):
+            pypsa.Network("https://example.com/test.nc")
