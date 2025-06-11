@@ -148,6 +148,14 @@ jobs:
         echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
         echo "week=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
 
+    - name: Setup ixmp4 access
+      run: |
+        mkdir -p ~/.local/share/ixmp4/
+        cat > ~/.local/share/ixmp4/credentials.toml << 'EOL'
+        ${{ secrets.IXMP4_ACCESS }}
+        EOL
+      shell: bash
+
     - uses: actions/cache@v4
       if: env.pinned == 'false'
       with:
