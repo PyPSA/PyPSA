@@ -93,7 +93,7 @@ nav:
       - Optimize: api/networks/optimize.md
       - Cluster: api/networks/cluster.md
       - Statistics: api/networks/statistics.md
-      - Plotting: api/networks/plotting.md
+      - Plotting: api/networks/plot.md
     - SubNetwork: api/networks/subnetwork.md
     - Network Collection: api/networks/collection.md
     - Utilities: api/common.md
