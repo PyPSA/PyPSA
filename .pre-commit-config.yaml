@@ -1,3 +1,5 @@
+exclude: docs/assets/overrides
+
 ci:
   autoupdate_schedule: quarterly
 
