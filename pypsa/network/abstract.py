@@ -47,7 +47,6 @@ class _NetworkABC(ABC):
     stores: pd.DataFrame
     shunt_impedances: pd.DataFrame
     calculate_dependent_values: Callable
-    iterate_components: Callable
     passive_branches: pd.DataFrame
 
     @property
