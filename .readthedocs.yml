@@ -1,6 +1,5 @@
 version: 2
-sphinx:
-  configuration: doc/conf.py
+
 build:
   os: ubuntu-24.04
   tools:
@@ -8,6 +7,13 @@ build:
   jobs:
     pre_system_dependencies:
     - git fetch --unshallow # Needed to get version tags
+    pre_install:
+    - pip install mkdocs-material
+
+mkdocs:
+  configuration: mkdocs.yml
+  fail_on_warning: true
+
 python:
   install:
   - method: pip
