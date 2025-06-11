@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from pandapower.auxiliary import pandapowerNet
 
     from pypsa import Network
-
 logger = logging.getLogger(__name__)
 
 

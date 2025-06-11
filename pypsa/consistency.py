@@ -17,7 +17,7 @@ from pypsa.constants import RE_PORTS_FILTER
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
 
     from pypsa import Network
     from pypsa.components import Components
@@ -522,8 +522,6 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     Parameters
     ----------
-    n : pypsa.Network
-        The network to check.
     component : pypsa.Component
         The component to check.
     strict : bool, optional
@@ -768,9 +766,6 @@ class NetworkConsistencyMixin(_NetworkABC):
     All attributes and methods can be used within any Network instance.
     """
 
-    calculate_dependent_values: Callable
-    iterate_components: Callable
-
     def consistency_check(
         self, check_dtypes: bool = False, strict: Sequence | None = None
     ) -> None:
@@ -899,7 +894,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.consistency.consistency_check][] : General consistency check method, which can be
+        [pypsa.Network.consistency_check][] : General consistency check method, which can be
             runs all consistency checks.
         [pypsa.consistency.check_for_unknown_buses][] : Check if buses are attached to
             component but are not defined in the network.

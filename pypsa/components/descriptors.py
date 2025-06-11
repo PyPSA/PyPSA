@@ -188,10 +188,6 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         Parameters
         ----------
-        n : pypsa.Network
-            Network instance
-        c : string
-            Component name
         sns : pandas.Index, default None
             Set of snapshots for the mask. If None (default) all snapshots are returned.
         index : pd.Index, default None

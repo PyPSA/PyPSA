@@ -1,27 +1,24 @@
-#########################
-Power System Optimization
-#########################
+
+todo: Add overview with short intro to all examples (maybe images)
+
+# Examples
+
+## Power System Optimization
+<div class="grid cards" markdown>
+
+-   :material-notebook-multiple:{ .lg .middle } **Meshed AC-DC**
+
+    ---
+    
+    Build a simple 3-node AC network coupled via AC-DC converters to a 3-node DC network.
+
+    [:octicons-arrow-right-24: Examples](examples.md)
+
+- 
+</div>
+
+## Sector Coupling
 
 
-This section contains examples of network optimization with PyPSA. PyPSA allows you to optimize networks with `Linopy <https://linopy.readthedocs.io>`_.
+## Other
 
-
-.. toctree::
-    :maxdepth: 1
-
-    ../examples/optimization-with-linopy.ipynb
-    ../examples/capacity-constraint-per-bus.ipynb
-    ../examples/multi-investment-optimisation.ipynb
-    ../examples/chained-hydro-reservoirs.ipynb
-    ../examples/generation-investment-screening-curve.ipynb
-    ../examples/scigrid-lopf-then-pf.ipynb
-    ../examples/scigrid-redispatch.ipynb
-    ../examples/scigrid-sclopf.ipynb
-    ../examples/simple-electricity-market-examples.ipynb
-    ../examples/capacity-expansion-planning-single-node.ipynb
-    ../examples/mga.ipynb
-    ../examples/islanded-methanol-production.ipynb
-    ../examples/transformer_example.ipynb
-    ../examples/unit-commitment.ipynb
-    ../examples/reserve-power.ipynb
-    ../examples/optimization-with-linopy-migrate-extra-functionalities.ipynb

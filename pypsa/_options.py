@@ -54,11 +54,29 @@ class Option:
 
 
 class OptionsNode:
+    """PyPSA package options.
+
+    This class provides a hierarchical structure for managing package options and
+    the functionality can be accessed via `pypsa.options`.
+
+    """
+
     def __init__(self, name: str = "") -> None:
         self._name = name
         self._children: dict[str, Any] = {}
 
     def __getattr__(self, name: str) -> Any:
+        """Get the value of an option at the specified path.
+
+        Examples
+        --------
+        >>> pypsa.options.general.allow_network_requests
+        True
+
+        >>> pypsa.options.params.statistics.round
+        5
+
+        """
         if name not in self._children:
             raise InvalidOptionError(option_path=name)
 
@@ -68,6 +86,19 @@ class OptionsNode:
         return child
 
     def __setattr__(self, name: str, value: Any) -> None:
+        """Set the value of an option at the specified path.
+
+        Examples
+        --------
+        Set the option to False:
+        >>> pypsa.options.general.allow_network_requests = False
+        >>> pypsa.options.general.allow_network_requests
+        False
+
+        Reset back to default:
+        >>> pypsa.options.reset_all()
+
+        """
         if name.startswith("_"):
             super().__setattr__(name, value)
             return
@@ -120,10 +151,10 @@ class OptionsNode:
 
         Examples
         --------
-        >>> pypsa.options.get_option("params.statistics.drop_zero")
+        >>> pypsa.options.get_option("general.allow_network_requests")
         True
-        >>> pypsa.options.get_option("params.statistics.nice_names")
-        True
+        >>> pypsa.options.get_option("params.statistics.round")
+        5
 
         """
         parts = path.split(".")
@@ -156,6 +187,17 @@ class OptionsNode:
         value : Any
             Value to set for the option.
 
+        Examples
+        --------
+        Set the option to False:
+        >>> pypsa.options.set_option("general.allow_network_requests", False)
+        >>> pypsa.options.general.allow_network_requests
+        False
+
+        Reset back to default:
+        >>> pypsa.options.reset_all()
+        >>> pypsa.options.general.allow_network_requests
+        True
 
         """
         parts = path.split(".")
@@ -178,8 +220,64 @@ class OptionsNode:
 
         node._children[leaf_name].value = value
 
+    def reset_option(self, path: str) -> None:
+        """Reset a single option to its default value.
+
+        Parameters
+        ----------
+        path : str
+            Path to the option. Must be in the format "category.option_name" or "category.subcategory.option_name"
+
+        Examples
+        --------
+        Set an option to a non-default value:
+        >>> pypsa.options.set_option("general.allow_network_requests", False)
+        >>> pypsa.options.general.allow_network_requests
+        False
+
+        Reset just that option:
+        >>> pypsa.options.reset_option("general.allow_network_requests")
+        >>> pypsa.options.general.allow_network_requests
+        True
+
+        """
+        parts = path.split(".")
+        node = self
+
+        # Navigate to the parent
+        for part in parts[:-1]:
+            if part not in node._children or not isinstance(
+                node._children[part], OptionsNode
+            ):
+                raise InvalidOptionError(option_path=part)
+            node = node._children[part]
+
+        # Reset the option value
+        leaf_name = parts[-1]
+        if leaf_name not in node._children or isinstance(
+            node._children[leaf_name], OptionsNode
+        ):
+            raise InvalidOptionError(option_path=leaf_name)
+
+        node._children[leaf_name].reset()
+
     def reset_all(self) -> None:
-        """Reset all options to their default values."""
+        """Reset all options to their default values.
+
+        Examples
+        --------
+        Define some options:
+        >>> pypsa.options.general.allow_network_requests = False
+        >>> pypsa.options.params.statistics.round = 4
+
+        Reset all options:
+        >>> pypsa.options.reset_all()
+        >>> pypsa.options.general.allow_network_requests
+        True
+        >>> pypsa.options.params.statistics.round
+        5
+
+        """
         for child in self._children.values():
             if isinstance(child, Option):
                 child.reset()
@@ -187,7 +285,7 @@ class OptionsNode:
                 child.reset_all()
 
     def describe_options(self, prefix: str = "") -> None:
-        """Print documentation for all options.
+        """Print documentation for a subset of options.
 
         Parameters
         ----------
@@ -213,7 +311,7 @@ class OptionsNode:
             Description: Default value for the 'round' parameter in statistics module.
 
         Or print all options:
-        >>> pypsa.options.describe_options()
+        >>> pypsa.options.describe_options() # doctest: +ELLIPSIS
         PyPSA Options
         =============
         api.legacy_components:
@@ -228,12 +326,7 @@ class OptionsNode:
         params.statistics.nice_names:
             Default: True
             Description: Default value for the 'nice_names' parameter in statistics module.
-        params.statistics.round:
-            Default: 5
-            Description: Default value for the 'round' parameter in statistics module.
-        warnings.components_store_iter:
-            Default: True
-            Description: If False, suppresses the deprecatio warning when iterating over components.
+        ...
 
         """
         if not prefix:
@@ -271,12 +364,7 @@ class OptionsNode:
         params.statistics.nice_names:
             Default: True
             Description: Default value for the 'nice_names' parameter in statistics module.
-        params.statistics.round:
-            Default: 5
-            Description: Default value for the 'round' parameter in statistics module.
-        warnings.components_store_iter:
-            Default: True
-            Description: If False, suppresses the deprecatio warning when iterating over components.
+        ...
 
         """
         self.describe_options()
@@ -294,7 +382,6 @@ def option_context(*args: Any) -> Generator[None, None, None]:
     *args : str, Any
         Must be passed in pairs of option_name and value.
         Option_name must be in the format "category.option_name" or "category.subcategory.option_name"
-
 
     """
     if len(args) % 2 != 0:
