@@ -42,6 +42,9 @@ Upcoming Release
 Bug Fixes
 --------
 
+* Bugfix: The function ``n.statistics.opex()`` now considers the correct
+  snapshot weightings ``n.snapshot_weightings.objective``. 
+  
 * Fixed unaligned statistics index names when ``groupby=False``
   (https://github.com/PyPSA/PyPSA/pull/1205)
 
