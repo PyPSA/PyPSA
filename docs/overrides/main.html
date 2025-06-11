@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block outdated %}
+  You're not viewing the latest version.
+  <a href="{{ '../' ~ base_url }}"> 
+    <strong>Click here to go to latest.</strong>
+  </a>
+{% endblock %}
+
+{% block announce %}
+  🎉 PyPSA 1.0 is here! Check out what's new in the <a href="{{ base_url }}/changelog/index.html">changelog</a>. 🎉
+{% endblock %}

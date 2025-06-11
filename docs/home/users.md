@@ -1,25 +1,25 @@
-###############
-Users
-###############
+
+todo: restructure and translate to markdown
+
+# Users
+
 
 The following universities, research institutes, companies and non-governmental organisations are known to have either used PyPSA in the past, or to continue to use PyPSA. This list is necessarily incomplete, since we cannot track who uses PyPSA and we only find out who our users are when they contact the main developers of PyPSA.
 
-Research publications that cite the `PyPSA research paper <https://doi.org/10.5334/jors.188>`_ can be found on `Google Scholar <https://scholar.google.com/scholar?oi=bibs&hl=en&cites=11241966939032736670&as_sdt=5>`_.
+Research publications that cite the [PyPSA research paper](https://doi.org/10.5334/jors.188) can be found on [Google Scholar](https://scholar.google.com/scholar?oi=bibs&hl=en&cites=11241966939032736670&as_sdt=5).
 
 The PyPSA user meetings give further insight into the use of PyPSA in the energy sector.
 
-.. raw:: html
+<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/43DK6_kFfN0?si=-96_gUd8ACmq3Tix" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/43DK6_kFfN0" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+Find the 1st PyPSA user meeting in 10/2022 [here](https://www.youtube.com/embed/fmwDxNpSMM4>).
 
-Find the 1st PyPSA user meeting in 10/2022 `here <https://www.youtube.com/embed/fmwDxNpSMM4>`_.
+## Universities and Research Institutes
 
-.. _academic-mentions:
-
-Universities and Research Institutes
-====================================
-
-* `Technische Universität Berlin <https://www.ensys.tu-berlin.de/>`_ (TUB, where PyPSA development continues): multiple research papers, for example: `doi.org:10.1016/j.eneco.2021.105354 <https://doi.org/10.1016/j.eneco.2021.105354>`_, `doi:10.1016/j.energy.2021.120784 <https://doi.org/10.1016/j.energy.2021.120784>`_, `doi:10.1016/j.apenergy.2022.118859 <https://doi.org/10.1016/j.apenergy.2022.118859>`_
+- [Technische Universität Berlin](https://www.ensys.tu-berlin.de/) (TUB, where PyPSA development continues) - multiple research papers, for example:
+    - [Decreasing market value of variable renewables can be avoided by policy action](https://doi.org/10.1016/j.eneco.2021.105354)
+    - [Mitigating heat demand peaks in buildings in a highly renewable European energy system](https://doi.org/10.1016/j.energy.2021.120784)
+    - [Assessments of linear power flow and transmission loss approximations in coordinated capacity expansion problems](https://doi.org/10.1016/j.apenergy.2022.118859)
 
 * `Karlsruhe Institute of Technology <https://www.kit.edu/>`_ (KIT, where PyPSA development continues): multiple research papers, for example: `doi:10.1016/j.energy.2018.06.222 <https://doi.org/10.1016/j.energy.2018.06.222)>`_, `doi:10.1109/EEM.2019.8916411 <https://www.doi.org/10.1109/EEM.2019.8916411>`_, `doi:10.1016/j.esr.2018.08.012 <https://doi.org/10.1016/j.esr.2018.08.012>`_, `doi:10.1016/j.epsr.2020.106690 <https://doi.org/10.1016/j.epsr.2020.106690>`_, `doi:10.1145/3396851.3397688 <https://doi.org/10.1145/3396851.3397688>`_, `doi:10.1016/j.apenergy.2021.116726 <https://doi.org/10.1016/j.apenergy.2021.116726>`_, `doi:10.1186/s42162-022-00187-7 <https://doi.org/10.1186/s42162-022-00187-7>`_
 
@@ -85,8 +85,7 @@ Universities and Research Institutes
 
 * `RISE Research Institutes of Sweden AB <https://www.ri.se/>`_ (RISE) for energy systems research in `RESILIENT project <https://resilient-project.github.io/>`_ and more.
 
-Companies, Governmental and Non-Governmental Organisations
-==========================================================
+## Companies, Governmental and Non-Governmental Organisations
 
 * `International Energy Agency (IEA) <https://www.iea.org/>`_ uses PyPSA within their `Global Energy
   and Climate Model

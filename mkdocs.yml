@@ -1,0 +1,331 @@
+site_name: Documentation
+site_url: !ENV READTHEDOCS_CANONICAL_URL
+repo_url: https://github.com/PyPSA/PyPSA
+repo_name: PyPSA/PyPSA
+edit_uri: edit/master/docs/
+
+# Navigation
+nav:
+- Home:
+  - Home: index.md
+  - Overview:
+    - Features: home/features.md
+    - What's new: release-notes.md
+  - Getting Started:
+    - Installation: home/installation.md
+    - Quickstart: home/quick-start.md
+  - Reference:
+    - Users: home/users.md
+    - Models: home/models.md
+    - Citing: home/citing.md
+    - License: home/license.md
+
+- User Guide:
+  - Overview: user-guide/user-guide.md
+  - Core Design:
+    - Design: user-guide/design.md
+    - Component Types: user-guide/component-types.md
+  - Optimization:
+    - Optimization with Linopy: user-guide/optimization-with-linopy.md
+    - Power Flow: user-guide/power-flow.md
+    - System Optimization: user-guide/optimal-power-flow.md
+    - Contigency Analysis: user-guide/contingency-analysis.md
+    - Stochastic Optimization: user-guide/stochastic-optimization.md
+  - Usage:
+    - Networks: user-guide/networks.md
+    - Components: user-guide/components.md
+    - Descriptors: user-guide/network-descriptors.md
+    - Optimization: user-guide/network-optimization.md
+    - Clustering: user-guide/clustering.md
+    - Import and Export: user-guide/import-export.md
+    - Statistics: user-guide/statistics.md
+    - Plotting: user-guide/plotting.md
+    - Network Collection: user-guide/collection.md
+    - Package Options: user-guide/options.md
+    - Logging: user-guide/logging.md
+  - Support:
+    - FAQ: user-guide/faq.md
+    - Support: user-guide/support.md
+    - Troubleshooting: user-guide/troubleshooting.md
+
+- Examples:
+  - Overview: examples/examples.md
+  - Basic Examples:
+    - examples/minimal_example_pf.ipynb
+    - examples/ac-dc-lopf.ipynb
+  - Power System Optimization:
+    - examples/capacity-constraint-per-bus.ipynb
+    - examples/multi-investment-optimisation.ipynb
+    - examples/chained-hydro-reservoirs.ipynb
+    - examples/generation-investment-screening-curve.ipynb
+    - examples/scigrid-lopf-then-pf.ipynb
+    - examples/scigrid-redispatch.ipynb
+    - examples/scigrid-sclopf.ipynb
+    - examples/simple-electricity-market-examples.ipynb
+    - examples/capacity-expansion-planning-single-node.ipynb
+    - examples/mga.ipynb
+    - examples/islanded-methanol-production.ipynb
+    - examples/transformer_example.ipynb
+    - examples/unit-commitment.ipynb
+    - examples/reserve-power.ipynb
+  - Sector Coupling:
+    - examples/sector-coupling-single-node.ipynb
+    - examples/battery-electric-vehicle-charging.ipynb
+    - examples/biomass-synthetic-fuels-carbon-management.ipynb
+    - examples/chp-fixed-heat-power-ratio.ipynb
+    - examples/lopf-with-heating.ipynb
+    - examples/power-to-gas-boiler-chp.ipynb
+    - examples/power-to-heat-water-tank.ipynb
+  - Other:
+    - examples/replace-generator-storage-units-with-store.ipynb
+
+- API Reference:
+  - Overview: api/api.md
+  - Networks:
+    - Network:
+      - General: api/networks/network.md
+      - Index: api/networks/indexing.md
+      - Components: api/networks/components.md
+      - Transform: api/networks/transform.md
+      - Descriptors: api/networks/descriptors.md
+      - IO: api/networks/io.md
+      - Power Flow: api/networks/power-flow.md
+      - Optimize: api/networks/optimize.md
+      - Cluster: api/networks/cluster.md
+      - Statistics: api/networks/statistics.md
+      - Plotting: api/networks/plot.md
+    - SubNetwork: api/networks/subnetwork.md
+    - Network Collection: api/networks/collection.md
+    - Utilities: api/common.md
+  - Components:
+    - ComponentsData: api/components/components_data.md
+    - Components: api/components/components.md
+    - Component Types:
+      - Sub-Network: api/components/types/sub_networks.md
+      - Bus: api/components/types/buses.md
+      - Carrier: api/components/types/carriers.md
+      - Global Constraints: api/components/types/global_constraints.md
+      - Generator: api/components/types/generators.md
+      - Store: api/components/types/stores.md
+      - StorageUnit: api/components/types/storage_units.md
+      - Load: api/components/types/loads.md
+      - Shunt Impedance: api/components/types/shunt_impedances.md
+      - Line: api/components/types/lines.md
+      - Transformer: api/components/types/transformers.md
+      - Link: api/components/types/links.md
+      - Shapes: api/components/types/shapes.md
+    - Utilities: api/components/common.md
+  - Other:
+    - Consistency Checks: api/other/consistency.md
+    - Geo: api/other/geo.md
+    - Examples: api/other/api-examples.md
+    - Package Options: api/other/options.md
+
+- Contributing:
+  - Overview: contributing/contributing.md
+  - Code of Conduct: contributing/code-of-conduct.md
+  - Community: contributing/community.md
+  - Contributors: contributing/contributors.md
+
+- Resources:
+  - Overview: resources/resources.md
+  - Energy System Modelling:
+    - Energy System Modelling: resources/energy-system-modelling.md
+    - Energy System Modelling with PyPSA: resources/energy-system-modelling-with-pypsa.md
+  - First Time Users: resources/first-time-users.md
+
+- More Tools:
+  - More Tools: more-tools/more-tools.md
+  - Frameworks:
+    - pypsa: https://github.com/pypsa/pypsa
+    - linopy: https://github.com/PyPSA/linopy
+    - atlite: https://github.com/PyPSA/atlite
+    - powerplantmatching: https://github.com/PyPSA/powerplantmatching
+    - technology-data: https://github.com/PyPSA/technology-data
+  - Models:
+    - PyPSA-Eur: https://github.com/PyPSA/PyPSA-Eur
+    - PyPSA-DE: https://github.com/PyPSA/PyPSA-DE
+
+# Theme settings
+theme:
+  name: material
+  logo: assets/logo/logo-primary-dark.svg
+  favicon: assets/logo/logo.svg
+  custom_dir: docs/assets/overrides
+  # font:
+  #   text: Ubuntu
+  features:
+  - navigation.tabs
+  - navigation.tabs.sticky
+  - navigation.sections
+  - navigation.tracking  # Anchor tracking
+  - navigation.indexes  # Section indexes
+  - navigation.path
+  - navigation.top # Back to top button
+  - navigation.footer
+  - content.action.edit
+  - content.action.view
+  - toc.follow
+  - search
+  - search.suggest
+  - search.highlight
+  - search.share
+  - announce.dismiss
+
+  palette:
+  - media: "(prefers-color-scheme: light)"
+    primary: custom
+    scheme: default
+    toggle:
+      icon: material/weather-sunny
+      name: Switch to dark mode
+  - media: "(prefers-color-scheme: dark)"
+    primary: custom
+    scheme: slate
+    toggle:
+      icon: material/weather-night
+      name: Switch to light mode
+
+extra_css:
+- assets/stylesheets/extra.css
+
+extra_javascript:
+- assets/javascript/readthedocs.js
+- assets/javascripts/mathjax.js
+- https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+markdown_extensions:
+# Callouts/ Admonitions
+- admonition
+- pymdownx.details
+- pymdownx.superfences
+- pymdownx.arithmatex:
+    generic: true
+# Footnotes
+- footnotes
+# Tabbed content
+- pymdownx.tabbed:
+    alternate_style: true  # Abbreviations
+- pymdownx.snippets:
+    auto_append:
+    - includes/abbreviations.md
+- abbr
+- attr_list
+- md_in_html
+  # Emojis
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  # Toctree with permalinks
+- toc:
+    title: On this page
+    permalink: true
+    toc_depth: 3
+  # Grids
+- md_in_html
+
+plugins:
+# Graph View
+- search
+- tags
+- autolinks
+# Embed videos
+- mkdocs-video
+# - git-revision-date-localized:
+#     type: timeago
+#     timezone: Europe/Berlin
+#     enable_creation_date: true
+# - git-committers:
+#     repository: PyPSA/PyPSA
+#     branch: new-docs
+# - open-in-new-tab:
+#     add_icon: true
+- argref:
+    autolinks:
+    - reference_prefix: ":octicons-git-pull-request-16:"
+      target_url: https://github.com/PyPSA/PyPSA/pull/<num>
+- social:
+    cards_layout_options:
+      title: PyPSA Documentation
+      logo: assets/logo/logo.svg
+# Docstring generation
+- mkdocstrings:
+    enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+    default_handler: python
+    handlers:
+      python:
+        options:
+          docstring_style: numpy
+          docstring_options:
+            ignore_init_summary: true
+          docstring_section_style: list
+          filters:
+          - "!^_[^_]"
+          - "!logger"
+          heading_level: 1
+          merge_init_into_class: true
+          parameter_headings: false
+          separate_signature: true
+          show_root_heading: true
+          show_root_full_path: false
+          show_signature_annotations: true
+          show_source: false
+          show_symbol_type_heading: true
+          show_symbol_type_toc: true
+          signature_crossrefs: true
+          summary: true
+          show_if_no_docstring: true
+          # docstring_section_style: list
+          # backlinks: flat
+          # find_stubs_package: true
+          # parameter_headings: false
+          # merge_init_into_class: true
+          # separate_signature: true
+          # show_signature_annotations: true
+          # signature_crossrefs: true
+          show_inheritance_diagram: true
+          extensions:
+          - docs/assets/extensions/dynamic_inspect.py:InspectSpecificObjects:
+              objects:
+              - pypsa.components._types.buses.Buses.add
+              - pypsa.components._types.carriers.Carriers.add
+              - pypsa.components._types.generators.Generators.add
+              - pypsa.components._types.global_constraints.GlobalConstraints.add
+              - pypsa.components._types.lines.Lines.add
+              - pypsa.components._types.links.Links.add
+              - pypsa.components._types.shapes.Shapes.add
+              - pypsa.components._types.storage_units.StorageUnits.add
+              - pypsa.components._types.stores.Stores.add
+              - pypsa.components._types.sub_networks.SubNetworks.add
+              - pypsa.components._types.transformers.Transformers.add
+
+# - mkdocs-jupyter:
+#     execute: false
+#     include: ["examples/*.ipynb"]
+- redirects:
+    redirect_maps:
+      'home/release-notes.md': 'release-notes.md'
+      'changelog.md': 'release-notes.md'
+      'whats-new.md': 'release-notes.md'
+
+
+hooks:
+- docs/assets/overrides/hooks/shortcodes.py
+
+extra:
+  social:
+  - icon: fontawesome/brands/discord
+    link: https://discord.com/invite/AnuJBk23FU
+  - icon: fontawesome/brands/github
+    link: https://github.com/PyPSA
+
+  extra:
+  homepage: https://pypsa.org
+
+# validation:
+#   omitted_files: warn
+#   absolute_links: warn
+#   unrecognized_links: warn
+#   anchors: warn
+copyright: >-
+  &copy Copyright 2015-2025 PyPSA Developers and Contributors

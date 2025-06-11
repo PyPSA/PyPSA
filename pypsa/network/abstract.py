@@ -31,7 +31,6 @@ class _NetworkABC(ABC):
     investment_period_weightings: pd.DataFrame
     standard_type_components: pd.DataFrame
     srid: Any
-    pypsa_version: str
     set_snapshots: Callable
     investment_periods: pd.Index
     remove: Callable
@@ -47,7 +46,7 @@ class _NetworkABC(ABC):
     transformers: pd.DataFrame
     stores: pd.DataFrame
     shunt_impedances: pd.DataFrame
-
+    calculate_dependent_values: Callable
     passive_branches: pd.DataFrame
 
     @property

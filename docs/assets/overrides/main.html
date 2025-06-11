@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+<!-- Announcement bar -->
+{% block announce %}
+🎉 <b>PyPSA 1.0</b> is here! Check out <b><a href="https://docs.pypsa.org/release-notes.md">what's new</a></b> and the new <b><a href="https://pypsa.org/">landing page</a></b>. 🎉
+{% endblock %}
+
+<!-- Readthedocs Site Navigation -->
+{% block site_meta %}
+{{ super() }}
+<meta name="readthedocs-addons-api-version" content="1" />
+{% endblock %}
