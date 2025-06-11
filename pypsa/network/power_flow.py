@@ -832,8 +832,6 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         Parameters
         ----------
-        n : Network
-            Network instance.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -948,8 +946,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            Sub-network instance.
         skip_pre : bool, default False
             Skip the preliminary step of computing the PTDF.
 
@@ -980,8 +976,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to calculate the PTDF for.
         skip_pre : bool, default False
             Skip the preliminary steps of computing topology, calculating dependent values,
             finding bus controls and computing B and H.
@@ -1251,8 +1245,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to run the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -1647,8 +1639,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to perform the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots

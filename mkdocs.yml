@@ -41,7 +41,7 @@ nav:
     - Statistics: user-guide/statistics.md
     - Plotting: user-guide/plotting.md
     - Network Collection: user-guide/collection.md
-    - Options Module: user-guide/options-module.md
+    - Package Options: user-guide/options.md
     - Logging: user-guide/logging.md
   - Support:
     - FAQ: user-guide/faq.md
@@ -88,10 +88,10 @@ nav:
       - Components: api/networks/components.md
       - Transform: api/networks/transform.md
       - Descriptors: api/networks/descriptors.md
-      - Cluster: api/networks/cluster.md
+      - IO: api/networks/io.md
       - Power Flow: api/networks/power-flow.md
       - Optimize: api/networks/optimize.md
-      - IO: api/networks/io.md
+      - Cluster: api/networks/cluster.md
       - Statistics: api/networks/statistics.md
       - Plotting: api/networks/plotting.md
     - SubNetwork: api/networks/subnetwork.md
@@ -116,9 +116,10 @@ nav:
       - Shapes: api/components/types/shapes.md
     - Utilities: api/components/common.md
   - Other:
-    - Consistency: api/other/consistency.md
+    - Consistency Checks: api/other/consistency.md
+    - Geo: api/other/geo.md
     - Examples: api/other/api-examples.md
-    - Module Options: api/other/options.md
+    - Package Options: api/other/options.md
 
 - Contributing:
   - Overview: contributing/contributing.md
@@ -219,7 +220,7 @@ markdown_extensions:
 - toc:
     title: On this page
     permalink: true
-    toc_depth: 2
+    toc_depth: 3
   # Grids
 - md_in_html
 
@@ -263,7 +264,7 @@ plugins:
           - "!logger"
           heading_level: 1
           merge_init_into_class: true
-          parameter_headings: true
+          parameter_headings: false
           separate_signature: true
           show_root_heading: true
           show_root_full_path: false

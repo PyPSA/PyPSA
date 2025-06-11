@@ -18,11 +18,11 @@ See [upgrading-pypsa](installation.md#upgrading-pypsa).
 
 ## Consistency check on network
 
-A consistency check can be performed using the function [pypsa.Network.consistency_check()][].
+A consistency check can be performed using the function [pypsa.Network.consistency_check][].
 
 ## Problems with power flow convergence
 
-If your [`n.pf()`](pypsa.Network.pf) is not converging there are two possible reasons:
+If your [`n.pf()`][pypsa.Network.pf] is not converging there are two possible reasons:
 
 * The problem you have defined is not solvable (e.g. because in
   reality you would have a voltage collapse)
@@ -38,7 +38,7 @@ There are some steps you can take to distinguish these two cases:
   If your units are out by a factor 1000
   (e.g. using kW instead of MW) don't be surprised if your problem is
   no longer solvable.
-* Check with a linear power flow [`n.lpf()`](pypsa.Network.lpf) that all voltage
+* Check with a linear power flow [`n.lpf()`][pypsa.Network.lpf] that all voltage
   angles differences across branches are less than 40 degrees. You can do this with the following code:
 
 ```python

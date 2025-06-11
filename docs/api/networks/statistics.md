@@ -1,2 +1,2 @@
 
-::: pypsa.statistics.expressions.StatisticsAccessor
+::: pypsa.statistics.StatisticsAccessor

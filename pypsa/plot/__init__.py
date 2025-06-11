@@ -1,6 +1,7 @@
 """Plotting package for PyPSA networks."""
 
 from pypsa.common import deprecated_namespace
+from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps.interactive import explore as _explore
 from pypsa.plot.maps.interactive import iplot as _iplot
 from pypsa.plot.maps.static import add_legend_arrows as _add_legend_arrows
@@ -35,6 +36,7 @@ add_legend_semicircles = deprecated_namespace(
 )  # noqa: F811
 
 __all__ = [
+    "PlotAccessor",
     "plot",  # deprecated namespace
     "iplot",  # deprecated namespace
     "explore",  # deprecated namespace

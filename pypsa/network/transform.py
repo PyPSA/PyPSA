@@ -433,8 +433,6 @@ class NetworkTransformMixin(_NetworkABC):
 
         Parameters
         ----------
-        n : pypsa.Network
-            Network to add to.
         other : pypsa.Network
             Network to add from.
         components_to_skip : list-like, default None
