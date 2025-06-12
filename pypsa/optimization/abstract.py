@@ -526,8 +526,8 @@ class OptimizationAbstractMixin:
             .sum()
         )
         obj_lines = self._n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
-        self._n.objective += obj_links + obj_lines
-        self._n.objective_constant -= obj_links + obj_lines
+        self._n._objective += obj_links + obj_lines
+        self._n._objective_constant -= obj_links + obj_lines
 
         return status, condition
 
