@@ -2392,7 +2392,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df.attrs["unit"] = "currency / MWh"
         return df
 
-
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
     def prices(  # noqa: D417
         self,
@@ -2491,7 +2490,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             df,
             drop_zero=drop_zero,
             round=round,
-            nice_names=False, # Add once integrated in function
+            nice_names=False,  # Add once integrated in function
         )
 
         return df
