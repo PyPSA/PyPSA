@@ -349,6 +349,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         "capacity_factor",
         "revenue",
         "market_value",
+        "prices",
     ]
 
     def _get_component_index(self, df: pd.DataFrame | pd.Series, c: str) -> pd.Index:
@@ -2392,51 +2393,105 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
 
-    def prices(
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def prices(  # noqa: D417
         self,
-        price_weighting: str = "load",
         bus_carrier: Sequence[str] | str | None = None,
-    ) -> pd.DataFrame:
-        """
-        Calculates the prices at each in the network in currency/unit_{bus_carrier}.
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+        weighting: str = "load",
+        aggregate_buses: bool = False,
+    ) -> pd.Series:
+        """Calculate the average marginal prices in the network.
+
+        Currency is currency/MWh or currency/unit_{bus_carrier} where
+        unit_{bus_carrier} is the unit of the bus carrier.
 
         Parameters
         ----------
-        price_weighting : str, optional
-            Type of price weighting to use. If 'load' the prices are weighted by the load of the buses and if time they are weighted by snapshot weightings. Defaults to 'load'.
-        bus_carrier :  Sequence[str] | str, optional
-            Carrier of the buses for which the prices should be calculated. If None, all buses are considered. Defaults to None.
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of buses. If specified, only considers buses with
+            the given carrier(s).
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
+
+        Other Parameters
+        ----------------
+        weighting : str, optional
+            Type of weighting to use. If 'load' the prices are weighted by the
+            load of the buses and if time they are weighted by snapshot
+            weightings. Defaults to 'load'.
+        aggregate_buses : bool, default=False
+            Whether to return aggregated prices across buses for each bus carrier or not. If True,
+            the prices are aggregated to each bus carrier. If False, the prices are
+            returned separately for each bus in within the bus carrier list.
+
+        Returns
+        -------
+        pd.DataFrame
+            Time-averaged or load-weighted prices per bus or bus carrier.
+
+        Examples
+        --------
+        >>> n.statistics.prices(weighting='load')
+        Series([], dtype: float64)
+
         """
+        n = self._n  # TODO remove
+        sns_weights = n.snapshot_weightings.objective
 
-        def get_price_weightings(price_weighting: str) -> pd.DataFrame:
-            if price_weighting == "load":
-                weights = (
-                    self.withdrawal(
-                        groupby=get_bus_and_carrier_and_bus_carrier,
-                        nice_names=False,
-                        aggregate_time=False,
-                    )
-                    .groupby("bus")
-                    .sum()
-                    .T
-                )
-            else:
-                weights = self._parent.snapshot_weightings.objective
-            return weights
-
-        prices = self._parent.pnl("Bus").marginal_price
-        weights = get_price_weightings(price_weighting)
-
-        if isinstance(weights, pd.DataFrame):
-            weights = weights.reindex(prices.columns, axis=1, fill_value=1)
-            prices = (prices * weights).sum() / weights.sum()
-        elif isinstance(weights, pd.Series):
-            prices = weights @ prices / weights.sum()
+        prices = n.dynamic("Bus").marginal_price
 
         if bus_carrier is not None:
             if isinstance(bus_carrier, str):
                 bus_carrier = [bus_carrier]
-            mask = self._parent.buses.carrier.isin(bus_carrier)
-            prices = prices.loc[mask]
+            mask = n.static("Bus").carrier.isin(bus_carrier)
+            prices = prices.loc[:, mask]
 
-        return prices.dropna()
+        if weighting == "load":
+            weights = (
+                n.statistics.withdrawal(
+                    groupby="bus",
+                    bus_carrier=bus_carrier,
+                    nice_names=False,
+                    aggregate_time=False,
+                )
+                .groupby("bus")
+                .sum()
+                .T
+            )
+            weights = weights.reindex(prices.columns, axis=1, fill_value=1)
+        elif weighting == "time":
+            weights = pd.DataFrame(1, index=prices.index, columns=prices.columns)
+        else:
+            msg = f"Weighting '{weighting}' is not implemented. Use 'load' or 'time'."
+            raise NotImplementedError(msg)
+
+        a = sns_weights @ (weights * prices)
+        b = sns_weights @ weights
+        df = a / b
+
+        if aggregate_buses:
+            df = df.groupby(n.buses.carrier).apply(
+                lambda g: (g * b.loc[g.index]).sum() / b.loc[g.index].sum()
+            )
+            df.index.name = "bus_carrier"
+
+        df.attrs["name"] = "Prices"
+        df.attrs["unit"] = "currency / MWh"
+
+        df = self._apply_option_kwargs(
+            df,
+            drop_zero=drop_zero,
+            round=round,
+            nice_names=False, # Add once integrated in function
+        )
+
+        return df
