@@ -106,9 +106,10 @@ def adjacency_matrix(
     investment_period: int | str | None = None,
     busorder: pd.Index | None = None,
     weights: pd.Series | None = None,
-) -> pd.DataFrame:
+    return_dataframe: bool = True,
+) -> pd.DataFrame | sp.sparse.coo_matrix:
     """
-    Construct an adjacency matrix (directed) as a pandas DataFrame
+    Construct an adjacency matrix (directed) as a pandas DataFrame or sparse matrix
 
     Parameters
     ----------
@@ -121,11 +122,15 @@ def adjacency_matrix(
     weights : pd.Series or None (default)
        If given must provide a weight for each branch, multi-indexed
        on branch_component name and branch name.
+    return_dataframe : bool, default True
+       If True, returns a pandas DataFrame. If False, returns a sparse coo_matrix
+       for backwards compatibility.
 
     Returns
     -------
-    adjacency_matrix : pd.DataFrame
-       Directed adjacency matrix as DataFrame with bus indices as both rows and columns
+    adjacency_matrix : pd.DataFrame or sp.sparse.coo_matrix
+       Directed adjacency matrix as DataFrame (if return_dataframe=True) or
+       sparse matrix (if return_dataframe=False) with bus indices
     """
     from pypsa import Network, SubNetwork
 
@@ -173,7 +178,12 @@ def adjacency_matrix(
             for b0, b1, idx in zip(bus0, bus1, sel):
                 adjacency_df.at[b0, b1] = weights[c.name][idx]
 
-    return adjacency_df
+    if return_dataframe:
+        return adjacency_df
+    else:
+        # Convert to sparse matrix for backwards compatibility
+        # More efficient conversion using the underlying numpy array
+        return sp.sparse.coo_matrix(adjacency_df.values)
 
 
 @deprecated_common_kwargs
