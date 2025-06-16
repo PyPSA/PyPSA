@@ -316,17 +316,85 @@ def test_solved_network_multiperiod():
         assert "low" in scenarios_in_gens
 
 
-def test_objective_scaling_with_weights():
+def test_single_scenario():
     """
-    Placeholder: verify that the objective function is correctly scaled with scenario weights.
-    Check that generation costs and investment costs are properly weighted by scenario probabilities.
-    """
-    pass
+    Test that a network with a single scenario works correctly.
 
+    Verifies that:
+    - Single-scenario stochastic networks optimize successfully
+    - Scenario indexing works correctly with one scenario
+    - Solution is identical to a non-stochastic network with same data
+    """
+    import warnings
 
-def test_weight_sensitivity():
-    """
-    Placeholder: test that changing scenario weights affects the solution accordingly.
-    Compare solutions with different probability distributions across the same scenarios.
-    """
-    pass
+    # Suppress pandas FutureWarning about fillna downcasting
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=FutureWarning,
+            message=".*Downcasting object dtype arrays.*",
+        )
+        warnings.filterwarnings(
+            "ignore",
+            category=FutureWarning,
+            message=".*Setting an item of incompatible dtype.*",
+        )
+
+        # Create a simple network
+        n = pypsa.Network(snapshots=range(3))
+        n.add("Carrier", "elec")
+        n.add("Bus", "bus1", carrier="elec")
+        n.add(
+            "Generator",
+            "gen1",
+            bus="bus1",
+            p_nom_extendable=True,
+            capital_cost=100,
+            marginal_cost=10,
+            carrier="elec",
+        )
+        n.add("Load", "load1", bus="bus1", p_set=[100, 120, 110])
+
+        # Solve deterministic problem first
+        status_det, _ = n.optimize()
+        assert status_det == "ok"
+        obj_det = n.objective
+        capacity_det = n.generators.p_nom_opt.loc["gen1"]
+        dispatch_det = n.generators_t.p.loc[:, "gen1"].sum()
+
+        # Convert to single-scenario stochastic
+        n.set_scenarios(["scenario"])
+
+        # Set scenario-specific load data (same as deterministic)
+        n.loads_t.p_set = pd.DataFrame(
+            index=n.snapshots,
+            columns=pd.MultiIndex.from_product(
+                [n.scenarios.index, ["load1"]], names=["scenario", "component"]
+            ),
+        )
+        n.loads_t.p_set.loc[:, ("scenario", "load1")] = pd.Series(
+            [100.0, 120.0, 110.0], dtype=float
+        )
+
+        # Solve stochastic problem
+        status_stoch, _ = n.optimize()
+        assert status_stoch == "ok"
+
+        # Verify structure
+        assert len(n.scenarios) == 1
+        assert "scenario" in n.scenarios.index
+        assert "scenario" in n.generators_t.p.columns.get_level_values("scenario")
+
+        # Compare solutions (should be identical)
+        assert abs(n.objective - obj_det) < 1e-6
+
+        stoch_capacity = n.generators.p_nom_opt.loc[("scenario", "gen1")]
+        assert abs(stoch_capacity - capacity_det) < 1e-6
+
+        stoch_dispatch = n.generators_t.p.loc[:, ("scenario", "gen1")].sum()
+        assert abs(stoch_dispatch - dispatch_det) < 1e-6
+
+        # Energy balance check
+        gen_output = n.generators_t.p.loc[:, ("scenario", slice(None))].sum().sum()
+        load_demand = n.loads_t.p_set.loc[:, ("scenario", "load1")].sum()
+        assert abs(gen_output - load_demand) < 1e-1
