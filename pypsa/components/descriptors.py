@@ -138,7 +138,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=True)
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        Generator
+        component
         g1    False
         g2     True
         Name: active, dtype: bool
@@ -151,7 +151,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=False)
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        Generator
+        component
         g1     True
         g2    False
         Name: active, dtype: bool
@@ -202,17 +202,17 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
-        Generator          g1     g2
+        component           g1     g2
         period timestep
-        2020   1         True  False
-               2         True  False
-               3         True  False
-        2021   1         True  False
-               2         True  False
-               3         True  False
-        2022   1         True  False
-               2         True  False
-               3         True  False
+        2020   1          True  False
+               2          True  False
+               3          True  False
+        2021   1         False  False
+               2         False  False
+               3         False  False
+        2022   1         False  False
+               2         False  False
+               3         False  False
 
         """
         sns_ = as_index(self.n_save, sns, "snapshots")

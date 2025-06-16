@@ -44,7 +44,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         >>> n.add("Generator", "g2")  # doctest: +ELLIPSIS
         Index(['g2'], dtype='object')
         >>> n.generators.index
-        Index(['g1', 'g2'], dtype='object', name='Generator')
+        Index(['g1', 'g2'], dtype='object', name='component')
 
         """
         return self.static.index.get_level_values("component").unique()

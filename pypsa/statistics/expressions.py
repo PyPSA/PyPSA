@@ -293,7 +293,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     Get aggregated statistics in a single DataFrame:
 
-    >>> n.statistics()
+    >>> n.statistics() # doctest: +ELLIPSIS
                     Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
@@ -1340,7 +1340,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         else:
             cost_types_ = list(cost_types)
 
-        # @pass_empty_series_if_keyerror
+        @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             result = []
             weights = get_weightings(n, c)
@@ -2265,7 +2265,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             buses = n.static(c)[f"bus{port}"][df.columns]
             # catch multiindex case
             buses = (
-                buses.to_frame("bus").set_index("bus", append=True).droplevel(c).index
+                buses.to_frame("bus")
+                .set_index("bus", append=True)
+                .droplevel("component")
+                .index
             )
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0

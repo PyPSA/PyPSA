@@ -104,7 +104,7 @@ class ComponentsTransformMixin:
         With static data (and default values for all attributes):
         >>> c.static[["carrier", "p_nom"]]
                         carrier  p_nom
-        Generator
+        component
         my-generator-1      AC    0.0
 
         Add multiple components with static attributes:
@@ -123,7 +123,7 @@ class ComponentsTransformMixin:
         With static data:
         >>> c.static[["carrier", "p_nom"]]
                     carrier  p_nom
-        Generator
+        component
         my-generator-1      AC    0.0
         my-generator-2      AC   10.0
         my-generator-3      DC   10.0

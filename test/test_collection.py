@@ -219,7 +219,7 @@ def test_collection_carriers_property_empty():
     n2 = pypsa.Network(name="n2")
     collection = pypsa.NetworkCollection([n1, n2])
     expected_carriers = pd.DataFrame(
-        index=pd.Index([], name="Carrier"), columns=n1.carriers.columns, dtype=int
+        index=pd.Index([], name="component"), columns=n1.carriers.columns, dtype=int
     )
     pd.testing.assert_frame_equal(
         collection.carriers,
@@ -269,7 +269,7 @@ def test_collection_static_data(network1, network2):
     )
 
     assert collection.generators.loc["net1"].equals(network1.generators)
-    assert "Generator" in collection.generators.index.names
+    assert "component" in collection.generators.index.names
     assert "scenario" in collection.generators.index.names
 
 
