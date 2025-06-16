@@ -1670,7 +1670,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             n.calculate_dependent_values()
             self.find_bus_controls()
-            n._allocate_pf_outputs(linear=True)
+            _allocate_pf_outputs(n, linear=True)
 
         # get indices for the components on this sub-network
         buses_o = self.buses_o
@@ -1687,6 +1687,8 @@ class SubNetworkPowerFlowMixin:
             c_p_set = get_as_dense(
                 n, c.name, "p_set", sns, c.static.query("active").index
             )
+            # power flow calculations require a starting point for the algorithm, while p_set default is n/a
+            c_p_set = c_p_set.fillna(0)
             n.dynamic(c.name).p.loc[sns, c.static.query("active").index] = c_p_set
 
         # set the power injection at each node
