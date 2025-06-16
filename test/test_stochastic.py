@@ -226,9 +226,6 @@ def test_solved_network_multiperiod():
     Creates a multiperiod network with investment periods and scenarios,
     then verifies that the optimization completes successfully and produces
     expected results for both scenarios and investment periods.
-
-    Key insight: All components must be added BEFORE calling set_scenarios()
-    for the scenario indexing to work correctly in multiperiod networks.
     """
     import warnings
 
@@ -244,7 +241,6 @@ def test_solved_network_multiperiod():
         n = pypsa.Network(snapshots=range(3))
         n.investment_periods = [2020, 2030]
 
-        # Add all components BEFORE setting scenarios (this is the key fix!)
         n.add("Carrier", "elec")
         n.add("Bus", "bus1", carrier="elec")
         n.add(
@@ -271,7 +267,7 @@ def test_solved_network_multiperiod():
         )
         n.add("Load", "load1", bus="bus1", p_set=100)
 
-        # Now set scenarios AFTER all components are added
+        # Now set scenarios
         n.set_scenarios({"high": 0.5, "low": 0.5})
 
         # Set scenario-specific loads for multiperiod (6 snapshots total: 2 periods × 3 timesteps)
