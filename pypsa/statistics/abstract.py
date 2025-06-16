@@ -12,7 +12,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa._options import options
-from pypsa.constants import PATTERN_PORTS
+from pypsa.constants import RE_PORTS
 from pypsa.statistics.grouping import deprecated_groupers, groupers
 
 if TYPE_CHECKING:
@@ -249,7 +249,7 @@ class AbstractStatisticsAccessor(ABC):
             ports = [
                 match.group(1)
                 for col in n.static(c)
-                if (match := PATTERN_PORTS.search(str(col)))
+                if (match := RE_PORTS.search(str(col)))
             ]
             if not at_port:
                 ports = [ports[0]]

@@ -13,7 +13,7 @@ import pandas as pd
 from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs
-from pypsa.constants import PATTERN_PORTS
+from pypsa.constants import RE_PORTS_FILTER
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ class ConsistencyError(ValueError):
 
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
-    return df.columns[df.columns.str.contains(PATTERN_PORTS)]
+    return df.columns[df.columns.str.contains(RE_PORTS_FILTER)]
 
 
 def _log_or_raise(strict: bool, message: str, *args: Any) -> None:

@@ -6,13 +6,6 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
-from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Sequence
-
-    from pypsa import Network
-
 import pandas as pd
 
 from pypsa._options import options
@@ -22,13 +15,13 @@ from pypsa.common import (
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import nominal_attrs
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter, StatisticPlotter
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
 
     from pypsa import Network, NetworkCollection
-
 
 logger = logging.getLogger(__name__)
 
@@ -1343,7 +1336,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             result = []
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.objective
             weights_one = pd.Series(1.0, index=weights.index)
             com_i = n.components[c].committables
 
@@ -1511,7 +1504,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         elif not capex.empty:
             df = capex
         else:
-            df = capex
+            df = opex
         df.attrs["name"] = "System Cost"
         df.attrs["unit"] = "currency"
         return df

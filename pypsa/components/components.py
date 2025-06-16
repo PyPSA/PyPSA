@@ -29,8 +29,7 @@ from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, PATTERN_PORTS
-from pypsa.definitions.components import ComponentType
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
@@ -649,9 +648,7 @@ class Components(
 
         """
         return [
-            match.group(1)
-            for col in self.static
-            if (match := PATTERN_PORTS.search(col))
+            match.group(1) for col in self.static if (match := RE_PORTS.search(col))
         ]
 
     @property
