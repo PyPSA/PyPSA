@@ -70,22 +70,62 @@ def test_cycles(ac_dc_meshed_stoch: pypsa.Network):
     assert C.notnull().all().all()  # Check for NaN values
 
 
-def test_variable_dimensions():
-    """Placeholder: verify that variables are cast to the correct dimensions."""
-    pass
-
-
-def test_scenario_constraints():
-    """Placeholder: ensure constraints expressions are correctly defined."""
-    pass
-
-
-def test_model_creation(ac_dc_meshed_stoch):
+def test_model_creation(stochastic_benchmark_network):
     """
-    Simple test case for the optimization of a stochastic network.
+    Test stochastic optimization model variable and constraint dimensions.
+
+    Verifies that when creating an optimization model for a stochastic network:
+
+    Variables:
+    - Operational variables (e.g., Generator-p) include scenario dimension
+    - Investment variables (e.g., Generator-p_nom) exclude scenario dimension
+
+    Constraints:
+    - Operational constraints include (scenario, component, snapshot) dimensions
+    - Investment constraints include (component, scenario) dimensions
     """
-    n = ac_dc_meshed_stoch
+    n = stochastic_benchmark_network
     n.optimize.create_model()
+
+    assert hasattr(n, "model") and n.model is not None
+
+    # Test operational variable Generator-p has scenario dimension
+    assert n.model.variables["Generator-p"].dims == (
+        "scenario",
+        "component",
+        "snapshot",
+    )
+
+    # Test that Generator-p_nom does not have scenario dimension (investment variable)
+    assert n.model.variables["Generator-p_nom"].dims == ("component",)
+
+    # Test operational constraints have scenario dimension
+
+    # Generator-ext-p_nom-lower constraint should have (component, scenario) dimensions
+    assert {
+        d
+        for d in n.model.constraints["Generator-ext-p_nom-lower"].sizes.keys()
+        if d != "_term"
+    } == {"component", "scenario"}
+
+    # Generator-ext-p-lower constraint should have (scenario, component, snapshot) dimensions
+    assert {
+        d
+        for d in n.model.constraints["Generator-ext-p-lower"].sizes.keys()
+        if d != "_term"
+    } == {"scenario", "component", "snapshot"}
+
+    # Generator-ext-p-upper constraint should have (scenario, component, snapshot) dimensions
+    assert {
+        d
+        for d in n.model.constraints["Generator-ext-p-upper"].sizes.keys()
+        if d != "_term"
+    } == {"scenario", "component", "snapshot"}
+
+    # Bus-nodal_balance constraint should have (component, scenario, snapshot) dimensions
+    assert {
+        d for d in n.model.constraints["Bus-nodal_balance"].sizes.keys() if d != "_term"
+    } == {"component", "scenario", "snapshot"}
 
 
 def test_statistics(ac_dc_meshed_stoch_r):
