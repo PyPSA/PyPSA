@@ -219,20 +219,105 @@ def test_solved_network_simple(stochastic_benchmark_network):
     equal(n.objective, n_r.objective, decimal=2)
 
 
-def test_solved_network_advanced():
-    """
-    Placeholder: solve the stochastic problem and compare a solution with a known result.
-    Advanced test case with multiple components and constraints.
-    """
-    pass
-
-
 def test_solved_network_multiperiod():
     """
-    Placeholder: solve the stochastic problem and compare a solution with a known result.
-    Advanced test case with multiple optimization periods.
+    Test combined stochastic + multiperiod optimization.
+
+    Creates a multiperiod network with investment periods and scenarios,
+    then verifies that the optimization completes successfully and produces
+    expected results for both scenarios and investment periods.
+
+    Key insight: All components must be added BEFORE calling set_scenarios()
+    for the scenario indexing to work correctly in multiperiod networks.
     """
-    pass
+    import warnings
+
+    # Suppress pandas FutureWarning about fillna downcasting for entire test
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=FutureWarning,
+            message=".*Downcasting object dtype arrays.*",
+        )
+
+        # Combined multiperiod + stochastic optimization
+        n = pypsa.Network(snapshots=range(3))
+        n.investment_periods = [2020, 2030]
+
+        # Add all components BEFORE setting scenarios (this is the key fix!)
+        n.add("Carrier", "elec")
+        n.add("Bus", "bus1", carrier="elec")
+        n.add(
+            "Generator",
+            "gen-2020",
+            bus="bus1",
+            p_nom_extendable=True,
+            capital_cost=100,
+            marginal_cost=10,
+            build_year=2020,
+            lifetime=30,
+            carrier="elec",
+        )
+        n.add(
+            "Generator",
+            "gen-2030",
+            bus="bus1",
+            p_nom_extendable=True,
+            capital_cost=110,
+            marginal_cost=11,
+            build_year=2030,
+            lifetime=30,
+            carrier="elec",
+        )
+        n.add("Load", "load1", bus="bus1", p_set=100)
+
+        # Now set scenarios AFTER all components are added
+        n.set_scenarios({"high": 0.5, "low": 0.5})
+
+        # Set scenario-specific loads for multiperiod (6 snapshots total: 2 periods × 3 timesteps)
+        n.loads_t.p_set = pd.DataFrame(
+            index=n.snapshots,
+            columns=pd.MultiIndex.from_product(
+                [n.scenarios.index, ["load1"]], names=["scenario", "component"]
+            ),
+        )
+
+        load_high = [120, 144, 132] * len(n.investment_periods)
+        load_low = [80, 96, 88] * len(n.investment_periods)
+
+        n.loads_t.p_set.loc[:, ("high", "load1")] = load_high
+        n.loads_t.p_set.loc[:, ("low", "load1")] = load_low
+
+        # This should now work with both multiperiod and stochastic features!
+        status, condition = n.optimize(multi_investment_periods=True)
+        assert status == "ok"
+
+        # Verify we have results for both scenarios and investment periods
+        assert "high" in n.generators_t.p.columns.get_level_values("scenario")
+        assert "low" in n.generators_t.p.columns.get_level_values("scenario")
+
+        # Check basic energy balance for each scenario
+        for scenario in ["high", "low"]:
+            gen_output = n.generators_t.p.loc[:, (scenario, slice(None))].sum().sum()
+            load_demand = n.loads_t.p_set.loc[:, (scenario, "load1")].sum()
+            # Generation should equal load
+            assert abs(gen_output - load_demand) < 1e-1
+
+        # Verify that high scenario has higher generation than low scenario
+        gen_high = n.generators_t.p.loc[:, ("high", slice(None))].sum().sum()
+        gen_low = n.generators_t.p.loc[:, ("low", slice(None))].sum().sum()
+        assert gen_high > gen_low
+
+        # Test multiperiod-specific functionality
+        p_nom_opt = n.generators.p_nom_opt
+        assert (
+            len(p_nom_opt) == 4
+        )  # Should have optimal capacities for both generators × both scenarios
+
+        # Verify we have generators for both scenarios
+        scenarios_in_gens = p_nom_opt.index.get_level_values("scenario").unique()
+        assert "high" in scenarios_in_gens
+        assert "low" in scenarios_in_gens
 
 
 def test_objective_scaling_with_weights():
