@@ -1,16 +1,13 @@
-"""Network index module.
+"""Array module of PyPSA components.
 
-Contains single mixin class which is used to inherit to [pypsa.Networks] class.
-Should not be used directly.
-
-Index methods and properties are used to access the different index levels, set them
-and convert the Network accordingly.
-
+Contains logic to combine static and dynamic pandas DataFrames to single xarray
+DataArray for each variable.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pandas as pd

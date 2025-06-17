@@ -11,12 +11,10 @@ the attached parent network.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+
+import pandas as pd
 
 from pypsa.components.abstract import _ComponentsABC
-
-if TYPE_CHECKING:
-    import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +44,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         >>> n.add("Generator", "g2")  # doctest: +ELLIPSIS
         Index(['g2'], dtype='object')
         >>> n.generators.index
-        Index(['g1', 'g2'], dtype='object', name='Generator')
+        Index(['g1', 'g2'], dtype='object', name='component')
 
         """
         return self.static.index.get_level_values("component").unique()
@@ -115,12 +113,65 @@ class ComponentsIndexMixin(_ComponentsABC):
 
     @property
     def has_periods(self) -> bool:
-        """Indicator whether network has periods.
+        """Investment periods of the network."""
+        return self.n_save.has_periods
 
-        See Also
-        --------
-        [pypsa.Network.has_periods][] :
-            Indicator whether network has periods.
+    @property
+    def scenarios(self) -> pd.Index:
+        """Scenarios of networks."""
+        return self.n_save.scenarios
+
+    @property
+    def has_scenarios(self) -> bool:
+        """Boolean indicating if the network has scenarios defined."""
+        return len(self.scenarios) > 0
+
+    # Helpers
+
+    @property
+    def _static_index(self) -> pd.Index:
+        """Static index of the network.
+
+        Returns
+        -------
+        pd.Index
+            Static index of the network.
 
         """
-        return self.n_save.has_periods
+        if self.has_scenarios:
+            return pd.MultiIndex.from_product(
+                (self.scenarios.index, self.component_names),
+                names=["scenario", "component"],
+            )
+        else:
+            return self.component_names
+
+    @property
+    def _dynamic_index(self) -> pd.Index:
+        """Dynamic index of the network.
+
+        Returns
+        -------
+        pd.Index
+            Dynamic index of the network.
+
+        """
+        if self.has_scenarios:
+            return pd.MultiIndex.from_product(
+                (self.scenarios.index, self.snapshots, self.component_names),
+                names=["scenario", "snapshot", "component"],
+            )
+        else:
+            return self.snapshots
+
+    @property
+    def _dynamic_columns(self) -> pd.Index:
+        """Dynamic columns of the network.
+
+        Returns
+        -------
+        pd.Index
+            Dynamic columns of the network.
+
+        """
+        return self.component_names

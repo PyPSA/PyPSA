@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import pandas as pd
+import xarray as xr
 
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
@@ -31,6 +32,46 @@ class StorageUnits(Components):
     Empty 'StorageUnit' Components
 
     """
+
+    base_attr = "p"
+    nominal_attr = "p_nom"
+
+    def get_bounds_pu(
+        self,
+        sns: Sequence,
+        index: pd.Index | None = None,
+        attr: str | None = None,
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Get per unit bounds for storage units.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "p", "p_store", "state_of_charge"
+
+        Returns
+        -------
+        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
+            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
+
+        """
+        max_pu = self.as_xarray("p_max_pu", sns, inds=index)
+
+        if attr == "p_store":
+            max_pu = -self.as_xarray("p_min_pu", snapshots=sns, inds=index)
+            min_pu = xr.zeros_like(max_pu)
+        elif attr == "state_of_charge":
+            max_pu = self.as_xarray("max_hours", snapshots=sns, inds=index)
+            min_pu = xr.zeros_like(max_pu)
+        else:
+            max_pu = self.as_xarray("p_max_pu", snapshots=sns, inds=index)
+            min_pu = xr.zeros_like(max_pu)
+
+        return min_pu, max_pu
 
     def add(
         self,

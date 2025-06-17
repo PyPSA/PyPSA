@@ -52,6 +52,7 @@ def get_switchable_as_dense(
     Use `n.get_switchable_as_dense` instead.
 
     """
+    return n.components[component]._as_dynamic(attr, snapshots, inds)
     return n.get_switchable_as_dense(component, attr, snapshots, inds)
 
 
@@ -212,7 +213,7 @@ def get_active_assets(
         Boolean mask for active components
 
     """
-    return n.component(c).get_active_assets(investment_period=investment_period)
+    return n.components[c].get_active_assets(investment_period=investment_period)
 
 
 @deprecated_in_next_major(details="Use `n.components[c].get_activity_mask` instead.")
@@ -276,27 +277,7 @@ def get_bounds_pu(
         attribute name for the bounds, e.g. "p", "s", "p_store"
 
     """
-    min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
-    max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
-
-    max_pu = get_switchable_as_dense(n, c, max_pu_str, sns)
-    if c in n.passive_branch_components:
-        min_pu = -max_pu
-    elif c == "StorageUnit":
-        min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
-        if attr == "p_store":
-            max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
-        if attr == "state_of_charge":
-            from pypsa.common import expand_series
-
-            max_pu = expand_series(n.static(c).max_hours, sns).T
-            min_pu = pd.DataFrame(0, *max_pu.axes)
-    else:
-        min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
-
-    if index is None:
-        return min_pu, max_pu
-    return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
+    return n.components[c].get_bounds_pu(sns, index, attr)
 
 
 def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:

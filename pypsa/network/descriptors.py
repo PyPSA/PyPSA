@@ -141,7 +141,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
         res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
         res.index.name = sns.name
-        res.columns.name = component
+        res.columns.name = "component"
         return res
 
     def get_switchable_as_iter(
@@ -175,7 +175,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         --------
         >>> gen = n.get_switchable_as_iter('Generator', 'p_max_pu', n.snapshots[:2])
         >>> next(gen)  # doctest: +ELLIPSIS
-        Generator
+        component
         Manchester Wind    0.930020
         Manchester Gas     1.000000
         Norway Wind        0.974583
