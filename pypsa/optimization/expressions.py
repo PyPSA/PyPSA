@@ -562,7 +562,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 n.model.variables[f"{c}-{attr}"]
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
-            idx = capacity.indexes[c]
+            idx = capacity.indexes["component"]
             operation = self._get_operational_variable(c).loc[:, idx]
             sns = operation.indexes["snapshot"]
             p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
