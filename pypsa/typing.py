@@ -1,33 +1,11 @@
-"""
-Typing utilities.
-"""
+"""Typing utilities."""
 
-from typing import Any
+import warnings
 
-import numpy as np
-import pandas as pd
-from pandas.api.types import is_list_like
+msg = (
+    "The module pypsa.typing has been moved to 'pypsa.type_utils'. "
+    "Deprecated in version 0.35 and will be removed in version 1.0."
+)
+warnings.warn(msg, DeprecationWarning, stacklevel=2)
 
-
-def is_1d_list_like(x: Any) -> bool:
-    """
-    Check if x is a 1D list-like object.
-
-    Parameters
-    ----------
-    x : Any
-        Object to check.
-
-    Returns
-    -------
-    bool
-        True if x is a 1D list-like object.
-    """
-    if isinstance(x, np.ndarray):
-        return x.ndim == 1
-
-    if isinstance(x, pd.DataFrame):
-        return False  # DataFrame has always 2 dimensions
-
-    else:
-        return is_list_like(x)
+from pypsa.type_utils import *  # noqa: E402, F403

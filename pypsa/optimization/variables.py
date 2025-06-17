@@ -1,18 +1,16 @@
-#!/usr/bin/env python3
-"""
-Define optimisation variables from PyPSA networks with Linopy.
-"""
+"""Define optimisation variables from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pandas as pd
 import xarray as xr
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Network
 
 logger = logging.getLogger(__name__)
@@ -21,8 +19,7 @@ logger = logging.getLogger(__name__)
 def define_operational_variables(
     n: Network, sns: Sequence, c_name: str, attr: str
 ) -> None:
-    """
-    Initializes variables for power dispatch for a given component and a given
+    """Initialize variables for power dispatch for a given component and a given
     attribute.
 
     Parameters
@@ -32,6 +29,7 @@ def define_operational_variables(
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
+
     """
     c = n.components[c_name]
     if c.empty:
@@ -54,7 +52,7 @@ def define_status_variables(
     active = c.as_xarray("active", sns, com_i)
     coords = active.coords
     is_binary = not is_linearized
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
+    kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
     n.model.add_variables(
         coords=coords, name=f"{c.name}-status", mask=active, binary=is_binary, **kwargs
     )
@@ -63,8 +61,7 @@ def define_status_variables(
 def define_start_up_variables(
     n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
 ) -> None:
-    """
-    Initializes variables for unit start-up decisions.
+    """Initialize variables for unit start-up decisions.
 
     Parameters
     ----------
@@ -85,7 +82,7 @@ def define_start_up_variables(
     active = c.as_xarray("active", sns, com_i)
     coords = active.coords
     is_binary = not is_linearized
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
+    kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
     n.model.add_variables(
         coords=coords,
         name=f"{c.name}-start_up",
@@ -98,8 +95,7 @@ def define_start_up_variables(
 def define_shut_down_variables(
     n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
 ) -> None:
-    """
-    Initializes variables for unit shut-down decisions.
+    """Initialize variables for unit shut-down decisions.
 
     Parameters
     ----------
@@ -120,7 +116,7 @@ def define_shut_down_variables(
     active = c.as_xarray("active", sns, com_i)
     coords = active.coords
     is_binary = not is_linearized
-    kwargs = dict(upper=1, lower=0) if not is_binary else {}
+    kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
     n.model.add_variables(
         coords=coords,
         name=f"{c.name}-shut_down",
@@ -131,9 +127,7 @@ def define_shut_down_variables(
 
 
 def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
-    """
-    Initializes variables for nominal capacities for a given component and a
-    given attribute.
+    """Initialize variables for nominal capacities.
 
     Parameters
     ----------
@@ -142,6 +136,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
         name of network component of which the nominal capacity should be defined
     attr : str
         name of the variable, e.g. 'p_nom'
+
     """
     c = n.components[c_name]
     ext_i = c.extendables
@@ -154,8 +149,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
 
 
 def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
-    """
-    Initializes variables 'attr' for a given component c to allow a modular
+    """Initialize variables 'attr' for a given component c to allow a modular
     expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
     optimal number of installed modules.
 
@@ -166,6 +160,7 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
         name of network component of which the nominal capacity should be defined
     attr : str
         name of the variable to be handled attached to modular constraints, e.g. 'p_nom'
+
     """
     c = n.components[c_name]
     mod_i = c.static.query(f"{attr}_extendable and ({attr}_mod>0)").index
@@ -177,9 +172,7 @@ def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
 
 
 def define_spillage_variables(n: Network, sns: Sequence) -> None:
-    """
-    Defines the spillage variables for storage units.
-    """
+    """Define the spillage variables for storage units."""
     c_name = "StorageUnit"
     c = n.components[c_name]
 
@@ -201,8 +194,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
 
 
 def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
-    """
-    Initializes variables for transmission losses.
+    """Initialize variables for transmission losses.
 
     Parameters
     ----------

@@ -1,5 +1,4 @@
-"""
-Components module.
+"""Components module.
 
 Contains classes and properties relevant to all component types in PyPSA. Also imports
 logic from other modules:
@@ -17,7 +16,6 @@ Generic functionality is implemented in the abstract module.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -27,18 +25,20 @@ import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
-from pypsa.components.array import _ComponentsArray
-from pypsa.components.descriptors import _ComponentsDescriptors
-from pypsa.components.index import _ComponentsIndex
-from pypsa.components.transform import _ComponentsTransform
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
-from pypsa.definitions.components import ComponentType
+from pypsa.components.array import ComponentsArrayMixin
+from pypsa.components.descriptors import ComponentsDescriptorsMixin
+from pypsa.components.index import ComponentsIndexMixin
+from pypsa.components.transform import ComponentsTransformMixin
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP, RE_PORTS
 from pypsa.definitions.structures import Dict
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network
+    from pypsa.definitions.components import ComponentType
 
 # TODO attachment todos
 # - crs
@@ -47,45 +47,57 @@ if TYPE_CHECKING:
 
 @dataclass
 class ComponentsData:
-    """
-    Dataclass for Components.
+    """Dataclass for Components.
 
-    Dataclass to store all data of a Components object and used to separate data from
-    logic.
+    This class is used to store all data of a Components object. Other classes inherit
+    from this class to implement logic and methods, but do not store any data next
+    to the data in here.
+
+    All attributes can therefore also be accessed directly from
+    any [`Components`][pypsa.components.Components] object (which defines all
+    attributes and properties which are available for all component types) as well as
+    in specific type classes as [`Generators`][pypsa.components.Generators] (which
+    define logic and methods specific to the component type).
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Components](/user-guide/components)
 
     Attributes
     ----------
     ctype : ComponentType
-        Component type information containing all default values and attributes.
+        Component type information containing all default values and attributes. #TODO
     n : Network | None
-        Network object to which the component might be attached.
+        Network to which the component might be attached.
     static : pd.DataFrame
-        Static data of components.
+        Static data of components as a pandas DataFrame. Columns are the attributes
+        and the index is the component name.
     dynamic : dict
-        Dynamic data of components.
+        Dynamic (time-varying) data of components as a dict-like object of pandas
+        DataFrames. Keys of the dict are the attribute names and each value is a pandas
+        DataFrame with snapshots as index and the component names as columns.
 
     """
 
     ctype: ComponentType
     n: Network | None
     static: pd.DataFrame
-    dynamic: dict
+    dynamic: Dict
 
 
 class Components(
     ComponentsData,
-    _ComponentsDescriptors,
-    _ComponentsTransform,
-    _ComponentsArray,
-    _ComponentsIndex,
+    ComponentsDescriptorsMixin,
+    ComponentsTransformMixin,
+    ComponentsIndexMixin,
+    ComponentsArrayMixin,
 ):
-    """
-    Components base class.
+    """Components base class.
 
-    Abstract base class for Container of energy system related assets, such as
+    Base class for container of energy system related assets, such as
     generators or transmission lines. Use the specific subclasses for concrete or
     a generic component type.
-    All data is stored in dataclass :class:`pypsa.components.abstract.ComponentsData`.
+    All data is stored in the dataclass [pypsa.components.components.ComponentsData][].
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
@@ -102,8 +114,7 @@ class Components(
         names: str | int | Sequence[int | str] | None = None,
         suffix: str = "",
     ) -> None:
-        """
-        Initialize Components object.
+        """Initialize Components object.
 
         Parameters
         ----------
@@ -127,11 +138,11 @@ class Components(
             )
             raise NotImplementedError(msg)
         static, dynamic = self._get_data_containers(ctype)
-        super().__init__(ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
-        """
-        Get string representation of component.
+        """Get string representation of component.
 
         Returns
         -------
@@ -147,8 +158,7 @@ class Components(
         return f"'{self.ctype.name}' Components"
 
     def __repr__(self) -> str:
-        """
-        Get representation of component.
+        """Get representation of component.
 
         Returns
         -------
@@ -179,8 +189,7 @@ class Components(
         return text
 
     def __getitem__(self, key: str) -> Any:
-        """
-        Get attribute of component.
+        """Get attribute of component.
 
         Parameters
         ----------
@@ -196,8 +205,7 @@ class Components(
         return getattr(self, key)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        """
-        Set attribute of component.
+        """Set attribute of component.
 
         Parameters
         ----------
@@ -216,11 +224,11 @@ class Components(
             setattr(self, key, value)
         else:
             # TODO: Is this to strict?
-            raise KeyError(f"'{key}' not found in Component")
+            msg = f"'{key}' not found in Component"
+            raise KeyError(msg)
 
-    def __eq__(self, other: Any) -> bool:
-        """
-        Check if two Components are equal.
+    def __eq__(self, other: object) -> bool:
+        """Check if two Components are equal.
 
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
@@ -237,7 +245,7 @@ class Components(
 
         See Also
         --------
-        pypsa.components.abstract.Components.equals :
+        [pypsa.Components.equals][] :
             Check for equality of two networks.
 
         """
@@ -256,8 +264,7 @@ class Components(
         return len(self.static)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
-        """
-        Check if two Components are equal.
+        """Check if two Components are equal.
 
         Does not check the attached Network, but only component specific data. Therefore
         two components can be equal even if they are attached to different networks.
@@ -335,35 +342,28 @@ class Components(
 
     @property
     def standard_types(self) -> pd.DataFrame | None:
-        """
-        Get standard types of component.
-
-        It is an alias for the `standard_types` attribute of the underlying
-        :class:`pypsa.definitions.ComponentType`.
+        """Get standard types of component.
 
         Returns
         -------
         pd.DataFrame
             DataFrame with standard types of component.
 
+        Examples
+        --------
+        >>> n.components.transformers.standard_types
+
         """
         return self.ctype.standard_types
 
     @property
     def name(self) -> str:
-        """
-        Name of component type.
+        """Name of component type.
 
         Returns
         -------
         str
             Name of component.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------
@@ -375,19 +375,12 @@ class Components(
 
     @property
     def list_name(self) -> str:
-        """
-        List name of component type.
+        """List name of component type.
 
         Returns
         -------
         str
             List name of component.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------
@@ -399,19 +392,12 @@ class Components(
 
     @property
     def description(self) -> str:
-        """
-        Description of component.
+        """Description of component.
 
         Returns
         -------
         str
             Description of component.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------
@@ -423,19 +409,12 @@ class Components(
 
     @property
     def category(self) -> str:
-        """
-        Category of component.
+        """Category of component.
 
         Returns
         -------
         str
             Category of component.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------
@@ -447,8 +426,7 @@ class Components(
 
     @property
     def type(self) -> str:
-        """
-        Get category of component.
+        """Get category of component.
 
         .. note ::
             While not actively deprecated yet, :meth:`category` is the preferred method
@@ -459,19 +437,12 @@ class Components(
         str
             Category of component.
 
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
-
         """
         return self.ctype.category
 
     @property
     def attrs(self) -> pd.DataFrame:
-        """
-        Default values of corresponding component type.
+        """Default values of corresponding component type.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -482,21 +453,13 @@ class Components(
         pd.DataFrame
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
-
 
         """
         return self.ctype.defaults
 
     @property
     def defaults(self) -> pd.DataFrame:
-        """
-        Default values of corresponding component type.
+        """Default values of corresponding component type.
 
         .. note::
             While not actively deprecated yet, :meth:`defaults` is the preferred method
@@ -507,12 +470,6 @@ class Components(
         pd.DataFrame
             DataFrame with component attribute names as index and the information
             like type, unit, default value and description as columns.
-
-        See Also
-        --------
-        pypsa.definitions.ComponentType :
-            This property directly references the same property in the
-            associated underlying class.
 
         Examples
         --------
@@ -530,14 +487,32 @@ class Components(
 
     @property
     def empty(self) -> bool:
-        """Check if component is empty."""
+        """Check if component is empty.
+
+        Returns
+        -------
+        bool
+            True if component is empty, otherwise False.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.add('Generator', 'g1')  # doctest: +ELLIPSIS
+        Index(['g1'], dtype='object')
+        >>> n.components.generators.empty
+        False
+
+        >>> n.components.buses.empty
+        True
+
+        """
         return self.static.empty
 
     def get(self, attribute_name: str, default: Any = None) -> Any:
-        """
-        Get attribute of component.
+        """Get attribute of component.
 
         Just an alias for built-in getattr and allows for default values.
+        #TODO change to handle data access instead
 
         Parameters
         ----------
@@ -556,8 +531,7 @@ class Components(
 
     @property
     def attached(self) -> bool:
-        """
-        Check if component is attached to a Network.
+        """Check if component is attached to a Network.
 
         Some functionality of the component is only available when attached to a
         Network.
@@ -577,15 +551,27 @@ class Components(
 
     @property
     def n_save(self) -> Any:
-        """A save property to access the network (component must be attached)."""
+        """A save property to access the network (component must be attached).
+
+        Returns
+        -------
+        Network
+            Network to which the component is attached.
+
+        Raises
+        ------
+        AttributeError
+            If component is not attached to a Network.
+
+        """
         if not self.attached:
-            raise AttributeError("Component must be attached to a Network.")
+            msg = "Component must be attached to a Network."
+            raise AttributeError(msg)
         return self.n
 
     @property
     def df(self) -> pd.DataFrame:
-        """
-        Get static data of all components as pandas DataFrame.
+        """Get static data of all components as pandas DataFrame.
 
         .. note::
             While not actively deprecated yet, :meth:`static` is the preferred method
@@ -601,8 +587,7 @@ class Components(
 
     @property
     def pnl(self) -> dict:
-        """
-        Get dynamic data of all components as a dictionary of pandas DataFrames.
+        """Get dynamic data of all components as a dictionary of pandas DataFrames.
 
         .. note::
             While not actively deprecated yet, :meth:`dynamic` is the preferred method
@@ -625,14 +610,13 @@ class Components(
         dynamic_attrs = [
             attr for attr in self.dynamic.keys() if not self.dynamic[attr].empty
         ]
-        attrs = set([*static_attrs, *dynamic_attrs])
+        attrs = {*static_attrs, *dynamic_attrs}
         data = {attr: self.as_xarray(attr) for attr in attrs}
         return xarray.Dataset(data)
 
     @property
     def units(self) -> pd.Series:
-        """
-        Get units of all attributes of components.
+        """Get units of all attributes of components.
 
         Returns
         -------
@@ -656,8 +640,7 @@ class Components(
 
     @property
     def ports(self) -> list:
-        """
-        Get ports of all components.
+        """Get ports of all components.
 
         Returns
         -------
@@ -670,13 +653,19 @@ class Components(
         >>> c.ports
         ['0', '1']
 
+        See Also
+        --------
+        [pypsa.components.Links.additional_ports][] :
+            Additional ports of components.
+
         """
-        return [str(col)[3:] for col in self.static if str(col).startswith("bus")]
+        return [
+            match.group(1) for col in self.static if (match := RE_PORTS.search(col))
+        ]
 
     @property
     def extendables(self) -> pd.Index:
-        """
-        Get the index of extendable elements of this component.
+        """Get the index of extendable elements of this component.
 
         Returns
         -------
@@ -697,8 +686,7 @@ class Components(
 
     @property
     def fixed(self) -> pd.Index:
-        """
-        Get the index of non-extendable elements of this component.
+        """Get the index of non-extendable elements of this component.
 
         Returns
         -------
@@ -715,8 +703,7 @@ class Components(
 
     @property
     def committables(self) -> pd.Index:
-        """
-        Get the index of committable elements of this component.
+        """Get the index of committable elements of this component.
 
         Returns
         -------
@@ -732,8 +719,7 @@ class Components(
 
     @property
     def operational_attrs(self) -> dict[str, str]:
-        """
-        Get operational attributes of component for optimization.
+        """Get operational attributes of component for optimization.
 
         Provides a dictionary of attribute patterns used in optimization constraints,
         based on the component type. This makes constraint formulation more modular
@@ -774,8 +760,7 @@ class Components(
 
 
 class SubNetworkComponents:
-    """
-    Wrapper class to allow for custom attribute handling of components.
+    """Wrapper class to allow for custom attribute handling of components.
 
     SubNetworkComponents are read-only and delegate attribute access to it's wrapped
     Components object of the PyPSA Network. This allows for custom attribute handling
@@ -784,13 +769,12 @@ class SubNetworkComponents:
 
     Also See
     --------
-    pypsa.components.abstract.Components : Base class for all PyPSA components in the
+    pypsa.Components : Base class for all PyPSA components in the
     network.
     """
 
     def __init__(self, wrapped_data: Components, wrapped_get: Callable) -> None:
-        """
-        Initialize SubNetworkComponents.
+        """Initialize SubNetworkComponents.
 
         Parameters
         ----------
@@ -800,17 +784,12 @@ class SubNetworkComponents:
             Custom getter function to delegate attribute access to the wrapped data
             object and allow for custom attribute handling.
 
-        Returns
-        -------
-        None
-
         """
         self._wrapped_data = wrapped_data
         self._wrapper_func = wrapped_get
 
     def __getattr__(self, item: str) -> Any:
-        """
-        Delegate attribute access to the wrapped data object.
+        """Delegate attribute access to the wrapped data object.
 
         Parameters
         ----------
@@ -826,8 +805,7 @@ class SubNetworkComponents:
         return self._wrapper_func(item, self._wrapped_data)
 
     def __setattr__(self, key: str, value: Any) -> None:
-        """
-        Prevent setting of attributes.
+        """Prevent setting of attributes.
 
         Parameters
         ----------
@@ -835,10 +813,6 @@ class SubNetworkComponents:
             Attribute name to set.
         value : Any
             Attribute value to set.
-
-        Returns
-        -------
-        None
 
         Raises
         ------
@@ -849,20 +823,16 @@ class SubNetworkComponents:
         if key in {"_wrapped_data", "_wrapper_func"}:
             super().__setattr__(key, value)
         else:
-            raise AttributeError("SubNetworkComponents is read-only")
+            msg = "SubNetworkComponents is read-only"
+            raise AttributeError(msg)
 
     def __delattr__(self, name: str) -> None:
-        """
-        Prevent deletion of attributes.
+        """Prevent deletion of attributes.
 
         Parameters
         ----------
         name : str
             Attribute name to delete.
-
-        Returns
-        -------
-        None
 
         Raises
         ------
@@ -870,4 +840,51 @@ class SubNetworkComponents:
             If attribute deletion is attempted.
 
         """
-        raise AttributeError("SubNetworkComponents is read-only")
+        msg = "SubNetworkComponents is read-only"
+        raise AttributeError(msg)
+
+    def __str__(self) -> str:
+        """Get string representation of sub-network components.
+
+        Returns
+        -------
+        str
+            String representation of sub-network components.
+
+        Examples
+        --------
+        >>> str(sub_network.components.generators)
+        "'Generator' SubNetworkComponents"
+
+        """
+        return f"'{self.ctype.name}' SubNetworkComponents"
+
+    def __repr__(self) -> str:
+        """Get representation of sub-network components.
+
+        Returns
+        -------
+        str
+            Representation of sub-network components.
+
+        Examples
+        --------
+        >>> sub_network.components.generators
+        'Generator' SubNetworkComponents
+        --------------------------------
+        Attached to Sub-Network of PyPSA Network 'AC-DC'
+        Components: 6
+
+        """
+        num_components = len(self._wrapped_data.static)
+        if not num_components:
+            return f"Empty {self}"
+        text = f"{self}\n" + "-" * len(str(self)) + "\n"
+
+        # Add attachment status
+        if self.attached:
+            text += f"Attached to Sub-Network of {str(self.n)}\n"
+
+        text += f"Components: {len(self._wrapped_data.static)}"
+
+        return text

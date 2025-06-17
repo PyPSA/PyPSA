@@ -1,21 +1,22 @@
+"""Definitions for network components."""
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import pandas as pd
 from deprecation import deprecated
 
 if TYPE_CHECKING:
-    pass
+    import pandas as pd
+
 logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class ComponentType:
-    """
-    Dataclass for network component type.
+    """Dataclass for network component type.
 
     Contains all information about a component type, such as its name and defaults
     attributes. Two different types are for example 'Generator' and 'Carrier'.
@@ -44,10 +45,21 @@ class ComponentType:
     defaults: pd.DataFrame
     standard_types: pd.DataFrame | None = None
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
+        """Check if two component types are equal.
+
+        Parameters
+        ----------
+        other : Any
+            The other object to compare to.
+
+        Returns
+        -------
+        bool
+
+        """
         if not isinstance(other, ComponentType):
             return NotImplemented
-
         return (
             self.name == other.name
             and self.list_name == other.list_name
@@ -57,6 +69,14 @@ class ComponentType:
         )
 
     def __repr__(self) -> str:
+        """Representation of the component type.
+
+        Returns
+        -------
+        str
+
+        """
+        # TODO make this actually for the REPL
         return f"'{self.name}' Component Type"
 
     @property
@@ -66,6 +86,13 @@ class ComponentType:
         details="Use the 'category' attribute instead.",
     )
     def type(self) -> str:
+        """Getter for the 'type' attribute.
+
+        Returns
+        -------
+        str
+
+        """
         return self.category
 
     @property
@@ -75,4 +102,11 @@ class ComponentType:
         details="Use the 'defaults' attribute instead.",
     )
     def attrs(self) -> pd.DataFrame:
+        """Getter for the 'attrs' attribute.
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
         return self.defaults

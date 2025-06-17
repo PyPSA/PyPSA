@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-"""
-This module contains functions for retrieving/loading example networks provided
-by the PyPSA project.
-"""
+"""Retrieve PyPSA example networks."""
 
 from __future__ import annotations
 
@@ -21,8 +17,7 @@ def _repo_url(
 ) -> str:
     if master or __version_semver_tuple__ < (0, 35):  # Feature was added in 0.35.0
         return f"{url}master/"
-    else:
-        return f"{url}v{__version_semver__}/"
+    return f"{url}v{__version_semver__}/"
 
 
 def _retrieve_if_not_local(path: str | Path) -> Network:
@@ -34,11 +29,9 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
 
 
 def ac_dc_meshed(
-    update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
+    update: bool = False, from_master: bool = False, remove_link_p_set: bool = False
 ) -> Network:
-    """
-    Load the meshed AC-DC network example of pypsa stored in the PyPSA
-    repository.
+    """Load the meshed AC-DC example network.
 
     Parameters
     ----------
@@ -46,18 +39,41 @@ def ac_dc_meshed(
         Whether to update the locally stored network data. The default is False.
     from_master : bool, optional
         Whether to retrieve from the master branch of the pypsa repository.
+    remove_link_p_set : bool, optional
+        Whether to remove the link `p_set` attribute from the links.
 
-    .. deprecated:: 0.35.0
-          `from_master` and `update` are deprecated and do not have any effect.
-
+    Deprecation
+    ------------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master`, `update`, and `remove_link_p_set` are deprecated and do not have
+    any effect. Networks are always updated and retrieved for the current version.
 
     Returns
     -------
     pypsa.Network
+        AC-DC meshed network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> n
+    PyPSA Network 'AC-DC'
+    ---------------------
+    Components:
+     - Bus: 9
+     - Carrier: 6
+     - Generator: 6
+     - GlobalConstraint: 1
+     - Line: 7
+     - Link: 4
+     - Load: 6
+    Snapshots: 10
+
     """
-    if update or from_master:
+    if update or from_master or remove_link_p_set:
         warnings.warn(
-            "The 'update' and 'from_master' parameters are deprecated and do not have any effect. "
+            "The 'update' 'from_master' and 'remove_link_p_set' parameters are "
+            "deprecated and do not have any effect. "
             "Example networks are always updated and retrieved for the current version."
             "Deprecated in version 0.35 and will be removed in version 1.0.",
             DeprecationWarning,
@@ -67,8 +83,7 @@ def ac_dc_meshed(
 
 
 def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the storage network example of pypsa stored in the PyPSA repository.
+    """Load the storage network example of PyPSA.
 
     Parameters
     ----------
@@ -77,12 +92,34 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     from_master : bool, optional
         Whether to retrieve from the master branch of the pypsa repository.
 
-    .. deprecated:: 0.35.0
-          `from_master` and `update` are deprecated and do not have any effect.
+    Deprecation
+    -----------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master` and `update` are deprecated and do not have any effect. Networks
+    are always updated and retrieved for the current version.
 
     Returns
     -------
     pypsa.Network
+        Storage network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.storage_hvdc()
+    >>> n
+    PyPSA Network 'Test 6 bus'
+    --------------------------
+    Components:
+     - Bus: 6
+     - Carrier: 3
+     - Generator: 12
+     - GlobalConstraint: 1
+     - Line: 6
+     - Link: 2
+     - Load: 6
+     - StorageUnit: 6
+    Snapshots: 12
+
     """
     if update or from_master:
         warnings.warn(
@@ -96,8 +133,7 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
 
 
 def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the SciGrid network example of pypsa stored in the PyPSA repository.
+    """Load the SciGrid network example of PyPSA.
 
     Parameters
     ----------
@@ -106,12 +142,33 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     from_master : bool, optional
         Whether to retrieve from the master branch of the pypsa repository.
 
-    .. deprecated:: 0.35.0
-          `from_master` and `update` are deprecated and do not have any effect.
+    Deprecation
+    -----------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master` and `update` are deprecated and do not have any effect. Networks
+    are always updated and retrieved for the current version.
 
     Returns
     -------
     pypsa.Network
+        SciGrid network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.scigrid_de()
+    >>> n
+    PyPSA Network 'scigrid-de'
+    --------------------------
+    Components:
+     - Bus: 585
+     - Carrier: 17
+     - Generator: 1423
+     - Line: 852
+     - Load: 489
+     - StorageUnit: 38
+     - Transformer: 96
+    Snapshots: 24
+
     """
     if update or from_master:
         warnings.warn(
@@ -125,8 +182,9 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
 
 
 def model_energy(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the single-node capacity expansion model in style of model.energy.
+    """Load the single-node capacity expansion model in style of model.energy.
+
+    Check out the [model.energy website](https://model.energy/) for more information.
 
     Parameters
     ----------
@@ -135,12 +193,37 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
     from_master : bool, optional
         Whether to retrieve from the master branch of the pypsa repository.
 
-    .. deprecated:: 0.35.0
-          `from_master` and `update` are deprecated and do not have any effect.
+    Deprecation
+    -----------
+    [:material-tag-outline: v0.35.0](/release-notes/#v0.35.0): Parameters
+    `from_master` and `update` are deprecated and do not have any effect. Networks
+    are always updated and retrieved for the current version.
 
     Returns
     -------
     pypsa.Network
+        Single-node capacity expansion model in style of model.energy.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.model_energy()
+    >>> n
+    Unnamed PyPSA Network
+    ---------------------
+    Components:
+     - Bus: 2
+     - Carrier: 9
+     - Generator: 3
+     - Link: 2
+     - Load: 1
+     - StorageUnit: 1
+     - Store: 1
+    Snapshots: 2920
+
+    References
+    ----------
+    [^1]: See https://model.energy/
+
     """
     if update or from_master:
         warnings.warn(

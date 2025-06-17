@@ -1,6 +1,9 @@
+import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidOptionError(AttributeError):
@@ -74,7 +77,8 @@ class OptionsNode:
 
         child = self._children[name]
         if isinstance(child, OptionsNode):
-            raise InvalidOptionError(f"Cannot set value for category '{name}'.")
+            msg = f"Cannot set value for category '{name}'."
+            raise InvalidOptionError(msg)
         child.value = value
 
     def _add_option(self, path: str, default: Any = None, docs: str = "") -> None:
@@ -83,13 +87,12 @@ class OptionsNode:
         node = self
 
         # Navigate/create the path
-        for i, part in enumerate(parts[:-1]):
+        for _i, part in enumerate(parts[:-1]):
             if part not in node._children:
                 node._children[part] = OptionsNode(part)
             elif not isinstance(node._children[part], OptionsNode):
-                raise ValueError(
-                    f"Cannot add category '{part}' because an option already exists at this path."
-                )
+                msg = f"Cannot add category '{part}' because an option already exists at this path."
+                raise ValueError(msg)
             node = node._children[part]
 
         # Add the option at the leaf
@@ -97,14 +100,32 @@ class OptionsNode:
         if leaf_name in node._children and isinstance(
             node._children[leaf_name], OptionsNode
         ):
-            raise ValueError(
-                f"Cannot add option '{leaf_name}' because a category already exists at this path."
-            )
+            msg = f"Cannot add option '{leaf_name}' because a category already exists at this path."
+            raise ValueError(msg)
 
         node._children[leaf_name] = Option(default, default, docs)
 
     def get_option(self, path: str) -> Any:
-        """Get the value of an option at the specified path."""
+        """Get the value of an option at the specified path.
+
+        Parameters
+        ----------
+        path : str
+            Path to the option. Must be in the format "category.option_name" or "category.subcategory.option_name"
+
+        Returns
+        -------
+        Any
+            The value of the option.
+
+        Examples
+        --------
+        >>> pypsa.options.get_option("params.statistics.drop_zero")
+        True
+        >>> pypsa.options.get_option("params.statistics.nice_names")
+        True
+
+        """
         parts = path.split(".")
         node = self
 
@@ -126,7 +147,17 @@ class OptionsNode:
         return node._children[leaf_name].value
 
     def set_option(self, path: str, value: Any) -> None:
-        """Set the value of an option at the specified path."""
+        """Set the value of an option at the specified path.
+
+        Parameters
+        ----------
+        path : str
+            Path to the option. Must be in the format "category.option_name" or "category.subcategory.option_name"
+        value : Any
+            Value to set for the option.
+
+
+        """
         parts = path.split(".")
         node = self
 
@@ -156,35 +187,41 @@ class OptionsNode:
                 child.reset_all()
 
     def describe_options(self, prefix: str = "") -> None:
-        """Print documentation for all options."""
-        if not prefix:
-            print("PyPSA Options\n=============")
+        """Print documentation for all options.
 
-        for name, child in sorted(self._children.items()):
-            path = f"{prefix}.{name}" if prefix else name
-
-            if isinstance(child, Option):
-                print(f"{path}:")
-                print(f"    Default: {child._default}")
-                print(f"    Description: {child._docs}")
-            else:
-                child.describe_options(path)
-
-    def describe(self) -> None:
-        """
-        Print documentation for all options.
-
-        This is a convenience method to call describe_options() without a prefix.
-
-        Returns
-        -------
-        None
+        Parameters
+        ----------
+        prefix : str
+            Prefix for the option path. Used for nested options.
+            If empty, the root options are printed.
 
         Examples
         --------
-        >>> pypsa.options.describe() # doctest: +ELLIPSIS
+        Print only params.statistics options:
+
+        >>> pypsa.options.params.statistics.describe_options()
         PyPSA Options
         =============
+        drop_zero:
+            Default: True
+            Description: Default value for the 'drop_zero' parameter in statistics module.
+        nice_names:
+            Default: True
+            Description: Default value for the 'nice_names' parameter in statistics module.
+        round:
+            Default: 5
+            Description: Default value for the 'round' parameter in statistics module.
+
+        Or print all options:
+        >>> pypsa.options.describe_options()
+        PyPSA Options
+        =============
+        api.legacy_components:
+            Default: True
+            Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+        general.allow_network_requests:
+            Default: True
+            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -194,7 +231,52 @@ class OptionsNode:
         params.statistics.round:
             Default: 5
             Description: Default value for the 'round' parameter in statistics module.
-        ...
+        warnings.components_store_iter:
+            Default: True
+            Description: If False, suppresses the deprecatio warning when iterating over components.
+
+        """
+        if not prefix:
+            print("PyPSA Options\n=============")  # noqa: T201
+
+        for name, child in sorted(self._children.items()):
+            path = f"{prefix}.{name}" if prefix else name
+
+            if isinstance(child, Option):
+                print(f"{path}:")  # noqa: T201
+                print(f"    Default: {child._default}")  # noqa: T201
+                print(f"    Description: {child._docs}")  # noqa: T201
+            else:
+                child.describe_options(path)
+
+    def describe(self) -> None:
+        """Print documentation for all options.
+
+        This is a convenience method to call describe_options() without a prefix.
+
+        Examples
+        --------
+        >>> pypsa.options.describe() # doctest: +ELLIPSIS
+        PyPSA Options
+        =============
+        api.legacy_components:
+            Default: True
+            Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+        general.allow_network_requests:
+            Default: True
+            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
+        params.statistics.drop_zero:
+            Default: True
+            Description: Default value for the 'drop_zero' parameter in statistics module.
+        params.statistics.nice_names:
+            Default: True
+            Description: Default value for the 'nice_names' parameter in statistics module.
+        params.statistics.round:
+            Default: 5
+            Description: Default value for the 'round' parameter in statistics module.
+        warnings.components_store_iter:
+            Default: True
+            Description: If False, suppresses the deprecatio warning when iterating over components.
 
         """
         self.describe_options()
@@ -205,8 +287,7 @@ options = OptionsNode()
 
 @contextmanager
 def option_context(*args: Any) -> Generator[None, None, None]:
-    """
-    Context manager to temporarily set options.
+    """Context manager to temporarily set options.
 
     Parameters
     ----------
@@ -214,12 +295,11 @@ def option_context(*args: Any) -> Generator[None, None, None]:
         Must be passed in pairs of option_name and value.
         Option_name must be in the format "category.option_name" or "category.subcategory.option_name"
 
-    Returns
-    -------
-    None
+
     """
     if len(args) % 2 != 0:
-        raise ValueError("Arguments must be paired option_names and values")
+        msg = "Arguments must be paired option_names and values"
+        raise ValueError(msg)
 
     # Get the original values and set the temporary ones
     pairs = [(args[i], args[i + 1]) for i in range(0, len(args), 2)]
@@ -237,11 +317,36 @@ def option_context(*args: Any) -> Generator[None, None, None]:
             options.set_option(option_name, original_value)
 
 
-# Setup default options
-# =====================
+# Setup options
+# =============
+
+# General category
+options._add_option(
+    "general.allow_network_requests",
+    True,
+    "Allow PyPSA to make network requests. When False, all network requests "
+    "(such as checking for version updates) are disabled. This may be needed "
+    "in restricted environments, offline usage, or for security/privacy reasons. "
+    "This only controls PyPSA's own network requests, dependencies may still "
+    "make network requests independently.",
+)
+
+# API
+options._add_option(
+    "api.legacy_components",
+    True,
+    "WARNING: Experimental feature. Not all PyPSA functionality is supported yet. "
+    "Use legacy components API for backwards compatibility to PyPSA versions prior to "
+    "1.0.0. It is still recommended to use the new API and not to rely on the legacy "
+    "API. This option will be removed with PyPSA 2.0.0.",
+)
 
 # Warnings category
-options._add_option("warnings.components_store_iter", True, "Some Description")
+options._add_option(
+    "warnings.components_store_iter",
+    True,
+    "If False, suppresses the deprecatio warning when iterating over components. ",
+)
 
 # Parameters category
 options._add_option(

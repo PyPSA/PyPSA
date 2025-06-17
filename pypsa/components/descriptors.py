@@ -1,16 +1,16 @@
-"""
-Components descriptor module.
+"""Components descriptor module.
 
-Contains single helper class (__ComponentsDescriptors) which is used to inherit
-to Components class. Should not be used directly. Descriptor functions only describe
-data and do not modify it.
+Contains single mixin class which is used to inherit to [pypsa.Components][] class.
+Should not be used directly.
+
+Descriptor functions only describe data and do not modify it.
+
 """
 
 from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -22,13 +22,14 @@ from pypsa.components.abstract import _ComponentsABC
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pypsa import Components
 logger = logging.getLogger(__name__)
 
 
 def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
-    """
-    Deprecated function to get active assets. Use `c.get_active_assets`.
+    """Get active assets. Use `c.get_active_assets` instead.
 
     Examples
     --------
@@ -57,19 +58,57 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     return c.get_active_assets(*args, **kwargs)
 
 
-class _ComponentsDescriptors(_ComponentsABC):
-    """
-    Helper class for components descriptors methods.
+class ComponentsDescriptorsMixin(_ComponentsABC):
+    """Mixin class for components descriptors methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class only inherits to [pypsa.Components][] and should not be used directly.
+    All attributes and methods can be used within any Components instance.
+
     """
+
+    @property
+    def _operational_attrs(self) -> dict[str, str]:
+        """Get operational attributes of component for optimization.
+
+        Provides a dictionary of attribute patterns used in optimization constraints,
+        based on the component type. This makes constraint formulation more modular
+        by avoiding hardcoded attribute names.
+
+        Returns
+        -------
+        dict[str, str]
+            Dictionary of operational attribute names
+
+        """
+        # TODO: refactor component attrs store
+
+        base = {
+            "Generator": "p",
+            "Line": "s",
+            "Link": "p",
+            "Load": "p",
+            "StorageUnit": "p",
+            "Store": "e",
+            "Transformer": "s",
+        }[self.name]
+
+        return {
+            "base": base,
+            "nom": f"{base}_nom",
+            "nom_extendable": f"{base}_nom_extendable",
+            "nom_min": f"{base}_nom_min",
+            "nom_max": f"{base}_nom_max",
+            "nom_set": f"{base}_nom_set",
+            "min_pu": f"{base}_min_pu",
+            "max_pu": f"{base}_max_pu",
+            "set": f"{base}_set",
+        }
 
     def get_active_assets(
         self,
         investment_period: int | str | Sequence | None = None,
     ) -> pd.Series:
-        """
-        Get active components mask of componen type in investment period(s).
+        """Get active components mask of componen type in investment period(s).
 
         A component is considered active when:
 
@@ -89,6 +128,34 @@ class _ComponentsDescriptors(_ComponentsABC):
         pd.Series
             Boolean mask for active components
 
+        Examples
+        --------
+        Without investment periods
+
+        >>> n = pypsa.Network()
+        >>> n.add("Generator", "g1", active=False)
+        Index(['g1'], dtype='object')
+        >>> n.add("Generator", "g2", active=True)
+        Index(['g2'], dtype='object')
+        >>> n.components.generators.get_active_assets()
+        component
+        g1    False
+        g2     True
+        Name: active, dtype: bool
+
+        With investment periods
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
+        Index(['g1'], dtype='object')
+        >>> n.add("Generator", "g2", active=False)
+        Index(['g2'], dtype='object')
+        >>> n.components.generators.get_active_assets()
+        component
+        g1     True
+        g2    False
+        Name: active, dtype: bool
+
         """
         if investment_period is None:
             return self.static.active
@@ -100,7 +167,8 @@ class _ComponentsDescriptors(_ComponentsABC):
         active = {}
         for period in np.atleast_1d(investment_period):
             if period not in self.n_save.investment_periods:
-                raise ValueError("Investment period not in `n.investment_periods`")
+                msg = "Investment period not in `n.investment_periods`"
+                raise ValueError(msg)
             active[period] = self.static.eval(
                 "build_year <= @period < build_year + lifetime"
             )
@@ -111,8 +179,7 @@ class _ComponentsDescriptors(_ComponentsABC):
         sns: Sequence | None = None,
         index: pd.Index | None = None,
     ) -> pd.DataFrame:
-        """
-        Get active components mask indexed by snapshots.
+        """Get active components mask indexed by snapshots.
 
         Gets the boolean mask for active components, indexed by snapshots and
         components instead of just components.
@@ -126,10 +193,26 @@ class _ComponentsDescriptors(_ComponentsABC):
         index : pd.Index, default None
             Subset of the component elements. If None (default) all components are returned.
 
-        Returns
-        -------
-        pd.DataFrame
-            Boolean mask for active components indexed by snapshots.
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)  # doctest: +ELLIPSIS
+        Index(['g1'], dtype='object')
+        >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
+        Index(['g2'], dtype='object')
+        >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
+        component           g1     g2
+        period timestep
+        2020   1          True  False
+               2          True  False
+               3          True  False
+        2021   1         False  False
+               2         False  False
+               3         False  False
+        2022   1         False  False
+               2         False  False
+               3         False  False
 
         """
         sns_ = as_index(self.n_save, sns, "snapshots")

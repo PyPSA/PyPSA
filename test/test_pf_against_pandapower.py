@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
@@ -6,6 +8,9 @@ import pypsa
 from pypsa.constants import DEFAULT_TIMESTAMP
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
+)
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
 @pytest.mark.parametrize("extra_line_data", [True, False])
 def test_pandapower_custom_case(

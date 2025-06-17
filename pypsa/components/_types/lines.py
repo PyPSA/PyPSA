@@ -3,18 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-import xarray as xr
 
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 from pypsa.geo import haversine_pts
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
+    import xarray as xr
+
+
+@patch_add_docstring
 class Lines(Components):
-    """
-    Lines components class.
+    """Lines components class.
 
     This class is used for line components. All functionality specific to
     lines is implemented here. Functionality for all components is implemented in
@@ -26,7 +32,15 @@ class Lines(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
+    [pypsa.Components][] : Base class for all components.
+
+    Examples
+    --------
+    >>> n.components.lines
+    'Line' Components
+    -----------------
+    Attached to PyPSA Network 'AC-DC'
+    Components: 7
 
     """
 
@@ -39,8 +53,7 @@ class Lines(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
     ) -> tuple[xr.DataArray, xr.DataArray]:
-        """
-        Get per unit bounds for lines.
+        """Get per unit bounds for lines.
 
         For passive branch components, min_pu is the negative of max_pu.
 
@@ -64,9 +77,23 @@ class Lines(Components):
 
         return min_pu, max_pu
 
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrap Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )
+
     def calculate_line_length(self) -> pd.Series:
-        """
-        Get length of the lines in meters.
+        """Get length of the lines in meters.
 
         Based on coordinates of attached buses. Buses must have 'x' and 'y' attributes,
         otherwise no line length can be calculated. By default the haversine formula is
@@ -79,7 +106,7 @@ class Lines(Components):
 
         See Also
         --------
-        pypsa.geo.haversine : Function to calculate distance between two points.
+        [pypsa.geo.haversine][] : Function to calculate distance between two points.
 
         Examples
         --------

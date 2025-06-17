@@ -116,6 +116,27 @@ def test_to_long_format_dynamic(ac_dc_network_r):
     assert set(long_data.columns) == {"component", "carrier", "bus_carrier", "value"}
 
 
+def test_to_long_format_dynamic_multi(network_collection):
+    """Test the _to_long_format method with installed_capacity data."""
+    # Create the accessor instance
+    accessor = ChartGenerator(network_collection)
+
+    # Get installed capacity data from statistics
+    data = network_collection.statistics.energy_balance()
+
+    # Convert to long format
+    long_data = accessor._to_long_format(data)
+
+    # Check the output structure
+    assert isinstance(long_data, pd.DataFrame)
+    assert set(long_data.columns) == {
+        "component",
+        "carrier",
+        "bus_carrier",
+        "value",
+    }.union(network_collection.index.names)
+
+
 def test_derive_statistic_parameters(ac_dc_network_r):
     """Test derivation of statistic parameters"""
     # TODO rewrite once function is updated
@@ -166,12 +187,11 @@ def test_query_filtering(ac_dc_network_r):
 def test_consistency_checks(ac_dc_network_r):
     """Test plotting consistency checks"""
     plotter = ChartGenerator(ac_dc_network_r)
-
+    n = ac_dc_network_r.copy()
+    plotter = ChartGenerator(n)
+    n.carriers.color = pd.Series()
     # Test with missing carrier colors
     with pytest.raises(ConsistencyError):
-        n = ac_dc_network_r.copy()
-        plotter = ChartGenerator(n)
-        n.carriers.color = pd.Series()
         plotter.plot(data=pd.DataFrame(), kind="area", x="carrier", y="value")
 
 
@@ -182,3 +202,64 @@ def test_stacking(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_simple_plot(network_collection, stat_func):
+    plotter = getattr(network_collection.statistics, stat_func)
+    fig, ax, g = plotter.plot()
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_bar_plot(network_collection, stat_func):
+    plotter = getattr(network_collection.statistics, stat_func)
+    fig, ax, g = plotter.plot.bar(facet_col="scenario")
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_line_plot(network_collection, stat_func):
+    plotter = getattr(network_collection.statistics, stat_func)
+    fig, ax, g = plotter.plot.line(facet_col="scenario")
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+def test_networks_area_plot(network_collection, stat_func):
+    plotter = getattr(network_collection.statistics, stat_func)
+    fig, ax, g = plotter.plot.area(facet_col="scenario")
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+def test_networks_query_filtering(network_collection):
+    plotter = ChartGenerator(network_collection)
+    data = network_collection.statistics.energy_balance()
+    fig, ax, g = plotter.plot(
+        data, "bar", x="carrier", y="value", facet_col="scenario", query="value > 1"
+    )
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+def test_networks_stacking(network_collection):
+    fig, ax, g = network_collection.statistics.supply.plot.bar(
+        x="carrier", y="value", stacked=True, facet_col="scenario"
+    )
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+    assert isinstance(g, sns.FacetGrid)
+
+
+def test_networks_plot_map(network_collection):
+    with pytest.raises(NotImplementedError):
+        network_collection.statistics.energy_balance.plot.map()

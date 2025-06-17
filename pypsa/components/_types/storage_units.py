@@ -1,18 +1,18 @@
 """Storage units components module."""
 
-from __future__ import annotations
-
 from collections.abc import Sequence
+from typing import Any
 
 import pandas as pd
 import xarray as xr
 
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
 
+@patch_add_docstring
 class StorageUnits(Components):
-    """
-    StorageUnits components class.
+    """StorageUnits components class.
 
     This class is used for storage unit components. All functionality specific to
     storage units is implemented here. Functionality for all components is implemented
@@ -24,7 +24,12 @@ class StorageUnits(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
+    [pypsa.Components][] : Base class for all components.
+
+    Examples
+    --------
+    >>> n.components.storage_units
+    Empty 'StorageUnit' Components
 
     """
 
@@ -37,8 +42,7 @@ class StorageUnits(Components):
         index: pd.Index | None = None,
         attr: str | None = None,
     ) -> tuple[xr.DataArray, xr.DataArray]:
-        """
-        Get per unit bounds for storage units.
+        """Get per unit bounds for storage units.
 
         Parameters
         ----------
@@ -68,3 +72,18 @@ class StorageUnits(Components):
             min_pu = xr.zeros_like(max_pu)
 
         return min_pu, max_pu
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrap Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )

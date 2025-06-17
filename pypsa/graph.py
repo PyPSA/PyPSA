@@ -1,23 +1,36 @@
-"""
-Graph helper functions, which are attached to network and sub_network.
-"""
+"""Graph helper functions, which are attached to network and sub_network."""
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 
-import numpy as np
-import pandas as pd
-import scipy as sp
+import networkx as nx
+from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs
-from pypsa.descriptors import OrderedGraph
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
+    import pandas as pd
+    import scipy as sp
+
     from pypsa import Network, SubNetwork
 
 
+class OrderedGraph(nx.MultiGraph):
+    """Ordered graph."""
+
+    node_dict_factory = OrderedDict
+    adjlist_dict_factory = OrderedDict
+
+
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `n.graph` instead.",
+)
 @deprecated_common_kwargs
 def graph(
     n: Network | SubNetwork,
@@ -26,79 +39,20 @@ def graph(
     inf_weight: bool | float = False,
     include_inactive: bool = True,
 ) -> OrderedGraph:
-    """
-    Build NetworkX graph.
-
-    Parameters
-    ----------
-    n : Network|SubNetwork
-
-    branch_components : [str]
-        Components to use as branches. The default are
-        passive_branch_components in the case of a SubNetwork and
-        branch_components in the case of a Network.
-
-    weight : str
-        Branch attribute to use as weight
-
-    inf_weight : bool|float
-        How to treat infinite weights (default: False). True keeps the infinite
-        weight. False skips edges with infinite weight. If a float is given it
-        is used instead.
-
-    Returns
-    -------
-    graph : OrderedGraph
-        NetworkX graph
-    """
-    from pypsa import Network, SubNetwork
-
-    if isinstance(n, Network):
-        if branch_components is None:
-            branch_components = n.branch_components
-        else:
-            branch_components = set(branch_components)
-        buses_i = n.buses.index
-    elif isinstance(n, SubNetwork):
-        if branch_components is None:
-            branch_components = n.n.passive_branch_components
-        buses_i = n.buses_i()
-    else:
-        raise TypeError("graph must be called with a Network or a SubNetwork")
-
-    if n.has_scenarios:
-        buses_i = buses_i.unique("component")
-
-    graph = OrderedGraph()
-
-    # add nodes first, in case there are isolated buses not connected with branches
-    graph.add_nodes_from(buses_i)
-
-    # Multigraph uses the branch type and name as key
-    def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
-        for c in n.iterate_components(branch_components):
-            static = c.static
-            if n.has_scenarios:
-                static = c.static.loc[n.scenarios.index[0]]
-
-            for branch in static.loc[
-                slice(None) if include_inactive else static.query("active").index
-            ].itertuples():
-                if weight is None:
-                    data = {}
-                else:
-                    data = dict(weight=getattr(branch, weight, 0))
-                    if np.isinf(data["weight"]) and inf_weight is not True:
-                        if inf_weight is False:
-                            continue
-                        data["weight"] = inf_weight
-                yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
-
-    graph.add_edges_from(gen_edges())
-
-    return graph
+    """Use `n.graph` instead."""
+    return n.graph(
+        branch_components=branch_components,
+        weight=weight,
+        inf_weight=inf_weight,
+        include_inactive=include_inactive,
+    )
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `n.adjacency_matrix` instead.",
+)
 @deprecated_common_kwargs
 def adjacency_matrix(
     n: Network | SubNetwork,
@@ -106,142 +60,28 @@ def adjacency_matrix(
     investment_period: int | str | None = None,
     busorder: pd.Index | None = None,
     weights: pd.Series | None = None,
-    return_dataframe: bool = True,
-) -> pd.DataFrame | sp.sparse.coo_matrix:
-    """
-    Construct an adjacency matrix (directed) as a pandas DataFrame or sparse matrix
-
-    Parameters
-    ----------
-    branch_components : iterable sublist of `branch_components`
-       Buses connected by any of the selected branches are adjacent
-       (default: branch_components (network) or passive_branch_components (sub_network))
-    busorder : pd.Index subset of n.buses.index
-       Basis to use for the matrix representation of the adjacency matrix
-       (default: buses.index (network) or buses_i() (sub_network))
-    weights : pd.Series or None (default)
-       If given must provide a weight for each branch, multi-indexed
-       on branch_component name and branch name.
-    return_dataframe : bool, default True
-       If True, returns a pandas DataFrame. If False, returns a sparse coo_matrix
-       for backwards compatibility.
-
-    Returns
-    -------
-    adjacency_matrix : pd.DataFrame or sp.sparse.coo_matrix
-       Directed adjacency matrix as DataFrame (if return_dataframe=True) or
-       sparse matrix (if return_dataframe=False) with bus indices
-    """
-    from pypsa import Network, SubNetwork
-
-    if isinstance(n, Network):
-        if branch_components is None:
-            branch_components = n.branch_components
-        if busorder is None:
-            busorder = n.buses.index
-    elif isinstance(n, SubNetwork):
-        if branch_components is None:
-            branch_components = n.n.passive_branch_components
-        if busorder is None:
-            busorder = n.buses_i()
-    else:
-        raise TypeError(" must be called with a Network or a SubNetwork")
-
-    # Initialize empty DataFrame with buses as both rows and columns
-    if n.has_scenarios:
-        busorder = busorder.unique("component")
-
-    dtype = int if weights is None else float
-    adjacency_df = pd.DataFrame(0, index=busorder, columns=busorder, dtype=dtype)
-
-    # Build adjacency matrix component by component
-    for c in n.iterate_components(branch_components):
-        active = c.get_active_assets(investment_period)
-        sel = c.static[active].index.unique("component")
-        static = c.static.reindex(sel, level="component")
-
-        # Skip if no branches in this component
-        if len(static) == 0:
-            continue
-
-        # Get bus0 and bus1 from static data
-        bus0 = static.bus0
-        bus1 = static.bus1
-
-        # Set weights for these connections
-        if weights is None:
-            # Set default weights of 1 for all branches
-            for b0, b1 in zip(bus0, bus1):
-                adjacency_df.at[b0, b1] = 1
-        else:
-            # Use provided weights
-            for b0, b1, idx in zip(bus0, bus1, sel):
-                adjacency_df.at[b0, b1] = weights[c.name][idx]
-
-    if return_dataframe:
-        return adjacency_df
-    else:
-        # Convert to sparse matrix for backwards compatibility
-        # More efficient conversion using the underlying numpy array
-        return sp.sparse.coo_matrix(adjacency_df.values)
+    return_dataframe: bool = False,
+) -> sp.sparse.coo_matrix:
+    """Use `n.adjacency_matrix` instead."""
+    return n.adjacency_matrix(
+        branch_components=branch_components,
+        investment_period=investment_period,
+        busorder=busorder,
+        weights=weights,
+        return_dataframe=return_dataframe,
+    )
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `n.incidence_matrix` instead.",
+)
 @deprecated_common_kwargs
 def incidence_matrix(
     n: Network | SubNetwork,
     branch_components: Collection[str] | None = None,
     busorder: pd.Index | None = None,
 ) -> sp.sparse.csr_matrix:
-    """
-    Construct a sparse incidence matrix (directed)
-
-    Parameters
-    ----------
-    branch_components : iterable sublist of `branch_components`
-       Buses connected by any of the selected branches are adjacent
-       (default: branch_components (network) or passive_branch_components (sub_network))
-    busorder : pd.Index subset of n.buses.index
-       Basis to use for the matrix representation of the adjacency matrix
-       (default: buses.index (network) or buses_i() (sub_network))
-
-    Returns
-    -------
-    incidence_matrix : sp.sparse.csr_matrix
-       Directed incidence matrix
-    """
-    from pypsa import Network, SubNetwork
-
-    if isinstance(n, Network):
-        if branch_components is None:
-            branch_components = n.branch_components
-        if busorder is None:
-            busorder = n.buses.index
-    elif isinstance(n, SubNetwork):
-        if branch_components is None:
-            branch_components = n.n.passive_branch_components
-        if busorder is None:
-            busorder = n.buses_i()
-    else:
-        raise ValueError(
-            "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
-        )
-
-    no_buses = len(busorder)
-    no_branches = 0
-    bus0_inds = []
-    bus1_inds = []
-    for c in n.iterate_components(branch_components):
-        sel = c.static.query("active").index
-        no_branches += len(c.static.loc[sel])
-        bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
-        bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
-    bus0_inds = np.concatenate(bus0_inds)
-    bus1_inds = np.concatenate(bus1_inds)
-
-    return sp.sparse.csr_matrix(
-        (
-            np.r_[np.ones(no_branches), -np.ones(no_branches)],
-            (np.r_[bus0_inds, bus1_inds], np.r_[:no_branches, :no_branches]),
-        ),
-        (no_buses, no_branches),
-    )
+    """Use `n.incidence_matrix` instead."""
+    return n.incidence_matrix(branch_components=branch_components, busorder=busorder)

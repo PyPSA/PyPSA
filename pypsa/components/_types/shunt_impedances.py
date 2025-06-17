@@ -1,13 +1,17 @@
 """Shunt impedances components module."""
 
-from __future__ import annotations
+from collections.abc import Sequence
+from typing import Any
 
+import pandas as pd
+
+from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
 
+@patch_add_docstring
 class ShuntImpedances(Components):
-    """
-    Shunt impedances components class.
+    """Shunt impedances components class.
 
     This class is used for shunt impedance components. All functionality specific to
     shunt impedances is implemented here. Functionality for all components is implemented in
@@ -19,7 +23,26 @@ class ShuntImpedances(Components):
 
     See Also
     --------
-    pypsa.components.abstract.Components : Base class for all components.
-    pypsa.components.components.GenericComponents : Generic components class.
+    [pypsa.Components][] : Base class for all components.
+
+    Examples
+    --------
+    >>> n.components.shunt_impedances
+    Empty 'ShuntImpedance' Components
 
     """
+
+    def add(
+        self,
+        name: str | int | Sequence[int | str],
+        suffix: str = "",
+        overwrite: bool = False,
+        **kwargs: Any,
+    ) -> pd.Index:
+        """Wrap Components.add() and docstring is patched via decorator."""
+        return super().add(
+            name=name,
+            suffix=suffix,
+            overwrite=overwrite,
+            **kwargs,
+        )

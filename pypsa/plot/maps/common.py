@@ -42,8 +42,7 @@ def apply_layouter(
     layouter: Callable[..., Any] | None = None,
     inplace: Literal[True, False] = False,
 ) -> Any:
-    """
-    Automatically generate bus coordinates for the network graph.
+    """Automatically generate bus coordinates for the network graph.
 
     Layouting function from `networkx <https://networkx.github.io/>`_ is used to
     determine the coordinates of the buses in the network.
@@ -111,5 +110,4 @@ def apply_layouter(
     if inplace:
         n.buses[["x", "y"]] = coordinates
         return None
-    else:
-        return coordinates.x, coordinates.y
+    return coordinates.x, coordinates.y

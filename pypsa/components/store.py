@@ -1,5 +1,4 @@
-"""
-Components store module.
+"""Components store module.
 
 Contains store class which is used to store all different components in the network.
 """
@@ -9,25 +8,27 @@ from __future__ import annotations
 import logging
 import re
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pypsa._options import options
-from pypsa.components._types.buses import Buses
-from pypsa.components._types.carriers import Carriers
-from pypsa.components._types.generators import Generators
-from pypsa.components._types.global_constraints import GlobalConstraints
-from pypsa.components._types.line_types import LineTypes
-from pypsa.components._types.lines import Lines
-from pypsa.components._types.links import Links
-from pypsa.components._types.loads import Loads
-from pypsa.components._types.shapes import Shapes
-from pypsa.components._types.shunt_impedances import ShuntImpedances
-from pypsa.components._types.storage_units import StorageUnits
-from pypsa.components._types.stores import Stores
-from pypsa.components._types.sub_networks import SubNetworks
-from pypsa.components._types.transformer_types import TransformerTypes
-from pypsa.components._types.transformers import Transformers
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
+
+if TYPE_CHECKING:
+    from pypsa.components._types.buses import Buses
+    from pypsa.components._types.carriers import Carriers
+    from pypsa.components._types.generators import Generators
+    from pypsa.components._types.global_constraints import GlobalConstraints
+    from pypsa.components._types.line_types import LineTypes
+    from pypsa.components._types.lines import Lines
+    from pypsa.components._types.links import Links
+    from pypsa.components._types.loads import Loads
+    from pypsa.components._types.shapes import Shapes
+    from pypsa.components._types.shunt_impedances import ShuntImpedances
+    from pypsa.components._types.storage_units import StorageUnits
+    from pypsa.components._types.stores import Stores
+    from pypsa.components._types.sub_networks import SubNetworks
+    from pypsa.components._types.transformer_types import TransformerTypes
+    from pypsa.components._types.transformers import Transformers
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,7 @@ class ComponentsStore(dict):
     transformers: Transformers
 
     def __repr__(self) -> str:
-        """
-        Get representation of component store.
+        """Get representation of component store.
 
         Returns
         -------
@@ -65,7 +65,7 @@ class ComponentsStore(dict):
         >>> n.components
         PyPSA Components Store
         ======================
-        - 0 'SubNetwork' Components
+        - 3 'SubNetwork' Components
         - 9 'Bus' Components
         - 6 'Carrier' Components
         - 1 'GlobalConstraint' Components
@@ -94,8 +94,7 @@ class ComponentsStore(dict):
         self[name] = value
 
     def __getitem__(self, item: str | list | set) -> Any:
-        """
-        Index single and multiple items from the dictionary.
+        """Index single and multiple items from the dictionary.
 
         Similar behavior to pandas.DataFrame.__getitem__.
 
@@ -104,7 +103,7 @@ class ComponentsStore(dict):
         >>> n.components
         PyPSA Components Store
         ======================
-        - 0 'SubNetwork' Components
+        - 3 'SubNetwork' Components
         - 9 'Bus' Components
         - 6 'Carrier' Components
         - 1 'GlobalConstraint' Components
@@ -128,22 +127,16 @@ class ComponentsStore(dict):
         """
         if isinstance(item, (list | set)):
             return [self[key] for key in item]
-        else:
-            if item in COMPONENT_ALIAS_DICT:
-                # TODO: Activate when changing logic
-                # warnings.warn(
-                #     f"Accessing components in n.components using capitalized singular "
-                #     f"name is deprecated. Use lowercase list name instead: "
-                #     f"'{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.",
-                #     DeprecationWarning,
-                #     stacklevel=2,
-                # )
-                return super().__getitem__(COMPONENT_ALIAS_DICT[item])
-            return super().__getitem__(item)
+        if item in COMPONENT_ALIAS_DICT:
+            # TODO: Activate when changing logic
+            # Accessing components in n.components using capitalized singular "
+            # name is deprecated. Use lowercase list name instead: "
+            # '{COMPONENT_ALIAS_DICT[item]}' instead of '{item}'.
+            return super().__getitem__(COMPONENT_ALIAS_DICT[item])
+        return super().__getitem__(item)
 
     def __getattr__(self, item: str) -> Any:
-        """
-        Get attribute from the dictionary.
+        """Get attribute from the dictionary.
 
         Examples
         --------
@@ -156,9 +149,9 @@ class ComponentsStore(dict):
         """
         try:
             return self[item]
-        except KeyError:
+        except KeyError as e:
             msg = f"Network has no components '{item}'"
-            raise AttributeError(msg)
+            raise AttributeError(msg) from e
 
     def __delattr__(self, name: str) -> None:
         """Is invoked when del object.member is called."""

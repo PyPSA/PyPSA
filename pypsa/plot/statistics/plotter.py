@@ -2,28 +2,30 @@
 
 from __future__ import annotations
 
-from abc import ABC
-from collections.abc import Callable, Sequence
 from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
 
-import numpy as np
-import plotly.graph_objects as go
-import seaborn as sns
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure, SubFigure
-
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.plot.statistics.maps import MapPlotGenerator
-from pypsa.plot.statistics.schema import apply_parameter_schema
+from pypsa.plot.statistics.schema import (
+    apply_parameter_schema,
+    get_relevant_plot_values,
+)
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from collections.abc import Callable, Sequence
+
+    import numpy as np
+    import plotly.graph_objects as go
+    import seaborn as sns
+    from matplotlib.axes import Axes
+    from matplotlib.figure import Figure, SubFigure
+
+    from pypsa.networks import Network
 
 
-class StatisticPlotter(ABC):
-    """
-    Create plots based on output of statistics functions.
+class StatisticPlotter:
+    """Create plots based on output of statistics functions.
 
     Passed arguments and the specified statistics function are stored and called
     later when the plot is created, depending on the plot type. Also some checks
@@ -31,8 +33,7 @@ class StatisticPlotter(ABC):
     """
 
     def __init__(self, bound_method: Callable, n: Network) -> None:
-        """
-        Initialize the statistic handler.
+        """Initialize the statistic handler.
 
         Parameters
         ----------
@@ -57,8 +58,7 @@ class StatisticPlotter(ABC):
         tuple[Figure, Axes | np.ndarray, sns.FacetGrid]
         | tuple[Figure | SubFigure | Any, Axes | Any]
     ):
-        """
-        Create simple visualization of the statistic.
+        """Create simple visualization of the statistic.
 
         This function builds up on any statistics function and allows for a simple
         exploration without any further arguments. If a fine grained control is
@@ -78,12 +78,13 @@ class StatisticPlotter(ABC):
 
         Examples
         --------
-        >>> fig, ax, g = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
+        >>> fig, ax, g = n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function
         if kind not in CHART_TYPES + ["map", None]:
-            raise ValueError(f"Unknown plot type '{kind}'.")
+            msg = f"Unknown plot type '{kind}'."
+            raise ValueError(msg)
         # Apply schema to kind kwarg
         stats_name = self._bound_method.__name__
         kind_ = apply_parameter_schema(stats_name, "plot", {"kind": kind})["kind"]
@@ -120,8 +121,7 @@ class StatisticPlotter(ABC):
         gridspec_kws: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
-        """
-        Plot statistics as chart plot.
+        """Plot statistics as chart plot.
 
         This function builds up on any statistics function and creates a chart plot
         based on it's output. Seaborn is used to create the plot.
@@ -253,17 +253,20 @@ class StatisticPlotter(ABC):
 
         plotter = ChartGenerator(self._n)
 
+        # Create context for schema application
+        context = {"index_names": self._n._index_names}
+
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
+        plot_kwargs = apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs, context
+        )
 
+        # Use helper for filtering
+        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
@@ -275,6 +278,11 @@ class StatisticPlotter(ABC):
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
+        if data.empty:
+            msg = (
+                f"The statistics function '{stats_name}' returned an empty DataFrame. "
+            )
+            raise ValueError(msg)
         return plotter.plot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore
 
     def map(
@@ -304,8 +312,7 @@ class StatisticPlotter(ABC):
         storage: bool | None = None,
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
-        """
-        Plot statistics on a geographic map.
+        """Plot statistics on a geographic map.
 
         This function builds upon any statistics function and creates a geographical
         visualization based on its output. It uses the MapPlotGenerator to render the
@@ -419,9 +426,8 @@ class StatisticPlotter(ABC):
         )
 
 
-class StatisticInteractivePlotter(ABC):
-    """
-    Create interactive plots based on output of statistics functions.
+class StatisticInteractivePlotter:
+    """Create interactive plots based on output of statistics functions.
 
     Passed arguments and the specified statistics function are stored and called
     later when the plot is created, depending on the plot type. Also some checks
@@ -429,8 +435,7 @@ class StatisticInteractivePlotter(ABC):
     """
 
     def __init__(self, bound_method: Callable, n: Network) -> None:
-        """
-        Initialize the interactive statistic handler.
+        """Initialize the interactive statistic handler.
 
         Parameters
         ----------
@@ -452,8 +457,7 @@ class StatisticInteractivePlotter(ABC):
     def __call__(
         self, kind: str | None = None
     ) -> tuple[go.Figure, go.Figure | np.ndarray]:
-        """
-        Create simple visualization of the statistic.
+        """Create simple visualization of the statistic.
 
         This function builds up on any statistics function and allows for a simple
         exploration without any further arguments. If a fine grained control is
@@ -473,12 +477,13 @@ class StatisticInteractivePlotter(ABC):
 
         Examples
         --------
-        >>> fig = n.statistics.optimal_capacity.plot(kind="bar") # doctest: +ELLIPSIS
+        >>> fig = n.statistics.installed_capacity.plot(kind="bar") # doctest: +ELLIPSIS
 
         """
         # Get the correct plot function
         if kind not in ["bar", "line", "area", None]:
-            raise ValueError(f"Unknown plot type '{kind}'.")
+            msg = f"Unknown plot type '{kind}'."
+            raise ValueError(msg)
         # Apply schema to kind kwarg
         stats_name = self._bound_method.__name__
         kind_ = apply_parameter_schema(stats_name, "plot", {"kind": kind})["kind"]
@@ -513,8 +518,7 @@ class StatisticInteractivePlotter(ABC):
         title: str | None = None,
         **kwargs: Any,
     ) -> go.Figure:
-        """
-        Plot statistics as interactive chart.
+        """Plot statistics as interactive chart.
 
         This function builds up on any statistics function and creates an interactive chart
         plot based on its output. Plotly is used to create the plot.
@@ -635,17 +639,19 @@ class StatisticInteractivePlotter(ABC):
 
         plotter = ChartGenerator(self._n)
 
+        # Create context for schema application
+        context = {"index_names": self._n._index_names}
+
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
-        plot_kwargs = apply_parameter_schema(stats_name, chart_type, plot_kwargs)
-
+        plot_kwargs = apply_parameter_schema(
+            stats_name, chart_type, plot_kwargs, context
+        )
+        # Use helper for filtering
+        relevant_plot_kwargs = get_relevant_plot_values(plot_kwargs, context)
         # Derive base statistics kwargs
         base_stats_kwargs = plotter.derive_statistic_parameters(
-            plot_kwargs["x"],
-            plot_kwargs["y"],
-            plot_kwargs["color"],
-            plot_kwargs["facet_col"],
-            plot_kwargs["facet_row"],
+            *relevant_plot_kwargs,
             method_name=stats_name,
         )
 
@@ -657,4 +663,9 @@ class StatisticInteractivePlotter(ABC):
 
         # Get statistics data and return plot
         data = self._bound_method(**stats_kwargs)
+        if data.empty:
+            msg = (
+                f"The statistics function '{stats_name}' returned an empty DataFrame. "
+            )
+            raise ValueError(msg)
         return plotter.iplot(data, chart_type, **plot_kwargs, **kwargs)  # type: ignore

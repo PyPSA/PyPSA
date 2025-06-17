@@ -32,14 +32,25 @@ Upcoming Release
 * The components subpackage was further restructured. The known API remains untouched.
   (https://github.com/PyPSA/PyPSA/pull/1223)
 
+* New experimental **NetworkCollection**
+
+  * You can now create a container for multiple `Network` objects. Use is with
+    ``pypsa.NetworkCollection()`` and pass a list of networks. The feature is
+    experimental and might change with the next release. Documentation and API
+    reference will follow with a stable version of that feature.
+
 Bug Fixes
 --------
 
+* Bugfix: The function ``n.statistics.opex()`` now considers the correct
+  snapshot weightings ``n.snapshot_weightings.objective``. 
+  
 * Fixed unaligned statistics index names when ``groupby=False``
   (https://github.com/PyPSA/PyPSA/pull/1205)
-  
-* Fixed interactive area plots in stacked more with `facet_row` and `facet_col`. 
 
+* Fixed interactive area plots in stacked more with `facet_row` and `facet_col`.
+
+* The doc-strings of the statistics function are now properly displayed again, ie. the output of `n.statistics.energy_balance?`.
 
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================

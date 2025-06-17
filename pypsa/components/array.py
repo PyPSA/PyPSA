@@ -1,5 +1,4 @@
-"""
-Array module of PyPSA components.
+"""Array module of PyPSA components.
 
 Contains logic to combine static and dynamic pandas DataFrames to single xarray
 DataArray for each variable.
@@ -7,9 +6,10 @@ DataArray for each variable.
 
 from __future__ import annotations
 
+import copy
 import inspect
 import os
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import xarray
@@ -17,13 +17,64 @@ import xarray
 from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-class _ComponentsArray(_ComponentsABC):
+
+class _XarrayAccessor:
+    """Accessor class that provides property-like xarray access to all attributes.
+
+    Attributes are lazy evaluated via as_xarray method of the component.
     """
-    Helper class for components array methods.
+
+    def __init__(self, component: ComponentsArrayMixin) -> None:
+        self._component = component
+
+    def __getattr__(self, attr: str) -> xarray.DataArray:
+        try:
+            return self._component.as_xarray(attr=attr)
+        except AttributeError as e:
+            msg = (
+                f"'{self._component.__class__.__name__}' components has no "
+                "attribute '{attr}'"
+            )
+            raise AttributeError(msg) from e
+
+    def __getitem__(self, attr: str) -> xarray.DataArray:
+        try:
+            return self._component.as_xarray(attr=attr)
+        except AttributeError as e:
+            msg = (
+                f"'{self._component.__class__.__name__}' components has no "
+                "attribute '{attr}'"
+            )
+            raise AttributeError(msg) from e
+
+
+class ComponentsArrayMixin(_ComponentsABC):
+    """Helper class for components array methods.
 
     Class only inherits to Components and should not be used directly.
     """
+
+    def __init__(self) -> None:
+        """Initialize the ComponentsArrayMixin."""
+        self.da = _XarrayAccessor(self)
+
+    def __deepcopy__(
+        self, memo: dict[int, object] | None = None
+    ) -> ComponentsArrayMixin:
+        """Create custom deepcopy which does not copy the xarray accessor."""
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result  # type: ignore
+        for k, v in self.__dict__.items():
+            setattr(
+                result,
+                k,
+                _XarrayAccessor(result) if k == "da" else copy.deepcopy(v, memo),
+            )
+        return result
 
     def _as_dynamic(
         self,
@@ -31,8 +82,7 @@ class _ComponentsArray(_ComponentsABC):
         snapshots: Sequence | None = None,
         inds: pd.Index | None = None,
     ) -> pd.DataFrame:
-        """
-        Get an attribute as a dynamic DataFrame.
+        """Get an attribute as a dynamic DataFrame.
 
         Parameters
         ----------
@@ -66,7 +116,7 @@ class _ComponentsArray(_ComponentsABC):
         """
         # Check if we are in a power flow calculation
         stack = inspect.stack()
-        in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)
+        in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)  # noqa: PTH119
 
         sns = as_index(self.n_save, snapshots, "snapshots")
         index = self.static.index
@@ -102,8 +152,7 @@ class _ComponentsArray(_ComponentsABC):
         inds: Sequence | None = None,
         drop_scenarios: bool = False,
     ) -> xarray.DataArray:
-        """
-        Get an attribute as a xarray DataArray.
+        """Get an attribute as a xarray DataArray.
 
         Converts component data to a flexible xarray DataArray format, which is
         particularly useful for optimization routines. The method provides several
@@ -156,7 +205,7 @@ class _ComponentsArray(_ComponentsABC):
 
         """
         # Strip any index name information
-        # snapshots = getattr(snapshots, "values", snapshots) # TODO
+        # snapshots = getattr(snapshots, "values", snapshots) # TODO # noqa: ERA001
         inds = getattr(inds, "values", inds)
 
         if attr in self.operational_attrs.keys():
@@ -174,7 +223,7 @@ class _ComponentsArray(_ComponentsABC):
             res = xarray.DataArray(self.static[attr])
 
         # Rename dimension
-        # res = res.rename({self.name: "component"})
+        # res = res.rename({self.name: "component"}) # noqa: ERA001
 
         if self.has_scenarios:
             # untack the dimension that contains the scenarios

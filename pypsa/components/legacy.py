@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
-
-import pandas as pd
+from typing import TYPE_CHECKING, Any
 
 from pypsa.common import UnexpectedError
 from pypsa.components._types import (
@@ -25,10 +23,14 @@ from pypsa.components._types import (
     Transformers,
     TransformerTypes,
 )
-from pypsa.components.components import Components
 from pypsa.components.types import get as get_component_type
-from pypsa.definitions.components import ComponentType
-from pypsa.definitions.structures import Dict
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+    from pypsa.components.components import Components
+    from pypsa.definitions.components import ComponentType
+    from pypsa.definitions.structures import Dict
 
 # Legacy Component Class
 # -----------------------------------
@@ -53,8 +55,7 @@ _CLASS_MAPPING = {
 
 
 class Component:
-    """
-    Legacy component class.
+    """Legacy component class.
 
     Allows to keep functionallity of previous dataclass/ named tuple and wraps
     around new structure.
@@ -96,10 +97,11 @@ class Component:
                 stacklevel=2,
             )
         if investment_periods is not None:
-            raise DeprecationWarning(
+            msg = (
                 "The 'investment_periods' attribute is deprecated. Pass 'n' instead."
                 "Deprecated in version 0.31 and will be removed in version 1.0."
             )
+            raise DeprecationWarning(msg)
 
         if name:
             ctype_ = get_component_type(name)
@@ -111,7 +113,8 @@ class Component:
         if component_class is not None:
             instance = component_class(ctype=ctype_)
         else:
-            raise UnexpectedError(f"Component type '{ctype_.name}' not found.")
+            msg = f"Component type '{ctype_.name}' not found."
+            raise UnexpectedError(msg)
 
         if n is not None:
             instance.n = n

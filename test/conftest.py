@@ -1,11 +1,4 @@
-#!/usr/bin/env python3
-"""
-Created on Mon Jan 31 18:29:48 2022.
-
-@author: fabian
-"""
-
-import os
+from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
@@ -15,6 +8,29 @@ from shapely.geometry import Polygon
 
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
+
+COMPONENT_NAMES = [
+    "sub_networks",
+    "buses",
+    "carriers",
+    "global_constraints",
+    "lines",
+    "line_types",
+    "transformers",
+    "transformer_types",
+    "links",
+    "loads",
+    "generators",
+    "storage_units",
+    "stores",
+    "shunt_impedances",
+    "shapes",
+]
+
+
+@pytest.fixture(params=COMPONENT_NAMES)
+def component_name(request):
+    return request.param
 
 
 def pytest_addoption(parser):
@@ -67,12 +83,7 @@ def ac_dc_network():
 
 @pytest.fixture
 def ac_dc_network_r():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "data",
-        "ac-dc-meshed",
-        "results-lopf",
-    )
+    csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
     return pypsa.Network(csv_folder)
 
 
@@ -119,11 +130,19 @@ def ac_dc_network_shapes(ac_dc_network):
 
 
 @pytest.fixture
+def network_collection(ac_dc_network_r):
+    return pypsa.NetworkCollection(
+        [ac_dc_network_r],
+        index=pd.MultiIndex.from_tuples([("a", 2030)], names=["scenario", "year"]),
+    )
+
+
+@pytest.fixture
 def storage_hvdc_network():
     return pypsa.examples.storage_hvdc()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def all_networks(
     ac_dc_network,
     # ac_dc_network_r,

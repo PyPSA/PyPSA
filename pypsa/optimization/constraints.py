@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
-"""
-Define optimisation constraints from PyPSA networks with Linopy.
-"""
+"""Define optimisation constraints from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
@@ -16,17 +13,15 @@ from linopy import merge
 from numpy import inf, isfinite
 from xarray import DataArray, concat
 
-from pypsa.common import as_index
+from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
-from pypsa.descriptors import (
-    additional_linkports,
-    expand_series,
-    nominal_attrs,
-)
+from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.common import reindex
 
 if TYPE_CHECKING:
-    from xarray import DataArray
+    from collections.abc import Sequence
+
+    from xarray import DataArray  # noqa: TC004
 
     from pypsa import Network
 
@@ -38,8 +33,7 @@ logger = logging.getLogger(__name__)
 def define_operational_constraints_for_non_extendables(
     n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
 ) -> None:
-    """
-    Define operational constraints (lower-/upper bound).
+    """Define operational constraints (lower-/upper bound).
 
     Sets operational constraints for a subset of non-extendable
     and non-committable components based on their bounds. For each component,
@@ -89,13 +83,13 @@ def define_operational_constraints_for_non_extendables(
     if fix_i.empty:
         return
 
-    nominal_fix = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
+    nominal_fix = c.da[c.operational_attrs["nom"]].sel(component=fix_i)
     min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr)
 
     lower = min_pu * nominal_fix
     upper = max_pu * nominal_fix
 
-    active = c.as_xarray("active", sns, fix_i)
+    active = c.da.active.sel(component=fix_i, snapshot=sns)
 
     dispatch = n.model[f"{c.name}-{attr}"].sel(component=fix_i)
 
@@ -117,8 +111,7 @@ def define_operational_constraints_for_non_extendables(
 def define_operational_constraints_for_extendables(
     n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
 ) -> None:
-    """
-    Define operational constraints (lower-/upper bound) for extendable components.
+    """Define operational constraints (lower-/upper bound) for extendable components.
 
     Sets operational constraints for extendable components based on their bounds.
     For each component, the constraint enforces:
@@ -159,7 +152,7 @@ def define_operational_constraints_for_extendables(
     min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr)
     dispatch = n.model[f"{c.name}-{attr}"].sel(component=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
-    active = c.as_xarray("active", sns, ext_i)
+    active = c.da.active.sel(component=ext_i, snapshot=sns)
 
     lhs_lower = dispatch - min_pu * capacity
     lhs_upper = dispatch - max_pu * capacity
@@ -180,9 +173,7 @@ def define_operational_constraints_for_extendables(
 def define_operational_constraints_for_committables(
     n: Network, sns: pd.Index, component: str
 ) -> None:
-    """
-
-    Define operational constraints (lower-/upper bound) for committable components.
+    """Define operational constraints (lower-/upper bound) for committable components.
 
     Sets operational constraints for components with unit commitment
     decisions. The constraints include:
@@ -238,18 +229,18 @@ def define_operational_constraints_for_committables(
     active = c.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = c.as_xarray(c.operational_attrs["nom"], inds=com_i)
+    nominal = c.da[c.operational_attrs["nom"]].sel(component=com_i)
     min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p")
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
-    min_up_time_set = c.as_xarray("min_up_time", inds=com_i)
-    min_down_time_set = c.as_xarray("min_down_time", inds=com_i)
-    ramp_up_limit = nominal * c.as_xarray("ramp_limit_up", inds=com_i).fillna(1)
-    ramp_down_limit = nominal * c.as_xarray("ramp_limit_down", inds=com_i).fillna(1)
-    ramp_start_up = nominal * c.as_xarray("ramp_limit_start_up", inds=com_i)
-    ramp_shut_down = nominal * c.as_xarray("ramp_limit_shut_down", inds=com_i)
-    up_time_before_set = c.as_xarray("up_time_before", inds=com_i)
-    down_time_before_set = c.as_xarray("down_time_before", inds=com_i)
+    min_up_time_set = c.da.min_up_time.sel(component=com_i)
+    min_down_time_set = c.da.min_down_time.sel(component=com_i)
+    ramp_up_limit = nominal * c.da.ramp_limit_up.sel(component=com_i).fillna(1)
+    ramp_down_limit = nominal * c.da.ramp_limit_down.sel(component=com_i).fillna(1)
+    ramp_start_up = nominal * c.da.ramp_limit_start_up.sel(component=com_i)
+    ramp_shut_down = nominal * c.da.ramp_limit_shut_down.sel(component=com_i)
+    up_time_before_set = c.da.up_time_before.sel(component=com_i)
+    down_time_before_set = c.da.down_time_before.sel(component=com_i)
     initially_up = up_time_before_set.astype(bool)
     initially_down = down_time_before_set.astype(bool)
 
@@ -464,8 +455,7 @@ def define_operational_constraints_for_committables(
 def define_nominal_constraints_for_extendables(
     n: Network, component: str, attr: str
 ) -> None:
-    """
-    Define capacity constraints for extendable components.
+    """Define capacity constraints for extendable components.
 
     Sets capacity expansion constraints for components with extendable
     capacities. For each component, the constraint enforces:
@@ -516,8 +506,7 @@ def define_nominal_constraints_for_extendables(
 def define_ramp_limit_constraints(
     n: Network, sns: pd.Index, component: str, attr: str
 ) -> None:
-    """
-    Define ramp rate limit constraints for components.
+    """Define ramp rate limit constraints for components.
 
     Sets ramp rate constraints to limit the change in output between
     consecutive time periods. The constraints are defined for fixed,
@@ -790,8 +779,7 @@ def define_nodal_balance_constraints(
     buses: Sequence | None = None,
     suffix: str = "",
 ) -> None:
-    """
-    Define energy balance constraints at each node.
+    """Define energy balance constraints at each node.
 
     Creates constraints ensuring that the sum of power injections at each node
     equals the demand at that node for each snapshot. This is the core constraint
@@ -857,7 +845,7 @@ def define_nodal_balance_constraints(
     ]
 
     if not links.empty:
-        for i in additional_linkports(n):
+        for i in n.components.links.additional_ports:
             eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
             eff = links.as_xarray(eff_attr, sns)
             args.append(["Link", "p", f"bus{i}", eff])
@@ -891,7 +879,7 @@ def define_nodal_balance_constraints(
             continue
 
         #  drop non-existent multiport buses which are ''
-        if column in ["bus" + i for i in additional_linkports(n)]:
+        if column in ["bus" + i for i in n.c.links.additional_ports]:
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel(component=cbuses["component"].values)
@@ -929,7 +917,8 @@ def define_nodal_balance_constraints(
 
     if empty_nodal_balance.any():
         if (empty_nodal_balance & (rhs != 0)).any().item():
-            raise ValueError("Empty LHS with non-zero RHS in nodal balance constraint.")
+            msg = "Empty LHS with non-zero RHS in nodal balance constraint."
+            raise ValueError(msg)
 
         mask = ~empty_nodal_balance
     else:
@@ -939,8 +928,7 @@ def define_nodal_balance_constraints(
 
 
 def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Define Kirchhoff's Voltage Law constraints for networks.
+    """Define Kirchhoff's Voltage Law constraints for networks.
 
     Creates constraints ensuring that the sum of potential differences across
     branches around all cycles in the network must sum to zero. For each cycle
@@ -1004,14 +992,13 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
             exprs.append(flow @ C_branch * 1e5)
         lhs.append(sum(exprs))
 
-    if len(lhs):
+    if lhs:
         lhs = merge(lhs, dim="snapshot")
         m.add_constraints(lhs == 0, name="Kirchhoff-Voltage-Law")
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
-    """
-    Define constraints for fixing component capacities to specified values.
+    """Define constraints for fixing component capacities to specified values.
 
     Sets constraints to fix nominal (capacity) variables of components to values
     specified in the corresponding '_set' attribute.
@@ -1049,8 +1036,7 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
 
 
 def define_modular_constraints(n: Network, component: str, attr: str) -> None:
-    """
-    Define constraints for modular capacity expansion.
+    """Define constraints for modular capacity expansion.
 
     Sets constraints ensuring that the optimal capacity of a component is
     an integer multiple of a specified module size. This implements discrete
@@ -1112,8 +1098,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 def define_fixed_operation_constraints(
     n: Network, sns: pd.Index, component: str, attr: str
 ) -> None:
-    """
-    Define constraints for fixing operational variables to specified values.
+    """Define constraints for fixing operational variables to specified values.
 
     Sets constraints to fix dispatch variables of components to values specified
     in the corresponding '_set' attribute.
@@ -1161,8 +1146,7 @@ def define_fixed_operation_constraints(
 
 
 def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Define energy balance constraints for storage units.
+    """Define energy balance constraints for storage units.
 
     Creates constraints ensuring energy conservation for storage units over time.
     For each storage unit and snapshot, the constraint enforces:
@@ -1293,8 +1277,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
 
 def define_store_constraints(n: Network, sns: pd.Index) -> None:
-    """
-    Define energy balance constraints for stores.
+    """Define energy balance constraints for stores.
 
     Creates constraints ensuring energy conservation for store components over time.
     For each store and snapshot, the constraint enforces:
@@ -1411,8 +1394,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 def define_loss_constraints(
     n: Network, sns: pd.Index, component: str, transmission_losses: int
 ) -> None:
-    """
-    Define power loss constraints for passive branches.
+    """Define power loss constraints for passive branches.
 
     This function approximates quadratic power losses using piecewise linear
     constraints. It creates tangent segments to the quadratic loss curve
@@ -1501,8 +1483,7 @@ def define_loss_constraints(
 def define_total_supply_constraints(
     n: Network, sns: Sequence, component: str = "Generator"
 ) -> None:
-    """
-    Define energy sum constraints for generators.
+    """Define energy sum constraints for generators.
 
     Creates constraints limiting the total energy generated by each generator
     over the specified snapshots. The constraints can enforce both minimum

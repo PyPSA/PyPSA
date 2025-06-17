@@ -1,5 +1,4 @@
-"""
-Consistency check functions for PyPSA networks.
+"""Consistency check functions for PyPSA networks.
 
 Mainly used in the `Network.consistency_check()` method.
 """
@@ -7,15 +6,19 @@ Mainly used in the `Network.consistency_check()` method.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+from deprecation import deprecated
 
 from pypsa.common import deprecated_common_kwargs
+from pypsa.constants import RE_PORTS_FILTER
+from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from pypsa import Network
     from pypsa.components import Components
 
@@ -23,27 +26,25 @@ logger = logging.getLogger(__name__)
 
 
 class ConsistencyError(ValueError):
-    pass
+    """Error raised when a consistency check fails."""
 
 
 def _bus_columns(df: pd.DataFrame) -> pd.Index:
-    return df.columns[df.columns.str.startswith("bus")]
+    return df.columns[df.columns.str.contains(RE_PORTS_FILTER)]
 
 
 def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     formatted_message = message % args if args else message
     if strict:
         raise ConsistencyError(formatted_message)
-    else:
-        logger.warning(message, *args)
+    logger.warning(message, *args)
 
 
 @deprecated_common_kwargs
 def check_for_unknown_buses(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check if buses are attached to component but are not defined in the network.
+    """Check if buses are attached to component but are not defined in the network.
 
     Activate strict mode in general consistency check by passing `['unknown_buses']` to
     the `strict` argument.
@@ -59,8 +60,8 @@ def check_for_unknown_buses(
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     for attr in _bus_columns(component.static):
@@ -80,8 +81,7 @@ def check_for_unknown_buses(
 
 @deprecated_common_kwargs
 def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
-    """
-    Check if network has buses that are not connected to any component.
+    """Check if network has buses that are not connected to any component.
 
     Activate strict mode in general consistency check by passing `['disconnected_buses']`
     the `strict` argument.
@@ -95,8 +95,8 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     connected_buses = set()
@@ -117,8 +117,7 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
 def check_for_unknown_carriers(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check if carriers are attached to component but are not defined in the network.
+    """Check if carriers are attached to component but are not defined in the network.
 
     Activate strict mode in general consistency check by passing `['unknown_carriers']`
     the `strict` argument.
@@ -134,8 +133,8 @@ def check_for_unknown_carriers(
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -158,8 +157,7 @@ def check_for_unknown_carriers(
 def check_for_zero_impedances(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check if component has zero impedances. Only checks passive branch components.
+    """Check if component has zero impedances. Only checks passive branch components.
 
     Activate strict mode in general consistency check by passing `['zero_impedances']`
     the `strict` argument.
@@ -176,8 +174,8 @@ def check_for_zero_impedances(
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -196,8 +194,7 @@ def check_for_zero_impedances(
 
 @deprecated_common_kwargs
 def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
-    """
-    Check if component has zero s_nom. Only checks transformers.
+    """Check if component has zero s_nom. Only checks transformers.
 
     Activate strict mode in general consistency check by passing `['zero_s_nom']` to
     the `strict` argument.
@@ -211,8 +208,8 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     if component.name in {"Transformer"}:
@@ -229,8 +226,7 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
 
 @deprecated_common_kwargs
 def check_time_series(n: Network, component: Components, strict: bool = False) -> None:
-    """
-    Check if time series of component are aligned with network snapshots.
+    """Check if time series of component are aligned with network snapshots.
 
     Activate strict mode in general consistency check by passing `['time_series']` to
     the `strict` argument.
@@ -246,8 +242,8 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -281,8 +277,7 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
 def check_static_power_attributes(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check static attrs p_now, s_nom, e_nom in any component.
+    """Check static attrs p_now, s_nom, e_nom in any component.
 
     Activate strict mode in general consistency check by passing `['static_power_attrs']`
     the `strict` argument.
@@ -298,8 +293,8 @@ def check_static_power_attributes(
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -337,8 +332,7 @@ def check_static_power_attributes(
 def check_time_series_power_attributes(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
+    """Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
 
     Activate strict mode in general consistency check by passing `['time_series_power_attrs']`
     the `strict` argument.
@@ -354,8 +348,8 @@ def check_time_series_power_attributes(
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     varying_attrs = ["p_max_pu", "e_max_pu"]
@@ -432,8 +426,7 @@ def check_time_series_power_attributes(
 
 @deprecated_common_kwargs
 def check_assets(n: Network, component: Components, strict: bool = False) -> None:
-    """
-    Check if assets are only committable or extendable, but not both.
+    """Check if assets are only committable or extendable, but not both.
 
     Activate strict mode in general consistency check by passing `['assets']` to the
     `strict` argument.
@@ -449,8 +442,8 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -470,8 +463,7 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
 @deprecated_common_kwargs
 def check_generators(component: Components, strict: bool = False) -> None:
-    """
-    Check the consistency of generator attributes before the simulation.
+    """Check the consistency of generator attributes before the simulation.
 
     This function performs the following checks on generator components:
     1. Ensures that committable generators are not both up and down before the simulation.
@@ -487,14 +479,12 @@ def check_generators(component: Components, strict: bool = False) -> None:
     strict : bool, optional
         If True, raise an error instead of logging a warning.
 
-    Returns
-    -------
-    None
+
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -526,8 +516,7 @@ def check_generators(component: Components, strict: bool = False) -> None:
 
 @deprecated_common_kwargs
 def check_dtypes_(component: Components, strict: bool = False) -> None:
-    """
-    Check if the dtypes of the attributes in the component are as expected.
+    """Check if the dtypes of the attributes in the component are as expected.
 
     Activate strict mode in general consistency check by passing `['dtypes']` to the
     `strict` argument.
@@ -543,8 +532,8 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -587,8 +576,7 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
 @deprecated_common_kwargs
 def check_investment_periods(n: Network, strict: bool = False) -> None:
-    """
-    Check if investment periods are aligned with snapshots.
+    """Check if investment periods are aligned with snapshots.
 
     Activate strict mode in general consistency check by passing `['investment_periods']`
     to the `strict` argument.
@@ -602,7 +590,7 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
+    [pypsa.Network.consistency_check][] : General consistency check method, which can be
                                       runs all consistency checks.
 
 
@@ -616,24 +604,20 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
             )
             if strict:
                 raise ValueError(msg)
-            else:
-                _log_or_raise(strict, msg)
-    else:
-        if constraint_periods:
-            msg = (
-                "The global constraints contain investment periods but "
-                "snapshots are not multi-indexed."
-            )
-            if strict:
-                raise ValueError(msg)
-            else:
-                _log_or_raise(strict, msg)
+            _log_or_raise(strict, msg)
+    elif constraint_periods:
+        msg = (
+            "The global constraints contain investment periods but "
+            "snapshots are not multi-indexed."
+        )
+        if strict:
+            raise ValueError(msg)
+        _log_or_raise(strict, msg)
 
 
 @deprecated_common_kwargs
 def check_shapes(n: Network, strict: bool = False) -> None:
-    """
-    Check if shapes are aligned with related components.
+    """Check if shapes are aligned with related components.
 
     Activate strict mode in general consistency check by passing `['shapes']` to the
     `strict` argument.
@@ -647,8 +631,8 @@ def check_shapes(n: Network, strict: bool = False) -> None:
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
 
     """
@@ -671,8 +655,7 @@ def check_shapes(n: Network, strict: bool = False) -> None:
 def check_nans_for_component_default_attrs(
     n: Network, component: Components, strict: bool = False
 ) -> None:
-    """
-    Check for missing values in component attributes.
+    """Check for missing values in component attributes.
 
     Activate strict mode in general consistency check by passing `['nans_for_component_default_attrs']`
     the `strict` argument.
@@ -691,9 +674,8 @@ def check_nans_for_component_default_attrs(
 
     See Also
     --------
-    pypsa.Network.consistency_check : General consistency check method, which can be
-                                      runs all consistency checks.
-
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
 
     """
     # Get non-NA and not-empty default attributes for the current component
@@ -739,8 +721,7 @@ def check_nans_for_component_default_attrs(
 
 
 def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
-    """
-    Check if carriers are missing colors.
+    """Check if carriers are missing colors.
 
     Parameters
     ----------
@@ -759,169 +740,197 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
         )
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `n.consistency_check` instead.",
+)
 def consistency_check(
     n: Network, check_dtypes: bool = False, strict: Sequence | None = None
 ) -> None:
-    """
-    Check network for consistency
-
-    Runs a series of checks on the network to ensure that it is consistent, e.g. that
-    all components are connected to existing buses and that no impedances are singular.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        The network to check.
-    check_dtypes : bool, optional
-        If True, check the dtypes of the attributes in the components.
-    strict : list, optional
-        If some checks should raise an error instead of logging a warning, pass a list
-        of strings with the names of the checks to be strict about. If 'all' is passed,
-        all checks will be strict. The default is no strict checks.
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    ConsistencyError : If any of the checks fail and strict mode is activated.
-
-    See Also
-    --------
-    pypsa.consistency.check_for_unknown_buses : Check if buses are attached to
-        component but are not defined in the network.
-    pypsa.consistency.check_for_disconnected_buses : Check if network has buses that
-        are not connected to any component.
-    pypsa.consistency.check_for_unknown_carriers : Check if carriers are attached to
-        component but are not defined in the network.
-    pypsa.consistency.check_for_zero_impedances : Check if component has zero
-        impedances. Only checks passive branch components.
-    pypsa.consistency.check_for_zero_s_nom : Check if component has zero s_nom. Only
-        checks transformers.
-    pypsa.consistency.check_time_series : Check if time series of component are
-        aligned with network snapshots.
-    pypsa.consistency.check_static_power_attributes : Check static attrs p_now, s_nom,
-        e_nom in any component.
-    pypsa.consistency.check_time_series_power_attributes : Check `p_max_pu` and
-        `e_max_pu` nan and infinite values in time series.
-    pypsa.consistency.check_assets : Check if assets are only committable or
-        extendable, but not both.
-    pypsa.consistency.check_generators : Check the consistency of generator attributes
-        before the simulation.
-    pypsa.consistency.check_dtypes_ : Check if the dtypes of the attributes in the
-        component are as expected.
-    pypsa.consistency.check_investment_periods : Check if investment periods are aligned
-        with snapshots.
-    pypsa.consistency.check_shapes : Check if shapes are aligned with related components.
-    pypsa.consistency.check_nans_for_component_default_attrs : Check for missing values
-        in component attributes.
-
-    """
-    if strict is None:
-        strict = []
-
-    strict_options = [
-        "unknown_buses",
-        "unknown_carriers",
-        "time_series",
-        "static_power_attrs",
-        "time_series_power_attrs",
-        "nans_for_component_default_attrs",
-        "zero_impedances",
-        "zero_s_nom",
-        "assets",
-        "generators",
-        "disconnected_buses",
-        "investment_periods",
-        "shapes",
-        "dtypes",
-    ]
-
-    if "all" in strict:
-        strict = strict_options
-    if not all(s in strict_options for s in strict):
-        raise ValueError(
-            f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
-            f"Valid options are {strict_options}. Please check the documentation for "
-            "more details on them."
-        )
-
-    n.calculate_dependent_values()
-
-    # TODO: Check for bidirectional links with efficiency < 1.
-    # TODO: Warn if any ramp limits are 0.
-
-    # Per component checks
-    for c in n.iterate_components():
-        # Checks all components
-        check_for_unknown_buses(n, c, "unknown_buses" in strict)
-        check_for_unknown_carriers(n, c, "unkown_carriers" in strict)
-        check_time_series(n, c, "time_series" in strict)
-        check_static_power_attributes(n, c, "static_power_attrs" in strict)
-        check_time_series_power_attributes(n, c, "time_series_power_attrs" in strict)
-        check_nans_for_component_default_attrs(
-            n, c, "nans_for_component_default_attrs" in strict
-        )
-        # Checks passive_branch_components
-        check_for_zero_impedances(n, c, "zero_impedances" in strict)
-        # Checks transformers
-        check_for_zero_s_nom(c, "zero_s_nom" in strict)
-        # Checks generators and links
-        check_assets(n, c, "assets" in strict)
-        # Checks generators
-        check_generators(c, "generators" in strict)
-
-        if check_dtypes:
-            check_dtypes_(c, "dtypes" in strict)
-
-    # Combined checks
-    check_for_disconnected_buses(n, "disconnected_buses" in strict)
-    check_investment_periods(n, "investment_periods" in strict)
-    check_shapes(n, "shapes" in strict)
+    """Use `n.consistency_check` instead."""
+    return n.consistency_check(check_dtypes=check_dtypes, strict=strict)
 
 
+@deprecated(
+    deprecated_in="0.35",
+    removed_in="1.0",
+    details="Use `n.consistency_check_plots` instead.",
+)
 def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> None:
+    """Use `n.consistency_check_plots` instead."""
+    return n.consistency_check_plots(strict=strict)
+
+
+class NetworkConsistencyMixin(_NetworkABC):
+    """Mixin class for network consistency checks.
+
+    Class only inherits to [pypsa.Network][] and should not be used directly.
+    All attributes and methods can be used within any Network instance.
     """
-    Check network for consistency for plotting functions.
 
-    Parameters
-    ----------
-    n : pypsa.Network
-        The network to check.
-    strict : list, optional
-        If some checks should raise an error instead of logging a warning, pass a list
-        of strings with the names of the checks to be strict about. If 'all' is passed,
-        all checks will be strict. The default is no strict checks.
+    calculate_dependent_values: Callable
+    iterate_components: Callable
 
-    Returns
-    -------
-    None
+    def consistency_check(
+        self, check_dtypes: bool = False, strict: Sequence | None = None
+    ) -> None:
+        """Check network for consistency.
 
-    See Also
-    --------
-    pypsa.consistency.consistency_check : General consistency check method, which can be
-        runs all consistency checks.
-    pypsa.consistency.check_for_unknown_buses : Check if buses are attached to
-        component but are not defined in the network.
-    pypsa.consistency.check_for_unknown_carriers : Check if carriers are attached to
-        component but are not defined in the network.
+        Runs a series of checks on the network to ensure that it is consistent, e.g. that
+        all components are connected to existing buses and that no impedances are singular.
 
-    """
-    if strict is None:
-        strict = []
+        Parameters
+        ----------
+        check_dtypes : bool, optional
+            If True, check the dtypes of the attributes in the components.
+        strict : list, optional
+            If some checks should raise an error instead of logging a warning, pass a list
+            of strings with the names of the checks to be strict about. If 'all' is passed,
+            all checks will be strict. The default is no strict checks.
 
-    strict_options = ["unknown_carriers", "missing_carrier_colors"]
+        Raises
+        ------
+        ConsistencyError : If any of the checks fail and strict mode is activated.
 
-    if "all" in strict:
-        strict = strict_options
+        See Also
+        --------
+        [pypsa.consistency.check_for_unknown_buses][] : Check if buses are attached to component but are not defined in the network.
+        [pypsa.consistency.check_for_disconnected_buses][] : Check if network has buses that are not connected to any component.
+        [pypsa.consistency.check_for_unknown_carriers][] : Check if carriers are attached to
+            component but are not defined in the network.
+        [pypsa.consistency.check_for_zero_impedances][] : Check if component has zero
+            impedances. Only checks passive branch components.
+        [pypsa.consistency.check_for_zero_s_nom][] : Check if component has zero s_nom. Only
+            checks transformers.
+        [pypsa.consistency.check_time_series][] : Check if time series of component are
+            aligned with network snapshots.
+        [pypsa.consistency.check_static_power_attributes][] : Check static attrs p_now, s_nom,
+            e_nom in any component.
+        [pypsa.consistency.check_time_series_power_attributes][] : Check `p_max_pu` and
+            `e_max_pu` nan and infinite values in time series.
+        [pypsa.consistency.check_assets][] : Check if assets are only committable or
+            extendable, but not both.
+        [pypsa.consistency.check_generators][] : Check the consistency of generator attributes
+            before the simulation.
+        [pypsa.consistency.check_dtypes_][] : Check if the dtypes of the attributes in the
+            component are as expected.
+        [pypsa.consistency.check_investment_periods][] : Check if investment periods are aligned
+            with snapshots.
+        [pypsa.consistency.check_shapes][] : Check if shapes are aligned with related components.
+        [pypsa.consistency.check_nans_for_component_default_attrs][] : Check for missing values
+            in component attributes.
 
-    if not all(s in strict_options for s in strict):
-        raise ValueError(
-            f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
-            f"Valid options are {strict_options}. Please check the documentation for "
-            "more details on them."
+        """
+        if strict is None:
+            strict = []
+
+        strict_options = [
+            "unknown_buses",
+            "unknown_carriers",
+            "time_series",
+            "static_power_attrs",
+            "time_series_power_attrs",
+            "nans_for_component_default_attrs",
+            "zero_impedances",
+            "zero_s_nom",
+            "assets",
+            "generators",
+            "disconnected_buses",
+            "investment_periods",
+            "shapes",
+            "dtypes",
+        ]
+
+        if "all" in strict:
+            strict = strict_options
+        if not all(s in strict_options for s in strict):
+            msg = (
+                f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
+                f"Valid options are {strict_options}. Please check the documentation for "
+                "more details on them."
+            )
+            raise ValueError(msg)
+
+        self.calculate_dependent_values()
+
+        # TODO: Check for bidirectional links with efficiency < 1.
+        # TODO: Warn if any ramp limits are 0.
+
+        # Per component checks
+        for c in self.iterate_components():
+            # Checks all components
+            check_for_unknown_buses(self, c, "unknown_buses" in strict)
+            check_for_unknown_carriers(self, c, "unkown_carriers" in strict)
+            check_time_series(self, c, "time_series" in strict)
+            check_static_power_attributes(self, c, "static_power_attrs" in strict)
+            check_time_series_power_attributes(
+                self, c, "time_series_power_attrs" in strict
+            )
+            check_nans_for_component_default_attrs(
+                self, c, "nans_for_component_default_attrs" in strict
+            )
+            # Checks passive_branch_components
+            check_for_zero_impedances(self, c, "zero_impedances" in strict)
+            # Checks transformers
+            check_for_zero_s_nom(c, "zero_s_nom" in strict)
+            # Checks generators and links
+            check_assets(self, c, "assets" in strict)
+            # Checks generators
+            check_generators(c, "generators" in strict)
+
+            if check_dtypes:
+                check_dtypes_(c, "dtypes" in strict)
+
+        # Combined checks
+        check_for_disconnected_buses(self, "disconnected_buses" in strict)
+        check_investment_periods(self, "investment_periods" in strict)
+        check_shapes(self, "shapes" in strict)
+
+    def consistency_check_plots(self, strict: Sequence | None = None) -> None:
+        """Check network for consistency for plotting functions.
+
+        Parameters
+        ----------
+        strict : list, optional
+            If some checks should raise an error instead of logging a warning, pass a list
+            of strings with the names of the checks to be strict about. If 'all' is passed,
+            all checks will be strict. The default is no strict checks.
+
+
+        See Also
+        --------
+        [pypsa.consistency.consistency_check][] : General consistency check method, which can be
+            runs all consistency checks.
+        [pypsa.consistency.check_for_unknown_buses][] : Check if buses are attached to
+            component but are not defined in the network.
+        [pypsa.consistency.check_for_unknown_carriers][] : Check if carriers are attached to
+            component but are not defined in the network.
+
+        """
+        if strict is None:
+            strict = []
+
+        strict_options = ["unknown_carriers", "missing_carrier_colors"]
+
+        if "all" in strict:
+            strict = strict_options
+
+        if not all(s in strict_options for s in strict):
+            msg = (
+                f"Invalid strict option(s) {set(strict) - set(strict_options)}. "
+                f"Valid options are {strict_options}. Please check the documentation for "
+                "more details on them."
+            )
+            raise ValueError(msg)
+
+        for c in self.iterate_components():
+            check_for_unknown_carriers(self, c, strict="unknown_carriers" in strict)
+        check_for_missing_carrier_colors(
+            self,  # type: ignore
+            strict="missing_carrier_colors" in strict,
         )
+<<<<<<< HEAD
 
     for c in n.iterate_components():
         check_for_unknown_carriers(n, c, strict="unknown_carriers" in strict)
@@ -930,3 +939,5 @@ def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> No
 
 # TODO SCENARIOS
 # - add consistency check for scenarios changed after init and does not some up to 1
+=======
+>>>>>>> new-opt
