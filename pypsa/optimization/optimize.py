@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from deprecation import deprecated
 from linopy import Model, merge
 from linopy.solvers import available_solvers
@@ -355,12 +356,8 @@ def post_processing(n: Network) -> None:
     n.optimize.post_processing()
 
 
-
-
 def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
-    """
-    # TODO move
-    """
+    """# TODO move"""
     # Get available dimensions
     dims = set(da.dims)
 
@@ -384,9 +381,6 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
             f"Unexpected combination of dimensions: {available_dims}. "
             f"Expected some combination of 'snapshot', 'component', and 'scenario'."
         )
-
-
-
 
 
 @deprecated(
@@ -709,9 +703,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         return status, condition
 
     def assign_solution(self) -> None:
-        """
-        Map solution to network components.
-        """
+        """Map solution to network components."""
         n = self._n
         m = n.model
         sns = n.model.parameters.snapshots.to_index()
@@ -736,7 +728,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 elif c == "Link" and attr == "p":
                     set_from_frame(n, c, "p0", df)
 
-                    for i in ["1"] + additional_linkports(n):
+                    for i in ["1"] + n.components.links.additional_ports:
                         i_eff = "" if i == "1" else i
                         eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                         set_from_frame(n, c, f"p{i}", -df * eff)
@@ -764,63 +756,64 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             c = "StorageUnit"
             n.dynamic(c)["p"] = n.dynamic(c)["p_dispatch"] - n.dynamic(c)["p_store"]
 
-        n.objective = m.objective.value    def assign_duals(self, assign_all_duals: bool = False) -> None:
-            """Map dual values i.e. shadow prices to network components.
+        n.objective = m.objective.value
 
-            Parameters
-            ----------
-            assign_all_duals : bool, default False
-                Whether to assign all dual values or only those that already
-                have a designated place in the network.
+    def assign_duals(self, assign_all_duals: bool = False) -> None:
+        """Map dual values i.e. shadow prices to network components.
 
-            """
-            m = self._n.model
-            unassigned = []
-            if all("dual" not in constraint for _, constraint in m.constraints.items()):
-                logger.info("No shadow prices were assigned to the network.")
-                return
+        Parameters
+        ----------
+        assign_all_duals : bool, default False
+            Whether to assign all dual values or only those that already
+            have a designated place in the network.
 
-            for name, constraint in m.constraints.items():
-                dual = constraint.dual
+        """
+        m = self._n.model
+        unassigned = []
+        if all("dual" not in constraint for _, constraint in m.constraints.items()):
+            logger.info("No shadow prices were assigned to the network.")
+            return
+
+        for name, constraint in m.constraints.items():
+            dual = constraint.dual
+            try:
+                c, attr = name.split("-", 1)
+            except ValueError:
+                unassigned.append(name)
+                continue
+
+            if "snapshot" in dual.dims:
                 try:
-                    c, attr = name.split("-", 1)
-                except ValueError:
-                    unassigned.append(name)
-                    continue
+                    df = dual.transpose("snapshot", ...).to_pandas()
 
-                if "snapshot" in dual.dims:
                     try:
-                        df = dual.transpose("snapshot", ...).to_pandas()
+                        spec = attr.rsplit("-", 1)[-1]
+                    except ValueError:
+                        spec = attr
 
-                        try:
-                            spec = attr.rsplit("-", 1)[-1]
-                        except ValueError:
-                            spec = attr
-
-                        if attr.endswith("nodal_balance"):
-                            set_from_frame(self._n, c, "marginal_price", df)
-                        elif assign_all_duals or f"mu_{spec}" in self._n.static(c):
-                            set_from_frame(self._n, c, "mu_" + spec, df)
-                        else:
-                            unassigned.append(name)
-
-                    except:  # noqa: E722 # TODO: specify exception
+                    if attr.endswith("nodal_balance"):
+                        set_from_frame(self._n, c, "marginal_price", df)
+                    elif assign_all_duals or f"mu_{spec}" in self._n.static(c):
+                        set_from_frame(self._n, c, "mu_" + spec, df)
+                    else:
                         unassigned.append(name)
 
-                elif (c == "GlobalConstraint") and (
-                    assign_all_duals or attr in self._n.static(c).index
-                ):
-                    self._n.static(c).loc[attr, "mu"] = dual
+                except:  # noqa: E722 # TODO: specify exception
+                    unassigned.append(name)
 
-            if unassigned:
-                logger.info(
-                    "The shadow-prices of the constraints %s were not assigned to the network.",
-                    ", ".join(unassigned),
-                )
+            elif (c == "GlobalConstraint") and (
+                assign_all_duals or attr in self._n.static(c).index
+            ):
+                self._n.static(c).loc[attr, "mu"] = dual
+
+        if unassigned:
+            logger.info(
+                "The shadow-prices of the constraints %s were not assigned to the network.",
+                ", ".join(unassigned),
+            )
 
     def post_processing(self) -> None:
-        """
-        Post-process the optimized network.
+        """Post-process the optimized network.
 
         This calculates quantities derived from the optimized values such as
         power injection per bus and snapshot, voltage angle.
@@ -860,7 +853,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Link", "p0", "bus0"),
             ("Link", "p1", "bus1"),
         ]
-        for i in additional_linkports(n):
+        for i in n.components.links.additional_ports:
             ca.append(("Link", f"p{i}", f"bus{i}"))
 
         def sign(c: str) -> int:
@@ -904,6 +897,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         #     n.buses_t.v_ang = pd.concat(
         #         [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
         #     ).reindex(columns=n.buses.index, fill_value=0.0)
+
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.
 

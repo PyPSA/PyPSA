@@ -703,13 +703,14 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_types(self)
 
-        if self.n.has_scenarios:
-            self.buses = self.buses.xs(n.scenarios.index[0], level="scenario")
-    branches_bus0 = sub_network.branches()["bus0"]
+        buses = self.buses
 
-        self.lines["v_nom"] = self.lines.bus0.map(self.buses.v_nom)
+        if self.has_scenarios:
+            buses = buses.xs(self.scenarios.index[0], level="scenario")
+
+        self.lines["v_nom"] = self.lines.bus0.map(buses.v_nom)
         self.lines.loc[self.lines.carrier == "", "carrier"] = self.lines.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.lines["x_pu"] = self.lines.x / (self.lines.v_nom**2)
@@ -733,9 +734,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_t_model(self)
 
-        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(
-            self.buses.v_nom
-        )
+        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(buses.v_nom)
         self.shunt_impedances["b_pu"] = (
             self.shunt_impedances.b * self.shunt_impedances.v_nom**2
         )
@@ -744,11 +743,11 @@ class NetworkPowerFlowMixin(_NetworkABC):
         )
 
         self.links.loc[self.links.carrier == "", "carrier"] = self.links.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.stores.loc[self.stores.carrier == "", "carrier"] = self.stores.bus.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         _update_linkports_component_attrs(self)

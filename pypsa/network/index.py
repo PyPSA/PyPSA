@@ -8,11 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-<<<<<<< HEAD
-from typing import Any
-=======
 from typing import TYPE_CHECKING
->>>>>>> new-opt
 
 import pandas as pd
 
@@ -701,11 +697,11 @@ class NetworkIndexMixin(_NetworkABC):
 
         for c in self.components.values():
             c.static = pd.concat(
-                {scen: c.static for scen in scenarios.index}, names=["scenario"]
+                dict.fromkeys(scenarios.index, c.static), names=["scenario"]
             )
             for k, v in c.dynamic.items():
                 c.dynamic[k] = pd.concat(
-                    {scen: v for scen in scenarios.index}, names=["scenario"], axis=1
+                    dict.fromkeys(scenarios.index, v), names=["scenario"], axis=1
                 )
 
         self._scenarios = scenarios
@@ -720,7 +716,5 @@ class NetworkIndexMixin(_NetworkABC):
 
     @property
     def has_scenarios(self) -> bool:
-        """
-        Boolean indicating if the network has scenarios defined.
-        """
+        """Boolean indicating if the network has scenarios defined."""
         return len(self.scenarios) > 0

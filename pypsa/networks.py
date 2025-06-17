@@ -8,19 +8,14 @@ import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
-<<<<<<< HEAD
 import xarray as xr
 from deprecation import deprecated
 
-from pypsa._options import option_context
 from pypsa.common import deprecated_in_next_major, equals
-from pypsa.components.common import as_components
 from pypsa.components.components import Components
 from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 
-=======
->>>>>>> new-opt
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
@@ -29,7 +24,6 @@ import numpy as np
 import pandas as pd
 import pyproj
 import validators
-from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
@@ -37,13 +31,10 @@ from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
     deprecated_common_kwargs,
-    deprecated_in_next_major,
-    equals,
 )
-from pypsa.components.components import Components, SubNetworkComponents
+from pypsa.components.components import SubNetworkComponents
 from pypsa.components.store import ComponentsStore
 from pypsa.consistency import NetworkConsistencyMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.structures import Dict
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
@@ -59,7 +50,6 @@ from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore, iplot
-from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.version import __version_semver__
 
@@ -752,8 +742,7 @@ class Network(
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
     def _empty_components(self) -> list:
-        """
-        Returns a list of all components that are not empty.
+        """Returns a list of all components that are not empty.
 
         Returns
         -------
@@ -852,7 +841,6 @@ class Network(
         )
 
     def controllable_branches(self) -> pd.DataFrame:
-
         """Get controllable branches.
 
         Controllable branches are Links.
@@ -864,14 +852,17 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                            active  build_year  ... type up_time_before
-         component                              ...
-         Norwich Converter    True           0  ...                   1
-         Norway Converter     True           0  ...                   1
-         Bremen Converter     True           0  ...                   1
-         DC link              True           0  ...                   1
+                        active    b  b_pu  ...         x      x_pu  x_pu_eff
+        component name                     ...
+        Line      0       True  0.0   0.0  ...  0.796878  0.000006  0.000006
+                1       True  0.0   0.0  ...  0.391560  0.000003  0.000003
+                2       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                3       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                4       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
+                6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [4 rows x 34 columns]
+        [7 rows x 37 columns]
 
         See Also
         --------
@@ -879,7 +870,14 @@ class Network(
         [pypsa.Network.passive_branches][]
 
         """
->>>>>>> new-opt
+        comps = list(
+            set(self.passive_branch_components) - set(self._empty_components())
+        )
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
             (self.static(c) for c in comps),
             keys=comps,
@@ -968,6 +966,82 @@ class Network(
             sub.find_bus_controls()
 
         return self
+
+    def cycles(
+        self, investment_period: str | int | None = None, apply_weights: bool = False
+    ) -> pd.DataFrame:
+        """Get the cycles in the network and represent them as a DataFrame.
+
+        This function identifies all cycles in the network topology and
+        returns a DataFrame representation of the cycle matrix. The cycles
+        matrix is a sparse matrix with branches as rows and independent
+        cycles as columns. An entry of +1 indicates the branch is traversed
+        in the direction from bus0 to bus1 in that cycle, -1 indicates
+        the opposite direction, and 0 indicates the branch is not part
+        of the cycle.
+
+        Parameters
+        ----------
+        investment_period : str or int, optional
+            Investment period to use when determining network topology.
+            If not given, all branches are considered regardless of
+            build_year and lifetime.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame with branches as rows (MultiIndex of (component, name))
+            and cycles as columns. Each column represents an independent cycle
+            in the network.
+
+        """
+        self.determine_network_topology(
+            investment_period=investment_period, skip_isolated_buses=True
+        )
+        self.calculate_dependent_values()
+
+        cycles = []
+
+        # Process each sub-network to find its cycles
+        for sub_network in self.sub_networks.obj:
+            branches = sub_network.branches()
+
+            if self.has_scenarios:
+                branches = branches.xs(self.scenarios.index[0], level="scenario")
+
+            branches_i = branches.index
+            branches_i.names = ["type", "component"]
+            if not hasattr(sub_network, "C") or not sub_network.C.size:
+                continue
+
+            # Convert sparse matrix to DataFrame
+            C = pd.DataFrame(sub_network.C.todense(), index=branches_i)
+            cycles.append(C)
+
+        if not cycles:
+            return pd.DataFrame()
+
+        # Combine all cycles and fill missing values with 0
+        cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
+
+        # Get all branch components
+        existing_branch_components = cycles_df.index.unique("type")
+        branches = self.branches()
+
+        if self.has_scenarios:
+            branches = branches.xs(self.scenarios.index[0], level="scenario")
+
+        branches.index.names = ["type", "component"]
+        branches_i = branches.loc[existing_branch_components].index
+
+        if apply_weights:
+            is_ac = branches.sub_network.map(self.sub_networks.carrier) == "AC"
+            weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
+            weights = weights[cycles_df.index]
+            cycles_df = cycles_df.multiply(weights, axis=0)
+
+        # Reindex to include all branches (even those not in cycles)
+        return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
 
     @deprecated_in_next_major(
         details="Use `n.components.<component>` instead.",

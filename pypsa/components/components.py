@@ -252,8 +252,7 @@ class Components(
         return self.equals(other)
 
     def __len__(self) -> int:
-        """
-        Get the number of components.
+        """Get the number of components.
 
         Returns
         -------

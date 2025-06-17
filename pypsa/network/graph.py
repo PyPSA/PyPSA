@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 import scipy as sp
 from deprecation import deprecated
 
@@ -14,8 +15,6 @@ from pypsa.common import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable
-
-    import pandas as pd
 
     from pypsa import Network, SubNetwork
 
@@ -78,8 +77,7 @@ class NetworkGraphMixin:
         inf_weight: bool | float = False,
         include_inactive: bool = True,
     ) -> OrderedGraph:
-        """
-        Build NetworkX graph.
+        """Build NetworkX graph.
 
         Parameters
         ----------
@@ -102,6 +100,7 @@ class NetworkGraphMixin:
         -------
         graph : OrderedGraph
             NetworkX graph
+
         """
         n = self
         from pypsa import Network, SubNetwork
@@ -159,8 +158,7 @@ class NetworkGraphMixin:
         weights: pd.Series | None = None,
         return_dataframe: bool = True,
     ) -> pd.DataFrame | sp.sparse.coo_matrix:
-        """
-        Construct an adjacency matrix (directed) as a pandas DataFrame or sparse matrix
+        """Construct an adjacency matrix (directed) as a pandas DataFrame or sparse matrix
 
         Parameters
         ----------
@@ -182,6 +180,7 @@ class NetworkGraphMixin:
         adjacency_matrix : pd.DataFrame or sp.sparse.coo_matrix
         Directed adjacency matrix as DataFrame (if return_dataframe=True) or
         sparse matrix (if return_dataframe=False) with bus indices
+
         """
         from pypsa import Network, SubNetwork
 
@@ -223,11 +222,11 @@ class NetworkGraphMixin:
             # Set weights for these connections
             if weights is None:
                 # Set default weights of 1 for all branches
-                for b0, b1 in zip(bus0, bus1):
+                for b0, b1 in zip(bus0, bus1, strict=False):
                     adjacency_df.at[b0, b1] = 1
             else:
                 # Use provided weights
-                for b0, b1, idx in zip(bus0, bus1, sel):
+                for b0, b1, idx in zip(bus0, bus1, sel, strict=False):
                     adjacency_df.at[b0, b1] = weights[c.name][idx]
 
         if return_dataframe:

@@ -9,7 +9,6 @@ import pandas as pd
 import scipy.sparse as sp
 
 from pypsa import Network
-from pypsa.graph import adjacency_matrix
 
 
 def test_adjacency_matrix_returns_dataframe():
@@ -23,7 +22,7 @@ def test_adjacency_matrix_returns_dataframe():
     n.add("Line", "line1", bus0="bus1", bus1="bus2")
 
     # Get the adjacency matrix
-    adj = adjacency_matrix(n)
+    adj = n.adjacency_matrix()
 
     # Check that the result is a DataFrame
     assert isinstance(adj, pd.DataFrame)
@@ -66,7 +65,7 @@ def test_adjacency_matrix_with_weights():
     )
 
     # Get the adjacency matrix with weights
-    adj = adjacency_matrix(n, weights=weights)
+    adj = n.adjacency_matrix(weights=weights)
 
     # Check values
     assert adj.at["bus0", "bus1"] == 2.5
@@ -84,7 +83,7 @@ def test_adjacency_matrix_returns_sparse():
     n.add("Line", "line1", bus0="bus1", bus1="bus2")
 
     # Get the adjacency matrix as sparse
-    adj = adjacency_matrix(n, return_dataframe=False)
+    adj = n.adjacency_matrix(return_dataframe=False)
 
     # Check that the result is a sparse matrix
     assert isinstance(adj, sp.coo_matrix)
@@ -126,7 +125,7 @@ def test_adjacency_matrix_sparse_with_weights():
     )
 
     # Get the adjacency matrix with weights as sparse
-    adj = adjacency_matrix(n, weights=weights, return_dataframe=False)
+    adj = n.adjacency_matrix(weights=weights, return_dataframe=False)
 
     # Check that the result is a sparse matrix
     assert isinstance(adj, sp.coo_matrix)
@@ -150,8 +149,8 @@ def test_adjacency_matrix_compatibility():
     n.add("Line", "line1", bus0="bus1", bus1="bus2")
 
     # Get both formats
-    adj_df = adjacency_matrix(n, return_dataframe=True)
-    adj_sparse = adjacency_matrix(n, return_dataframe=False)
+    adj_df = n.adjacency_matrix(return_dataframe=True)
+    adj_sparse = n.adjacency_matrix(return_dataframe=False)
 
     # Convert sparse to dense
     adj_sparse_dense = adj_sparse.toarray()
