@@ -67,7 +67,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         """Create custom deepcopy which does not copy the xarray accessor."""
         cls = self.__class__
         result = cls.__new__(cls)
-        memo[id(self)] = result
+        memo[id(self)] = result  # type: ignore
         for k, v in self.__dict__.items():
             setattr(
                 result,

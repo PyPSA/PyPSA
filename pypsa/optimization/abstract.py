@@ -457,7 +457,7 @@ class OptimizationAbstractMixin:
                 break
 
             s_nom_prev = n.lines.s_nom_opt.copy() if iteration else n.lines.s_nom.copy()
-            status, termination_condition = n.optimize(snapshots, **kwargs)  # type: ignore
+            status, termination_condition = n.optimize(snapshots, **kwargs)
             if status != "ok":
                 msg = (
                     f"Optimization failed with status {status} and termination "
@@ -506,7 +506,7 @@ class OptimizationAbstractMixin:
         )
 
         n.calculate_dependent_values()
-        status, condition = n.optimize(snapshots, **kwargs)  # type: ignore
+        status, condition = n.optimize(snapshots, **kwargs)
 
         n.lines.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
         n.lines.loc[ext_i, "s_nom_extendable"] = True
@@ -577,7 +577,7 @@ class OptimizationAbstractMixin:
 
         if not len(all_passive_branches):
             return n.optimize(
-                snapshots,  # type: ignore
+                snapshots,
                 multi_investment_periods=multi_investment_periods,
                 model_kwargs=model_kwargs,
                 **kwargs,
@@ -705,7 +705,7 @@ class OptimizationAbstractMixin:
                         n.storage_units_t.state_of_charge.loc[snapshots[start - 1]]
                     )
 
-            status, condition = n.optimize(sns, **kwargs)  # type: ignore
+            status, condition = n.optimize(sns, **kwargs)
             if status != "ok":
                 logger.warning(
                     "Optimization failed with status %s and condition %s",
@@ -907,7 +907,7 @@ class OptimizationAbstractMixin:
         n = self._n
 
         # Step 1: Optimize the network
-        status, condition = n.optimize(snapshots, **kwargs)  # type: ignore
+        status, condition = n.optimize(snapshots, **kwargs)
 
         if status != "ok":
             logger.warning(
