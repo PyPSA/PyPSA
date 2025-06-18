@@ -52,6 +52,9 @@ Bug Fixes
 
 * The doc-strings of the statistics function are now properly displayed again, ie. the output of `n.statistics.energy_balance?`.
 
+* Fixed various some I/O edge cases for better data preservation during import/export
+  (https://github.com/PyPSA/PyPSA/pull/1255)
+
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================
 
