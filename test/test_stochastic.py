@@ -2,7 +2,7 @@
 Test stochastic functionality of PyPSA networks.
 """
 
-import os
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -31,9 +31,13 @@ def test_network_properties():
     # Check probabilities sum to 1
     assert abs(n.scenarios.sum() - 1.0) < 1e-10
 
+    p_set = n.get_switchable_as_dense("Load", "p_set")
+
+    assert p_set.columns.names == ["scenario", "component"]
+
     # Check data shape for each scenario
     for scenario in n.scenarios.index:
-        assert n.get_switchable_as_dense("Load", "p_set").loc[:, scenario].shape[0] == 5
+        assert p_set.loc[:, scenario].shape[0] == 5
 
     # Check string representation contains scenario information
     assert "Scenarios:" in repr(n)
@@ -87,7 +91,8 @@ def test_model_creation(stochastic_benchmark_network):
     n = stochastic_benchmark_network
     n.optimize.create_model()
 
-    assert hasattr(n, "model") and n.model is not None
+    assert hasattr(n, "model")
+    assert n.model is not None
 
     # Test operational variable Generator-p has scenario dimension
     assert n.model.variables["Generator-p"].dims == (
@@ -187,9 +192,9 @@ def test_solved_network_simple(stochastic_benchmark_network):
     Simple test case with a single bus and multiple generators.
     """
     # Load the benchmark results
-    benchmark_path = os.path.join(os.path.dirname(__file__), "data", "benchmark-sp")
+    benchmark_path = Path(__file__).parent / "data" / "benchmark-sp"
 
-    if not os.path.exists(benchmark_path):
+    if not benchmark_path.exists():
         pytest.skip("Benchmark data not available")
 
     n_r = pypsa.Network(benchmark_path)
