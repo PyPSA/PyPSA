@@ -18,6 +18,7 @@ import pandas as pd
 import validators
 import xarray as xr
 from deprecation import deprecated
+from pandas.errors import ParserError
 from pyproj import CRS
 from typing_extensions import Self
 
@@ -182,7 +183,7 @@ class ImporterCSV(Importer):
         if not fn.is_file():
             return None
 
-        dtypes = {"pypsa_version": str}
+        dtypes = {"pypsa_version": str, "name": str}
         return dict(
             pd.read_csv(
                 fn, encoding=self.encoding, dtype=dtypes, quotechar=self.quotechar
@@ -209,13 +210,19 @@ class ImporterCSV(Importer):
             index_col=0,
             encoding=self.encoding,
             quotechar=self.quotechar,
-            parse_dates=True,
         )
-        # backwards-compatibility: level "snapshot" was rename to "timestep"
-        if "snapshot" in df:
-            df["snapshot"] = pd.to_datetime(df.snapshot)
-        if "timestep" in df:
-            df["timestep"] = pd.to_datetime(df.timestep)
+
+        # Convert snapshot and timestep to datetime (if possible)
+        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+            try:
+                df["snapshot"] = pd.to_datetime(df.snapshot)
+            except (ValueError, ParserError):
+                pass
+        if "timestep" in df and df.timestep.iloc[0] != "now":
+            try:
+                df["timestep"] = pd.to_datetime(df.timestep)
+            except (ValueError, ParserError):
+                pass
         return df
 
     def get_investment_periods(self) -> pd.Series:
@@ -391,7 +398,16 @@ class ImporterExcel(Importer):
     def get_attributes(self) -> dict | None:
         """Get generic network attributes."""
         try:
-            return dict(self.sheets["network"].iloc[0])
+            # Ensure name and pypsa_version are read as strings to prevent
+            # automatic type conversion (e.g., numeric names like "123")
+            df = self.sheets["network"]
+            if "name" in df.columns:
+                df["name"] = df["name"].astype(str)
+
+                df["name"] = df["name"].replace("nan", "")
+            if "pypsa_version" in df.columns:
+                df["pypsa_version"] = df["pypsa_version"].astype(str)
+            return dict(df.iloc[0])
         except (ValueError, KeyError):
             return None
 
@@ -433,18 +449,20 @@ class ImporterExcel(Importer):
 
     def get_snapshots(self) -> pd.Index:
         """Get snapshots data."""
-        try:
-            df = self.sheets["snapshots"]
-            df = df.set_index(df.columns[0])
-            # backwards-compatibility: level "snapshot" was rename to "timestep"
-            if "snapshot" in df:
+        df = self.sheets["snapshots"]
+        df = df.set_index(df.columns[0])
+        # Convert snapshot and timestep to datetime (if possible)
+        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+            try:
                 df["snapshot"] = pd.to_datetime(df.snapshot)
-            if "timestep" in df:
+            except (ValueError, ParserError):
+                pass
+        if "timestep" in df and df.timestep.iloc[0] != "now":
+            try:
                 df["timestep"] = pd.to_datetime(df.timestep)
-        except (ValueError, KeyError):
-            return None
-        else:
-            return df
+            except (ValueError, ParserError):
+                pass
+        return df
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
@@ -461,6 +479,12 @@ class ImporterExcel(Importer):
         try:
             df = self.sheets[list_name]
             df = df.set_index(df.columns[0])
+
+            # Handle DataFrames with only index values that were exported from PyPSA
+            # Otherwise the column row is read in as a component
+            if len(df.columns) == 0 and len(df.index) > 0 and df.index[0] == "name":
+                df = df.iloc[1:]  # Remove the first row which contains the index name
+
         except (ValueError, KeyError):
             return None
         else:
@@ -1141,7 +1165,8 @@ class NetworkIOMixin(_NetworkABC):
         pypsa_version = None
 
         if attrs is not None:
-            self.name = attrs.pop("name")
+            name = attrs.pop("name")
+            self.name = name if pd.notna(name) else ""
 
             try:
                 pypsa_version = tuple(
@@ -1187,10 +1212,12 @@ class NetworkIOMixin(_NetworkABC):
                 df.set_index(sorted(snapshot_levels), inplace=True)
             self.set_snapshots(df.index)
 
-            cols = ["objective", "generators", "stores"]
+            cols = ["objective", "stores", "generators"]
             if not df.columns.intersection(cols).empty:
+                # Preserve the default column order from Network.__init__
+                existing_cols = [col for col in cols if col in df.columns]
                 self.snapshot_weightings = df.reindex(
-                    index=self.snapshots, columns=cols
+                    index=self.snapshots, columns=existing_cols
                 )
             elif "weightings" in df.columns:
                 self.snapshot_weightings = df["weightings"].reindex(self.snapshots)

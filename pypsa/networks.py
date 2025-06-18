@@ -93,9 +93,6 @@ class Network(
     objective_constant: float
     iteration: int
 
-    # Geospatial
-    _crs = CRS.from_epsg(DEFAULT_EPSG)
-
     # ----------------
     # Dunder methods
     # ----------------
@@ -166,6 +163,7 @@ class Network(
         self.pypsa_version: str = __version_semver__
 
         self._meta: dict = {}
+        self._crs: CRS = CRS.from_epsg(DEFAULT_EPSG)
 
         self._snapshots = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
 

@@ -9,6 +9,20 @@ from shapely.geometry import Polygon
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--test-docs-build",
+        action="store_true",
+        default=False,
+        help="run sphinx build test",
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
+
+
 COMPONENT_NAMES = [
     "sub_networks",
     "buses",
@@ -31,30 +45,6 @@ COMPONENT_NAMES = [
 @pytest.fixture(params=COMPONENT_NAMES)
 def component_name(request):
     return request.param
-
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--test-docs-build",
-        action="store_true",
-        default=False,
-        help="run sphinx build test",
-    )
-
-
-def pytest_configure(config):
-    config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
-
-
-@pytest.fixture
-def scipy_network():
-    n = pypsa.examples.scigrid_de()
-    n.generators.control = "PV"
-    g = n.generators[n.generators.bus == "492"]
-    n.generators.loc[g.index, "control"] = "PQ"
-    n.calculate_dependent_values()
-    n.determine_network_topology()
-    return n
 
 
 @pytest.fixture
@@ -111,11 +101,26 @@ def ac_dc_network_shapes(ac_dc_network):
 
 
 @pytest.fixture
-def network_collection(ac_dc_network_r):
-    return pypsa.NetworkCollection(
-        [ac_dc_network_r],
-        index=pd.MultiIndex.from_tuples([("a", 2030)], names=["scenario", "year"]),
-    )
+def network_only_component_names():
+    n = pypsa.Network()
+    n.add("Bus", "bus1", x=0, y=0)
+    n.add("Bus", "bus2", x=1, y=0)
+    n.add("Bus", "bus3", x=0, y=1)
+    # Add components with no extra data
+    n.add("Carrier", "carrier1")
+    n.add("Carrier", "carrier2")
+    return n
+
+
+@pytest.fixture
+def scipy_network():
+    n = pypsa.examples.scigrid_de()
+    n.generators.control = "PV"
+    g = n.generators[n.generators.bus == "492"]
+    n.generators.loc[g.index, "control"] = "PQ"
+    n.calculate_dependent_values()
+    n.determine_network_topology()
+    return n
 
 
 @pytest.fixture
@@ -123,21 +128,27 @@ def storage_hvdc_network():
     return pypsa.examples.storage_hvdc()
 
 
-@pytest.fixture
-def all_networks(
-    ac_dc_network,
-    # ac_dc_network_r,
-    # ac_dc_network_mi,
-    # ac_dc_network_shapes,
-    # storage_hvdc_network,
-):
-    return [
-        ac_dc_network,
-        # ac_dc_network_r,
-        # ac_dc_network_mi,
-        # ac_dc_network_shapes,
-        # storage_hvdc_network,
+@pytest.fixture(
+    params=[
+        "ac_dc_network",
+        # "ac_dc_network_r",
+        # "ac_dc_network_mi",
+        # "ac_dc_network_shapes",
+        # "scipy_network",
+        # "storage_hvdc_network",
+        "network_only_component_names",
     ]
+)
+def network_all(request):
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def network_collection(ac_dc_network_r):
+    return pypsa.NetworkCollection(
+        [ac_dc_network_r],
+        index=pd.MultiIndex.from_tuples([("a", 2030)], names=["scenario", "year"]),
+    )
 
 
 @pytest.fixture(scope="module")
