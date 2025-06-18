@@ -38,6 +38,7 @@ Upcoming Release
     ``pypsa.NetworkCollection()`` and pass a list of networks. The feature is
     experimental and might change with the next release. Documentation and API
     reference will follow with a stable version of that feature.
+    (https://github.com/PyPSA/PyPSA/pull/1212, https://github.com/PyPSA/PyPSA/pull/1254)
 
 Bug Fixes
 --------
