@@ -880,7 +880,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
             {
                 c: self.dynamic(c).p0.loc[snapshot]
                 for c in self.passive_branch_components
-            }
+            },
+            names=["component", "name"],
         )
         p0 = p0_base.to_frame("base")
 
