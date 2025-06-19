@@ -550,6 +550,17 @@ class Network(
             raise ValueError(msg)
         return self._objective
 
+    @objective.setter
+    def objective(self, new: float) -> None:
+        """Set the objective value of the network."""
+        warnings.warn(
+            "Setting the objective value via `n.objective = ...` is deprecated in 0.35 "
+            "and will be removed in 1.0. Use `n.model.objective.value = ...` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self._objective = new
+
     @property
     def objective_constant(self) -> float:
         """Objective constant of the network.
@@ -575,6 +586,17 @@ class Network(
             msg = "The network has not been optimized yet and no objective constant is stored."
             raise ValueError(msg)
         return self._objective_constant
+
+    @objective_constant.setter
+    def objective_constant(self, new: float) -> None:
+        """Set the objective constant of the network."""
+        warnings.warn(
+            "Setting the objective constant via `n.objective_constant = ...` is deprecated in 0.35 "
+            "and will be removed in 1.0. Use `n.model.objective.constant = ...` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self._objective_constant = new
 
     @property
     def crs(self) -> Any:
