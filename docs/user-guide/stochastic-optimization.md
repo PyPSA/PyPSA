@@ -21,6 +21,7 @@ $$
 $$
 
 Where:
+
 - $x$: First-stage (here-and-now) decision variables (e.g., investment decisions in generation/transmission/storage capacities)
 - $\xi_s$: Random parameter realizations in scenario $s$
 - $p_s$: Probability of scenario $s$ occurring
@@ -38,6 +39,7 @@ Q(x, \xi_s) = \min_{y_s} \quad & q_s^T y_s \\
 $$
 
 Where:
+
 - $y_s$: Second-stage (wait-and-see) decision variables for scenario $s$ (e.g., energy dispatch decisions)
 - $q_s$: Second-stage cost coefficients for scenario $s$
 - $W$: Recourse matrix (coefficient matrix for second-stage variables $y_s$)
