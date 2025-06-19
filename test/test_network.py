@@ -499,7 +499,7 @@ def test_components_repr(ac_dc_network):
     assert len(repr(n)) > len(str(n))
 
     n = pypsa.Network()
-    assert repr(n).startswith("Empty Unnamed PyPSA Network")
+    assert repr(n).startswith("Empty PyPSA Network 'My Network'")
     assert len(repr(n)) > len(str(n))
 
 
