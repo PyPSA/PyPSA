@@ -208,7 +208,7 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
     --------
     >>> n = pypsa.examples.model_energy()
     >>> n
-    Unnamed PyPSA Network
+    PyPSA Network 'Model-Energy'
     ---------------------
     Components:
      - Bus: 2

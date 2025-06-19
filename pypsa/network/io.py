@@ -9,7 +9,7 @@ import math
 import tempfile
 from abc import abstractmethod
 from functools import partial
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
@@ -77,10 +77,7 @@ def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Networ
 # TODO: Restructure abc inheritance
 
 
-TImpExper = TypeVar("TImpExper", bound="ImpExper")
-
-
-class ImpExper:
+class _ImpExper:
     """Base class for importers and exporters."""
 
     ds: Any = None
@@ -109,8 +106,8 @@ class ImpExper:
         """Post-processing when process is finished."""
 
 
-class Exporter(ImpExper):
-    """Exporter class."""
+class _Exporter(_ImpExper):
+    """_Exporter class."""
 
     path: Path
 
@@ -149,11 +146,11 @@ class Exporter(ImpExper):
         """Save dynamic components data."""
 
 
-class Importer(ImpExper):
+class _Importer(_ImpExper):
     """Importer class."""
 
 
-class ImporterCSV(Importer):
+class _ImporterCSV(_Importer):
     """Importer class for CSV files."""
 
     def __init__(self, path: str | Path, encoding: str | None, quotechar: str) -> None:
@@ -263,7 +260,7 @@ class ImporterCSV(Importer):
         """Finish the import process."""
 
 
-class ExporterCSV(Exporter):
+class _ExporterCSV(_Exporter):
     """Exporter class for CSV files."""
 
     def __init__(self, path: Path | str, encoding: str | None, quotechar: str) -> None:
@@ -355,7 +352,7 @@ class ExporterCSV(Exporter):
         """Finish the export process."""
 
 
-class ImporterExcel(Importer):
+class _ImporterExcel(_Importer):
     """Importer class for Excel files."""
 
     def __init__(self, path: str | Path, engine: str = "calamine") -> None:
@@ -500,7 +497,7 @@ class ImporterExcel(Importer):
         """Finish the import process."""
 
 
-class ExporterExcel(Exporter):
+class _ExporterExcel(_Exporter):
     """Exporter class for Excel files."""
 
     def __init__(self, path: Path | str, engine: str = "openpyxl") -> None:
@@ -618,7 +615,7 @@ class ExporterExcel(Exporter):
             self.writer.close()
 
 
-class ImporterHDF5(Importer):
+class _ImporterHDF5(_Importer):
     """Importer class for HDF5 files."""
 
     def __init__(self, path: str | pd.HDFStore) -> None:
@@ -691,7 +688,7 @@ class ImporterHDF5(Importer):
         """Finish the import process."""
 
 
-class ExporterHDF5(Exporter):
+class _ExporterHDF5(_Exporter):
     """Exporter class for HDF5 files."""
 
     def __init__(self, path: str | Path, **kwargs: Any) -> None:
@@ -767,7 +764,7 @@ class ExporterHDF5(Exporter):
         self._hdf5_handle.close()
 
 
-class ImporterNetCDF(Importer):
+class _ImporterNetCDF(_Importer):
     """Importer class for netCDF files."""
 
     ds: xr.Dataset
@@ -859,7 +856,7 @@ class ImporterNetCDF(Importer):
         """Finish the import process."""
 
 
-class ExporterNetCDF(Exporter):
+class _ExporterNetCDF(_Exporter):
     """Exporter class for netCDF files."""
 
     def __init__(
@@ -989,7 +986,7 @@ class NetworkIOMixin(_NetworkABC):
 
     def _export_to_exporter(
         self,
-        exporter: Exporter,
+        exporter: _Exporter,
         quotechar: str = '"',
         export_standard_types: bool = False,
     ) -> None:
@@ -1000,7 +997,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        exporter : Exporter
+        exporter : _Exporter
             Initialized exporter instance
         quotechar : str, default '"'
             String of length 1. Character used to denote the start and end of a
@@ -1037,7 +1034,7 @@ class NetworkIOMixin(_NetworkABC):
                     ):
                         continue
                     # Skip `_name` since it is writable
-                    if attr == "_name":
+                    if attr in ["_name", "_pypsa_version"]:
                         continue
                     _attrs[attr] = value
         exporter.save_attributes(_attrs)
@@ -1296,7 +1293,7 @@ class NetworkIOMixin(_NetworkABC):
 
         """
         basename = Path(path).name
-        with ImporterCSV(path, encoding=encoding, quotechar=quotechar) as importer:
+        with _ImporterCSV(path, encoding=encoding, quotechar=quotechar) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
     @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", csv_folder_name="path")
@@ -1347,7 +1344,9 @@ class NetworkIOMixin(_NetworkABC):
         export_to_excel : Export to an Excel file
 
         """
-        with ExporterCSV(path=path, encoding=encoding, quotechar=quotechar) as exporter:
+        with _ExporterCSV(
+            path=path, encoding=encoding, quotechar=quotechar
+        ) as exporter:
             self._export_to_exporter(
                 exporter, export_standard_types=export_standard_types
             )
@@ -1380,7 +1379,7 @@ class NetworkIOMixin(_NetworkABC):
 
         """
         basename = Path(path).stem
-        with ImporterExcel(path, engine=engine) as importer:
+        with _ImporterExcel(path, engine=engine) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
     @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", excel_file_path="path")
@@ -1428,7 +1427,7 @@ class NetworkIOMixin(_NetworkABC):
         export_to_csv_folder : Export to a folder of CSVs
 
         """
-        with ExporterExcel(path, engine=engine) as exporter:
+        with _ExporterExcel(path, engine=engine) as exporter:
             self._export_to_exporter(
                 exporter, export_standard_types=export_standard_types
             )
@@ -1451,7 +1450,7 @@ class NetworkIOMixin(_NetworkABC):
         """
         basename = Path(path).name
 
-        with ImporterHDF5(path) as importer:
+        with _ImporterHDF5(path) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
     def export_to_hdf5(
@@ -1493,7 +1492,7 @@ class NetworkIOMixin(_NetworkABC):
         """
         kwargs.setdefault("complevel", 4)
 
-        with ExporterHDF5(path, **kwargs) as exporter:
+        with _ExporterHDF5(path, **kwargs) as exporter:
             self._export_to_exporter(
                 exporter,
                 export_standard_types=export_standard_types,
@@ -1521,7 +1520,7 @@ class NetworkIOMixin(_NetworkABC):
 
         """
         basename = "" if isinstance(path, xr.Dataset) else Path(path).name
-        with ImporterNetCDF(path=path) as importer:
+        with _ImporterNetCDF(path=path) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
     def export_to_netcdf(
@@ -1577,7 +1576,7 @@ class NetworkIOMixin(_NetworkABC):
         export_to_excel : Export to an Excel file
 
         """
-        with ExporterNetCDF(path, compression, float32) as exporter:
+        with _ExporterNetCDF(path, compression, float32) as exporter:
             self._export_to_exporter(
                 exporter, export_standard_types=export_standard_types
             )

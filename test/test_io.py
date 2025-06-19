@@ -439,6 +439,46 @@ def test_io_equality(network_all, tmp_path):
 
 
 @pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform not in ["linux"],
+    reason="Only check once since it is an optional test when examples are updated.",
+)
+@pytest.mark.parametrize(
+    "example_network",
+    [
+        "ac-dc-meshed",
+        "storage-hvdc",
+        "scigrid-de",
+        "model-energy",
+    ],
+)
+def test_examples_against_master(tmp_path, example_network):
+    # Test examples are unchanged
+    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    # Test examples vs master
+    example_network = pypsa.Network(
+        f"https://github.com/PyPSA/PyPSA/raw/master/examples/networks/{example_network}/{example_network}.nc"
+    )
+    assert n.equals(example_network, log_mode="strict")
+
+
+@pytest.mark.parametrize(
+    "example_network",
+    [
+        "ac-dc-meshed",
+        "storage-hvdc",
+        "scigrid-de",
+        "model-energy",
+    ],
+)
+def test_examples_consistency(tmp_path, example_network):
+    # Test examples are unchanged
+    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    n.export_to_csv_folder(tmp_path / "network")
+    n2 = pypsa.Network(tmp_path / "network")
+    assert n.equals(n2, log_mode="strict")
+
+
+@pytest.mark.skipif(
     sys.version_info < (3, 12), reason="Test requires Python 3.12 or higher"
 )
 @pytest.mark.parametrize("use_pandapower_index", [True, False])
