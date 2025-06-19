@@ -31,7 +31,6 @@ class _NetworkABC(ABC):
     investment_period_weightings: pd.DataFrame
     standard_type_components: pd.DataFrame
     srid: Any
-    pypsa_version: str
     set_snapshots: Callable
     investment_periods: pd.Index
     remove: Callable
