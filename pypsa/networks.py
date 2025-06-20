@@ -406,7 +406,7 @@ class Network(
         Examples
         --------
         >>> n.name
-        'AC-DC'
+        'AC-DC-Meshed'
 
         >>> n = pypsa.Network(name='Unnamed Network')
         >>> n.name
@@ -1111,7 +1111,7 @@ class Network(
         >>> n.component("Bus")
         'Bus' Components
         ----------------
-        Attached to PyPSA Network 'AC-DC'
+        Attached to PyPSA Network 'AC-DC-Meshed'
         Components: 9
 
         """
@@ -1226,8 +1226,8 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         Examples
         --------
         >>> sub_network.n # doctest: +ELLIPSIS
-        PyPSA Network 'AC-DC'
-        ---------------------
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
         Components:
          - Bus: 9
          ...
@@ -1249,7 +1249,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         >>> sub_network.components.generators
         'Generator' SubNetworkComponents
         --------------------------------
-        Attached to Sub-Network of PyPSA Network 'AC-DC'
+        Attached to Sub-Network of PyPSA Network 'AC-DC-Meshed'
         Components: 6
 
         Getting a component is also possible via getitem:

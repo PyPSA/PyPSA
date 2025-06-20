@@ -57,8 +57,8 @@ def ac_dc_meshed(
     --------
     >>> n = pypsa.examples.ac_dc_meshed()
     >>> n
-    PyPSA Network 'AC-DC'
-    ---------------------
+    PyPSA Network 'AC-DC-Meshed'
+    ----------------------------
     Components:
      - Bus: 9
      - Carrier: 6
@@ -107,8 +107,8 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     --------
     >>> n = pypsa.examples.storage_hvdc()
     >>> n
-    PyPSA Network 'Test 6 bus'
-    --------------------------
+    PyPSA Network 'Storage-HVDC'
+    ----------------------------
     Components:
      - Bus: 6
      - Carrier: 3
@@ -157,11 +157,11 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     --------
     >>> n = pypsa.examples.scigrid_de()
     >>> n
-    PyPSA Network 'scigrid-de'
+    PyPSA Network 'SciGrid-DE'
     --------------------------
     Components:
      - Bus: 585
-     - Carrier: 17
+     - Carrier: 16
      - Generator: 1423
      - Line: 852
      - Load: 489
@@ -209,7 +209,7 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
     >>> n = pypsa.examples.model_energy()
     >>> n
     PyPSA Network 'Model-Energy'
-    ---------------------
+    ----------------------------
     Components:
      - Bus: 2
      - Carrier: 9

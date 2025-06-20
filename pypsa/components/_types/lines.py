@@ -36,7 +36,7 @@ class Lines(Components):
     >>> n.components.lines
     'Line' Components
     -----------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 7
 
     """
