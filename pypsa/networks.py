@@ -94,7 +94,7 @@ class Network(
     def __init__(
         self,
         import_name: str | Path = "",
-        name: str = "My Network",
+        name: str = "Unnamed Network",
         ignore_standard_types: bool = False,
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
@@ -108,7 +108,7 @@ class Network(
             Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
             import network data. The string could be a URL. If cloudpathlib is installed,
             the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
-        name : string, default: "My Network"
+        name : string, default: "Unnamed Network"
             Network name.
         ignore_standard_types : boolean, default False
             If True, do not read in PyPSA standard types into standard types
@@ -408,9 +408,9 @@ class Network(
         >>> n.name
         'AC-DC'
 
-        >>> n = pypsa.Network(name='My Network')
+        >>> n = pypsa.Network(name='Unnamed Network')
         >>> n.name
-        'My Network'
+        'Unnamed Network'
 
         >>> n.name = 'net'
         >>> n.name

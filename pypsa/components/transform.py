@@ -98,7 +98,7 @@ class ComponentsTransformMixin:
         >>> c
         'Generator' Components
         ----------------------
-        Attached to PyPSA Network 'My Network'
+        Attached to PyPSA Network 'Unnamed Network'
         Components: 1
 
         With static data (and default values for all attributes):
@@ -117,7 +117,7 @@ class ComponentsTransformMixin:
         >>> c
         'Generator' Components
         ----------------------
-        Attached to PyPSA Network 'My Network'
+        Attached to PyPSA Network 'Unnamed Network'
         Components: 3
 
         With static data:

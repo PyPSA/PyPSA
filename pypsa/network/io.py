@@ -1127,7 +1127,7 @@ class NetworkIOMixin(_NetworkABC):
             exported_components.append(list_name)
 
         logger.info(
-            "Exported network '%s' saved to '%s' contains: %s",
+            "Exported network '%s'%s contains: %s",
             self.name,
             f"saved to '{exporter.path}" if exporter.path else "no file",
             ", ".join(exported_components),
@@ -1255,8 +1255,8 @@ class NetworkIOMixin(_NetworkABC):
             imported_components.append(list_name)
 
         logger.info(
-            "Imported network %s has %s",
-            str(basename or self.name or "<unnamed>"),
+            "Imported network '%s' has %s",
+            self.name,
             ", ".join(imported_components),
         )
 
