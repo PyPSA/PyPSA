@@ -639,6 +639,11 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     Cycles with infinite impedance are skipped.
     """
     branches_bus0 = sub_network.branches()["bus0"]
+
+    if sub_network.has_scenarios:
+        first_scenario = sub_network.scenarios.index[0]
+        branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
+
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
@@ -698,9 +703,14 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_types(self)
 
-        self.lines["v_nom"] = self.lines.bus0.map(self.buses.v_nom)
+        buses = self.buses
+
+        if self.has_scenarios:
+            buses = buses.xs(self.scenarios.index[0], level="scenario")
+
+        self.lines["v_nom"] = self.lines.bus0.map(buses.v_nom)
         self.lines.loc[self.lines.carrier == "", "carrier"] = self.lines.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.lines["x_pu"] = self.lines.x / (self.lines.v_nom**2)
@@ -724,9 +734,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_t_model(self)
 
-        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(
-            self.buses.v_nom
-        )
+        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(buses.v_nom)
         self.shunt_impedances["b_pu"] = (
             self.shunt_impedances.b * self.shunt_impedances.v_nom**2
         )
@@ -735,11 +743,11 @@ class NetworkPowerFlowMixin(_NetworkABC):
         )
 
         self.links.loc[self.links.carrier == "", "carrier"] = self.links.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.stores.loc[self.stores.carrier == "", "carrier"] = self.stores.bus.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         _update_linkports_component_attrs(self)
@@ -872,7 +880,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
             {
                 c: self.dynamic(c).p0.loc[snapshot]
                 for c in self.passive_branch_components
-            }
+            },
+            names=["component", "name"],
         )
         p0 = p0_base.to_frame("base")
 

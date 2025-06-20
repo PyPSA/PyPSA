@@ -643,3 +643,78 @@ class NetworkIndexMixin(_NetworkABC):
                 dict.fromkeys(self._investment_period_weightings.columns, df)
             )
         self._investment_period_weightings = df
+
+    # -----------
+    # Scenarios
+    # -----------
+
+    def set_scenarios(
+        self,
+        scenarios: dict | Sequence | pd.Series | None = None,
+        **kwargs: Any,
+    ) -> None:
+        # Validate input
+        if self.has_scenarios:
+            msg = (
+                "Changing scenarios on a network that already has scenarios defined is not "
+                "yet supported."
+            )
+            # TODO
+            raise NotImplementedError(msg)
+        if scenarios is None and not kwargs:
+            msg = (
+                "You must pass either `scenarios` or keyword arguments "
+                "to set_scenarios."
+            )
+            raise ValueError(msg)
+        if kwargs and scenarios is not None:
+            msg = (
+                "You can pass scenarios either via `scenarios` or via "
+                "keyword arguments, but not both."
+            )
+            raise ValueError(msg)
+
+        if isinstance(scenarios, dict):
+            scenarios = pd.Series(scenarios)
+        elif isinstance(scenarios, pd.Series):
+            pass
+        elif isinstance(scenarios, Sequence):
+            scenarios = pd.Series(
+                [1 / len(scenarios)] * len(scenarios), index=scenarios
+            )
+        elif kwargs:
+            scenarios = pd.Series(kwargs)
+
+        if scenarios.sum() != 1:
+            msg = (
+                "The sum of the weights in `scenarios` must be equal to 1. "
+                f"Current sum: {scenarios.sum()}"
+            )
+            raise ValueError(msg)
+
+        scenarios = scenarios.rename("scenario")
+        scenarios.index = scenarios.index.astype(str)
+
+        for c in self.components.values():
+            c.static = pd.concat(
+                dict.fromkeys(scenarios.index, c.static), names=["scenario"]
+            )
+            for k, v in c.dynamic.items():
+                c.dynamic[k] = pd.concat(
+                    dict.fromkeys(scenarios.index, v), names=["scenario"], axis=1
+                )
+
+        self._scenarios = scenarios
+
+    @property
+    def scenarios(self) -> pd.Series:
+        return self._scenarios
+
+    @scenarios.setter
+    def scenarios(self, scenarios: dict | pd.Series | Sequence) -> None:
+        self.set_scenarios(scenarios)
+
+    @property
+    def has_scenarios(self) -> bool:
+        """Boolean indicating if the network has scenarios defined."""
+        return len(self.scenarios) > 0

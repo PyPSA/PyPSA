@@ -60,6 +60,7 @@ def adjacency_matrix(
     investment_period: int | str | None = None,
     busorder: pd.Index | None = None,
     weights: pd.Series | None = None,
+    return_dataframe: bool = False,
 ) -> sp.sparse.coo_matrix:
     """Use `n.adjacency_matrix` instead."""
     return n.adjacency_matrix(
@@ -67,6 +68,7 @@ def adjacency_matrix(
         investment_period=investment_period,
         busorder=busorder,
         weights=weights,
+        return_dataframe=return_dataframe,
     )
 
 

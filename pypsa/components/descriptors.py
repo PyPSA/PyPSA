@@ -80,7 +80,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             Dictionary of operational attribute names
 
         """
-        # TODO: refactor component attrs store
+        # TODO if we expose this, this needs further refinment and checks, specially
+        # because of edge case StorageUnit with multiple operational variables
 
         base = {
             "Generator": "p",

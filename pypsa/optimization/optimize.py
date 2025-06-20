@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from deprecation import deprecated
 from linopy import Model, merge
 from linopy.solvers import available_solvers
@@ -102,7 +103,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     -----
     - The final objective expression is assigned to `n.model.objective`.
     - Applies snapshot and investment-period weightings to operational and capex terms.
+    - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
     """
+    weighted_cost: xr.DataArray | int
     m = n.model
     objective = []
     is_quadratic = False
@@ -113,7 +116,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # constant for already done investment
     nom_attr = nominal_attrs.items()
-    constant = 0
+    constant: xr.DataArray | float = 0
+    terms = []
+
     for c_name, attr in nom_attr:
         c = as_components(n, c_name)
         ext_i = c.extendables
@@ -127,19 +132,32 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         nominal = c.as_xarray(attr, inds=ext_i)
 
+        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                # collapse time axis via any() so capex value isn't broadcasted
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, component=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            active = c.as_xarray("active").sel(component=ext_i)
-            weighted_cost = capital_cost * active  # type: ignore
+            # collapse time axis via any() so capex value isn’t broadcasted
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
 
-        constant += (weighted_cost * nominal).sum().item()
+            terms.append((weighted_cost * nominal).sum(dim=["component"]))
+
+        constant += sum(terms)
 
     n.objective_constant = constant
-    if constant != 0:
+    if n.has_scenarios:
+        has_const = isinstance(constant, xr.DataArray) and (constant != 0).any().item()
+    else:
+        has_const = constant != 0
+    if has_const:
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
@@ -172,7 +190,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             operation = m[var_name].sel(
                 snapshot=sns, component=cost.coords["component"].values
             )
-            objective.append((operation * cost).sum())
+            objective.append((operation * cost).sum(dim=["component", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -190,7 +208,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         operation = m[f"{c.name}-{attr}"].sel(
             snapshot=sns, component=cost.coords["component"].values
         )
-        objective.append((operation * operation * cost).sum())
+        objective.append(
+            (operation * operation * cost).sum(dim=["component", "snapshot"])
+        )
         is_quadratic = True
 
     # stand-by cost
@@ -210,7 +230,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         status = m[f"{c.name}-status"].sel(
             snapshot=sns, component=stand_by_cost.coords["component"].values
         )
-        objective.append((status * stand_by_cost).sum())
+        objective.append((status * stand_by_cost).sum(dim=["component", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -224,18 +244,24 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if capital_cost.size == 0 or (capital_cost == 0).all():
             continue
 
+        # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
-                active = c.as_xarray("active").sel(period=period, component=ext_i)
+                # collapse time axis via any() so capex value isn't broadcasted
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, component=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
-            active = c.as_xarray("active").sel(component=ext_i)
-            # we skip “active” here to avoid re-introducing the snapshot axis (and scaling capex)
-            weighted_cost = capital_cost  # type: ignore
+            # collapse time axis via any() so capex value isn't broadcasted
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
-        objective.append((caps * weighted_cost).sum())
+        objective.append((caps * weighted_cost).sum(dim=["component"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -252,7 +278,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         var = m[f"{c.name}-{attr}"].sel(component=com_i)
-        objective.append((var * cost).sum())
+        objective.append((var * cost).sum(dim=["component", "snapshot"]))
 
     if not objective:
         msg = (
@@ -261,11 +287,18 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         )
         raise ValueError(msg)
 
-    # Ensure we're returning the correct expression type (MGA compatibility)
-    if is_quadratic:
-        m.objective = sum(objective)  # sum for quadratic expressions
+    terms = []
+    if n.has_scenarios:
+        # Apply scenario probabilities as weights to the objective
+        for s, p in n.scenarios.items():
+            selected = [e.sel(scenario=s) for e in objective]
+            merged = merge(selected)
+            terms.append(merged * p)
     else:
-        m.objective = merge(objective)  # merge for for linear expressions
+        terms = objective
+
+    # Ensure we're returning the correct expression type (MGA compatibility)
+    m.objective = sum(terms) if is_quadratic else merge(terms)
 
 
 @deprecated(
@@ -321,6 +354,33 @@ def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
 def post_processing(n: Network) -> None:
     """Use `n.optimize.post_processing` instead."""
     n.optimize.post_processing()
+
+
+def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
+    """# TODO move"""
+    # Get available dimensions
+    dims = set(da.dims)
+
+    if dims == {"component"} or dims == {"snapshot", "component"}:
+        return da.to_pandas()
+
+    elif dims == {"component", "snapshot", "scenario"}:
+        df = (
+            da.transpose("component", "scenario", "snapshot")
+            .stack(combined=("scenario", "component"))
+            .to_pandas()
+        )
+
+        df.columns.name = None
+        return df
+
+    # Handle other cases
+    else:
+        available_dims = ", ".join([str(x) for x in dims])
+        raise ValueError(
+            f"Unexpected combination of dimensions: {available_dims}. "
+            f"Expected some combination of 'snapshot', 'component', and 'scenario'."
+        )
 
 
 @deprecated(
@@ -644,8 +704,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
     def assign_solution(self) -> None:
         """Map solution to network components."""
-        m = self._n.model
-        sns = self._n.model.parameters.snapshots.to_index()
+        n = self._n
+        m = n.model
+        sns = n.model.parameters.snapshots.to_index()
 
         for name, variable in m.variables.items():
             sol = variable.solution
@@ -654,50 +715,48 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             try:
                 c, attr = name.split("-", 1)
-                df = sol.to_pandas()
+                df = from_xarray(sol)
             except ValueError:
+                # TODO Why is this needed?
                 continue
 
             if "snapshot" in sol.dims:
-                if c in self._n.passive_branch_components and attr == "s":
-                    set_from_frame(self._n, c, "p0", df)
-                    set_from_frame(self._n, c, "p1", -df)
+                if c in n.passive_branch_components and attr == "s":
+                    set_from_frame(n, c, "p0", df)
+                    set_from_frame(n, c, "p1", -df)
 
                 elif c == "Link" and attr == "p":
-                    set_from_frame(self._n, c, "p0", df)
+                    set_from_frame(n, c, "p0", df)
 
-                    for i in ["1"] + self._n.components.links.additional_ports:
+                    for i in ["1"] + n.components.links.additional_ports:
                         i_eff = "" if i == "1" else i
-                        eff = get_as_dense(self._n, "Link", f"efficiency{i_eff}", sns)
-                        set_from_frame(self._n, c, f"p{i}", -df * eff)
-                        self._n.dynamic(c)[f"p{i}"].loc[
-                            sns, self._n.links.index[self._n.links[f"bus{i}"] == ""]
-                        ] = float(
-                            self._n.components["Link"]["attrs"].loc[f"p{i}", "default"]
-                        )
+                        eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
+                        set_from_frame(n, c, f"p{i}", -df * eff)
+                        n.dynamic(c)[f"p{i}"].loc[
+                            sns, n.links.index[n.links[f"bus{i}"] == ""]
+                        ] = float(n.components["Link"]["attrs"].loc[f"p{i}", "default"])
 
                 else:
-                    set_from_frame(self._n, c, attr, df)
+                    set_from_frame(n, c, attr, df)
             elif attr != "n_mod":
-                idx = df.index.intersection(self._n.static(c).index)
-                self._n.static(c).loc[idx, attr + "_opt"] = df.loc[idx]
+                idx = df.index.intersection(n.components[c].component_names)
+                static = n.components[c].static
+                static.loc[:, attr + "_opt"] = static.index.get_level_values(
+                    "component"
+                ).map(df.loc[idx])
 
         # if nominal capacity was no variable set optimal value to nominal
         for c, attr in lookup.query("nominal").index:
-            fix_i = self._n.components[c].fixed
+            fix_i = n.components[c].fixed
             if not fix_i.empty:
-                self._n.static(c).loc[fix_i, f"{attr}_opt"] = self._n.static(c).loc[
-                    fix_i, attr
-                ]
+                n.static(c).loc[fix_i, f"{attr}_opt"] = n.static(c).loc[fix_i, attr]
 
         # recalculate storageunit net dispatch
-        if not self._n.static("StorageUnit").empty:
+        if not n.static("StorageUnit").empty:
             c = "StorageUnit"
-            self._n.dynamic(c)["p"] = (
-                self._n.dynamic(c)["p_dispatch"] - self._n.dynamic(c)["p_store"]
-            )
+            n.dynamic(c)["p"] = n.dynamic(c)["p_dispatch"] - n.dynamic(c)["p_store"]
 
-        self._n.objective = m.objective.value
+        n.objective = m.objective.value
 
     def assign_duals(self, assign_all_duals: bool = False) -> None:
         """Map dual values i.e. shadow prices to network components.
@@ -759,32 +818,31 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         This calculates quantities derived from the optimized values such as
         power injection per bus and snapshot, voltage angle.
         """
-        sns = self._n.model.parameters.snapshots.to_index()
+        n = self._n
+        sns = n.model.parameters.snapshots.to_index()
 
         # correct prices with objective weightings
-        if self._n._multi_invest:
-            period_weighting = self._n.investment_period_weightings.objective
-            weightings = self._n.snapshot_weightings.objective.mul(
+        if n._multi_invest:
+            period_weighting = n.investment_period_weightings.objective
+            weightings = n.snapshot_weightings.objective.mul(
                 period_weighting, level=0, axis=0
             ).loc[sns]
         else:
-            weightings = self._n.snapshot_weightings.objective.loc[sns]
+            weightings = n.snapshot_weightings.objective.loc[sns]
 
-        self._n.buses_t.marginal_price.loc[sns] = self._n.buses_t.marginal_price.loc[
-            sns
-        ].divide(weightings, axis=0)
+        n.buses_t.marginal_price.loc[sns] = n.buses_t.marginal_price.loc[sns].divide(
+            weightings, axis=0
+        )
 
         # load
-        if len(self._n.loads):
-            set_from_frame(
-                self._n, "Load", "p", get_as_dense(self._n, "Load", "p_set", sns)
-            )
+        if len(n.loads):
+            set_from_frame(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
 
         # line losses
-        if "Line-loss" in self._n.model.variables:
-            losses = self._n.model["Line-loss"].solution.to_pandas()
-            self._n.lines_t.p0 += losses / 2
-            self._n.lines_t.p1 += losses / 2
+        if "Line-loss" in n.model.variables:
+            losses = n.model["Line-loss"].solution.to_pandas()
+            n.lines_t.p0 += losses / 2
+            n.lines_t.p1 += losses / 2
 
         # recalculate injection
         ca = [
@@ -795,28 +853,25 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Link", "p0", "bus0"),
             ("Link", "p1", "bus1"),
         ]
-        ca.extend(
-            [("Link", f"p{i}", f"bus{i}") for i in self._n.c.links.additional_ports]
-        )
+        for i in n.components.links.additional_ports:
+            ca.append(("Link", f"p{i}", f"bus{i}"))
 
         def sign(c: str) -> int:
-            return (
-                self._n.static(c).sign if "sign" in self._n.static(c) else -1
-            )  # sign for 'Link'
+            return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
 
-        self._n.buses_t.p = (
+        n.buses_t.p = (
             pd.concat(
                 [
-                    self._n.dynamic(c)[attr]
+                    n.dynamic(c)[attr]
                     .mul(sign(c))
-                    .rename(columns=self._n.static(c)[group])
+                    .rename(columns=n.static(c)[group], level="component")
                     for c, attr, group in ca
                 ],
                 axis=1,
             )
             .T.groupby(level=0)
             .sum()
-            .T.reindex(columns=self._n.buses.index, fill_value=0.0)
+            .T.reindex(columns=n.buses.index, fill_value=0.0)
         )
 
         def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
@@ -826,15 +881,22 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             sub.calculate_B_H(skip_pre=True)
             Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
             Z -= Z[sub.slack_bus]
-            return self._n.buses_t.p.reindex(columns=buses_i) @ Z
+            return n.buses_t.p.reindex(columns=buses_i) @ Z
 
         # TODO: if multi investment optimization, the network topology is not the necessarily the same,
         # i.e. one has to iterate over the periods in order to get the correct angles.
+
         # Determine_network_topology is not necessarily called (only if KVL was assigned)
-        if "obj" in self._n.sub_networks:
-            self._n.buses_t.v_ang = pd.concat(
-                [v_ang_for_(sub) for sub in self._n.sub_networks.obj], axis=1
-            ).reindex(columns=self._n.buses.index, fill_value=0.0)
+        # TODO comment it out for now
+        # if n.sub_networks.empty:
+        #     n.determine_network_topology()
+
+        # TODO fails right now and is only needed for pf
+
+        # if "obj" in n.sub_networks:
+        #     n.buses_t.v_ang = pd.concat(
+        #         [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
+        #     ).reindex(columns=n.buses.index, fill_value=0.0)
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.

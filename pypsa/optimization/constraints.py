@@ -9,10 +9,9 @@ from typing import TYPE_CHECKING, Any
 import linopy
 import pandas as pd
 from deprecation import deprecated
-from linopy import LinearExpression, merge
+from linopy import merge
 from numpy import inf, isfinite
-from scipy import sparse
-from xarray import DataArray, Dataset, concat
+from xarray import DataArray, concat
 
 from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
@@ -80,12 +79,15 @@ def define_operational_constraints_for_non_extendables(
     """
     c = as_components(n, component)
     fix_i = c.fixed
-    fix_i = fix_i.difference(c.committables).rename(fix_i.name)
+    fix_i = fix_i.difference(c.committables)
+
+    if c.has_scenarios:
+        fix_i = fix_i.get_level_values("component").unique()
 
     if fix_i.empty:
         return
 
-    nominal_fix = c.da[c.operational_attrs["nom"]].sel(component=fix_i)
+    nominal_fix = c.da[c._operational_attrs["nom"]].sel(component=fix_i)
     min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr)
 
     lower = min_pu * nominal_fix
@@ -152,6 +154,8 @@ def define_operational_constraints_for_extendables(
     ext_i = c.extendables
     if ext_i.empty:
         return
+    if isinstance(ext_i, pd.MultiIndex):
+        ext_i = ext_i.unique(level="component")
 
     min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr)
     dispatch = n.model[f"{c.name}-{attr}"].sel(component=ext_i)
@@ -237,7 +241,7 @@ def define_operational_constraints_for_committables(
     active = c.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = c.da[c.operational_attrs["nom"]].sel(component=com_i)
+    nominal = c.da[c._operational_attrs["nom"]].sel(component=com_i)
     min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p")
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
@@ -559,6 +563,10 @@ def define_ramp_limit_constraints(
     m = n.model
     c = as_components(n, component)
 
+    # Fix for as_dynamic function breaking with scenarios. TODO fix it OR leave this if clause
+    if c.static.size == 0:
+        return
+
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
         return
 
@@ -621,7 +629,7 @@ def define_ramp_limit_constraints(
         ramp_limit_up_fix = ramp_limit_up.sel(component=fix_i)
         ramp_limit_down_fix = ramp_limit_down.sel(component=fix_i)
         rhs_start_fix = rhs_start
-        p_nom = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
+        p_nom = c.as_xarray(c._operational_attrs["nom"], inds=fix_i)
 
         # Ramp up constraints for fixed components
         non_null_up = ~ramp_limit_up_fix.isnull().all()
@@ -661,7 +669,7 @@ def define_ramp_limit_constraints(
         rhs_start_ext = rhs_start.sel({c: ext_i}).rename({c: ext_dim})
 
         # For extendables, nominal capacity is a decision variable
-        p_nom_var = m[f"{c.name}-{c.operational_attrs['nom']}"]
+        p_nom_var = m[f"{c.name}-{c._operational_attrs['nom']}"]
 
         if not ramp_limit_up_ext.isnull().all():
             lhs = (
@@ -710,7 +718,7 @@ def define_ramp_limit_constraints(
 
         ramp_limit_start_up_com = c.as_xarray("ramp_limit_start_up", inds=com_i)
         ramp_limit_shut_down_com = c.as_xarray("ramp_limit_shut_down", inds=com_i)
-        p_nom_com = c.as_xarray(c.operational_attrs["nom"], inds=original_com_i)
+        p_nom_com = c.as_xarray(c._operational_attrs["nom"], inds=original_com_i)
 
         # Transform rhs_start for committable components
         rhs_start_com = rhs_start.sel(component=com_i)
@@ -843,7 +851,7 @@ def define_nodal_balance_constraints(
     """
     m = n.model
     if buses is None:
-        buses = as_components(n, "Bus").static.index
+        buses = n.buses.index.unique("component")
 
     links = as_components(n, "Link")
 
@@ -857,7 +865,13 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus0", -1],
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
-        ["Link", "p", "bus1", links.as_xarray("efficiency", sns)],
+        [
+            "Link",
+            "p",
+            "bus1",
+            # dirty as hell, TODO make sure as_xarray handles case when links empty AND scenarios there
+            links.as_xarray("efficiency", sns) if not links.static.empty else 0,
+        ],
     ]
 
     if not links.empty:
@@ -884,12 +898,12 @@ def define_nodal_balance_constraints(
             continue
 
         if "sign" in c.static:
-            sign = sign * c.static.sign
+            sign = sign * c.as_xarray("sign")
 
-        expr = DataArray(sign) * m[f"{c.name}-{attr}"]
+        expr = sign * m[f"{c.name}-{attr}"]
 
-        cbuses = c.as_xarray(column).rename("Bus")
-        cbuses = cbuses[cbuses.isin(buses)]
+        cbuses = c.as_xarray(column, drop_scenarios=True)
+        cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
 
         if not cbuses.size:
             continue
@@ -900,26 +914,33 @@ def define_nodal_balance_constraints(
 
         expr = expr.sel(component=cbuses["component"].values)
         if expr.size:
-            exprs.append(expr.groupby(cbuses).sum())
+            exprs.append(expr.groupby(cbuses).sum().rename(Bus="component"))
 
-    lhs = merge(exprs, join="outer").reindex(Bus=buses)
+    # TODO Why is this writing back to the dataframe? e.g. n.buses.index.name
+    lhs = merge(exprs, join="outer").reindex(component=buses)
 
     # Prepare the RHS
     loads = as_components(n, "Load")
-    active_loads = loads.static.query("active").index
 
-    if len(active_loads) > 0:
-        load_values = -loads.as_xarray(
-            "p_set", sns, inds=active_loads
-        ) * loads.as_xarray("sign", inds=active_loads)
-        load_buses = loads.as_xarray("bus", inds=active_loads)
-        rhs = load_values.groupby(load_buses).sum()
-
-        # Reindex to include all buses with zeros for missing buses
-        rhs = rhs.reindex(bus=buses, fill_value=0).rename(bus="Bus")
-    else:
+    if loads.static.empty:
         rhs = DataArray(
-            0, coords={"snapshot": sns, "Bus": buses}, dims=["snapshot", "Bus"]
+            0.0,
+            coords={"snapshot": sns, "component": buses},
+            dims=["snapshot", "component"],
+        )
+    else:
+        loads_values = loads.as_xarray("p_set").where(loads.as_xarray("active", sns))
+        loads_values = loads_values.reindex(
+            component=loads.static.index.unique("component")
+        )
+        load_buses = loads.as_xarray("bus", drop_scenarios=True).rename("Bus")
+
+        # group by bus, then reindex over *all* buses (fill zeros where no loads)
+        rhs = (
+            loads_values.groupby(load_buses)
+            .sum()
+            .rename(Bus="component")
+            .reindex(component=buses, fill_value=0)
         )
 
     empty_nodal_balance = (lhs.vars == -1).all("_term")
@@ -932,12 +953,6 @@ def define_nodal_balance_constraints(
         mask = ~empty_nodal_balance
     else:
         mask = None
-
-    if suffix:
-        lhs = lhs.rename(Bus=f"Bus{suffix}")
-        rhs = rhs.rename({"Bus": f"Bus{suffix}"})
-        if mask is not None:
-            mask = mask.rename(Bus=f"Bus{suffix}")
 
     n.model.add_constraints(lhs, "=", rhs, name=f"Bus{suffix}-nodal_balance", mask=mask)
 
@@ -994,56 +1009,26 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     m = n.model
     n.calculate_dependent_values()
 
-    comps = [c for c in n.passive_branch_components if not n.static(c).empty]
-
-    if not comps:
-        return
-
-    names = ["component", "name"]
-    s = pd.concat({c: m[f"{c}-s"].to_pandas() for c in comps}, axis=1, names=names)
-
-    lhs = []
-
     periods = sns.unique("period") if n._multi_invest else [None]
-
+    lhs = []
     for period in periods:
-        n.determine_network_topology(investment_period=period, skip_isolated_buses=True)
-
         snapshots = sns if period is None else sns[sns.get_loc(period)]
+        C = n.cycles(investment_period=period, apply_weights=True)
+        if C.empty:
+            continue
 
-        exprs_list = []
-        for sub_network in n.sub_networks.obj:
-            branches = sub_network.branches()
-
-            if not sub_network.C.size:
-                continue
-
-            carrier = n.sub_networks.carrier[sub_network.name]
-            weightings = branches.x_pu_eff if carrier == "AC" else branches.r_pu_eff
-            C = 1e5 * sparse.diags(weightings.values) * sub_network.C
-            ssub = s.loc[snapshots, branches.index].values
-
-            ncycles = C.shape[1]
-
-            for j in range(ncycles):
-                c = C.getcol(j).tocoo()
-                coeffs = DataArray(c.data, dims="_term")
-                vars = DataArray(
-                    ssub[:, c.row],
-                    dims=("snapshot", "_term"),
-                    coords={"snapshot": snapshots},
-                )
-                ds = Dataset({"coeffs": coeffs, "vars": vars})
-                exprs_list.append(LinearExpression(ds, m))
-
-        if exprs_list:
-            exprs = merge(exprs_list, dim="cycles")
-            exprs = exprs.assign_coords(cycles=range(len(exprs.data.cycles)))
-            lhs.append(exprs)
+        exprs = []
+        for c in C.index.unique("type"):
+            C_branch = DataArray(C.loc[c])
+            flow = m[f"{c}-s"].sel(
+                snapshot=snapshots, component=C_branch.indexes["component"]
+            )
+            exprs.append(flow @ C_branch * 1e5)
+        lhs.append(sum(exprs))
 
     if lhs:
         lhs = merge(lhs, dim="snapshot")
-        m.add_constraints(lhs, "=", 0, name="Kirchhoff-Voltage-Law")
+        m.add_constraints(lhs == 0, name="Kirchhoff-Voltage-Law")
 
 
 def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> None:
@@ -1192,7 +1177,7 @@ def define_fixed_operation_constraints(
     c = as_components(n, component)
     attr_set = f"{attr}_set"
 
-    if attr_set not in c.dynamic.keys():
+    if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
         return
 
     fix = c.as_xarray(attr_set, sns)
@@ -1201,7 +1186,7 @@ def define_fixed_operation_constraints(
         return
 
     active = c.as_xarray("active", sns, inds=fix.coords["component"].values)
-    mask = (~fix.isnull()) & active
+    mask = active & (~fix.isnull())
 
     var = n.model[f"{c.name}-{attr}"]
 
@@ -1258,7 +1243,13 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         return
 
     # elapsed hours
-    eh = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    eh = DataArray(elapsed_h)
+    try:
+        eh = eh.unstack("dim_1")
+    except:  # noqa: E722
+        # todo
+        pass
 
     # efficiencies as xarray DataArrays
     eff_stand = (1 - c.as_xarray("standing_loss", sns)) ** eh
@@ -1291,7 +1282,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # We add inflow and initial soc for noncyclic assets to rhs
     soc_init = c.as_xarray("state_of_charge_initial")
-    rhs = DataArray(-c.as_xarray("inflow", sns) * eh)
+    rhs = -c.as_xarray("inflow", sns) * eh
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
@@ -1313,7 +1304,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
         # We create a mask `include_previous_soc_pp` which excludes the first
         # snapshot of each period for non-cyclic assets
-        include_previous_soc_pp = active & (periods == periods.shift(snapshot=1))
+        include_previous_soc_pp = (periods == periods.shift(snapshot=1)) & active
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
         # We take values still to handle internal xarray multi-index difficulties
         previous_soc_pp = previous_soc_pp.where(
@@ -1327,6 +1318,11 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         )
 
     lhs += [(eff_stand, previous_soc)]
+
+    # TODO make reindex unnecessary
+    if "scenario" in rhs.dims:
+        include_previous_soc = include_previous_soc.reindex(scenario=rhs.scenario)
+
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)

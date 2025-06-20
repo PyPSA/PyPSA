@@ -5,6 +5,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import pandas as pd
+import xarray as xr
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -139,6 +142,8 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     ext_i = c.extendables
     if ext_i.empty:
         return
+    if isinstance(ext_i, pd.MultiIndex):
+        ext_i = ext_i.unique(level="component")
 
     n.model.add_variables(coords=[ext_i], name=f"{c.name}-{attr}")
 
@@ -178,8 +183,14 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     if (upper.max() <= 0).all():
         return
 
-    active = c.as_xarray("active", sns).where(upper > 0, False)
-    n.model.add_variables(0, upper, name=f"{c.name}-spill", mask=active)
+    active = c.as_xarray("active", sns)
+
+    # align "active" and "upper" arrays on the same order across scenario/snapshot/component axes
+    # .align() TODO low high
+    active_aligned, upper_aligned = xr.align(active, upper, join="inner")
+    active = active_aligned.where(upper_aligned > 0, False)
+
+    n.model.add_variables(0, upper_aligned, name=f"{c.name}-spill", mask=active)
 
 
 def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:

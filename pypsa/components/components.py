@@ -251,6 +251,17 @@ class Components(
         """
         return self.equals(other)
 
+    def __len__(self) -> int:
+        """Get the number of components.
+
+        Returns
+        -------
+        int
+            Number of components.
+
+        """
+        return len(self.static)
+
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check if two Components are equal.
 
@@ -661,12 +672,15 @@ class Components(
             Index of extendable elements.
 
         """
-        index_name = self.name
-        extendable_col = self.operational_attrs["nom_extendable"]
+        extendable_col = self._operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
-            return pd.Index([], name=index_name)
+            return self.static.iloc[:0].index
 
         idx = self.static.loc[self.static[extendable_col]].index
+
+        if self.has_scenarios:
+            idx = idx.unique("component")
+
         return idx
 
     @property
@@ -679,10 +693,9 @@ class Components(
             Index of non-extendable elements.
 
         """
-        index_name = self.name
-        extendable_col = self.operational_attrs["nom_extendable"]
+        extendable_col = self._operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
-            return pd.Index([], name=index_name)
+            return self.static.iloc[:0].index
 
         idx = self.static.loc[~self.static[extendable_col]].index
         return idx
@@ -697,53 +710,11 @@ class Components(
             Index of committable elements.
 
         """
-        index_name = self.name
         if "committable" not in self.static:
-            return pd.Index([], name=index_name)
+            return self.static.iloc[:0].index
 
         idx = self.static.loc[self.static["committable"]].index
         return idx
-
-    @property
-    def operational_attrs(self) -> dict[str, str]:
-        """Get operational attributes of component for optimization.
-
-        Provides a dictionary of attribute patterns used in optimization constraints,
-        based on the component type. This makes constraint formulation more modular
-        by avoiding hardcoded attribute names.
-
-        Returns
-        -------
-        dict[str, str]
-            Dictionary of operational attribute names
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
-        >>> c.operational_attrs["min_pu"]
-        'p_min_pu'
-        >>> c.operational_attrs["max_pu"]
-        'p_max_pu'
-        >>> c.operational_attrs["nom"]
-        'p_nom'
-
-        """
-        # TODO: refactor component attrs store
-
-        base = self.base_attr
-
-        return {
-            "base": base,
-            "nom": f"{base}_nom",
-            "nom_extendable": f"{base}_nom_extendable",
-            "nom_min": f"{base}_nom_min",
-            "nom_max": f"{base}_nom_max",
-            "nom_set": f"{base}_nom_set",
-            "min_pu": f"{base}_min_pu",
-            "max_pu": f"{base}_max_pu",
-            "set": f"{base}_set",
-        }
 
 
 class SubNetworkComponents:

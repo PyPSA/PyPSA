@@ -45,17 +45,22 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def has_scenarios(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
     def has_investment_periods(self) -> bool:
         pass
 
     @property
     @abstractmethod
-    def investment_periods(self) -> pd.Index:
+    def has_periods(self) -> bool:
         pass
 
     @property
     @abstractmethod
-    def operational_attrs(self) -> dict:
+    def investment_periods(self) -> pd.Index:
         pass
 
     @property
@@ -72,11 +77,6 @@ class _ComponentsABC(ABC):
     @abstractmethod
     def fixed(self) -> pd.Index:
         pass
-
-    @property
-    def base_attr(self) -> str:
-        msg = f"base_attr does not exist for {self.name} components"
-        raise ValueError(msg)
 
     @abstractmethod
     def get_activity_mask(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
@@ -110,5 +110,5 @@ class _ComponentsABC(ABC):
             Tuple of (min_pu, max_pu) DataFrames.
 
         """
-        msg = f"get_bounds_pu does not exist for {self.name} components"
-        raise ValueError(msg)
+        msg = f"Bounds can only be retrieved for components with operational attributes and not for {self.name} components."
+        raise AttributeError(msg)

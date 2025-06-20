@@ -58,11 +58,30 @@ def scipy_network():
 
 
 @pytest.fixture
+def n():
+    return pypsa.examples.ac_dc_meshed()
+
+
+@pytest.fixture
+def ac_dc_meshed_stoch():
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    return n
+
+
+@pytest.fixture
+def ac_dc_meshed_stoch_r(ac_dc_network_r):
+    n = ac_dc_network_r.copy()
+    n.set_scenarios({"low": 0.5, "high": 0.5})
+    return n
+
+
+@pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 
 
-@pytest.fixture  # scope="session")
+@pytest.fixture
 def ac_dc_network_r():
     csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
     return pypsa.Network(csv_folder)
@@ -176,3 +195,72 @@ def pandapower_cigre_network():
     except ImportError:
         pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")
+
+
+@pytest.fixture
+def stochastic_benchmark_network():
+    """
+    Create a network for benchmarking stochastic problems.
+    This optimization problem is also uploaded to the pypsa examples repository
+    with stochastic problem solved in two ways: out-of-the-box using PyPSA
+    functionality and hardcoded using linopy.
+    """
+    # Configuration
+    GAS_PRICE = 40  # Default scenario
+    FREQ = "3h"
+    LOAD_MW = 1
+    TS_URL = "https://tubcloud.tu-berlin.de/s/pKttFadrbTKSJKF/download/time-series-lecture-2.csv"
+
+    # Technology specs
+    TECH = {
+        "solar": {"profile": "solar", "inv": 1e6, "m_cost": 0.01},
+        "wind": {"profile": "onwind", "inv": 2e6, "m_cost": 0.02},
+        "gas": {"inv": 7e5, "eff": 0.6},
+        "lignite": {"inv": 1.3e6, "eff": 0.4, "m_cost": 130},
+    }
+    FOM, DR, LIFE = 3.0, 0.03, 25
+
+    def annuity(life, rate):
+        return rate / (1 - (1 + rate) ** -life) if rate else 1 / life
+
+    for cfg in TECH.values():
+        cfg["fixed_cost"] = (annuity(LIFE, DR) + FOM / 100) * cfg["inv"]
+
+    # Load time series data from URL - same as in the original script
+    ts = pd.read_csv(TS_URL, index_col=0, parse_dates=True).resample(FREQ).asfreq()
+
+    n = pypsa.Network()
+    n.set_snapshots(ts.index)
+    n.snapshot_weightings = pd.Series(int(FREQ[:-1]), index=ts.index)
+
+    n.add("Bus", "DE")
+    n.add("Load", "DE_load", bus="DE", p_set=LOAD_MW)
+
+    for tech in ["solar", "wind"]:
+        cfg = TECH[tech]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            p_max_pu=ts[cfg["profile"]],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=cfg["m_cost"],
+        )
+
+    for tech in ["gas", "lignite"]:
+        cfg = TECH[tech]
+        mc = (GAS_PRICE / cfg["eff"]) if tech == "gas" else cfg["m_cost"]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            efficiency=cfg["eff"],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=mc,
+        )
+    # Set up scenarios
+    n.set_scenarios({"low": 0.4, "medium": 0.3, "high": 0.3})
+
+    return n

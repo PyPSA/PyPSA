@@ -138,7 +138,11 @@ class ComponentsArrayMixin(_ComponentsABC):
             res = res.fillna(0)
 
         res.index.name = sns.name
-        res.columns.name = "component"
+        if self.has_scenarios:
+            res.columns.name = "component"
+            res.columns.names = static.index.names
+        else:
+            res.columns.name = "component"
         return res
 
     def as_xarray(
@@ -146,6 +150,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         attr: str,
         snapshots: Sequence | None = None,
         inds: Sequence | None = None,
+        drop_scenarios: bool = False,
     ) -> xarray.DataArray:
         """Get an attribute as a xarray DataArray.
 
@@ -153,11 +158,9 @@ class ComponentsArrayMixin(_ComponentsABC):
         particularly useful for optimization routines. The method provides several
         conveniences:
 
-        1. Supports short attribute name aliases through the `operational_attrs` mapping
-            (e.g., "max_pu" instead of "p_max_pu")
-        2. Automatically handles both static and time-varying attributes
-        3. Creates activity masks with the special "active" attribute name
-        4. Properly handles scenarios if present in the network
+        1. Automatically handles both static and time-varying attributes
+        2. Creates activity masks with the special "active" attribute name
+        3. Properly handles scenarios if present in the network
 
         Parameters
         ----------
@@ -171,52 +174,49 @@ class ComponentsArrayMixin(_ComponentsABC):
             or returns static data as-is
         inds : pd.Index | None, optional
             Component indices to filter by. If None, includes all components
+        drop_scenarios : bool, default False
+            If True, drops the scenario dimension from the resulting DataArray
+            by selecting the first scenario.
 
         Returns
         -------
         xarray.DataArray
             The requested attribute data as an xarray DataArray with appropriate dimensions
 
-        Examples
-        --------
-        >>> import pypsa
-        >>> n = pypsa.examples.ac_dc_meshed()
-
-        # Get power output limits for generators for the first two snapshots
-        >>> limit = n.components.generators.as_xarray('p_max_pu', n.snapshots[:2])
-
-        # Use operational attribute shorthand
-        >>> limit = n.components.generators.as_xarray('max_pu', n.snapshots[:2])
-
-        # Get activity mask for lines
-        >>> active = n.components.lines.as_xarray('active')
-
-        # Get nominal capacity for specific generators
-        >>> gens = pd.Index(['Manchester Wind', 'Norway Wind'], name='Generator')
-        >>> p_nom = n.components.generators.as_xarray('p_nom', inds=gens)
-
         """
         # Strip any index name information
         # snapshots = getattr(snapshots, "values", snapshots) # TODO # noqa: ERA001
         inds = getattr(inds, "values", inds)
 
-        if attr in self.operational_attrs.keys():
-            attr = self.operational_attrs[attr]
-
         if attr == "active":
-            res = xarray.DataArray(self.get_activity_mask(snapshots, inds))
+            res = xarray.DataArray(self.get_activity_mask(snapshots))
         elif attr in self.dynamic.keys() or snapshots is not None:
-            res = xarray.DataArray(self._as_dynamic(attr, snapshots, inds))
+            res = self._as_dynamic(attr, snapshots)
+            if self.has_scenarios:
+                # TODO implement this better
+                res.columns.name = None
+            res = xarray.DataArray(res)
         else:
-            if inds is not None:
-                data = self.static[attr].reindex(inds)
-                data.index.name = "component"
-            else:
-                data = self.static[attr]
-                data.index.name = "component"
-            res = xarray.DataArray(data)
+            res = xarray.DataArray(self.static[attr])
 
         # Rename dimension
         # res = res.rename({self.name: "component"}) # noqa: ERA001
+
+        if self.has_scenarios:
+            # untack the dimension that contains the scenarios
+            res = res.unstack(res.indexes["scenario"].name)
+            if drop_scenarios:
+                res = res.isel(scenario=0, drop=True)
+
+        if inds is not None:
+            res = res.sel(component=inds)
+
+        if self.has_periods:
+            try:
+                res = res.rename(dim_0="snapshot")
+            except ValueError:
+                pass
+
+        res.name = attr
 
         return res
