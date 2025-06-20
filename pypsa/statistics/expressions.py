@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
@@ -11,7 +10,6 @@ import pandas as pd
 from pypsa._options import options
 from pypsa.common import (
     MethodHandlerWrapper,
-    deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import nominal_attrs
@@ -476,7 +474,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        aggregate_time: None = None,
     ) -> pd.DataFrame:
         """Calculate **multiple statistical values** for a network.
 
@@ -523,8 +520,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Number of decimal places to round the result to. Defaults to module wide
             option (default: 2). See `pypsa.options.params.statistics.describe()` for more
             information.
-        aggregate_time : None
-            Deprecated. Use dedicated functions for individual statistics instead.
 
         Returns
         -------
@@ -542,14 +537,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        if aggregate_time is not None:
-            warnings.warn(
-                "The parameter `aggregate_time` is deprecated for the summary function."
-                "Please use it for individual statistics instead. Deprecated in "
-                "version 0.34 and will be removed in version 1.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         funcs: list[Callable] = [
             self.optimal_capacity,
             self.installed_capacity,
@@ -1817,7 +1804,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
     def energy_balance(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
@@ -2165,7 +2151,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
     def revenue(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,

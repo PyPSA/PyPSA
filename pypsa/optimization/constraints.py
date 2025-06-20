@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import linopy
 import pandas as pd
-from deprecation import deprecated
 from linopy import LinearExpression, merge
 from numpy import inf, isfinite
 from scipy import sparse
@@ -1012,15 +1011,6 @@ def define_loss_constraints(
             n.model.add_constraints(
                 lhs >= offset_k, name=f"{c}-loss_tangents-{k}-{sign}", mask=active
             )
-
-
-@deprecated(
-    deprecated_in="0.31.2",
-    removed_in="1.0",
-    details="Use define_total_supply_constraints instead.",
-)
-def define_generators_constraints(n: Network, sns: Sequence) -> None:
-    return define_total_supply_constraints(n, sns)
 
 
 def define_total_supply_constraints(n: Network, sns: Sequence) -> None:

@@ -31,14 +31,6 @@ except ImportError:
     explore_deps_present = False
 
 
-def test_deprecated_namespace(ac_dc_network):
-    from pypsa.plot import plot as plot_deprecated
-
-    with pytest.warns(DeprecationWarning):
-        plot_deprecated(ac_dc_network)
-    plt.close()
-
-
 @pytest.mark.parametrize("margin", [None, 0.1])
 @pytest.mark.parametrize("jitter", [None, 1])
 @pytest.mark.skipif(os.name == "nt", reason="tcl_findLibrary on Windows")

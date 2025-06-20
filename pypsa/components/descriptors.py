@@ -10,8 +10,7 @@ Descriptor functions only describe data and do not modify it.
 from __future__ import annotations
 
 import logging
-import warnings
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -24,38 +23,7 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from pypsa import Components
 logger = logging.getLogger(__name__)
-
-
-def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
-    """Get active assets. Use `c.get_active_assets` instead.
-
-    Examples
-    --------
-    >>> import pytest
-    >>> with pytest.warns(DeprecationWarning):
-    ...     get_active_assets(c)
-    Generator
-    Manchester Wind    True
-    Manchester Gas     True
-    Norway Wind        True
-    Norway Gas         True
-    Frankfurt Wind     True
-    Frankfurt Gas      True
-    Name: active, dtype: bool
-
-    """
-    warnings.warn(
-        (
-            "pypsa.components.descriptors.get_active_assets is deprecated. "
-            "Use c.get_active_assets instead."
-            "Deprecated in version 0.35 and will be removed in version 1.0."
-        ),
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return c.get_active_assets(*args, **kwargs)
 
 
 class ComponentsDescriptorsMixin(_ComponentsABC):

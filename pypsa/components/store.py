@@ -7,10 +7,8 @@ from __future__ import annotations
 
 import logging
 import re
-import warnings
 from typing import TYPE_CHECKING, Any
 
-from pypsa._options import options
 from pypsa.deprecations import COMPONENT_ALIAS_DICT
 
 if TYPE_CHECKING:
@@ -169,15 +167,6 @@ class ComponentsStore(dict):
 
     def __iter__(self) -> Any:
         """Value iterator over components in store."""
-        if options.get_option("warnings.components_store_iter"):
-            warnings.warn(
-                "Iterating over `n.components` yields the values instead of keys from "
-                "v0.33.0. This behavior might be breaking. Use `n.components.keys()` "
-                "to iterate over the keys. To suppress this warning set "
-                "`pypsa.options.warnings.components_store_iter = False`.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         return iter(self.values())
 
     def __contains__(self, item: Any) -> bool:
