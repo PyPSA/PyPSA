@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import logging
-import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -16,14 +15,12 @@ import numpy as np
 import pandas as pd
 import pyproj
 import validators
-from deprecation import deprecated
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
-    deprecated_common_kwargs,
     deprecated_in_next_major,
     equals,
 )
@@ -45,7 +42,6 @@ from pypsa.network.power_flow import (
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
-from pypsa.plot.maps import explore, iplot
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.version import __version_semver__
@@ -96,8 +92,6 @@ class Network(
         import_name: str | Path = "",
         name: str = "Unnamed Network",
         ignore_standard_types: bool = False,
-        override_components: pd.DataFrame | None = None,
-        override_component_attrs: Dict | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize a new PyPSA Network.
@@ -113,23 +107,8 @@ class Network(
         ignore_standard_types : boolean, default False
             If True, do not read in PyPSA standard types into standard types
             DataFrames.
-        override_components : pandas.DataFrame
-            If you want to override the standard PyPSA components in
-            :meth:`n.default_components <pypsa.Network.default_components>`, pass it a
-            DataFrame indexed by component names and.
-            See :doc:`/user-guide/components` for more information.
-        override_component_attrs : pypsa.descriptors.Dict of pandas.DataFrame
-            If you want to override
-            :meth:`n.default_component_attrs <pypsa.Network.default_component_attrs>`.
-            See :doc:`/user-guide/components` for more information.
-        kwargs
+        kwargs : Any
             Any remaining attributes to set
-
-        Deprecation
-        ------------
-        [:material-tag-outline: v0.33.0](/release-notes/#v0.33.0): Parameters
-        `override_components` and `override_component_attrs` are deprecated and do not.
-        Please check the release notes for more information.
 
         Examples
         --------
@@ -139,15 +118,6 @@ class Network(
         >>> nw4 = pypsa.Network("s3://my-bucket/my-network.nc") # doctest: +SKIP
 
         """
-        if override_components is not None or override_component_attrs is not None:
-            msg = (
-                "Parameters `override_components` and `override_component_attrs` "
-                "are deprecated. Please check the release notes: "
-                "https://pypsa.readthedocs.io/en/latest/references/release-notes.html#v0-33-0."
-                "Deprecated in version 0.33 and will be removed in version 1.0."
-            )
-            raise DeprecationWarning(msg)
-
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
@@ -298,32 +268,6 @@ class Network(
 
         """
         return self.equals(other)
-
-    @deprecated(
-        deprecated_in="0.34",
-        removed_in="1.0",
-        details="Use `n.plot.iplot()` as a drop-in replacement instead.",
-    )
-    def iplot(self, *args: Any, **kwargs: Any) -> Any:
-        """Plot the network on a map using Plotly.
-
-        !!! warning "Deprecated in v0.34"
-            Use `n.plot.iplot()` as a drop-in replacement instead.
-        """
-        return iplot(self, *args, **kwargs)
-
-    @deprecated(
-        deprecated_in="0.34",
-        removed_in="1.0",
-        details="Use `n.plot.explore()` as a drop-in replacement instead.",
-    )
-    def explore(self, *args: Any, **kwargs: Any) -> Any:
-        """Plot the network on a map using Folium.
-
-        !!! warning "Deprecated in v0.34"
-            Use `n.plot.explore()` as a drop-in replacement instead.
-        """
-        return explore(self, *args, **kwargs)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
@@ -550,17 +494,6 @@ class Network(
             raise ValueError(msg)
         return self._objective
 
-    @objective.setter
-    def objective(self, new: float) -> None:
-        """Set the objective value of the network."""
-        warnings.warn(
-            "Setting the objective value via `n.objective = ...` is deprecated in 0.35 "
-            "and will be removed in 1.0. Use `n.model.objective.value = ...` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._objective = new
-
     @property
     def objective_constant(self) -> float:
         """Objective constant of the network.
@@ -586,17 +519,6 @@ class Network(
             msg = "The network has not been optimized yet and no objective constant is stored."
             raise ValueError(msg)
         return self._objective_constant
-
-    @objective_constant.setter
-    def objective_constant(self, new: float) -> None:
-        """Set the objective constant of the network."""
-        warnings.warn(
-            "Setting the objective constant via `n.objective_constant = ...` is deprecated in 0.35 "
-            "and will be removed in 1.0. Use `n.model.objective.constant = ...` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._objective_constant = new
 
     @property
     def crs(self) -> Any:
@@ -687,7 +609,6 @@ class Network(
         snapshots: Sequence | None = None,
         investment_periods: Sequence | None = None,
         ignore_standard_types: bool = False,
-        with_time: bool | None = None,
     ) -> Network:
         """Return a deep copy of Network object.
 
@@ -708,12 +629,6 @@ class Network(
             A list of investment periods to copy, must be a subset of n.investment_periods. Pass
         ignore_standard_types : boolean, default False
             Ignore the PyPSA standard types.
-        with_time : boolean, default True
-            Copy snapshots and time-varying n.component_names_t data too.
-
-            .. deprecated:: 0.29.0
-              The 'with_time' argument is deprecated in 0.29 and will be removed in a
-              future version. Pass an empty list to 'snapshots' instead.
 
         Returns
         -------
@@ -751,24 +666,13 @@ class Network(
             raise NotImplementedError(msg)
 
         # Use copy.deepcopy if no arguments are passed
-        args = [snapshots, investment_periods, ignore_standard_types, with_time]
+        args = [snapshots, investment_periods, ignore_standard_types]
         if all(arg is None or arg is False for arg in args):
             return copy.deepcopy(self)
 
         # Convert to pandas.Index
         snapshots_ = as_index(self, snapshots, "snapshots")
         investment_periods_ = as_index(self, investment_periods, "investment_periods")
-
-        # Deprecation warnings
-        if with_time is not None:
-            warnings.warn(
-                "Argument 'with_time' is deprecated in 0.29 and will be "
-                "removed in a future version. Pass an empty list to 'snapshots' instead."
-                "Deprecated in version 0.29 and will be removed in version 1.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            snapshots_ = pd.Index([], name="snapshot")
 
         # Setup new network
         n = self.__class__(ignore_standard_types=ignore_standard_types)
@@ -1192,7 +1096,6 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
 
     list_name = "sub_networks"
 
-    @deprecated_common_kwargs
     def __init__(self, n: Network, name: str) -> None:
         """Initialize a sub-network.
 
@@ -1206,18 +1109,6 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         self._n = ref(n)
         self.name = name
-
-    @property
-    @deprecated(
-        deprecated_in="0.32", removed_in="1.0", details="Use the `n` property instead."
-    )
-    def network(self) -> Network:
-        """Get the parent network of the sub-network.
-
-        !!! warning "Deprecated in v1.0"
-            Use `sub_network.n` instead.
-        """
-        return self._n()  # type: ignore
 
     @property
     def n(self) -> Network:

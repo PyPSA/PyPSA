@@ -61,7 +61,6 @@ def imag(X: pd.Series) -> pd.Series:
     return np.imag(X.to_numpy())
 
 
-@deprecated_common_kwargs
 def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
     to_allocate = {
         "Generator": ["p"],
@@ -137,7 +136,6 @@ def _calculate_controllable_nodal_power_balance(
             )
 
 
-@deprecated_common_kwargs
 def _network_prepare_and_run_pf(
     n: Network,
     snapshots: Sequence | None,
@@ -226,7 +224,6 @@ def _network_prepare_and_run_pf(
     return None
 
 
-@deprecated_common_kwargs
 def allocate_series_dataframes(n: Network, series: dict) -> None:
     """Populate time-varying outputs with default values.
 
@@ -406,7 +403,6 @@ def sub_network_pf_singlebus(
     return 0, 0.0, True  # dummy substitute for newton raphson output
 
 
-@deprecated_common_kwargs
 def apply_line_types(n: Network) -> None:
     """Calculate line electrical parameters x, r, b, g from standard types."""
     lines_with_types_b = n.lines.type != ""
@@ -444,7 +440,6 @@ def apply_line_types(n: Network) -> None:
         n.lines.loc[lines_with_types_b, attr] = lines[attr]
 
 
-@deprecated_common_kwargs
 def apply_transformer_types(n: Network) -> None:
     """Calculate transformer electrical parameters x, r, b, g from standard types."""
     trafos_with_types_b = n.transformers.type != ""
@@ -523,7 +518,6 @@ def wye_to_delta(
     return (summand / z2, summand / z1, summand / z3)
 
 
-@deprecated_common_kwargs
 def apply_transformer_t_model(n: Network) -> None:
     """Convert given T-model parameters to PI-model parameters.
 
@@ -821,7 +815,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             use_seed=use_seed,
             distribute_slack=distribute_slack,
             slack_weights=slack_weights,
-        )
+        )  # type: ignore
 
     def lpf_contingency(
         self,

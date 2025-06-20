@@ -2,8 +2,9 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.descriptors import expand_series, nominal_attrs
+from pypsa.common import expand_series
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 
 TOLERANCE = 1e-2
 
