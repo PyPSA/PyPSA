@@ -231,9 +231,6 @@ class OptionsNode:
         params.statistics.round:
             Default: 5
             Description: Default value for the 'round' parameter in statistics module.
-        warnings.components_store_iter:
-            Default: True
-            Description: If False, suppresses the deprecatio warning when iterating over components.
 
         """
         if not prefix:
@@ -274,9 +271,6 @@ class OptionsNode:
         params.statistics.round:
             Default: 5
             Description: Default value for the 'round' parameter in statistics module.
-        warnings.components_store_iter:
-            Default: True
-            Description: If False, suppresses the deprecatio warning when iterating over components.
 
         """
         self.describe_options()
@@ -339,13 +333,6 @@ options._add_option(
     "Use legacy components API for backwards compatibility to PyPSA versions prior to "
     "1.0.0. It is still recommended to use the new API and not to rely on the legacy "
     "API. This option will be removed with PyPSA 2.0.0.",
-)
-
-# Warnings category
-options._add_option(
-    "warnings.components_store_iter",
-    True,
-    "If False, suppresses the deprecatio warning when iterating over components. ",
 )
 
 # Parameters category
