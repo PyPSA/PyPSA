@@ -1705,6 +1705,13 @@ class NetworkIOMixin(_NetworkABC):
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
 
+        # Convert NaN to empty strings for object dtype columns (likely strings)
+        # for custom attributes
+        custom_attrs = set(df.columns) - set(static_attrs.index)
+        custom_object_cols = [col for col in custom_attrs if df[col].dtype == "object"]
+        if custom_object_cols:
+            df[custom_object_cols] = df[custom_object_cols].fillna("")
+
         # check all the buses are well-defined
         # TODO use func from consistency checks
         for attr in [attr for attr in df if attr.startswith("bus")]:

@@ -439,7 +439,7 @@ def test_io_equality(network_all, tmp_path):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux"],
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
     reason="Only check once since it is an optional test when examples are updated.",
 )
 @pytest.mark.parametrize(
