@@ -97,11 +97,11 @@ class TestCSVDir:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using CSV format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_csv_folder(tmp_path / "network")
         n3 = pypsa.Network(tmp_path / "network")
         assert n.equals(n3, log_mode="strict")
@@ -220,11 +220,11 @@ class TestNetcdf:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using netCDF format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_netcdf(tmp_path / "network.nc")
         n2 = pypsa.Network(tmp_path / "network.nc")
         assert n.equals(n2, log_mode="strict")
@@ -288,11 +288,11 @@ class TestHDF5:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using HDF5 format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_hdf5(tmp_path / "network.h5")
         n5 = pypsa.Network(tmp_path / "network.h5")
         assert n.equals(n5, log_mode="strict")
@@ -369,11 +369,11 @@ class TestExcelIO:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using Excel format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_excel(tmp_path / "network.xlsx")
         n4 = pypsa.Network(tmp_path / "network.xlsx")
         assert n.equals(n4, log_mode="strict")
@@ -414,11 +414,11 @@ class TestExcelIO:
     sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
     reason="Unstable test in CI. Remove with 1.0",
 )
-def test_io_equality(ac_dc_network, tmp_path):
+def test_io_equality(network_all, tmp_path):
     """
     Test if the network is equal after export and import.
     """
-    n = ac_dc_network
+    n = network_all
     n.export_to_netcdf(tmp_path / "network.nc")
     n2 = pypsa.Network(tmp_path / "network.nc")
     assert n.equals(n2, log_mode="strict")
@@ -436,6 +436,46 @@ def test_io_equality(ac_dc_network, tmp_path):
         n.export_to_hdf5(tmp_path / "network.h5")
         n5 = pypsa.Network(tmp_path / "network.h5")
         assert n.equals(n5, log_mode="strict")
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform not in ["linux"],
+    reason="Only check once since it is an optional test when examples are updated.",
+)
+@pytest.mark.parametrize(
+    "example_network",
+    [
+        "ac-dc-meshed",
+        "storage-hvdc",
+        "scigrid-de",
+        "model-energy",
+    ],
+)
+def test_examples_against_master(tmp_path, example_network):
+    # Test examples are unchanged
+    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    # Test examples vs master
+    example_network = pypsa.Network(
+        f"https://github.com/PyPSA/PyPSA/raw/master/examples/networks/{example_network}/{example_network}.nc"
+    )
+    assert n.equals(example_network, log_mode="strict")
+
+
+@pytest.mark.parametrize(
+    "example_network",
+    [
+        "ac-dc-meshed",
+        "storage-hvdc",
+        "scigrid-de",
+        "model-energy",
+    ],
+)
+def test_examples_consistency(tmp_path, example_network):
+    # Test examples are unchanged
+    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    n.export_to_csv_folder(tmp_path / "network")
+    n2 = pypsa.Network(tmp_path / "network")
+    assert n.equals(n2, log_mode="strict")
 
 
 @pytest.mark.skipif(

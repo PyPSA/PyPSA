@@ -87,9 +87,6 @@ class Network(
     _linearized_uc: int
     iteration: int  # TODO Remove/ use property
 
-    # Geospatial
-    _crs = CRS.from_epsg(DEFAULT_EPSG)
-
     # ----------------
     # Dunder methods
     # ----------------
@@ -97,7 +94,7 @@ class Network(
     def __init__(
         self,
         import_name: str | Path = "",
-        name: str = "",
+        name: str = "Unnamed Network",
         ignore_standard_types: bool = False,
         override_components: pd.DataFrame | None = None,
         override_component_attrs: Dict | None = None,
@@ -111,7 +108,7 @@ class Network(
             Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
             import network data. The string could be a URL. If cloudpathlib is installed,
             the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
-        name : string, default ""
+        name : string, default: "Unnamed Network"
             Network name.
         ignore_standard_types : boolean, default False
             If True, do not read in PyPSA standard types into standard types
@@ -154,10 +151,13 @@ class Network(
         # Initialise root logger and set its level, if this has not been done before
         logging.basicConfig(level=logging.INFO)
 
-        # Use setter for writable attributes
+        # Store PyPSA version
+        self._pypsa_version: str = __version_semver__
+
+        # Set attributes
         self._name = name
         self._meta: dict = {}
-        self._pypsa_version: str = __version_semver__
+        self._crs: CRS = CRS.from_epsg(DEFAULT_EPSG)
 
         self._snapshots = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
 
@@ -230,7 +230,7 @@ class Network(
 
     def __str__(self) -> str:
         """Human Readable string representation of the network."""
-        return f"PyPSA Network '{self.name}'" if self.name else "Unnamed PyPSA Network"
+        return f"PyPSA Network '{self.name}'"
 
     def __repr__(self) -> str:
         """Return a string representation for the REPL."""
@@ -408,9 +408,9 @@ class Network(
         >>> n.name
         'AC-DC'
 
-        >>> n = pypsa.Network(name='My Network')
+        >>> n = pypsa.Network(name='Unnamed Network')
         >>> n.name
-        'My Network'
+        'Unnamed Network'
 
         >>> n.name = 'net'
         >>> n.name

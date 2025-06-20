@@ -333,7 +333,7 @@ def test_multiple_add_defaults(n_5bus):
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_equality_behavior(all_networks):
+def test_equality_behavior(network_all):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -341,25 +341,25 @@ def test_equality_behavior(all_networks):
 
     THEN    the networks should be equal.
     """
-    for n in all_networks:
-        deep_copy = copy.deepcopy(n)
-        assert n is not deep_copy
-        assert n.equals(deep_copy, log_mode="strict")
+    n = network_all
+    deep_copy = copy.deepcopy(n)
+    assert n is not deep_copy
+    assert n.equals(deep_copy, log_mode="strict")
 
-        assert n == deep_copy
+    assert n == deep_copy
 
-        # TODO: Could add more property based tests here (hypothesis)
-        deep_copy.name = "new_name"
-        assert n != deep_copy
+    # TODO: Could add more property based tests here (hypothesis)
+    deep_copy.name = "new_name"
+    assert n != deep_copy
 
-        assert n != "other_type"
+    assert n != "other_type"
 
 
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_copy_default_behavior(all_networks):
+def test_copy_default_behavior(network_all):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -368,17 +368,17 @@ def test_copy_default_behavior(all_networks):
     THEN    the copied network should have the same generators, loads
     and timestamps.
     """
-    for n in all_networks:
-        network_copy = n.copy()
-        assert n == network_copy
-        assert n is not network_copy
+    n = network_all
+    network_copy = n.copy()
+    assert n == network_copy
+    assert n is not network_copy
 
 
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_copy_snapshots(all_networks):
+def test_copy_snapshots(network_all):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -386,19 +386,19 @@ def test_copy_snapshots(all_networks):
 
     THEN    the copied network should only have the current time index.
     """
-    for n in all_networks:
-        copied_n = n.copy(snapshots=[])
-        assert copied_n.snapshots.size == 1
+    n = network_all
+    copied_n = n.copy(snapshots=[])
+    assert copied_n.snapshots.size == 1
 
-        copied_n = n.copy(snapshots=n.snapshots[:5])
-        n.set_snapshots(n.snapshots[:5])
-        try:
-            assert copied_n == n
-        except AssertionError:
-            from deepdiff import DeepDiff
+    copied_n = n.copy(snapshots=n.snapshots[:5])
+    n.set_snapshots(n.snapshots[:5])
+    try:
+        assert copied_n == n
+    except AssertionError:
+        from deepdiff import DeepDiff
 
-            differences = DeepDiff(copied_n, n)
-            raise AssertionError(f"DeepDiff: {differences}")
+        differences = DeepDiff(copied_n, n)
+        raise AssertionError(f"DeepDiff: {differences}")
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):
@@ -499,7 +499,7 @@ def test_components_repr(ac_dc_network):
     assert len(repr(n)) > len(str(n))
 
     n = pypsa.Network()
-    assert repr(n).startswith("Empty Unnamed PyPSA Network")
+    assert repr(n).startswith("Empty PyPSA Network 'Unnamed Network'")
     assert len(repr(n)) > len(str(n))
 
 

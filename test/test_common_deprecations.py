@@ -103,23 +103,6 @@ def test_rename_deprecated_kwargs_multiple_aliases(mock_version_semver):
     assert kwargs["new_arg2"] == "value2"
 
 
-def test_rename_deprecated_kwargs_version_error(mock_version_semver):
-    """Test that an error is raised when deprecated_in is in the future."""
-    func_name = "test_func"
-    kwargs = {"old_arg": "value"}
-    aliases = {"old_arg": "new_arg"}
-    deprecated_in = "2.0.0"  # Future version
-    removed_in = "3.0.0"
-
-    with pytest.raises(ValueError) as excinfo:
-        rename_deprecated_kwargs(func_name, kwargs, aliases, deprecated_in, removed_in)
-
-    assert (
-        "'rename_deprecated_kwargs' can only be used in a version >= deprecated_in"
-        in str(excinfo.value)
-    )
-
-
 def test_deprecated_kwargs_decorator(mock_version_semver):
     """Test the deprecated_kwargs decorator."""
 

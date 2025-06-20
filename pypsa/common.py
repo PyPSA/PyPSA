@@ -452,16 +452,6 @@ def rename_deprecated_kwargs(
         Version in which the argument will be removed.
 
     """
-    if (
-        version.parse(deprecated_in) > version.parse(__version_semver__)
-        and __version_semver__ != "0.0"
-    ):
-        msg = (
-            "'rename_deprecated_kwargs' can only be used in a version >= deprecated_in "
-            f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
-        )
-        raise ValueError(msg)
-
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
