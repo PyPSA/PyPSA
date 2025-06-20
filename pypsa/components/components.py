@@ -672,7 +672,7 @@ class Components(
             Index of extendable elements.
 
         """
-        extendable_col = self.operational_attrs["nom_extendable"]
+        extendable_col = self._operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
             return self.static.iloc[:0].index
 
@@ -693,7 +693,7 @@ class Components(
             Index of non-extendable elements.
 
         """
-        extendable_col = self.operational_attrs["nom_extendable"]
+        extendable_col = self._operational_attrs["nom_extendable"]
         if extendable_col not in self.static.columns:
             return self.static.iloc[:0].index
 
@@ -715,47 +715,6 @@ class Components(
 
         idx = self.static.loc[self.static["committable"]].index
         return idx
-
-    @property
-    def operational_attrs(self) -> dict[str, str]:
-        """Get operational attributes of component for optimization.
-
-        Provides a dictionary of attribute patterns used in optimization constraints,
-        based on the component type. This makes constraint formulation more modular
-        by avoiding hardcoded attribute names.
-
-        Returns
-        -------
-        dict[str, str]
-            Dictionary of operational attribute names
-
-        Examples
-        --------
-        >>> import pypsa
-        >>> c = pypsa.examples.ac_dc_meshed().components.generators
-        >>> c.operational_attrs["min_pu"]
-        'p_min_pu'
-        >>> c.operational_attrs["max_pu"]
-        'p_max_pu'
-        >>> c.operational_attrs["nom"]
-        'p_nom'
-
-        """
-        # TODO: refactor component attrs store
-
-        base = self.base_attr
-
-        return {
-            "base": base,
-            "nom": f"{base}_nom",
-            "nom_extendable": f"{base}_nom_extendable",
-            "nom_min": f"{base}_nom_min",
-            "nom_max": f"{base}_nom_max",
-            "nom_set": f"{base}_nom_set",
-            "min_pu": f"{base}_min_pu",
-            "max_pu": f"{base}_max_pu",
-            "set": f"{base}_set",
-        }
 
 
 class SubNetworkComponents:

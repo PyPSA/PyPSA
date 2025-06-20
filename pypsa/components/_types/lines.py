@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 from pypsa.geo import haversine_pts
@@ -44,14 +45,13 @@ class Lines(Components):
 
     """
 
-    base_attr = "s"
-    nominal_attr = "s_nom"
+    _operational_variables = ["s"]
 
     def get_bounds_pu(
         self,
         sns: Sequence,
         index: pd.Index | None = None,
-        attr: str | None = None,
+        attr: str = "s",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for lines.
 
@@ -72,6 +72,10 @@ class Lines(Components):
             Tuple of (min_pu, max_pu) DataArrays.
 
         """
+        if attr not in self._operational_variables:
+            msg = f"Bounds can only be retrieved for operational attributes. For lines those are: {list_as_string(self._operational_variables)}."
+            raise ValueError(msg)
+
         max_pu = self.as_xarray("s_max_pu", sns, inds=index)
         min_pu = -max_pu  # Lines specific: min_pu is the negative of max_pu
 

@@ -54,18 +54,6 @@ class PlotsGenerator(ABC):
         else:
             return carriers.sort_index()
 
-    def get_unique_carriers(self) -> pd.DataFrame:
-        """Get unique carriers from the network."""
-        carriers = self._n.carriers
-        if isinstance(carriers.index, pd.MultiIndex):
-            for level in carriers.index.names:
-                if level != "component":
-                    carriers = carriers.droplevel(level)
-            unique_carriers = carriers[~carriers.index.duplicated(keep="first")]
-            return unique_carriers.sort_index()
-        else:
-            return carriers.sort_index()
-
     def get_carrier_colors(
         self, carriers: Sequence | None = None, nice_names: bool = True
     ) -> dict:

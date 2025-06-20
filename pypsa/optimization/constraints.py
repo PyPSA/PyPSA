@@ -83,7 +83,7 @@ def define_operational_constraints_for_non_extendables(
     if fix_i.empty:
         return
 
-    nominal_fix = c.da[c.operational_attrs["nom"]].sel(component=fix_i)
+    nominal_fix = c.da[c._operational_attrs["nom"]].sel(component=fix_i)
     min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr)
 
     lower = min_pu * nominal_fix
@@ -229,7 +229,7 @@ def define_operational_constraints_for_committables(
     active = c.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = c.da[c.operational_attrs["nom"]].sel(component=com_i)
+    nominal = c.da[c._operational_attrs["nom"]].sel(component=com_i)
     min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p")
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
@@ -608,7 +608,7 @@ def define_ramp_limit_constraints(
         ramp_limit_up_fix = ramp_limit_up.sel(component=fix_i)
         ramp_limit_down_fix = ramp_limit_down.sel(component=fix_i)
         rhs_start_fix = rhs_start
-        p_nom = c.as_xarray(c.operational_attrs["nom"], inds=fix_i)
+        p_nom = c.as_xarray(c._operational_attrs["nom"], inds=fix_i)
 
         # Ramp up constraints for fixed components
         non_null_up = ~ramp_limit_up_fix.isnull().all()
@@ -648,7 +648,7 @@ def define_ramp_limit_constraints(
         rhs_start_ext = rhs_start.sel({c: ext_i}).rename({c: ext_dim})
 
         # For extendables, nominal capacity is a decision variable
-        p_nom_var = m[f"{c.name}-{c.operational_attrs['nom']}"]
+        p_nom_var = m[f"{c.name}-{c._operational_attrs['nom']}"]
 
         if not ramp_limit_up_ext.isnull().all():
             lhs = (
@@ -697,7 +697,7 @@ def define_ramp_limit_constraints(
 
         ramp_limit_start_up_com = c.as_xarray("ramp_limit_start_up", inds=com_i)
         ramp_limit_shut_down_com = c.as_xarray("ramp_limit_shut_down", inds=com_i)
-        p_nom_com = c.as_xarray(c.operational_attrs["nom"], inds=original_com_i)
+        p_nom_com = c.as_xarray(c._operational_attrs["nom"], inds=original_com_i)
 
         # Transform rhs_start for committable components
         rhs_start_com = rhs_start.sel(component=com_i)

@@ -35,8 +35,6 @@ class Loads(Components):
 
     """
 
-    base_attr = "p"
-
     def add(
         self,
         name: str | int | Sequence[int | str],
