@@ -121,7 +121,7 @@ class ComponentsStore(dict):
         >>> n.components["generators"]
         'Generator' Components
         ----------------------
-        Attached to PyPSA Network 'AC-DC'
+        Attached to PyPSA Network 'AC-DC-Meshed'
         Components: 6
 
         """
@@ -143,7 +143,7 @@ class ComponentsStore(dict):
         >>> n.components.generators
         'Generator' Components
         ----------------------
-        Attached to PyPSA Network 'AC-DC'
+        Attached to PyPSA Network 'AC-DC-Meshed'
         Components: 6
 
         """

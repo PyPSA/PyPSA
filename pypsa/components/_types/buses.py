@@ -34,7 +34,7 @@ class Buses(Components):
     >>> n.components.buses
     'Bus' Components
     ----------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 9
 
     """

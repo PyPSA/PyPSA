@@ -966,14 +966,16 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
 
     Returns
     -------
-    pandas.DataFrame
+    pd.DataFrame
+        Sorted DataFrame
 
     """
     df_cols_set = set(df.columns if axis == 1 else df.index)
 
     existing_cols = [col for col in attrs_list if col in df_cols_set]
-    remaining_cols = list(df_cols_set - set(attrs_list))
-
+    remaining_cols = [
+        col for col in (df.columns if axis == 1 else df.index) if col not in attrs_list
+    ]
     return df.reindex(existing_cols + remaining_cols, axis=axis)
 
 

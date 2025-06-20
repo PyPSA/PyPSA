@@ -495,7 +495,7 @@ def test_rename_component_names(use_component):
 def test_components_repr(ac_dc_network):
     n = ac_dc_network
 
-    assert repr(n).startswith("PyPSA Network 'AC-DC'")
+    assert repr(n).startswith("PyPSA Network 'AC-DC-Meshed'")
     assert len(repr(n)) > len(str(n))
 
     n = pypsa.Network()

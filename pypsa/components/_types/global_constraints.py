@@ -34,7 +34,7 @@ class GlobalConstraints(Components):
     >>> n.components.global_constraints
     'GlobalConstraint' Components
     -----------------------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 1
 
     """

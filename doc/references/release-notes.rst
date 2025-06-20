@@ -55,6 +55,9 @@ Bug Fixes
 * Fixed various some I/O edge cases for better data preservation during import/export
   (https://github.com/PyPSA/PyPSA/pull/1255)
 
+* Fixed bug which lead to inconsistent order of additional attributes during import/export.
+  (https://github.com/PyPSA/PyPSA/pull/1256)
+
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================
 

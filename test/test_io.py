@@ -535,3 +535,41 @@ def test_io_time_dependent_efficiencies(tmpdir):
     equal(m.generators_t.efficiency, n.generators_t.efficiency)
     equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
     equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
+
+
+def test_sort_attrs():
+    """Test _sort_attrs function for sorting DataFrame columns/index."""
+    from pypsa.network.io import _sort_attrs
+
+    # Test sorting columns (axis=1)
+    df = pd.DataFrame(
+        {"c": [1, 2, 3], "a": [4, 5, 6], "b": [7, 8, 9], "d": [10, 11, 12]}
+    )
+
+    # Sort columns according to attrs_list
+    attrs_list = ["a", "b", "c"]
+    result = _sort_attrs(df, attrs_list, axis=1)
+    expected_order = ["a", "b", "c", "d"]  # d is appended at end
+    assert list(result.columns) == expected_order
+
+    # Test with attrs not in DataFrame (should be ignored)
+    attrs_list = ["a", "x", "b", "y"]
+    result = _sort_attrs(df, attrs_list, axis=1)
+    expected_order = ["a", "b", "c", "d"]  # x, y ignored; c, d appended
+    assert list(result.columns) == expected_order
+
+    # Test sorting index (axis=0)
+    df = pd.DataFrame([[1, 2], [3, 4], [5, 6]], index=["c", "a", "b"])
+    attrs_list = ["a", "b"]
+    result = _sort_attrs(df, attrs_list, axis=0)
+    expected_order = ["a", "b", "c"]  # c is appended at end
+    assert list(result.index) == expected_order
+
+    # Test empty attrs_list
+    result = _sort_attrs(df, [], axis=0)
+    assert list(result.index) == ["c", "a", "b"]  # original order preserved
+
+    # Test empty DataFrame
+    empty_df = pd.DataFrame()
+    result = _sort_attrs(empty_df, ["a", "b"], axis=1)
+    assert result.empty
