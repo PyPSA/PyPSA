@@ -234,13 +234,19 @@ class _ImporterCSV(_Importer):
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
         fn = self.path.joinpath(list_name + ".csv")
-        return (
-            pd.read_csv(
-                fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
-            )
-            if fn.is_file()
-            else None
+        if not fn.is_file():
+            return None
+
+        df = pd.read_csv(
+            fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
+
+        # Convert NaN to empty strings for object dtype columns to handle custom attributes
+        object_cols = [col for col in df.columns if df[col].dtype == "object"]
+        if object_cols:
+            df[object_cols] = df[object_cols].fillna("")
+
+        return df
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
@@ -479,6 +485,11 @@ class _ImporterExcel(_Importer):
             # Otherwise the column row is read in as a component
             if len(df.columns) == 0 and len(df.index) > 0 and df.index[0] == "name":
                 df = df.iloc[1:]  # Remove the first row which contains the index name
+
+            # Convert NaN to empty strings for object dtype columns to handle custom attributes
+            object_cols = [col for col in df.columns if df[col].dtype == "object"]
+            if object_cols:
+                df[object_cols] = df[object_cols].fillna("")
 
         except (ValueError, KeyError):
             return None
@@ -1704,13 +1715,6 @@ class NetworkIOMixin(_NetworkABC):
                             df[k] = gpd.GeoSeries.from_wkt(geometry)
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
-
-        # Convert NaN to empty strings for object dtype columns (likely strings)
-        # for custom attributes
-        custom_attrs = set(df.columns) - set(static_attrs.index)
-        custom_object_cols = [col for col in custom_attrs if df[col].dtype == "object"]
-        if custom_object_cols:
-            df[custom_object_cols] = df[custom_object_cols].fillna("")
 
         # check all the buses are well-defined
         # TODO use func from consistency checks
