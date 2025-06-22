@@ -357,11 +357,11 @@ def post_processing(n: Network) -> None:
 
 
 def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
-    """# TODO move"""
+    """# TODO move."""
     # Get available dimensions
     dims = set(da.dims)
 
-    if dims == {"component"} or dims == {"snapshot", "component"}:
+    if dims in ({"component"}, {"snapshot", "component"}):
         return da.to_pandas()
 
     elif dims == {"component", "snapshot", "scenario"}:
@@ -377,10 +377,11 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
     # Handle other cases
     else:
         available_dims = ", ".join([str(x) for x in dims])
-        raise ValueError(
+        msg = (
             f"Unexpected combination of dimensions: {available_dims}. "
             f"Expected some combination of 'snapshot', 'component', and 'scenario'."
         )
+        raise ValueError(msg)
 
 
 @deprecated(

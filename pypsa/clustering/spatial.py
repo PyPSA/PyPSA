@@ -830,7 +830,9 @@ def busmap_by_hac(
 
     buses_x = n.buses.index.get_indexer(buses_i)
 
-    adjacency_df = n.adjacency_matrix(branch_components=branch_components)
+    adjacency_df = n.adjacency_matrix(
+        branch_components=branch_components, return_dataframe=True
+    )
     A = sp.csr_matrix(adjacency_df.values).tocsc()[buses_x][:, buses_x]
 
     labels = HAC(

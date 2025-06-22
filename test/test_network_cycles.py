@@ -180,9 +180,9 @@ def test_mixed_branch_types() -> None:
     assert cycles_df.shape[1] == 1, f"Expected 1 cycle, got {cycles_df.shape[1]}"
 
     # Both lines and transformer should participate in the cycle
-    components_in_cycles = set(
+    components_in_cycles = {
         idx[0] for idx in cycles_df.index if (cycles_df.loc[idx].abs() > 0).any()
-    )
+    }
     assert "Line" in components_in_cycles, "Lines should be part of cycle"
     assert "Transformer" in components_in_cycles, "Transformer should be part of cycle"
 

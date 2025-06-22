@@ -8,7 +8,6 @@ import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
-import xarray as xr
 from deprecation import deprecated
 
 from pypsa.common import deprecated_in_next_major, equals
@@ -57,6 +56,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Iterator, Sequence
 
     import linopy
+    import xarray as xr
     from scipy.sparse import spmatrix
 
     from pypsa.components.legacy import Component
@@ -901,6 +901,7 @@ class Network(
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
             investment_period=investment_period,
+            return_dataframe=True,
         )
         n_components, labels = csgraph.connected_components(
             adjacency_matrix.values, directed=False

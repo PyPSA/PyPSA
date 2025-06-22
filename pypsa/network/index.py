@@ -8,14 +8,10 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 
 import pandas as pd
 
 from pypsa.network.abstract import _NetworkABC
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
