@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 from linopy import Model, merge
 from linopy.solvers import available_solvers
 
@@ -198,94 +197,6 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         raise ValueError(msg)
 
     m.objective = sum(objective) if is_quadratic else merge(objective)
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.create_model` instead.",
-)
-def create_model(
-    n: Network,
-    snapshots: Sequence | None = None,
-    multi_investment_periods: bool = False,
-    transmission_losses: int = 0,
-    linearized_unit_commitment: bool = False,
-    consistency_check: bool = True,
-    **kwargs: Any,
-) -> Model:
-    """Use `n.optimize.create_model` instead."""
-    return n.optimize.create_model(
-        snapshots,
-        multi_investment_periods,
-        transmission_losses,
-        linearized_unit_commitment,
-        consistency_check,
-        **kwargs,
-    )
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.assign_solution` instead.",
-)
-def assign_solution(n: Network) -> None:
-    """Use `n.optimize.assign_solution` instead."""
-    n.optimize.assign_solution()
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.assign_duals` instead.",
-)
-def assign_duals(n: Network, assign_all_duals: bool = False) -> None:
-    """Use `n.optimize.assign_duals` instead."""
-    n.optimize.assign_duals(assign_all_duals)
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.post_processing` instead.",
-)
-def post_processing(n: Network) -> None:
-    """Use `n.optimize.post_processing` instead."""
-    n.optimize.post_processing()
-
-
-@deprecated(
-    deprecated_in="0.35", removed_in="1.0", details="Use `n.optimize()` instead."
-)
-def optimize(
-    n: Network,
-    snapshots: Sequence | None = None,
-    multi_investment_periods: bool = False,
-    transmission_losses: int = 0,
-    linearized_unit_commitment: bool = False,
-    model_kwargs: dict | None = None,
-    extra_functionality: Callable | None = None,
-    assign_all_duals: bool = False,
-    solver_name: str = "highs",
-    solver_options: dict | None = None,
-    compute_infeasibilities: bool = False,
-    **kwargs: Any,
-) -> tuple[str, str]:
-    """Use `n.optimize()` instead."""
-    return n.optimize(
-        snapshots=snapshots,
-        multi_investment_periods=multi_investment_periods,
-        transmission_losses=transmission_losses,
-        linearized_unit_commitment=linearized_unit_commitment,
-        model_kwargs=model_kwargs,
-        extra_functionality=extra_functionality,
-        assign_all_duals=assign_all_duals,
-        solver_name=solver_name,
-        solver_options=solver_options,
-        compute_infeasibilities=compute_infeasibilities,
-        **kwargs,
-    )
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
