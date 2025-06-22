@@ -52,6 +52,21 @@ def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
 
 
+@pytest.fixture
+def storage_hvdc_network():
+    return pypsa.examples.storage_hvdc()
+
+
+@pytest.fixture
+def model_energy_network():
+    return pypsa.examples.model_energy()
+
+
+@pytest.fixture
+def scigrid_de_network():
+    return pypsa.examples.scigrid_de()
+
+
 @pytest.fixture  # scope="session")
 def ac_dc_network_r():
     csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
@@ -101,18 +116,6 @@ def ac_dc_network_shapes(ac_dc_network):
 
 
 @pytest.fixture
-def network_only_component_names():
-    n = pypsa.Network()
-    n.add("Bus", "bus1", x=0, y=0)
-    n.add("Bus", "bus2", x=1, y=0)
-    n.add("Bus", "bus3", x=0, y=1)
-    # Add components with no extra data
-    n.add("Carrier", "carrier1")
-    n.add("Carrier", "carrier2")
-    return n
-
-
-@pytest.fixture
 def scipy_network():
     n = pypsa.examples.scigrid_de()
     n.generators.control = "PV"
@@ -124,18 +127,26 @@ def scipy_network():
 
 
 @pytest.fixture
-def storage_hvdc_network():
-    return pypsa.examples.storage_hvdc()
+def network_only_component_names():
+    n = pypsa.Network()
+    n.add("Bus", "bus1", x=0, y=0)
+    n.add("Bus", "bus2", x=1, y=0)
+    n.add("Bus", "bus3", x=0, y=1)
+    # Add components with no extra data
+    n.add("Carrier", "carrier1")
+    n.add("Carrier", "carrier2")
+    return n
 
 
 @pytest.fixture(
     params=[
         "ac_dc_network",
+        "scigrid_de_network",
+        "storage_hvdc_network",
+        "model_energy_network",
         # "ac_dc_network_r",
         # "ac_dc_network_mi",
         # "ac_dc_network_shapes",
-        # "scipy_network",
-        # "storage_hvdc_network",
         "network_only_component_names",
     ]
 )
