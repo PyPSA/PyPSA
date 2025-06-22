@@ -231,6 +231,9 @@ class OptionsNode:
         params.statistics.round:
             Default: 5
             Description: Default value for the 'round' parameter in statistics module.
+        warnings.attribute_typos:
+            Default: True
+            Description: If False, suppresses warnings about potential typos in component attribute names. Note: warnings about unintended attributes (standard attributes for other components) will still be shown.
         warnings.components_store_iter:
             Default: True
             Description: If False, suppresses the deprecatio warning when iterating over components.
@@ -262,21 +265,7 @@ class OptionsNode:
         api.legacy_components:
             Default: True
             Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
-        general.allow_network_requests:
-            Default: True
-            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
-        params.statistics.drop_zero:
-            Default: True
-            Description: Default value for the 'drop_zero' parameter in statistics module.
-        params.statistics.nice_names:
-            Default: True
-            Description: Default value for the 'nice_names' parameter in statistics module.
-        params.statistics.round:
-            Default: 5
-            Description: Default value for the 'round' parameter in statistics module.
-        warnings.components_store_iter:
-            Default: True
-            Description: If False, suppresses the deprecatio warning when iterating over components.
+        ...
 
         """
         self.describe_options()
@@ -346,6 +335,13 @@ options._add_option(
     "warnings.components_store_iter",
     True,
     "If False, suppresses the deprecatio warning when iterating over components. ",
+)
+options._add_option(
+    "warnings.attribute_typos",
+    True,
+    "If False, suppresses warnings about potential typos in component attribute names. "
+    "Note: warnings about unintended attributes (standard attributes for other components) "
+    "will still be shown.",
 )
 
 # Parameters category
