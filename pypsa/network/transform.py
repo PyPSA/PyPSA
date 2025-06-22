@@ -214,12 +214,12 @@ class NetworkTransformMixin(_NetworkABC):
             # Raise warning if user adds a custom attribute which is a standard attribute
             # for other components
             unintended_attr_names = custom_attrs & all_standard_attrs_set
-            if unintended_attr_names:
+            for unintended_attr_name in unintended_attr_names:
                 logger.warning(
-                    "The attributes %s are default attributes for other components, but "
-                    "not for %s. This is most likely unintended and these attributes "
-                    "should be renamed. See https://go.pypsa.org/warning-attr-misleading.",
-                    list(unintended_attr_names),
+                    "The attribute '%s' is a standard attribute for other components but not for %s. "
+                    "This could cause confusion and it should be renamed. "
+                    "See also: https://go.pypsa.org/warning-attr-misleading.",
+                    unintended_attr_name,
                     c.list_name,
                 )
         # Check if levenshtein distance to standard attributes is small (<= 1) which
@@ -228,11 +228,12 @@ class NetworkTransformMixin(_NetworkABC):
             potential_typos = _get_potential_typos(custom_attrs, standard_attrs)
             for custom_attr, standard_attr in potential_typos:
                 logger.warning(
-                    "Attribute '%s' is likely a typo of standard attribute '%s' of %s. "
-                    "Please check the attribute name. See https://go.pypsa.org/warning-attr-typo.",
+                    "The attribute '%s' is not a standard attribute for %s. "
+                    "Did you mean '%s'? "
+                    "See also: https://go.pypsa.org/warning-attr-typo.",
                     custom_attr,
-                    standard_attr,
                     c.list_name,
+                    standard_attr,
                 )
 
         for k, v in kwargs.items():
