@@ -2,14 +2,19 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..    The features listed below are not released yet, but will be part of the next release! 
-..    To use the features already you have to install the ``master`` branch, e.g. 
-..    ``pip install git+https://github.com/pypsa/pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
+
+
+* When using misleading attribute names or typos in the ``add`` method, a warning is 
+  now raised. (https://github.com/PyPSA/PyPSA/pull/1259)
+
 
 `v0.35.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0>`__ (22th June 2025)
 =======================================================================================
