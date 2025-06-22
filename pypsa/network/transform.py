@@ -218,7 +218,7 @@ class NetworkTransformMixin(_NetworkABC):
                 logger.warning(
                     "The attributes %s are default attributes for other components, but "
                     "not for %s. This is most likely unintended and these attributes "
-                    "should be renamed. See https://link.pypsa.org/warning-attr-misleading.",
+                    "should be renamed. See https://go.pypsa.org/warning-attr-misleading.",
                     list(unintended_attr_names),
                     c.list_name,
                 )
@@ -229,7 +229,7 @@ class NetworkTransformMixin(_NetworkABC):
             for custom_attr, standard_attr in potential_typos:
                 logger.warning(
                     "Attribute '%s' is likely a typo of standard attribute '%s' of %s. "
-                    "Please check the attribute name.",
+                    "Please check the attribute name. See https://go.pypsa.org/warning-attr-typo.",
                     custom_attr,
                     standard_attr,
                     c.list_name,
