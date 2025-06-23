@@ -79,23 +79,38 @@ Generators Table todo
 
 ## Storage Unit
 
-Storage units attach to a single bus and are used for inter-temporal power shifting. Each storage unit has a time-varying state of charge and various efficiencies. The nominal energy is given as a fixed ratio `max_hours` of the nominal power (MW * h = MWh). If you want to optimise the storage energy capacity independently from the storage power capacity, you should use a fundamental `Store` component in combination with two `Link` components, one for charging and one for discharging. See also [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html).
+Storage units connect to a single bus and enable inter-temporal energy shifting with coupled power and energy capacity modeling. This compoenent is suitable for modeling batteries, pumped hydro storage, and other storage technologies where power and energy capacities are coupled.
 
-For storage units, if $p>0$ the storage unit is supplying active power to the bus and if $q>0$ it is supplying reactive power (i.e. behaving like a capacitor).
+- Energy capacity is defined as a fixed ratio (`max_hours`) of power capacity: `e_nom = p_nom * max_hours` (MW × h = MWh)
+- Power capacity (`p_nom`) can be optimized in capacity expansion problems
+- Supports `inflow` attribute (an exogenous parameter representing an energy input from external sources) and `spill` (energy overflow/spillage) variable, see attribute documentation below for details
+- For storage units, if $p>0$ the storage unit is supplying active power to the bus (discharging) and if $q>0$ it is supplying reactive power (behaving like a capacitor).
+
+### When to use store instead
+
+For independent optimization of power and energy capacities, use a fundamental `Store` component combined with separate `Link` components for charging and discharging. See also [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html).
 
 Storage Units Table todo
 
 ## Store
 
-The `Store` connects to a single bus. It is a more fundamental component for storing energy only (it cannot convert between energy carriers). It inherits its energy carrier from the bus to which it is attached.
+The `Store` component connects to a single bus and provides fundamental energy storage functionality with independent storage energy and charge/discharge power capacity optimization.
 
-The Store, Bus and Link are fundamental components with which one can build more complicated components (like generators, storage units, CHPs, etc.).
+To control charging and discharging power, separate `Link` components must be connected to the Store. This decoupled approach enables independent optimization of power and energy capacities, different efficiencies for charging and discharging processes, and asymmetric power ratings (different charging/discharging rate).
 
-The Store has controls and optimisation on the size of its energy capacity, but not its power output; to control the power output, a link must be placed in front of it. See also [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html).
+- `Store` component only "stores" energy without converting between energy carriers. It automatically inherits an energy carrier from the connected bus
+- Energy capacity (`e_nom`) can be optimized independently of charge-/discharge power constraints
+- `Store` component has no power capacity attribute `p_nom` (like `StorageUnit`), the charge/discharge power is controlled by a `Link` component connected to the Store
+- `marginal_cost` attribute applies equally to both charging and discharging operations, representing the cost per unit of energy stored or released. This differs from `StorageUnit` components where marginal costs apply only to the marginal cost of production (discharging).
+- The `marginal_cost` of the `Store` component can represent trading in external energy markets where the stored carrier can be bought or sold at market prices.
+- For modeling technical marginal costs where both charging and discharging increase the objective function, use two separate Link components with distinct cost structures for charging and discharging processes.
 
-The `marginal_cost` of a Store apply to both the charging and the discharging. In the case of a cyclic store without losses, these costs would balance out to zero. This is different to the `StorageUnit` where the marginal cost apply to the marginal cost of production (discharging).
+### When to use storage unit instead
 
-The `marginal_cost` of the Store component can represent another market where an energy carrier can be bought or sold. For modelling the technical marginal cost of the Store where both charging and discharging increase the objective function, two separate links should be used to represent the charging and discharging processes as described above.
+Use `StorageUnit` when power and energy capacities have a fixed relationship and you need integrated power dispatch control within a single component. This is simpler for e.g. a storage device where the power-to-energy ratio is predetermined by the manufacturer.
+
+See [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html) for implementation details.
+
 
 Stores Table todo
 
