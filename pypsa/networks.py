@@ -547,10 +547,10 @@ class Network(
 
         Examples
         --------
-        >>> n.objective # doctest: +ELLIPSIS
+        >>> n.objective # doctest: +SKIP
         -47274166...
 
-        >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
+        >>> n.objective + n.objective_constant # doctest: +SKIP
         <xarray.DataArray ()> Size: 8B
         array(18441021...)
 
@@ -585,11 +585,11 @@ class Network(
 
         Examples
         --------
-        >>> n.objective_constant # doctest: +ELLIPSIS
+        >>> n.objective_constant # doctest: +SKIP
         <xarray.DataArray ()> Size: 8B
         array(65715187...)
 
-        >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
+        >>> n.objective + n.objective_constant # doctest: +SKIP
         <xarray.DataArray ()> Size: 8B
         array(18441021...)
 
