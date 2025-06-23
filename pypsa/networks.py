@@ -56,7 +56,6 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator, Sequence
 
     import linopy
-    import xarray as xr
     from scipy.sparse import spmatrix
 
     from pypsa.components.legacy import Component
