@@ -819,10 +819,21 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 try:
                     df = from_xarray(dual.transpose("snapshot", ...))
 
-                    try:
-                        spec = attr.rsplit("-", 1)[-1]
-                    except ValueError:
-                        spec = attr
+                    # For security constraints, use more of the constraint name to avoid overwriting
+                    if "security" in attr:
+                        # Extract a unique spec for security constraints
+                        # e.g., "fix-s-lower-security-for-Line-outage-in-<SubNetwork>"
+                        parts = attr.split("-")
+                        if len(parts) >= 3:
+                            spec = "-".join(parts[1:])
+                        else:
+                            spec = attr
+                    else:
+                        # Standard spec extraction
+                        try:
+                            spec = attr.rsplit("-", 1)[-1]
+                        except ValueError:
+                            spec = attr
 
                     if attr.endswith("nodal_balance"):
                         set_from_frame(self._n, c, "marginal_price", df)
