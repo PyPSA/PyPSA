@@ -374,6 +374,28 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
         df.columns.name = None
         return df
 
+    # Handle auxiliary dimensions (e.g. from security constrained optimization)
+    elif len(dims) > 2:
+        # Find auxiliary dimensions
+        contingency_dims = [
+            d for d in dims if d not in {"snapshot", "component", "scenario"}
+        ]
+
+        if contingency_dims:
+            # Stack auxiliary dimensions with component dimension to create combined index
+            if "scenario" in dims:
+                stack_dims = ["component", "scenario"] + contingency_dims
+            else:
+                stack_dims = ["component"] + contingency_dims
+
+            combined_name = "combined"
+            df = da.stack({combined_name: stack_dims}).to_pandas()
+
+            if hasattr(df, "columns"):
+                df.columns.name = None
+
+            return df
+
     # Handle other cases
     else:
         available_dims = ", ".join([str(x) for x in dims])
@@ -785,7 +807,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
             if "snapshot" in dual.dims:
                 try:
-                    df = dual.transpose("snapshot", ...).to_pandas()
+                    df = from_xarray(dual.transpose("snapshot", ...))
 
                     try:
                         spec = attr.rsplit("-", 1)[-1]
@@ -799,7 +821,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     else:
                         unassigned.append(name)
 
-                except KeyError:
+                except (KeyError, ValueError):
                     unassigned.append(name)
 
             elif (c == "GlobalConstraint") and (
