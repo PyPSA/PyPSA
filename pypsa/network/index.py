@@ -682,36 +682,36 @@ class NetworkIndexMixin(_NetworkABC):
             raise ValueError(msg)
 
         if isinstance(scenarios, dict):
-            scenarios = pd.Series(scenarios)
+            scenarios_ = pd.Series(scenarios)
         elif isinstance(scenarios, pd.Series):
-            pass
+            scenarios_ = scenarios
         elif isinstance(scenarios, Sequence):
-            scenarios = pd.Series(
+            scenarios_ = pd.Series(
                 [1 / len(scenarios)] * len(scenarios), index=scenarios
             )
         elif kwargs:
-            scenarios = pd.Series(kwargs)
+            scenarios_ = pd.Series(kwargs)
 
-        if scenarios.sum() != 1:
+        if scenarios_.sum() != 1:
             msg = (
                 "The sum of the weights in `scenarios` must be equal to 1. "
-                f"Current sum: {scenarios.sum()}"
+                f"Current sum: {scenarios_.sum()}"
             )
             raise ValueError(msg)
 
-        scenarios = scenarios.rename("scenario")
-        scenarios.index = scenarios.index.astype(str)
+        scenarios_ = scenarios_.rename("scenario")
+        scenarios_.index = scenarios_.index.astype(str)
 
         for c in self.components.values():
             c.static = pd.concat(
-                dict.fromkeys(scenarios.index, c.static), names=["scenario"]
+                dict.fromkeys(scenarios_.index, c.static), names=["scenario"]
             )
             for k, v in c.dynamic.items():
                 c.dynamic[k] = pd.concat(
-                    dict.fromkeys(scenarios.index, v), names=["scenario"], axis=1
+                    dict.fromkeys(scenarios_.index, v), names=["scenario"], axis=1
                 )
 
-        self._scenarios = scenarios
+        self._scenarios = scenarios_
 
     @property
     def scenarios(self) -> pd.Series:

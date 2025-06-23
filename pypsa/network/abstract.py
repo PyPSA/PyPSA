@@ -23,6 +23,7 @@ class _NetworkABC(ABC):
     snapshot_weightings: pd.DataFrame
     _snapshot_weightings: pd.DataFrame
     _investment_period_weightings: pd.DataFrame
+    scenarios: pd.Series
     static: pd.DataFrame
     dynamic: Callable
     _import_series_from_df: Callable
@@ -48,6 +49,12 @@ class _NetworkABC(ABC):
     shunt_impedances: pd.DataFrame
 
     passive_branches: pd.DataFrame
+
+    @property
+    @abstractmethod
+    def has_scenarios(self) -> bool:
+        """Read only placeholder."""
+        ...
 
     @property
     @abstractmethod

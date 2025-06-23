@@ -152,7 +152,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         constant += sum(terms)
 
-    n._objective_constant = constant
+    n._objective_constant = float(constant)
     if n.has_scenarios:
         has_const = isinstance(constant, xr.DataArray) and (constant != 0).any().item()
     else:
