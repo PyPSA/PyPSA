@@ -494,28 +494,25 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-        * Generator-p_nom (Generator-ext)
-        * Line-s_nom (Line-ext)
-        * Link-p_nom (Link-ext)
-        * Generator-p (snapshot, Generator)
-        * Line-s (snapshot, Line)
-        * Link-p (snapshot, Link)
+        * Generator-p_nom (component)
+        * Line-s_nom (component)
+        * Link-p_nom (component)
+        * Generator-p (snapshot, component)
+        * Line-s (snapshot, component)
+        * Link-p (snapshot, component)
         * objective_constant
         <BLANKLINE>
         Constraints:
         ------------
-        * Generator-ext-p_nom-lower (Generator-ext)
-        * Generator-ext-p_nom-upper (Generator-ext)
-        * Line-ext-s_nom-lower (Line-ext)
-        * Line-ext-s_nom-upper (Line-ext)
-        * Link-ext-p_nom-lower (Link-ext)
-        * Link-ext-p_nom-upper (Link-ext)
-        * Generator-ext-p-lower (snapshot, Generator-ext)
-        * Generator-ext-p-upper (snapshot, Generator-ext)
-        * Line-ext-s-lower (snapshot, Line-ext)
-        * Line-ext-s-upper (snapshot, Line-ext)
-        * Link-ext-p-lower (snapshot, Link-ext)
-        * Link-ext-p-upper (snapshot, Link-ext)
+        * Generator-ext-p_nom-lower (component)
+        * Line-ext-s_nom-lower (component)
+        * Link-ext-p_nom-lower (component)
+        * Generator-ext-p-lower (snapshot, component)
+        * Generator-ext-p-upper (snapshot, component)
+        * Line-ext-s-lower (snapshot, component)
+        * Line-ext-s-upper (snapshot, component)
+        * Link-ext-p-lower (snapshot, component)
+        * Link-ext-p-upper (snapshot, component)
         * Bus-nodal_balance (Bus, snapshot)
         * Kirchhoff-Voltage-Law (snapshot, cycles)
         * GlobalConstraint-co2_limit
