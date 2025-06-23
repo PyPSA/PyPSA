@@ -799,7 +799,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     else:
                         unassigned.append(name)
 
-                except:  # noqa: E722 # TODO: specify exception
+                except KeyError:
                     unassigned.append(name)
 
             elif (c == "GlobalConstraint") and (
@@ -854,8 +854,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Link", "p0", "bus0"),
             ("Link", "p1", "bus1"),
         ]
-        for i in n.components.links.additional_ports:
-            ca.append(("Link", f"p{i}", f"bus{i}"))
+        ca.extend(
+            [("Link", f"p{i}", f"bus{i}") for i in n.components.links.additional_ports]
+        )
 
         def sign(c: str) -> int:
             return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'

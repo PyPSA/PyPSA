@@ -513,8 +513,8 @@ class Network(
         * Line-ext-s-upper (snapshot, component)
         * Link-ext-p-lower (snapshot, component)
         * Link-ext-p-upper (snapshot, component)
-        * Bus-nodal_balance (Bus, snapshot)
-        * Kirchhoff-Voltage-Law (snapshot, cycles)
+        * Bus-nodal_balance (component, snapshot)
+        * Kirchhoff-Voltage-Law (snapshot, cycle)
         * GlobalConstraint-co2_limit
         <BLANKLINE>
         Status:
@@ -548,10 +548,11 @@ class Network(
         Examples
         --------
         >>> n.objective # doctest: +ELLIPSIS
-        -34742...
+        -47274166...
 
         >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
-        np.float64(18441...)
+        <xarray.DataArray ()> Size: 8B
+        array(18441021...)
 
         """
         if self._objective is None:
@@ -585,10 +586,12 @@ class Network(
         Examples
         --------
         >>> n.objective_constant # doctest: +ELLIPSIS
-        np.float64(21915...)
+        <xarray.DataArray ()> Size: 8B
+        array(65715187...)
 
         >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
-        np.float64(18441...)
+        <xarray.DataArray ()> Size: 8B
+        array(18441021...)
 
         """
         if self._objective_constant is None:
@@ -929,7 +932,7 @@ class Network(
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
     def _empty_components(self) -> list:
-        """Returns a list of all components that are not empty.
+        """Get a list of all components that are not empty.
 
         Returns
         -------
@@ -1174,6 +1177,8 @@ class Network(
             Investment period to use when determining network topology.
             If not given, all branches are considered regardless of
             build_year and lifetime.
+        apply_weights : bool, default False
+            Whether to apply weights to the cycles.
 
         Returns
         -------
@@ -1486,10 +1491,26 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
 
     @property
     def scenarios(self) -> pd.Series:
+        """Get the scenarios for the network.
+
+        Returns
+        -------
+        pd.Series
+            The scenarios for the network.
+
+        """
         return self.n.scenarios
 
     @property
     def has_scenarios(self) -> bool:
+        """Check if the network has scenarios.
+
+        Returns
+        -------
+        bool
+            True if the network has scenarios, False otherwise.
+
+        """
         return self.n.has_scenarios
 
     def branches_i(self, active_only: bool = False) -> pd.MultiIndex:

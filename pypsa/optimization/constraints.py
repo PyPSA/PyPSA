@@ -1247,8 +1247,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     eh = DataArray(elapsed_h)
     try:
         eh = eh.unstack("dim_1")
-    except:  # noqa: E722
-        # todo
+    except ValueError:
         pass
 
     # efficiencies as xarray DataArrays

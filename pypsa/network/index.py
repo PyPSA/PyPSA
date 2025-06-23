@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from typing import Any
 
 import pandas as pd
 
@@ -649,6 +650,16 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios: dict | Sequence | pd.Series | None = None,
         **kwargs: Any,
     ) -> None:
+        """Set scenarios for the network to create a stochastic network.
+
+        Parameters
+        ----------
+        scenarios : dict, Sequence, pd.Series, optional
+            Scenarios to set for the network.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        """
         # Validate input
         if self.has_scenarios:
             msg = (
@@ -704,6 +715,14 @@ class NetworkIndexMixin(_NetworkABC):
 
     @property
     def scenarios(self) -> pd.Series:
+        """Get the scenarios for the network.
+
+        Returns
+        -------
+        pd.Series
+            The scenarios for the network.
+
+        """
         return self._scenarios
 
     @scenarios.setter

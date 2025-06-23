@@ -82,11 +82,6 @@ def ac_dc_meshed_stoch_r(ac_dc_network_r):
 
 
 @pytest.fixture
-def ac_dc_network():
-    return pypsa.examples.ac_dc_meshed()
-
-
-@pytest.fixture
 def scigrid_de_network():
     return pypsa.examples.scigrid_de()
 

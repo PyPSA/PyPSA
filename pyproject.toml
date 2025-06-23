@@ -200,6 +200,7 @@ ignore = [
     'PLR0912',
     'PT011',
     'PLW2901',
+    'ERA001', #TODO add again
     ]
 
 

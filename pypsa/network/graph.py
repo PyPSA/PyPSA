@@ -88,14 +88,14 @@ class NetworkGraphMixin:
             Components to use as branches. The default are
             passive_branch_components in the case of a SubNetwork and
             branch_components in the case of a Network.
-
         weight : str
             Branch attribute to use as weight
-
         inf_weight : bool|float
             How to treat infinite weights (default: False). True keeps the infinite
             weight. False skips edges with infinite weight. If a float is given it
             is used instead.
+        include_inactive : bool
+            Whether to include inactive components in the graph.
 
         Returns
         -------
