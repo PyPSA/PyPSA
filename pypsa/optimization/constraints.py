@@ -44,6 +44,10 @@ def define_operational_constraints_for_non_extendables(
     where lower_bound and upper_bound are computed from the component's nominal
     capacity and min/max per unit values.
 
+    Applies to Components
+    ---------------------
+    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+
     Parameters
     ----------
     n : pypsa.Network
@@ -121,6 +125,10 @@ def define_operational_constraints_for_extendables(
     where lower_bound and upper_bound are computed from the component's nominal
     capacity and min/max per unit values.
 
+    Applies to Components
+    ---------------------
+    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+
     Parameters
     ----------
     n : pypsa.Network
@@ -182,6 +190,10 @@ def define_operational_constraints_for_committables(
     2. State transition constraints (start-up/shut-down)
     3. Minimum up and down time constraints
     4. Ramp rate constraints for committed units
+
+    Applies to Components
+    ---------------------
+    Generator, Link (when they have unit commitment capabilities)
 
     Parameters
     ----------
@@ -465,6 +477,11 @@ def define_nominal_constraints_for_extendables(
     where capacity is a decision variable representing the component's
     optimal capacity.
 
+    Applies to Components
+    ---------------------
+    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
+    Store (e_nom), StorageUnit (p_nom)
+
     Parameters
     ----------
     n : pypsa.Network
@@ -512,6 +529,10 @@ def define_ramp_limit_constraints(
     consecutive time periods. The constraints are defined for fixed,
     extendable, and committable components, with different formulations
     for each case.
+
+    Applies to Components
+    ---------------------
+    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
 
     Parameters
     ----------
@@ -793,6 +814,15 @@ def define_nodal_balance_constraints(
     where power injections include generation, storage discharge, and incoming branch flows,
     while power withdrawals include loads, storage charging, and outgoing branch flows.
 
+    Applies to Components
+    ---------------------
+    Generator (p), Line (s), Transformer (s), Link (p), Store (p), Load (p), StorageUnit (p_dispatch, p_store)*
+
+    Notes
+    -----
+    * StorageUnit net power (p_dispatch - p_store) is calculated after optimization
+    * StorageUnit (spill) var is not in the nodal balance - it's handled internally within the storage unit energy balance
+
     Parameters
     ----------
     n : pypsa.Network
@@ -940,6 +970,10 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         x_l : series reactance or resistance of branch l (depending on AC/DC)
         s_l : branch flow variable for branch l in the cycle
 
+    Applies to Components
+    ---------------------
+    Line, Transformer, Link (passive branch components)
+
     Parameters
     ----------
     n : pypsa.Network
@@ -1003,6 +1037,11 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     Sets constraints to fix nominal (capacity) variables of components to values
     specified in the corresponding '_set' attribute.
 
+    Applies to Components
+    ---------------------
+    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
+    Store (e_nom), StorageUnit (p_nom)
+
     Parameters
     ----------
     n : pypsa.Network
@@ -1048,6 +1087,11 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 
     where n_modules is an integer decision variable and module_size is the
     specified size of each module.
+
+    Applies to Components
+    ---------------------
+    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
+    Store (e_nom), StorageUnit (p_nom)
 
     Parameters
     ----------
@@ -1102,6 +1146,10 @@ def define_fixed_operation_constraints(
 
     Sets constraints to fix dispatch variables of components to values specified
     in the corresponding '_set' attribute.
+
+    Applies to Components
+    ---------------------
+    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
 
     Parameters
     ----------
@@ -1158,6 +1206,10 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     where soc is the state of charge, p_store and p_dispatch are the
     charging and discharging power variables, and the efficiencies account
     for energy losses.
+
+    Applies to Components
+    ---------------------
+    StorageUnit (p_dispatch, p_store, state_of_charge, spill)
 
     Parameters
     ----------
@@ -1291,6 +1343,10 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         p(t)        : energy charging (positive), or discharging (negative)
         elapsed_hours: duration of the time step
 
+    Applies to Components
+    ---------------------
+    Store (e, p)
+
     Parameters
     ----------
     n : pypsa.Network
@@ -1402,6 +1458,10 @@ def define_loss_constraints(
 
     See equations (39)-(46) in [1]_ for further details on the formulation.
 
+    Applies to Components
+    ---------------------
+    Line, Transformer (passive branch components when transmission_losses > 0)
+
     Parameters
     ----------
     n : pypsa.Network
@@ -1499,6 +1559,10 @@ def define_total_supply_constraints(
 
     where the sum is taken over all snapshots and weighting accounts for the
     duration of each snapshot.
+
+    Applies to Components
+    ---------------------
+    Generator (by default, but component parameter can be changed)
 
     Parameters
     ----------
