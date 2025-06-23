@@ -596,7 +596,7 @@ def define_ramp_limit_constraints(
     ext_i = c.extendables
 
     # Auxiliary variables for constraint application
-    ext_dim = ext_i.name if ext_i.name else c
+    ext_dim = ext_i.name if ext_i.name else c.name
     original_ext_i = ext_i.copy()
     original_com_i = com_i.copy()
 
@@ -661,12 +661,14 @@ def define_ramp_limit_constraints(
         )
 
         ramp_limit_up_ext = ramp_limit_up.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, c: ext_i}
-        ).rename({c: ext_dim})
+            {"snapshot": active_ext.coords["snapshot"].values, "component": ext_i}
+        ).rename({"component": ext_dim})
         ramp_limit_down_ext = ramp_limit_down.reindex(
-            {"snapshot": active_ext.coords["snapshot"].values, c: ext_i}
-        ).rename({c: ext_dim})
-        rhs_start_ext = rhs_start.sel({c: ext_i}).rename({c: ext_dim})
+            {"snapshot": active_ext.coords["snapshot"].values, "component": ext_i}
+        ).rename({"component": ext_dim})
+        rhs_start_ext = rhs_start.sel({"component": ext_i}).rename(
+            {"component": ext_dim}
+        )
 
         # For extendables, nominal capacity is a decision variable
         p_nom_var = m[f"{c.name}-{c._operational_attrs['nom']}"]
