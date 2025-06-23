@@ -153,10 +153,16 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         constant += sum(terms)
 
-    n._objective_constant = float(constant)
-    if n.has_scenarios:
-        has_const = isinstance(constant, xr.DataArray) and (constant != 0).any().item()
+    # Handle constant for stochastic vs deterministic networks
+    if n.has_scenarios and isinstance(constant, xr.DataArray):
+        # For stochastic networks, weight constant by scenario probabilities
+        weighted_constant = sum(
+            constant.sel(scenario=s) * p for s, p in n.scenarios.items()
+        )
+        n._objective_constant = float(weighted_constant)
+        has_const = (constant != 0).any().item()
     else:
+        n._objective_constant = float(constant)
         has_const = constant != 0
     if has_const:
         object_const = m.add_variables(constant, constant, name="objective_constant")
