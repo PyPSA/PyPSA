@@ -76,6 +76,7 @@ def define_operational_constraints_for_non_extendables(
     .. [1] F. Neumann, T. Brown, "Transmission losses in power system
        optimization models: A comparison of heuristic and exact solution methods,"
        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
+
     """
     c = as_components(n, component)
     fix_i = c.fixed
@@ -225,6 +226,7 @@ def define_operational_constraints_for_committables(
        Flexibility in Generation Expansion Planning Through Convex Relaxation
        of Unit Commitment," IEEE Transactions on Power Systems, vol. 32,
        no. 5, pp. 3854-3865, 2017, https://doi.org/10.1109/TPWRS.2017.2735026
+
     """
     c = as_components(n, component)
     com_i = c.committables
@@ -500,6 +502,7 @@ def define_nominal_constraints_for_extendables(
     Components with infinite max_capacity values are handled through masking
     to avoid solver issues, particularly with GLPK which doesn't accept
     infinite values in constraints.
+
     """
     c = as_components(n, component)
     ext_i = c.extendables
@@ -559,6 +562,7 @@ def define_ramp_limit_constraints(
 
     For extendable components, ramp constraints are defined relative to the
     variable capacity, ensuring consistency in the optimization.
+
     """
     m = n.model
     c = as_components(n, component)
@@ -850,6 +854,7 @@ def define_nodal_balance_constraints(
 
     The function raises an error if there's a bus with non-zero load but no
     connected components to provide power.
+
     """
     m = n.model
     if buses is None:
@@ -1007,6 +1012,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     .. [3] J. Hörsch et al., "Linear optimal power flow using cycle flows,"
        Electric Power Systems Research, vol. 158, pp. 126-135, 2018,
        https://doi.org/10.1016/j.epsr.2020.106908
+
     """
     m = n.model
     n.calculate_dependent_values()
@@ -1061,6 +1067,7 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     -----
     The function only creates constraints for components that have non-NaN
     values in their '{attr}_set' attribute.
+
     """
     if attr + "_set" not in n.static(component):
         return
@@ -1116,6 +1123,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
 
     The function only applies to components that are both extendable and have
     a positive module size specified in the '{attr}_mod' attribute.
+
     """
     m = n.model
     c = as_components(n, component)
@@ -1175,6 +1183,7 @@ def define_fixed_operation_constraints(
 
     The function only creates constraints for snapshots and components where
     the '{attr}_set' values are not NaN and the component is active.
+
     """
     c = as_components(n, component)
     attr_set = f"{attr}_set"
@@ -1234,6 +1243,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     within each period and carrying state of charge between periods.
 
     Standing losses are applied based on the elapsed hours between snapshots.
+
     """
     m = n.model
     component = "StorageUnit"
@@ -1373,6 +1383,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     within each period and carrying energy between periods.
 
     Standing losses are applied based on the elapsed hours between snapshots.
+
     """
     m = n.model
     component = "Store"
@@ -1489,6 +1500,7 @@ def define_loss_constraints(
     .. [1] F. Neumann, T. Brown, "Transmission losses in power system
        optimization models: A comparison of heuristic and exact solution methods,"
        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
+
     """
     c = as_components(n, component)
 
@@ -1587,6 +1599,7 @@ def define_total_supply_constraints(
 
     The constraints only apply to generators that have finite e_sum_min or
     e_sum_max values specified.
+
     """
     sns_ = as_index(n, sns, "snapshots")
     m = n.model
@@ -1623,4 +1636,5 @@ def define_total_supply_constraints(
     details="Use define_total_supply_constraints instead.",
 )
 def define_generators_constraints(n: Network, sns: Sequence) -> None:
+    """Define generator constraints (deprecated, use define_total_supply_constraints)."""
     return define_total_supply_constraints(n, sns)

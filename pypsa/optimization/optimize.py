@@ -104,6 +104,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     - The final objective expression is assigned to `n.model.objective`.
     - Applies snapshot and investment-period weightings to operational and capex terms.
     - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
+
     """
     weighted_cost: xr.DataArray | int
     m = n.model
@@ -443,6 +444,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
     """Optimization accessor for building and solving models using linopy."""
 
     def __init__(self, n: Network) -> None:
+        """Initialize the optimization accessor."""
         self._n = n
         self.expressions = StatisticExpressionsAccessor(self._n)
 
@@ -464,7 +466,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         Parameters
         ----------
-        n : pypsa.Network
         snapshots : list or index slice
             A list of snapshots to optimise, must be a subset of
             n.snapshots, defaults to n.snapshots
@@ -509,6 +510,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+
         """
         if model_kwargs is None:
             model_kwargs = {}
@@ -563,17 +565,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         Parameters
         ----------
-        n : pypsa.Network
         snapshots : list or index slice
             A list of snapshots to optimise, must be a subset of
             n.snapshots, defaults to n.snapshots
-        multi_investment_periods : bool, default False
+        multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
             investment periods. Then, snapshots should be a ``pd.MultiIndex``.
-        transmission_losses : int, default 0
-        linearized_unit_commitment : bool, default False
+        transmission_losses : int, default: 0
+            Whether an approximation of transmission losses should be included
+            in the linearised power flow formulation.
+        linearized_unit_commitment : bool, default: False
             Whether to optimise using the linearised unit commitment formulation or not.
-        consisteny_check : bool, default True
+        consistency_check : bool, default: True
             Whether to run the consistency check before building the model.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
@@ -581,6 +584,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         Returns
         -------
         linopy.model
+
         """
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
@@ -686,6 +690,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         Parameters
         ----------
+        extra_functionality : callable
+            This function must take two arguments
+            `extra_functionality(n, snapshots)` and is called after
+            the model building is complete, but before it is sent to the
+            solver. It allows the user to
+            add/change constraints and add/change the objective function.
         solver_name : str
             Name of the solver to use.
         solver_options : dict
@@ -962,6 +972,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         Parameters
         ----------
+        suffix : str, default: " load shedding"
+            Suffix of the load shedding generators. See suffix parameter of
+            [pypsa.Network.add].
         buses : pandas.Index, optional
             Subset of buses where load shedding should be available.
             Defaults to all buses.

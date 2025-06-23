@@ -33,6 +33,7 @@ USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
 
 def check_if_empty(expr: LinearExpression) -> bool:
     """Check if the expression is empty.
+
     This is a workaround for the issue that linopy does not support
     the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
     """
@@ -263,7 +264,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def opex(
+    def opex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -316,7 +317,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def transmission(
+    def transmission(  # noqa: D417
         self,
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
@@ -328,8 +329,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the transmission of branch components in the network. Units
-        depend on the regarded bus carrier.
+        """Calculate the transmission of branch components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the flow between buses with
         carrier `bus_carrier` is calculated.
@@ -387,8 +389,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> LinearExpression:
-        """Calculate the energy balance of components in the network. Positive
-        values represent a supply and negative a withdrawal. Units depend on
+        """Calculate the energy balance of components in the network.
+
+        Positive values represent a supply and negative a withdrawal. Units depend on
         the regarded bus carrier.
 
         For information on the list of arguments, see the docs in
@@ -463,8 +466,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the supply of components in the network. Units depend on the
-        regarded bus carrier.
+        """Calculate the supply of components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the supply to buses with carrier
         `bus_carrier` is calculated.
@@ -499,8 +503,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the withdrawal of components in the network. Units depend on
-        the regarded bus carrier.
+        """Calculate the withdrawal of components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the withdrawal from buses with
         carrier `bus_carrier` is calculated.
@@ -523,7 +528,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             kind="withdrawal",
         )
 
-    def curtailment(
+    def curtailment(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -584,7 +589,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def operation(
+    def operation(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",

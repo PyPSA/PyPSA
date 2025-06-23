@@ -218,8 +218,8 @@ ignore = [
     'TRY'    # tryceratops
 ]
 
-# Still to be fixed
-"{*/optimization/**,pypsa/pf.py,test/**}" = [
+# Ignore for test files
+"{test/**}" = [
     'D100', # Missing docstring in public module
     'D101', # Missing docstring in public class
     'D102', # Missing docstring in public method
@@ -232,7 +232,6 @@ ignore = [
     'D413', # Missing blank line after last section
     'D415', # First line should end with a period, question mark, or exclamation point
     'D417', # Missing argument descriptions in the docstring
-
     ]
 
 "{test,examples}/**"=[

@@ -27,6 +27,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -83,16 +84,17 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
 
 
 def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> None:
-    """Set an capacity expansion limit for assets of the same carrier at the same
-    bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
-    `buses` dataframe matching the pattern "nom_{min/max}_{carrier}". In case
-    the constraint should only be defined for one investment period, the column
-    name can be constructed according to "nom_{min/max}_{carrier}_{period}"
-    where period must be in `n.investment_periods`.
+    """Set an capacity expansion limit for assets of the same carrier at the same bus.
+
+    The function searches for columns in the `buses` dataframe matching the pattern
+    "nom_{min/max}_{carrier}". In case the constraint should only be defined for one
+    investment period, the column name can be constructed according to
+    "nom_{min/max}_{carrier}_{period}" where period must be in `n.investment_periods`.
 
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -165,6 +167,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -249,6 +252,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -325,6 +329,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -383,15 +388,16 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
 
 def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> None:
-    """Set a limit for line volume expansion. For the capacity expansion only the
-    carriers 'AC' and 'DC' are considered.
+    """Set a limit for line volume expansion.
+
+    For the capacity expansion only the carriers 'AC' and 'DC' are considered.
 
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
-
 
     """
     m = n.model
@@ -442,12 +448,14 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
 
 
 def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
-    """Set a limit for line expansion costs. For the capacity expansion only the
-    carriers 'AC' and 'DC' are considered.
+    """Set a limit for line expansion costs.
+
+    For the capacity expansion only the carriers 'AC' and 'DC' are considered.
 
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 

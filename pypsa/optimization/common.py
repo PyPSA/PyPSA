@@ -20,14 +20,16 @@ if TYPE_CHECKING:
     deprecated_in="0.35.0", removed_in="1.0", details="#TODO new-opt deprecation"
 )
 def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
-    """Index a xarray.DataArray by a pandas.Index while renaming according to the
-    new index name.
+    """Index a xarray.DataArray by a pandas.Index while renaming according to the new index name.
 
     Parameters
     ----------
     ds : xr.DataArray
+        The input DataArray to reindex.
     dim : str
+        The dimension name to reindex.
     index : pd.Index
+        The new index to use for reindexing.
 
     Returns
     -------
@@ -54,8 +56,9 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     Parameters
     ----------
     n : Network
-    threshhold: int
-        number of attached components to be counted as strongly meshed
+        The network to analyze.
+    threshold : int
+        Number of attached components to be counted as strongly meshed.
 
     Returns
     -------

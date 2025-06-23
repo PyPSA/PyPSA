@@ -1,6 +1,4 @@
-"""Build abstracted, extended optimisation problems from PyPSA networks with
-Linopy.
-"""
+"""Build abstracted, extended optimisation problems from PyPSA networks with Linopy."""
 
 from __future__ import annotations
 
@@ -32,10 +30,9 @@ def discretized_capacity(
     fractional_last_unit_size: bool,
     min_units: int | None = None,
 ) -> float:
-    """Discretize a optimal capacity to a capacity that is either a multiple of a unit size
-    or the maximum capacity, depending on the variable `fractional_last_unit_size`.
+    """Discretize a optimal capacity to a capacity that is either a multiple of a unit size or the maximum capacity.
 
-    This function checks if the optimal capacity is within the threshold of the unit
+    Depending on the variable `fractional_last_unit_size`. This function checks if the optimal capacity is within the threshold of the unit
     size. If so, it returns the next multiple of the unit size - if not it returns the
     last multiple of the unit size.
     In the special case that the maximum capacity is not a multiple of the unit size,
@@ -181,6 +178,7 @@ def optimize_security_constrained(
     Parameters
     ----------
     n : pypsa.Network
+        PyPSA network
     snapshots : list-like, optional
         Set of snapshots to consider in the optimization. The default is None.
     branch_outages : list-like/pandas.Index/pandas.MultiIndex, optional
@@ -348,6 +346,7 @@ class OptimizationAbstractMixin:
             Whether only multiples of the unit size or in case of a maximum capacity fractions of unit size is allowed.
         **kwargs
             Keyword arguments of the `n.optimize` function which runs at each iteration
+
         """
         n = self._n
 
@@ -405,9 +404,7 @@ class OptimizationAbstractMixin:
             link_threshold: dict | None,
             fractional_last_unit_size: bool = False,
         ) -> None:
-            """Discretizes the branch components of a network based on the specified
-            unit sizes and thresholds.
-            """
+            """Discretizes the branch components of a network based on the specified unit sizes and thresholds."""
             # TODO: move default value definition to main function (unnest)
             line_threshold = line_threshold or 0.3
             link_threshold = link_threshold or {}
@@ -540,7 +537,6 @@ class OptimizationAbstractMixin:
 
         Parameters
         ----------
-        n : pypsa.Network
         snapshots : list-like, optional
             Set of snapshots to consider in the optimization. The default is None.
         branch_outages : list-like/pandas.Index/pandas.MultiIndex, optional
@@ -663,7 +659,6 @@ class OptimizationAbstractMixin:
 
         Parameters
         ----------
-        n : pypsa.Network
         snapshots : list-like
             Set of snapshots to consider in the optimization. The default is None.
         horizon : int
@@ -676,6 +671,7 @@ class OptimizationAbstractMixin:
         Returns
         -------
         None
+
         """
         n = self._n
         if snapshots is None:
@@ -724,12 +720,11 @@ class OptimizationAbstractMixin:
         model_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
-        """Run modelling-to-generate-alternatives (MGA) on network to find near-
-        optimal solutions.
+        """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
 
         Parameters
         ----------
-        n : pypsa.Network snapshots : list-like
+        snapshots : list-like
             Set of snapshots to consider in the optimization. The default is None.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimize in
@@ -874,8 +869,6 @@ class OptimizationAbstractMixin:
 
         Parameters
         ----------
-        n : pypsa.Network
-            The PyPSA Network object to optimize and analyze.
         snapshots : Sequence | None, optional
             Set of snapshots to consider in the optimization and power flow.
             If None, uses all snapshots in the network.
@@ -899,6 +892,7 @@ class OptimizationAbstractMixin:
             - optimization status
             - optimization condition
             - dictionary of power flow results for all snapshots
+
         """
         n = self._n
         if snapshots is None:

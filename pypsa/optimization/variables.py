@@ -19,13 +19,15 @@ logger = logging.getLogger(__name__)
 def define_operational_variables(
     n: Network, sns: Sequence, c_name: str, attr: str
 ) -> None:
-    """Initialize variables for power dispatch for a given component and a given
-    attribute.
+    """Initialize variables for power dispatch for a given component and a given attribute.
 
     Parameters
     ----------
     n : pypsa.Network
-    c : str
+        Network instance
+    sns : Sequence
+        Snapshots
+    c_name : str
         name of the network component
     attr : str
         name of the attribute, e.g. 'p'
@@ -43,6 +45,20 @@ def define_operational_variables(
 def define_status_variables(
     n: Network, sns: Sequence, c_name: str, is_linearized: bool = False
 ) -> None:
+    """Initialize variables for unit status decisions.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+    sns : Sequence
+        Snapshots
+    c_name : str
+        name of the network component
+    is_linearized : bool, default False
+        Whether the unit commitment should be linearized
+
+    """
     c = n.components[c_name]
     com_i = c.committables
 
@@ -66,12 +82,14 @@ def define_start_up_variables(
     Parameters
     ----------
     n : pypsa.Network
+        Network instance
     sns : Sequence
         Snapshots
     c_name : str
         name of the network component
     is_linearized : bool, default False
         Whether the unit commitment should be linearized
+
     """
     c = n.components[c_name]
     com_i = c.committables
@@ -100,12 +118,14 @@ def define_shut_down_variables(
     Parameters
     ----------
     n : pypsa.Network
+        Network instance
     sns : Sequence
         Snapshots
     c_name : str
         name of the network component
     is_linearized : bool, default False
         Whether the unit commitment should be linearized
+
     """
     c = n.components[c_name]
     com_i = c.committables
@@ -132,6 +152,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        Network instance
     c_name : str
         name of network component of which the nominal capacity should be defined
     attr : str
@@ -149,13 +170,14 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
 
 
 def define_modular_variables(n: Network, c_name: str, attr: str) -> None:
-    """Initialize variables 'attr' for a given component c to allow a modular
-    expansion of the attribute 'attr_nom' It allows to define 'n_opt', the
-    optimal number of installed modules.
+    """Initialize variables 'attr' for a given component c to allow a modular expansion of the attribute 'attr_nom'.
+
+    It allows to define 'n_opt', the optimal number of installed modules.
 
     Parameters
     ----------
     n : pypsa.Network
+        Network instance
     c_name : str
         name of network component of which the nominal capacity should be defined
     attr : str
@@ -199,10 +221,12 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        Network instance
     sns : Sequence
         Snapshots
     c_name : str
         name of the network component
+
     """
     c = n.components[c_name]
     if c.empty or c.name not in n.passive_branch_components:

@@ -98,13 +98,6 @@ class Links(Components):
     def additional_ports(self) -> list[str]:
         """Identify additional link ports (bus connections) beyond predefined ones.
 
-        Parameters
-        ----------
-        n : pypsa.Network
-            Network instance.
-        where : iterable of strings, default None
-            Subset of columns to consider. Takes link columns by default.
-
         Returns
         -------
         list of strings
