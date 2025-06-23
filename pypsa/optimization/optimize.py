@@ -152,7 +152,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
         constant += sum(terms)
 
-    n.objective_constant = constant
+    n._objective_constant = constant
     if n.has_scenarios:
         has_const = isinstance(constant, xr.DataArray) and (constant != 0).any().item()
     else:
@@ -568,7 +568,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.consistency_check()
 
         kwargs.setdefault("force_dim_names", True)
-        n.model = Model(**kwargs)
+        n._model = Model(**kwargs)
         n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
         # Define variables
@@ -757,7 +757,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             c = "StorageUnit"
             n.dynamic(c)["p"] = n.dynamic(c)["p_dispatch"] - n.dynamic(c)["p_store"]
 
-        n.objective = m.objective.value
+        self._n._objective = m.objective.value
 
     def assign_duals(self, assign_all_duals: bool = False) -> None:
         """Map dual values i.e. shadow prices to network components.

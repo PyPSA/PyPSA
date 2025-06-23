@@ -171,7 +171,7 @@ class Components(
         >>> c
         'Generator' Components
         ----------------------
-        Attached to PyPSA Network 'AC-DC'
+        Attached to PyPSA Network 'AC-DC-Meshed'
         Components: 6
 
         """
@@ -830,7 +830,7 @@ class SubNetworkComponents:
         >>> sub_network.components.generators
         'Generator' SubNetworkComponents
         --------------------------------
-        Attached to Sub-Network of PyPSA Network 'AC-DC'
+        Attached to Sub-Network of PyPSA Network 'AC-DC-Meshed'
         Components: 6
 
         """

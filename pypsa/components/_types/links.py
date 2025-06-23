@@ -40,7 +40,7 @@ class Links(Components):
     >>> n.components.links
     'Link' Components
     -----------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 4
 
     """

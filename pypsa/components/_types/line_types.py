@@ -34,7 +34,7 @@ class LineTypes(Components):
     >>> n.components.line_types
     'LineType' Components
     ---------------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 36
 
     """
