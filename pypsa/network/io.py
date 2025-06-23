@@ -9,7 +9,7 @@ import math
 import tempfile
 from abc import abstractmethod
 from functools import partial
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, overload
 from urllib.request import urlretrieve
 
 import geopandas as gpd
@@ -18,11 +18,12 @@ import pandas as pd
 import validators
 import xarray as xr
 from deprecation import deprecated
+from pandas.errors import ParserError
 from pyproj import CRS
 from typing_extensions import Self
 
 from pypsa._options import options
-from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.common import _check_for_update, check_optional_dependency, deprecated_kwargs
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_semver__, __version_semver_tuple__
@@ -76,10 +77,7 @@ def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Networ
 # TODO: Restructure abc inheritance
 
 
-TImpExper = TypeVar("TImpExper", bound="ImpExper")
-
-
-class ImpExper:
+class _ImpExper:
     """Base class for importers and exporters."""
 
     ds: Any = None
@@ -108,8 +106,10 @@ class ImpExper:
         """Post-processing when process is finished."""
 
 
-class Exporter(ImpExper):
-    """Exporter class."""
+class _Exporter(_ImpExper):
+    """_Exporter class."""
+
+    path: Path
 
     def remove_static(self, list_name: str) -> None:
         """Remove static components data."""
@@ -146,21 +146,19 @@ class Exporter(ImpExper):
         """Save dynamic components data."""
 
 
-class Importer(ImpExper):
+class _Importer(_ImpExper):
     """Importer class."""
 
 
-class ImporterCSV(Importer):
+class _ImporterCSV(_Importer):
     """Importer class for CSV files."""
 
-    def __init__(
-        self, csv_folder_name: str | Path, encoding: str | None, quotechar: str
-    ) -> None:
+    def __init__(self, path: str | Path, encoding: str | None, quotechar: str) -> None:
         """Initialize the importer for CSV files.
 
         Parameters
         ----------
-        csv_folder_name : str | Path
+        path : str | Path
             Path to the CSV folder.
         encoding : str | None
             Encoding to use for the CSV files.
@@ -168,21 +166,21 @@ class ImporterCSV(Importer):
             Quote character to use for the CSV files.
 
         """
-        self.csv_folder_name = Path(csv_folder_name)
+        self.path = Path(path)
         self.encoding = encoding
         self.quotechar = quotechar
 
-        if not self.csv_folder_name.is_dir():
-            msg = f"Directory {csv_folder_name} does not exist."
+        if not self.path.is_dir():
+            msg = f"Directory {path} does not exist."
             raise FileNotFoundError(msg)
 
     def get_attributes(self) -> dict | None:
         """Get generic network attributes."""
-        fn = self.csv_folder_name.joinpath("network.csv")
+        fn = self.path.joinpath("network.csv")
         if not fn.is_file():
             return None
 
-        dtypes = {"pypsa_version": str}
+        dtypes = {"pypsa_version": str, "name": str}
         return dict(
             pd.read_csv(
                 fn, encoding=self.encoding, dtype=dtypes, quotechar=self.quotechar
@@ -191,17 +189,17 @@ class ImporterCSV(Importer):
 
     def get_meta(self) -> dict:
         """Get meta data (`n.meta`)."""
-        fn = self.csv_folder_name.joinpath("meta.json")
+        fn = self.path.joinpath("meta.json")
         return {} if not fn.is_file() else json.loads(fn.open().read())
 
     def get_crs(self) -> dict:
         """Get CRS of shapes of network."""
-        fn = self.csv_folder_name.joinpath("crs.json")
+        fn = self.path.joinpath("crs.json")
         return {} if not fn.is_file() else json.loads(fn.open().read())
 
     def get_snapshots(self) -> pd.Index:
         """Get snapshots data."""
-        fn = self.csv_folder_name.joinpath("snapshots.csv")
+        fn = self.path.joinpath("snapshots.csv")
         if not fn.is_file():
             return None
         df = pd.read_csv(
@@ -209,18 +207,24 @@ class ImporterCSV(Importer):
             index_col=0,
             encoding=self.encoding,
             quotechar=self.quotechar,
-            parse_dates=True,
         )
-        # backwards-compatibility: level "snapshot" was rename to "timestep"
-        if "snapshot" in df:
-            df["snapshot"] = pd.to_datetime(df.snapshot)
-        if "timestep" in df:
-            df["timestep"] = pd.to_datetime(df.timestep)
+
+        # Convert snapshot and timestep to datetime (if possible)
+        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+            try:
+                df["snapshot"] = pd.to_datetime(df.snapshot)
+            except (ValueError, ParserError):
+                pass
+        if "timestep" in df and df.timestep.iloc[0] != "now":
+            try:
+                df["timestep"] = pd.to_datetime(df.timestep)
+            except (ValueError, ParserError):
+                pass
         return df
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
-        fn = self.csv_folder_name.joinpath("investment_periods.csv")
+        fn = self.path.joinpath("investment_periods.csv")
         if not fn.is_file():
             return None
         return pd.read_csv(
@@ -229,22 +233,28 @@ class ImporterCSV(Importer):
 
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
-        fn = self.csv_folder_name.joinpath(list_name + ".csv")
-        return (
-            pd.read_csv(
-                fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
-            )
-            if fn.is_file()
-            else None
+        fn = self.path.joinpath(list_name + ".csv")
+        if not fn.is_file():
+            return None
+
+        df = pd.read_csv(
+            fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
+
+        # Convert NaN to empty strings for object dtype columns to handle custom attributes
+        object_cols = [col for col in df.columns if df[col].dtype == "object"]
+        if object_cols:
+            df[object_cols] = df[object_cols].fillna("")
+
+        return df
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
-        for fn in self.csv_folder_name.iterdir():
+        for fn in self.path.iterdir():
             if fn.name.startswith(list_name + "-") and fn.name.endswith(".csv"):
                 attr = fn.name[len(list_name) + 1 : -4]
                 df = pd.read_csv(
-                    self.csv_folder_name.joinpath(fn.name),
+                    self.path.joinpath(fn.name),
                     index_col=0,
                     encoding=self.encoding,
                     quotechar=self.quotechar,
@@ -256,17 +266,15 @@ class ImporterCSV(Importer):
         """Finish the import process."""
 
 
-class ExporterCSV(Exporter):
+class _ExporterCSV(_Exporter):
     """Exporter class for CSV files."""
 
-    def __init__(
-        self, csv_folder_name: Path | str, encoding: str | None, quotechar: str
-    ) -> None:
+    def __init__(self, path: Path | str, encoding: str | None, quotechar: str) -> None:
         """Initialize the exporter for CSV files.
 
         Parameters
         ----------
-        csv_folder_name : Path | str
+        path : Path | str
             Path to the CSV folder.
         encoding : str | None
             Encoding to use for the CSV files.
@@ -274,42 +282,42 @@ class ExporterCSV(Exporter):
             Quote character to use for the CSV files.
 
         """
-        self.csv_folder_name = Path(csv_folder_name)
+        self.path = Path(path)
         self.encoding = encoding
         self.quotechar = quotechar
 
         # make sure directory exists
-        if not self.csv_folder_name.is_dir():
-            logger.warning("Directory %s does not exist, creating it", csv_folder_name)
-            self.csv_folder_name.mkdir()
+        if not self.path.is_dir():
+            logger.warning("Directory %s does not exist, creating it", path)
+            self.path.mkdir()
 
     def save_attributes(self, attrs: dict) -> None:
         """Save generic network attributes."""
         name = attrs.pop("name")
         df = pd.DataFrame(attrs, index=pd.Index([name], name="name"))
-        fn = self.csv_folder_name.joinpath("network.csv")
+        fn = self.path.joinpath("network.csv")
         with fn.open("w"):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_meta(self, meta: dict) -> None:
         """Save meta data (`n.meta`)."""
-        fn = self.csv_folder_name.joinpath("meta.json")
+        fn = self.path.joinpath("meta.json")
         fn.open("w").write(json.dumps(meta))
 
     def save_crs(self, crs: dict) -> None:
         """Save CRS of shapes of network."""
-        fn = self.csv_folder_name.joinpath("crs.json")
+        fn = self.path.joinpath("crs.json")
         fn.open("w").write(json.dumps(crs))
 
     def save_snapshots(self, snapshots: pd.Index) -> None:
         """Save snapshots data."""
-        fn = self.csv_folder_name.joinpath("snapshots.csv")
+        fn = self.path.joinpath("snapshots.csv")
         with fn.open("w"):
             snapshots.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
         """Save investment periods data."""
-        fn = self.csv_folder_name.joinpath("investment_periods.csv")
+        fn = self.path.joinpath("investment_periods.csv")
         with fn.open("w"):
             investment_periods.to_csv(
                 fn, encoding=self.encoding, quotechar=self.quotechar
@@ -317,13 +325,13 @@ class ExporterCSV(Exporter):
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save static components data."""
-        fn = self.csv_folder_name.joinpath(list_name + ".csv")
+        fn = self.path.joinpath(list_name + ".csv")
         with fn.open("w"):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save dynamic components data."""
-        fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
+        fn = self.path.joinpath(list_name + "-" + attr + ".csv")
         with fn.open("w"):
             df.to_csv(fn, encoding=self.encoding, quotechar=self.quotechar)
 
@@ -332,7 +340,7 @@ class ExporterCSV(Exporter):
 
         Needed to not have stale sheets for empty components.
         """
-        if fns := list(self.csv_folder_name.joinpath(list_name).glob("*.csv")):
+        if fns := list(self.path.joinpath(list_name).glob("*.csv")):
             for fn in fns:
                 fn.unlink()
             logger.warning("Stale csv file(s) %s removed", ", ".join(fns))
@@ -342,7 +350,7 @@ class ExporterCSV(Exporter):
 
         Needed to not have stale sheets for empty components.
         """
-        fn = self.csv_folder_name.joinpath(list_name + "-" + attr + ".csv")
+        fn = self.path.joinpath(list_name + "-" + attr + ".csv")
         if fn.exists():
             fn.unlink()
 
@@ -350,7 +358,7 @@ class ExporterCSV(Exporter):
         """Finish the export process."""
 
 
-class ImporterExcel(Importer):
+class _ImporterExcel(_Importer):
     """Importer class for Excel files."""
 
     def __init__(self, path: str | Path, engine: str = "calamine") -> None:
@@ -391,7 +399,16 @@ class ImporterExcel(Importer):
     def get_attributes(self) -> dict | None:
         """Get generic network attributes."""
         try:
-            return dict(self.sheets["network"].iloc[0])
+            # Ensure name and pypsa_version are read as strings to prevent
+            # automatic type conversion (e.g., numeric names like "123")
+            df = self.sheets["network"]
+            if "name" in df.columns:
+                df["name"] = df["name"].astype(str)
+
+                df["name"] = df["name"].replace("nan", "")
+            if "pypsa_version" in df.columns:
+                df["pypsa_version"] = df["pypsa_version"].astype(str)
+            return dict(df.iloc[0])
         except (ValueError, KeyError):
             return None
 
@@ -433,18 +450,20 @@ class ImporterExcel(Importer):
 
     def get_snapshots(self) -> pd.Index:
         """Get snapshots data."""
-        try:
-            df = self.sheets["snapshots"]
-            df = df.set_index(df.columns[0])
-            # backwards-compatibility: level "snapshot" was rename to "timestep"
-            if "snapshot" in df:
+        df = self.sheets["snapshots"]
+        df = df.set_index(df.columns[0])
+        # Convert snapshot and timestep to datetime (if possible)
+        if "snapshot" in df and df.snapshot.iloc[0] != "now":
+            try:
                 df["snapshot"] = pd.to_datetime(df.snapshot)
-            if "timestep" in df:
+            except (ValueError, ParserError):
+                pass
+        if "timestep" in df and df.timestep.iloc[0] != "now":
+            try:
                 df["timestep"] = pd.to_datetime(df.timestep)
-        except (ValueError, KeyError):
-            return None
-        else:
-            return df
+            except (ValueError, ParserError):
+                pass
+        return df
 
     def get_investment_periods(self) -> pd.Series:
         """Get investment periods data."""
@@ -461,6 +480,17 @@ class ImporterExcel(Importer):
         try:
             df = self.sheets[list_name]
             df = df.set_index(df.columns[0])
+
+            # Handle DataFrames with only index values that were exported from PyPSA
+            # Otherwise the column row is read in as a component
+            if len(df.columns) == 0 and len(df.index) > 0 and df.index[0] == "name":
+                df = df.iloc[1:]  # Remove the first row which contains the index name
+
+            # Convert NaN to empty strings for object dtype columns to handle custom attributes
+            object_cols = [col for col in df.columns if df[col].dtype == "object"]
+            if object_cols:
+                df[object_cols] = df[object_cols].fillna("")
+
         except (ValueError, KeyError):
             return None
         else:
@@ -478,15 +508,15 @@ class ImporterExcel(Importer):
         """Finish the import process."""
 
 
-class ExporterExcel(Exporter):
+class _ExporterExcel(_Exporter):
     """Exporter class for Excel files."""
 
-    def __init__(self, excel_file_path: Path | str, engine: str = "openpyxl") -> None:
+    def __init__(self, path: Path | str, engine: str = "openpyxl") -> None:
         """Initialize the exporter for Excel files.
 
         Parameters
         ----------
-        excel_file_path : Path | str
+        path : Path | str
             Path to save the Excel file.
         engine : str
             Engine to use for the Excel file.
@@ -500,11 +530,11 @@ class ExporterExcel(Exporter):
                 "make sure it is installed.",
             )
         self.engine = engine
-        self.excel_file_path = Path(excel_file_path)
+        self.path = Path(path)
         # Create an empty Excel file if it doesn't exist
-        if not self.excel_file_path.exists():
-            logger.warning("Excel file %s does not exist, creating it", excel_file_path)
-            with pd.ExcelWriter(self.excel_file_path, engine=self.engine) as writer:
+        if not self.path.exists():
+            logger.warning("Excel file %s does not exist, creating it", path)
+            with pd.ExcelWriter(self.path, engine=self.engine) as writer:
                 pd.DataFrame().to_excel(writer, sheet_name="_temp")
 
         # Keep track of sheets to avoid overwriting
@@ -518,9 +548,9 @@ class ExporterExcel(Exporter):
         """
         if self._writer is None:
             self._writer = pd.ExcelWriter(
-                self.excel_file_path,
+                self.path,
                 engine=self.engine,
-                mode="a" if self.excel_file_path.exists() else "w",
+                mode="a" if self.path.exists() else "w",
                 if_sheet_exists="replace",
             )
         return self._writer
@@ -596,7 +626,7 @@ class ExporterExcel(Exporter):
             self.writer.close()
 
 
-class ImporterHDF5(Importer):
+class _ImporterHDF5(_Importer):
     """Importer class for HDF5 files."""
 
     def __init__(self, path: str | pd.HDFStore) -> None:
@@ -651,10 +681,7 @@ class ImporterHDF5(Importer):
         if "/" + list_name not in self.ds:
             return None
 
-        if self.pypsa_version is None or self.pypsa_version < (0, 13, 1):  # type: ignore
-            df = self.ds["/" + list_name]
-        else:
-            df = self.ds["/" + list_name].set_index("name")
+        df = self.ds["/" + list_name].set_index("name")
 
         self.index[list_name] = df.index
         return df
@@ -672,7 +699,7 @@ class ImporterHDF5(Importer):
         """Finish the import process."""
 
 
-class ExporterHDF5(Exporter):
+class _ExporterHDF5(_Exporter):
     """Exporter class for HDF5 files."""
 
     def __init__(self, path: str | Path, **kwargs: Any) -> None:
@@ -691,9 +718,9 @@ class ExporterHDF5(Exporter):
             "Missing optional dependencies to use HDF5 files. Install them via "
             "`pip install pypsa[hdf5]` or `conda install -c conda-forge pypsa[hdf5]`.",
         )
-        path = Path(path)
-        self._hdf5_handle = path.open("w")
-        self.ds = pd.HDFStore(path, mode="w", **kwargs)
+        self.path = Path(path)
+        self._hdf5_handle = self.path.open("w")
+        self.ds = pd.HDFStore(self.path, mode="w", **kwargs)
         self.index: dict = {}
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
@@ -748,7 +775,7 @@ class ExporterHDF5(Exporter):
         self._hdf5_handle.close()
 
 
-class ImporterNetCDF(Importer):
+class _ImporterNetCDF(_Importer):
     """Importer class for netCDF files."""
 
     ds: xr.Dataset
@@ -840,7 +867,7 @@ class ImporterNetCDF(Importer):
         """Finish the import process."""
 
 
-class ExporterNetCDF(Exporter):
+class _ExporterNetCDF(_Exporter):
     """Exporter class for netCDF files."""
 
     def __init__(
@@ -950,14 +977,16 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
 
     Returns
     -------
-    pandas.DataFrame
+    pd.DataFrame
+        Sorted DataFrame
 
     """
     df_cols_set = set(df.columns if axis == 1 else df.index)
 
     existing_cols = [col for col in attrs_list if col in df_cols_set]
-    remaining_cols = list(df_cols_set - set(attrs_list))
-
+    remaining_cols = [
+        col for col in (df.columns if axis == 1 else df.index) if col not in attrs_list
+    ]
     return df.reindex(existing_cols + remaining_cols, axis=axis)
 
 
@@ -970,8 +999,7 @@ class NetworkIOMixin(_NetworkABC):
 
     def _export_to_exporter(
         self,
-        exporter: Exporter,
-        basename: str | None = None,
+        exporter: _Exporter,
         quotechar: str = '"',
         export_standard_types: bool = False,
     ) -> None:
@@ -982,12 +1010,8 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        n : pypsa.Network
-            Network to export.
-        exporter : Exporter
+        exporter : _Exporter
             Initialized exporter instance
-        basename : str
-            Basename, used for logging
         quotechar : str, default '"'
             String of length 1. Character used to denote the start and end of a
             quoted item. Quoted items can include "," and it will be ignored
@@ -996,8 +1020,6 @@ class NetworkIOMixin(_NetworkABC):
             should then set "ignore_standard_types" when initialising the netowrk).
 
         """
-        if not basename:
-            basename = "<unnamed>"
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
@@ -1015,9 +1037,17 @@ class NetworkIOMixin(_NetworkABC):
             if not attr.startswith("__"):
                 value = getattr(self, attr)
                 if isinstance(value, allowed_types):
-                    # skip properties without setter
+                    # TODO: This needs to be refactored with NetworkData class
+                    # Skip properties without setter, but not 'pypsa_version'
                     prop = getattr(self.__class__, attr, None)
-                    if isinstance(prop, property) and prop.fset is None:
+                    if (
+                        isinstance(prop, property)
+                        and prop.fset is None
+                        and attr not in ["pypsa_version"]
+                    ):
+                        continue
+                    # Skip `_name` since it is writable
+                    if attr in ["_name", "_pypsa_version"]:
                         continue
                     _attrs[attr] = value
         exporter.save_attributes(_attrs)
@@ -1110,8 +1140,9 @@ class NetworkIOMixin(_NetworkABC):
             exported_components.append(list_name)
 
         logger.info(
-            "Exported network '%s' contains: %s",
-            basename,
+            "Exported network '%s'%s contains: %s",
+            self.name,
+            f"saved to '{exporter.path}" if exporter.path else "no file",
             ", ".join(exported_components),
         )
 
@@ -1138,26 +1169,27 @@ class NetworkIOMixin(_NetworkABC):
             crs = CRS.from_wkt(crs)
             self._crs = crs
 
-        pypsa_version = None
+        pypsa_version_tuple = (0, 0, 0)
 
         if attrs is not None:
-            self.name = attrs.pop("name")
+            name = attrs.pop("name")
+            self.name = name if pd.notna(name) else ""
 
-            try:
-                pypsa_version = tuple(
-                    int(s) for s in attrs.pop("pypsa_version").split(".")
-                )
-            except KeyError:
-                pypsa_version = None
+            major = int(attrs.pop("pypsa_version", [0, 0, 0])[0])
+            minor = int(attrs.pop("pypsa_version", [0, 0, 0])[1])
+            patch = int(attrs.pop("pypsa_version", [0, 0, 0])[2])
+
+            pypsa_version_tuple = (major, minor, patch)
 
             for attr, val in attrs.items():
-                setattr(self, attr, val)
+                if attr in ["model", "objective", "objective_constant"]:
+                    setattr(self, f"_{attr}", val)
+                else:
+                    setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version is None or pypsa_version < __version_semver_tuple__:
-            pypsa_version_str = (
-                ".".join(map(str, pypsa_version)) if pypsa_version is not None else "?"
-            )
+        if pypsa_version_tuple < __version_semver_tuple__:
+            pypsa_version_str = ".".join(map(str, pypsa_version_tuple))
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
@@ -1171,11 +1203,8 @@ class NetworkIOMixin(_NetworkABC):
         if update_msg:
             logger.info(update_msg)
 
-        if pypsa_version is None or pypsa_version < (0, 18, 0):
+        if pypsa_version_tuple < (0, 18, 0):
             self._multi_invest = 0
-
-        importer.pypsa_version = pypsa_version
-        importer.current_pypsa_version = __version_semver_tuple__
 
         # if there is snapshots.csv, read in snapshot data
         df = importer.get_snapshots()
@@ -1187,10 +1216,12 @@ class NetworkIOMixin(_NetworkABC):
                 df.set_index(sorted(snapshot_levels), inplace=True)
             self.set_snapshots(df.index)
 
-            cols = ["objective", "generators", "stores"]
+            cols = ["objective", "stores", "generators"]
             if not df.columns.intersection(cols).empty:
+                # Preserve the default column order from Network.__init__
+                existing_cols = [col for col in cols if col in df.columns]
                 self.snapshot_weightings = df.reindex(
-                    index=self.snapshots, columns=cols
+                    index=self.snapshots, columns=existing_cols
                 )
             elif "weightings" in df.columns:
                 self.snapshot_weightings = df["weightings"].reindex(self.snapshots)
@@ -1237,14 +1268,15 @@ class NetworkIOMixin(_NetworkABC):
             imported_components.append(list_name)
 
         logger.info(
-            "Imported network %s has %s",
-            str(basename or self.name or "<unnamed>"),
+            "Imported network '%s' has %s",
+            self.name,
             ", ".join(imported_components),
         )
 
+    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", csv_folder_name="path")
     def import_from_csv_folder(
         self,
-        csv_folder_name: str | Path,
+        path: str | Path,
         encoding: str | None = None,
         quotechar: str = '"',
         skip_time: bool = False,
@@ -1255,7 +1287,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        csv_folder_name : string
+        path : string
             Name of folder
         encoding : str, default None
             Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
@@ -1273,15 +1305,14 @@ class NetworkIOMixin(_NetworkABC):
         >>> n.import_from_csv_folder"./my_network") # doctest: +SKIP
 
         """
-        basename = Path(csv_folder_name).name
-        with ImporterCSV(
-            csv_folder_name, encoding=encoding, quotechar=quotechar
-        ) as importer:
+        basename = Path(path).name
+        with _ImporterCSV(path, encoding=encoding, quotechar=quotechar) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
+    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", csv_folder_name="path")
     def export_to_csv_folder(
         self,
-        csv_folder_name: str,
+        path: str,
         encoding: str | None = None,
         quotechar: str = '"',
         export_standard_types: bool = False,
@@ -1291,9 +1322,9 @@ class NetworkIOMixin(_NetworkABC):
         Both static and series attributes of all components are exported, but only
         if they have non-default values.
 
-        If ``csv_folder_name`` does not already exist, it is created.
+        If ``path`` does not already exist, it is created.
 
-        ``csv_folder_name`` may also be a cloud object storage URI if cloudpathlib is installed.
+        ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
 
         Static attributes are exported in one CSV file per component,
         e.g. ``generators.csv``.
@@ -1303,7 +1334,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        csv_folder_name : string
+        path : string
             Name of folder to which to export.
         encoding : str, default None
             Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
@@ -1326,17 +1357,17 @@ class NetworkIOMixin(_NetworkABC):
         export_to_excel : Export to an Excel file
 
         """
-        basename = Path(csv_folder_name).name
-        with ExporterCSV(
-            csv_folder_name=csv_folder_name, encoding=encoding, quotechar=quotechar
+        with _ExporterCSV(
+            path=path, encoding=encoding, quotechar=quotechar
         ) as exporter:
             self._export_to_exporter(
-                exporter, basename=basename, export_standard_types=export_standard_types
+                exporter, export_standard_types=export_standard_types
             )
 
+    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", excel_file_path="path")
     def import_from_excel(
         self,
-        excel_file_path: str | Path,
+        path: str | Path,
         skip_time: bool = False,
         engine: str = "calamine",
     ) -> None:
@@ -1346,7 +1377,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        excel_file_path : string or Path
+        path : string or Path
             Path to the Excel file
         skip_time : bool, default False
             Skip reading in time dependent attributes
@@ -1360,13 +1391,14 @@ class NetworkIOMixin(_NetworkABC):
         >>> n.import_from_excel("my_network.xlsx") # doctest: +SKIP
 
         """
-        basename = Path(excel_file_path).stem
-        with ImporterExcel(excel_file_path, engine=engine) as importer:
+        basename = Path(path).stem
+        with _ImporterExcel(path, engine=engine) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
+    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", excel_file_path="path")
     def export_to_excel(
         self,
-        excel_file_path: str | Path,
+        path: str | Path,
         export_standard_types: bool = False,
         engine: str = "openpyxl",
     ) -> None:
@@ -1378,7 +1410,7 @@ class NetworkIOMixin(_NetworkABC):
         Both static and series attributes of all components are exported, but only
         if they have non-default values.
 
-        If ``excel_file_path`` does not already exist, it is created.
+        If ``path`` does not already exist, it is created.
 
         Static attributes are exported in one sheet per component,
         e.g. a sheet named ``generators``.
@@ -1388,7 +1420,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        excel_file_path : string or Path
+        path : string or Path
             Path to the Excel file to which to export.
         export_standard_types : boolean, default False
             If True, then standard types are exported too (upon reimporting you
@@ -1408,10 +1440,9 @@ class NetworkIOMixin(_NetworkABC):
         export_to_csv_folder : Export to a folder of CSVs
 
         """
-        basename = Path(excel_file_path).stem
-        with ExporterExcel(excel_file_path, engine=engine) as exporter:
+        with _ExporterExcel(path, engine=engine) as exporter:
             self._export_to_exporter(
-                exporter, basename=basename, export_standard_types=export_standard_types
+                exporter, export_standard_types=export_standard_types
             )
 
     def import_from_hdf5(self, path: str | Path, skip_time: bool = False) -> None:
@@ -1432,7 +1463,7 @@ class NetworkIOMixin(_NetworkABC):
         """
         basename = Path(path).name
 
-        with ImporterHDF5(path) as importer:
+        with _ImporterHDF5(path) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
     def export_to_hdf5(
@@ -1474,11 +1505,9 @@ class NetworkIOMixin(_NetworkABC):
         """
         kwargs.setdefault("complevel", 4)
 
-        basename = Path(path).name
-        with ExporterHDF5(path, **kwargs) as exporter:
+        with _ExporterHDF5(path, **kwargs) as exporter:
             self._export_to_exporter(
                 exporter,
-                basename=basename,
                 export_standard_types=export_standard_types,
             )
 
@@ -1504,7 +1533,7 @@ class NetworkIOMixin(_NetworkABC):
 
         """
         basename = "" if isinstance(path, xr.Dataset) else Path(path).name
-        with ImporterNetCDF(path=path) as importer:
+        with _ImporterNetCDF(path=path) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
     def export_to_netcdf(
@@ -1529,9 +1558,9 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        path : string|None
+        path : string | None
             Name of netCDF file to which to export (if it exists, it is overwritten);
-            if None is passed, no file is exported.
+            if None is passed, no file is exported and only the xarray.Dataset is returned.
         export_standard_types : boolean, default False
             If True, then standard types are exported too (upon reimporting you
             should then set "ignore_standard_types" when initialising the network).
@@ -1560,10 +1589,9 @@ class NetworkIOMixin(_NetworkABC):
         export_to_excel : Export to an Excel file
 
         """
-        basename = Path(path).name if path is not None else None
-        with ExporterNetCDF(path, compression, float32) as exporter:
+        with _ExporterNetCDF(path, compression, float32) as exporter:
             self._export_to_exporter(
-                exporter, basename=basename, export_standard_types=export_standard_types
+                exporter, export_standard_types=export_standard_types
             )
             return exporter.ds
 

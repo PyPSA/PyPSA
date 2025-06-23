@@ -34,7 +34,7 @@ class SubNetworks(Components):
     >>> n.components.sub_networks
     'SubNetwork' Components
     -----------------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 3
 
     """

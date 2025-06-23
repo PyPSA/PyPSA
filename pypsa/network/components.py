@@ -97,7 +97,7 @@ class NetworkComponentsMixin(_NetworkABC):
         >>> n.components.generators
         'Generator' Components
         ----------------------
-        Attached to PyPSA Network 'AC-DC'
+        Attached to PyPSA Network 'AC-DC-Meshed'
         Components: 6
 
         Which is the same reference when accessing the component directly:

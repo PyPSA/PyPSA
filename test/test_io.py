@@ -97,11 +97,11 @@ class TestCSVDir:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using CSV format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_csv_folder(tmp_path / "network")
         n3 = pypsa.Network(tmp_path / "network")
         assert n.equals(n3, log_mode="strict")
@@ -220,11 +220,11 @@ class TestNetcdf:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using netCDF format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_netcdf(tmp_path / "network.nc")
         n2 = pypsa.Network(tmp_path / "network.nc")
         assert n.equals(n2, log_mode="strict")
@@ -288,11 +288,11 @@ class TestHDF5:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using HDF5 format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_hdf5(tmp_path / "network.h5")
         n5 = pypsa.Network(tmp_path / "network.h5")
         assert n.equals(n5, log_mode="strict")
@@ -369,11 +369,11 @@ class TestExcelIO:
         sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
         reason="Unstable test in CI. Remove with 1.0",
     )
-    def test_io_equality(self, ac_dc_network, tmp_path):
+    def test_io_equality(self, network_all, tmp_path):
         """
         Test if the network is equal after export and import using Excel format.
         """
-        n = ac_dc_network
+        n = network_all
         n.export_to_excel(tmp_path / "network.xlsx")
         n4 = pypsa.Network(tmp_path / "network.xlsx")
         assert n.equals(n4, log_mode="strict")
@@ -414,11 +414,11 @@ class TestExcelIO:
     sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
     reason="Unstable test in CI. Remove with 1.0",
 )
-def test_io_equality(ac_dc_network, tmp_path):
+def test_io_equality(network_all, tmp_path):
     """
     Test if the network is equal after export and import.
     """
-    n = ac_dc_network
+    n = network_all
     n.export_to_netcdf(tmp_path / "network.nc")
     n2 = pypsa.Network(tmp_path / "network.nc")
     assert n.equals(n2, log_mode="strict")
@@ -436,6 +436,46 @@ def test_io_equality(ac_dc_network, tmp_path):
         n.export_to_hdf5(tmp_path / "network.h5")
         n5 = pypsa.Network(tmp_path / "network.h5")
         assert n.equals(n5, log_mode="strict")
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
+    reason="Only check once since it is an optional test when examples are updated.",
+)
+@pytest.mark.parametrize(
+    "example_network",
+    [
+        "ac-dc-meshed",
+        "storage-hvdc",
+        "scigrid-de",
+        "model-energy",
+    ],
+)
+def test_examples_against_master(tmp_path, example_network):
+    # Test examples are unchanged
+    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    # Test examples vs master
+    example_network = pypsa.Network(
+        f"https://github.com/PyPSA/PyPSA/raw/master/examples/networks/{example_network}/{example_network}.nc"
+    )
+    assert n.equals(example_network, log_mode="strict")
+
+
+@pytest.mark.parametrize(
+    "example_network",
+    [
+        "ac-dc-meshed",
+        "storage-hvdc",
+        "scigrid-de",
+        "model-energy",
+    ],
+)
+def test_examples_consistency(tmp_path, example_network):
+    # Test examples are unchanged
+    n = pypsa.Network(f"examples/networks/{example_network}/{example_network}")
+    n.export_to_csv_folder(tmp_path / "network")
+    n2 = pypsa.Network(tmp_path / "network")
+    assert n.equals(n2, log_mode="strict")
 
 
 @pytest.mark.skipif(
@@ -495,3 +535,41 @@ def test_io_time_dependent_efficiencies(tmpdir):
     equal(m.generators_t.efficiency, n.generators_t.efficiency)
     equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
     equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
+
+
+def test_sort_attrs():
+    """Test _sort_attrs function for sorting DataFrame columns/index."""
+    from pypsa.network.io import _sort_attrs
+
+    # Test sorting columns (axis=1)
+    df = pd.DataFrame(
+        {"c": [1, 2, 3], "a": [4, 5, 6], "b": [7, 8, 9], "d": [10, 11, 12]}
+    )
+
+    # Sort columns according to attrs_list
+    attrs_list = ["a", "b", "c"]
+    result = _sort_attrs(df, attrs_list, axis=1)
+    expected_order = ["a", "b", "c", "d"]  # d is appended at end
+    assert list(result.columns) == expected_order
+
+    # Test with attrs not in DataFrame (should be ignored)
+    attrs_list = ["a", "x", "b", "y"]
+    result = _sort_attrs(df, attrs_list, axis=1)
+    expected_order = ["a", "b", "c", "d"]  # x, y ignored; c, d appended
+    assert list(result.columns) == expected_order
+
+    # Test sorting index (axis=0)
+    df = pd.DataFrame([[1, 2], [3, 4], [5, 6]], index=["c", "a", "b"])
+    attrs_list = ["a", "b"]
+    result = _sort_attrs(df, attrs_list, axis=0)
+    expected_order = ["a", "b", "c"]  # c is appended at end
+    assert list(result.index) == expected_order
+
+    # Test empty attrs_list
+    result = _sort_attrs(df, [], axis=0)
+    assert list(result.index) == ["c", "a", "b"]  # original order preserved
+
+    # Test empty DataFrame
+    empty_df = pd.DataFrame()
+    result = _sort_attrs(empty_df, ["a", "b"], axis=1)
+    assert result.empty

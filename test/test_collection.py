@@ -148,7 +148,7 @@ class TestNetworkCollectionInit:
         n2 = pypsa.Network()
 
         with pytest.raises(
-            ValueError, match="Duplicate network names found: \\['network'\\]"
+            ValueError, match="Duplicate network names found: \\['Unnamed Network'\\]"
         ):
             pypsa.NetworkCollection([n1, n2])
 

@@ -30,7 +30,7 @@ class Loads(Components):
     >>> n.components.loads
     'Load' Components
     -----------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 6
 
     """
