@@ -362,7 +362,7 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
     # Get available dimensions
     dims = set(da.dims)
 
-    if dims in ({"component"}, {"snapshot", "component"}):
+    if dims in ({"component"}, {"snapshot", "component"}, {"snapshot"}):
         return da.to_pandas()
 
     elif dims == {"component", "snapshot", "scenario"}:
@@ -396,6 +396,11 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
                 df.columns.name = None
 
             return df
+
+    # Handle cases with auxiliary dimensions but no component dimension (e.g. GlobalConstraint with cycle)
+    elif len(dims) == 2 and "snapshot" in dims:
+        # For 2D cases like ('snapshot', 'cycle'), just use to_pandas() directly
+        return da.to_pandas()
 
     # Handle other cases
     else:
@@ -802,58 +807,82 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         """
         m = self._n.model
-        unassigned = []
+        unassigned_constraints = []
+
+        # Early return if no dual values are available
         if all("dual" not in constraint for _, constraint in m.constraints.items()):
             logger.info("No shadow prices were assigned to the network.")
             return
 
-        for name, constraint in m.constraints.items():
-            dual = constraint.dual
+        # Process each constraint and its dual values
+        for constraint_name, constraint in m.constraints.items():
+            dual_values = constraint.dual
+
+            # Parse constraint name into component and attribute
             try:
-                c, attr = name.split("-", 1)
+                component_name, attribute_name = constraint_name.split("-", 1)
             except ValueError:
-                unassigned.append(name)
+                unassigned_constraints.append(constraint_name)
                 continue
 
-            if "snapshot" in dual.dims:
+            # TIME-VARYING DUALS (constraints with snapshot dimension)
+            if "snapshot" in dual_values.dims:
                 try:
-                    df = from_xarray(dual.transpose("snapshot", ...))
+                    # Use from_xarray for all constraints (now handles GlobalConstraint cases too)
+                    dual_df = from_xarray(dual_values.transpose("snapshot", ...))
 
-                    # For security constraints, use more of the constraint name to avoid overwriting
-                    if "security" in attr:
-                        # Extract a unique spec for security constraints
-                        # e.g., "fix-s-lower-security-for-Line-outage-in-<SubNetwork>"
-                        parts = attr.split("-")
-                        if len(parts) >= 3:
-                            spec = "-".join(parts[1:])
-                        else:
-                            spec = attr
+                    # Determine what the dual variable will be called (e.g., "mu_<spec>")
+                    if "security" in attribute_name:
+                        # Security constraints: preserve more information to avoid conflicts
+                        # e.g., "fix-s-lower-security-for-Line-outage-in-SubNetwork-0"
+                        attr_parts = attribute_name.split("-")
+                        dual_spec = (
+                            "-".join(attr_parts[1:])
+                            if len(attr_parts) >= 3
+                            else attribute_name
+                        )
+                    elif component_name == "GlobalConstraint":
+                        dual_spec = attribute_name
                     else:
-                        # Standard spec extraction
+                        # Standard components: extract last part after final dash
+                        # e.g., "Line-s-upper" -> "upper", "Generator-p-lower" -> "lower"
                         try:
-                            spec = attr.rsplit("-", 1)[-1]
+                            dual_spec = attribute_name.rsplit("-", 1)[-1]
                         except ValueError:
-                            spec = attr
+                            dual_spec = attribute_name
 
-                    if attr.endswith("nodal_balance"):
-                        set_from_frame(self._n, c, "marginal_price", df)
-                    elif assign_all_duals or f"mu_{spec}" in self._n.static(c):
-                        set_from_frame(self._n, c, "mu_" + spec, df)
+                    # Assign dual values to appropriate network attribute
+                    if attribute_name.endswith("nodal_balance"):
+                        # Special case: nodal balance duals become marginal prices
+                        set_from_frame(
+                            self._n, component_name, "marginal_price", dual_df
+                        )
+                    elif assign_all_duals or f"mu_{dual_spec}" in self._n.static(
+                        component_name
+                    ):
+                        # Standard case: assign as "mu_<spec>" (e.g., "mu_upper", "mu_generation_limit_dynamic")
+                        set_from_frame(
+                            self._n, component_name, "mu_" + dual_spec, dual_df
+                        )
                     else:
-                        unassigned.append(name)
+                        # Dual variable doesn't have a designated place and assign_all_duals=False
+                        unassigned_constraints.append(constraint_name)
 
                 except (KeyError, ValueError):
-                    unassigned.append(name)
+                    unassigned_constraints.append(constraint_name)
 
-            elif (c == "GlobalConstraint") and (
-                assign_all_duals or attr in self._n.static(c).index
+            # SCALAR DUALS (constraints without snapshot dimension)
+            elif component_name == "GlobalConstraint" and (
+                assign_all_duals
+                or attribute_name in self._n.static(component_name).index
             ):
-                self._n.static(c).loc[attr, "mu"] = dual
+                # GlobalConstraint scalar duals: assign directly to the "mu" column
+                self._n.static(component_name).loc[attribute_name, "mu"] = dual_values
 
-        if unassigned:
+        if unassigned_constraints:
             logger.info(
                 "The shadow-prices of the constraints %s were not assigned to the network.",
-                ", ".join(unassigned),
+                ", ".join(unassigned_constraints),
             )
 
     def post_processing(self) -> None:
