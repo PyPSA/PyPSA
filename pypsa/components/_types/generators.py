@@ -48,18 +48,12 @@ class Generators(Components):
 
     def get_bounds_pu(
         self,
-        sns: Sequence,
-        index: pd.Index | None = None,
         attr: str = "p",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for generators.
 
         Parameters
         ----------
-        sns : pandas.Index/pandas.DateTimeIndex
-            Set of snapshots for the bounds
-        index : pd.Index, optional
-            Subset of the component elements
         attr : string, optional
             Attribute name for the bounds, e.g. "p"
 
@@ -73,10 +67,7 @@ class Generators(Components):
             msg = f"Bounds can only be retrieved for operational attributes. For generators those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
-        min_pu = self.as_xarray("p_min_pu", sns, inds=index)
-        max_pu = self.as_xarray("p_max_pu", sns, inds=index)
-
-        return min_pu, max_pu
+        return self.da.p_min_pu, self.da.p_max_pu
 
     def add(
         self,

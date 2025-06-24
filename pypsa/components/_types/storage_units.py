@@ -38,18 +38,12 @@ class StorageUnits(Components):
 
     def get_bounds_pu(
         self,
-        sns: Sequence,
-        index: pd.Index | None = None,
         attr: str = "p_store",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for storage units.
 
         Parameters
         ----------
-        sns : pandas.Index/pandas.DateTimeIndex
-            Set of snapshots for the bounds
-        index : pd.Index, optional
-            Subset of the component elements
         attr : string, optional
             Attribute name for the bounds, e.g. "p", "p_store", "state_of_charge"
 
@@ -63,16 +57,16 @@ class StorageUnits(Components):
             msg = f"Bounds can only be retrieved for operational attributes. For storage_units those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
-        max_pu = self.as_xarray("p_max_pu", sns, inds=index)
+        max_pu = self.da.p_max_pu
 
         if attr == "p_store":
-            max_pu = -self.as_xarray("p_min_pu", snapshots=sns, inds=index)
+            max_pu = -self.da.p_min_pu
             min_pu = xr.zeros_like(max_pu)
         elif attr == "state_of_charge":
-            max_pu = self.as_xarray("max_hours", snapshots=sns, inds=index)
+            max_pu = self.da.max_hours
             min_pu = xr.zeros_like(max_pu)
         else:
-            max_pu = self.as_xarray("p_max_pu", snapshots=sns, inds=index)
+            max_pu = self.da.p_max_pu
             min_pu = xr.zeros_like(max_pu)
 
         return min_pu, max_pu
