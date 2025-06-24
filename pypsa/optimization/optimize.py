@@ -14,7 +14,7 @@ from linopy import Model, merge
 from linopy.solvers import available_solvers
 from xarray import DataArray
 
-from pypsa.common import as_index
+from pypsa.common import UnexpectedError, as_index, list_as_string
 from pypsa.components.common import as_components
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
@@ -409,13 +409,12 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
         return da.to_pandas()
 
     # Handle other cases
-    else:
-        available_dims = ", ".join([str(x) for x in dims])
-        msg = (
-            f"Unexpected combination of dimensions: {available_dims}. "
-            f"Expected some combination of 'snapshot', 'component', and 'scenario'."
-        )
-        raise ValueError(msg)
+    available_dims = list_as_string(dims)
+    msg = (
+        f"Unexpected combination of dimensions: {available_dims}. "
+        f"Expected some combination of 'snapshot', 'component', and 'scenario'."
+    )
+    raise UnexpectedError(msg)
 
 
 @deprecated(
