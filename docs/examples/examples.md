@@ -14,6 +14,14 @@ todo: Add overview with short intro to all examples (maybe images)
 
     [:octicons-arrow-right-24: Examples](examples.md)
 
+-   :material-chart-line:{ .lg .middle } **Stochastic Optimization**
+
+    ---
+    
+    Comprehensive example to stochastic optimization in PyPSA
+
+    [:octicons-arrow-right-24: Stochastic Optimization](stochastic-optimization.ipynb)
+
 - 
 </div>
 
