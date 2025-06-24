@@ -494,26 +494,26 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-        * Generator-p_nom (component)
-        * Line-s_nom (component)
-        * Link-p_nom (component)
-        * Generator-p (snapshot, component)
-        * Line-s (snapshot, component)
-        * Link-p (snapshot, component)
+        * Generator-p_nom (name)
+        * Line-s_nom (name)
+        * Link-p_nom (name)
+        * Generator-p (snapshot, name)
+        * Line-s (snapshot, name)
+        * Link-p (snapshot, name)
         * objective_constant
         <BLANKLINE>
         Constraints:
         ------------
-        * Generator-ext-p_nom-lower (component)
-        * Line-ext-s_nom-lower (component)
-        * Link-ext-p_nom-lower (component)
-        * Generator-ext-p-lower (snapshot, component)
-        * Generator-ext-p-upper (snapshot, component)
-        * Line-ext-s-lower (snapshot, component)
-        * Line-ext-s-upper (snapshot, component)
-        * Link-ext-p-lower (snapshot, component)
-        * Link-ext-p-upper (snapshot, component)
-        * Bus-nodal_balance (component, snapshot)
+        * Generator-ext-p_nom-lower (name)
+        * Line-ext-s_nom-lower (name)
+        * Link-ext-p_nom-lower (name)
+        * Generator-ext-p-lower (snapshot, name)
+        * Generator-ext-p-upper (snapshot, name)
+        * Line-ext-s-lower (snapshot, name)
+        * Line-ext-s-upper (snapshot, name)
+        * Link-ext-p-lower (snapshot, name)
+        * Link-ext-p-upper (snapshot, name)
+        * Bus-nodal_balance (name, snapshot)
         * Kirchhoff-Voltage-Law (snapshot, cycle)
         * GlobalConstraint-co2_limit
         <BLANKLINE>
@@ -1003,14 +1003,14 @@ class Network(
         --------
         >>> n.passive_branches() # doctest: +ELLIPSIS
                     active    b  b_pu  ...         x      x_pu  x_pu_eff
-         component                     ...
-         0            True  0.0   0.0  ...  0.796878  0.000006  0.000006
-         1            True  0.0   0.0  ...  0.391560  0.000003  0.000003
-         2            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-         3            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-         4            True  0.0   0.0  ...  0.000000  0.000000  0.000000
-         5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
-         6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
+        component                     ...
+        0            True  0.0   0.0  ...  0.796878  0.000006  0.000006
+        1            True  0.0   0.0  ...  0.391560  0.000003  0.000003
+        2            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+        3            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+        4            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+        5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
+        6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
         [7 rows x 37 columns]
 
@@ -1224,7 +1224,7 @@ class Network(
         if self.has_scenarios:
             branches = branches.xs(self.scenarios.index[0], level="scenario")
 
-        branches.index.names = ["type", "component"]
+        branches.index.names = ["type", "name"]
         branches_i = branches.loc[existing_branch_components].index
 
         if apply_weights:

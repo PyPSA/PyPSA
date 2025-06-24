@@ -377,7 +377,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         if isinstance(vals.index, pd.MultiIndex):
             levels = vals.index.names
-            keep_levels = [l for l in levels if l not in ["component", c]]
+            keep_levels = [l for l in levels if l not in ["name", c]]
             grouping_df = grouping["by"]
             if isinstance(grouping_df, pd.Series):
                 grouping_df = grouping_df.to_frame()
@@ -2260,7 +2260,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             buses = (
                 buses.to_frame("bus")
                 .set_index("bus", append=True)
-                .droplevel("component")
+                .droplevel("name")
                 .index
             )
             prices = n.buses_t.marginal_price.reindex(

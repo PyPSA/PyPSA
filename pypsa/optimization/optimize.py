@@ -140,7 +140,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = (
                     c.as_xarray("active")
-                    .sel(period=period, component=ext_i)
+                    .sel(period=period, name=ext_i)
                     .any(dim="timestep")
                 )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
@@ -149,7 +149,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
-            terms.append((weighted_cost * nominal).sum(dim=["component"]))
+            terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
         constant += sum(terms)
 
@@ -194,10 +194,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
             cost = cost * weight
 
-            operation = m[var_name].sel(
-                snapshot=sns, component=cost.coords["component"].values
-            )
-            objective.append((operation * cost).sum(dim=["component", "snapshot"]))
+            operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
+            objective.append((operation * cost).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -213,11 +211,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         cost = cost * weight
 
         operation = m[f"{c.name}-{attr}"].sel(
-            snapshot=sns, component=cost.coords["component"].values
+            snapshot=sns, name=cost.coords["name"].values
         )
-        objective.append(
-            (operation * operation * cost).sum(dim=["component", "snapshot"])
-        )
+        objective.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
         is_quadratic = True
 
     # stand-by cost
@@ -235,9 +231,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         stand_by_cost = stand_by_cost * weight
 
         status = m[f"{c.name}-status"].sel(
-            snapshot=sns, component=stand_by_cost.coords["component"].values
+            snapshot=sns, name=stand_by_cost.coords["name"].values
         )
-        objective.append((status * stand_by_cost).sum(dim=["component", "snapshot"]))
+        objective.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -258,7 +254,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = (
                     c.as_xarray("active")
-                    .sel(period=period, component=ext_i)
+                    .sel(period=period, name=ext_i)
                     .any(dim="timestep")
                 )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
@@ -267,8 +263,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
-        caps = m[f"{c.name}-{attr}"].sel(component=ext_i)
-        objective.append((caps * weighted_cost).sum(dim=["component"]))
+        caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
+        objective.append((caps * weighted_cost).sum(dim=["name"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -284,8 +280,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if cost.size == 0 or cost.sum().item() == 0:
             continue
 
-        var = m[f"{c.name}-{attr}"].sel(component=com_i)
-        objective.append((var * cost).sum(dim=["component", "snapshot"]))
+        var = m[f"{c.name}-{attr}"].sel(name=com_i)
+        objective.append((var * cost).sum(dim=["name", "snapshot"]))
 
     if not objective:
         msg = (
@@ -368,13 +364,13 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
     # Get available dimensions
     dims = set(da.dims)
 
-    if dims in ({"component"}, {"snapshot", "component"}, {"snapshot"}):
+    if dims in ({"name"}, {"snapshot", "name"}, {"snapshot"}):
         return da.to_pandas()
 
-    elif dims == {"component", "snapshot", "scenario"}:
+    elif dims == {"name", "snapshot", "scenario"}:
         df = (
-            da.transpose("component", "scenario", "snapshot")
-            .stack(combined=("scenario", "component"))
+            da.transpose("name", "scenario", "snapshot")
+            .stack(combined=("scenario", "name"))
             .to_pandas()
         )
 
@@ -385,15 +381,15 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
     elif len(dims) > 2:
         # Find auxiliary dimensions
         contingency_dims = [
-            d for d in dims if d not in {"snapshot", "component", "scenario"}
+            d for d in dims if d not in {"snapshot", "name", "scenario"}
         ]
 
         if contingency_dims:
             # Stack auxiliary dimensions with component dimension to create combined index
             if "scenario" in dims:
-                stack_dims = ["component", "scenario"] + contingency_dims
+                stack_dims = ["name", "scenario"] + contingency_dims
             else:
-                stack_dims = ["component"] + contingency_dims
+                stack_dims = ["name"] + contingency_dims
 
             combined_name = "combined"
             df = da.stack({combined_name: stack_dims}).to_pandas()
@@ -412,7 +408,7 @@ def from_xarray(da: xr.DataArray) -> pd.DataFrame | pd.Series:
     available_dims = list_as_string(dims)
     msg = (
         f"Unexpected combination of dimensions: {available_dims}. "
-        f"Expected some combination of 'snapshot', 'component', and 'scenario'."
+        f"Expected some combination of 'snapshot', 'name', and 'scenario'."
     )
     raise UnexpectedError(msg)
 
@@ -785,7 +781,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 idx = df.index.intersection(n.components[c].component_names)
                 static = n.components[c].static
                 static.loc[:, attr + "_opt"] = static.index.get_level_values(
-                    "component"
+                    "name"
                 ).map(df.loc[idx])
 
         # if nominal capacity was no variable set optimal value to nominal
@@ -943,7 +939,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 [
                     n.dynamic(c)[attr]
                     .mul(sign(c))
-                    .rename(columns=n.static(c)[group], level="component")
+                    .rename(columns=n.static(c)[group], level="name")
                     for c, attr, group in ca
                 ],
                 axis=1,

@@ -164,7 +164,7 @@ def define_nominal_variables(n: Network, c_name: str, attr: str) -> None:
     if ext_i.empty:
         return
     if isinstance(ext_i, pd.MultiIndex):
-        ext_i = ext_i.unique(level="component")
+        ext_i = ext_i.unique(level="name")
 
     n.model.add_variables(coords=[ext_i], name=f"{c.name}-{attr}")
 

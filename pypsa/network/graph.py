@@ -121,7 +121,7 @@ class NetworkGraphMixin:
             raise TypeError(msg)
 
         if n.has_scenarios:
-            buses_i = buses_i.unique("component")
+            buses_i = buses_i.unique("name")
 
         graph = OrderedGraph()
 
@@ -207,7 +207,7 @@ class NetworkGraphMixin:
 
         # Initialize empty DataFrame with buses as both rows and columns
         if n.has_scenarios:
-            busorder = busorder.unique("component")
+            busorder = busorder.unique("name")
 
         dtype = int if weights is None else float
         adjacency_df = pd.DataFrame(0, index=busorder, columns=busorder, dtype=dtype)
@@ -215,8 +215,8 @@ class NetworkGraphMixin:
         # Build adjacency matrix component by component
         for c in n.iterate_components(branch_components):
             active = c.get_active_assets(investment_period)
-            sel = c.static[active].index.unique("component")
-            static = c.static.reindex(sel, level="component")
+            sel = c.static[active].index.unique("name")
+            static = c.static.reindex(sel, level="name")
 
             # Skip if no branches in this component
             if len(static) == 0:

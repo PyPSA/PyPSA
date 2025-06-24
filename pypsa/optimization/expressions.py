@@ -74,7 +74,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         return grouper
 
     def _get_component_index(self, obj: LinearExpression, c: str) -> pd.Index:
-        return obj.indexes["component"]
+        return obj.indexes["name"]
 
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
         return ln.merge(list(exprs.values()), dim=c)
@@ -192,7 +192,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if include_non_extendable:
                 query = f"~{nominal_attrs[c]}_extendable"
                 capacity = capacity + n.df(c).query(query)["p_nom"]
-            costs = n.df(c)[cost_attribute][capacity.indexes["component"]]
+            costs = n.df(c)[cost_attribute][capacity.indexes["name"]]
             return capacity * costs
 
         return self._aggregate_components(
@@ -244,7 +244,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if include_non_extendable:
                 query = f"~{attr}_extendable"
                 capacity = capacity + n.df(c).query(query)[attr]
-            efficiency = port_efficiency(n, c, port=port)[capacity.indexes["component"]]
+            efficiency = port_efficiency(n, c, port=port)[capacity.indexes["name"]]
             if not at_port:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
@@ -567,7 +567,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 n.model.variables[f"{c}-{attr}"]
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
-            idx = capacity.indexes["component"]
+            idx = capacity.indexes["name"]
             operation = self._get_operational_variable(c).loc[:, idx]
             sns = operation.indexes["snapshot"]
             p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]

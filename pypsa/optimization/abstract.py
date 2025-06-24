@@ -603,7 +603,7 @@ class OptimizationAbstractMixin:
                 c_outage_ = c_outage + "-outage"
                 c_outages = outages.get_loc_level(c_outage)[1]
                 flow_outage = m.variables[c_outage + "-s"].loc[:, c_outages]
-                flow_outage = flow_outage.rename({"component": c_outage_})
+                flow_outage = flow_outage.rename({"name": c_outage_})
 
                 bodf = BODF.loc[c_affected, c_outage]
                 bodf = xr.DataArray(bodf, dims=[c_affected, c_outage_])
@@ -617,9 +617,7 @@ class OptimizationAbstractMixin:
 
                     con = m.constraints[constraint]
 
-                    component_dim = (
-                        "component"  # Fix for 22a9c3e (c.name -> "component")
-                    )
+                    component_dim = "name"
                     # TODO make clean before new-opt-optimize merge
 
                     if component_dim in con.lhs.indexes:

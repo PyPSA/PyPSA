@@ -36,7 +36,7 @@ def get_active_assets(c: Components, *args: Any, **kwargs: Any) -> Any:
     >>> import pytest
     >>> with pytest.warns(DeprecationWarning):
     ...     get_active_assets(c)
-    component
+    name
     Manchester Wind    True
     Manchester Gas     True
     Norway Wind        True
@@ -139,7 +139,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=True)
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        component
+        name
         g1    False
         g2     True
         Name: active, dtype: bool
@@ -152,7 +152,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=False)
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        component
+        name
         g1     True
         g2    False
         Name: active, dtype: bool
@@ -203,7 +203,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
-        component           g1     g2
+        name                g1     g2
         period timestep
         2020   1          True  False
                2          True  False

@@ -44,10 +44,10 @@ class ComponentsIndexMixin(_ComponentsABC):
         >>> n.add("Generator", "g2")  # doctest: +ELLIPSIS
         Index(['g2'], dtype='object')
         >>> n.generators.index
-        Index(['g1', 'g2'], dtype='object', name='component')
+        Index(['g1', 'g2'], dtype='object', name='name')
 
         """
-        return self.static.index.get_level_values("component").unique()
+        return self.static.index.get_level_values("name").unique()
 
     # Derived from attached Network
 
@@ -141,7 +141,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         if self.has_scenarios:
             return pd.MultiIndex.from_product(
                 (self.scenarios.index, self.component_names),
-                names=["scenario", "component"],
+                names=["scenario", "name"],
             )
         else:
             return self.component_names
@@ -159,7 +159,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         if self.has_scenarios:
             return pd.MultiIndex.from_product(
                 (self.scenarios.index, self.snapshots, self.component_names),
-                names=["scenario", "snapshot", "component"],
+                names=["scenario", "snapshot", "name"],
             )
         else:
             return self.snapshots

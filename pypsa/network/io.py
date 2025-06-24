@@ -1760,7 +1760,7 @@ class NetworkIOMixin(_NetworkABC):
         # Align index (component names) and columns (attributes)
         new_static = _sort_attrs(new_static, attrs.index, axis=1)
 
-        new_static.index.name = "component"
+        new_static.index.name = "name"
         self.components[cls_name].static = new_static
 
         # Now deal with time-dependent properties
@@ -1812,7 +1812,7 @@ class NetworkIOMixin(_NetworkABC):
             except KeyError:
                 pass  # Don't drop any columns if the data doesn't exist yet
 
-        df.columns.name = "component"
+        df.columns.name = "name"
 
         # Check if components exist in static df
         diff = df.columns.difference(static.index)

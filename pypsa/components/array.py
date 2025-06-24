@@ -106,7 +106,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         >>> import pypsa
         >>> n = pypsa.examples.ac_dc_meshed()
         >>> n.components.generators._as_dynamic('p_max_pu', n.snapshots[:2])
-        component            Manchester Wind  ...  Frankfurt Gas
+        name                 Manchester Wind  ...  Frankfurt Gas
         snapshot                              ...
         2015-01-01 00:00:00         0.930020  ...            1.0
         2015-01-01 01:00:00         0.485748  ...            1.0
@@ -139,10 +139,10 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         res.index.name = sns.name
         if self.has_scenarios:
-            res.columns.name = "component"
+            res.columns.name = "name"
             res.columns.names = static.index.names
         else:
-            res.columns.name = "component"
+            res.columns.name = "name"
         return res
 
     def as_xarray(
@@ -209,7 +209,7 @@ class ComponentsArrayMixin(_ComponentsABC):
                 res = res.isel(scenario=0, drop=True)
 
         if inds is not None:
-            res = res.sel(component=inds)
+            res = res.sel(name=inds)
 
         if self.has_periods:
             try:

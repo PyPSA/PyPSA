@@ -363,7 +363,7 @@ class TestCollectionComponents:
         static_data = getattr(collection, component_name)
         if not static_data.empty:
             assert static_data.loc["net1"].equals(getattr(network1, component_name))
-            assert "component" in static_data.index.names
+            assert "name" in static_data.index.names
             assert "network" in static_data.index.names
 
             assert static_data.equals(

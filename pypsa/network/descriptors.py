@@ -177,7 +177,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         --------
         >>> gen = n.get_switchable_as_iter('Generator', 'p_max_pu', n.snapshots[:2])
         >>> next(gen)  # doctest: +ELLIPSIS
-        component
+        name
         Manchester Wind    0.930020
         Manchester Gas     1.000000
         Norway Wind        0.974583

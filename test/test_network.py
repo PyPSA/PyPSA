@@ -126,7 +126,7 @@ def test_add_static(n_5bus, slicer):
         load_names = pd.Index([load_names])
 
     assert len(n_5bus.loads) == len(load_names)
-    assert n_5bus.loads.index.name == "component"
+    assert n_5bus.loads.index.name == "name"
     assert n_5bus.loads.index.equals(load_names)
     assert (n_5bus.loads.bus == buses).all()
     assert (n_5bus.loads.p_set == 3).all()
@@ -152,7 +152,7 @@ def test_add_static_with_index(n_5bus, slicer):
     )
 
     assert len(n_5bus.loads) == len(load_names)
-    assert n_5bus.loads.index.name == "component"
+    assert n_5bus.loads.index.name == "name"
     assert n_5bus.loads.index.equals(load_names)
     assert (n_5bus.loads.bus == buses).all()
     assert (n_5bus.loads.p_set == 3).all()
@@ -176,7 +176,7 @@ def test_add_varying_single(n_5bus_7sn):
     )
 
     assert len(n_5bus_7sn.loads) == 1
-    assert n_5bus_7sn.loads.index.name == "component"
+    assert n_5bus_7sn.loads.index.name == "name"
     assert (n_5bus_7sn.loads.index == "load_1").all()
     assert (n_5bus_7sn.loads.bus == buses[0]).all()
     assert (p_set == n_5bus_7sn.loads_t.p_set.T).all().all()
@@ -206,7 +206,7 @@ def test_add_varying_multiple(n_5bus_7sn, slicer):
     )
 
     assert len(n_5bus_7sn.loads) == len(load_names)
-    assert n_5bus_7sn.loads.index.name == "component"
+    assert n_5bus_7sn.loads.index.name == "name"
     assert n_5bus_7sn.loads.index.equals(load_names)
     assert (n_5bus_7sn.loads.bus == buses).all()
     assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
@@ -241,7 +241,7 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
     )
 
     assert len(n_5bus_7sn.loads) == len(load_names)
-    assert n_5bus_7sn.loads.index.name == "component"
+    assert n_5bus_7sn.loads.index.name == "name"
     assert n_5bus_7sn.loads.index.equals(load_names)
     assert (n_5bus_7sn.loads.bus == buses).all()
     assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()

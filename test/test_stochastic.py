@@ -33,7 +33,7 @@ def test_network_properties():
 
     p_set = n.get_switchable_as_dense("Load", "p_set")
 
-    assert p_set.columns.names == ["scenario", "component"]
+    assert p_set.columns.names == ["scenario", "name"]
 
     # Check data shape for each scenario
     for scenario in n.scenarios.index:
@@ -97,40 +97,40 @@ def test_model_creation(stochastic_benchmark_network):
     # Test operational variable Generator-p has scenario dimension
     assert n.model.variables["Generator-p"].dims == (
         "scenario",
-        "component",
+        "name",
         "snapshot",
     )
 
     # Test that Generator-p_nom does not have scenario dimension (investment variable)
-    assert n.model.variables["Generator-p_nom"].dims == ("component",)
+    assert n.model.variables["Generator-p_nom"].dims == ("name",)
 
     # Test operational constraints have scenario dimension
 
-    # Generator-ext-p_nom-lower constraint should have (component, scenario) dimensions
+    # Generator-ext-p_nom-lower constraint should have (name, scenario) dimensions
     assert {
         d
         for d in n.model.constraints["Generator-ext-p_nom-lower"].sizes.keys()
         if d != "_term"
-    } == {"component", "scenario"}
+    } == {"name", "scenario"}
 
-    # Generator-ext-p-lower constraint should have (scenario, component, snapshot) dimensions
+    # Generator-ext-p-lower constraint should have (scenario, name, snapshot) dimensions
     assert {
         d
         for d in n.model.constraints["Generator-ext-p-lower"].sizes.keys()
         if d != "_term"
-    } == {"scenario", "component", "snapshot"}
+    } == {"scenario", "name", "snapshot"}
 
-    # Generator-ext-p-upper constraint should have (scenario, component, snapshot) dimensions
+    # Generator-ext-p-upper constraint should have (scenario, name, snapshot) dimensions
     assert {
         d
         for d in n.model.constraints["Generator-ext-p-upper"].sizes.keys()
         if d != "_term"
-    } == {"scenario", "component", "snapshot"}
+    } == {"scenario", "name", "snapshot"}
 
-    # Bus-nodal_balance constraint should have (component, scenario, snapshot) dimensions
+    # Bus-nodal_balance constraint should have (name, scenario, snapshot) dimensions
     assert {
         d for d in n.model.constraints["Bus-nodal_balance"].sizes.keys() if d != "_term"
-    } == {"component", "scenario", "snapshot"}
+    } == {"name", "scenario", "snapshot"}
 
 
 def test_statistics(ac_dc_meshed_stoch_r):
@@ -279,7 +279,7 @@ def test_solved_network_multiperiod():
         n.loads_t.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
-                [n.scenarios.index, ["load1"]], names=["scenario", "component"]
+                [n.scenarios.index, ["load1"]], names=["scenario", "name"]
             ),
         )
 
@@ -374,7 +374,7 @@ def test_single_scenario():
         n.loads_t.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
-                [n.scenarios.index, ["load1"]], names=["scenario", "component"]
+                [n.scenarios.index, ["load1"]], names=["scenario", "name"]
             ),
         )
         n.loads_t.p_set.loc[:, ("scenario", "load1")] = pd.Series(

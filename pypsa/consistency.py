@@ -65,7 +65,7 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        buses = n.buses.index.unique("component")
+        buses = n.buses.index.unique("name")
         missing = ~component.static[attr].astype(str).isin(buses)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
@@ -140,7 +140,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.carriers.index.unique("component"))
+            ~component.static["carrier"].isin(n.carriers.index.unique("name"))
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )

@@ -323,7 +323,7 @@ class Components(
                 {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
             )
-        static.index.name = "component"
+        static.index.name = "name"
 
         # # it's currently hard to imagine non-float series,
         # but this could be generalised
@@ -334,7 +334,7 @@ class Components(
         for k in ct.defaults.index[ct.defaults.varying]:
             df = pd.DataFrame(index=snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
-            df.columns.name = "component"
+            df.columns.name = "name"
             dynamic[k] = df
 
         return static, dynamic
@@ -679,7 +679,7 @@ class Components(
         idx = self.static.loc[self.static[extendable_col]].index
 
         if self.has_scenarios:
-            idx = idx.unique("component")
+            idx = idx.unique("name")
 
         return idx
 

@@ -53,7 +53,7 @@ class NetworkCollection:
 
     >>> nc.generators
                                       bus control  ... weight  p_nom_opt
-    network  component                             ...
+    network  name                                  ...
     network1 Manchester Wind   Manchester      PQ  ...    1.0        0.0
              Manchester Gas    Manchester      PQ  ...    1.0        0.0
              Norway Wind           Norway      PQ  ...    1.0        0.0
