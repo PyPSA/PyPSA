@@ -68,6 +68,7 @@ nav:
     - examples/transformer_example.ipynb
     - examples/unit-commitment.ipynb
     - examples/reserve-power.ipynb
+    - examples/stochastic-optimization.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/battery-electric-vehicle-charging.ipynb

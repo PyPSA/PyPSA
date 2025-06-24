@@ -216,8 +216,6 @@ for tech in ["solar", "wind", "gas", "lignite"]:
 3. **Parameter Updates**: Modify scenario-specific parameters (e.g., gas prices) 
 4. **Optimization**: Single call to `optimize()` solves full stochastic problem
 
-TODO: add this to the PyPSA documentation examples with nice formatting and reference here.
-
 ### Model Structure and Variables
 
 PyPSA creates a stochastic optimization model by reformulating the two-stage problem as a large-scale deterministic equivalent with scenario-indexed variables and constraints. The model structure can be inspected using PyPSA's optimization module:
@@ -317,14 +315,6 @@ if kwargs and scenarios is not None:
 if scenarios.sum() != 1:
     raise ValueError(f"Sum of weights must equal 1. Current sum: {scenarios.sum()}")
 ```
-
-
-### Planned Consistency Checks
-
-**TODO**: Stochastic network validation will be added to `pypsa/consistency.py` including:
-- Scenario-specific parameter completeness checks
-- Time series alignment across scenarios
-- etc
 
 ### Unit Tests for Stochastic Functionality
 
@@ -494,22 +484,29 @@ assert "scenario" in n.generators_t.p.columns.get_level_values("scenario")
 
 The computational complexity of stochastic optimization in PyPSA exhibits distinct scaling characteristics that require careful consideration for large-scale applications.
 
-**Variable Scaling Properties:**
-- **Investment variables**: Scale as O(|components|) - scenario-independent by design
-- **Operational variables**: Scale as O(|scenarios| × |components| × |snapshots|) 
-- **Total problem size**: Dominated by operational variables in most realistic applications
+**Problem Scaling Properties**
 
-**Memory Requirements:**
-Memory consumption scales **super-linearly** with scenario count due to:
-- Linear growth in variable count: O(S × C × T) where S=scenarios, C=components, T=snapshots
-- Quadratic growth in constraint matrix density from scenario coupling
-- Solver working memory requirements scale non-linearly with problem size
+- **Investment variables**: Scale as O(|components|)
+- **Operational variables**: Scale as O(|scenarios| × |components| × |snapshots|)
+- **Constraint matrix structure**: The two-stage stochastic program produces a block-angular matrix. Its size grows linearly with the number of scenarios.
+
+**Memory consumption** increases with the number of scenarios due to:
+
+- Linear growth in the number of variables and constraints
+- Solver working memory requirements that may scale super-linearly, depending on the solution algorithm
+- Internal solver data structures (e.g. factorization fill-in, basis management) that can exhibit non-linear scaling behavior
 
 
 ### Advanced Decomposition Methods
 
 **PyPSA-SMS++ Integration:**
 The [Resilient project](https://resilient-project.github.io/) is developing PyPSA-SMS++, a specialized API that will enable **advanced decomposition algorithms** integrated into PyPSA workflow. The goal is to support large-scale stochastic optimization problems directly within the PyPSA framework.
+
+## Practical Example
+
+For a comprehensive, hands-on demonstration of stochastic optimization in PyPSA, see the example notebook:
+
+**[Stochastic Optimization Example](../examples/stochastic-optimization.ipynb)**
 
 ## References
 
