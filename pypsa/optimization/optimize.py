@@ -145,7 +145,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
-        terms.append((weighted_cost * nominal).sum(dim=["name"]).item())
+        terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
     constant += sum(terms)
 
