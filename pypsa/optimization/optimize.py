@@ -145,9 +145,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
-            terms.append((weighted_cost * nominal).sum(dim=["name"]))
+        terms.append((weighted_cost * nominal).sum(dim=["name"]).item())
 
-        constant += sum(terms)
+    constant += sum(terms)
 
     # Handle constant for stochastic vs deterministic networks
     if n.has_scenarios and isinstance(constant, xr.DataArray):
