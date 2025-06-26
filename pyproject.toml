@@ -47,7 +47,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
-Documentation = "https://pypsa.readthedocs.io"
+Documentation = "https://docs.pypsa.org"
 
 [project.optional-dependencies]
 hdf5 = ["tables"]
