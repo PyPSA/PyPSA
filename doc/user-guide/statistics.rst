@@ -38,6 +38,7 @@ Available Metrics
     ~pypsa.statistics.StatisticsAccessor.capacity_factor
     ~pypsa.statistics.StatisticsAccessor.revenue
     ~pypsa.statistics.StatisticsAccessor.market_value
+    ~pypsa.statistics.StatisticsAccessor.prices
 
 Usage
 -----------------
