@@ -32,9 +32,7 @@ logger = logging.getLogger(__name__)
 class UnexpectedError(AssertionError):
     """Custom error for unexpected conditions with issue tracker reference."""
 
-    URL_CREATE_ISSUE = (
-        "https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml"
-    )
+    URL_CREATE_ISSUE = "https://go.pypsa.org/report-bug"
 
     def __init__(self, message: str = "") -> None:
         """Initialize the UnexpectedError.
@@ -51,7 +49,7 @@ class UnexpectedError(AssertionError):
         ... except UnexpectedError as e:
         ...     print(str(e))  # doctest: +ELLIPSIS
         This is an unexpected error.
-        Please track this issue in our issue tracker: https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml
+        Please track this issue in our issue tracker: https://go.pypsa.org/report-bug
 
         """
         track_message = (
@@ -626,7 +624,7 @@ def deprecated_namespace(
 
 
 def list_as_string(
-    list_: Sequence | dict, prefix: str = "", style: str = "comma-separated"
+    list_: Sequence | dict | set, prefix: str = "", style: str = "comma-separated"
 ) -> str:
     """Convert a list to a formatted string.
 

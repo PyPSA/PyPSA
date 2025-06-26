@@ -1,24 +1,18 @@
-"""Network index module.
+"""Array module of PyPSA components.
 
-Contains single mixin class which is used to inherit to [pypsa.Networks] class.
-Should not be used directly.
-
-Index methods and properties are used to access the different index levels, set them
-and convert the Network accordingly.
-
+Contains logic to combine static and dynamic pandas DataFrames to single xarray
+DataArray for each variable.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
+from typing import Any
 
 import pandas as pd
 
 from pypsa.network.abstract import _NetworkABC
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -646,3 +640,96 @@ class NetworkIndexMixin(_NetworkABC):
                 dict.fromkeys(self._investment_period_weightings.columns, df)
             )
         self._investment_period_weightings = df
+
+    # -----------
+    # Scenarios
+    # -----------
+
+    def set_scenarios(
+        self,
+        scenarios: dict | Sequence | pd.Series | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Set scenarios for the network to create a stochastic network.
+
+        Parameters
+        ----------
+        scenarios : dict, Sequence, pd.Series, optional
+            Scenarios to set for the network.
+        **kwargs : Any
+            Additional keyword arguments.
+
+        """
+        # Validate input
+        if self.has_scenarios:
+            msg = (
+                "Changing scenarios on a network that already has scenarios defined is not "
+                "yet supported."
+            )
+            # TODO
+            raise NotImplementedError(msg)
+        if scenarios is None and not kwargs:
+            msg = (
+                "You must pass either `scenarios` or keyword arguments "
+                "to set_scenarios."
+            )
+            raise ValueError(msg)
+        if kwargs and scenarios is not None:
+            msg = (
+                "You can pass scenarios either via `scenarios` or via "
+                "keyword arguments, but not both."
+            )
+            raise ValueError(msg)
+
+        if isinstance(scenarios, dict):
+            scenarios_ = pd.Series(scenarios)
+        elif isinstance(scenarios, pd.Series):
+            scenarios_ = scenarios
+        elif isinstance(scenarios, Sequence):
+            scenarios_ = pd.Series(
+                [1 / len(scenarios)] * len(scenarios), index=scenarios
+            )
+        elif kwargs:
+            scenarios_ = pd.Series(kwargs)
+
+        if scenarios_.sum() != 1:
+            msg = (
+                "The sum of the weights in `scenarios` must be equal to 1. "
+                f"Current sum: {scenarios_.sum()}"
+            )
+            raise ValueError(msg)
+
+        scenarios_ = scenarios_.rename("scenario")
+        scenarios_.index = scenarios_.index.astype(str)
+
+        for c in self.components.values():
+            c.static = pd.concat(
+                dict.fromkeys(scenarios_.index, c.static), names=["scenario"]
+            )
+            for k, v in c.dynamic.items():
+                c.dynamic[k] = pd.concat(
+                    dict.fromkeys(scenarios_.index, v), names=["scenario"], axis=1
+                )
+
+        self._scenarios = scenarios_
+
+    @property
+    def scenarios(self) -> pd.Series:
+        """Get the scenarios for the network.
+
+        Returns
+        -------
+        pd.Series
+            The scenarios for the network.
+
+        """
+        return self._scenarios
+
+    @scenarios.setter
+    def scenarios(self, scenarios: dict | pd.Series | Sequence) -> None:
+        self.set_scenarios(scenarios)
+
+    @property
+    def has_scenarios(self) -> bool:
+        """Boolean indicating if the network has scenarios defined."""
+        return len(self.scenarios) > 0

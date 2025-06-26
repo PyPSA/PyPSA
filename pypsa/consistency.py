@@ -65,7 +65,8 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.buses.index)
+        buses = n.buses.index.unique("name")
+        missing = ~component.static[attr].astype(str).isin(buses)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
@@ -139,7 +140,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.carriers.index)
+            ~component.static["carrier"].isin(n.carriers.index.unique("name"))
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )
@@ -447,8 +448,8 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
     """
     if component.name in {"Generator", "Link"}:
-        committables = n.get_committable_i(component.name)
-        extendables = n.get_extendable_i(component.name)
+        committables = component.committables
+        extendables = component.extendables
         intersection = committables.intersection(extendables)
         if not intersection.empty:
             _log_or_raise(
@@ -929,3 +930,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             self,  # type: ignore
             strict="missing_carrier_colors" in strict,
         )
+
+
+# TODO SCENARIOS
+# - add consistency check for scenarios changed after init and does not some up to 1
