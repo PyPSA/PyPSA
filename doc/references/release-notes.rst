@@ -2,17 +2,26 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..    The features listed below are not released yet, but will be part of the next release! 
-..    To use the features already you have to install the ``master`` branch, e.g. 
-..    ``pip install git+https://github.com/pypsa/pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
+
+Bug Fixes
+---------
+
+* Fixed issue when copying a network with an unsolved model.
+  (https://github.com/PyPSA/PyPSA/pull/5)
 
 `v0.35.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0>`__ (22th June 2025)
 =======================================================================================
+
+Features
+--------
 
 * New **interactive** plotting library
 
@@ -43,7 +52,7 @@ Release Notes
     reference will follow with a stable version of it.
 
 Bug Fixes
---------
+---------
 
 * Bugfix: The function ``n.statistics.opex()`` now considers the correct
   snapshot weightings ``n.snapshot_weightings.objective``.
