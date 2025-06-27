@@ -607,13 +607,14 @@ class Network(
     def is_solved(self) -> bool:
         """Check if the network has been solved.
 
+        A solved network has an [objective][pypsa.Network.objective][] value assigned. A
+        [model][pypsa.Network.model][] does not necessarily need to be stored in the
+        network.
+
         Returns
         -------
         bool
-            True if the network has been solved, False otherwise. A solved network
-            has an [objective][pypsa.Network.objective][] value assigned. A
-            [model][pypsa.Network.model][] does not necessarily be stored in the
-            network.
+            True if the network has been solved, False otherwise.
 
         Examples
         --------
