@@ -20,7 +20,6 @@ import xarray as xr
 from deprecation import deprecated
 from pandas.errors import ParserError
 from pyproj import CRS
-from typing_extensions import Self
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency, deprecated_kwargs
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
     from pandapower.auxiliary import pandapowerNet
+    from typing_extensions import Self
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
