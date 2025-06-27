@@ -17,6 +17,7 @@ import pandas as pd
 import pyproj
 import validators
 from deprecation import deprecated
+from linopy import Model
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
@@ -366,6 +367,7 @@ class Network(
             StatisticsAccessor,
             PlotAccessor,
             AbstractStatisticsAccessor,
+            Model,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
@@ -514,8 +516,9 @@ class Network(
 
         """
         if self._model is None:
-            msg = "The network has not been optimized yet and no model is stored."
-            raise ValueError(msg)
+            logger.warning(
+                "The network has not been optimized yet and no model is stored."
+            )
         return self._model
 
     @model.deleter
@@ -524,7 +527,7 @@ class Network(
         self._model = None
 
     @property
-    def objective(self) -> float:
+    def objective(self) -> float | None:
         """Objective value of the solved network.
 
         The property yields the objective value of the solved network. It is set after
@@ -546,8 +549,9 @@ class Network(
 
         """
         if self._objective is None:
-            msg = "The network has not been optimized yet and no objective value is stored."
-            raise ValueError(msg)
+            logger.warning(
+                "The network has not been optimized yet and no objective value is stored."
+            )
         return self._objective
 
     @objective.setter
@@ -562,7 +566,7 @@ class Network(
         self._objective = new
 
     @property
-    def objective_constant(self) -> float:
+    def objective_constant(self) -> float | None:
         """Objective constant of the network.
 
         The property yields the fixed part of the objective function. It is set after
@@ -583,8 +587,9 @@ class Network(
 
         """
         if self._objective_constant is None:
-            msg = "The network has not been optimized yet and no objective constant is stored."
-            raise ValueError(msg)
+            logger.warning(
+                "The network has not been optimized yet and no objective constant is stored."
+            )
         return self._objective_constant
 
     @objective_constant.setter
@@ -597,6 +602,26 @@ class Network(
             stacklevel=2,
         )
         self._objective_constant = new
+
+    @property
+    def is_solved(self) -> bool:
+        """Check if the network has been solved.
+
+        Returns
+        -------
+        bool
+            True if the network has been solved, False otherwise. A solved network
+            has an [objective][pypsa.Network.objective][] value assigned. A
+            [model][pypsa.Network.model][] does not necessarily be stored in the
+            network.
+
+        Examples
+        --------
+        >>> n.is_solved
+        True
+
+        """
+        return self._objective is not None
 
     @property
     def crs(self) -> Any:
@@ -746,9 +771,10 @@ class Network(
         DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
-        if self._model is not None and self._model.solver_model is not None:
-            msg = "Copying solved networks is not supported yet."
-            raise NotImplementedError(msg)
+        if self.is_solved and hasattr(self.model, "solver_model"):
+            msg = "Copying a solved network with an attached solver model is not supported."
+            msg += " Please delete the model first using `n.model.solver_model = None`."
+            raise ValueError(msg)
 
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types, with_time]
