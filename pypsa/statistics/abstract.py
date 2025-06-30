@@ -9,101 +9,15 @@ from collections.abc import Callable, Collection, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
-from deprecation import deprecated
 
 from pypsa._options import options
 from pypsa.constants import RE_PORTS
-from pypsa.statistics.grouping import deprecated_groupers, groupers
+from pypsa.statistics.grouping import groupers
 
 if TYPE_CHECKING:
     from pypsa import Network, NetworkCollection
 
 logger = logging.getLogger(__name__)
-
-
-class Parameters:
-    """Container for all the parameters.
-
-    Attributes
-    ----------
-        drop_zero (bool): Flag indicating whether to drop zero values in statistic metrics.
-        nice_names (bool): Flag indicating whether to use nice names in statistic metrics.
-        round (int): Number of decimal places to round the values to in statistic metrics.
-
-    Methods
-    -------
-        set_parameters(**kwargs): Sets the values of the parameters based on the provided keyword arguments.
-
-    """
-
-    @property
-    def drop_zero(self) -> bool:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.drop_zero' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return options.get_option("params.statistics.drop_zero")
-
-    @drop_zero.setter
-    def drop_zero(self, value: bool) -> None:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.drop_zero = ..' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        options.set_option("params.statistics.drop_zero", value)
-
-    @property
-    def nice_names(self) -> bool:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.nice_names' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return options.get_option("params.statistics.nice_names")
-
-    @nice_names.setter
-    def nice_names(self, value: bool) -> None:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.nice_names = ..' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        options.set_option("params.statistics.nice_names", value)
-
-    @property
-    def round(self) -> int:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.round' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return options.get_option("params.statistics.round")
-
-    @round.setter
-    def round(self, value: int) -> None:  # noqa: D102
-        warnings.warn(
-            "Use 'pypsa.options.params.statistics.round = ..' instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        options.set_option("params.statistics.round", value)
-
-    @deprecated(
-        deprecated_in="0.34",
-        removed_in="1.0",
-        details="Use the 'pypsa.options' module instead. E.g. 'pypsa.options.params.statistics.drop_zero = True'.",
-    )
-    def set_parameters(self, **kwargs: Any) -> None:  # noqa: D102
-        for key, value in kwargs.items():
-            options.set_option(f"params.statistics.{key}", value)
 
 
 class AbstractStatisticsAccessor(ABC):
@@ -112,8 +26,6 @@ class AbstractStatisticsAccessor(ABC):
     def __init__(self, n: Network | NetworkCollection) -> None:
         """Initialize the statistics accessor."""
         self._n = n
-        self.groupers = deprecated_groupers
-        self.parameters = Parameters()
 
     @property
     def n(self) -> Network | NetworkCollection:
@@ -124,13 +36,6 @@ class AbstractStatisticsAccessor(ABC):
             stacklevel=2,
         )
         return self._n
-
-    def set_parameters(self, **kwargs: Any) -> None:
-        """Set the parameters for the statistics accessor.
-
-        To see the list of parameters, one can simply call `n.statistics.parameters`.
-        """
-        self.parameters.set_parameters(**kwargs)
 
     def _get_grouping(
         self,

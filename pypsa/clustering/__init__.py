@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 
 from pypsa.clustering import spatial, temporal
-from pypsa.common import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -16,7 +15,6 @@ if TYPE_CHECKING:
 class ClusteringAccessor:
     """Clustering accessor for clustering a network spatially and temporally."""
 
-    @deprecated_common_kwargs
     def __init__(self, n: "Network") -> None:
         """Initialize the ClusteringAccessor."""
         self.n = n

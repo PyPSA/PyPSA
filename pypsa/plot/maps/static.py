@@ -957,7 +957,6 @@ class MapPlotter:
         transformer_cmap_norm: mcolors.Normalize | None = None,
         transformer_alpha: float | dict | pd.Series = 1,
         transformer_widths: float | dict | pd.Series = 1.5,
-        flow: str | Callable | dict | pd.Series = None,
         auto_scale_branches: bool = True,
     ) -> dict:
         """Plot the network buses and lines using matplotlib and cartopy.
@@ -1104,49 +1103,6 @@ class MapPlotter:
         if self.ax is None:
             msg = "No axis passed or created."
             raise ValueError(msg)
-
-        if flow is not None:
-            if (
-                line_flow is not None
-                or link_flow is not None
-                or transformer_flow is not None
-            ):
-                msg = "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
-                "`transformer_flow` instead. You can't use both arguments at the same time."
-                raise ValueError(msg)
-            if isinstance(flow, pd.Series) and isinstance(flow.index, pd.MultiIndex):
-                msg = (
-                    "The `flow` argument is deprecated, use `line_flow`, `link_flow` and "
-                    "`transformer_flow` instead. Multiindex Series are not supported anymore."
-                    "Deprecated in version 0.34 and will be removed in version 1.0."
-                )
-                warnings.warn(msg, DeprecationWarning, 2)
-                line_flow = flow.get("Line")
-                link_flow = flow.get("Link")
-                transformer_flow = flow.get("Transformer")
-
-        # Deprecation errors
-        if isinstance(line_widths, pd.Series) and isinstance(
-            line_widths.index, pd.MultiIndex
-        ):
-            msg = (
-                "Index of argument 'line_widths' is a Multiindex, "
-                "this is not support since pypsa v0.17 and will be removed in v1.0. "
-                "Set differing widths with arguments 'line_widths', "
-                "'link_widths' and 'transformer_widths'."
-            )
-            raise DeprecationWarning(msg)
-
-        if isinstance(line_colors, pd.Series) and isinstance(
-            line_colors.index, pd.MultiIndex
-        ):
-            msg = (
-                "Index of argument 'line_colors' is a Multiindex, "
-                "this is not support since pypsa v0.17 and will be removed in v1.0. "
-                "Set differing colors with arguments 'line_colors', "
-                "'link_colors' and 'transformer_colors'."
-            )
-            raise DeprecationWarning(msg)
 
         # Check for ValueErrors
         if geomap and not cartopy_present:

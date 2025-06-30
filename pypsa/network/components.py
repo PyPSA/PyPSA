@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from pypsa._options import option_context, options
+from pypsa._options import options
 from pypsa.common import deprecated_in_next_major
 from pypsa.components.legacy import Component
 from pypsa.components.store import ComponentsStore
@@ -659,8 +659,7 @@ class NetworkComponentsMixin(_NetworkABC):
             Component attributes informations.
 
         """
-        with option_context("warnings.components_store_iter", False):
-            return Dict({value.name: value.defaults for value in self.components})
+        return Dict({value.name: value.defaults for value in self.components})
 
     @deprecated_in_next_major(
         details="Use `self.components[<component>].static` instead."
