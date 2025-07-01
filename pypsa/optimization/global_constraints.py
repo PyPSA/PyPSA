@@ -290,7 +290,9 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             rhs -= em_pu @ sus.state_of_charge_initial
 
         # stores
-        stores = n.stores.query(f"carrier in @emissions.index and not e_cyclic and {query}")
+        stores = n.stores.query(
+            f"carrier in @emissions.index and not e_cyclic and {query}"
+        )
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
             e = m["Store-e"].loc[sns[sns_sel], stores.index]
@@ -359,7 +361,9 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             rhs -= sus.state_of_charge_initial.sum()
 
         # stores
-        stores = n.stores.query(f"carrier == @glc.carrier_attribute and not e_cyclic and {query}")
+        stores = n.stores.query(
+            f"carrier == @glc.carrier_attribute and not e_cyclic and {query}"
+        )
         if not stores.empty:
             e = m["Store-e"].loc[snapshots, stores.index]
             e = e.ffill("snapshot").isel(snapshot=-1)
