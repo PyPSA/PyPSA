@@ -264,8 +264,10 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         if emissions.empty:
             continue
 
+        query = glc.query_string if glc.query_string else "True"
+
         # generators
-        gens = n.generators.query("carrier in @emissions.index")
+        gens = n.generators.query(f"carrier in @emissions.index and {query}")
         if not gens.empty:
             efficiency = get_as_dense(
                 n, "Generator", "efficiency", snapshots=sns[sns_sel], inds=gens.index
@@ -277,7 +279,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             lhs.append(expr)
 
         # storage units
-        cond = "carrier in @emissions.index and not cyclic_state_of_charge"
+        cond = f"carrier in @emissions.index and not cyclic_state_of_charge and {query}"
         sus = n.storage_units.query(cond)
         if not sus.empty:
             em_pu = sus.carrier.map(emissions)
@@ -288,7 +290,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
             rhs -= em_pu @ sus.state_of_charge_initial
 
         # stores
-        stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
+        stores = n.stores.query(f"carrier in @emissions.index and not e_cyclic and {query}")
         if not stores.empty:
             em_pu = stores.carrier.map(emissions)
             e = m["Store-e"].loc[sns[sns_sel], stores.index]
@@ -325,8 +327,6 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         period_weighting = n.investment_period_weightings.years[sns.unique("period")]
         weightings = weightings.mul(period_weighting, level=0, axis=0)
 
-    # storage units
-    cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge"
     for name, glc in glcs.iterrows():
         snapshots = (
             sns
@@ -336,8 +336,10 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         lhs = []
         rhs = glc.constant
 
+        query = glc.query_string if glc.query_string else "True"
+
         # generators
-        gens = n.generators.query("carrier == @glc.carrier_attribute")
+        gens = n.generators.query(f"carrier == @glc.carrier_attribute and {query}")
         if not gens.empty:
             p = m["Generator-p"].loc[snapshots, gens.index]
             w = DataArray(weightings.generators[snapshots])
@@ -346,6 +348,8 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             expr = (p * w).sum()
             lhs.append(expr)
 
+        # storage units
+        cond = f"carrier == @glc.carrier_attribute and not cyclic_state_of_charge and {query}"
         sus = n.storage_units.query(cond)
         if not sus.empty:
             sus_i = sus.index
@@ -355,7 +359,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             rhs -= sus.state_of_charge_initial.sum()
 
         # stores
-        stores = n.stores.query("carrier == @glc.carrier_attribute and not e_cyclic")
+        stores = n.stores.query(f"carrier == @glc.carrier_attribute and not e_cyclic and {query}")
         if not stores.empty:
             e = m["Store-e"].loc[snapshots, stores.index]
             e = e.ffill("snapshot").isel(snapshot=-1)
