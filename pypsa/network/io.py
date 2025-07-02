@@ -1656,8 +1656,6 @@ class NetworkIOMixin(_NetworkABC):
         attr : string
             Name of time-varying series attribute
 
-        --------
-
         """
         self._import_series_from_df(dataframe, cls_name, attr)
 
