@@ -12,6 +12,11 @@ hides:
     To use the features already you have to install the ``master`` branch, e.g. 
     ``pip install git+https://github.com/pypsa/pypsa``. -->
 
+## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>30th July 2025</small> 🎉 { id="v1.0.0" } 
+
+### PyPSA 1.0 is here!
+
+Check out [what's new](v1-guide.md).
 
 ## [**v0.35.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1) <small>3rd July 2025</small> { id="v0.35.1" }
 
@@ -30,7 +35,7 @@ Bug Fixes
 
 ## [**v0.35.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0) <small>22th June 2025</small> { id="v0.35.0" }
 
-## Features
+### Features
 
 - New **interactive** plotting library (:octicons-git-pull-request-16:1189)
 
@@ -48,9 +53,7 @@ Bug Fixes
   comparison which is useful for testing and debugging.
   (:octicons-git-pull-request-16:1194, :octicons-git-pull-request-16:1205)
 
-### Bug Fixes
-- The components subpackage was further restructured. The known API remains untouched.
-  (https://github.com/PyPSA/PyPSA/pull/1223)
+- The components subpackage was further restructured. The known API remains untouched. (:octicons-git-pull-request-16:1223)
 
 - New experimental **NetworkCollection** (:octicons-git-pull-request-16:1212)
 
@@ -59,8 +62,7 @@ Bug Fixes
     experimental and might change with the next release. Documentation and API
     reference will follow with a stable version of it.
 
-Bug Fixes
----------
+### Bug Fixes
 
 - Bugfix: The function ``n.statistics.opex()`` now considers the correct
   snapshot weightings ``n.snapshot_weightings.objective``.
