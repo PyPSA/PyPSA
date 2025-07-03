@@ -14,6 +14,9 @@ Upcoming Release
 Bug Fixes
 ---------
 
+* Fixed issue when copying a network with an unsolved model.
+  (https://github.com/PyPSA/PyPSA/pull/5)
+
 * Fixed missing dependency issue for `typing-extensions`
   (https://github.com/PyPSA/PyPSA/pull/1264)
 
