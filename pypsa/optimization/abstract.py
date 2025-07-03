@@ -387,7 +387,7 @@ def generate_directions_halton(
     """
     n = len(keys)
     halton_sampler = Halton(n, rng=np.random.default_rng(seed))
-    directions = []
+    directions: list[np.ndarray] = []
     while len(directions) < n_directions:
         # Sample a point, then transform from unit cube to cube around origin.
         d = 2 * halton_sampler.random(1) - 1
@@ -1123,7 +1123,7 @@ class OptimizationAbstractMixin:
 
     @staticmethod
     def _solve_single_direction(
-        instance: Network,
+        n: Network,
         direction: dict,
         dimensions: dict,
         snapshots: Sequence,
@@ -1131,13 +1131,13 @@ class OptimizationAbstractMixin:
         slack: float,
         model_kwargs: dict,
         kwargs: dict,
-    ) -> tuple[str, dict, dict]:
+    ) -> tuple[str, dict, dict | None]:
         """Solve a single direction for parallel execution (helper method).
 
         This wrapper is necessary in order to copy the network (to
         avoid race conditions).
         """
-        n_copy = copy.deepcopy(instance._n)
+        n_copy = copy.deepcopy(n)
         status, condition, coordinates = n_copy.optimize.optimize_mga_in_direction(
             direction=direction,
             dimensions=dimensions,
@@ -1173,7 +1173,7 @@ class OptimizationAbstractMixin:
                 OptimizationAbstractMixin._solve_single_direction,
                 [
                     (
-                        self,
+                        self._n,
                         direction,
                         dimensions,
                         snapshots,
