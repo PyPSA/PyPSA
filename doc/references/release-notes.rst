@@ -20,6 +20,10 @@ Bug Fixes
 * Fixed Excel import when snapshots sheet is missing 
   (https://github.com/PyPSA/PyPSA/issues/1268)
 
+* New attribute ``query_string`` for global constraints (``primary_energy`` and
+  ``operational_limit``) to filter the components considered in the global
+  constraint. This allows defining global constraints for a subset of components.
+
 `v0.35.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0>`__ (22th June 2025)
 =======================================================================================
 
