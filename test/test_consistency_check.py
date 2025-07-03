@@ -89,6 +89,20 @@ def test_inconsistent_e_sum_values(consistent_n, caplog, strict):
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 
 
+@pytest.mark.parametrize("strict", [[], ["scenarios_sum"]])
+def test_scenarios_sum_to_one(consistent_n, caplog, strict):
+    """
+    Test that the consistency check raises a warning if scenarios don't sum to 1.
+    """
+    # Set up scenarios that sum to 1 (should pass)
+    consistent_n.set_scenarios({"low": 0.4, "high": 0.6})
+
+    # Manually modify scenarios to break sum=1 constraint
+    consistent_n._scenarios.iloc[0] = 0.2  # Sum becomes 0.8
+
+    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+
+
 def test_unknown_check():
     n = pypsa.Network()
     with pytest.raises(ValueError):

@@ -820,6 +820,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         [pypsa.consistency.check_shapes][] : Check if shapes are aligned with related components.
         [pypsa.consistency.check_nans_for_component_default_attrs][] : Check for missing values
             in component attributes.
+        [pypsa.consistency.check_scenarios_sum_to_one][] : Check if scenarios probabilities sum to 1.
 
         """
         if strict is None:
@@ -840,6 +841,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "investment_periods",
             "shapes",
             "dtypes",
+            "scenarios_sum",
         ]
 
         if "all" in strict:
@@ -886,6 +888,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_for_disconnected_buses(self, "disconnected_buses" in strict)
         check_investment_periods(self, "investment_periods" in strict)
         check_shapes(self, "shapes" in strict)
+        check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
         """Check network for consistency for plotting functions.
@@ -932,5 +935,35 @@ class NetworkConsistencyMixin(_NetworkABC):
         )
 
 
-# TODO SCENARIOS
-# - add consistency check for scenarios changed after init and does not some up to 1
+def check_scenarios_sum_to_one(n: Network, strict: bool = False) -> None:
+    """Check if scenarios probabilities sum to 1.
+
+    This check verifies that scenario probabilities have not been modified after
+    initialization to break the constraint that they must sum to 1.
+
+    Activate strict mode in general consistency check by passing `['scenarios_sum']`
+    to the `strict` argument.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    if n.has_scenarios:
+        scenarios_sum = n.scenarios.sum()
+        tolerance = 1e-10  # Allow for small floating point errors
+        if abs(scenarios_sum - 1.0) > tolerance:
+            _log_or_raise(
+                strict,
+                "Scenario probabilities do not sum to 1.0. Current sum: %g. "
+                "Scenarios may have been modified after initialization.",
+                scenarios_sum,
+            )
