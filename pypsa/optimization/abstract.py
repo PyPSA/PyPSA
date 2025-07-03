@@ -884,7 +884,7 @@ class OptimizationAbstractMixin:
         """
         # Check that the network has a model and that it has been solved
         n = self._n
-        if not hasattr(n, "model") or not hasattr(n, "objective"):
+        if not n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before adding near-optimal constraint."
             raise ValueError(msg)
         # Find optimal costs and fixed costs
@@ -1017,7 +1017,7 @@ class OptimizationAbstractMixin:
     ) -> dict:
         """Project solved model onto low-dimensional space."""
         # Check that the network has a solved linopy model
-        if not hasattr(self._n, "model"):
+        if not self._n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before projecting result."
             raise ValueError(msg)
         # Build linear expressions and evaluate them
@@ -1089,7 +1089,7 @@ class OptimizationAbstractMixin:
             model_kwargs = {}
 
         # check that network has been solved
-        if not hasattr(self._n, "objective"):
+        if not self._n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before running MGA."
             raise ValueError(msg)
 
