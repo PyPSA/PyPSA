@@ -450,7 +450,10 @@ class _ImporterExcel(_Importer):
 
     def get_snapshots(self) -> pd.Index:
         """Get snapshots data."""
-        df = self.sheets["snapshots"]
+        try:
+            df = self.sheets["snapshots"]
+        except KeyError:
+            return None
         df = df.set_index(df.columns[0])
         # Convert snapshot and timestep to datetime (if possible)
         if "snapshot" in df and df.snapshot.iloc[0] != "now":
