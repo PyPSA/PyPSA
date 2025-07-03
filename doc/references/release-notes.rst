@@ -62,6 +62,8 @@ Bug Fixes
   (https://github.com/PyPSA/PyPSA/pull/1255, https://github.com/PyPSA/PyPSA/pull/1256, 
   https://github.com/PyPSA/PyPSA/pull/1258)
 
+* Fixed Excel import when snapshots sheet is missing (https://github.com/PyPSA/PyPSA/issues/1268)
+
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================
 
