@@ -17,6 +17,9 @@ Bug Fixes
 * Fixed missing dependency issue for `typing-extensions`
   (https://github.com/PyPSA/PyPSA/pull/1264)
 
+* Fixed Excel import when snapshots sheet is missing 
+  (https://github.com/PyPSA/PyPSA/issues/1268)
+
 `v0.35.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0>`__ (22th June 2025)
 =======================================================================================
 
@@ -70,8 +73,6 @@ Bug Fixes
 * Fixed various some I/O edge cases for better data preservation during import/export
   (https://github.com/PyPSA/PyPSA/pull/1255, https://github.com/PyPSA/PyPSA/pull/1256, 
   https://github.com/PyPSA/PyPSA/pull/1258)
-
-* Fixed Excel import when snapshots sheet is missing (https://github.com/PyPSA/PyPSA/issues/1268)
 
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================
