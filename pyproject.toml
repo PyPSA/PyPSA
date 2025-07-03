@@ -67,6 +67,7 @@ dev = [
     "ruff",
     "mypy",
     "jupyter>=1.1.1",
+    "typing-extensions>=4.14.0",
 ]
 docs = [
     "numpydoc==1.8.0",
