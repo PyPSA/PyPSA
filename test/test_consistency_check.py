@@ -107,3 +107,179 @@ def test_unknown_check():
     n = pypsa.Network()
     with pytest.raises(ValueError):
         n.consistency_check(strict=["some_check"])
+
+
+@pytest.mark.parametrize("strict", [[], ["scenario_invariant_attrs"]])
+def test_scenario_invariant_attributes(consistent_n, caplog, strict):
+    """
+    Test that the consistency check raises an error if invariant attributes vary across scenarios.
+    """
+    # Set up scenarios
+    consistent_n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Modify an invariant attribute (carrier) across scenarios - this should always fail
+    # regardless of strict mode
+    consistent_n.generators.loc[("s1", "gen_one"), "carrier"] = "different_carrier"
+
+    # This check always raises an error
+    with pytest.raises(pypsa.consistency.ConsistencyError):
+        consistent_n.consistency_check(strict=strict)
+
+
+def test_scenario_invariant_attributes_comprehensive():
+    """
+    Comprehensive test covering all invariant attributes and edge cases.
+
+    This test verifies that the following attributes are not changed across scenarios
+    of a stochastic network by user modifications. Applies *exclusively* to stochastic
+    networks.
+
+    Invariant attributes (must be identical across all scenarios):
+    - name
+    - bus
+    - control
+    - type
+    - p_nom_extendable
+    - committable
+    - sign
+    - carrier
+    - weight
+    - p_nom_opt
+    - build_year
+    - lifetime
+    - active
+    """
+    n = pypsa.Network()
+
+    n.add("Bus", "bus1")
+    n.add("Bus", "bus2")
+    n.add("Carrier", "gas")
+    n.add("Carrier", "wind")
+    n.add("Carrier", "AC")
+
+    # Let's add multiple components to test different cases with invariant attributes
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus1",
+        carrier="gas",
+        p_nom_extendable=True,
+        committable=True,
+    )
+    n.add("Line", "line1", bus0="bus1", bus1="bus2", x=0.1, r=0.01, carrier="AC")
+    n.add("Load", "load1", bus="bus1", p_set=50, carrier="AC")
+    n.add("Link", "link1", bus0="bus1", bus1="bus2", p_nom=75, carrier="AC")
+
+    # Set up scenarios
+    n.set_scenarios({"scenario1": 0.4, "scenario2": 0.6})
+
+    # Test 1: Network with consistent invariant attributes should pass
+    n.consistency_check()
+
+    # Test 2: Test invariant attributes for generators (only test attributes that exist)
+    generator_invariant_tests = [
+        ("generators", "gen1", "carrier", "wind"),
+        ("generators", "gen1", "bus", "bus2"),
+        ("generators", "gen1", "p_nom_extendable", False),
+        ("generators", "gen1", "committable", False),
+        ("generators", "gen1", "control", "PV"),
+        ("generators", "gen1", "sign", -1.0),
+        ("generators", "gen1", "weight", 5.0),
+        ("generators", "gen1", "type", "solar"),
+        ("generators", "gen1", "active", False),
+    ]
+
+    for component_name, element_name, attr, new_value in generator_invariant_tests:
+        n_test = n.copy()
+
+        # Modify the invariant attribute in one scenario
+        component = getattr(n_test, component_name)
+        component.loc[("scenario1", element_name), attr] = new_value
+
+        # Should always raise an error regardless of strict mode
+        with pytest.raises(
+            pypsa.consistency.ConsistencyError,
+            match=f"Component '{element_name}' .* has attribute '{attr}' that varies across scenarios",
+        ):
+            n_test.consistency_check()
+
+    # Test 3: Test invariant attributes for lines
+    line_invariant_tests = [
+        ("lines", "line1", "carrier", "gas"),
+        ("lines", "line1", "active", False),
+    ]
+
+    for component_name, element_name, attr, new_value in line_invariant_tests:
+        n_test = n.copy()
+
+        # Modify the invariant attribute in one scenario
+        component = getattr(n_test, component_name)
+        component.loc[("scenario1", element_name), attr] = new_value
+
+        # Should always raise an error
+        with pytest.raises(
+            pypsa.consistency.ConsistencyError,
+            match=f"Component '{element_name}' .* has attribute '{attr}' that varies across scenarios",
+        ):
+            n_test.consistency_check()
+
+    # Test 4: Test invariant attributes for links
+    link_invariant_tests = [
+        ("links", "link1", "carrier", "gas"),
+        ("links", "link1", "active", False),
+        ("links", "link1", "committable", True),
+        ("links", "link1", "p_nom_extendable", True),
+        ("links", "link1", "type", "HVDC"),
+    ]
+
+    for component_name, element_name, attr, new_value in link_invariant_tests:
+        n_test = n.copy()
+
+        # Modify the invariant attribute in one scenario
+        component = getattr(n_test, component_name)
+        component.loc[("scenario1", element_name), attr] = new_value
+
+        # Should always raise an error
+        with pytest.raises(
+            pypsa.consistency.ConsistencyError,
+            match=f"Component '{element_name}' .* has attribute '{attr}' that varies across scenarios",
+        ):
+            n_test.consistency_check()
+
+    # Test 5: Test with NaN values - should not raise error if all scenarios have NaN
+    n_nan = n.copy()
+    n_nan.generators["build_year"] = n_nan.generators["build_year"].astype(float)
+    n_nan.generators.loc[:, "build_year"] = np.nan
+    n_nan.consistency_check()  # Should pass
+
+    # Test 6: Test with mixed NaN and non-NaN values - should raise error (strict behavior)
+    n_mixed_nan = n.copy()
+    n_mixed_nan.generators["lifetime"] = n_mixed_nan.generators["lifetime"].astype(
+        float
+    )
+    n_mixed_nan.generators.loc[("scenario1", "gen1"), "lifetime"] = 25.0
+    n_mixed_nan.generators.loc[("scenario2", "gen1"), "lifetime"] = np.nan
+
+    with pytest.raises(
+        pypsa.consistency.ConsistencyError,
+        match="Component 'gen1' .* has attribute 'lifetime' that varies across scenarios",
+    ):
+        n_mixed_nan.consistency_check()  # Should raise error (any difference is not allowed)
+
+    # Test 7: Test that non-invariant attributes can vary (should not raise error)
+    n_varying = n.copy()
+    n_varying.generators.loc[("scenario1", "gen1"), "p_nom"] = (
+        150  # p_nom is not invariant
+    )
+    n_varying.generators.loc[("scenario1", "gen1"), "p_set"] = (
+        80  # p_set is not invariant
+    )
+    n_varying.lines.loc[("scenario1", "line1"), "s_nom"] = 200  # s_nom is not invariant
+    n_varying.links.loc[("scenario1", "link1"), "p_nom"] = 100  # p_nom is not invariant
+    n_varying.consistency_check()  # Should pass
+
+    # Test 8: Test with non-stochastic network (should skip check)
+    n_non_stoch = pypsa.Network()
+    n_non_stoch.add("Bus", "bus")
+    n_non_stoch.add("Generator", "gen", bus="bus", carrier="test")
+    n_non_stoch.consistency_check()  # Should pass
