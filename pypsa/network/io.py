@@ -20,7 +20,6 @@ import xarray as xr
 from deprecation import deprecated
 from pandas.errors import ParserError
 from pyproj import CRS
-from typing_extensions import Self
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency, deprecated_kwargs
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
     from pandapower.auxiliary import pandapowerNet
+    from typing_extensions import Self
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
@@ -450,7 +450,10 @@ class _ImporterExcel(_Importer):
 
     def get_snapshots(self) -> pd.Index:
         """Get snapshots data."""
-        df = self.sheets["snapshots"]
+        try:
+            df = self.sheets["snapshots"]
+        except KeyError:
+            return None
         df = df.set_index(df.columns[0])
         # Convert snapshot and timestep to datetime (if possible)
         if "snapshot" in df and df.snapshot.iloc[0] != "now":
