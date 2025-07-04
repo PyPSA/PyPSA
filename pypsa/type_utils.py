@@ -1,11 +1,10 @@
 """Typing utilities."""
 
-from typing import Any
+from typing import Any, TypeVar
 
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_list_like
-from typing_extensions import TypeVar
 
 from pypsa.network.abstract import _NetworkABC
 

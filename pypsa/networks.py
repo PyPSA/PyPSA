@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 import validators
+from linopy import Model
 from pyproj import CRS, Transformer
 from scipy.sparse import csgraph
 
@@ -377,6 +378,7 @@ class Network(
             StatisticsAccessor,
             PlotAccessor,
             AbstractStatisticsAccessor,
+            Model,
         ]
         not_equal = False
         if isinstance(other, self.__class__):
@@ -616,13 +618,14 @@ class Network(
     def is_solved(self) -> bool:
         """Check if the network has been solved.
 
+        A solved network has an [objective][pypsa.Network.objective][] value assigned. A
+        [model][pypsa.Network.model][] does not necessarily need to be stored in the
+        network.
+
         Returns
         -------
         bool
-            True if the network has been solved, False otherwise. A solved network
-            has an [objective][pypsa.Network.objective][] value assigned. A
-            [model][pypsa.Network.model][] does not necessarily be stored in the
-            network.
+            True if the network has been solved, False otherwise.
 
         Examples
         --------
@@ -780,19 +783,15 @@ class Network(
         DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
-        to_be_removed = {}
-        if self._model is not None:
-            to_be_removed["_model"] = self._model
-            logger.warning(
-                "Making a copy of a solved network will remove the linopy model."
-            )
-            self._model = None
+        if self.is_solved and hasattr(self.model, "solver_model"):
+            msg = "Copying a solved network with an attached solver model is not supported."
+            msg += " Please delete the model first using `n.model.solver_model = None`."
+            raise ValueError(msg)
 
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types, with_time]
         if all(arg is None or arg is False for arg in args):
             copied_network = copy.deepcopy(self)
-            vars(self).update(to_be_removed)
             return copied_network
 
         if self.has_scenarios:
@@ -874,7 +873,6 @@ class Network(
             if hasattr(self, attr):
                 setattr(n, attr, getattr(self, attr))
 
-        vars(self).update(to_be_removed)
         return n
 
     def __getitem__(self, key: str) -> Network:

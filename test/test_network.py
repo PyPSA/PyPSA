@@ -1,6 +1,7 @@
 import copy
 import sys
 
+import linopy
 import numpy as np
 import pandas as pd
 import pytest
@@ -396,6 +397,30 @@ def test_copy_default_behavior(networks):
     network_copy = n.copy()
     assert n == network_copy
     assert n is not network_copy
+
+
+def test_copy_with_model(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.create_model()
+    n_copy = n.copy()
+
+    assert n.equals(n_copy, log_mode="strict")
+    assert isinstance(n.model, linopy.Model)
+    assert isinstance(n_copy.model, linopy.Model)
+
+    n.optimize.solve_model()
+    with pytest.raises(
+        ValueError,
+        match="Copying a solved network with an attached solver model is not supported.",
+    ):
+        n_copy = n.copy()
+
+    n.optimize()
+    with pytest.raises(
+        ValueError,
+        match="Copying a solved network with an attached solver model is not supported.",
+    ):
+        n_copy = n.copy()
 
 
 @pytest.mark.skipif(

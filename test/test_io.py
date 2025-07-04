@@ -32,7 +32,6 @@ def custom_equals(n1, n2, ignore_attrs=None):
         Networks to compare
     ignore_attrs : list of str, optional
         List of attribute names that are allowed to be different.
-        Defaults to ['_model']
     """
     if not ignore_attrs:
         return n1.equals(n2, log_mode="strict")
@@ -149,7 +148,6 @@ class TestCSVDir:
         # TODO: Remove _components.links with #1128
         ignore = (
             [
-                "_model",
                 "_components.sub_networks",
                 "_components.links",
                 "_components.lines",
@@ -284,7 +282,6 @@ class TestNetcdf:
         # TODO: Remove _components.links with #1128
         ignore = (
             [
-                "_model",
                 "_components.sub_networks",
                 "_components.links",
                 "_components.lines",
@@ -371,7 +368,6 @@ class TestHDF5:
         # TODO: Remove _components.links with #1128
         ignore = (
             [
-                "_model",
                 "_components.sub_networks",
                 "_components.links",
                 "_components.lines",
@@ -471,7 +467,6 @@ class TestExcelIO:
         # TODO: Remove _components.links with #1128
         ignore = (
             [
-                "_model",
                 "_components.sub_networks",
                 "_components.links",
                 "_components.lines",
@@ -528,7 +523,6 @@ def test_io_equality(networks_including_solved, tmp_path):
     # TODO: Remove _components.links with #1128
     ignore = (
         [
-            "_model",
             "_components.sub_networks",
             "_components.links",
             "_components.lines",

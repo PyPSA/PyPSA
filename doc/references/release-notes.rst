@@ -11,8 +11,26 @@ Release Notes
 ..    To use the features already you have to install the ``master`` branch, e.g. 
 ..    ``pip install git+https://github.com/pypsa/pypsa``.
 
+`v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
+=======================================================================================
+
+Bug Fixes
+---------
+
+* Fixed issue when copying a network with an unsolved model.
+  (https://github.com/PyPSA/PyPSA/pull/5)
+
+* Fixed missing dependency issue for `typing-extensions`.
+  (https://github.com/PyPSA/PyPSA/pull/1264)
+
+* Fixed Excel import when snapshots sheet is missing.
+  (https://github.com/PyPSA/PyPSA/issues/1268)
+
 `v0.35.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0>`__ (22th June 2025)
 =======================================================================================
+
+Features
+--------
 
 * New **interactive** plotting library
 
@@ -43,7 +61,7 @@ Release Notes
     reference will follow with a stable version of it.
 
 Bug Fixes
---------
+---------
 
 * Bugfix: The function ``n.statistics.opex()`` now considers the correct
   snapshot weightings ``n.snapshot_weightings.objective``.
