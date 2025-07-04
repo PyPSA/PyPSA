@@ -1236,7 +1236,9 @@ class SubNetworkPowerFlowMixin:
             n.buses.loc[pvs.index, "generator"] = pvs
 
         n.buses.loc[self.slack_bus, "control"] = "Slack"
-        n.buses.loc[self.slack_bus, "generator"] = self.slack_generator
+        n.buses.loc[self.slack_bus, "generator"] = (
+            self.slack_generator if self.slack_generator is not None else ""
+        )
 
         buses_control = n.buses.loc[buses_i, "control"]
         self.pvs = buses_control.index[buses_control == "PV"]

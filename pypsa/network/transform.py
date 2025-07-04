@@ -142,6 +142,14 @@ class NetworkTransformMixin(_NetworkABC):
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
+
+        # Check if multi-index names are passed
+        if isinstance(name, pd.MultiIndex):
+            msg = "Component names must be a one-dimensional."
+            if self.has_scenarios:
+                msg += " For stochastic networks, they will be casted to all dimensions and data per scenario can be changed after adding them."
+            raise TypeError(msg)
+
         names = pd.Index([name]) if single_component else pd.Index(name)
         names = names.astype(str) + suffix
 

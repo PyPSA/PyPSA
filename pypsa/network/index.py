@@ -589,6 +589,7 @@ class NetworkIndexMixin(_NetworkABC):
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
             df = pd.DataFrame(dict.fromkeys(self._snapshot_weightings.columns, df))
+        df.index.names = self.snapshots.names
         self._snapshot_weightings = df
 
     @property
@@ -699,8 +700,9 @@ class NetworkIndexMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
-        scenarios_ = scenarios_.rename("scenario")
+        scenarios_ = scenarios_.rename("weight")
         scenarios_.index = scenarios_.index.astype(str)
+        scenarios_.index.name = "scenario"
 
         for c in self.components.values():
             c.static = pd.concat(

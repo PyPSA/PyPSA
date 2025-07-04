@@ -47,6 +47,9 @@ def component_name(request):
     return request.param
 
 
+# Example Networks
+
+
 @pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
@@ -60,6 +63,11 @@ def storage_hvdc_network():
 @pytest.fixture
 def model_energy_network():
     return pypsa.examples.model_energy()
+
+
+@pytest.fixture
+def stochastic_network():
+    return pypsa.examples.stochastic_network()
 
 
 @pytest.fixture
@@ -87,6 +95,13 @@ def scigrid_de_network():
 
 
 @pytest.fixture
+def ac_dc_network_solved():
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+    return n
+
+
+@pytest.fixture  # scope="session")
 def ac_dc_network_r():
     csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
     return pypsa.Network(csv_folder)
@@ -157,19 +172,27 @@ def network_only_component_names():
     return n
 
 
-@pytest.fixture(
-    params=[
-        "ac_dc_network",
-        "scigrid_de_network",
-        "storage_hvdc_network",
-        "model_energy_network",
-        # "ac_dc_network_r",
-        # "ac_dc_network_mi",
-        # "ac_dc_network_shapes",
-        "network_only_component_names",
-    ]
-)
-def network_all(request):
+UNSOLVED_NETWORKS = [
+    "ac_dc_network",
+    "scigrid_de_network",
+    "storage_hvdc_network",
+    "model_energy_network",
+    "stochastic_network",
+    "network_only_component_names",
+]
+
+SOLVED_NETWORKS = [
+    "ac_dc_network_solved",
+]
+
+
+@pytest.fixture(params=UNSOLVED_NETWORKS)
+def networks(request):
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture(params=UNSOLVED_NETWORKS + SOLVED_NETWORKS)
+def networks_including_solved(request):
     return request.getfixturevalue(request.param)
 
 

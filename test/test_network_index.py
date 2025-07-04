@@ -31,35 +31,39 @@ class TestNetworkScenarioIndex:
     def test_dict_scenarios(self, n):
         """Test setting scenarios from a dict."""
         n.set_scenarios(scenarios={"scenario1": 0.3, "scenario2": 0.7})
-        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="scenario")
+        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="weight")
+        expected.index.name = "scenario"
         pd.testing.assert_series_equal(n.scenarios, expected)
 
     def test_series_scenarios(self, n):
         """Test setting scenarios from a Series."""
         series = pd.Series({"scenario1": 0.3, "scenario2": 0.7})
         n.set_scenarios(scenarios=series)
-        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="scenario")
+        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="weight")
+        expected.index.name = "scenario"
         pd.testing.assert_series_equal(n.scenarios, expected)
 
     def test_sequence_scenarios(self, n):
         """Test setting scenarios from a sequence with weights."""
         n.set_scenarios(scenarios=["scenario1", "scenario2"])
         expected = pd.Series(
-            [0.5, 0.5], index=["scenario1", "scenario2"], name="scenario"
+            [0.5, 0.5], index=["scenario1", "scenario2"], name="weight"
         )
+        expected.index.name = "scenario"
         pd.testing.assert_series_equal(n.scenarios, expected)
 
     def test_kwargs_scenarios(self, n):
         """Test setting scenarios from keyword arguments."""
         n.set_scenarios(scenario1=0.3, scenario2=0.7)
-        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="scenario")
+        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="weight")
+        expected.index.name = "scenario"
         pd.testing.assert_series_equal(n.scenarios, expected)
 
     def test_series_name_preserved(self, n):
         """Test that the series name is set to 'scenario'."""
         series = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="original_name")
         n.set_scenarios(scenarios=series)
-        assert n.scenarios.name == "scenario"
+        assert n.scenarios.name == "weight"
 
     def test_sequence_without_weights(self, n):
         """Test setting scenarios from a sequence without weights."""
@@ -69,8 +73,9 @@ class TestNetworkScenarioIndex:
         expected = pd.Series(
             [1 / 3, 1 / 3, 1 / 3],
             index=["scenario1", "scenario2", "scenario3"],
-            name="scenario",
+            name="weight",
         )
+        expected.index.name = "scenario"
 
         pd.testing.assert_series_equal(n.scenarios, expected)
 

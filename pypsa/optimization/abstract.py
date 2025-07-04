@@ -767,7 +767,7 @@ class OptimizationAbstractMixin:
             weights = {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
 
         # check that network has been solved
-        if not hasattr(n, "objective"):
+        if not self._n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before running MGA."
             raise ValueError(msg)
 

@@ -53,7 +53,7 @@ from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable, Iterator, Sequence
+    from collections.abc import Collection, Iterator, Sequence
 
     import linopy
     from scipy.sparse import spmatrix
@@ -174,8 +174,7 @@ class Network(
         self._model: linopy.Model | None = None
         self._objective: float | None = None
         self._objective_constant: float | None = None
-        self._scenarios: pd.Index = pd.Index([])
-        self._scenarios.name = "scenario"
+        self._scenarios: pd.Index = pd.Index([], name="scenario")
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -523,8 +522,9 @@ class Network(
 
         """
         if self._model is None:
-            msg = "The network has not been optimized yet and no model is stored."
-            raise ValueError(msg)
+            logger.warning(
+                "The network has not been optimized yet and no model is stored."
+            )
         return self._model
 
     @model.deleter
@@ -533,7 +533,7 @@ class Network(
         self._model = None
 
     @property
-    def objective(self) -> float:
+    def objective(self) -> float | None:
         """Objective value of the solved network.
 
         The property yields the objective value of the solved network. It is set after
@@ -556,8 +556,9 @@ class Network(
 
         """
         if self._objective is None:
-            msg = "The network has not been optimized yet and no objective value is stored."
-            raise ValueError(msg)
+            logger.warning(
+                "The network has not been optimized yet and no objective value is stored."
+            )
         return self._objective
 
     @objective.setter
@@ -572,7 +573,7 @@ class Network(
         self._objective = new
 
     @property
-    def objective_constant(self) -> float:
+    def objective_constant(self) -> float | None:
         """Objective constant of the network.
 
         The property yields the fixed part of the objective function. It is set after
@@ -595,8 +596,9 @@ class Network(
 
         """
         if self._objective_constant is None:
-            msg = "The network has not been optimized yet and no objective constant is stored."
-            raise ValueError(msg)
+            logger.warning(
+                "The network has not been optimized yet and no objective constant is stored."
+            )
         return self._objective_constant
 
     @objective_constant.setter
@@ -609,6 +611,26 @@ class Network(
             stacklevel=2,
         )
         self._objective_constant = new
+
+    @property
+    def is_solved(self) -> bool:
+        """Check if the network has been solved.
+
+        Returns
+        -------
+        bool
+            True if the network has been solved, False otherwise. A solved network
+            has an [objective][pypsa.Network.objective][] value assigned. A
+            [model][pypsa.Network.model][] does not necessarily be stored in the
+            network.
+
+        Examples
+        --------
+        >>> n.is_solved
+        True
+
+        """
+        return self._objective is not None
 
     @property
     def crs(self) -> Any:
@@ -758,14 +780,27 @@ class Network(
         DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
-        if self._model is not None and self._model.solver_model is not None:
-            msg = "Copying solved networks is not supported yet."
-            raise NotImplementedError(msg)
+        to_be_removed = {}
+        if self._model is not None:
+            to_be_removed["_model"] = self._model
+            logger.warning(
+                "Making a copy of a solved network will remove the linopy model."
+            )
+            self._model = None
 
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types, with_time]
         if all(arg is None or arg is False for arg in args):
-            return copy.deepcopy(self)
+            copied_network = copy.deepcopy(self)
+            vars(self).update(to_be_removed)
+            return copied_network
+
+        if self.has_scenarios:
+            msg = (
+                "Copying a stochastic network with a selection is currently not "
+                "supported. Use `n.copy()` to copy the entire network."
+            )
+            raise NotImplementedError(msg)
 
         # Convert to pandas.Index
         snapshots_ = as_index(self, snapshots, "snapshots")
@@ -839,6 +874,7 @@ class Network(
             if hasattr(self, attr):
                 setattr(n, attr, getattr(self, attr))
 
+        vars(self).update(to_be_removed)
         return n
 
     def __getitem__(self, key: str) -> Network:
@@ -1281,31 +1317,6 @@ class Network(
             for c_name in components
             if not (skip_empty and self.static(c_name).empty)
         )
-
-    def __dir__(self) -> Iterable[str]:
-        """Return a list of valid attributes and methods of the network.
-
-        This method is used by dir() and help() to show available attributes.
-        It filters out properties that would raise AttributeError when accessed,
-        because they are not available in the network yet.
-
-        Returns
-        -------
-        list[str]
-            List of valid attribute and method names.
-
-        """
-        attrs = super().__dir__()
-
-        # Filter out properties that would raise AttributeError
-        if self._objective_constant is None:
-            attrs = [attr for attr in attrs if attr != "objective_constant"]
-        if self._objective is None:
-            attrs = [attr for attr in attrs if attr != "objective"]
-        if self._model is None:
-            attrs = [attr for attr in attrs if attr != "model"]
-
-        return attrs
 
 
 class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):

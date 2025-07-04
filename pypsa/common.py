@@ -361,14 +361,16 @@ def equals(
             msg = f"numpy arrays differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
             return handle_diff(msg)
 
-    elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
+    elif isinstance(a, pd.DataFrame | pd.Series | pd.Index):
         if a.empty and b.empty:
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
             # Check if dtypes are equal
             try:
-                pd_testing.assert_frame_equal(a, b, check_dtype=False)
+                pd_testing.assert_frame_equal(
+                    a, b, check_dtype=False, check_exact=False
+                )
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
@@ -391,7 +393,7 @@ def equals(
                 return handle_diff(msg)
 
     # Iterators
-    elif isinstance(a, (dict | Dict)):
+    elif isinstance(a, dict | Dict):
         for k, v in a.items():
             if k not in b:
                 msg = f"Key '{k}' missing from second dict at '{current_path}'"
@@ -404,7 +406,7 @@ def equals(
                 msg = f"Key '{k}' missing from first dict at '{current_path}'"
                 return handle_diff(msg)
 
-    elif isinstance(a, (list | tuple)):
+    elif isinstance(a, list | tuple):
         if len(a) != len(b):
             msg = f"Collections have different lengths at '{current_path}': {len(a)} != {len(b)}"
             return handle_diff(msg)
@@ -416,6 +418,12 @@ def equals(
     # Nans
     elif pd.isna(a) and pd.isna(b):
         pass
+
+    # Floating point numbers with tolerance
+    elif isinstance(a, float | int) and isinstance(b, float | int):
+        if not np.isclose(a, b, rtol=1e-9, atol=1e-12):
+            msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
 
     # Other objects
     elif a != b:
