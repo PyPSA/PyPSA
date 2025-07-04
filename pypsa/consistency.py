@@ -65,7 +65,8 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.buses.index)
+        buses = n.buses.index.unique("name")
+        missing = ~component.static[attr].astype(str).isin(buses)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
@@ -139,7 +140,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.carriers.index)
+            ~component.static["carrier"].isin(n.carriers.index.unique("name"))
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )
@@ -447,8 +448,8 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
     """
     if component.name in {"Generator", "Link"}:
-        committables = n.get_committable_i(component.name)
-        extendables = n.get_extendable_i(component.name)
+        committables = component.committables
+        extendables = component.extendables
         intersection = committables.intersection(extendables)
         if not intersection.empty:
             _log_or_raise(
@@ -819,6 +820,8 @@ class NetworkConsistencyMixin(_NetworkABC):
         [pypsa.consistency.check_shapes][] : Check if shapes are aligned with related components.
         [pypsa.consistency.check_nans_for_component_default_attrs][] : Check for missing values
             in component attributes.
+        [pypsa.consistency.check_scenarios_sum_to_one][] : Check if scenarios probabilities sum to 1.
+        [pypsa.consistency.check_scenario_invariant_attributes][] : Check if certain component attributes are invariant across scenarios.
 
         """
         if strict is None:
@@ -839,6 +842,8 @@ class NetworkConsistencyMixin(_NetworkABC):
             "investment_periods",
             "shapes",
             "dtypes",
+            "scenarios_sum",
+            "scenario_invariant_attrs",
         ]
 
         if "all" in strict:
@@ -885,6 +890,8 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_for_disconnected_buses(self, "disconnected_buses" in strict)
         check_investment_periods(self, "investment_periods" in strict)
         check_shapes(self, "shapes" in strict)
+        check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
+        check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
         """Check network for consistency for plotting functions.
@@ -929,3 +936,119 @@ class NetworkConsistencyMixin(_NetworkABC):
             self,  # type: ignore
             strict="missing_carrier_colors" in strict,
         )
+
+
+def check_scenarios_sum_to_one(n: Network, strict: bool = False) -> None:
+    """Check if scenarios probabilities sum to 1.
+
+    This check verifies that scenario probabilities have not been modified after
+    initialization to break the constraint that they must sum to 1.
+
+    Activate strict mode in general consistency check by passing `['scenarios_sum']`
+    to the `strict` argument.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    if n.has_scenarios:
+        scenarios_sum = n.scenarios.sum()
+        tolerance = 1e-10  # Allow for small floating point errors
+        if abs(scenarios_sum - 1.0) > tolerance:
+            _log_or_raise(
+                strict,
+                "Scenario probabilities do not sum to 1.0. Current sum: %g. "
+                "Scenarios may have been modified after initialization.",
+                scenarios_sum,
+            )
+
+
+def check_scenario_invariant_attributes(n: Network, strict: bool = False) -> None:
+    """Check if invariant component attributes are not changed across scenarios.
+
+    There are some component attributes that must remain the same across scenarios.
+    These attributes define the topology of the network or the mathematical structure.
+    We raise an error if user attemps to modify them across scenarios.
+    Any difference in values (including NaN vs non-NaN) will trigger an error.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    # This test is for stochastic networks only
+    if not n.has_scenarios:
+        return
+
+    # Attributes that must be identical across all scenarios
+    invariant_attrs = {
+        "name",
+        "bus",
+        "control",
+        "type",
+        "p_nom_extendable",  # changes mathematical problem
+        "committable",  # changes mathematical problem
+        "sign",
+        "carrier",
+        "weight",
+        "p_nom_opt",  # optimization result
+        "build_year",
+        "lifetime",
+        "active",  # theoretically can be different, but problematic with "Line"
+    }
+
+    for component in n.iterate_components():
+        if component.static.index.nlevels < 2:
+            continue  # No scenario dimension
+
+        # Get attributes that exist for this component and are in invariant list
+        component_invariant_attrs = invariant_attrs.intersection(
+            component.static.columns
+        )
+
+        if not component_invariant_attrs:
+            continue
+
+        # Group by component name (second level of MultiIndex) and check for differences
+        grouped = component.static.groupby(level=1)  # Group by component name
+
+        for attr in component_invariant_attrs:
+            for comp_name, group in grouped:
+                # Check if all scenarios have the same value for this attribute
+                unique_values = group[attr].unique()
+
+                # If there's more than one unique value, it's an error - no exceptions
+                if len(unique_values) > 1:
+                    scenarios_with_diff = (
+                        group[group[attr] != group[attr].iloc[0]]
+                        .index.get_level_values(0)
+                        .tolist()
+                    )
+                    _log_or_raise(
+                        True,  # We are always strict for this check
+                        "Component '%s' of type '%s' has attribute '%s' that varies across scenarios. "
+                        "This attribute must be identical across all scenarios. "
+                        "Scenarios with different values: %s. Values: %s",
+                        comp_name,
+                        component.name,
+                        attr,
+                        scenarios_with_diff,
+                        group[attr].to_dict(),
+                    )

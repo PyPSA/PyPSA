@@ -639,6 +639,11 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     Cycles with infinite impedance are skipped.
     """
     branches_bus0 = sub_network.branches()["bus0"]
+
+    if sub_network.has_scenarios:
+        first_scenario = sub_network.scenarios.index[0]
+        branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
+
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
@@ -698,9 +703,14 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_types(self)
 
-        self.lines["v_nom"] = self.lines.bus0.map(self.buses.v_nom)
+        buses = self.buses
+
+        if self.has_scenarios:
+            buses = buses.xs(self.scenarios.index[0], level="scenario")
+
+        self.lines["v_nom"] = self.lines.bus0.map(buses.v_nom)
         self.lines.loc[self.lines.carrier == "", "carrier"] = self.lines.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.lines["x_pu"] = self.lines.x / (self.lines.v_nom**2)
@@ -724,9 +734,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_t_model(self)
 
-        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(
-            self.buses.v_nom
-        )
+        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(buses.v_nom)
         self.shunt_impedances["b_pu"] = (
             self.shunt_impedances.b * self.shunt_impedances.v_nom**2
         )
@@ -735,11 +743,11 @@ class NetworkPowerFlowMixin(_NetworkABC):
         )
 
         self.links.loc[self.links.carrier == "", "carrier"] = self.links.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.stores.loc[self.stores.carrier == "", "carrier"] = self.stores.bus.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         _update_linkports_component_attrs(self)
@@ -872,7 +880,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
             {
                 c: self.dynamic(c).p0.loc[snapshot]
                 for c in self.passive_branch_components
-            }
+            },
+            names=["component", "name"],
         )
         p0 = p0_base.to_frame("base")
 
@@ -1227,7 +1236,9 @@ class SubNetworkPowerFlowMixin:
             n.buses.loc[pvs.index, "generator"] = pvs
 
         n.buses.loc[self.slack_bus, "control"] = "Slack"
-        n.buses.loc[self.slack_bus, "generator"] = self.slack_generator
+        n.buses.loc[self.slack_bus, "generator"] = (
+            self.slack_generator if self.slack_generator is not None else ""
+        )
 
         buses_control = n.buses.loc[buses_i, "control"]
         self.pvs = buses_control.index[buses_control == "PV"]
@@ -1670,7 +1681,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             n.calculate_dependent_values()
             self.find_bus_controls()
-            n._allocate_pf_outputs(linear=True)
+            _allocate_pf_outputs(n, linear=True)
 
         # get indices for the components on this sub-network
         buses_o = self.buses_o
@@ -1687,6 +1698,8 @@ class SubNetworkPowerFlowMixin:
             c_p_set = get_as_dense(
                 n, c.name, "p_set", sns, c.static.query("active").index
             )
+            # power flow calculations require a starting point for the algorithm, while p_set default is n/a
+            c_p_set = c_p_set.fillna(0)
             n.dynamic(c.name).p.loc[sns, c.static.query("active").index] = c_p_set
 
         # set the power injection at each node
