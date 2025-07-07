@@ -17,6 +17,10 @@ from pypsa.constants import RE_PORTS_FILTER
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
+    from pypsa.typing import NetworkType
+
+
+if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pypsa import Network
@@ -938,7 +942,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         )
 
 
-def check_scenarios_sum_to_one(n: Network, strict: bool = False) -> None:
+def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
     """Check if scenarios probabilities sum to 1.
 
     This check verifies that scenario probabilities have not been modified after
@@ -972,7 +976,7 @@ def check_scenarios_sum_to_one(n: Network, strict: bool = False) -> None:
             )
 
 
-def check_scenario_invariant_attributes(n: Network, strict: bool = False) -> None:
+def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) -> None:
     """Check if invariant component attributes are not changed across scenarios.
 
     There are some component attributes that must remain the same across scenarios.

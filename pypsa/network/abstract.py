@@ -58,6 +58,12 @@ class _NetworkABC(ABC):
 
     @property
     @abstractmethod
+    def has_periods(self) -> bool:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
     def passive_branch_components(self) -> set[str]:
         """Read only placeholder."""
         ...

@@ -138,6 +138,10 @@ class _Exporter(_ImpExper):
         """Save investment periods data."""
 
     @abstractmethod
+    def save_scenarios(self, scenarios: pd.DataFrame) -> None:
+        """Save scenarios data."""
+
+    @abstractmethod
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save static components data."""
 
