@@ -485,6 +485,7 @@ class _ImporterExcel(_Importer):
         try:
             df = self.sheets["investment_periods"]
             df = df.set_index(df.columns[0])
+            df.index = df.index.astype(int)
         except (ValueError, KeyError):
             return None
         else:
