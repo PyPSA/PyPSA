@@ -1163,8 +1163,10 @@ class NetworkIOMixin(_NetworkABC):
             col_export = []
             for col in static.columns:
                 # do not export derived attributes and object column of subnetwork
-                if col in ["g_pu", "b_pu", "obj"]:
+                if col in ["g_pu", "b_pu"]:
                     continue
+                if col == "obj":
+                    static[col] = np.nan
                 if (
                     col in attrs.index
                     and pd.isnull(attrs.at[col, "default"])
