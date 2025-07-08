@@ -10,7 +10,7 @@ def test_ac_dc_meshed():
     n = pypsa.examples.ac_dc_meshed()
     assert not n.buses.empty
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa
         n = pypsa.examples.ac_dc_meshed(update=True)
 
 
@@ -20,7 +20,7 @@ def test_storage_hvdc():
     """
     n = pypsa.examples.storage_hvdc()
     assert not n.buses.empty
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa
         n = pypsa.examples.storage_hvdc(update=True)
 
 
@@ -31,5 +31,5 @@ def test_scigrid_de():
     n = pypsa.examples.scigrid_de()
     assert not n.buses.empty
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa
         n = pypsa.examples.storage_hvdc(update=True)

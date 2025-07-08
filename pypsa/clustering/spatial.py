@@ -691,7 +691,7 @@ def busmap_by_kmeans(
         )
         raise ModuleNotFoundError(msg)
 
-    from sklearn.cluster import KMeans
+    from sklearn.cluster import KMeans  # noqa: PLC0415
 
     if buses_i is None:
         buses_i = n.buses.index
@@ -811,7 +811,7 @@ def busmap_by_hac(
         )
         raise ModuleNotFoundError(msg)
 
-    from sklearn.cluster import AgglomerativeClustering as HAC
+    from sklearn.cluster import AgglomerativeClustering as HAC  # noqa: PLC0415
 
     if buses_i is None:
         buses_i = n.buses.index

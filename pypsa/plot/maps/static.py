@@ -662,8 +662,8 @@ class MapPlotter:
                 )
             ).transpose(2, 0, 1)
         else:
-            from shapely.geometry import LineString
-            from shapely.wkt import loads
+            from shapely.geometry import LineString  # noqa: PLC0415
+            from shapely.wkt import loads  # noqa: PLC0415
 
             linestrings = geometry[lambda ds: ds != ""].map(loads)
             if not all(isinstance(ls, LineString) for ls in linestrings):

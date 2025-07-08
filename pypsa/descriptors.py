@@ -82,7 +82,9 @@ def get_switchable_as_iter(
 @deprecated_common_kwargs
 def allocate_series_dataframes(n: Network, series: dict) -> None:
     """Populate time-varying outputs with default values."""
-    from pypsa.pf import allocate_series_dataframes as allocate_series_dataframes_pf
+    from pypsa.pf import (  # noqa: PLC0415
+        allocate_series_dataframes as allocate_series_dataframes_pf,
+    )
 
     allocate_series_dataframes_pf(n, series)
 
@@ -287,7 +289,7 @@ def get_bounds_pu(
         if attr == "p_store":
             max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
         if attr == "state_of_charge":
-            from pypsa.common import expand_series
+            from pypsa.common import expand_series  # noqa: PLC0415
 
             max_pu = expand_series(n.static(c).max_hours, sns).T
             min_pu = pd.DataFrame(0, *max_pu.axes)

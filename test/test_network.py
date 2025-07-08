@@ -463,7 +463,7 @@ def test_single_add_network_with_time(ac_dc_network, n_5bus):
 def test_shape_reprojection(ac_dc_network_shapes):
     n = ac_dc_network_shapes
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning):  # noqa
         area_before = n.shapes.geometry.area.sum()
     x, y = n.buses.x.values, n.buses.y.values
 

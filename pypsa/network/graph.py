@@ -103,7 +103,7 @@ class NetworkGraphMixin:
             NetworkX graph
 
         """
-        from pypsa import Network, SubNetwork
+        from pypsa import Network, SubNetwork  # noqa: PLC0415
 
         if isinstance(self, Network):
             if branch_components is None:
@@ -182,7 +182,7 @@ class NetworkGraphMixin:
             with ... stored elements and shape (..., ...)>
 
         """
-        from pypsa.networks import Network, SubNetwork
+        from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
         if isinstance(self, Network):
             if branch_components is None:
@@ -253,7 +253,7 @@ class NetworkGraphMixin:
                 with 22 stored elements and shape (9, 11)>
 
         """
-        from pypsa import Network, SubNetwork
+        from pypsa import Network, SubNetwork  # noqa: PLC0415
 
         if isinstance(self, Network):
             if branch_components is None:

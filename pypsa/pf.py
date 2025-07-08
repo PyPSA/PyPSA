@@ -53,7 +53,7 @@ def imag(X: pd.Series) -> pd.Series:
 @deprecated_common_kwargs
 def allocate_series_dataframes(*args: Any, **kwargs: Any) -> Any:
     """Use `pypsa.network.power_flow.allocate_series_dataframes` instead."""
-    from pypsa.network.power_flow import allocate_series_dataframes
+    from pypsa.network.power_flow import allocate_series_dataframes  # noqa: PLC0415
 
     return allocate_series_dataframes(*args, **kwargs)
 
@@ -92,7 +92,7 @@ def network_pf(
 @deprecated_common_kwargs
 def newton_raphson_sparse(*args: Any, **kwargs: Any) -> Any:
     """Use `pypsa.network.power_flow.newton_raphson_sparse` instead."""
-    from pypsa.network.power_flow import newton_raphson_sparse
+    from pypsa.network.power_flow import newton_raphson_sparse  # noqa: PLC0415
 
     return newton_raphson_sparse(*args, **kwargs)
 
@@ -105,7 +105,7 @@ def newton_raphson_sparse(*args: Any, **kwargs: Any) -> Any:
 @deprecated_common_kwargs
 def sub_network_pf_singlebus(*args: Any, **kwargs: Any) -> Any:
     """Use `pypsa.network.power_flow.sub_network_pf_singlebus` instead."""
-    from pypsa.network.power_flow import sub_network_pf_singlebus
+    from pypsa.network.power_flow import sub_network_pf_singlebus  # noqa: PLC0415
 
     return sub_network_pf_singlebus(*args, **kwargs)
 
@@ -142,7 +142,7 @@ def network_lpf(n: Network, *args: Any, **kwargs: Any) -> Any:
 @deprecated_common_kwargs
 def apply_line_types(n: Network) -> None:
     """Use `pypsa.network.power_flow.apply_line_types` instead."""
-    from pypsa.network.power_flow import apply_line_types
+    from pypsa.network.power_flow import apply_line_types  # noqa: PLC0415
 
     return apply_line_types(n)
 
@@ -155,7 +155,7 @@ def apply_line_types(n: Network) -> None:
 @deprecated_common_kwargs
 def apply_transformer_types(n: Network) -> None:
     """Use `pypsa.network.power_flow.apply_transformer_types` instead."""
-    from pypsa.network.power_flow import apply_transformer_types
+    from pypsa.network.power_flow import apply_transformer_types  # noqa: PLC0415
 
     return apply_transformer_types(n)
 
@@ -168,7 +168,7 @@ def apply_transformer_types(n: Network) -> None:
 @deprecated_common_kwargs
 def wye_to_delta(*args: Any, **kwargs: Any) -> tuple[float, float, float]:
     """Use `pypsa.network.power_flow.wye_to_delta` instead."""
-    from pypsa.network.power_flow import wye_to_delta
+    from pypsa.network.power_flow import wye_to_delta  # noqa: PLC0415
 
     return wye_to_delta(*args, **kwargs)
 
@@ -181,7 +181,7 @@ def wye_to_delta(*args: Any, **kwargs: Any) -> tuple[float, float, float]:
 @deprecated_common_kwargs
 def apply_transformer_t_model(n: Network) -> None:
     """Use `pypsa.network.power_flow.apply_transformer_t_model` instead."""
-    from pypsa.network.power_flow import apply_transformer_t_model
+    from pypsa.network.power_flow import apply_transformer_t_model  # noqa: PLC0415
 
     return apply_transformer_t_model(n)
 
