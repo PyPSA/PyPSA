@@ -1182,7 +1182,24 @@ class SubNetworkPowerFlowMixin:
             slacks = gens[gens.control == "Slack"].index
 
             if len(slacks) == 0:
-                self.slack_generator = gens.index[0]
+                # For stochastic networks, ensure consistent slack generator across scenarios
+                if self.n.has_scenarios:
+                    if hasattr(gens.index, "get_level_values"):
+                        # MultiIndex case (stochastic)
+                        gen_names = gens.index.get_level_values("name")
+                        # Choose the first generator name alphabetically for consistency
+                        chosen_gen_name = sorted(gen_names.unique())[0]
+                        # Find this generator in the current scenario
+                        matching_gens = gens[gen_names == chosen_gen_name]
+                        if len(matching_gens) > 0:
+                            self.slack_generator = matching_gens.index[0]
+                        else:
+                            self.slack_generator = gens.index[0]
+                    else:
+                        self.slack_generator = gens.index[0]
+                else:
+                    self.slack_generator = gens.index[0]
+
                 self.n.generators.loc[self.slack_generator, "control"] = "Slack"
                 logger.debug(
                     "No slack generator found in sub-network %s, using %s as the slack generator",

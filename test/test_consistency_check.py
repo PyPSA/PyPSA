@@ -137,7 +137,6 @@ def test_scenario_invariant_attributes_comprehensive():
     Invariant attributes (must be identical across all scenarios):
     - name
     - bus
-    - control
     - type
     - p_nom_extendable
     - committable
@@ -148,6 +147,10 @@ def test_scenario_invariant_attributes_comprehensive():
     - build_year
     - lifetime
     - active
+
+    Note: "control" is not included as an invariant attribute because different
+    scenarios can have different control types (PQ, PV, Slack). However, slack bus
+    consistency is enforced separately via check_stochastic_slack_bus_consistency.
     """
     n = pypsa.Network()
 
@@ -177,12 +180,14 @@ def test_scenario_invariant_attributes_comprehensive():
     n.consistency_check()
 
     # Test 2: Test invariant attributes for generators (only test attributes that exist)
+    # Note: "control" is no longer tested as invariant because different scenarios
+    # can have different control types (PQ, PV, Slack) but slack bus consistency
+    # is enforced separately
     generator_invariant_tests = [
         ("generators", "gen1", "carrier", "wind"),
         ("generators", "gen1", "bus", "bus2"),
         ("generators", "gen1", "p_nom_extendable", False),
         ("generators", "gen1", "committable", False),
-        ("generators", "gen1", "control", "PV"),
         ("generators", "gen1", "sign", -1.0),
         ("generators", "gen1", "weight", 5.0),
         ("generators", "gen1", "type", "solar"),

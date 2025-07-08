@@ -826,6 +826,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             in component attributes.
         [pypsa.consistency.check_scenarios_sum_to_one][] : Check if scenarios probabilities sum to 1.
         [pypsa.consistency.check_scenario_invariant_attributes][] : Check if certain component attributes are invariant across scenarios.
+        [pypsa.consistency.check_stochastic_slack_bus_consistency][] : Check if same slack bus is chosen across scenarios.
 
         """
         if strict is None:
@@ -848,6 +849,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "dtypes",
             "scenarios_sum",
             "scenario_invariant_attrs",
+            "slack_bus_consistency",
         ]
 
         if "all" in strict:
@@ -896,6 +898,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_shapes(self, "shapes" in strict)
         check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
         check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
+        check_stochastic_slack_bus_consistency(self, "slack_bus_consistency" in strict)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
         """Check network for consistency for plotting functions.
@@ -1005,7 +1008,8 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
     invariant_attrs = {
         "name",
         "bus",
-        "control",
+        # "control" is excluded - different buses can have different control types across scenarios
+        # but we ensure consistent slack bus selection separately
         "type",
         "p_nom_extendable",  # changes mathematical problem
         "committable",  # changes mathematical problem
@@ -1055,4 +1059,66 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
                         attr,
                         scenarios_with_diff,
                         group[attr].to_dict(),
+                    )
+
+
+def check_stochastic_slack_bus_consistency(
+    n: NetworkType, strict: bool = False
+) -> None:
+    """Check that the same bus is chosen as slack across all scenarios in stochastic networks.
+
+    Ensure that the same bus is consistently chosen as the slack bus
+    to maintain mathematical consistency of the optimization problem.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    # This test is for stochastic networks only
+    if not n.has_scenarios:
+        return
+
+    # Check that each sub-network has the same slack bus across all scenarios
+    if n.has_scenarios and "control" in n.buses.columns:
+        # Extract slack buses for each scenario
+        slack_buses_by_scenario = {}
+
+        for scenario in n.scenarios.index:
+            if n.buses.index.nlevels > 1:
+                # MultiIndex case (stochastic network)
+                scenario_buses = n.buses.xs(scenario, level="scenario")
+                slack_buses = scenario_buses[scenario_buses.control == "Slack"]
+                slack_buses_by_scenario[scenario] = set(slack_buses.index)
+            else:
+                # Single scenario case, shouldn't reach here for stochastic networks
+                slack_buses = n.buses[n.buses.control == "Slack"]
+                slack_buses_by_scenario[scenario] = set(slack_buses.index)
+
+        # Compare slack buses across scenarios
+        if len(slack_buses_by_scenario) > 1:
+            scenarios = list(slack_buses_by_scenario.keys())
+            reference_slack_buses = slack_buses_by_scenario[scenarios[0]]
+
+            for scenario in scenarios[1:]:
+                current_slack_buses = slack_buses_by_scenario[scenario]
+                if reference_slack_buses != current_slack_buses:
+                    _log_or_raise(
+                        strict,
+                        "Different slack buses found across scenarios. "
+                        "This can cause mathematical inconsistency in stochastic optimization. "
+                        "Reference scenario '%s' has slack buses %s, "
+                        "but scenario '%s' has slack buses %s",
+                        scenarios[0],
+                        reference_slack_buses,
+                        scenario,
+                        current_slack_buses,
                     )

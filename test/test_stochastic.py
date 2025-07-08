@@ -403,3 +403,125 @@ def test_single_scenario():
         gen_output = n.generators_t.p.loc[:, ("scenario", slice(None))].sum().sum()
         load_demand = n.loads_t.p_set.loc[:, ("scenario", "load1")].sum()
         assert abs(gen_output - load_demand) < 1e-1
+
+
+def test_slack_bus_consistency_check():
+    """
+    Test that the consistency check correctly identifies when different slack buses
+    are chosen across scenarios.
+    """
+    import warnings
+
+    # Suppress pandas FutureWarning about fillna downcasting
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=FutureWarning,
+            message=".*Downcasting object dtype arrays.*",
+        )
+
+        # Create a simple stochastic network
+        n = pypsa.Network(snapshots=range(3))
+        n.add("Carrier", "elec")
+        n.add("Bus", "bus1", carrier="elec")
+        n.add("Bus", "bus2", carrier="elec")
+        n.add(
+            "Generator",
+            "gen1",
+            bus="bus1",
+            p_nom_extendable=True,
+            capital_cost=100,
+            marginal_cost=10,
+            carrier="elec",
+        )
+        n.add(
+            "Generator",
+            "gen2",
+            bus="bus2",
+            p_nom_extendable=True,
+            capital_cost=100,
+            marginal_cost=10,
+            carrier="elec",
+        )
+        n.add("Load", "load1", bus="bus1", p_set=[100, 120, 110])
+
+        n.set_scenarios(["scenario1", "scenario2"])
+
+        # Manually set different slack buses across scenarios to trigger the check
+        # This simulates what would happen if different slack buses were chosen
+        # during topology determination
+        if n.buses.index.nlevels > 1:
+            n.buses.loc[("scenario1", "bus1"), "control"] = "Slack"
+            n.buses.loc[("scenario1", "bus2"), "control"] = "PQ"
+            n.buses.loc[("scenario2", "bus1"), "control"] = "PQ"
+            n.buses.loc[("scenario2", "bus2"), "control"] = (
+                "Slack"  # Different slack bus!
+            )
+
+            # Now run the slack bus consistency check and expect it to raise a warning
+            from pypsa.consistency import check_stochastic_slack_bus_consistency
+
+            # Test with strict=False (should log warning)
+            check_stochastic_slack_bus_consistency(n, strict=False)
+
+            # Test with strict=True (should raise error)
+            import pytest
+
+            with pytest.raises(pypsa.consistency.ConsistencyError):
+                check_stochastic_slack_bus_consistency(n, strict=True)
+
+
+def test_slack_bus_consistency_check_passes():
+    """
+    Test that the consistency check passes when the same slack bus is chosen
+    across scenarios.
+    """
+    import warnings
+
+    # Suppress pandas FutureWarning about fillna downcasting
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=FutureWarning,
+            message=".*Downcasting object dtype arrays.*",
+        )
+
+        # Create a simple stochastic network
+        n = pypsa.Network(snapshots=range(3))
+        n.add("Carrier", "elec")
+        n.add("Bus", "bus1", carrier="elec")
+        n.add("Bus", "bus2", carrier="elec")
+        n.add(
+            "Generator",
+            "gen1",
+            bus="bus1",
+            p_nom_extendable=True,
+            capital_cost=100,
+            marginal_cost=10,
+            carrier="elec",
+        )
+        n.add(
+            "Generator",
+            "gen2",
+            bus="bus2",
+            p_nom_extendable=True,
+            capital_cost=100,
+            marginal_cost=10,
+            carrier="elec",
+        )
+        n.add("Load", "load1", bus="bus1", p_set=[100, 120, 110])
+
+        n.set_scenarios(["scenario1", "scenario2"])
+
+        # Set the same slack bus across scenarios (should pass)
+        if n.buses.index.nlevels > 1:
+            n.buses.loc[("scenario1", "bus1"), "control"] = "Slack"
+            n.buses.loc[("scenario1", "bus2"), "control"] = "PQ"
+            n.buses.loc[("scenario2", "bus1"), "control"] = "Slack"  # Same slack bus
+            n.buses.loc[("scenario2", "bus2"), "control"] = "PQ"
+
+            # Now run the slack bus consistency check - should pass without error
+            from pypsa.consistency import check_stochastic_slack_bus_consistency
+
+            # Should not raise any error or warning
+            check_stochastic_slack_bus_consistency(n, strict=True)
