@@ -1128,6 +1128,28 @@ class Network(
         the network topology is determined on the basis of the active
         branches.
         """
+        # For stochastic networks, use first scenario only since topology is enforced
+        # to be same across scenarios
+        if self.has_scenarios:
+            original_components = {}
+
+            first_scenario = self.scenarios[0]
+            original_buses = self.buses.copy()
+            self.buses = self.buses.xs(first_scenario, level="scenario")
+
+            # Store and extract first scenario for passive branch components
+            for c_name in self.passive_branch_components:
+                component_attr = self.components[c_name].list_name
+                if not getattr(self, component_attr).empty:
+                    original_components[c_name] = getattr(self, component_attr).copy()
+                    setattr(
+                        self,
+                        component_attr,
+                        getattr(self, component_attr).xs(
+                            first_scenario, level="scenario"
+                        ),
+                    )
+
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
             investment_period=investment_period,
@@ -1138,10 +1160,15 @@ class Network(
         )
 
         # remove all old sub_networks
-        for sub_network in self.sub_networks.index:
-            obj = self.sub_networks.at[sub_network, "obj"]
-            self.remove("SubNetwork", sub_network)
-            del obj
+        if not self.sub_networks.empty:
+            # Delete sub-network objects first
+            for sub_network in self.sub_networks.index:
+                obj = self.sub_networks.at[sub_network, "obj"]
+                del obj
+
+            # Clear the sub_networks DataFrame completely
+            # This handles both regular and stochastic cases
+            self.sub_networks.drop(self.sub_networks.index, inplace=True)
 
         for i in np.arange(n_components):
             # index of first bus
@@ -1176,10 +1203,19 @@ class Network(
             SubNetwork(self, name) for name in self.sub_networks.index
         ]
 
+        # Restore original data for stochastic networks and apply labels to all scenarios
         if self.has_scenarios:
+            for c_name in self.passive_branch_components:
+                if c_name in original_components:
+                    component_attr = self.components[c_name].list_name
+                    setattr(self, component_attr, original_components[c_name])
+
             for s in self.scenarios:
-                self.buses.loc[s, "sub_network"] = labels.astype(str)
-            subnetwork_map = self.buses.sub_network.xs(s, level="scenario")
+                original_buses.loc[s, "sub_network"] = labels.astype(str)
+            self.buses = original_buses
+            subnetwork_map = self.buses.sub_network.xs(
+                self.scenarios[0], level="scenario"
+            )
         else:
             self.buses.loc[:, "sub_network"] = labels.astype(str)
             subnetwork_map = self.buses.sub_network

@@ -942,29 +942,29 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             .T.reindex(columns=n.buses.index, fill_value=0.0)
         )
 
-        def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
-            buses_i = sub.buses_o
-            if len(buses_i) == 1:
-                return pd.DataFrame(0, index=sns, columns=buses_i)
-            sub.calculate_B_H(skip_pre=True)
-            Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
-            Z -= Z[sub.slack_bus]
-            return n.buses_t.p.reindex(columns=buses_i) @ Z
+        if not n.has_scenarios:
 
-        # TODO: if multi investment optimization, the network topology is not the necessarily the same,
-        # i.e. one has to iterate over the periods in order to get the correct angles.
+            def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
+                buses_i = sub.buses_o
+                if len(buses_i) == 1:
+                    return pd.DataFrame(0, index=sns, columns=buses_i)
+                sub.calculate_B_H(skip_pre=True)
+                Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
+                Z -= Z[sub.slack_bus]
+                return n.buses_t.p.reindex(columns=buses_i) @ Z
 
-        # Determine_network_topology is not necessarily called (only if KVL was assigned)
-        # TODO comment it out for now
-        # if n.sub_networks.empty:
-        #     n.determine_network_topology()
+            # TODO: if multi investment optimization, the network topology is not the necessarily the same,
+            # i.e. one has to iterate over the periods in order to get the correct angles.
 
-        # TODO fails right now and is only needed for pf
+            # Determine_network_topology is not necessarily called (only if KVL was assigned)
+            if n.sub_networks.empty:
+                n.determine_network_topology()
 
-        # if "obj" in n.sub_networks:
-        #     n.buses_t.v_ang = pd.concat(
-        #         [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-        #     ).reindex(columns=n.buses.index, fill_value=0.0)
+            # Calculate voltage angles (only needed for power flow)
+            if "obj" in n.sub_networks:
+                n.buses_t.v_ang = pd.concat(
+                    [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
+                ).reindex(columns=n.buses.index, fill_value=0.0)
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.

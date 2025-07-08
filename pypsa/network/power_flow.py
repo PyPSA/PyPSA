@@ -640,8 +640,8 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     """
     branches_bus0 = sub_network.branches()["bus0"]
 
-    if sub_network.has_scenarios:
-        first_scenario = sub_network.scenarios[0]
+    if sub_network.n.has_scenarios and not branches_bus0.empty:
+        first_scenario = sub_network.n.scenarios[0]
         branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
 
     branches_i = branches_bus0.index
