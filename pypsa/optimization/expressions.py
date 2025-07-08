@@ -150,7 +150,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
 
     def _get_operational_variable(self, c: str) -> Variable | LinearExpression:
         # TODO: move function to better place to avoid circular imports
-        from pypsa.optimization.optimize import lookup
+        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
 
         m = self._n.model
 
@@ -293,7 +293,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             using snapshot weightings. With False the time series is given in currency/hour. Defaults to 'sum'.
 
         """
-        from pypsa.optimization.optimize import lookup
+        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
 
         @pass_none_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series | None:
