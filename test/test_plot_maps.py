@@ -34,7 +34,7 @@ except ImportError:
 def test_deprecated_namespace(ac_dc_network):
     from pypsa.plot import plot as plot_deprecated
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa
         plot_deprecated(ac_dc_network)
     plt.close()
 

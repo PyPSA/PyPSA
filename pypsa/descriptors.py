@@ -83,7 +83,9 @@ def get_switchable_as_iter(
 @deprecated_common_kwargs
 def allocate_series_dataframes(n: Network, series: dict) -> None:
     """Populate time-varying outputs with default values."""
-    from pypsa.pf import allocate_series_dataframes as allocate_series_dataframes_pf
+    from pypsa.pf import (  # noqa: PLC0415
+        allocate_series_dataframes as allocate_series_dataframes_pf,
+    )
 
     allocate_series_dataframes_pf(n, series)
 

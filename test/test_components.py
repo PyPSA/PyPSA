@@ -34,7 +34,7 @@ def legacy_component():
 
 
 def test_deprecated_arguments():
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa
         Component(name="Generator", list_name="x", attrs=pd.DataFrame())
 
 

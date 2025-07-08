@@ -104,7 +104,7 @@ class NetworkGraphMixin:
 
         """
         n = self
-        from pypsa import Network, SubNetwork
+        from pypsa import Network, SubNetwork  # noqa: PLC0415
 
         if isinstance(n, Network):
             if branch_components is None:
@@ -188,7 +188,7 @@ class NetworkGraphMixin:
             sparse matrix (if return_dataframe=False) with bus indices
 
         """
-        from pypsa import Network, SubNetwork
+        from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
         n = self
         if isinstance(n, Network):
@@ -281,7 +281,7 @@ class NetworkGraphMixin:
                 with 22 stored elements and shape (9, 11)>
 
         """
-        from pypsa import Network, SubNetwork
+        from pypsa import Network, SubNetwork  # noqa: PLC0415
 
         if isinstance(self, Network):
             if branch_components is None:

@@ -693,7 +693,7 @@ def busmap_by_kmeans(
         )
         raise ModuleNotFoundError(msg)
 
-    from sklearn.cluster import KMeans
+    from sklearn.cluster import KMeans  # noqa: PLC0415
 
     if buses_i is None:
         buses_i = n.buses.index
