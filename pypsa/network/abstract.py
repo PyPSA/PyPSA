@@ -34,11 +34,9 @@ class _NetworkABC(ABC):
     _import_series_from_df: Callable
     add: Callable
     crs: Any
-    investment_period_weightings: pd.DataFrame
     standard_type_components: pd.DataFrame
     srid: Any
     set_snapshots: Callable
-    investment_periods: pd.Index
     remove: Callable
     iterate_components: Callable
     copy: Callable
