@@ -130,7 +130,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: PyPSA/pypsa-de
-        ref: master
+        ref: main
 
     - name: Check out latest release
       if: matrix.version == 'latest'
