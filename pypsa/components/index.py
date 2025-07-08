@@ -140,7 +140,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         """
         if self.has_scenarios:
             return pd.MultiIndex.from_product(
-                (self.scenarios.index, self.component_names),
+                (self.scenarios, self.component_names),
                 names=["scenario", "name"],
             )
         else:
@@ -158,7 +158,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         """
         if self.has_scenarios:
             return pd.MultiIndex.from_product(
-                (self.scenarios.index, self.snapshots, self.component_names),
+                (self.scenarios, self.snapshots, self.component_names),
                 names=["scenario", "snapshot", "name"],
             )
         else:

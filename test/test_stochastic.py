@@ -29,14 +29,14 @@ def test_network_properties():
     assert n.has_scenarios
 
     # Check probabilities sum to 1
-    assert abs(n.scenarios.sum() - 1.0) < 1e-10
+    assert abs(n.scenario_weightings["weight"].sum() - 1.0) < 1e-10
 
     p_set = n.get_switchable_as_dense("Load", "p_set")
 
     assert p_set.columns.names == ["scenario", "name"]
 
     # Check data shape for each scenario
-    for scenario in n.scenarios.index:
+    for scenario in n.scenarios:
         assert p_set.loc[:, scenario].shape[0] == 5
 
     # Check string representation contains scenario information
@@ -279,7 +279,7 @@ def test_solved_network_multiperiod():
         n.loads_t.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
-                [n.scenarios.index, ["load1"]], names=["scenario", "name"]
+                [n.scenarios, ["load1"]], names=["scenario", "name"]
             ),
         )
 
@@ -374,7 +374,7 @@ def test_single_scenario():
         n.loads_t.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
-                [n.scenarios.index, ["load1"]], names=["scenario", "name"]
+                [n.scenarios, ["load1"]], names=["scenario", "name"]
             ),
         )
         n.loads_t.p_set.loc[:, ("scenario", "load1")] = pd.Series(
@@ -387,7 +387,7 @@ def test_single_scenario():
 
         # Verify structure
         assert len(n.scenarios) == 1
-        assert "scenario" in n.scenarios.index
+        assert "scenario" in n.scenarios
         assert "scenario" in n.generators_t.p.columns.get_level_values("scenario")
 
         # Compare solutions (should be identical)

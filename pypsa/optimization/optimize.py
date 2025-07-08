@@ -153,7 +153,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     if n.has_scenarios and isinstance(constant, xr.DataArray):
         # For stochastic networks, weight constant by scenario probabilities
         weighted_constant = sum(
-            constant.sel(scenario=s) * p for s, p in n.scenarios.items()
+            constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
+            for s in n.scenarios
         )
         n._objective_constant = float(weighted_constant)
         has_const = (constant != 0).any().item()
@@ -285,7 +286,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     terms = []
     if n.has_scenarios:
         # Apply scenario probabilities as weights to the objective
-        for s, p in n.scenarios.items():
+        for s, p in n.scenario_weightings["weight"].items():
             selected = [e.sel(scenario=s) for e in objective]
             merged = merge(selected)
             terms.append(merged * p)

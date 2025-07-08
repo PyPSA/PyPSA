@@ -98,7 +98,7 @@ def test_scenarios_sum_to_one(consistent_n, caplog, strict):
     consistent_n.set_scenarios({"low": 0.4, "high": 0.6})
 
     # Manually modify scenarios to break sum=1 constraint
-    consistent_n._scenarios.iloc[0] = 0.2  # Sum becomes 0.8
+    consistent_n._scenarios_data.iloc[0, 0] = 0.2  # Sum becomes 0.8
 
     assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
 

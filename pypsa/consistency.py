@@ -968,7 +968,7 @@ def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
 
     """
     if n.has_scenarios:
-        scenarios_sum = n.scenarios.sum()
+        scenarios_sum = n.scenario_weightings["weight"].sum()
         tolerance = 1e-10  # Allow for small floating point errors
         if abs(scenarios_sum - 1.0) > tolerance:
             _log_or_raise(
@@ -1092,7 +1092,7 @@ def check_stochastic_slack_bus_consistency(
         # Extract slack buses for each scenario
         slack_buses_by_scenario = {}
 
-        for scenario in n.scenarios.index:
+        for scenario in n.scenarios:
             if n.buses.index.nlevels > 1:
                 # MultiIndex case (stochastic network)
                 scenario_buses = n.buses.xs(scenario, level="scenario")

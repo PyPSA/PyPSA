@@ -162,20 +162,28 @@ class Network(
         self._meta: dict = {}
         self._crs: CRS = CRS.from_epsg(DEFAULT_EPSG)
 
-        self._snapshots = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
-
+        # Dimensions
+        # Snapshots
         cols = ["objective", "stores", "generators"]
-        self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
+        index = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
+        self._snapshots_data = pd.DataFrame(1, index=index, columns=cols)
 
+        # Investment periods coordinate
         cols = ["objective", "years"]
-        self._investment_period_weightings: pd.DataFrame = pd.DataFrame(
+        # Note: The index is derived from n.snapshots since periods are only a coordinate
+        # of snapshots.
+        self._investment_periods_data = pd.DataFrame(
             index=self.investment_periods, columns=cols
         )
+
+        # Scenarios
+        cols = ["weight"]
+        index = pd.Index([], name="scenario")
+        self._scenarios_data: pd.DataFrame = pd.DataFrame([], index=index, columns=cols)
 
         self._model: linopy.Model | None = None
         self._objective: float | None = None
         self._objective_constant: float | None = None
-        self._scenarios: pd.Index = pd.Index([], name="scenario")
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
@@ -234,9 +242,7 @@ class Network(
 
     def __str__(self) -> str:
         """Human Readable string representation of the network."""
-        prefix = (
-            "Stochastic PyPSA Network" if not self._scenarios.empty else "PyPSA Network"
-        )
+        prefix = "Stochastic PyPSA Network" if self.has_scenarios else "PyPSA Network"
         return f"{prefix} '{self.name}'"
 
     def __repr__(self) -> str:
@@ -259,8 +265,8 @@ class Network(
         content += f"Snapshots: {len(self.snapshots)}"
         content += "\n"
 
-        if not self._scenarios.empty:
-            content += f"Scenarios: {len(self._scenarios)}"
+        if self.has_scenarios:
+            content += f"Scenarios: {len(self.scenarios)}"
 
         return header + content
 
@@ -1171,7 +1177,7 @@ class Network(
         ]
 
         if self.has_scenarios:
-            for s in self.scenarios.index:
+            for s in self.scenarios:
                 self.buses.loc[s, "sub_network"] = labels.astype(str)
             subnetwork_map = self.buses.sub_network.xs(s, level="scenario")
         else:
@@ -1234,7 +1240,7 @@ class Network(
             branches = sub_network.branches()
 
             if self.has_scenarios:
-                branches = branches.xs(self.scenarios.index[0], level="scenario")
+                branches = branches.xs(self.scenarios[0], level="scenario")
 
             branches_i = branches.index
             branches_i.names = ["type", "component"]
@@ -1256,7 +1262,7 @@ class Network(
         branches = self.branches()
 
         if self.has_scenarios:
-            branches = branches.xs(self.scenarios.index[0], level="scenario")
+            branches = branches.xs(self.scenarios[0], level="scenario")
 
         branches.index.names = ["type", "name"]
         branches_i = branches.loc[existing_branch_components].index

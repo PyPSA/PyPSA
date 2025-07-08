@@ -641,7 +641,7 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     branches_bus0 = sub_network.branches()["bus0"]
 
     if sub_network.has_scenarios:
-        first_scenario = sub_network.scenarios.index[0]
+        first_scenario = sub_network.scenarios[0]
         branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
 
     branches_i = branches_bus0.index
@@ -706,7 +706,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
         buses = self.buses
 
         if self.has_scenarios:
-            buses = buses.xs(self.scenarios.index[0], level="scenario")
+            buses = buses.xs(self.scenarios[0], level="scenario")
 
         self.lines["v_nom"] = self.lines.bus0.map(buses.v_nom)
         self.lines.loc[self.lines.carrier == "", "carrier"] = self.lines.bus0.map(

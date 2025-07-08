@@ -31,53 +31,57 @@ class TestNetworkScenarioIndex:
     def test_dict_scenarios(self, n):
         """Test setting scenarios from a dict."""
         n.set_scenarios(scenarios={"scenario1": 0.3, "scenario2": 0.7})
-        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="weight")
-        expected.index.name = "scenario"
-        pd.testing.assert_series_equal(n.scenarios, expected)
+        expected_index = pd.Index(["scenario1", "scenario2"], name="scenario")
+        expected_weights = pd.DataFrame({"weight": [0.3, 0.7]}, index=expected_index)
+        pd.testing.assert_index_equal(n.scenarios, expected_index)
+        pd.testing.assert_frame_equal(n.scenario_weightings, expected_weights)
 
     def test_series_scenarios(self, n):
         """Test setting scenarios from a Series."""
         series = pd.Series({"scenario1": 0.3, "scenario2": 0.7})
         n.set_scenarios(scenarios=series)
-        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="weight")
-        expected.index.name = "scenario"
-        pd.testing.assert_series_equal(n.scenarios, expected)
+        expected_index = pd.Index(["scenario1", "scenario2"], name="scenario")
+        expected_weights = pd.DataFrame({"weight": [0.3, 0.7]}, index=expected_index)
+        pd.testing.assert_index_equal(n.scenarios, expected_index)
+        pd.testing.assert_frame_equal(n.scenario_weightings, expected_weights)
 
     def test_sequence_scenarios(self, n):
         """Test setting scenarios from a sequence with weights."""
         n.set_scenarios(scenarios=["scenario1", "scenario2"])
-        expected = pd.Series(
-            [0.5, 0.5], index=["scenario1", "scenario2"], name="weight"
-        )
-        expected.index.name = "scenario"
-        pd.testing.assert_series_equal(n.scenarios, expected)
+        expected_index = pd.Index(["scenario1", "scenario2"], name="scenario")
+        expected_weights = pd.DataFrame({"weight": [0.5, 0.5]}, index=expected_index)
+        pd.testing.assert_index_equal(n.scenarios, expected_index)
+        pd.testing.assert_frame_equal(n.scenario_weightings, expected_weights)
 
     def test_kwargs_scenarios(self, n):
         """Test setting scenarios from keyword arguments."""
         n.set_scenarios(scenario1=0.3, scenario2=0.7)
-        expected = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="weight")
-        expected.index.name = "scenario"
-        pd.testing.assert_series_equal(n.scenarios, expected)
+        expected_index = pd.Index(["scenario1", "scenario2"], name="scenario")
+        expected_weights = pd.DataFrame({"weight": [0.3, 0.7]}, index=expected_index)
+        pd.testing.assert_index_equal(n.scenarios, expected_index)
+        pd.testing.assert_frame_equal(n.scenario_weightings, expected_weights)
 
     def test_series_name_preserved(self, n):
-        """Test that the series name is set to 'scenario'."""
+        """Test that the scenario_weightings column name is set to 'weight'."""
         series = pd.Series({"scenario1": 0.3, "scenario2": 0.7}, name="original_name")
         n.set_scenarios(scenarios=series)
-        assert n.scenarios.name == "weight"
+        assert n.scenario_weightings.columns[0] == "weight"
+        assert n.scenarios.name == "scenario"
 
     def test_sequence_without_weights(self, n):
         """Test setting scenarios from a sequence without weights."""
         n.set_scenarios(scenarios=["scenario1", "scenario2", "scenario3"])
 
         # When no weights are provided, equal weights (1/n) should be assigned
-        expected = pd.Series(
-            [1 / 3, 1 / 3, 1 / 3],
-            index=["scenario1", "scenario2", "scenario3"],
-            name="weight",
+        expected_index = pd.Index(
+            ["scenario1", "scenario2", "scenario3"], name="scenario"
         )
-        expected.index.name = "scenario"
+        expected_weights = pd.DataFrame(
+            {"weight": [1 / 3, 1 / 3, 1 / 3]}, index=expected_index
+        )
 
-        pd.testing.assert_series_equal(n.scenarios, expected)
+        pd.testing.assert_index_equal(n.scenarios, expected_index)
+        pd.testing.assert_frame_equal(n.scenario_weightings, expected_weights)
 
     def test_weights_must_sum_to_one(self, n):
         """Test that an error is raised when scenario weights don't sum to 1."""

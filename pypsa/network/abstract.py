@@ -19,11 +19,16 @@ if TYPE_CHECKING:
 
 
 class _NetworkABC(ABC):
+    # Indexing
     snapshots: pd.Index | pd.MultiIndex
     snapshot_weightings: pd.DataFrame
-    _snapshot_weightings: pd.DataFrame
-    _investment_period_weightings: pd.DataFrame
+    _snapshots_data: pd.DataFrame
+    investment_periods: pd.Index
+    investment_period_weightings: pd.DataFrame
+    _investment_periods_data: pd.DataFrame
     scenarios: pd.Series
+    scenario_weightings: pd.DataFrame
+    _scenarios_data: pd.DataFrame
     static: pd.DataFrame
     dynamic: Callable
     _import_series_from_df: Callable

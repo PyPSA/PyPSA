@@ -133,7 +133,7 @@ class NetworkGraphMixin:
             for c in n.iterate_components(branch_components):
                 static = c.static
                 if n.has_scenarios:
-                    static = c.static.loc[n.scenarios.index[0]]
+                    static = c.static.loc[n.scenarios[0]]
 
                 for branch in static.loc[
                     slice(None) if include_inactive else static.query("active").index

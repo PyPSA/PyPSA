@@ -865,10 +865,10 @@ class _ImporterNetCDF(_Importer):
 
     def get_scenarios(self) -> pd.DataFrame:
         """Get scenarios data."""
-        try:
-            return self.ds["scenario_weight"].to_pandas().rename("weight")
-        except KeyError:
-            return None
+        if "scenario_weight" in self.ds:
+            df = self.ds["scenario_weight"].to_pandas().rename("weight").to_frame()
+            df.index.name = "scenario"
+            return df
 
     def get_static(self, list_name: str, index_name: str | None = None) -> pd.DataFrame:
         """Get static components data."""
@@ -1134,7 +1134,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # export scenarios
         if self.has_scenarios:
-            exporter.save_scenarios(self.scenarios.to_frame())
+            exporter.save_scenarios(self.scenario_weightings)
 
         exported_components = []
         for component in self.all_components:
@@ -1303,9 +1303,7 @@ class NetworkIOMixin(_NetworkABC):
         if periods is not None:
             self.periods = periods.index
 
-            self._investment_period_weightings = periods.reindex(
-                self.investment_periods
-            )
+            self._investment_periods_data = periods.reindex(self.investment_periods)
 
         scenarios = importer.get_scenarios()
         if scenarios is not None:
@@ -1345,9 +1343,7 @@ class NetworkIOMixin(_NetworkABC):
                 self.components[component].static.index, pd.MultiIndex
             ):
                 self.components[component].static = pd.concat(
-                    dict.fromkeys(
-                        self.scenarios.index, self.components[component].static
-                    ),
+                    dict.fromkeys(self.scenarios, self.components[component].static),
                     names=["scenario"],
                 )
 
