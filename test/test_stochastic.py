@@ -7,8 +7,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal as equal
+from xarray import DataArray
 
 import pypsa
+from pypsa.common import expand_series
+from pypsa.components.common import as_components
 
 
 def test_network_properties():
@@ -525,3 +528,96 @@ def test_slack_bus_consistency_check_passes():
 
             # Should not raise any error or warning
             check_stochastic_slack_bus_consistency(n, strict=True)
+
+
+def test_store_stochastic_optimization_bug():
+    """Test that Store component works correctly with stochastic optimization.
+
+    This test reproduces the bug where Store components failed during stochastic
+    optimization due to dimension mismatch in the standing efficiency calculation.
+
+    The bug was:
+    - `expand_series` returns a DataFrame with shape (snapshots, scenarios)
+    - `standing_loss` is a DataArray with shape (snapshots, scenarios, stores)
+    - The power operation (1 - standing_loss) ** eh failed with 3D vs 2D mismatch
+
+    The fix:
+    - Convert expand_series result to DataArray and try to unstack it
+    - This aligns the dimensions properly for the power operation
+    """
+    n = pypsa.examples.model_energy()
+
+    # Reduce to first day only (8 snapshots) to make test faster
+    n.set_snapshots(n.snapshots[:8])
+
+    # Ensure the network has stores (it should)
+    assert not n.stores.empty, "Test network should have stores"
+
+    # Test without scenarios first (should work)
+    n_regular = n.copy()
+    status_regular, condition_regular = n_regular.optimize()
+    assert status_regular == "ok"
+    assert condition_regular == "optimal"
+
+    # Test with scenarios (this used to fail)
+    n_stochastic = n.copy()
+    n_stochastic.set_scenarios(["scenario_a", "scenario_b"])
+
+    # This should not raise an error
+    status_stochastic, condition_stochastic = n_stochastic.optimize()
+    assert status_stochastic == "ok"
+    assert condition_stochastic == "optimal"
+
+    # Verify that the stochastic network has the expected structure
+    assert n_stochastic.has_scenarios
+    assert len(n_stochastic.scenarios) == 2
+
+    # Verify stores have MultiIndex
+    assert isinstance(n_stochastic.stores.index, pd.MultiIndex)
+    assert n_stochastic.stores.index.names == ["scenario", "name"]
+
+    # Verify optimization results exist
+    assert not n_stochastic.stores_t.e.empty
+    assert not n_stochastic.stores_t.p.empty
+
+
+def test_store_stochastic_dimensions():
+    """Test that Store component expansion works correctly with stochastic dimensions.
+
+    This test specifically checks the expand_series -> DataArray conversion
+    that fixes the dimension mismatch issue.
+    """
+
+    n = pypsa.Network()
+    n.add("Bus", "bus")
+    n.add("Store", "store", bus="bus", e_nom=100, standing_loss=0.01)
+    n.add("Load", "load", bus="bus", p_set=50)
+    n.add("Generator", "gen", bus="bus", p_nom=100, marginal_cost=20)
+
+    n.set_scenarios(["s1", "s2"])
+
+    c = as_components(n, "Store")
+    sns = n.snapshots
+
+    # This should work without errors
+    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    eh = DataArray(elapsed_h)
+
+    # Test the unstack operation
+    if n.has_scenarios:
+        eh_final = eh.unstack("dim_1")
+    else:
+        eh_final = eh
+
+    # This should work without dimension errors
+    standing_loss = c.da.standing_loss.sel(snapshot=sns)
+    eff_stand = (1 - standing_loss) ** eh_final
+
+    # Verify the result has the expected dimensions
+    assert isinstance(eff_stand, DataArray)
+    assert "snapshot" in eff_stand.dims
+
+    # The optimization should also work
+    status, condition = n.optimize()
+    assert status == "ok"
+    assert condition == "optimal"

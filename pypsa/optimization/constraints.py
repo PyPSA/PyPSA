@@ -1404,7 +1404,12 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         return
 
     # elapsed hours
-    eh = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    eh = DataArray(elapsed_h)
+
+    # Unstack in stochastic networks with MultiIndex snapshots
+    if n.has_scenarios:
+        eh = eh.unstack("dim_1")
 
     # standing efficiency
     eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns)) ** eh
