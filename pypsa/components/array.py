@@ -205,6 +205,9 @@ class ComponentsArrayMixin(_ComponentsABC):
         if self.has_scenarios:
             # untack the dimension that contains the scenarios
             res = res.unstack(res.indexes["scenario"].name)
+            # Ensure scenario order matches network's scenario order
+            if "scenario" in res.dims:
+                res = res.reindex(scenario=self.scenarios)
             if drop_scenarios:
                 res = res.isel(scenario=0, drop=True)
 

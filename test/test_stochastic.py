@@ -621,3 +621,50 @@ def test_store_stochastic_dimensions():
     status, condition = n.optimize()
     assert status == "ok"
     assert condition == "optimal"
+
+
+def test_scenario_ordering_bug():
+    """Test that scenario ordering is preserved correctly in optimization results.
+
+    This test ensures that when different scenarios have different parameter values,
+    the optimization results correspond to the correct scenario labels.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+
+    # Say we have good and bad wind scenarios
+    n.set_scenarios({"wind_lulls": 0.5, "windy": 0.5})
+    wind_gens = ["Manchester Wind", "Frankfurt Wind", "Norway Wind"]
+    for gen_name in wind_gens:
+        n.generators_t.p_max_pu.loc[:, ("wind_lulls", gen_name)] *= 0.3
+
+    # Check 1: Wind lulls should have lower wind potential in model input
+    expected_lulls_input = (
+        n.generators_t.p_max_pu.loc[:, ("wind_lulls", wind_gens)].sum().sum()
+    )
+    expected_windy_input = (
+        n.generators_t.p_max_pu.loc[:, ("windy", wind_gens)].sum().sum()
+    )
+
+    assert expected_lulls_input < expected_windy_input
+
+    # Check 2: Wind lulls scenario should have lower wind generation
+    n.optimize(pyomo=False)
+
+    actual_lulls_result = n.generators_t.p.loc[:, ("wind_lulls", wind_gens)].sum().sum()
+    actual_windy_result = n.generators_t.p.loc[:, ("windy", wind_gens)].sum().sum()
+
+    assert actual_lulls_result < actual_windy_result, (
+        f"Scenario misalignment detected: wind lulls generation ({actual_lulls_result:.2f}) "
+        f"should be less than windy generation ({actual_windy_result:.2f})"
+    )
+
+    # Check 3: verify that the results match the expected scenario ordering
+    # by checking that the DataArray scenario coordinate order is preserved
+    da_p_max_pu = n.components.generators.da.p_max_pu.sel(name="Manchester Wind")
+    da_scenarios = list(da_p_max_pu.coords["scenario"].values)
+    network_scenarios = list(n.scenarios)
+
+    assert da_scenarios == network_scenarios, (
+        f"DataArray scenario order {da_scenarios} does not match "
+        f"network scenario order {network_scenarios}"
+    )
