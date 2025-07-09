@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 class _XarrayAccessor:
     """Accessor class that provides property-like xarray access to all attributes.
 
-    Attributes are lazy evaluated via _as_xarray method of the component.
+    Attributes are lazy evaluated via as_xarray method of the component.
     """
 
     def __init__(self, component: ComponentsArrayMixin) -> None:
@@ -32,7 +32,7 @@ class _XarrayAccessor:
 
     def __getattr__(self, attr: str) -> xarray.DataArray:
         try:
-            return self._component._as_xarray(attr=attr)
+            return self._component.as_xarray(attr=attr)
         except AttributeError as e:
             msg = (
                 f"'{self._component.__class__.__name__}' components has no "
@@ -42,7 +42,7 @@ class _XarrayAccessor:
 
     def __getitem__(self, attr: str) -> xarray.DataArray:
         try:
-            return self._component._as_xarray(attr=attr)
+            return self._component.as_xarray(attr=attr)
         except AttributeError as e:
             msg = (
                 f"'{self._component.__class__.__name__}' components has no "
@@ -145,7 +145,7 @@ class ComponentsArrayMixin(_ComponentsABC):
             res.columns.name = "name"
         return res
 
-    def _as_xarray(
+    def as_xarray(
         self,
         attr: str,
         snapshots: Sequence | None = None,

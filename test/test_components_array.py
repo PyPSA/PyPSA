@@ -3,7 +3,7 @@ import xarray
 
 
 def test_as_xarray_static(n):
-    da = n.components.generators._as_xarray("bus")
+    da = n.components.generators.as_xarray("bus")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -16,7 +16,7 @@ def test_as_xarray_static(n):
 
 
 def test_as_xarray_dynamic(n):
-    da = n.components.generators._as_xarray("p_max_pu")
+    da = n.components.generators.as_xarray("p_max_pu")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -45,7 +45,7 @@ def test_as_xarray_static_with_periods(n):
     # Add investment periods to the network
     n.investment_periods = [2000, 2010]
 
-    da = n.components.generators._as_xarray("bus")
+    da = n.components.generators.as_xarray("bus")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -61,7 +61,7 @@ def test_as_xarray_dynamic_with_periods(n):
     # Add investment periods to the network
     n.investment_periods = [2000, 2010]
 
-    da = n.components.generators._as_xarray("p_max_pu")
+    da = n.components.generators.as_xarray("p_max_pu")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -88,7 +88,7 @@ def test_as_xarray_static_with_scenarios(n):
     # Add scenarios to the network
     scenarios = ["scenario1", "scenario2"]
     n.scenarios = scenarios
-    da = n.components.generators._as_xarray("bus")
+    da = n.components.generators.as_xarray("bus")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -108,7 +108,7 @@ def test_as_xarray_dynamic_with_scenarios(n):
     scenarios = ["scenario1", "scenario2"]
     n.scenarios = scenarios
 
-    da = n.components.generators._as_xarray("p_max_pu")
+    da = n.components.generators.as_xarray("p_max_pu")
 
     assert isinstance(da, xarray.DataArray)
 

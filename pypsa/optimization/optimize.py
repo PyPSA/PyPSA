@@ -127,22 +127,26 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
+        capital_cost = c.as_xarray("capital_cost", inds=ext_i)
         if capital_cost.size == 0:
             continue
 
-        nominal = c.da[attr].sel(name=ext_i)
+        nominal = c.as_xarray(attr, inds=ext_i)
 
         # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
             for i, period in enumerate(periods):
                 # collapse time axis via any() so capex value isn't broadcasted
-                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, name=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
             # collapse time axis via any() so capex value isn’t broadcasted
-            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
         terms.append((weighted_cost * nominal).sum(dim=["name"]))
@@ -185,7 +189,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             if var_name not in m.variables and cost_type == "spill_cost":
                 continue
 
-            cost = c.da[cost_type].sel(snapshot=sns)
+            cost = c.as_xarray(cost_type, sns)
             if cost.size == 0 or (cost == 0).all():
                 continue
 
@@ -201,7 +205,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
             continue
 
-        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns)
+        cost = c.as_xarray("marginal_cost_quadratic", sns)
         if cost.size == 0 or (cost == 0).all():
             continue
 
@@ -221,7 +225,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if com_i.empty:
             continue
 
-        stand_by_cost = c.da.stand_by_cost.sel(name=com_i, snapshot=sns)
+        stand_by_cost = c.as_xarray("stand_by_cost", sns, inds=com_i)
         if stand_by_cost.size == 0 or (stand_by_cost == 0).all():
             continue
 
@@ -240,7 +244,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if ext_i.empty:
             continue
 
-        capital_cost = c.da.capital_cost.sel(name=ext_i)
+        capital_cost = c.as_xarray("capital_cost", inds=ext_i)
         if capital_cost.size == 0 or (capital_cost == 0).all():
             continue
 
@@ -249,11 +253,15 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             weighted_cost = 0
             for i, period in enumerate(periods):
                 # collapse time axis via any() so capex value isn't broadcasted
-                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
+                active = (
+                    c.as_xarray("active")
+                    .sel(period=period, name=ext_i)
+                    .any(dim="timestep")
+                )
                 weighted_cost += capital_cost * active * period_weighting.iloc[i]
         else:
             # collapse time axis via any() so capex value isn't broadcasted
-            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+            active = c.as_xarray("active", inds=ext_i).any(dim="snapshot")
             weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
@@ -268,7 +276,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         if com_i.empty:
             continue
 
-        cost = c.da[attr + "_cost"].sel(name=com_i)
+        cost = c.as_xarray(attr + "_cost", inds=com_i)
 
         if cost.size == 0 or cost.sum().item() == 0:
             continue

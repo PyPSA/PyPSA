@@ -37,7 +37,7 @@ def define_operational_variables(
     if c.empty:
         return
 
-    active = c.da.active.sel(snapshot=sns)
+    active = c.as_xarray("active", sns)
     coords = active.coords
     n.model.add_variables(coords=coords, name=f"{c.name}-{attr}", mask=active)
 
@@ -65,7 +65,7 @@ def define_status_variables(
     if com_i.empty:
         return
 
-    active = c.da.active.sel(name=com_i, snapshot=sns)
+    active = c.as_xarray("active", sns, com_i)
     coords = active.coords
     is_binary = not is_linearized
     kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
@@ -97,7 +97,7 @@ def define_start_up_variables(
     if com_i.empty:
         return
 
-    active = c.da.active.sel(name=com_i, snapshot=sns)
+    active = c.as_xarray("active", sns, com_i)
     coords = active.coords
     is_binary = not is_linearized
     kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
@@ -133,7 +133,7 @@ def define_shut_down_variables(
     if com_i.empty:
         return
 
-    active = c.da.active.sel(name=com_i, snapshot=sns)
+    active = c.as_xarray("active", sns, com_i)
     coords = active.coords
     is_binary = not is_linearized
     kwargs = {"upper": 1, "lower": 0} if not is_binary else {}
@@ -201,11 +201,11 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     if c.empty:
         return
 
-    upper = c.da.inflow.sel(snapshot=sns)
+    upper = c.as_xarray("inflow", sns)
     if (upper.max() <= 0).all():
         return
 
-    active = c.da.active.sel(snapshot=sns)
+    active = c.as_xarray("active", sns)
 
     # align "active" and "upper" arrays on the same order across scenario/snapshot/component axes
     # .align() TODO low high
@@ -232,6 +232,6 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
     if c.empty or c.name not in n.passive_branch_components:
         return
 
-    active = c.da.active.sel(snapshot=sns)
+    active = c.as_xarray("active", sns)
     coords = active.coords
     n.model.add_variables(0, coords=coords, name=f"{c.name}-loss", mask=active)

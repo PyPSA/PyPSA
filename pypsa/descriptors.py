@@ -270,12 +270,13 @@ def get_bounds_pu(
         Network instance.
     c : string
         Component name, e.g. "Generator", "Line".
+    sns : pandas.Index/pandas.DateTimeIndex
+        set of snapshots for the bounds
+    index : pd.Index, default None
+        Subset of the component elements. If None (default) bounds of all
+        elements are returned.
     attr : string, default None
         attribute name for the bounds, e.g. "p", "s", "p_store"
-    sns : pandas.Index/pandas.DateTimeIndex
-        Deprecated.
-    index : pd.Index, default None
-        Deprecated.
 
     """
     return n.components[c].get_bounds_pu(sns, index, attr)

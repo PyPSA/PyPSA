@@ -49,6 +49,8 @@ class Lines(Components):
 
     def get_bounds_pu(
         self,
+        sns: Sequence,
+        index: pd.Index | None = None,
         attr: str = "s",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for lines.
@@ -74,7 +76,7 @@ class Lines(Components):
             msg = f"Bounds can only be retrieved for operational attributes. For lines those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
-        max_pu = self.da.s_max_pu
+        max_pu = self.as_xarray("s_max_pu", sns, inds=index)
         min_pu = -max_pu  # Lines specific: min_pu is the negative of max_pu
 
         return min_pu, max_pu

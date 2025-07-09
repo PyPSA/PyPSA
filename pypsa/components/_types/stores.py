@@ -45,12 +45,18 @@ class Stores(Components):
 
     def get_bounds_pu(
         self,
+        sns: Sequence,
+        index: pd.Index | None = None,
         attr: str = "e",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for stores.
 
         Parameters
         ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
         attr : string, optional
             Attribute name for the bounds, e.g. "e"
 
@@ -64,7 +70,10 @@ class Stores(Components):
             msg = f"Bounds can only be retrieved for operational attributes. For stores those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
-        return self.da.e_min_pu, self.da.e_max_pu
+        min_pu = self.as_xarray("e_min_pu", sns, inds=index)
+        max_pu = self.as_xarray("e_max_pu", sns, inds=index)
+
+        return min_pu, max_pu
 
     def add(
         self,

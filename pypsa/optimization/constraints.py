@@ -89,12 +89,7 @@ def define_operational_constraints_for_non_extendables(
         return
 
     nominal_fix = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
-    min_pu, max_pu = c.get_bounds_pu(attr=attr)
-    max_pu = max_pu.sel(name=fix_i)
-    min_pu = min_pu.sel(name=fix_i)
-    if "snapshot" in min_pu.dims:
-        min_pu = min_pu.sel(snapshot=sns)
-        max_pu = max_pu.sel(snapshot=sns)
+    min_pu, max_pu = c.get_bounds_pu(sns, fix_i, attr)
 
     lower = min_pu * nominal_fix
     upper = max_pu * nominal_fix
@@ -163,13 +158,7 @@ def define_operational_constraints_for_extendables(
     if isinstance(ext_i, pd.MultiIndex):
         ext_i = ext_i.unique(level="name")
 
-    min_pu, max_pu = c.get_bounds_pu(attr=attr)
-    min_pu = min_pu.sel(name=ext_i)
-    max_pu = max_pu.sel(name=ext_i)
-    if "snapshot" in min_pu.dims:
-        min_pu = min_pu.sel(snapshot=sns)
-        max_pu = max_pu.sel(snapshot=sns)
-
+    min_pu, max_pu = c.get_bounds_pu(sns, ext_i, attr)
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=ext_i)
     capacity = n.model[f"{c.name}-{nominal_attrs[c.name]}"]
     active = c.da.active.sel(name=ext_i, snapshot=sns)
@@ -255,10 +244,7 @@ def define_operational_constraints_for_committables(
 
     # parameters
     nominal = c.da[c._operational_attrs["nom"]].sel(name=com_i)
-    min_pu, max_pu = c.get_bounds_pu(attr="p")
-    min_pu = min_pu.sel(name=com_i, snapshot=sns)
-    max_pu = max_pu.sel(name=com_i, snapshot=sns)
-
+    min_pu, max_pu = c.get_bounds_pu(sns, com_i, "p")
     lower_p = min_pu * nominal
     upper_p = max_pu * nominal
     min_up_time_set = c.da.min_up_time.sel(name=com_i)
@@ -387,8 +373,8 @@ def define_operational_constraints_for_committables(
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
     # linearized approximation because committable can partly start up and shut down
-    start_up_cost = c.da.start_up_cost.sel(name=com_i)
-    shut_down_cost = c.da.shut_down_cost.sel(name=com_i)
+    start_up_cost = c.as_xarray("start_up_cost", inds=com_i)
+    shut_down_cost = c.as_xarray("shut_down_cost", inds=com_i)
     cost_equal = (start_up_cost == shut_down_cost).values
 
     # only valid additional constraints if start up costs equal to shut down costs
@@ -525,8 +511,8 @@ def define_nominal_constraints_for_extendables(
         return
 
     capacity = n.model[f"{c.name}-{attr}"]
-    lower = c.da[attr + "_min"].sel(name=ext_i)
-    upper = c.da[attr + "_max"].sel(name=ext_i)
+    lower = c.as_xarray(attr + "_min", inds=ext_i)
+    upper = c.as_xarray(attr + "_max", inds=ext_i)
 
     n.model.add_constraints(capacity, ">=", lower, name=f"{c.name}-ext-{attr}-lower")
 
@@ -588,8 +574,8 @@ def define_ramp_limit_constraints(
     if {"ramp_limit_up", "ramp_limit_down"}.isdisjoint(c.static.columns):
         return
 
-    ramp_limit_up = c.da.ramp_limit_up.sel(snapshot=sns)
-    ramp_limit_down = c.da.ramp_limit_down.sel(snapshot=sns)
+    ramp_limit_up = c.as_xarray("ramp_limit_up", sns)
+    ramp_limit_down = c.as_xarray("ramp_limit_down", sns)
 
     # Skip if there are no ramp limits defined or if all are set to 1 (no limit)
     if (ramp_limit_up.isnull() & ramp_limit_down.isnull()).all():
@@ -619,7 +605,7 @@ def define_ramp_limit_constraints(
     original_com_i = com_i.copy()
 
     if is_rolling_horizon:
-        active = c.da.active.sel(name=fix_i, snapshot=sns)
+        active = c.as_xarray("active", sns, fix_i)
         rhs_start = pd.DataFrame(0.0, index=sns, columns=c.static.index)
         rhs_start.loc[sns[0]] = p_start
 
@@ -630,7 +616,7 @@ def define_ramp_limit_constraints(
             return p.sel(name=idx).shift(snapshot=1)
 
     else:
-        active = c.da.active.sel(name=fix_i, snapshot=sns[1:])
+        active = c.as_xarray("active", sns[1:], fix_i)
         rhs_start = pd.DataFrame(0.0, index=sns[1:], columns=c.static.index)
         rhs_start.index.name = "snapshot"
 
@@ -647,7 +633,7 @@ def define_ramp_limit_constraints(
         ramp_limit_up_fix = ramp_limit_up.sel(name=fix_i)
         ramp_limit_down_fix = ramp_limit_down.sel(name=fix_i)
         rhs_start_fix = rhs_start
-        p_nom = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
+        p_nom = c.as_xarray(c._operational_attrs["nom"], inds=fix_i)
 
         # Ramp up constraints for fixed components
         non_null_up = ~ramp_limit_up_fix.isnull().all()
@@ -673,9 +659,9 @@ def define_ramp_limit_constraints(
     if not ext_i.empty:
         # Redefine active mask over ext_i
         active_ext = (
-            c.da.active.sel(name=ext_i, snapshot=sns)
+            c.as_xarray("active", sns, ext_i)
             if is_rolling_horizon
-            else c.da.active.sel(name=ext_i, snapshot=sns[1:])
+            else c.as_xarray("active", sns[1:], ext_i)
         )
 
         ramp_limit_up_ext = ramp_limit_up.reindex(
@@ -722,9 +708,9 @@ def define_ramp_limit_constraints(
     if not com_i.empty:
         # Redefine active mask over com_i and get parameters directly using component methods
         active_com = (
-            c.da.active.sel(name=com_i, snapshot=sns)
+            c.as_xarray("active", sns, com_i)
             if is_rolling_horizon
-            else c.da.active.sel(name=com_i, snapshot=sns[1:])
+            else c.as_xarray("active", sns[1:], com_i)
         )
 
         ramp_limit_up_com = ramp_limit_up.reindex(
@@ -734,9 +720,9 @@ def define_ramp_limit_constraints(
             {"snapshot": active_com.coords["snapshot"].values, "name": com_i}
         )
 
-        ramp_limit_start_up_com = c.da.ramp_limit_start_up.sel(name=com_i)
-        ramp_limit_shut_down_com = c.da.ramp_limit_shut_down.sel(name=com_i)
-        p_nom_com = c.da[c._operational_attrs["nom"]].sel(name=original_com_i)
+        ramp_limit_start_up_com = c.as_xarray("ramp_limit_start_up", inds=com_i)
+        ramp_limit_shut_down_com = c.as_xarray("ramp_limit_shut_down", inds=com_i)
+        p_nom_com = c.as_xarray(c._operational_attrs["nom"], inds=original_com_i)
 
         # Transform rhs_start for committable components
         rhs_start_com = rhs_start.sel(name=com_i)
@@ -889,14 +875,14 @@ def define_nodal_balance_constraints(
             "p",
             "bus1",
             # dirty as hell, TODO make sure as_xarray handles case when links empty AND scenarios there
-            links.da.efficiency.sel(snapshot=sns) if not links.static.empty else 0,
+            links.as_xarray("efficiency", sns) if not links.static.empty else 0,
         ],
     ]
 
     if not links.empty:
         for i in n.components.links.additional_ports:
             eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
-            eff = links.da[eff_attr].sel(snapshot=sns)
+            eff = links.as_xarray(eff_attr, sns)
             args.append(["Link", "p", f"bus{i}", eff])
 
     if transmission_losses:
@@ -917,11 +903,11 @@ def define_nodal_balance_constraints(
             continue
 
         if "sign" in c.static:
-            sign = sign * c.da.sign
+            sign = sign * c.as_xarray("sign")
 
         expr = sign * m[f"{c.name}-{attr}"]
 
-        cbuses = c._as_xarray(column, drop_scenarios=True)
+        cbuses = c.as_xarray(column, drop_scenarios=True)
         cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
 
         if not cbuses.size:
@@ -948,9 +934,9 @@ def define_nodal_balance_constraints(
             dims=["snapshot", "name"],
         )
     else:
-        loads_values = loads.da.p_set.where(loads.da.active.sel(snapshot=sns))
+        loads_values = loads.as_xarray("p_set").where(loads.as_xarray("active", sns))
         loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
-        load_buses = loads._as_xarray("bus", drop_scenarios=True).rename("Bus")
+        load_buses = loads.as_xarray("bus", drop_scenarios=True).rename("Bus")
 
         # group by bus, then reindex over *all* buses (fill zeros where no loads)
         rhs = (
@@ -1147,7 +1133,7 @@ def define_modular_constraints(n: Network, component: str, attr: str) -> None:
         return
 
     # Get modular capacity values
-    modular_capacity = c.da[mod_attr].sel(name=mod_i)
+    modular_capacity = c.as_xarray(mod_attr, inds=mod_i)
 
     # Get variables
     modularity = m[f"{c.name}-n_mod"]
@@ -1199,12 +1185,12 @@ def define_fixed_operation_constraints(
     if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
         return
 
-    fix = c.da[attr_set].sel(snapshot=sns)
+    fix = c.as_xarray(attr_set, sns)
 
     if fix.isnull().all():
         return
 
-    active = c.da.active.sel(snapshot=sns, name=fix.coords["name"].values)
+    active = c.as_xarray("active", sns, inds=fix.coords["name"].values)
     mask = active & (~fix.isnull())
 
     var = n.model[f"{c.name}-{attr}"]
@@ -1257,7 +1243,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     component = "StorageUnit"
     dim = "snapshot"
     c = as_components(n, component)
-    active = c.da.active.sel(snapshot=sns)
+    active = c.as_xarray("active", sns)
 
     if c.static.empty:
         return
@@ -1271,9 +1257,9 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         pass
 
     # efficiencies as xarray DataArrays
-    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns)) ** eh
-    eff_dispatch = c.da.efficiency_dispatch.sel(snapshot=sns)
-    eff_store = c.da.efficiency_store.sel(snapshot=sns)
+    eff_stand = (1 - c.as_xarray("standing_loss", sns)) ** eh
+    eff_dispatch = c.as_xarray("efficiency_dispatch", sns)
+    eff_store = c.as_xarray("efficiency_store", sns)
 
     soc = m[f"{component}-state_of_charge"]
 
@@ -1288,7 +1274,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_soc` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.cyclic_state_of_charge
+    noncyclic_b = ~c.as_xarray("cyclic_state_of_charge")
     include_previous_soc = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     previous_soc = (
@@ -1300,16 +1286,15 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     # We add inflow and initial soc for noncyclic assets to rhs
-    soc_init = c.da.state_of_charge_initial
-    rhs = -c.da.inflow.sel(snapshot=sns) * eh
+    soc_init = c.as_xarray("state_of_charge_initial")
+    rhs = -c.as_xarray("inflow", sns) * eh
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = soc.coords["period"]
-        per_period = (
-            c.da.cyclic_state_of_charge_per_period
-            | c.da.state_of_charge_initial_per_period
+        per_period = c.as_xarray("cyclic_state_of_charge_per_period") | c.as_xarray(
+            "state_of_charge_initial_per_period"
         )
 
         # We calculate the previous soc per period while cycling within a period
@@ -1405,7 +1390,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     component = "Store"
     dim = "snapshot"
     c = as_components(n, component)
-    active = c.da.active.sel(snapshot=sns)
+    active = c.as_xarray("active", sns)
 
     if c.static.empty:
         return
@@ -1419,7 +1404,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         eh = eh.unstack("dim_1")
 
     # standing efficiency
-    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns)) ** eh
+    eff_stand = (1 - c.as_xarray("standing_loss", sns)) ** eh
 
     e = m[f"{component}-e"]
     p = m[f"{component}-p"]
@@ -1429,7 +1414,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_e` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.e_cyclic
+    noncyclic_b = ~c.as_xarray("e_cyclic")
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     # Calculate previous energy state with proper handling of boundaries
@@ -1438,14 +1423,16 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     # We add initial e for non-cyclic assets to rhs
-    e_init = c.da.e_initial
+    e_init = c.as_xarray("e_initial")
     rhs = DataArray(0)
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimization, we update previous_e and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = e.coords["period"]
-        per_period = c.da.e_cyclic_per_period | c.da.e_initial_per_period
+        per_period = c.as_xarray("e_cyclic_per_period") | c.as_xarray(
+            "e_initial_per_period"
+        )
 
         # We calculate the previous e per period while cycling within a period
         # Normally, we should use groupby, but it's broken for multi-index
@@ -1527,13 +1514,13 @@ def define_loss_constraints(
         return
 
     tangents = transmission_losses
-    active = c.da.active.sel(snapshot=sns)
+    active = c.as_xarray("active", sns)
 
-    s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
+    s_max_pu = c.as_xarray("s_max_pu", sns)
 
     # Define nominal capacity (depends on extendability of lines)
-    is_extendable = c.da.s_nom_extendable
-    s_nom_max = c.da.s_nom_max.where(is_extendable, c.da.s_nom)
+    is_extendable = c.as_xarray("s_nom_extendable")
+    s_nom_max = c.as_xarray("s_nom_max").where(is_extendable, c.as_xarray("s_nom"))
 
     if not isfinite(s_nom_max).all():
         msg = (
@@ -1542,7 +1529,7 @@ def define_loss_constraints(
         )
         raise ValueError(msg)
 
-    r_pu_eff = c.da.r_pu_eff
+    r_pu_eff = c.as_xarray("r_pu_eff")
 
     # Calculate upper bound on losses
     upper_limit = r_pu_eff * (s_max_pu * s_nom_max) ** 2
@@ -1635,7 +1622,7 @@ def define_total_supply_constraints(
     # minimum energy production constraints
     e_sum_min_i = c.static.index[c.static.e_sum_min > -inf]
     if not e_sum_min_i.empty:
-        e_sum_min = c.da.e_sum_min.sel(name=e_sum_min_i)
+        e_sum_min = c.as_xarray("e_sum_min", inds=e_sum_min_i)
         p = m[f"{c.name}-p"].sel(name=e_sum_min_i, snapshot=sns_)
         energy = (p * eh).sum(dim="snapshot")
         m.add_constraints(energy, ">=", e_sum_min, name=f"{c.name}-e_sum_min")
@@ -1643,7 +1630,7 @@ def define_total_supply_constraints(
     # maximum energy production constraints
     e_sum_max_i = c.static.index[c.static.e_sum_max < inf]
     if not e_sum_max_i.empty:
-        e_sum_max = c.da.e_sum_max.sel(name=e_sum_max_i)
+        e_sum_max = c.as_xarray("e_sum_max", inds=e_sum_max_i)
         p = m[f"{c.name}-p"].sel(name=e_sum_max_i, snapshot=sns_)
         energy = (p * eh).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
