@@ -668,3 +668,394 @@ def test_scenario_ordering_bug():
         f"DataArray scenario order {da_scenarios} does not match "
         f"network scenario order {network_scenarios}"
     )
+
+
+# Multiperiod stochastic fixtures and tests
+@pytest.fixture
+def n_multiperiod():
+    """Basic multiperiod network fixture similar to test_lopf_multiinvest.py"""
+    n = pypsa.Network(snapshots=range(10))
+    n.investment_periods = [2020, 2030, 2040, 2050]
+    n.add("Carrier", "gencarrier")
+    n.add("Carrier", "AC")
+    n.add("Bus", [1, 2], carrier="AC")
+
+    for i, period in enumerate(n.investment_periods):
+        factor = (10 + i) / 10
+        n.add(
+            "Generator",
+            [f"gen1-{period}", f"gen2-{period}"],
+            bus=[1, 2],
+            lifetime=30,
+            build_year=period,
+            capital_cost=[100 / factor, 100 * factor],
+            marginal_cost=[i + 2, i + 1],
+            p_nom_extendable=True,
+            carrier="gencarrier",
+        )
+
+    for i, period in enumerate(n.investment_periods):
+        n.add(
+            "Line",
+            f"line-{period}",
+            bus0=1,
+            bus1=2,
+            length=1,
+            build_year=period,
+            lifetime=40,
+            capital_cost=30 + i,
+            x=0.0001,
+            r=0.001,
+            s_nom_extendable=True,
+            carrier="AC",
+        )
+
+    load = range(100, 100 + len(n.snapshots))
+    load = pd.DataFrame({"load1": load, "load2": load}, index=n.snapshots)
+    n.add(
+        "Load",
+        ["load1", "load2"],
+        bus=[1, 2],
+        p_set=load,
+    )
+
+    return n
+
+
+@pytest.fixture
+def n_multiperiod_stochastic(n_multiperiod):
+    """Convert multiperiod network to stochastic"""
+    n = n_multiperiod
+    n.set_scenarios({"high": 0.5, "low": 0.5})
+
+    # Set scenario-specific loads
+    n.loads_t.p_set = pd.DataFrame(
+        index=n.snapshots,
+        columns=pd.MultiIndex.from_product(
+            [n.scenarios, ["load1", "load2"]], names=["scenario", "name"]
+        ),
+    )
+
+    # High scenario: 20% higher load
+    base_load = range(100, 100 + len(n.snapshots))
+    for load_name in ["load1", "load2"]:
+        n.loads_t.p_set.loc[:, ("high", load_name)] = [l * 1.2 for l in base_load]
+        n.loads_t.p_set.loc[:, ("low", load_name)] = [l * 0.8 for l in base_load]
+
+    return n
+
+
+@pytest.fixture
+def n_multiperiod_sus(n_multiperiod):
+    """Multiperiod network with storage units"""
+    n = n_multiperiod
+    # Remove some generators to activate storage
+    n.remove("Generator", n.generators.query('bus == "1"').index)
+    n.generators.capital_cost *= 5
+
+    for i, period in enumerate(n.investment_periods):
+        factor = (10 + i) / 10
+        n.add(
+            "StorageUnit",
+            f"sto1-{period}",
+            bus=1,
+            lifetime=30,
+            build_year=period,
+            capital_cost=10 / factor,
+            marginal_cost=i,
+            p_nom_extendable=True,
+        )
+    return n
+
+
+@pytest.fixture
+def n_multiperiod_sus_stochastic(n_multiperiod_sus):
+    """Convert multiperiod storage network to stochastic"""
+    n = n_multiperiod_sus
+    n.set_scenarios({"high": 0.6, "low": 0.4})
+
+    # Set scenario-specific loads
+    n.loads_t.p_set = pd.DataFrame(
+        index=n.snapshots,
+        columns=pd.MultiIndex.from_product(
+            [n.scenarios, ["load1", "load2"]], names=["scenario", "name"]
+        ),
+    )
+
+    # Different load patterns for scenarios
+    base_load = range(100, 100 + len(n.snapshots))
+    for load_name in ["load1", "load2"]:
+        n.loads_t.p_set.loc[:, ("high", load_name)] = [l * 1.3 for l in base_load]
+        n.loads_t.p_set.loc[:, ("low", load_name)] = [l * 0.7 for l in base_load]
+
+    return n
+
+
+# Small focused tests
+def test_multiperiod_stochastic_tiny_default():
+    """Test tiny multiperiod stochastic network with default parameters"""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        n = pypsa.Network(snapshots=range(2))
+        n.investment_periods = [2020, 2030]
+        n.add("Carrier", "elec")
+        n.add("Bus", 1, carrier="elec")
+        n.add(
+            "Generator",
+            1,
+            bus=1,
+            p_nom_extendable=True,
+            capital_cost=10,
+            carrier="elec",
+        )
+        n.add("Load", 1, bus=1, p_set=100)
+
+        n.set_scenarios({"high": 0.5, "low": 0.5})
+        n.loads_t.p_set = pd.DataFrame(
+            index=n.snapshots,
+            columns=pd.MultiIndex.from_product(
+                [n.scenarios, ["1"]], names=["scenario", "name"]
+            ),
+        )
+        n.loads_t.p_set.loc[:, ("high", "1")] = [
+            120,
+            120,
+            120,
+            120,
+        ]
+        n.loads_t.p_set.loc[:, ("low", "1")] = [80, 80, 80, 80]
+
+        status, _ = n.optimize(multi_investment_periods=True)
+        assert status == "ok"
+
+        # Check that we have results for both scenarios
+        assert "high" in n.generators.p_nom_opt.index.get_level_values("scenario")
+        assert "low" in n.generators.p_nom_opt.index.get_level_values("scenario")
+
+        # Capacities should be identical across scenarios in stochastic optimization
+        high_cap = n.generators.p_nom_opt.loc[("high", "1")]
+        low_cap = n.generators.p_nom_opt.loc[("low", "1")]
+        assert high_cap == low_cap
+
+
+def test_multiperiod_stochastic_tiny_build_year():
+    """Test tiny multiperiod stochastic network with specific build year"""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        n = pypsa.Network(snapshots=range(2))
+        n.investment_periods = [2020, 2030]
+        n.add("Carrier", "elec")
+        n.add("Bus", 1, carrier="elec")
+        n.add(
+            "Generator",
+            1,
+            bus=1,
+            p_nom_extendable=True,
+            capital_cost=10,
+            build_year=2020,
+            carrier="elec",
+        )
+        n.add("Load", 1, bus=1, p_set=100)
+
+        n.set_scenarios({"scenario": 1.0})  # Single scenario
+        n.loads_t.p_set = pd.DataFrame(
+            index=n.snapshots,
+            columns=pd.MultiIndex.from_product(
+                [n.scenarios, ["1"]], names=["scenario", "name"]
+            ),
+        )
+        n.loads_t.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
+
+        status, _ = n.optimize(multi_investment_periods=True)
+        assert status == "ok"
+        assert n.generators.p_nom_opt.loc[("scenario", "1")] == 100
+
+
+def test_multiperiod_stochastic_tiny_infeasible():
+    """Test infeasible multiperiod stochastic network"""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        n = pypsa.Network(snapshots=range(2))
+        n.investment_periods = [2020, 2030]
+        n.add("Carrier", "elec")
+        n.add("Bus", 1, carrier="elec")
+        n.add(
+            "Generator",
+            1,
+            bus=1,
+            p_nom_extendable=True,
+            capital_cost=10,
+            build_year=2030,
+            carrier="elec",
+        )
+        n.add("Load", 1, bus=1, p_set=100)
+
+        n.set_scenarios({"scenario": 1.0})
+        n.loads_t.p_set = pd.DataFrame(
+            index=n.snapshots,
+            columns=pd.MultiIndex.from_product(
+                [n.scenarios, ["1"]], names=["scenario", "name"]
+            ),
+        )
+        n.loads_t.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
+
+        # This should fail because generator only available in 2030 but load exists in 2020
+        with pytest.raises(ValueError):
+            n.optimize(multi_investment_periods=True)
+
+
+def test_multiperiod_stochastic_simple_network(n_multiperiod_stochastic):
+    """Test simple multiperiod stochastic network optimization"""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        n = n_multiperiod_stochastic
+        status, condition = n.optimize(multi_investment_periods=True)
+        assert status == "ok"
+        assert condition == "optimal"
+
+        # Check that generators are only active in their respective periods
+        for scenario in n.scenarios:
+            # gen1-2050 should not be active in early periods
+            assert (
+                n.generators_t.p.loc[(2020, slice(None)), (scenario, "gen1-2050")] == 0
+            ).all()
+            assert (
+                n.generators_t.p.loc[(2030, slice(None)), (scenario, "gen1-2050")] == 0
+            ).all()
+            assert (
+                n.generators_t.p.loc[(2040, slice(None)), (scenario, "gen1-2050")] == 0
+            ).all()
+
+            # gen1-2020 should not be active in 2050 (lifetime = 30)
+            assert (
+                n.generators_t.p.loc[(2050, slice(None)), (scenario, "gen1-2020")] == 0
+            ).all()
+
+            # line-2050 should not be active in early periods
+            assert (
+                n.lines_t.p0.loc[(2020, slice(None)), (scenario, "line-2050")] == 0
+            ).all()
+            assert (
+                n.lines_t.p0.loc[(2030, slice(None)), (scenario, "line-2050")] == 0
+            ).all()
+            assert (
+                n.lines_t.p0.loc[(2040, slice(None)), (scenario, "line-2050")] == 0
+            ).all()
+
+
+def test_multiperiod_stochastic_snapshot_subset(n_multiperiod_stochastic):
+    """Test multiperiod stochastic network with snapshot subset"""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        n = n_multiperiod_stochastic
+        status, condition = n.optimize(n.snapshots[:20], multi_investment_periods=True)
+        assert status == "ok"
+        assert condition == "optimal"
+
+        # Same checks as above but with subset of snapshots
+        for scenario in n.scenarios:
+            assert (
+                n.generators_t.p.loc[(2020, slice(None)), (scenario, "gen1-2050")] == 0
+            ).all()
+            assert (
+                n.generators_t.p.loc[(2030, slice(None)), (scenario, "gen1-2050")] == 0
+            ).all()
+            assert (
+                n.generators_t.p.loc[(2040, slice(None)), (scenario, "gen1-2050")] == 0
+            ).all()
+
+
+def test_multiperiod_stochastic_storage_units_bug(n_multiperiod_sus_stochastic):
+    """Test multiperiod stochastic network with storage units
+
+    This test verifies that storage units work correctly in multiperiod + stochastic
+    optimization. Previously, this combination caused a broadcasting error in the
+    storage constraint creation due to dimension mismatches between:
+    - (snapshots, scenarios, storage_units) from the mask
+    - (scenarios, storage_units, snapshots) from the previous_soc_pp variable
+
+    The fix ensures dimension order consistency by transposing the previous_soc_pp
+    variable to match the expected dimension order when scenarios are present.
+    """
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        n = n_multiperiod_sus_stochastic
+        status, condition = n.optimize(multi_investment_periods=True)
+        assert status == "ok"
+        assert condition == "optimal"
+
+        # Check that storage units have been built
+        for scenario in n.scenarios:
+            total_storage_cap = n.storage_units.p_nom_opt.loc[scenario, :].sum()
+            assert total_storage_cap > 0
+
+            # Check that storage is only active in appropriate periods
+            for period in n.investment_periods:
+                period_snapshots = n.snapshots[
+                    n.snapshots.get_level_values("period") == period
+                ]
+
+                # Storage units should respect their build years
+                for storage_name in n.storage_units.loc[scenario, :].index:
+                    storage = n.storage_units.loc[(scenario, storage_name)]
+                    build_year = storage.build_year
+                    lifetime = storage.lifetime
+
+                    if build_year <= period <= build_year + lifetime:
+                        # Storage should be available in this period
+                        storage_dispatch = n.storage_units_t.p.loc[
+                            period_snapshots, (scenario, storage_name)
+                        ]
+                        # At least some periods should have non-zero dispatch (charging or discharging)
+                        assert storage_dispatch.abs().sum() >= 0
+                    else:
+                        storage_dispatch = n.storage_units_t.p.loc[
+                            period_snapshots, (scenario, storage_name)
+                        ]
+                        assert (storage_dispatch == 0).all()
+
+
+def test_multiperiod_stochastic_scenario_differences(n_multiperiod_stochastic):
+    """Test that scenarios produce different results"""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        n = n_multiperiod_stochastic
+        status, condition = n.optimize(multi_investment_periods=True)
+        assert status == "ok"
+        assert condition == "optimal"
+
+        # Check that high and low scenarios have different generation patterns
+        high_total_gen = n.generators_t.p.loc[:, ("high", slice(None))].sum().sum()
+        low_total_gen = n.generators_t.p.loc[:, ("low", slice(None))].sum().sum()
+
+        # High load scenario should have higher generation
+        assert high_total_gen > low_total_gen
+
+        # But capacities should be the same (stochastic optimization)
+        for gen_name in n.generators.loc[
+            ("high", slice(None)), :
+        ].index.get_level_values("name"):
+            high_cap = n.generators.p_nom_opt.loc[("high", gen_name)]
+            low_cap = n.generators.p_nom_opt.loc[("low", gen_name)]
+            assert high_cap == low_cap

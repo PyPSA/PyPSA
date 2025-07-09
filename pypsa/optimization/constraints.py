@@ -1326,6 +1326,13 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         # snapshot of each period for non-cyclic assets
         include_previous_soc_pp = (periods == periods.shift(snapshot=1)) & active
         include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
+
+        # Ensure that dimension order is consistent for stochastic networks
+        if n.has_scenarios:
+            expected_dims = list(include_previous_soc_pp.dims)
+            if list(previous_soc_pp.dims) != expected_dims:
+                previous_soc_pp = previous_soc_pp.transpose(*expected_dims)
+
         # We take values still to handle internal xarray multi-index difficulties
         previous_soc_pp = previous_soc_pp.where(
             include_previous_soc_pp.values, linopy.variables.FILL_VALUE
