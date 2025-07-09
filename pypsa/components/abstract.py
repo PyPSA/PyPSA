@@ -50,6 +50,11 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def scenarios(self) -> pd.Index:
+        pass
+
+    @property
+    @abstractmethod
     def has_investment_periods(self) -> bool:
         pass
 
