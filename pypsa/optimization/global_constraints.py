@@ -27,6 +27,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -46,16 +47,13 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
-            dim = f"{c}-ext"
             static = n.static(c)
 
             if "carrier" not in static:
                 continue
 
-            ext_i = (
-                n.get_extendable_i(c)
-                .intersection(static.index[static.carrier == carrier])
-                .rename(dim)
+            ext_i = n.components[c].extendables.intersection(
+                static.index[static.carrier == carrier]
             )
             if period is not None:
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
@@ -86,23 +84,24 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
 
 
 def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> None:
-    """Set an capacity expansion limit for assets of the same carrier at the same
-    bus (e.g. 'onwind' at bus '1'). The function searches for columns in the
-    `buses` dataframe matching the pattern "nom_{min/max}_{carrier}". In case
-    the constraint should only be defined for one investment period, the column
-    name can be constructed according to "nom_{min/max}_{carrier}_{period}"
-    where period must be in `n.investment_periods`.
+    """Set an capacity expansion limit for assets of the same carrier at the same bus.
+
+    The function searches for columns in the `buses` dataframe matching the pattern
+    "nom_{min/max}_{carrier}". In case the constraint should only be defined for one
+    investment period, the column name can be constructed according to
+    "nom_{min/max}_{carrier}_{period}" where period must be in `n.investment_periods`.
 
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
     """
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
-    buses = n.buses.index[n.buses[cols].notnull().any(axis=1)].rename("Bus-nom_min_max")
+    buses = n.buses.index[n.buses[cols].notnull().any(axis=1)]
 
     for col in cols:
         msg = (
@@ -135,16 +134,13 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
 
         for c, attr in nominal_attrs.items():
             var = f"{c}-{attr}"
-            dim = f"{c}-ext"
             static = n.static(c)
 
             if c not in n.one_port_components or "carrier" not in static:
                 continue
 
-            ext_i = (
-                n.get_extendable_i(c)
-                .intersection(static.index[static.carrier == carrier])
-                .rename(dim)
+            ext_i = n.components[c].extendables.intersection(
+                static.index[static.carrier == carrier]
             )
             if period is not None:
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
@@ -171,6 +167,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -180,11 +177,32 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
 
     m = n.model
     periods = sns.unique("period")
-    carrier_i = n.carriers.query("max_growth != inf").index.rename("Carrier")
-    max_absolute_growth = DataArray(n.carriers.loc[carrier_i, "max_growth"])
-    max_relative_growth = DataArray(
-        n.carriers.loc[carrier_i, "max_relative_growth"]
-    ).clip(min=0)
+
+    # Handle stochastic networks where carriers has MultiIndex (scenario, component)
+    if isinstance(n.carriers.index, pd.MultiIndex):
+        # For stochastic networks, we need to get unique carriers across scenarios
+        # and use the first scenario's data (carriers should be identical across scenarios)
+        unique_carriers = (
+            n.carriers.query("max_growth != inf")
+            .index.get_level_values("name")
+            .unique()
+        )
+        carrier_i = pd.Index(unique_carriers, name="Carrier")
+        # Get max_growth values from the first scenario (they should be identical)
+        first_scenario = n.carriers.index.get_level_values("scenario")[0]
+        max_absolute_growth = DataArray(
+            n.carriers.loc[(first_scenario, unique_carriers), "max_growth"]
+        )
+        max_relative_growth = DataArray(
+            n.carriers.loc[(first_scenario, unique_carriers), "max_relative_growth"]
+        ).clip(min=0)
+    else:
+        # Non-stochastic case
+        carrier_i = n.carriers.query("max_growth != inf").index.rename("Carrier")
+        max_absolute_growth = DataArray(n.carriers.loc[carrier_i, "max_growth"])
+        max_relative_growth = DataArray(
+            n.carriers.loc[carrier_i, "max_relative_growth"]
+        ).clip(min=0)
 
     if carrier_i.empty:
         return
@@ -192,16 +210,13 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     lhs_list = []
     for c, attr in nominal_attrs.items():
         var = f"{c}-{attr}"
-        dim = f"{c}-ext"
         static = n.static(c)
 
         if "carrier" not in static:
             continue
 
-        limited_i = (
-            static.index[static.carrier.isin(carrier_i)]
-            .intersection(n.get_extendable_i(c))
-            .rename(dim)
+        limited_i = static.index[static.carrier.isin(carrier_i)].intersection(
+            n.components[c].extendables
         )
         if limited_i.empty:
             continue
@@ -211,7 +226,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         first_active = DataArray(active.cumsum() == 1)
         carriers = static.loc[limited_i, "carrier"].rename("Carrier")
 
-        vars = m[var].sel({dim: limited_i}).where(first_active)
+        vars = m[var].sel(name=limited_i).where(first_active)
         expr = vars.groupby(carriers.to_xarray()).sum()
 
         if (max_relative_growth.loc[carriers.unique()] > 0).any():
@@ -237,6 +252,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -313,6 +329,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -371,15 +388,16 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
 
 def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> None:
-    """Set a limit for line volume expansion. For the capacity expansion only the
-    carriers 'AC' and 'DC' are considered.
+    """Set a limit for line volume expansion.
+
+    For the capacity expansion only the carriers 'AC' and 'DC' are considered.
 
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
-
 
     """
     m = n.model
@@ -399,7 +417,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
         for c in ["Line", "Link"]:
             attr = nominal_attrs[c]
 
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             if ext_i.empty:
                 continue
 
@@ -430,12 +448,14 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
 
 
 def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
-    """Set a limit for line expansion costs. For the capacity expansion only the
-    carriers 'AC' and 'DC' are considered.
+    """Set a limit for line expansion costs.
+
+    For the capacity expansion only the carriers 'AC' and 'DC' are considered.
 
     Parameters
     ----------
     n : pypsa.Network
+        The network to apply constraints to.
     sns : list-like
         Set of snapshots to which the constraint should be applied.
 
@@ -461,7 +481,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         for c in ["Line", "Link"]:
             attr = nominal_attrs[c]
 
-            ext_i = n.get_extendable_i(c)
+            ext_i = n.components[c].extendables
             if ext_i.empty:
                 continue
 

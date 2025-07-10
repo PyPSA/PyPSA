@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING, Any
 import networkx as nx
 import numpy as np
 import pandas as pd
+import scipy.sparse as sp
 from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
+from sklearn.cluster import AgglomerativeClustering as HAC
 
 from pypsa.geo import haversine_pts
 
@@ -811,8 +813,6 @@ def busmap_by_hac(
         )
         raise ModuleNotFoundError(msg)
 
-    from sklearn.cluster import AgglomerativeClustering as HAC  # noqa: PLC0415
-
     if buses_i is None:
         buses_i = n.buses.index
 
@@ -830,9 +830,10 @@ def busmap_by_hac(
 
     buses_x = n.buses.index.get_indexer(buses_i)
 
-    A = n.adjacency_matrix(branch_components=branch_components).tocsc()[buses_x][
-        :, buses_x
-    ]
+    adjacency_df = n.adjacency_matrix(
+        branch_components=branch_components, return_dataframe=True
+    )
+    A = sp.csr_matrix(adjacency_df.values).tocsc()[buses_x][:, buses_x]
 
     labels = HAC(
         n_clusters=n_clusters,
