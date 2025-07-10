@@ -63,6 +63,19 @@ def test_calculate_dependent_values(ac_dc_meshed_stoch: pypsa.Network):
     assert n.lines.x_pu_eff.notnull().all()
 
 
+def test_determine_network_topology(ac_dc_meshed_stoch: pypsa.Network):
+    """
+    Test the determination of network topology in a stochastic network.
+    This includes checking that the function runs without errors and that
+    the expected attributes are present in the network object.
+    """
+    n = ac_dc_meshed_stoch
+    n.determine_network_topology()
+
+    # Check if topology attributes are set
+    assert n.sub_networks is not None
+
+
 def test_cycles(ac_dc_meshed_stoch: pypsa.Network):
     n = ac_dc_meshed_stoch
     C = n.cycles()
