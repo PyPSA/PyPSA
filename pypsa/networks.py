@@ -1190,11 +1190,9 @@ class Network(
             SubNetwork(self, name) for name in self.sub_networks.index
         ]
 
-        original_columns = self.buses.columns.tolist()
         self.buses = self.buses.drop(columns="sub_network").join(
             sub_network_map, "name"
-        )
-        self.buses = self.buses.reindex(columns=original_columns)
+        )[self.buses.columns]
 
         for c in self.iterate_components(self.passive_branch_components):
             c.static["sub_network"] = c.static.bus0.map(sub_network_map)
