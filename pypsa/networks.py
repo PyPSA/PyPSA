@@ -1128,28 +1128,6 @@ class Network(
         the network topology is determined on the basis of the active
         branches.
         """
-        # For stochastic networks, use first scenario only since topology is enforced
-        # to be same across scenarios
-        if self.has_scenarios:
-            original_components = {}
-
-            first_scenario = self.scenarios[0]
-            original_buses = self.buses.copy()
-            self.buses = self.buses.xs(first_scenario, level="scenario")
-
-            # Store and extract first scenario for passive branch components
-            for c_name in self.passive_branch_components:
-                component_attr = self.components[c_name].list_name
-                if not getattr(self, component_attr).empty:
-                    original_components[c_name] = getattr(self, component_attr).copy()
-                    setattr(
-                        self,
-                        component_attr,
-                        getattr(self, component_attr).xs(
-                            first_scenario, level="scenario"
-                        ),
-                    )
-
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
             investment_period=investment_period,
@@ -1158,6 +1136,8 @@ class Network(
         n_components, labels = csgraph.connected_components(
             adjacency_matrix.values, directed=False
         )
+        labels = pd.Series(labels, adjacency_matrix.index, name="sub_network")
+        sub_network_map = labels.astype(str)
 
         # remove all old sub_networks
         if not self.sub_networks.empty:
@@ -1169,17 +1149,24 @@ class Network(
             # Clear the sub_networks DataFrame completely
             # This handles both regular and stochastic cases
             self.sub_networks.drop(self.sub_networks.index, inplace=True)
+            for dynamic in self.sub_networks_t.values():
+                dynamic.drop(dynamic.columns, inplace=True)
+
+        if self.has_scenarios:
+            bus_carrier = self.buses.carrier.xs(self.scenarios[0], level="scenario")
+        else:
+            bus_carrier = self.buses.carrier
 
         for i in np.arange(n_components):
             # index of first bus
-            buses_i = (labels == i).nonzero()[0]
+            buses = labels.index[labels == i]
 
-            if skip_isolated_buses and (len(buses_i) == 1):
+            if skip_isolated_buses and (len(buses) == 1):
                 continue
 
-            carrier = self.buses.carrier.iat[buses_i[0]]
+            carrier = bus_carrier.at[buses[0]]
 
-            if carrier not in ["AC", "DC"] and len(buses_i) > 1:
+            if carrier not in ["AC", "DC"] and len(buses) > 1:
                 logger.warning(
                     "Warning, sub network %d is not electric but "
                     "contains multiple buses\nand branches. Passive "
@@ -1187,41 +1174,28 @@ class Network(
                     i,
                 )
 
-            if (self.buses.carrier.iloc[buses_i] != carrier).any():
+            if (bus_carrier.loc[buses] != carrier).any():
                 logger.warning(
                     "Warning, sub network %d contains buses with "
                     "mixed carriers! Value counts:"
                     "\n%s",
                     i,
-                    self.buses.carrier.iloc[buses_i].value_counts(),
+                    bus_carrier.loc[buses].value_counts(),
                 )
 
-            self.add("SubNetwork", i, carrier=carrier)
+            self.add("SubNetwork", str(i), carrier=carrier)
 
         # add objects
         self.sub_networks["obj"] = [
             SubNetwork(self, name) for name in self.sub_networks.index
         ]
 
-        # Restore original data for stochastic networks and apply labels to all scenarios
-        if self.has_scenarios:
-            for c_name in self.passive_branch_components:
-                if c_name in original_components:
-                    component_attr = self.components[c_name].list_name
-                    setattr(self, component_attr, original_components[c_name])
-
-            for s in self.scenarios:
-                original_buses.loc[s, "sub_network"] = labels.astype(str)
-            self.buses = original_buses
-            subnetwork_map = self.buses.sub_network.xs(
-                self.scenarios[0], level="scenario"
-            )
-        else:
-            self.buses.loc[:, "sub_network"] = labels.astype(str)
-            subnetwork_map = self.buses.sub_network
+        self.buses = self.buses.drop(columns="sub_network").join(
+            sub_network_map, "name"
+        )
 
         for c in self.iterate_components(self.passive_branch_components):
-            c.static["sub_network"] = c.static.bus0.map(subnetwork_map)
+            c.static["sub_network"] = c.static.bus0.map(sub_network_map)
 
             if investment_period is not None:
                 active = self.get_active_assets(c.name, investment_period)
@@ -1464,7 +1438,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 if c.name in {"Bus"} | self.n.passive_branch_components:
                     return value[value.sub_network == self.name]
                 if c.name in self.n.one_port_components:
-                    buses = self.buses_i()
+                    buses = self.buses_i().unique("name")
                     return value[value.bus.isin(buses)]
                 msg = f"Component {c.name} not supported for sub-networks"
                 raise ValueError(msg)

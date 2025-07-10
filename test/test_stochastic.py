@@ -72,8 +72,20 @@ def test_determine_network_topology(ac_dc_meshed_stoch: pypsa.Network):
     n = ac_dc_meshed_stoch
     n.determine_network_topology()
 
-    # Check if topology attributes are set
-    assert n.sub_networks is not None
+    assert not n.sub_networks.empty
+    assert "AC" in n.sub_networks.carrier.values
+
+    sub = n.sub_networks.obj.loc["0"]
+    assert not sub.components.generators.static.empty
+    assert not sub.components.loads.static.empty
+
+    # check slack bus and slack generator assignment via subnetworks and network components
+    assert set(n.generators.query("control == 'Slack'").index.unique("name")) == set(
+        n.sub_networks.obj.map(lambda sub: sub.slack_generator).dropna()
+    )
+    assert set(n.buses.query("control == 'Slack'").index.unique("name")) == set(
+        n.sub_networks.obj.map(lambda sub: sub.slack_bus).dropna()
+    )
 
 
 def test_cycles(ac_dc_meshed_stoch: pypsa.Network):

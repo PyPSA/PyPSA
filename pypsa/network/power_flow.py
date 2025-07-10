@@ -1173,34 +1173,21 @@ class SubNetworkPowerFlowMixin:
     def find_slack_bus(self) -> None:
         """Find the slack bus in a connected sub-network."""
         gens = self.generators()
+        gen_names = gens.index.get_level_values("name")
 
         if len(gens) == 0:
             self.slack_generator = None
-            self.slack_bus = self.buses_i()[0]
+            self.slack_bus = self.buses_i().get_level_values("name")[0]
 
         else:
-            slacks = gens[gens.control == "Slack"].index
+            slacks = gens[gens.control == "Slack"].index.unique("name")
+            network_gen_names = self.n.generators.index.get_level_values("name")
 
             if len(slacks) == 0:
-                # For stochastic networks, ensure consistent slack generator across scenarios
-                if self.n.has_scenarios:
-                    if hasattr(gens.index, "get_level_values"):
-                        # MultiIndex case (stochastic)
-                        gen_names = gens.index.get_level_values("name")
-                        # Choose the first generator name alphabetically for consistency
-                        chosen_gen_name = sorted(gen_names.unique())[0]
-                        # Find this generator in the current scenario
-                        matching_gens = gens[gen_names == chosen_gen_name]
-                        if len(matching_gens) > 0:
-                            self.slack_generator = matching_gens.index[0]
-                        else:
-                            self.slack_generator = gens.index[0]
-                    else:
-                        self.slack_generator = gens.index[0]
-                else:
-                    self.slack_generator = gens.index[0]
+                self.slack_generator = gen_names[0]
 
-                self.n.generators.loc[self.slack_generator, "control"] = "Slack"
+                is_slack_generators = network_gen_names == self.slack_generator
+                self.n.generators.loc[is_slack_generators, "control"] = "Slack"
                 logger.debug(
                     "No slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
@@ -1211,15 +1198,20 @@ class SubNetworkPowerFlowMixin:
                 self.slack_generator = slacks[0]
             else:
                 self.slack_generator = slacks[0]
-                self.n.generators.loc[slacks[1:], "control"] = "PV"
+                non_slack_generators = network_gen_names.isin(slacks[1:])
+                self.n.generators.loc[non_slack_generators, "control"] = "PV"
                 logger.debug(
                     "More than one slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
                     self.slack_generator,
                 )
 
-            self.slack_bus = gens.bus[self.slack_generator]
-
+            if isinstance(gens.index, pd.MultiIndex):
+                self.slack_bus = gens.bus.xs(self.slack_generator, level="name").values[
+                    0
+                ]
+            else:
+                self.slack_bus = gens.bus.loc[self.slack_generator]
         # also put it into the dataframe
         self.n.sub_networks.at[self.name, "slack_bus"] = self.slack_bus
 
@@ -1252,8 +1244,9 @@ class SubNetworkPowerFlowMixin:
             n.buses.loc[pvs.index, "control"] = "PV"
             n.buses.loc[pvs.index, "generator"] = pvs
 
-        n.buses.loc[self.slack_bus, "control"] = "Slack"
-        n.buses.loc[self.slack_bus, "generator"] = (
+        is_slack_bus = n.buses.index.get_level_values("name") == self.slack_bus
+        n.buses.loc[is_slack_bus, "control"] = "Slack"
+        n.buses.loc[is_slack_bus, "generator"] = (
             self.slack_generator if self.slack_generator is not None else ""
         )
 
