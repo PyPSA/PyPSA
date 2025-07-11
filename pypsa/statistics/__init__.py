@@ -12,7 +12,6 @@ from pypsa.statistics.expressions import (
     get_operation,
     get_transmission_branches,
     get_transmission_carriers,
-    get_weightings,
     port_efficiency,
 )
 from pypsa.statistics.grouping import deprecated_groupers, groupers
@@ -38,7 +37,6 @@ __all__ = [
     "StatisticsAccessor",
     "get_transmission_branches",
     "get_transmission_carriers",
-    "get_weightings",
     "get_operation",
     "port_efficiency",
     # Deprecated
