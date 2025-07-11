@@ -557,10 +557,10 @@ class NetworkIndexMixin(_NetworkABC):
 
         * Store weightings define the elapsed hours for the charge, discharge
           standing loss and spillage of storage units and stores in order to
-          determine the state of charge, as well as for the energy balances.
+          determine the state of charge.
 
         * Generator weightings are factors for the contribution of generators
-          to global constraints, e.g. emission limits.
+          to global constraints, e.g. emission limits, and energy balances.
 
         Examples
         --------
