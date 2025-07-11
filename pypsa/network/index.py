@@ -550,17 +550,17 @@ class NetworkIndexMixin(_NetworkABC):
 
     @property
     def snapshot_weightings(self) -> pd.DataFrame:
-        """Weightings applied to each snapshots during the optimization (LOPF).
+        """Weightings applied to each snapshots during the optimization.
 
-        * Objective weightings multiply the operational cost in the
+        * Objective weightings are factors on the operational cost in the
           objective function.
-
-        * Generator weightings multiply the impact of all generators
-          in global constraints, e.g. multiplier of GHG emmissions.
 
         * Store weightings define the elapsed hours for the charge, discharge
           standing loss and spillage of storage units and stores in order to
-          determine the state of charge.
+          determine the state of charge, as well as for the energy balances.
+
+        * Generator weightings are factors for the contribution of generators
+          to global constraints, e.g. emission limits.
 
         Examples
         --------

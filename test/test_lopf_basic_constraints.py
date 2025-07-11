@@ -307,7 +307,7 @@ def test_define_generator_constraints():
 
     n.optimize()
 
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen0"] == 10 * eh
+    assert n.snapshot_weightings.stores @ n.generators_t.p["gen0"] == 10 * eh
     assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen2"] == e_sum_min
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen3"] == e_sum_max
+    assert n.snapshot_weightings.stores @ n.generators_t.p["gen2"] == e_sum_min
+    assert n.snapshot_weightings.stores @ n.generators_t.p["gen3"] == e_sum_max

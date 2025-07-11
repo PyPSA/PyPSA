@@ -11,6 +11,12 @@ Release Notes
 ..    To use the features already you have to install the ``master`` branch, e.g. 
 ..    ``pip install git+https://github.com/pypsa/pypsa``.
 
+Bug Fixes
+---------
+
+* Correct use of snapshot weighting columns in tests and examples. The
+  doscstring for ``n.snapshot_weightings`` was clarified.
+
 `v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
 =======================================================================================
 
