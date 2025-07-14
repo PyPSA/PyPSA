@@ -911,7 +911,7 @@ class OptimizationAbstractMixin:
         self,
         snapshots: Sequence | None = None,
         multi_investment_periods: bool = False,
-        weights: dict | LinearExpression | None = None,
+        weights: dict | None = None,
         sense: str | int = "min",
         slack: float = 0.05,
         model_kwargs: dict | None = None,
@@ -1014,19 +1014,41 @@ class OptimizationAbstractMixin:
     def project_solved(
         self,
         dimensions: dict,
-    ) -> dict:
-        """Project solved model onto low-dimensional space."""
+    ) -> pd.Series:
+        """Project solved model onto low-dimensional space.
+
+        Parameters
+        ----------
+        dimensions : dict
+            A dictionary representing the dimensions of the
+            low-dimensional space. The keys are user-defined names for
+            the dimensions (matching those in the `direction`
+            argument), and the values are dictionaries with the same
+            structure as the `weights` argument in `optimize_mga`.
+
+        Returns
+        -------
+        pd.Series
+            A pd.Series representing the coordinates of a solved
+            network in the dimensions given by the user. The index
+            consists of the keys in the `dimensions` argument; values
+            are floats.
+        """
         # Check that the network has a solved linopy model
         if not self._n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before projecting result."
             raise ValueError(msg)
         # Build linear expressions and evaluate them
-        return {
-            key: float(
-                self.build_linexpr_from_weights(dim, model=self._n.model).solution.sum()
-            )
-            for key, dim in dimensions.items()
-        }
+        return pd.Series(
+            {
+                key: float(
+                    self.build_linexpr_from_weights(
+                        dim, model=self._n.model
+                    ).solution.sum()
+                )
+                for key, dim in dimensions.items()
+            }
+        )
 
     def optimize_mga_in_direction(
         self,
@@ -1037,7 +1059,7 @@ class OptimizationAbstractMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         **kwargs: Any,
-    ) -> tuple[str, str, dict | None]:
+    ) -> tuple[str, str, pd.Series | None]:
         """Run MGA in a given direction in a low-dimension projection.
 
         Parameters
@@ -1072,7 +1094,13 @@ class OptimizationAbstractMixin:
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
-
+        coordinates : pd.Series | None
+            If the optimization status is "ok", then the final return
+            value is a pd.Series representing the coordinates of the
+            solved network in dimensions given by the user. The index
+            consists of the keys in the `dimensions` argument; values
+            are floats. If the optimization status is not "ok", then
+            this value is None.
         """
         # Check consistency of `direction` and `dimensions` arguments: keys have to be the same
         if set(direction.keys()) != set(dimensions.keys()):
@@ -1131,14 +1159,14 @@ class OptimizationAbstractMixin:
         slack: float,
         model_kwargs: dict,
         kwargs: dict,
-    ) -> tuple[str, dict, dict | None]:
+    ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
 
         This wrapper is necessary in order to copy the network (to
         avoid race conditions).
         """
         n_copy = copy.deepcopy(n)
-        status, condition, coordinates = n_copy.optimize.optimize_mga_in_direction(
+        _, _, coordinates = n_copy.optimize.optimize_mga_in_direction(
             direction=direction,
             dimensions=dimensions,
             snapshots=snapshots,
@@ -1147,7 +1175,7 @@ class OptimizationAbstractMixin:
             model_kwargs=model_kwargs,
             **kwargs,
         )
-        return (status, direction, coordinates)
+        return (direction, coordinates)
 
     def optimize_mga_in_multiple_directions(
         self,
@@ -1187,13 +1215,9 @@ class OptimizationAbstractMixin:
             )
 
         # Filter for successful optimizations only
-        successful_directions = []
-        successful_coordinates = []
-        for status, direction, coordinates in results:
-            if status == "ok" and coordinates is not None:
-                successful_directions.append(direction)
-                successful_coordinates.append(coordinates)
-
+        successful_directions, successful_coordinates = zip(
+            *[(dir, coord) for dir, coord in results if coord is not None], strict=True
+        )
         return pd.DataFrame(successful_directions), pd.DataFrame(successful_coordinates)
 
     def optimize_and_run_non_linear_powerflow(
