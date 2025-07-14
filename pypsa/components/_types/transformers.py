@@ -43,8 +43,6 @@ class Transformers(Components):
 
     def get_bounds_pu(
         self,
-        sns: Sequence,
-        index: pd.Index | None = None,
         attr: str = "s",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for transformers.
@@ -53,10 +51,6 @@ class Transformers(Components):
 
         Parameters
         ----------
-        sns : pandas.Index/pandas.DateTimeIndex
-            Set of snapshots for the bounds
-        index : pd.Index, optional
-            Subset of the component elements
         attr : string, optional
             Attribute name for the bounds, e.g. "s"
 
@@ -70,7 +64,7 @@ class Transformers(Components):
             msg = f"Bounds can only be retrieved for operational attributes. For transformers those are: {list_as_string(self._operational_variables)}."
             raise ValueError(msg)
 
-        max_pu = self.as_xarray("s_max_pu", sns, inds=index)
+        max_pu = self.da.s_max_pu
         min_pu = -max_pu  # Transformers specific: min_pu is the negative of max_pu
 
         return min_pu, max_pu

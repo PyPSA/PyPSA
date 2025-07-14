@@ -610,7 +610,7 @@ class Components(
             attr for attr in self.dynamic.keys() if not self.dynamic[attr].empty
         ]
         attrs = {*static_attrs, *dynamic_attrs}
-        data = {attr: self.as_xarray(attr) for attr in attrs}
+        data = {attr: self._as_xarray(attr) for attr in attrs}
         return xarray.Dataset(data)
 
     @property
