@@ -74,7 +74,7 @@ class NetworkCollection:
                network2  load shedding     10901.16
     Line       network1  AC               280000.00
     Link       network1  DC                 4000.00
-    Name: value, dtype: float64
+    dtype: float64
 
     Use custom index:
 
