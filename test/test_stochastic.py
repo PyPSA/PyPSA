@@ -635,7 +635,7 @@ def test_store_stochastic_dimensions():
         eh_final = eh
 
     # This should work without dimension errors
-    standing_loss = c.as_xarray("standing_loss").sel(snapshot=sns)
+    standing_loss = c.da.standing_loss.sel(snapshot=sns)
     eff_stand = (1 - standing_loss) ** eh_final
 
     # Verify the result has the expected dimensions
@@ -685,9 +685,7 @@ def test_scenario_ordering_bug():
 
     # Check 3: verify that the results match the expected scenario ordering
     # by checking that the DataArray scenario coordinate order is preserved
-    da_p_max_pu = n.components.generators.as_xarray("p_max_pu").sel(
-        name="Manchester Wind"
-    )
+    da_p_max_pu = n.components.generators.da.p_max_pu.sel(name="Manchester Wind")
     da_scenarios = list(da_p_max_pu.coords["scenario"].values)
     network_scenarios = list(n.scenarios)
 
