@@ -138,7 +138,8 @@ class Components(
             )
             raise NotImplementedError(msg)
         static, dynamic = self._get_data_containers(ctype)
-        super().__init__(ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
         """Get string representation of component.
