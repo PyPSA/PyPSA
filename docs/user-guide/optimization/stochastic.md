@@ -502,12 +502,24 @@ The computational complexity of stochastic optimization in PyPSA exhibits distin
 **PyPSA-SMS++ Integration:**
 The [Resilient project](https://resilient-project.github.io/) is developing PyPSA-SMS++, a specialized API that will enable **advanced decomposition algorithms** integrated into PyPSA workflow. The goal is to support large-scale stochastic optimization problems directly within the PyPSA framework.
 
-## Practical Example
-
-For a comprehensive, hands-on demonstration of stochastic optimization in PyPSA, see the example notebook:
-
-**[Stochastic Optimization Example](../examples/stochastic-optimization.ipynb)**
 
 ## References
 
 [1] Birge, J. R., & Louveaux, F. (2011). *Introduction to Stochastic Programming* (2nd ed.). Springer Science & Business Media.
+
+## Examples
+
+<div class="grid cards" markdown>
+
+-   :material-notebook:{ .lg .middle } **Stochastic Optimization**
+
+    ---
+
+    Covers a hands-on demonstration of stochastic optimization.
+    
+    [:material-notebook: Go to example](../examples/stochastic-optimization.ipynb)
+
+    ---
+
+</div>
+
