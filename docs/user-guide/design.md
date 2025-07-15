@@ -1,169 +1,297 @@
 
-todo: General update
 todo: pdate after decision on components API
+todo: Update with Components API
+todo: Update for data validation pr
 
 # Design
 
-## Networks
+## Network Object
 
-The [pypsa.Network][] is an overall container for all network components ([pypsa.Components][]). Currently, components cannot exist without a network and are always attached to one.
+The [pypsa.Network][] is an overall container for all network
+[:material-bookshelf: Components](/user-guide/components). Components cannot
+exist without a network and are always attached to one. A network also holds
+functions to run different types of optimisation problems, compute power flows,
+read or write networks to files, retrieve statistics and plot the network.
 
-A network also holds functions to run compute power flows, optimal power flow and capacity expansion planning problems, as well as functions to retrieve statistics and plot the network.
+```py
+>>> import pypsa
+>>> n = pypsa.Network()
+```
+
+!!! tip
+
+    A short name, such as `n`, is recommended since it is used frequently to access the network's components and methods.
+
+## Network Components
+
+PyPSA represents power and energy systems using the following component types:
+
+{{ read_csv('../../pypsa/data/components.csv') }}
+
+Each component has a set of attributes with data types, default values, and
+descriptions for each attribute. For instance, attributes for capacity,
+efficiency, costs, and the buses to which components are attached. For the
+documentation of attributes for each component, see [:material-bookshelf:
+Components](/user-guide/components), which can also be accessed as a
+`pandas.DataFrame`, e.g. as
+[`n.components.buses.defaults`][pypsa.Components.defaults].
+
+Components are grouped according to their properties in sets such as
+`n.one_port_components` (connecting to a single bus), `n.branch_components`
+(connecting two or more buses), `n.passive_branch_components` (whose power flow
+is determined passively by impedances and nodal power imbalances), and
+`n.controllable_branch_components` (whose power flow can be controlled by the
+optimisation).
 
 ## Buses
 
-The bus is the fundamental node to which all loads, generators, storage units,
-lines, transformers and links attach. You can have as many components attached
-to a bus as you want. The bus's role is to enforce energy conservation for all
-elements feeding in and out of it (i.e. like Kirchhoff's Current Law).
+The `Bus` is the fundamental node of the network, to which all other components
+attach. It enforces conservation of flows for all elements feeding in and out of
+it in any time step. A `Bus` can represent a power substation, but it can also
+be used for other, non-electric energy carriers (e.g. hydrogen, heat, oil) or
+even non-energy carriers (e.g. CO~2~ or steel) in different locations.
+
+```py
+>>> n.add("Bus", "my_bus")
+```
 
 <figure markdown="span">
   ![Buses](../assets/images/buses.png){ width="600" }
-  <figcaption>Buses</figcaption>
 </figure>
 
-## Energy flows
+## Energy Balances
 
-Energy enters the model in generators, storage units or stores with
-higher energy before than after the simulation, and any components
-with efficiency greater than 1 (e.g. heat pumps).
+- Energy **enters** the model via `Generator` components, `Load` components with
+  negative sign, and `StorageUnit` or `Store` components with higher energy
+  levels in the first than in the last time step, and any components with
+  efficiency values greater than 1 (e.g. heat pumps).
 
-Energy leaves the model in loads, storage units or stores with higher
-energy after than before the simulation, and in lines, links or
-storage units with efficiency less than 1.
+- Energy **leaves** the model via `Load` components, `Generator` components with
+  negative sign, `StorageUnit` or `Store` components with higher energy in the
+  last then in the first time step, and in `Link`, `Line` and `StorageUnit`
+  components with efficiency less than 1.
 
-## Data storage
+## Snapshots
 
-To enable efficient calculations on the different dimensions of the
-data, data is stored in memory using `pandas.DataFrame` objects.
+Snapshots represent the time steps of the network, and are stored as
+`pandas.Index` or `pandas.MultiIndex`. Snapshots are used to represent the
+time-varying nature of the network, such as the availability of renewable energy
+sources, the demand for electricity, or the state of charge of storage units.
+All time-dependent series quantities are indexed by ``n.snapshots``.
+Networks default to a single snapshot called "now" and can be set with
+[`n.set_snapshots()`][pypsa.Network.set_snapshots].
 
-To see which data is stored for each component, see [:material-bookshelf: Components](/user-guide/components).
 
-### Static data
-
-For each component type (line, transformer, generator, etc.), which must be
-uniquely named for each network, its basic static data is stored in a
-`pandas.DataFrame`, which is an attribute of the `pypsa.Network`, with names
-that follow the component names:
-
-* `n.buses`
-* `n.generators`
-* `n.loads`
-* `n.lines`
-* `n.links`
-* `n.storage_units`
-* `n.stores`
-* `n.transformers`
-
-The columns contain data such as impedance, capacity, costs, efficiencies and
-the buses to which components are attached. All attributes for each component
-type are listed with their properties (defaults, etc.) in
-[:material-bookshelf: Components](/user-guide/components) and are accessible from the network object, e.g.
-in `n.components["Bus"]["attrs"]`.
-
-### Time-varying data
-
-Some quantities, such as generator `p_max_pu` (generator availability),
-generator `p` (generator calculated active power), line `p0` (line active
-power at `bus0`) and line `p1` (line active power at `bus1`) may vary over
-time, so different values of these attributes for the different snapshots
-(`n.snapshots`) are stored in the following attributes of the network object:
-
-* `n.buses_t`
-* `n.generators_t`
-* `n.loads_t`
-* `n.lines_t`
-* `n.links_t`
-* `n.storage_units_t`
-* `n.stores_t`
-* `n.transformers_t`
-
-These are dictionaries of `pandas.DataFrame` objects, so that for example
-`n.generators_t["p_set"]` is a `pandas.DataFrame` with columns
-corresponding to generator names and index corresponding to
-`n.snapshots`. You can also access the dictionary like an
-attribute `n.generators_t.p_set`.
-
-Time-varying data are marked as `series` in the listings in [:material-bookshelf: Components](/user-guide/components).
-
-For **input data** such as `p_max_pu` of a generator you can store the
-value statically in `n.generators` if the value does not
-change over `n.snapshots` **or** you can define it to be
-time-varying by adding a column to `n.generators_t.p_max_pu`. If
-the name of the generator is in the columns of
-`n.generators_t.p_max_pu`, then the static value in
-`n.generators` will be ignored. Some example definitions of
-input data:
-
-```python
-import pypsa
-
-n = pypsa.Network()
-
-#four snapshots are defined by integers
-n.set_snapshots(range(4))
-
-n.add("Bus", "my bus")
-
-#add a generator whose output does not change over time
-n.add("Generator", "Coal", bus="my bus", p_set=100)
-
-#add a generator whose output does change over time
-n.add("Generator", "Wind", bus="my bus", p_set=[10,50,20,30])
+```py
+>>> n.set_snapshots([0, 1, 2])
+>>> n.snapshots
 ```
 
-In this case only the generator "Wind" will appear in the columns of
-`n.generators_t.p_set`.
+!!! note
 
-For **output data**, all time-varying data affecting generators is stored in the
-`n.generators_t` dictionaries, but it is only defined once a computation has
-been run.
+    For many applications, snapshots represent time intervals and are commonly defined as a `pandas.DatetimeIndex`, for example using `pd.date_range("2024-01-01", periods=168, freq="H")` to create hourly intervals for a week.
+
+Snapshot weightings are applied to each snapshot, so that snapshots can
+represent more than one hour or fractions of one hour. Three different
+categories of snapshot weightings can be set. Objective weightings are used to
+weight snapshots in the objective function. Store weightings determine the state
+of charge change for stores and storage units. The generator weightings are used
+when calculating global constraints and energy balances. Snapshot weightings are
+stored as a `pandas.DataFrame` and indexed by `n.snapshots`. They default to a
+uniform snapshot weighting of 1 hour.
+
+```py
+>>> n.snapshot_weightings
+```
+
+## Investment Periods
+
+For long-term planning problems where the network is optimised for different
+time horizons, it is possible to define multiple investment periods (e.g. 2025,
+2035, 2045). Investment periods can be defined in `n.investment_periods`, a
+`pandas.Index` of monotonically increasing integers of years, with
+[`n.set_investment_periods()`][pypsa.Network.set_investment_periods].
+
+```py
+>>> n.set_investment_periods([2025, 2035, 2045])
+>>> n.investment_periods
+```
+
+By default, there are no investment periods defined, and the network is
+optimised for a single investment period (overnight scenario).
+
+Just like snapshots, investment periods can have weightings. These are defined
+in `n.investment_period_weightings`, which is a `pandas.DataFrame` indexed by
+`n.investment_periods` with two columns: "objective" and "years". Objective
+weightings are multiplied with all cost coefficients in the objective function
+of the respective investment period (e.g. for including a social discount rate).
+Years weightings denote the elapsed time until the subsequent investment period
+(e.g. for global constraints on emissions). They default to a uniform weighting
+of 1 for each investment period.
+
+```py
+>>> n.investment_period_weightings
+```
+
+!!! note
+
+    When investment periods are used, `n.snapshots` becomes a `pandas.MultiIndex`
+    with two index levels: a first level for the investment periods and a second
+    level for the time steps. As `n.snapshot_weightings` is indexed by
+    `n.snapshots`, its index is then also a `pandas.MultiIndex`. It is possible to have different snapshots
+    for each investment period, since users may want a higher resolution
+    in later years where there are more renewables, and the weather may change due to climate change.
+
+!!! example "Example: Applying a social discount rate to investment period objective weightings"
+
+    To apply a social discount rate to the objective weightings of investment
+    periods, consider that each investment period $a$ is associated with a set of
+    years $y \in Y_a$ over which costs occur.
+
+    The discount factor $d_y$ adjusts costs from year $y$ to the base currency year $y_0$ using a social discount rate $r$:
+
+    $$d_y = \frac{1}{(1 + r)^{y - y_0}}$$
+
+    The total discounted weight $v_a^o$ for investment period $a$ is the sum of discounted factors over all years $y \in Y_a$:
+
+    $$v_a^o = \sum_{y \in Y_a} d_y$$
+
+    For example, let $r = 0.02$, $y_0 = 2025$, and investment period $a = 2030$ with $Y_{2030} = \{2030, 2031, 2032, 2033, 2034\}$. Then:
+
+    $$v_{2030}^o = \sum_{y=2030}^{2034} \frac{1}{(1 + 0.02)^{y - 2025}} \approx 4.355$$
+
+    The year weighting $v_a^y = 5$ would remain, as it represents the number of years in the investment period.
+
+## Scenarios
+
+By default, the network is optimised for a deterministic scenario
+(`n.has_scenarios` is `False`). If scenarios are defined, the network is
+optimised for multiple scenarios in form of a two-stage stochastic programming
+framework (see [:material-book: Stochastic Programming]()).
+
+Scenario names are stored in `n.scenarios`, a `pandas.Index`, and are set
+with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
+
+```py
+>>> n.set_scenarios(["low", "high"])
+>>> n.scenarios
+```
+
+Probabilities for each scenario can also be set with
+[`n.set_scenarios()`][pypsa.Network.set_scenarios], by passing a dictionary with
+scenario names as keys and probabilities as values. The probabilities are stored
+in `n.scenario_weightings`, a `pandas.Series` indexed by `n.scenarios`.
+
+```py
+>>> n.set_scenarios({"low": 0.7, "high": 0.3})
+>>> n.scenario_weightings
+```
+
+If no probabilities are set, they default to a uniform distribution.
+
+## Data Storage
+
+For each class of components, the data describing the components is stored in
+memory in `pandas.DataFrame` objects. 
+
+**Static data** is stored in a `pandas.DataFrame`, which is an attribute of the
+`pypsa.Network`, with names that follow the component names. For instance,
+
+```py
+>>> n.buses
+```
+
+In this `pandas.DataFrame`, the index corresponds to the unique
+string names of the components, while the columns correspond to the components'
+static attributes.
+
+**Time-varying data** is stored in a dictionary of `pandas.DataFrame` objects,
+which is an attribute of the `pypsa.Network`, with names that follow the
+component names with a `_t` suffix. For instance,
+
+```py
+>>> n.buses_t
+```
+
+The keys of the dictionary are the names of the component attributes. The index
+of the `pandas.DataFrame` corresponds to the snapshots, while the columns
+correspond to the component names. For instance, this can be used to represent
+the changing availability of variable renewable generators per unit of nominal
+capacity (`p_max_pu`):
+
+```py
+>>> n.add("Generator", "Wind", bus="my_bus", p_nom=10, p_max_pu=[0.1, 0.5, 0.2, 0.3])
+>>> n.generators_t.p_max_pu
+```
+
+**Input data**, such as the availability `p_max_pu` of a generator, can be
+stored statically in `n.generators` if the value does not change over
+`n.snapshots` *or* can be defined in `n.generators_t.p_max_pu`. If the name of
+the generator is in the columns of `n.generators_t.p_max_pu`, the static value
+in `n.generators` will be ignored.
+
+**Output data** related to the operation of the system, such as the optimised
+dispatch `p` of a generator, is always returned as time-varying data
+(`n.generators_t.p`). Results related to capacities is stored as static data,
+such as the optimised nominal capacity `p_nom` of a generator in
+`n.generators.p_nom`.
+
+Attributes that can be time-varying are marked as "series" in the listings in
+[:material-bookshelf: Components](/user-guide/components).
+
+
+## Separation of Inputs and Outputs
+
+Input and output data is strictly separated, such that inputs are not
+overwritten by outputs. For instance, set points (`p_set`) are stored separately
+from actual dispatch points (`p`).
+
+The listings in [:material-bookshelf: Components](/user-guide/components) show
+for each attribute whether it is an input (which the user specifies) or output
+(which is computed by PyPSA). Inputs can be either "required" or "optional".
+Optional inputs are assigned a sensible default value if the user gives no
+input.
 
 ## Unit Conventions
 
-The units for physical quantities are chosen for easy user input.
-
-The units follow the general rules:
+The units for physical quantities follow the general rules.
 
 | Quantity | Units |
 |----------|-------|
-| Power | MW/MVA/MVar (unless per unit of nominal power, e.g. generator.p_max_pu for variable generators is per unit of generator.p_nom) |
+| Power | MW/MVA/MVar (unless per unit of nominal power, e.g. `n.generators.p_max_pu` for variable generators is per-unit of `n.generators.p_nom`) |
 | Time | h |
 | Energy | MWh |
-| Voltage | kV phase-phase for bus.v_nom; per unit for v_mag_pu, v_mag_pu_set, v_mag_pu_min etc. |
-| Angles | radians, except transformer.phase_shift which is in degrees for easy input |
-| Impedance | Ohm, except transformers which are pu, using transformer.s_nom for the base power |
-| CO2-equivalent emissions | tonnes of CO2-equivalent per MWh_thermal of energy carrier |
+| Voltage | kV phase-phase for `n.buses.v_nom`; per-unit for `n.buses.v_mag_pu` |
+| Angles | radians, except `n.transformers.phase_shift` which is in degrees |
+| Impedance | Ohm, except transformers which are per-unit, using `n.transformers.s_nom` for the base power |
+| CO~2~ emissions | tonnes of CO~2~ per MWh~thermal~ of energy carrier |
 
-**Per unit values** of voltage and impedance are used internally for
-network calculations. It is assumed internally that the base power is
-1 MVA. The base voltage depends on the component.
+Per unit values of voltage and impedance are used internally for
+network calculations. It is assumed that the base power is
+**1 MVA**. The base voltage depends on the component.
+
+!!! note
+
+    The units of buses can also refer to non-electric carriers, such as tonnes of hydrogen (t~H2~). In this case, the units
+    of energy would be t~H2~ with units of power of t~H2~/h. Unit conversions are not applied automatically handled, but must be encoded through the efficiencies.
+
+## Variable Conventions
+
+All nominal capacities and dispatch variables refer to `bus` for one-port components and `bus0` for branch components. 
 
 ## Sign Conventions
 
-The sign convention in PyPSA follows other major software packages,
-such as MATPOWER, PYPOWER and DIgSILENT PowerFactory.
-
-* The power (p,q) of generators or storage units is positive if the
-  asset is injecting power into the bus, negative if withdrawing power
+* The power (`p`,`q`) of generators or storage units is positive if the
+  asset is injecting power into the bus, and negative if withdrawing power
   from bus.
-* The power (p,q) of loads is positive if withdrawing power from bus, negative if injecting power into bus.
-* The power (p0,q0) at bus0 of a branch (line, link, or transformer) is positive if the branch is
-  withdrawing power from bus0, i.e. bus0 is injecting into branch
-* Similarly the power (p1,q1) at bus1 of a branch is positive if the
-  branch is withdrawing power from bus1, negative if the branch is
-  injecting into bus1
-* If p0 > 0 and p1 < 0 for a branch then active power flows from bus0
-  to bus1; p0+p1 > 0 is the active power losses for this direction of
-  power flow.
+* The power (`p`,`q`) of loads is positive if withdrawing power from bus,
+  negative if injecting power into bus.
+* The power (`p0`,`q0`) at `bus0` of a branch (line, link, or transformer) is
+  positive if the branch is
+  withdrawing power from `bus0`, i.e. `bus0` is injecting into the branch.
+* Similarly the power (`p1`,`q1`) at `bus1` of a branch is positive if the
+  branch is withdrawing power from `bus1`, and negative if the branch is
+  injecting into `bus1`.
+* If `p0>0` and `p1<0` for a branch then power flows from `bus0`
+  to `bus1`; `p0+p1 > 0` is the loss for this direction of flow.
 
-## Input and output data
-
-Input and output data is strictly separated in PyPSA, such that inputs are not
-overwritten by outputs from computations. Therefore, set points are stored
-separately from actual dispatch points.
-
-For instance, dispatchable generators have a `p_set` series which is separate
-from the calculated active power series `p`, since the operators's intention
-may be different from what is calculated (e.g. when using distributed slack for
-the active power).
