@@ -10,6 +10,39 @@ The [pypsa.Network][] is an overall container for all network components ([pypsa
 
 A network also holds functions to run compute power flows, optimal power flow and capacity expansion planning problems, as well as functions to retrieve statistics and plot the network.
 
+todo: General Update
+todo: Update with Components API
+todo: Update for data validation pr
+
+## Network Components
+
+PyPSA represents power and energy systems using the following components:
+
+{{ read_csv('../../pypsa/data/components.csv') }}
+
+For each class of components, the data describing the components is stored in a `pandas.DataFrame` corresponding to the `list_name`. For example, all static data for buses is stored in `n.buses`. In this `pandas.DataFrame` the index corresponds to the unique string names of the components, while the columns correspond to the component static attributes. For example, `n.buses.v_nom` gives the nominal voltages of each bus.
+
+Time-varying series attributes are stored in a dictionary of `pandas.DataFrame` based on the `list_name` followed by the suffix `_t`, e.g. `n.buses_t`. Please also read the [time-varying section](#time-varying).
+
+For each component class, their attributes, types (float/boolean/string/int/series), defaults, descriptions and statuses are stored in a `pandas.DataFrame` as an attribute of the class as e.g. [`n.components.buses.defaults`][pypsa.Components.defaults].
+
+Their status is either "Input" for those attributes which the user specifies or "Output" for those results which PyPSA calculates.
+
+The inputs can be either "required", if the user *must* give the input, or "optional", if PyPSA will use a sensible default if the user gives no input.
+
+## Component Groups
+
+Components are grouped according to their properties in sets such as `n.one_port_components` and `n.branch_components`.
+
+**One-port components** share the property that they all connect to a single bus, i.e. generators, loads, storage units, etc.. They share the attributes `bus`, `p_set`, `q_set`, `p`, `q`.
+
+**Branches** connect two buses. They share the attributes `bus0`, `bus1`.
+
+**Passive branches** are branches whose power flow is not directly controllable, but is determined passively by their impedances and the nodal power imbalances, i.e. lines and transformers.
+
+**Controllable branches** are branches whose power flow can be controlled by the optimisation, i.e. links.
+
+
 ## Buses
 
 The bus is the fundamental node to which all loads, generators, storage units,
