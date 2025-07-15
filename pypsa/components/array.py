@@ -155,10 +155,9 @@ class ComponentsArrayMixin(_ComponentsABC):
             # Concatenate only if there is existing dynamic data
             if len(dynamic) > 0:
                 res = pd.concat([dynamic, static_to_dynamic], axis=1, copy=False)
+                res = res[index]
             else:
                 res = static_to_dynamic
-
-            res = res.reindex(columns=index, fill_value=np.nan)
 
         # Handle p_set special case for power flow
         if attr == "p_set" and in_pf:
