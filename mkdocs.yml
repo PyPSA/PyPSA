@@ -25,7 +25,22 @@ nav:
   - What's new in v1.0: user-guide/v1-guide.md
   - Core Design:
     - Design: user-guide/design.md
-    - Component Types: user-guide/component-types.md
+    - Component Types:
+      - Sub-Network: user-guide/components/sub_networks.md
+      - Bus: user-guide/components/buses.md
+      - Carrier: user-guide/components/carriers.md
+      - Global Constraints: user-guide/components/global_constraints.md
+      - Generator: user-guide/components/generators.md
+      - Store: user-guide/components/stores.md
+      - StorageUnit: user-guide/components/storage_units.md
+      - Load: user-guide/components/loads.md
+      - Shunt Impedance: user-guide/components/shunt_impedances.md
+      - Line: user-guide/components/lines.md
+      - Line Types: user-guide/components/line_types.md
+      - Transformer: user-guide/components/transformers.md
+      - Transformer Types: user-guide/components/transformer_types.md
+      - Link: user-guide/components/links.md
+      - Shapes: user-guide/components/shapes.md
   - Optimization:
     - Optimization with Linopy: user-guide/optimization-with-linopy.md
     - Power Flow: user-guide/power-flow.md
@@ -230,6 +245,7 @@ plugins:
 - search
 - tags
 - autolinks
+- table-reader
 - mkdocs-video
 - git-revision-date-localized:
     type: timeago
