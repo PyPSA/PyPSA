@@ -52,7 +52,6 @@ def get_switchable_as_dense(
     Use `n.get_switchable_as_dense` instead.
 
     """
-    return n.components[component]._as_dynamic(attr, snapshots, inds)
     return n.get_switchable_as_dense(component, attr, snapshots, inds)
 
 

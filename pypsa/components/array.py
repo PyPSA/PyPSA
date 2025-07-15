@@ -166,7 +166,6 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         res.index.name = sns.name
         if self.has_scenarios:
-            res.columns.name = "name"
             res.columns.names = static.index.names
         else:
             res.columns.name = "name"
