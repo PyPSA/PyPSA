@@ -78,6 +78,7 @@ docs = [
     "mkdocs-git-revision-date-localized-plugin",
     "mkdocs-git-committers-plugin",
     "mkdocs-argref-plugin",
+    "mkdocs-table-reader-plugin",
     "mkdocstrings-python",
     "mkdocs-jupyter",
     "cairosvg",
