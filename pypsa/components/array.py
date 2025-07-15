@@ -7,8 +7,6 @@ DataArray for each variable.
 from __future__ import annotations
 
 import copy
-import inspect
-import os
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -115,10 +113,6 @@ class ComponentsArrayMixin(_ComponentsABC):
         [2 rows x 6 columns]
 
         """
-        # Check if we are in a power flow calculation
-        stack = inspect.stack()
-        in_pf = any(os.path.basename(frame.filename) == "pf.py" for frame in stack)  # noqa: PTH119
-
         sns = as_index(self.n_save, snapshots, "snapshots")
         index = self.static.index
 
@@ -158,10 +152,6 @@ class ComponentsArrayMixin(_ComponentsABC):
                 res = res[index]
             else:
                 res = static_to_dynamic
-
-        # Handle p_set special case for power flow
-        if attr == "p_set" and in_pf:
-            res = res.fillna(0)
 
         res.index.name = sns.name
         if self.has_scenarios:
