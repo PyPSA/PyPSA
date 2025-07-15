@@ -14,7 +14,6 @@ import scipy.sparse as sp
 from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
-from sklearn.cluster import AgglomerativeClustering as HAC
 
 from pypsa.geo import haversine_pts
 
@@ -812,6 +811,8 @@ def busmap_by_hac(
             "or 'pip install scikit-learn'"
         )
         raise ModuleNotFoundError(msg)
+
+    from sklearn.cluster import AgglomerativeClustering as HAC  # noqa: PLC0415
 
     if buses_i is None:
         buses_i = n.buses.index
