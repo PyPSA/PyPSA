@@ -234,3 +234,23 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
             stacklevel=2,
         )
     return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")
+
+
+def carbon_management() -> Network:
+    """Load the carbon management network example of PyPSA.
+
+    The Carbon Management Network has 20 days of data on the hybrid case from a
+    recently published paper on carbon management based on PyPSA-Eur. It is
+    sector-coupled and currently the most complex example network within PyPSA,
+    making it ideal for exploring the plotting and statistical functionality.
+
+    References
+    ----------
+    [^1]: Hofmann, F., Tries, C., Neumann, F. et al. H2 and CO2 network strategies for
+    the European energy system. Nat Energy 10, 715–724 (2025).
+    https://doi.org/10.1038/s41560-025-01752-6
+
+    """
+    return Network(
+        "https://tubcloud.tu-berlin.de/s/iiyxyDEdYBeeKXF/download?path=%2F&files=carbon-management.nc"
+    )
