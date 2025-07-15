@@ -11,6 +11,7 @@ import inspect
 import os
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 import xarray
 
@@ -120,20 +121,46 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         sns = as_index(self.n_save, snapshots, "snapshots")
         index = self.static.index
-        empty_index = index[:0]  # keep index name and names
-        empty_static = pd.Series([], index=empty_index)
-        static = self.static.get(attr, empty_static)
-        empty_dynamic = pd.DataFrame(index=sns, columns=empty_index)
-        dynamic = self.dynamic.get(attr, empty_dynamic).loc[sns]
 
+        static = self.static.get(attr, pd.Series([], index=index[:0]))
+        dynamic = self.dynamic.get(attr, pd.DataFrame(index=sns, columns=index[:0]))
+
+        # Filter snapshots
+        if not dynamic.index.equals(sns):
+            dynamic = dynamic.reindex(sns, fill_value=np.nan)
+
+        # Filter names
         if inds is not None:
             index = index.intersection(inds)
 
+        # Find columns that need to be filled from static data
         diff = index.difference(dynamic.columns)
-        static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
-        res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
 
-        # power flow calculations in pf.py require a starting point for the algorithm, while p_set default is n/a
+        if len(diff) == 0:
+            # No static data needed, just slice dynamic
+            res = dynamic.reindex(columns=index, fill_value=np.nan)
+        else:
+            static_subset = static.reindex(diff, fill_value=np.nan)
+
+            if len(static_subset) > 0:
+                static_values = static_subset.values
+                static_to_dynamic = pd.DataFrame(
+                    data=static_values.reshape(1, -1).repeat(len(sns), axis=0),
+                    index=sns,
+                    columns=diff,
+                )
+            else:
+                static_to_dynamic = pd.DataFrame(index=sns, columns=diff)
+
+            # Concatenate only if there is existing dynamic data
+            if len(dynamic) > 0:
+                res = pd.concat([dynamic, static_to_dynamic], axis=1, copy=False)
+            else:
+                res = static_to_dynamic
+
+            res = res.reindex(columns=index, fill_value=np.nan)
+
+        # Handle p_set special case for power flow
         if attr == "p_set" and in_pf:
             res = res.fillna(0)
 
