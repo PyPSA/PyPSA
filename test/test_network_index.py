@@ -92,3 +92,21 @@ class TestNetworkScenarioIndex:
             ValueError, match="The sum of the weights in `scenarios` must be equal to 1"
         ):
             n.set_scenarios(scenarios=scenarios)
+
+    def test_standard_types_not_broadcasted_by_scenario(self, n):
+        """Test that standard types (LineType, TransformerType) are not broadcasted by scenario."""
+
+        # Get initial line types index (should not have scenarios)
+        initial_line_types_index = n.line_types.index.copy()
+        initial_bus_count = len(n.buses)
+
+        # Set scenarios
+        n.set_scenarios(scenarios=["scenario1", "scenario2"])
+
+        # After setting scenarios, line types should still have the original index
+        pd.testing.assert_index_equal(n.line_types.index, initial_line_types_index)
+
+        # But other components like buses should be broadcasted
+        assert len(n.buses) == initial_bus_count * 2
+        # Check that buses have scenario index
+        assert n.buses.index.names[0] == "scenario"
