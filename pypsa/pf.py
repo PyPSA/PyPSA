@@ -31,16 +31,19 @@ def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
 
 
 def normed(s: pd.Series) -> pd.Series:
+    """Raise deprecation warning for normed function."""
     msg = "`normed` was deprecated in pypsa 0.35.0."
     raise DeprecationWarning(msg)
 
 
 def real(X: pd.Series) -> pd.Series:
+    """Raise deprecation warning for real function."""
     msg = "`real` was deprecated in pypsa 0.35.0."
     raise DeprecationWarning(msg)
 
 
 def imag(X: pd.Series) -> pd.Series:
+    """Raise deprecation warning for imag function."""
     msg = "`imag` was deprecated in pypsa 0.35.0."
     raise DeprecationWarning(msg)
 

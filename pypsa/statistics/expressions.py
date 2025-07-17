@@ -286,7 +286,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
     Get aggregated statistics in a single DataFrame:
 
-    >>> n.statistics()
+    >>> n.statistics() # doctest: +ELLIPSIS
                     Optimal Capacity  ...  Market Value
     Generator gas          982.03448  ...   1559.511099
               wind        7292.13406  ...    589.813549
@@ -377,7 +377,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> pd.DataFrame:
         if isinstance(vals.index, pd.MultiIndex):
             levels = vals.index.names
-            keep_levels = [l for l in levels if l not in ["component", c]]
+            keep_levels = [l for l in levels if l not in ["name", c]]
             grouping_df = grouping["by"]
             if isinstance(grouping_df, pd.Series):
                 grouping_df = grouping_df.to_frame()
@@ -1338,7 +1338,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             result = []
             weights = n.snapshot_weightings.objective
             weights_one = pd.Series(1.0, index=weights.index)
-            com_i = n.get_committable_i(c)
+            com_i = n.components[c].committables
 
             for cost_type in [
                 "marginal_cost",
@@ -2258,7 +2258,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             buses = n.static(c)[f"bus{port}"][df.columns]
             # catch multiindex case
             buses = (
-                buses.to_frame("bus").set_index("bus", append=True).droplevel(c).index
+                buses.to_frame("bus")
+                .set_index("bus", append=True)
+                .droplevel("name")
+                .index
             )
             prices = n.buses_t.marginal_price.reindex(
                 columns=buses, fill_value=0
