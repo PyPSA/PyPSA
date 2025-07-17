@@ -413,17 +413,31 @@ def apply_line_types(n: Network) -> None:
     if lines_with_types_b.zsum() == 0:
         return
 
-    missing_types = pd.Index(
-        n.lines.loc[lines_with_types_b, "type"].unique()
-    ).difference(n.line_types.index)
+    # Get unique line types from lines
+    line_types_used = n.lines.loc[lines_with_types_b, "type"].unique()
+
+    if isinstance(n.line_types.index, pd.MultiIndex):
+        # For MultiIndex, check if the type names (last level) contain the required types
+        available_types = n.line_types.index.get_level_values(-1).unique()
+        missing_types = pd.Index(line_types_used).difference(available_types)
+    else:
+        missing_types = pd.Index(line_types_used).difference(n.line_types.index)
+
     if not missing_types.empty:
         msg = f"The type(s) {', '.join(missing_types)} do(es) not exist in n.line_types"
         raise ValueError(msg)
 
-    # Get a copy of the lines data
-    lines = n.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
-        n.line_types, on="type"
-    )
+    lines = n.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].copy()
+
+    if isinstance(n.line_types.index, pd.MultiIndex):
+        # For stochastic network, use the first scenario's line types
+        # User changes across line type data are caught by the consistency check
+        line_types_to_use = n.line_types.xs(
+            n.line_types.index.get_level_values(0)[0], level=0
+        )
+        lines = lines.join(line_types_to_use, on="type")
+    else:
+        lines = lines.join(n.line_types, on="type")
 
     for attr in ["r", "x"]:
         lines[attr] = (

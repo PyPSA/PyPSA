@@ -826,6 +826,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             in component attributes.
         [pypsa.consistency.check_scenarios_sum_to_one][] : Check if scenarios probabilities sum to 1.
         [pypsa.consistency.check_scenario_invariant_attributes][] : Check if certain component attributes are invariant across scenarios.
+        [pypsa.consistency.check_line_types_consistency][] : Check if line_types are identical across scenarios.
         [pypsa.consistency.check_stochastic_slack_bus_consistency][] : Check if same slack bus is chosen across scenarios.
 
         """
@@ -849,6 +850,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             "dtypes",
             "scenarios_sum",
             "scenario_invariant_attrs",
+            "line_types",
             "slack_bus_consistency",
         ]
 
@@ -898,6 +900,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_shapes(self, "shapes" in strict)
         check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
         check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
+        check_line_types_consistency(self, "line_types" in strict)
         check_stochastic_slack_bus_consistency(self, "slack_bus_consistency" in strict)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
@@ -1059,6 +1062,57 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
                         attr,
                         scenarios_with_diff,
                         group[attr].to_dict(),
+                    )
+
+
+def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
+    """Check that line_types are identical across all scenarios.
+
+    In stochastic networks, line_types must be identical across all scenarios
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    if not n.has_scenarios:
+        return
+
+    # Check line_types consistency across scenarios
+    if (
+        hasattr(n, "line_types")
+        and not n.line_types.empty
+        and isinstance(n.line_types.index, pd.MultiIndex)
+    ):
+        # Get all scenarios
+        scenarios = n.line_types.index.get_level_values("scenario").unique()
+
+        if len(scenarios) > 1:
+            # Get reference line_types from first scenario
+            reference_scenario = scenarios[0]
+            reference_line_types = n.line_types.xs(reference_scenario, level="scenario")
+
+            # Check each other scenario
+            for scenario in scenarios[1:]:
+                scenario_line_types = n.line_types.xs(scenario, level="scenario")
+
+                # Check if DataFrames are equal
+                if not reference_line_types.equals(scenario_line_types):
+                    _log_or_raise(
+                        strict,
+                        "line_types must be identical across all scenarios. "
+                        "Found differences between scenario '%s' and '%s'. "
+                        "line_types define physical characteristics and cannot vary across scenarios.",
+                        reference_scenario,
+                        scenario,
                     )
 
 

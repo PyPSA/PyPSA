@@ -288,3 +288,95 @@ def test_scenario_invariant_attributes_comprehensive():
     n_non_stoch.add("Bus", "bus")
     n_non_stoch.add("Generator", "gen", bus="bus", carrier="test")
     n_non_stoch.consistency_check()  # Should pass
+
+
+@pytest.mark.parametrize("strict", [[], ["line_types"]])
+def test_line_types_consistency(caplog, strict):
+    """
+    Test that the consistency check raises an error if line_types vary across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=20)
+    n.add("Bus", "bus2", v_nom=20)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Create line_types with MultiIndex (different across scenarios)
+    import pandas as pd
+
+    line_types_data = {
+        ("s1", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},
+        ("s1", "type2"): {"r": 0.15, "x": 0.25, "c": 0.0, "i_nom": 150},
+        ("s2", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},  # Same as s1
+        ("s2", "type2"): {
+            "r": 0.2,
+            "x": 0.3,
+            "c": 0.0,
+            "i_nom": 200,
+        },  # Different from s1
+    }
+
+    line_types_df = pd.DataFrame.from_dict(line_types_data, orient="index")
+    line_types_df.index = pd.MultiIndex.from_tuples(
+        line_types_df.index, names=["scenario", "type"]
+    )
+
+    # Manually set line_types to simulate stochastic network
+    n.line_types = line_types_df
+
+    # Test only the line_types consistency check directly to avoid calculate_dependent_values
+    if strict and "line_types" in strict:
+        with pytest.raises(pypsa.consistency.ConsistencyError):
+            pypsa.consistency.check_line_types_consistency(n, strict=True)
+    else:
+        # For non-strict mode, check that it logs a warning
+        pypsa.consistency.check_line_types_consistency(n, strict=False)
+        assert caplog.records[-1].levelname == "WARNING"
+
+
+def test_line_types_consistency_pass():
+    """
+    Test that the consistency check passes when line_types are identical across scenarios.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=20)
+    n.add("Bus", "bus2", v_nom=20)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Create identical line_types across scenarios
+    import pandas as pd
+
+    line_types_data = {
+        ("s1", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},
+        ("s1", "type2"): {"r": 0.15, "x": 0.25, "c": 0.0, "i_nom": 150},
+        ("s2", "type1"): {"r": 0.1, "x": 0.2, "c": 0.0, "i_nom": 100},  # Same as s1
+        ("s2", "type2"): {"r": 0.15, "x": 0.25, "c": 0.0, "i_nom": 150},  # Same as s1
+    }
+
+    line_types_df = pd.DataFrame.from_dict(line_types_data, orient="index")
+    line_types_df.index = pd.MultiIndex.from_tuples(
+        line_types_df.index, names=["scenario", "type"]
+    )
+
+    # Manually set line_types to simulate stochastic network
+    n.line_types = line_types_df
+
+    # This should pass because line_types are identical across scenarios
+    pypsa.consistency.check_line_types_consistency(n, strict=True)
+
+
+def test_line_types_consistency_non_stochastic():
+    """
+    Test that the consistency check is skipped for non-stochastic networks.
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus1", v_nom=20)
+    n.add("Bus", "bus2", v_nom=20)
+
+    # Add line_types without scenarios (normal operation)
+    n.add("LineType", "type1", r=0.1, x=0.2, c=0.0, i_nom=100)
+    n.add("LineType", "type2", r=0.15, x=0.25, c=0.0, i_nom=150)
+
+    # This should pass because it's not a stochastic network
+    pypsa.consistency.check_line_types_consistency(n, strict=True)
