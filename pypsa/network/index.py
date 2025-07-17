@@ -707,10 +707,6 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios_.index.name = "scenario"
 
         for c in self.components.values():
-            # Skip broadcasting standard types (like LineType, TransformerType) across scenarios
-            if c.name in self.standard_type_components:
-                continue
-
             c.static = pd.concat(
                 dict.fromkeys(scenarios_.index, c.static), names=["scenario"]
             )
