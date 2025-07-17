@@ -165,7 +165,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         attr: str,
         snapshots: Sequence | None = None,
         inds: Sequence | None = None,
-        drop_scenarios: bool = False,
+        drop_scenarios: bool = False,  # TODO: Do we need that?
     ) -> xarray.DataArray:
         """Get an attribute as a xarray DataArray.
 

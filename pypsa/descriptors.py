@@ -371,8 +371,7 @@ def _update_linkports_component_attrs(
         )
         # Also update container for varying attributes
         if attr in ["efficiency", "p"] and target not in n.dynamic(c):
-            df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
-            df.columns.name = c
+            df = pd.DataFrame(index=n.snapshots, columns=n.links.index[:0], dtype=float)
             n.dynamic(c)[target] = df
         elif attr == "bus" and target not in n.static(c).columns:
             n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
