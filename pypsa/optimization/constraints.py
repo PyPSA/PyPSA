@@ -1632,21 +1632,36 @@ def define_total_supply_constraints(
     eh = DataArray(
         expand_series(n.snapshot_weightings.generators[sns_], c.static.index)
     )
+    # Unstack in stochastic networks with MultiIndex snapshots
+    if n.has_scenarios:
+        eh = eh.unstack("dim_1")
+
+    def _extract_names(index: pd.Index) -> pd.Index:
+        """Extract name level from MultiIndex or return as-is."""
+        return (
+            index.get_level_values("name")
+            if isinstance(index, pd.MultiIndex)
+            else index
+        )
 
     # minimum energy production constraints
     e_sum_min_i = c.static.index[c.static.e_sum_min > -inf]
     if not e_sum_min_i.empty:
-        e_sum_min = c.da.e_sum_min.sel(name=e_sum_min_i)
-        p = m[f"{c.name}-p"].sel(name=e_sum_min_i, snapshot=sns_)
-        energy = (p * eh).sum(dim="snapshot")
+        names = _extract_names(e_sum_min_i)
+        e_sum_min = c.da.e_sum_min.sel(name=names)
+        p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
+        eh_selected = eh.sel(name=names)
+        energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, ">=", e_sum_min, name=f"{c.name}-e_sum_min")
 
     # maximum energy production constraints
     e_sum_max_i = c.static.index[c.static.e_sum_max < inf]
     if not e_sum_max_i.empty:
-        e_sum_max = c.da.e_sum_max.sel(name=e_sum_max_i)
-        p = m[f"{c.name}-p"].sel(name=e_sum_max_i, snapshot=sns_)
-        energy = (p * eh).sum(dim="snapshot")
+        names = _extract_names(e_sum_max_i)
+        e_sum_max = c.da.e_sum_max.sel(name=names)
+        p = m[f"{c.name}-p"].sel(name=names, snapshot=sns_)
+        eh_selected = eh.sel(name=names)
+        energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
 
 
