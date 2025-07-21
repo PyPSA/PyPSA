@@ -633,7 +633,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         meshed_threshold = kwargs.get("meshed_threshold", 45)
         meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
-        weakly_meshed_buses = n.buses.index.difference(meshed_buses)
+
+        if isinstance(n.buses.index, pd.MultiIndex):
+            bus_names = n.buses.index.get_level_values(1)
+            weakly_meshed_buses = pd.Index(
+                [b for b in bus_names if b not in meshed_buses], name="Bus"
+            )
+        else:
+            weakly_meshed_buses = n.buses.index.difference(meshed_buses)
+
         if not meshed_buses.empty and not weakly_meshed_buses.empty:
             # Write constraint for buses many terms and for buses with a few terms
             # separately. This reduces memory usage for large networks.
