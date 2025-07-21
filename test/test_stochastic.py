@@ -1084,3 +1084,74 @@ def test_multiperiod_stochastic_scenario_differences(n_multiperiod_stochastic):
             high_cap = n.generators.p_nom_opt.loc[("high", gen_name)]
             low_cap = n.generators.p_nom_opt.loc[("low", gen_name)]
             assert high_cap == low_cap
+
+
+def test_multiperiod_stochastic_coordinate_alignment():
+    """Test coordinate alignment problem for multiperiod + stochastic + storage units.
+
+    This test reproduces the exact scenario that caused the coordinate alignment bug:
+    - Multiperiod optimization with investment periods
+    - Scenarios (creating MultiIndex snapshots)
+    - Storage units (triggering the problematic constraint)
+    """
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+        # Create minimal multiperiod network
+        n = pypsa.Network(snapshots=range(4))
+        n.investment_periods = [2020, 2030]
+
+        n.add("Carrier", "elec")
+        n.add("Bus", "bus1", carrier="elec")
+
+        # Fill network with components
+        n.add(
+            "Generator",
+            "gen1",
+            bus="bus1",
+            p_nom_extendable=True,
+            capital_cost=100,
+            marginal_cost=10,
+            carrier="elec",
+        )
+        n.add("Load", "load1", bus="bus1", p_set=100)
+
+        n.add("StorageUnit", "storage1", bus="bus1", p_nom=50, max_hours=4)
+
+        # Set scenarios
+        n.set_scenarios(["scenario_a", "scenario_b"])
+
+        # The key test: model creation should succeed without coordinate alignment errors
+        try:
+            n.optimize.create_model()
+            model_created = True
+        except Exception as e:
+            if "cannot align objects with join='exact'" in str(e):
+                pytest.fail(
+                    f"Coordinate alignment error in multiperiod stochastic storage: {e}"
+                )
+            else:
+                raise e
+
+        assert model_created, (
+            "Multiperiod stochastic model with storage should be created successfully"
+        )
+
+        # Verify the problematic constraint was created correctly
+        assert "StorageUnit-energy_balance" in n.model.constraints
+        storage_constraint = n.model.constraints["StorageUnit-energy_balance"]
+
+        # Should have all expected dimensions
+        expected_dims = {"scenario", "name", "snapshot"}
+        actual_dims = set(storage_constraint.dims)
+        assert expected_dims.issubset(actual_dims), (
+            f"Missing dimensions in storage constraint: {expected_dims - actual_dims}"
+        )
+
+        # Test that full optimization also works
+        status, condition = n.optimize(multi_investment_periods=True)
+        assert status == "ok", (
+            f"Multiperiod stochastic optimization should succeed, got status: {status}"
+        )
