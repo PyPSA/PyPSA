@@ -195,31 +195,19 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
     m = n.model
     periods = sns.unique("period")
 
-    # Handle stochastic networks where carriers has MultiIndex (scenario, component)
-    if isinstance(n.carriers.index, pd.MultiIndex):
-        # For stochastic networks, we need to get unique carriers across scenarios
-        # and use the first scenario's data (carriers should be identical across scenarios)
-        unique_carriers = (
-            n.carriers.query("max_growth != inf")
-            .index.get_level_values("name")
-            .unique()
-        )
-        carrier_i = pd.Index(unique_carriers, name="Carrier")
-        # Get max_growth values from the first scenario (they should be identical)
-        first_scenario = n.carriers.index.get_level_values("scenario")[0]
-        max_absolute_growth = DataArray(
-            n.carriers.loc[(first_scenario, unique_carriers), "max_growth"]
-        )
-        max_relative_growth = DataArray(
-            n.carriers.loc[(first_scenario, unique_carriers), "max_relative_growth"]
-        ).clip(min=0)
+    # Handle stochastic optimization: find strictest (minimum) growth limit across scenarios
+    if n.has_scenarios:
+        max_growth = n.carriers.groupby(level="name")["max_growth"].min()
+        max_relative_growth = n.carriers.groupby(level="name")[
+            "max_relative_growth"
+        ].min()
     else:
-        # Non-stochastic case
-        carrier_i = n.carriers.query("max_growth != inf").index.rename("Carrier")
-        max_absolute_growth = DataArray(n.carriers.loc[carrier_i, "max_growth"])
-        max_relative_growth = DataArray(
-            n.carriers.loc[carrier_i, "max_relative_growth"]
-        ).clip(min=0)
+        max_growth = n.carriers["max_growth"]
+        max_relative_growth = n.carriers["max_relative_growth"]
+
+    carrier_i = max_growth[max_growth != float("inf")].index.rename("Carrier")
+    max_absolute_growth = DataArray(max_growth.loc[carrier_i])
+    max_relative_growth = DataArray(max_relative_growth.loc[carrier_i]).clip(min=0)
 
     if carrier_i.empty:
         return
@@ -232,18 +220,27 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         if "carrier" not in static:
             continue
 
-        limited_i = static.index[static.carrier.isin(carrier_i)].intersection(
-            n.components[c].extendables
-        )
-        if limited_i.empty:
+        # Extract names from MultiIndex if stochastic (drop scenarios since we found strictest limits)
+        component_carriers = static.loc[:, "carrier"]
+        component_names = _extract_names_for_multiindex(static.index)
+        carrier_map = component_carriers.groupby(component_names).first()
+
+        carriers_match = component_names[component_carriers.isin(carrier_i)]
+        limited_names = carriers_match.intersection(n.components[c].extendables)
+
+        if limited_names.empty:
             continue
 
+        # Get active assets for the limited components (handles also the stochastic case)
         active = pd.concat({p: n.get_active_assets(c, p) for p in periods}, axis=1)
-        active = active.loc[limited_i].rename_axis(columns="periods").T
-        first_active = DataArray(active.cumsum() == 1)
-        carriers = static.loc[limited_i, "carrier"].rename("Carrier")
 
-        vars = m[var].sel(name=limited_i).where(first_active)
+        active_names = _extract_names_for_multiindex(active.index)
+        active = active.groupby(active_names).first()  # Drop scenario dimension
+        active = active.loc[limited_names].rename_axis(columns="periods").T
+        first_active = DataArray(active.cumsum() == 1)
+        carriers = carrier_map.loc[limited_names].rename("Carrier")
+
+        vars = m[var].sel(name=limited_names).where(first_active)
         expr = vars.groupby(carriers.to_xarray()).sum()
 
         if (max_relative_growth.loc[carriers.unique()] > 0).any():

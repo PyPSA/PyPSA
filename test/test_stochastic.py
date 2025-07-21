@@ -1155,3 +1155,74 @@ def test_multiperiod_stochastic_coordinate_alignment():
         assert status == "ok", (
             f"Multiperiod stochastic optimization should succeed, got status: {status}"
         )
+
+
+@pytest.fixture
+def n():
+    n = pypsa.Network(snapshots=range(10))
+    n.investment_periods = [2020, 2030, 2040, 2050]
+    n.add("Carrier", "gencarrier")
+    n.add("Bus", [1, 2])
+
+    for i, period in enumerate(n.investment_periods):
+        factor = (10 + i) / 10
+        n.add(
+            "Generator",
+            [f"gen1-{period}", f"gen2-{period}"],
+            bus=[1, 2],
+            lifetime=30,
+            build_year=period,
+            capital_cost=[100 / factor, 100 * factor],
+            marginal_cost=[i + 2, i + 1],
+            p_nom_extendable=True,
+            carrier="gencarrier",
+        )
+
+    for i, period in enumerate(n.investment_periods):
+        n.add(
+            "Line",
+            f"line-{period}",
+            bus0=1,
+            bus1=2,
+            length=1,
+            build_year=period,
+            lifetime=40,
+            capital_cost=30 + i,
+            x=0.0001,
+            s_nom_extendable=True,
+        )
+
+    load = range(100, 100 + len(n.snapshots))
+    load = pd.DataFrame({"load1": load, "load2": load}, index=n.snapshots)
+    n.add(
+        "Load",
+        ["load1", "load2"],
+        bus=[1, 2],
+        p_set=load,
+    )
+
+    return n
+
+
+def test_max_growth_constraint_stochastic(n):
+    """Test growth limit constraints work correctly with stochastic networks."""
+    gen_carrier = n.generators.carrier.unique()[0]
+    n.carriers.at[gen_carrier, "max_growth"] = 300
+    n.set_scenarios({"scenario_1": 1})
+    n.carriers.xs("scenario_1").at[gen_carrier, "max_growth"] = 218
+    kwargs = {"multi_investment_periods": True}
+    status, cond = n.optimize(**kwargs)
+    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
+    assert "Carrier-growth_limit" in n.model.constraints
+
+
+def test_max_relative_growth_constraint(n):
+    """Test growth relative limit constraints work correctly with stochastic networks."""
+    gen_carrier = n.generators.carrier.unique()[0]
+    n.carriers.at[gen_carrier, "max_growth"] = 218
+    n.carriers.at[gen_carrier, "max_relative_growth"] = 1.5
+    n.set_scenarios({"scenario_1": 1})
+    kwargs = {"multi_investment_periods": True}
+    status, cond = n.optimize(**kwargs)
+    built_per_period = n.generators.p_nom_opt.groupby(n.generators.build_year).sum()
+    assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
