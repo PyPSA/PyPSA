@@ -1,7 +1,7 @@
 todo: Add uv, pip, conda
 
 
-# Contributing
+# Instructions for Contributing
 
 First of all, thank you for thinking about contributing to PyPSA! 
 
@@ -35,7 +35,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 
 What to work on, TODO, which issues, labeling etc.  #TODO: 
 
-### Code Style
+### Style
 
 **pre-commit**
 

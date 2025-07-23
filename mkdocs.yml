@@ -153,7 +153,7 @@ nav:
     - Package Options: api/other/options.md
 
 - Contributing:
-  - Overview: contributing/contributing.md
+  - Instructions: contributing/contributing.md
   - Code of Conduct: contributing/code-of-conduct.md
   - Community: contributing/community.md
   - Contributors: contributing/contributors.md
