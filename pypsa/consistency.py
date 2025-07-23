@@ -108,7 +108,7 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
         for attr in _bus_columns(component.static):
             connected_buses.update(component.static[attr])
 
-    disconnected_buses = set(n.buses.index) - connected_buses
+    disconnected_buses = set(n.buses.index.unique("name")) - connected_buses
     if disconnected_buses:
         _log_or_raise(
             strict,

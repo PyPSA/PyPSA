@@ -11,7 +11,6 @@ from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
 
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -287,23 +286,33 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         else:
             continue
 
+        breakpoint()
         lhs = []
         rhs = glc.constant
-        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0]
+        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0].rename_axis(
+            index={"name": "carrier"}
+        )
+        join_on = emissions.index.names
 
         if emissions.empty:
             continue
 
         # generators
-        gens = n.generators.query("carrier in @emissions.index")
+        emission_carriers = emissions.index.unique("carrier")
+        gens = n.generators[n.generators.carrier.isin(emission_carriers)]
         if not gens.empty:
-            efficiency = get_as_dense(
-                n, "Generator", "efficiency", snapshots=sns[sns_sel], inds=gens.index
+            names = gens.index.unique("name")
+            efficiency = n.components.generators._as_dynamic("efficiency").loc[
+                sns[sns_sel], gens.index
+            ]
+            em_pu = gens.join(emissions, join_on)[emissions.name] / efficiency
+            em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0).reindex(
+                columns=names, level="name"
             )
-            em_pu = gens.carrier.map(emissions) / efficiency
-            em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0)
 
-            names = _extract_names_for_multiindex(gens.index)
+            if isinstance(em_pu.columns, pd.MultiIndex):
+                em_pu = DataArray(em_pu).unstack("dim_1")
+
             p = m["Generator-p"].sel(name=names, snapshot=sns[sns_sel])
 
             expr = (p * em_pu).sum()
@@ -313,9 +322,11 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         cond = "carrier in @emissions.index and not cyclic_state_of_charge"
         sus = n.storage_units.query(cond)
         if not sus.empty:
-            em_pu = sus.carrier.map(emissions)
+            names = sus.index.unique("name")
+            em_pu = sus.join(emissions, join_on)[emissions.name].reindex(
+                names, level="name"
+            )
 
-            names = _extract_names_for_multiindex(sus.index)
             soc = m["StorageUnit-state_of_charge"].sel(
                 name=names, snapshot=sns[sns_sel]
             )
@@ -327,9 +338,11 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         # stores
         stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
         if not stores.empty:
-            em_pu = stores.carrier.map(emissions)
+            names = stores.index.unique("name")
+            em_pu = stores.join(emissions, join_on)[emissions.name].reindex(
+                names, level="name"
+            )
 
-            names = _extract_names_for_multiindex(stores.index)
             e = m["Store-e"].sel(name=names, snapshot=sns[sns_sel])
 
             e = e.ffill("snapshot").isel(snapshot=-1)

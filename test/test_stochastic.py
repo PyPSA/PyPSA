@@ -2,6 +2,7 @@
 Test stochastic functionality of PyPSA networks.
 """
 
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -12,6 +13,12 @@ from xarray import DataArray
 import pypsa
 from pypsa.common import expand_series
 from pypsa.components.common import as_components
+
+
+def test_stoch_example():
+    n = pypsa.examples.stochastic_network()
+
+    n.consistency_check(strict="all")
 
 
 def test_network_properties():
@@ -44,6 +51,13 @@ def test_network_properties():
 
     # Check string representation contains scenario information
     assert "Scenarios:" in repr(n)
+
+
+def test_example_consistency(ac_dc_meshed_stoch):
+    n = ac_dc_meshed_stoch
+    n.lines.x = n.lines.x.where(n.lines.x > 0, 0.0001)  # Avoid zero reactance
+    n.lines.r = n.lines.r.where(n.lines.r > 0, 0.0001)  # Avoid zero reactance
+    n.consistency_check(strict="all")
 
 
 def test_component_functions(ac_dc_meshed_stoch):
@@ -260,7 +274,6 @@ def test_solved_network_multiperiod():
     then verifies that the optimization completes successfully and produces
     expected results for both scenarios and investment periods.
     """
-    import warnings
 
     # Suppress pandas FutureWarning about fillna downcasting for entire test
     with warnings.catch_warnings():
@@ -358,7 +371,6 @@ def test_single_scenario():
     - Scenario indexing works correctly with one scenario
     - Solution is identical to a non-stochastic network with same data
     """
-    import warnings
 
     # Suppress pandas FutureWarning about fillna downcasting
     with warnings.catch_warnings():
@@ -438,7 +450,6 @@ def test_slack_bus_consistency_check():
     Test that the consistency check correctly identifies when different slack buses
     are chosen across scenarios.
     """
-    import warnings
 
     # Suppress pandas FutureWarning about fillna downcasting
     with warnings.catch_warnings():
@@ -504,7 +515,6 @@ def test_slack_bus_consistency_check_passes():
     Test that the consistency check passes when the same slack bus is chosen
     across scenarios.
     """
-    import warnings
 
     # Suppress pandas FutureWarning about fillna downcasting
     with warnings.catch_warnings():
@@ -673,7 +683,7 @@ def test_scenario_ordering_bug():
     assert expected_lulls_input < expected_windy_input
 
     # Check 2: Wind lulls scenario should have lower wind generation
-    n.optimize(pyomo=False)
+    n.optimize()
 
     actual_lulls_result = n.generators_t.p.loc[:, ("wind_lulls", wind_gens)].sum().sum()
     actual_windy_result = n.generators_t.p.loc[:, ("windy", wind_gens)].sum().sum()
@@ -819,7 +829,6 @@ def n_multiperiod_sus_stochastic(n_multiperiod_sus):
 # Small focused tests
 def test_multiperiod_stochastic_tiny_default():
     """Test tiny multiperiod stochastic network with default parameters"""
-    import warnings
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -868,7 +877,6 @@ def test_multiperiod_stochastic_tiny_default():
 
 def test_multiperiod_stochastic_tiny_build_year():
     """Test tiny multiperiod stochastic network with specific build year"""
-    import warnings
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -904,7 +912,6 @@ def test_multiperiod_stochastic_tiny_build_year():
 
 def test_multiperiod_stochastic_tiny_infeasible():
     """Test infeasible multiperiod stochastic network"""
-    import warnings
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -940,7 +947,6 @@ def test_multiperiod_stochastic_tiny_infeasible():
 
 def test_multiperiod_stochastic_simple_network(n_multiperiod_stochastic):
     """Test simple multiperiod stochastic network optimization"""
-    import warnings
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -982,7 +988,6 @@ def test_multiperiod_stochastic_simple_network(n_multiperiod_stochastic):
 
 def test_multiperiod_stochastic_snapshot_subset(n_multiperiod_stochastic):
     """Test multiperiod stochastic network with snapshot subset"""
-    import warnings
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -1017,7 +1022,6 @@ def test_multiperiod_stochastic_storage_units_bug(n_multiperiod_sus_stochastic):
     The fix ensures dimension order consistency by transposing the previous_soc_pp
     variable to match the expected dimension order when scenarios are present.
     """
-    import warnings
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -1060,7 +1064,6 @@ def test_multiperiod_stochastic_storage_units_bug(n_multiperiod_sus_stochastic):
 
 def test_multiperiod_stochastic_scenario_differences(n_multiperiod_stochastic):
     """Test that scenarios produce different results"""
-    import warnings
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=FutureWarning)
@@ -1202,6 +1205,15 @@ def n():
     )
 
     return n
+
+
+def test_primary_energy_constraint_stochastic(ac_dc_meshed_stoch):
+    """Test primary energy constraint works correctly with stochastic networks."""
+    n = ac_dc_meshed_stoch
+    assert ("low", "co2_limit") in n.global_constraints.index
+    assert ("high", "co2_limit") in n.global_constraints.index
+    n.optimize.create_model()
+    assert "GlobalConstraint-co2_limit" in n.model.constraints
 
 
 def test_max_growth_constraint_stochastic(n):

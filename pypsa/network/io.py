@@ -1809,7 +1809,8 @@ class NetworkIOMixin(_NetworkABC):
         for attr in [attr for attr in df if attr.startswith("bus")]:
             # allow empty buses for multi-ports
             port = int(attr[-1]) if attr[-1].isdigit() else 0
-            mask = ~df[attr].isin(self.components.buses.static.index)
+            buses = self.components.buses.static.index.unique("name")
+            mask = ~df[attr].isin(buses)
             if port > 1:
                 mask &= df[attr].ne("")
             missing = df.index[mask]

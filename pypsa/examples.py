@@ -264,6 +264,10 @@ def stochastic_network() -> Network:
     [^1]: See https://model.energy/
 
     """
-    return _retrieve_if_not_local(
+    n = _retrieve_if_not_local(
         "examples/networks/stochastic-network/stochastic-network.nc"
     )
+
+    n.add("Carrier", "AC", color="indianred")
+
+    return n
