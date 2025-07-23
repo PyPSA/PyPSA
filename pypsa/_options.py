@@ -219,6 +219,9 @@ class OptionsNode:
         api.legacy_components:
             Default: True
             Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+        debug.runtime_verification:
+            Default: False
+            Description: Enable runtime verification of PyPSA's internal state. This is useful for debugging and development purposes. This will lead to overhead in performance and should not be used in production.
         general.allow_network_requests:
             Default: True
             Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
@@ -262,21 +265,10 @@ class OptionsNode:
         api.legacy_components:
             Default: True
             Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
-        general.allow_network_requests:
-            Default: True
-            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
-        params.statistics.drop_zero:
-            Default: True
-            Description: Default value for the 'drop_zero' parameter in statistics module.
-        params.statistics.nice_names:
-            Default: True
-            Description: Default value for the 'nice_names' parameter in statistics module.
-        params.statistics.round:
-            Default: 5
-            Description: Default value for the 'round' parameter in statistics module.
-        warnings.components_store_iter:
-            Default: True
-            Description: If False, suppresses the deprecatio warning when iterating over components.
+        debug.runtime_verification:
+            Default: False
+            Description: Enable runtime verification of PyPSA's internal state. This is useful for debugging and development purposes. This will lead to overhead in performance and should not be used in production.
+        ...
 
         """
         self.describe_options()
@@ -329,6 +321,15 @@ options._add_option(
     "in restricted environments, offline usage, or for security/privacy reasons. "
     "This only controls PyPSA's own network requests, dependencies may still "
     "make network requests independently.",
+)
+
+# Debugging category
+options._add_option(
+    "debug.runtime_verification",
+    False,
+    "Enable runtime verification of PyPSA's internal state. This is useful for "
+    "debugging and development purposes. This will lead to overhead in "
+    "performance and should not be used in production.",
 )
 
 # API

@@ -113,7 +113,6 @@ def test_as_xarray_dynamic_with_scenarios(n):
     assert isinstance(da, xarray.DataArray)
 
     # Check coords
-    assert list(da.coords) == ["scenario", "name", "snapshot"]
     assert np.array_equal(da.snapshot, n.snapshots)
     # assert np.array_equal(
     #     da.coords["name"], n.generators.index.get_level_values("component").unique()

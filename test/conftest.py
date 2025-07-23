@@ -9,6 +9,8 @@ from shapely.geometry import Polygon
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
+pypsa.options.debug.runtime_verification = True
+
 
 def pytest_addoption(parser):
     parser.addoption(

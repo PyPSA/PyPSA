@@ -13,8 +13,10 @@ import numpy as np
 import pandas as pd
 import xarray
 
+from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
+from pypsa.guards import verify_xarray_data_consistency
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -161,12 +163,7 @@ class ComponentsArrayMixin(_ComponentsABC):
             res.columns.name = "name"
         return res
 
-    def _as_xarray(
-        self,
-        attr: str,
-        snapshots: Sequence | None = None,
-        components: Sequence | None = None,
-    ) -> xarray.DataArray:
+    def _as_xarray(self, attr: str) -> xarray.DataArray:
         """Get an attribute as a xarray DataArray.
 
         Converts component data to a flexible xarray DataArray format, which is
@@ -184,11 +181,6 @@ class ComponentsArrayMixin(_ComponentsABC):
         attr : str
             Attribute name to retrieve, can be an operational shorthand (e.g., "max_pu")
             or the full attribute name (e.g., "p_max_pu")
-        snapshots : Sequence | None, optional
-            Snapshots to include. If None, uses all snapshots for time-varying data
-            or returns static data as-is
-        components : pd.Index | None, optional
-            Component indices to filter by. If None, includes all components
 
         Returns
         -------
@@ -197,29 +189,27 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         """
         if attr == "active":
-            res = xarray.DataArray(self.get_activity_mask(snapshots))
-        elif attr in self.dynamic.keys() or snapshots is not None:
-            res = xarray.DataArray(self._as_dynamic(attr, snapshots))
+            res = xarray.DataArray(self.get_activity_mask())
+        elif attr in self.dynamic.keys():
+            res = xarray.DataArray(self._as_dynamic(attr))
         else:
             res = xarray.DataArray(self.static[attr])
 
+        # Unstack the dimension that contains the scenarios
         if self.has_scenarios:
-            # untack the dimension that contains the scenarios
-            res = res.unstack(res.indexes["scenario"].name)
-            # Ensure scenario order matches network's scenario order
-            if "scenario" in res.dims:
-                res = res.reindex(scenario=self.scenarios)
-
-        if components is not None:
-            res = res.sel(name=components)
-
-        if self.has_periods:
-            try:
-                res = res.rename(dim_0="snapshot")
-            except ValueError:
-                pass
+            res = (
+                res.unstack(res.indexes["scenario"].name)
+                .reindex(name=self.component_names)
+                .reindex(scenario=self.scenarios)
+            )
 
         # Set attibute name as DataArray name
         res.name = attr
+
+        # Optional runtime verification
+        if options.debug.runtime_verification:
+            verify_xarray_data_consistency(
+                res, self.has_scenarios, self.scenarios, self.component_names
+            )
 
         return res
