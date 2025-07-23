@@ -254,6 +254,7 @@ def stochastic_network() -> Network:
     ---------------------------------------------
     Components:
      - Bus: 3
+     - Carrier: 1
      - Generator: 12
      - Load: 3
     Snapshots: 2920
