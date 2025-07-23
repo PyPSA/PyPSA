@@ -286,34 +286,37 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         else:
             continue
 
-        breakpoint()
+        if n.has_scenarios:
+            scenario, constraint_name = name
+            name = scenario + "-" + constraint_name
+        else:
+            scenario = slice(None)
+
         lhs = []
         rhs = glc.constant
-        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0].rename_axis(
-            index={"name": "carrier"}
-        )
-        join_on = emissions.index.names
+        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0].loc[scenario]
 
         if emissions.empty:
             continue
 
         # generators
-        emission_carriers = emissions.index.unique("carrier")
+        emission_carriers = emissions.index
         gens = n.generators[n.generators.carrier.isin(emission_carriers)]
+
         if not gens.empty:
-            names = gens.index.unique("name")
-            efficiency = n.components.generators._as_dynamic("efficiency").loc[
-                sns[sns_sel], gens.index
-            ]
-            em_pu = gens.join(emissions, join_on)[emissions.name] / efficiency
-            em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0).reindex(
-                columns=names, level="name"
+            gens = gens.loc[scenario]
+            efficiency = (
+                n.components.generators._as_dynamic("efficiency")
+                .loc[:, scenario]
+                .loc[sns[sns_sel], gens.index]
             )
+            em_pu = gens.carrier.map(emissions) / efficiency
+            em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0)
 
-            if isinstance(em_pu.columns, pd.MultiIndex):
-                em_pu = DataArray(em_pu).unstack("dim_1")
+            p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
 
-            p = m["Generator-p"].sel(name=names, snapshot=sns[sns_sel])
+            if n.has_scenarios:
+                p = p.sel(scenario=scenario, drop=True)
 
             expr = (p * em_pu).sum()
             lhs.append(expr)
@@ -322,31 +325,31 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         cond = "carrier in @emissions.index and not cyclic_state_of_charge"
         sus = n.storage_units.query(cond)
         if not sus.empty:
-            names = sus.index.unique("name")
-            em_pu = sus.join(emissions, join_on)[emissions.name].reindex(
-                names, level="name"
-            )
-
+            sus = sus.loc[scenario]
+            em_pu = sus.carrier.map(emissions)
             soc = m["StorageUnit-state_of_charge"].sel(
-                name=names, snapshot=sns[sns_sel]
+                name=sus.index, snapshot=sns[sns_sel]
             )
 
             soc = soc.ffill("snapshot").isel(snapshot=-1)
-            lhs.append(m.linexpr((-em_pu, soc)).sum())
+            if n.has_scenarios:
+                soc = soc.sel(scenario=scenario, drop=True)
+
+            lhs.append((soc * -em_pu).sum())
             rhs -= em_pu @ sus.state_of_charge_initial
 
         # stores
         stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
         if not stores.empty:
-            names = stores.index.unique("name")
-            em_pu = stores.join(emissions, join_on)[emissions.name].reindex(
-                names, level="name"
-            )
-
-            e = m["Store-e"].sel(name=names, snapshot=sns[sns_sel])
-
+            stores = stores.loc[scenario]
+            em_pu = stores.carrier.map(emissions)
+            e = m["Store-e"].sel(name=stores.index, snapshot=sns[sns_sel])
             e = e.ffill("snapshot").isel(snapshot=-1)
-            lhs.append(m.linexpr((-em_pu, e)).sum())
+
+            if n.has_scenarios:
+                e = e.sel(scenario=scenario, drop=True)
+
+            lhs.append((e * -em_pu).sum())
             rhs -= em_pu @ stores.e_initial
 
         if not lhs:

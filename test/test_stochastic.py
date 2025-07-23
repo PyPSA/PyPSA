@@ -1213,7 +1213,8 @@ def test_primary_energy_constraint_stochastic(ac_dc_meshed_stoch):
     assert ("low", "co2_limit") in n.global_constraints.index
     assert ("high", "co2_limit") in n.global_constraints.index
     n.optimize.create_model()
-    assert "GlobalConstraint-co2_limit" in n.model.constraints
+    assert "GlobalConstraint-low-co2_limit" in n.model.constraints
+    assert "GlobalConstraint-high-co2_limit" in n.model.constraints
 
 
 def test_max_growth_constraint_stochastic(n):
