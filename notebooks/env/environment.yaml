@@ -1,0 +1,8 @@
+name: new-viz
+channels:
+- conda-forge
+- defaults
+
+dependencies:
+- python=3.12
+- pip    # required for pip-installing pypsa from local repo

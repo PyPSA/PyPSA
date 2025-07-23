@@ -336,7 +336,7 @@ class Network(
         details="Use `n.plot.explore()` as a drop-in replacement instead.",
     )
     def explore(self, *args: Any, **kwargs: Any) -> Any:
-        """Plot the network on a map using Folium.
+        """Plot the network interactively using pydeck (deck.gl).
 
         !!! warning "Deprecated in v0.34"
             Use `n.plot.explore()` as a drop-in replacement instead.

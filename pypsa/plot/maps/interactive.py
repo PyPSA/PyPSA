@@ -1,17 +1,13 @@
-"""Plot the network interactively using plotly and folium."""
+"""Plot the network interactively using plotly and pydeck (deck.gl)."""
 
-import importlib
 import logging
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
-import geopandas as gpd
 import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
-from shapely import linestrings
 
-from pypsa.constants import DEFAULT_EPSG
 from pypsa.plot.maps.common import apply_layouter, as_branch_series
 
 if TYPE_CHECKING:
@@ -23,6 +19,12 @@ try:
     import plotly.offline as pltly
 except ImportError:
     pltly_present = False
+
+pdk_present = True
+try:
+    import pydeck as pdk
+except ImportError:
+    pdk_present = False
 
 
 logger = logging.getLogger(__name__)
@@ -345,275 +347,158 @@ def iplot(
     return fig
 
 
-def explore(
+def component_data_from_network(
     n: "Network",
-    crs: int | str | None = None,
-    tooltip: bool = True,
-    popup: bool = True,
-    tiles: str = "OpenStreetMap",
-    components: set[str] | None = None,
-) -> Any | None:  # TODO: returns a FoliunMap or None
-    """Create an interactive map displaying PyPSA network components using geopandas exlore() and folium.
-
-    This function generates a Folium map showing buses, lines, links, and transformers from the provided network object.
+    component: str,
+    columns: list[str] | None = None,
+    filter_attrs: dict[str, list] | None = None,
+) -> pd.DataFrame:
+    """Create a DataFrame from a PyPSA network component (e.g., 'buses', 'lines', etc.) with specified columns, including the component's index as the first column.
 
     Parameters
     ----------
-    n : PyPSA.Network object
-        containing components `buses`, `links`, `lines`, `transformers`, `generators`, `loads`, and `storage_units`.
-    crs : str, optional. If not specified, it will check whether `n.crs` exists and use it, else it will default to "EPSG:4326".
-        Coordinate Reference System for the GeoDataFrames.
-    tooltip : bool, optional, default=True
-        Whether to include tooltips (on hover) for the features.
-    popup : bool, optional, default=True
-        Whether to include popups (on click) for the features.
-    tiles : str, optional, default="OpenStreetMap"
-        The tileset to use for the map. Options include "OpenStreetMap", "CartoDB Positron", and "CartoDB dark_matter".
-    components : list-like, optional, default=None
-        The components to plot. Default includes "Bus", "Line", "Link", "Transformer".
+    n : pypsa.Network
+        The network containing the component.
+    component : str
+        The name of the component, e.g., 'buses', 'lines', 'generators'.
+    columns : list of str, optional
+        List of column names to include from the component DataFrame.
+    filter_attrs : dict of str to list
+        Dictionary where keys are attribute names and values are lists of allowed values.
 
     Returns
     -------
-    folium.Map
-        A Folium map object with the PyPSA.Network components plotted.
+    pd.DataFrame
+        A DataFrame with the selected columns, with the index as the first column.
 
     """
-    # Check if required packages are available
-    folium_available = importlib.util.find_spec("folium") is not None
-    mapclassify_available = importlib.util.find_spec("mapclassify") is not None
+    comp_data = n.static(component)
+    attrs = n.component_attrs[component]
 
-    if not (folium_available and mapclassify_available):
-        logger.warning(
-            "folium and mapclassify need to be installed to use `n.explore()`."
-        )
-        return None
+    if filter_attrs:
+        for key, values in filter_attrs.items():
+            if key not in attrs.index:
+                msg = f"Filter column '{key}' not found in component '{component}'"
+                raise ValueError(msg)
+            if values is None or not isinstance(values, list):
+                continue
+            comp_data = comp_data[comp_data[key].isin(values)]
 
-    from folium import Element, LayerControl, Map, TileLayer  # noqa: PLC0415
+    if component == "Bus":
+        # Ensure 'x' and 'y' coordinates are included for buses
+        if "y" not in columns:
+            columns.insert(0, "y")
+        if "x" not in columns:
+            columns.insert(0, "x")
 
-    if n.crs and crs is None:
-        crs = n.crs
-    else:
-        crs = DEFAULT_EPSG
+    return comp_data[columns]
 
-    if components is None:
-        components = {"Bus", "Line", "Transformer", "Link"}
 
-    # Map related settings
-    bus_colors = mcolors.CSS4_COLORS["cadetblue"]
-    line_colors = mcolors.CSS4_COLORS["rosybrown"]
-    link_colors = mcolors.CSS4_COLORS["darkseagreen"]
-    transformer_colors = mcolors.CSS4_COLORS["orange"]
-    generator_colors = mcolors.CSS4_COLORS["purple"]
-    load_colors = mcolors.CSS4_COLORS["red"]
-    storage_unit_colors = mcolors.CSS4_COLORS["black"]
+def load_pdk_buses_layer(
+    n: "Network",
+    bus_carriers: list[str] | None = None,
+    bus_columns: list[str] | None = None,
+) -> tuple["pdk.Layer", dict]:
+    """Load a pydeck layer for the the buses of a PyPSA network.
 
-    # Initialize the map
-    map = Map(tiles=None)
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network containing the buses.
+    bus_carriers : list of str, optional
+        If provided, filter buses by these carriers. If None, all bus carriers are included.
+    bus_columns : list of str, optional
+        List of columns from n.buses to display in the tooltip. If None, no columns are included.
 
-    # Add map title
-    map_title = "PyPSA Network" + (f": {n.name}" if n.name else "")
-    map.get_root().html.add_child(
-        Element(
-            f"<h4 style='position:absolute;z-index:100000;left:1vw;bottom:5px'>{map_title}</h4>"
-        )
+    """
+    # Filter and validate columns
+    existing_columns = []
+    if bus_columns:
+        existing_columns = [col for col in bus_columns if col in n.buses.columns]
+        missing = set(bus_columns) - set(existing_columns)
+        if missing:
+            msg = f"Columns not found in buses: {sorted(missing)}"
+            logger.warning(msg)
+
+    bus_data = component_data_from_network(
+        n,
+        "Bus",
+        columns=existing_columns,
+        filter_attrs={"carrier": bus_carriers},
+    ).reset_index()
+
+    # Dynamically create HTML tooltip string
+    tooltip_html = "<b>{name}</b><br>" + "<br>".join(
+        f"<b>{col}:</b> {{{col}}}"
+        for col in existing_columns
+        if col not in ["name", "x", "y"]
     )
 
-    # Add tile layer legend entries
-    TileLayer(tiles, name=tiles).add_to(map)
+    buses_tooltip = {
+        "html": tooltip_html,
+        "style": {
+            "backgroundColor": "black",
+            "color": "white",
+            "fontFamily": "sans-serif",
+            "fontSize": "10px",
+        },
+    }
 
-    components_possible = [
-        "Bus",
-        "Line",
-        "Link",
-        "Transformer",
-        "Generator",
-        "Load",
-        "StorageUnit",
-    ]
-    components_present = []
+    buses_layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=bus_data,
+        get_position="[x, y]",
+        get_color="[255, 0, 0, 100]",
+        get_radius=5000,
+        pickable=True,
+    )
 
-    if not n.transformers.empty and "Transformer" in components:
-        x1 = n.transformers.bus0.map(n.buses.x)
-        y1 = n.transformers.bus0.map(n.buses.y)
-        x2 = n.transformers.bus1.map(n.buses.x)
-        y2 = n.transformers.bus1.map(n.buses.y)
-        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
+    return buses_layer, buses_tooltip
 
-        if num_invalid := sum(~valid_rows):
-            logger.info(
-                "Omitting %d transformers due to missing coordinates", num_invalid
-            )
 
-        gdf_transformers = gpd.GeoDataFrame(
-            n.transformers[valid_rows],
-            geometry=linestrings(
-                np.stack(
-                    [
-                        (x1[valid_rows], y1[valid_rows]),
-                        (x2[valid_rows], y2[valid_rows]),
-                    ],
-                    axis=1,
-                ).T
-            ),
-            crs=crs,
+def explore(
+    n: "Network",
+    components: set[str] | None = None,
+    bus_carriers: list[str] | None = None,
+    bus_columns: list[str] | None = None,
+    map_style: str = "light",
+) -> Any | None:
+    """Create an interactive map from a PyPSA network using pydeck (built on deck.gl).
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to plot.
+    components : set[str] | None, default None
+        Set of components to include in the map. If None, defaults to {"Bus"}.
+    bus_carriers : List[str] | None, default None
+        If provided, filter buses by these carriers. If None, all bus carriers are included.
+    bus_columns : List[str], default ["country"]
+        List of columns from n.buses to display in the tooltip
+    map_style : str, default "light"
+        Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
+
+    """
+    if not pdk_present:
+        logger.warning("pydeck is not present, so n.explore() won't work.")
+        return None
+
+    if components is None:
+        return pdk.Deck(
+            layers=[],
+            map_style=map_style,
         )
 
-        gdf_transformers[gdf_transformers.is_valid].explore(
-            m=map,
-            color=transformer_colors,
-            tooltip=tooltip,
-            popup=popup,
-            name="Transformers",
+    # Initialize layers list
+    pdk_layers = []
+
+    # Add bus layer if "Bus" is in components
+    if "Bus" in components:
+        buses_layer, buses_tooltip = load_pdk_buses_layer(
+            n,
+            bus_carriers=bus_carriers,
+            bus_columns=bus_columns,
         )
-        components_present.append("Transformer")
+        pdk_layers.append(buses_layer)
 
-    if not n.lines.empty and "Line" in components:
-        x1 = n.lines.bus0.map(n.buses.x)
-        y1 = n.lines.bus0.map(n.buses.y)
-        x2 = n.lines.bus1.map(n.buses.x)
-        y2 = n.lines.bus1.map(n.buses.y)
-        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
-
-        if num_invalid := sum(~valid_rows):
-            logger.info("Omitting %d lines due to missing coordinates.", num_invalid)
-
-        gdf_lines = gpd.GeoDataFrame(
-            n.lines[valid_rows],
-            geometry=linestrings(
-                np.stack(
-                    [
-                        (x1[valid_rows], y1[valid_rows]),
-                        (x2[valid_rows], y2[valid_rows]),
-                    ],
-                    axis=1,
-                ).T
-            ),
-            crs=crs,
-        )
-
-        gdf_lines[gdf_lines.is_valid].explore(
-            m=map, color=line_colors, tooltip=tooltip, popup=popup, name="Lines"
-        )
-        components_present.append("Line")
-
-    if not n.links.empty and "Link" in components:
-        x1 = n.links.bus0.map(n.buses.x)
-        y1 = n.links.bus0.map(n.buses.y)
-        x2 = n.links.bus1.map(n.buses.x)
-        y2 = n.links.bus1.map(n.buses.y)
-        valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
-
-        if num_invalid := sum(~valid_rows):
-            logger.info("Omitting %d links due to missing coordinates.", num_invalid)
-
-        gdf_links = gpd.GeoDataFrame(
-            n.links[valid_rows],
-            geometry=linestrings(
-                np.stack(
-                    [
-                        (x1[valid_rows], y1[valid_rows]),
-                        (x2[valid_rows], y2[valid_rows]),
-                    ],
-                    axis=1,
-                ).T
-            ),
-            crs=DEFAULT_EPSG,
-        )
-
-        gdf_links[gdf_links.is_valid].explore(
-            m=map, color=link_colors, tooltip=tooltip, popup=popup, name="Links"
-        )
-        components_present.append("Link")
-
-    if not n.buses.empty and "Bus" in components:
-        gdf_buses = gpd.GeoDataFrame(
-            n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
-        )
-
-        gdf_buses[gdf_buses.is_valid].explore(
-            m=map,
-            color=bus_colors,
-            tooltip=tooltip,
-            popup=popup,
-            name="Buses",
-            marker_kwds={"radius": 4},
-        )
-        components_present.append("Bus")
-
-    if not n.generators.empty and "Generator" in components:
-        gdf_generators = gpd.GeoDataFrame(
-            n.generators,
-            geometry=gpd.points_from_xy(
-                n.generators.bus.map(n.buses.x), n.generators.bus.map(n.buses.y)
-            ),
-            crs=crs,
-        )
-
-        gdf_generators[gdf_generators.is_valid].explore(
-            m=map,
-            color=generator_colors,
-            tooltip=tooltip,
-            popup=popup,
-            name="Generators",
-            marker_kwds={"radius": 2.5},
-        )
-        components_present.append("Generator")
-
-    if not n.loads.empty and "Load" in components:
-        loads = n.loads.copy()
-        loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
-        gdf_loads = gpd.GeoDataFrame(
-            loads,
-            geometry=gpd.points_from_xy(
-                loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)
-            ),
-            crs=crs,
-        )
-
-        gdf_loads[gdf_loads.is_valid].explore(
-            m=map,
-            color=load_colors,
-            tooltip=tooltip,
-            popup=popup,
-            name="Loads",
-            marker_kwds={"radius": 1.5},
-        )
-        components_present.append("Load")
-
-    if not n.storage_units.empty and "StorageUnit" in components:
-        gdf_storage_units = gpd.GeoDataFrame(
-            n.storage_units,
-            geometry=gpd.points_from_xy(
-                n.storage_units.bus.map(n.buses.x), n.storage_units.bus.map(n.buses.y)
-            ),
-            crs=crs,
-        )
-
-        gdf_storage_units[gdf_storage_units.is_valid].explore(
-            m=map,
-            color=storage_unit_colors,
-            tooltip=tooltip,
-            popup=popup,
-            name="Storage Units",
-            marker_kwds={"radius": 1},
-        )
-        components_present.append("StorageUnit")
-
-    if len(components_present) > 0:
-        logger.info(
-            "Components rendered on the map: %s",
-            ", ".join(sorted(components_present)),
-        )
-    if len(set(components) - set(components_present)) > 0:
-        logger.info(
-            "Components omitted as they are missing or not selected: %s",
-            ", ".join(sorted(set(components_possible) - set(components_present))),
-        )
-
-    # Set the default view to the bounds of the elements in the map
-    map.fit_bounds(map.get_bounds())
-
-    # Add a Layer Control to toggle layers on and off
-    LayerControl().add_to(map)
-
-    return map
+    return pdk.Deck(layers=pdk_layers, tooltip=buses_tooltip, map_style=map_style)
