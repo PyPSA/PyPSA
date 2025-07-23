@@ -470,7 +470,7 @@ def explore(
     n : pypsa.Network
         The network to plot.
     components : set[str] | None, default None
-        Set of components to include in the map. If None, defaults to {"Bus"}.
+        Set of components to include in the map. If no components are specified, an empty map is returned.
     bus_carriers : List[str] | None, default None
         If provided, filter buses by these carriers. If None, all bus carriers are included.
     bus_columns : List[str], default ["country"]
