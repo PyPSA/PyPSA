@@ -16,7 +16,7 @@ import xarray
 from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.components.abstract import _ComponentsABC
-from pypsa.guards import verify_xarray_data_consistency
+from pypsa.guards import _verify_xarray_data_consistency
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -208,8 +208,6 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            verify_xarray_data_consistency(
-                res, self.has_scenarios, self.scenarios, self.component_names
-            )
+            _verify_xarray_data_consistency(self, res)
 
         return res
