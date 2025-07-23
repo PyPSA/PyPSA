@@ -40,6 +40,11 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def component_names(self) -> pd.Index:
+        pass
+
+    @property
+    @abstractmethod
     def snapshots(self) -> pd.Index:
         pass
 

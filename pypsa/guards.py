@@ -8,19 +8,15 @@ to catch errors early.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pypsa.common import UnexpectedError
 
 if TYPE_CHECKING:
     import xarray
 
-    from pypsa.components import Components
 
-
-def _verify_xarray_data_consistency(
-    component: Components, res: xarray.DataArray
-) -> None:
+def _as_xarray_guard(component: Any, res: xarray.DataArray) -> None:
     if component.has_scenarios and list(res.scenario.values) != list(
         component.scenarios
     ):
@@ -28,5 +24,5 @@ def _verify_xarray_data_consistency(
         raise UnexpectedError(msg)
 
     if list(res.coords["name"].values) != list(component.component_names):
-        msg = f"Component order mismatch: {list(res.name.values)} != {list(component.component_names)}"
+        msg = f"Component order mismatch: {list(res.coords['name'].values)} != {list(component.component_names)}"
         raise UnexpectedError(msg)
