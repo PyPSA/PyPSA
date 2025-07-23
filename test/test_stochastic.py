@@ -1217,6 +1217,48 @@ def test_primary_energy_constraint_stochastic(ac_dc_meshed_stoch):
     assert "GlobalConstraint-high-co2_limit" in n.model.constraints
 
 
+def test_operational_limit_constraint_stochastic():
+    """Test operational limit constraints work correctly with stochastic networks."""
+    n = pypsa.Network(snapshots=range(3))
+
+    n.add("Carrier", "solar")
+    n.add("Carrier", "gas")
+    n.add("Carrier", "AC")
+
+    n.add("Bus", "bus1", carrier="AC")
+
+    n.add(
+        "Generator",
+        "solar",
+        bus="bus1",
+        p_nom=100,
+        marginal_cost=0,
+        carrier="solar",
+    )
+    n.add("Generator", "gas", bus="bus1", p_nom=200, marginal_cost=50, carrier="gas")
+    n.add("Load", "load1", bus="bus1", p_set=[50, 100, 100])
+
+    n.add(
+        "GlobalConstraint",
+        "solar_limit",
+        type="operational_limit",
+        sense="<=",
+        constant=150,  # Total solar generation limit across all snapshots
+        carrier_attribute="solar",
+    )
+
+    n.set_scenarios(["scenario1", "scenario2"])
+
+    # Verify constraints exist in both scenarios
+    assert ("scenario1", "solar_limit") in n.global_constraints.index
+    assert ("scenario2", "solar_limit") in n.global_constraints.index
+
+    # Create model to verify constraints are properly added
+    n.optimize.create_model()
+    assert "GlobalConstraint-scenario1-solar_limit" in n.model.constraints
+    assert "GlobalConstraint-scenario2-solar_limit" in n.model.constraints
+
+
 def test_max_growth_constraint_stochastic(n):
     """Test growth limit constraints work correctly with stochastic networks."""
     gen_carrier = n.generators.carrier.unique()[0]
