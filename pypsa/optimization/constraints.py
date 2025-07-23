@@ -921,7 +921,10 @@ def define_nodal_balance_constraints(
 
         expr = sign * m[f"{c.name}-{attr}"]
 
-        cbuses = c._as_xarray(column, drop_scenarios=True)
+        cbuses = c._as_xarray(column)
+        # Only keep the first scenario if there are multiple
+        if n.has_scenarios:
+            cbuses = cbuses.isel(scenario=0, drop=True)
         cbuses = cbuses[cbuses.isin(buses)].rename("Bus")
 
         if not cbuses.size:
@@ -950,7 +953,9 @@ def define_nodal_balance_constraints(
     else:
         loads_values = loads.da.p_set.where(loads.da.active.sel(snapshot=sns))
         loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
-        load_buses = loads._as_xarray("bus", drop_scenarios=True).rename("Bus")
+        load_buses = loads._as_xarray("bus").rename("Bus")
+        if n.has_scenarios:
+            load_buses = load_buses.isel(scenario=0, drop=True)
 
         # group by bus, then reindex over *all* buses (fill zeros where no loads)
         rhs = (

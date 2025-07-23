@@ -165,7 +165,6 @@ class ComponentsArrayMixin(_ComponentsABC):
         attr: str,
         snapshots: Sequence | None = None,
         inds: Sequence | None = None,
-        drop_scenarios: bool = False,  # TODO: Do we need that?
     ) -> xarray.DataArray:
         """Get an attribute as a xarray DataArray.
 
@@ -223,8 +222,6 @@ class ComponentsArrayMixin(_ComponentsABC):
             # Ensure scenario order matches network's scenario order
             if "scenario" in res.dims:
                 res = res.reindex(scenario=self.scenarios)
-            if drop_scenarios:
-                res = res.isel(scenario=0, drop=True)
 
         if inds is not None:
             res = res.sel(name=inds)
