@@ -1,18 +1,13 @@
-# Resources
+# Resources for Learning Energy System Modelling
 
+This page lists a set of resources for learning about energy system modelling with and without PyPSA.
 
-https://www.linkedin.com/posts/marta-victoria-4189b388_last-week-i-finished-teaching-the-course-activity-7328353239102386176-L8MN/?rcm=ACoAAA02NusB3sBy09WStqEu890OgmZMqPPucRUo
+- **[Energy Systems](https://nworbmot.org/courses/es-24/)** course by [Tom Brown](https://nworbmot.org), TU Berlin.
+- **[Energy Economics](https://nworbmot.org/courses/ee-24/)** course by [Tom Brown](https://nworbmot.org), TU Berlin.
+- **[Data Science for Energy System Modelling](https://fneum.github.io/data-science-for-esm/)** course by [Fabian Neumann](https://fneum.org), TU Berlin.
+- **[Integrated Energy Grids](https://github.com/martavp/integrated-energy-grids)** course by [Marta Victoria](https://www.martavictoria.org/), DTU.
+- **[PyPSA(-Eur) Workshop Series](https://resilient-project.github.io/pypsa-workshop-202506)** by the [RESILIENT](https://resilient-project.github.io/) project.
 
+!!! question
 
-Bezüglich Übungsmaterial für PyPSA
-
-# Github Repo
-- es gibt noch ein altes Github Repository mit Übungen (allerdings nicht nur mit PyPSA sondern generell energy system modelling), ist aber wahrscheinlich alles veraltet und besser Fabians Data Science Material zu nutzen
-https://github.com/lisazeyen/ESM_tutorial
-
-# Presentations
-- latest intro to PyPSA: Thailand webinar https://docs.google.com/presentation/d/17f8Mjw9eoxoRzRtwjvaBYUXuH0aXQvih91D9wXYNDZ8/edit?usp=sharing
-
-# Notebooks, python scripts
-https://tubcloud.tu-berlin.de/s/D6s5ffPMYxZq9i8
-
+    You have your own learning resources to share? Please let us know and we will add them to this list!
