@@ -426,7 +426,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         stores = n.stores.query("carrier == @glc.carrier_attribute and not e_cyclic")
         if not stores.empty:
             stores = stores.loc[scenario]
-            e = m["Store-e"].sel(name=stores.indes, snapshot=snapshots)
+            e = m["Store-e"].sel(name=stores.index, snapshot=snapshots)
 
             e = e.ffill("snapshot").isel(snapshot=-1)
             if n.has_scenarios:
