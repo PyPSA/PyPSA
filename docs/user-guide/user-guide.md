@@ -1,5 +1,7 @@
 
-todo: write overview
+This section provides an overview of PyPSA's, design principles, optimisation
+problem formulations, power flow calculation features and usage tips for
+specific functions and components.
 
 <div class="grid cards" markdown>
 
@@ -9,7 +11,7 @@ todo: write overview
 
     Description of design choices, conventions and components of PyPSA.
     
-    [:material-notebook: Core Design](../examples/multi-investment-optimisation.ipynb)
+    [:material-notebook: Core Design](../user-guide/design.md)
 
     ---
 
@@ -19,7 +21,7 @@ todo: write overview
 
     Description of optimisation problems that can be solved with PyPSA.
     
-    [:material-notebook: Optimisation](../examples/XXX.ipynb)
+    [:material-notebook: Optimisation](../user-guide/optimization/overview.md)
 
     ---
 
@@ -29,7 +31,7 @@ todo: write overview
 
     Description of power flow calculations PyPSA can run on solved networks.
     
-    [:material-notebook: Simulation](../examples/XXX.ipynb)
+    [:material-notebook: Simulation](../user-guide/power-flow.md)
 
     ---
 
@@ -39,7 +41,7 @@ todo: write overview
 
     Description of useful statistics, plotting and comparison functions.
     
-    [:material-notebook: Usage](../examples/XXX.ipynb)
+    [:material-notebook: Usage](../user-guide/networks.md)
 
     ---
 
