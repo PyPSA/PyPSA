@@ -19,10 +19,10 @@ def test_init():
 def test_deprecations():
     components = ComponentsStore()
 
-    with pytest.raises(DeprecationWarning):
+    with pytest.raises(DeprecationWarning):  # noqa
         "c" in components
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(DeprecationWarning):  # noqa
         for c in components:
             pass
 

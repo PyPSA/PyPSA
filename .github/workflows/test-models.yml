@@ -43,6 +43,10 @@ jobs:
         latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
         git checkout $latest_tag
 
+    - name: Setup cache keys
+      run: |
+        echo "WEEK=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
+
     # Only run check if package is not pinned
     - name: Check if inhouse package is pinned
       run: |
@@ -53,11 +57,6 @@ jobs:
             echo "pinned=false" >> $GITHUB_ENV
         fi
 
-    - name: Setup secrets & cache dates
-      if: env.pinned == 'false'
-      run: |
-        echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
-        echo "week=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
 
     - uses: actions/cache@v4
       if: env.pinned == 'false'
@@ -70,19 +69,23 @@ jobs:
     - uses: conda-incubator/setup-miniconda@v3
       if: env.pinned == 'false'
       with:
+        miniforge-version: latest
         activate-environment: pypsa-eur
+        channel-priority: strict
 
     - name: Cache Conda env
       if: env.pinned == 'false'
       uses: actions/cache@v4
       with:
         path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-eur-${{ env.week }}-${{ hashFiles('envs/linux-pinned.yaml') }}
+        key: conda-pypsa-eur-${{ env.week }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
       id: cache-env
 
     - name: Update environment
       if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
-      run: conda env update -n pypsa-eur -f envs/linux-pinned.yaml
+      run: |
+        conda env update -n pypsa-eur -f envs/linux-64.lock.yaml
+        echo "Run conda list" && conda list
 
     - name: Install package from ref
       if: env.pinned == 'false'
@@ -93,6 +96,10 @@ jobs:
       if: env.pinned == 'false'
       run: |
         make test
+
+    - name: Run unit tests
+      run: |
+        make unit-test
 
     - name: Upload artifacts
       if: env.pinned == 'false'
@@ -123,7 +130,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         repository: PyPSA/pypsa-de
-        ref: master
+        ref: main
 
     - name: Check out latest release
       if: matrix.version == 'latest'
@@ -131,6 +138,10 @@ jobs:
         git fetch --tags
         latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
         git checkout $latest_tag
+
+    - name: Setup cache keys
+      run: |
+        echo "WEEK=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
 
     # Only run check if package is not pinned
     - name: Check if inhouse package is pinned
@@ -142,44 +153,35 @@ jobs:
             echo "pinned=false" >> $GITHUB_ENV
         fi
 
-    - name: Setup secrets & cache dates
-      if: env.pinned == 'false'
-      run: |
-        echo -ne "url: ${CDSAPI_URL}\nkey: ${CDSAPI_TOKEN}\n" > ~/.cdsapirc
-        echo "week=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
-
-    - name: Setup ixmp4 access
-      run: |
-        mkdir -p ~/.local/share/ixmp4/
-        cat > ~/.local/share/ixmp4/credentials.toml << 'EOL'
-        ${{ secrets.IXMP4_ACCESS }}
-        EOL
-      shell: bash
-
     - uses: actions/cache@v4
       if: env.pinned == 'false'
       with:
         path: |
           data
           cutouts
+          resources/ariadne_database.csv
         key: data-cutouts-pypsa-de-${{ env.week }}
 
     - uses: conda-incubator/setup-miniconda@v3
       if: env.pinned == 'false'
       with:
+        miniforge-version: latest
         activate-environment: pypsa-de
+        channel-priority: strict
 
     - name: Cache Conda env
       if: env.pinned == 'false'
       uses: actions/cache@v4
       with:
         path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-de-${{ env.week }}-${{ hashFiles('envs/linux-pinned.yaml') }}
+        key: conda-pypsa-de-${{ env.week }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
       id: cache-env
 
     - name: Update environment
       if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
-      run: conda env update -n pypsa-de -f envs/linux-pinned.yaml
+      run: |
+        conda env update -n pypsa-de -f envs/linux-64.lock.yaml
+        echo "Run conda list" && conda list
 
     - name: Install package from ref
       if: env.pinned == 'false'
@@ -190,6 +192,11 @@ jobs:
       if: env.pinned == 'false'
       run: |
         make test
+
+    - name: Run unit tests
+      if: env.pinned == 'false'
+      run: |
+        make unit-test
 
     - name: Upload artifacts
       if: env.pinned == 'false'

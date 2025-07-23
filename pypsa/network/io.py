@@ -1710,7 +1710,7 @@ class NetworkIOMixin(_NetworkABC):
                 if df[k].dtype != static_attrs.at[k, "typ"]:
                     if static_attrs.at[k, "type"] == "geometry":
                         geometry = df[k].replace({"": None, np.nan: None})
-                        from shapely.geometry.base import BaseGeometry
+                        from shapely.geometry.base import BaseGeometry  # noqa: PLC0415
 
                         if geometry.apply(lambda x: isinstance(x, BaseGeometry)).all():
                             df[k] = gpd.GeoSeries(geometry)
