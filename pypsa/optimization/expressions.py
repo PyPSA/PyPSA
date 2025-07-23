@@ -16,7 +16,6 @@ from pypsa.common import pass_none_if_keyerror
 from pypsa.descriptors import nominal_attrs
 from pypsa.statistics import (
     get_transmission_branches,
-    get_weightings,
     port_efficiency,
 )
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
@@ -303,7 +302,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             var = n.model.variables[f"{c}-{attr}"]
             sns = var.indexes["snapshot"]
             opex = var * n.get_switchable_as_dense(c, "marginal_cost").loc[sns]
-            weights = get_weightings(n, c).loc[sns]
+            weights = n.snapshot_weightings.objective.loc[sns]
             return self._aggregate_timeseries(opex, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -361,7 +360,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if isinstance(efficiency, pd.DataFrame):
                 efficiency = efficiency.loc[sns]
             p = var.loc[:, idx] * efficiency[idx]
-            weights = get_weightings(n, c).loc[sns]
+            weights = n.snapshot_weightings.generators.loc[sns]
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -426,7 +425,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             if isinstance(efficiency, pd.DataFrame):
                 efficiency = efficiency.loc[sns]
             sign = n.df(c).get("sign", 1.0)
-            weights = get_weightings(n, c).loc[sns]
+            weights = n.snapshot_weightings.generators.loc[sns]
             coeffs = DataArray(efficiency * sign)
             if kind == "supply":
                 coeffs = coeffs.clip(min=0)
@@ -571,7 +570,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             # the following needs to be fixed in linopy, right now constants cannot be used for broadcasting
             # TODO curtailment = capacity * p_max_pu - operation
             curtailment = (capacity - operation / p_max_pu) * p_max_pu
-            weights = get_weightings(n, c).loc[sns]
+            weights = n.snapshot_weightings.generators.loc[sns]
             return self._aggregate_timeseries(curtailment, weights, agg=aggregate_time)
 
         return self._aggregate_components(
@@ -619,7 +618,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             operation = self._get_operational_variable(c)
             sns = operation.indexes["snapshot"]
-            weights = get_weightings(n, c).loc[sns]
+            weights = n.snapshot_weightings.generators.loc[sns]
             return self._aggregate_timeseries(operation, weights, agg=aggregate_time)
 
         return self._aggregate_components(
