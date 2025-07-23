@@ -55,8 +55,6 @@ These constraints are set in the function [`define_fixed_operation_constraints`]
 
 <!-- TODO: mu_p_set should be called lambda_p_set becuase it is dual of equality constraint, not inequality constraint. -->
 
-<!-- TODO: Generalise `{p,s,e}_set` in component attributes (not completely documented) -->
-
 ## Volume Limits
 
 Generators and links can also have volume limits, i.e. the total dispatch over all snapshots must be above a minimum $\underline{e}_{*}$ or below a maximum $\bar{e}_{*}$.

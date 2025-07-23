@@ -22,13 +22,13 @@ optional loss approximations.
 - **:material-security: Security-Constrained LOPF (SCLOPF):** Extends LOPF by accounting for line
 outage contingencies to ensure system reliability under $N-1$ conditions.
 
-- **:material-crane: Capacity Expansion Planning (CEP):** Supports least-cost long-term system
-planning with investment decisions for generation, storage, conversion, and
-transmission infrastructure. Handles both single and multiple investment
+- **:material-crane: Capacity Expansion Planning (CEP):** Supports least-cost
+long-term system planning with investment decisions for generation, storage,
+conversion, and transmission infrastructure. Handles both single and multiple
+investment periods. Continuous and discrete investments are supported.
 
 - **:material-road: Pathway Planning:** Supports co-optimisation of multiple investment periods to
 plan energy system transitions over time with perfect planning foresight.
-periods. Continuous and discrete investments are supported.
 
 - **:material-rollerblade: Rolling-Horizon Optimisation:** Enables sequential optimisation of operation
 with myopic foresight, allowing for dynamic information updates and breaking
@@ -41,6 +41,10 @@ first-stage decisions and dispatch as recourse decisions.
 - **:material-diversify: Modelling-to-Generate-Alternatives (MGA):** Explores near-optimal decision
 spaces to provide insight into the range of feasible system configurations with
 similar costs.
+
+- **:fontawesome-solid-building-columns: Policy Constraints:** Built-in support
+  for policy constraints such as CO~2~ emission limits and pricing, subsidies, resource
+  limits, expansion limits, and growth limits. Extendable by custom constraints.
 
 - **:material-screwdriver: Custom Constraints:** Users can impose own objectives, variables and
 constraints, such as policy constraints or technical requirements, using
@@ -62,7 +66,7 @@ open-source solutions (e.g. [HiGHS](https://highs.dev/),
 - **:material-lightbulb: Diverse Applications:** Supports a wide range of energy system analyses for
   strategic decision support. Applications include techno-economic assessment of
   technologies, capacity expansion, transmission planning, market design,
-  sector-coupling, renewable integration, flexibility needs and resource
+  sector-coupling, integration of variable renewables such as wind and solar, flexibility needs and resource
   adequacy assessments, network congestion analysis, battery scheduling,
   electricity trading, planning of decarbonisation pathways, hydrogen
   infrastructure planning, electrolyser siting and operation, resilience to
