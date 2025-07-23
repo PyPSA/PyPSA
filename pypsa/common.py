@@ -355,7 +355,7 @@ def equals(
 
     if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
         return True
-    from pypsa.components.store import ComponentsStore
+    from pypsa.components.store import ComponentsStore  # noqa: PLC0415
 
     # Classes with equality methods
     if isinstance(a, np.ndarray):

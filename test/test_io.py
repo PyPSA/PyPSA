@@ -49,12 +49,12 @@ class TestCSVDir:
             {"test": {"test": "test", "test2": "test2"}},
         ],
     )
-    def test_csv_io_quotes(self, scipy_network, tmpdir, meta, quotechar="'"):
+    def test_csv_io_quotes(self, scipy_network, tmpdir, meta):
         fn = tmpdir / "csv_export"
         scipy_network.meta = meta
-        scipy_network.export_to_csv_folder(fn, quotechar=quotechar)
+        scipy_network.export_to_csv_folder(fn, quotechar="'")
         imported = pypsa.Network()
-        imported.import_from_csv_folder(fn, quotechar=quotechar)
+        imported.import_from_csv_folder(fn, quotechar="'")
         assert imported.meta == scipy_network.meta
 
     def test_csv_io_Path(self, scipy_network, tmpdir):
@@ -439,7 +439,7 @@ def test_io_equality(network_all, tmp_path):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux"],
+    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
     reason="Only check once since it is an optional test when examples are updated.",
 )
 @pytest.mark.parametrize(

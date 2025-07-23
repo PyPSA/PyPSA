@@ -120,7 +120,7 @@ jobs:
         git push origin --delete ${{ github.ref_name }}
 
     - name: Commit changes
-      uses: stefanzweifel/git-auto-commit-action@v5
+      uses: stefanzweifel/git-auto-commit-action@v6
       with:
         branch: ${{ env.BRANCH_NAME }}
         commit_message: '${{ env.PREPARATION_COMMIT }}'

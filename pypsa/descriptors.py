@@ -194,7 +194,7 @@ def get_bounds_pu(
         if attr == "p_store":
             max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
         if attr == "state_of_charge":
-            from pypsa.common import expand_series
+            from pypsa.common import expand_series  # noqa: PLC0415
 
             max_pu = expand_series(n.static(c).max_hours, sns).T
             min_pu = pd.DataFrame(0, *max_pu.axes)

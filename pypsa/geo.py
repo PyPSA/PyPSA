@@ -185,7 +185,7 @@ def get_projection_from_crs(crs: int | str) -> ccrs.Projection:
     <BLANKLINE>
 
     """
-    import cartopy.crs as ccrs
+    import cartopy.crs as ccrs  # noqa: PLC0415
 
     try:
         return ccrs.epsg(crs)

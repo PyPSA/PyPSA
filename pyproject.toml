@@ -30,7 +30,7 @@ dependencies = [
     "scipy>=1.14.1,!=1.15.0; python_version >= '3.13'",
     "scipy; python_version < '3.13'",
     "pandas>=0.24",
-    "xarray",
+    "xarray<2025.07.0",
     "netcdf4",
     "linopy>=0.4",
     "matplotlib",
@@ -47,6 +47,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/PyPSA/PyPSA"
 Source = "https://github.com/PyPSA/PyPSA"
+Documentation = "https://docs.pypsa.org"
 
 [project.optional-dependencies]
 hdf5 = ["tables"]
@@ -66,6 +67,7 @@ dev = [
     "ruff",
     "mypy",
     "jupyter>=1.1.1",
+    "typing-extensions>=4.14.0",
 ]
 docs = [
     "numpydoc==1.8.0",
@@ -197,6 +199,7 @@ ignore = [
     'PLR0915',
     'PLR2004',
     # Could be implemented
+    'PLW1641',
     'PLR0912',
     'PT011',
     'PLW2901',

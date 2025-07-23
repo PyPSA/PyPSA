@@ -1,6 +1,7 @@
 import copy
 import sys
 
+import linopy
 import numpy as np
 import pandas as pd
 import pytest
@@ -374,6 +375,30 @@ def test_copy_default_behavior(network_all):
     assert n is not network_copy
 
 
+def test_copy_with_model(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.create_model()
+    n_copy = n.copy()
+
+    assert n.equals(n_copy, log_mode="strict")
+    assert isinstance(n.model, linopy.Model)
+    assert isinstance(n_copy.model, linopy.Model)
+
+    n.optimize.solve_model()
+    with pytest.raises(
+        ValueError,
+        match="Copying a solved network with an attached solver model is not supported.",
+    ):
+        n_copy = n.copy()
+
+    n.optimize()
+    with pytest.raises(
+        ValueError,
+        match="Copying a solved network with an attached solver model is not supported.",
+    ):
+        n_copy = n.copy()
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
@@ -438,7 +463,7 @@ def test_single_add_network_with_time(ac_dc_network, n_5bus):
 def test_shape_reprojection(ac_dc_network_shapes):
     n = ac_dc_network_shapes
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning):  # noqa
         area_before = n.shapes.geometry.area.sum()
     x, y = n.buses.x.values, n.buses.y.values
 

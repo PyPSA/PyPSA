@@ -19,7 +19,6 @@ import validators
 import xarray as xr
 from pandas.errors import ParserError
 from pyproj import CRS
-from typing_extensions import Self
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
     from pandapower.auxiliary import pandapowerNet
+    from typing_extensions import Self
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
@@ -233,13 +233,19 @@ class _ImporterCSV(_Importer):
     def get_static(self, list_name: str) -> pd.DataFrame:
         """Get static components data."""
         fn = self.path.joinpath(list_name + ".csv")
-        return (
-            pd.read_csv(
-                fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
-            )
-            if fn.is_file()
-            else None
+        if not fn.is_file():
+            return None
+
+        df = pd.read_csv(
+            fn, index_col=0, encoding=self.encoding, quotechar=self.quotechar
         )
+
+        # Convert NaN to empty strings for object dtype columns to handle custom attributes
+        object_cols = [col for col in df.columns if df[col].dtype == "object"]
+        if object_cols:
+            df[object_cols] = df[object_cols].fillna("")
+
+        return df
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
         """Get dynamic components data."""
@@ -443,7 +449,10 @@ class _ImporterExcel(_Importer):
 
     def get_snapshots(self) -> pd.Index:
         """Get snapshots data."""
-        df = self.sheets["snapshots"]
+        try:
+            df = self.sheets["snapshots"]
+        except KeyError:
+            return None
         df = df.set_index(df.columns[0])
         # Convert snapshot and timestep to datetime (if possible)
         if "snapshot" in df and df.snapshot.iloc[0] != "now":
@@ -478,6 +487,11 @@ class _ImporterExcel(_Importer):
             # Otherwise the column row is read in as a component
             if len(df.columns) == 0 and len(df.index) > 0 and df.index[0] == "name":
                 df = df.iloc[1:]  # Remove the first row which contains the index name
+
+            # Convert NaN to empty strings for object dtype columns to handle custom attributes
+            object_cols = [col for col in df.columns if df[col].dtype == "object"]
+            if object_cols:
+                df[object_cols] = df[object_cols].fillna("")
 
         except (ValueError, KeyError):
             return None
@@ -1625,7 +1639,7 @@ class NetworkIOMixin(_NetworkABC):
                 if df[k].dtype != static_attrs.at[k, "typ"]:
                     if static_attrs.at[k, "type"] == "geometry":
                         geometry = df[k].replace({"": None, np.nan: None})
-                        from shapely.geometry.base import BaseGeometry
+                        from shapely.geometry.base import BaseGeometry  # noqa: PLC0415
 
                         if geometry.apply(lambda x: isinstance(x, BaseGeometry)).all():
                             df[k] = gpd.GeoSeries(geometry)

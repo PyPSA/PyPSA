@@ -1303,7 +1303,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         Series([], dtype: float64)
 
         """
-        from pypsa.optimization.optimize import lookup
+        from pypsa.optimization.optimize import lookup  # noqa: PLC0415
 
         if cost_types is None:
             cost_types_ = [

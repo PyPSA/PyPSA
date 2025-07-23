@@ -580,7 +580,7 @@ class OptimizationAbstractMixin:
             }
 
         # check that network has been solved
-        if not hasattr(self._n, "objective"):
+        if not self._n.is_solved:
             msg = "Network needs to be solved with `n.optimize()` before running MGA."
             raise ValueError(msg)
 
