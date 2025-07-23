@@ -111,7 +111,6 @@ nav:
     - examples/replace-generator-storage-units-with-store.ipynb
 
 - API Reference:
-  - Overview: api/api.md
   - Networks:
     - Network:
       - General: api/networks/network.md
