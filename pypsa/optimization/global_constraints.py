@@ -20,23 +20,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _extract_names_for_multiindex(index: pd.Index) -> pd.Index:
-    """Extract names of components handling stochastic networks.
-
-    Parameters
-    ----------
-    index : pd.Index
-        Component index that may be MultiIndex with (scenario, name) levels
-
-    Returns
-    -------
-    pd.Index
-        Names extracted from MultiIndex level 'name', or original index if not MultiIndex
-
-    """
-    return index.get_level_values("name") if isinstance(index, pd.MultiIndex) else index
-
-
 def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
     """Define per-carrier and potentially per-bus capacity expansion limits.
 
@@ -227,22 +210,27 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         if "carrier" not in static:
             continue
 
-        # Extract names from MultiIndex if stochastic (drop scenarios since we found strictest limits)
         component_carriers = static.loc[:, "carrier"]
-        component_names = _extract_names_for_multiindex(static.index)
-        carrier_map = component_carriers.groupby(component_names).first()
 
-        carriers_match = component_names[component_carriers.isin(carrier_i)]
+        if n.has_scenarios:
+            unique_component_names = n.components[c].component_names
+            carrier_map = component_carriers.groupby(level="name").first()
+        else:
+            unique_component_names = static.index
+            carrier_map = component_carriers
+
+        carriers_match = unique_component_names[carrier_map.isin(carrier_i)]
         limited_names = carriers_match.intersection(n.components[c].extendables)
 
         if limited_names.empty:
             continue
 
-        # Get active assets for the limited components (handles also the stochastic case)
+        # Get active assets for the limited components
         active = pd.concat({p: n.get_active_assets(c, p) for p in periods}, axis=1)
 
-        active_names = _extract_names_for_multiindex(active.index)
-        active = active.groupby(active_names).first()  # Drop scenario dimension
+        if n.has_scenarios:
+            active = active.groupby(level="name").first()
+
         active = active.loc[limited_names].rename_axis(columns="periods").T
         first_active = DataArray(active.cumsum() == 1)
         carriers = carrier_map.loc[limited_names].rename("Carrier")

@@ -1263,11 +1263,21 @@ def test_max_growth_constraint_stochastic(n):
     """Test growth limit constraints work correctly with stochastic networks."""
     gen_carrier = n.generators.carrier.unique()[0]
     n.carriers.at[gen_carrier, "max_growth"] = 300
-    n.set_scenarios({"scenario_1": 1})
+    n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
     n.carriers.xs("scenario_1").at[gen_carrier, "max_growth"] = 218
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
-    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
+
+    # In stochastic optimization, capacity decisions are shared across scenarios
+    # The growth limit is constrained with the strictest bound
+    capacity_per_period = (
+        n.generators.xs("scenario_1")
+        .p_nom_opt.groupby(n.generators.xs("scenario_1").build_year)
+        .sum()
+    )
+    assert all(capacity_per_period <= 218), (
+        f"Capacity per period exceeds limit: {capacity_per_period}"
+    )
     assert "Carrier-growth_limit" in n.model.constraints
 
 
@@ -1275,9 +1285,14 @@ def test_max_relative_growth_constraint(n):
     """Test growth relative limit constraints work correctly with stochastic networks."""
     gen_carrier = n.generators.carrier.unique()[0]
     n.carriers.at[gen_carrier, "max_growth"] = 218
-    n.carriers.at[gen_carrier, "max_relative_growth"] = 1.5
-    n.set_scenarios({"scenario_1": 1})
+    n.carriers.at[gen_carrier, "max_relative_growth"] = 3
+    n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
+    n.carriers.xs("scenario_1").at[gen_carrier, "max_relative_growth"] = 1.5
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
-    built_per_period = n.generators.p_nom_opt.groupby(n.generators.build_year).sum()
+    built_per_period = (
+        n.generators.xs("scenario_1")
+        .p_nom_opt.groupby(n.generators.xs("scenario_1").build_year)
+        .sum()
+    )
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
