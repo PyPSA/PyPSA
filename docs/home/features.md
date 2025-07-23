@@ -8,58 +8,58 @@ its key features:
 
 ## Optimisation Functionalities
 
-- **Economic Dispatch (ED):** Models short-term market-based dispatch including
+- **:material-power-plug-battery-outline: Economic Dispatch (ED):** Models short-term market-based dispatch including
 unit commitment, renewable availability, short-duration and seasonal storage
 including hydro reservoirs with inflow and spillage dynamics, elastic demands,
 load shedding and conversion between energy carriers, using either perfect
 operational foresight or rolling horizon time resolution.
 
-- **Linear Optimal Power Flow (LOPF):** Extends economic dispatch to determine
+- **:material-transmission-tower: Linear Optimal Power Flow (LOPF):** Extends economic dispatch to determine
 the least-cost dispatch while respecting network constraints in meshed AC-DC
 networks, using a linearised representation of power flow (KVL, KCL) with
 optional loss approximations.
 
-- **Security-Constrained LOPF (SCLOPF):** Extends LOPF by accounting for line
+- **:material-security: Security-Constrained LOPF (SCLOPF):** Extends LOPF by accounting for line
 outage contingencies to ensure system reliability under $N-1$ conditions.
 
-- **Capacity Expansion Planning (CEP):** Supports least-cost long-term system
+- **:material-crane: Capacity Expansion Planning (CEP):** Supports least-cost long-term system
 planning with investment decisions for generation, storage, conversion, and
 transmission infrastructure. Handles both single and multiple investment
 
-- **Pathway Planning:** Supports co-optimisation of multiple investment periods to
+- **:material-road: Pathway Planning:** Supports co-optimisation of multiple investment periods to
 plan energy system transitions over time with perfect planning foresight.
 periods. Continuous and discrete investments are supported.
 
-- **Rolling-Horizon Optimisation:** Enables sequential optimisation of operation
+- **:material-rollerblade: Rolling-Horizon Optimisation:** Enables sequential optimisation of operation
 with myopic foresight, allowing for dynamic information updates and breaking
 down large problems into manageable time slices.
 
-- **Stochastic Optimisation:** Implements two-stage stochastic programming
+- **:material-crosshairs-question: Stochastic Optimisation:** Implements two-stage stochastic programming
 framework with scenario-weighted uncertain inputs, with investments as
 first-stage decisions and dispatch as recourse decisions.
 
-- **Modelling-to-Generate-Alternatives (MGA):** Explores near-optimal decision
+- **:material-diversify: Modelling-to-Generate-Alternatives (MGA):** Explores near-optimal decision
 spaces to provide insight into the range of feasible system configurations with
 similar costs.
 
-- **Custom Constraints:** Users can impose own objectives, variables and
+- **:material-screwdriver: Custom Constraints:** Users can impose own objectives, variables and
 constraints, such as policy constraints or technical requirements, using
 [Linopy](https://linopy.readthedocs.io/).
 
-- **Solver Flexibility:** Supports a wide range of LP, MILP, and QP solvers from
+- **:material-dots-square: Solver Flexibility:** Supports a wide range of LP, MILP, and QP solvers from
 open-source solutions (e.g. [HiGHS](https://highs.dev/),
 [SCIP](https://scipopt.org)) to commercial products (e.g.
 [Gurobi](https://www.gurobi.com/), [COPT](https://shanshu.ai/copt)).
 
 ## Use Cases and Grid Modelling
 
-- **Sector-Coupling:** Modelling integrated energy systems with multiple energy
+- **:material-heat-pump: Sector-Coupling:** Modelling integrated energy systems with multiple energy
   carriers (electricity, heat, hydrogen, etc.) and conversion between them.
   Flexible representation of technologies such as heat pumps, electrolysers,
   battery electric vehicles (BEVs), direct air capture (DAC), and synthetic
   fuels production.
 
-- **Diverse Applications:** Supports a wide range of energy system analyses for
+- **:material-lightbulb: Diverse Applications:** Supports a wide range of energy system analyses for
   strategic decision support. Applications include techno-economic assessment of
   technologies, capacity expansion, transmission planning, market design,
   sector-coupling, renewable integration, flexibility needs and resource
@@ -69,57 +69,57 @@ open-source solutions (e.g. [HiGHS](https://highs.dev/),
   extreme weather, bidding zone configurations, and the design of islanded
   systems for remote renewable fuel production.
 
-- **Standard Grid Components:** Includes standard types for lines and
+- **:material-transmission-tower: Standard Grid Components:** Includes standard types for lines and
   transformers from [pandapower](https://pandapower.org).
 
-- **Static Power Flow Analysis:** Computes both full non-linear and linearised
+- **:simple-graphql: Static Power Flow Analysis:** Computes both full non-linear and linearised
   load flows for meshed AC and DC grids using Newton-Raphson method with
   optional distributed slack and shunt compensation.
 
 ## Architecture and Performance
 
-- **Modular Design:** Clean separation between data and modelling code enables
+- **:material-view-module: Modular Design:** Clean separation between data and modelling code enables
 flexible scenario development.
 
-- **Resolution Control:** Offers flexible control over temporal, spatial, and
+- **:material-car-cruise-control: Resolution Control:** Offers flexible control over temporal, spatial, and
 sectoral scope and detail.
 
-- **Spatial Clustering:** Can reduce model size for large networks via spatial
+- **:material-grid-large: Spatial Clustering:** Can reduce model size for large networks via spatial
   aggregation strategies.
 
-- **Data Backbone:** Uses [pandas](https://pandas.pydata.org/) for data handling
+- **:material-data-matrix: Data Backbone:** Uses [pandas](https://pandas.pydata.org/) for data handling
   and [linopy](https://linopy.readthedocs.io/) for optimisation and interfacing
   with solvers.
 
-- **Performance:** Using [linopy](https://linopy.readthedocs.io/), the code is
+- **:material-run-fast: Performance:** Using [linopy](https://linopy.readthedocs.io/), the code is
 designed to scale well with high resolution networks, minimising memory usage
 and time spent outside the solver.
 
-- **Scalability:** Handles models ranging from small conceptual prototypes to
+- **:fontawesome-solid-arrow-trend-up: Scalability:** Handles models ranging from small conceptual prototypes to
 continent-scale high-resolution systems solved on high-performance compute
 clusters.
 
 ## Analysis and Usability
 
-- **Shadow Prices:** Outputs dual values such as nodal clearing prices (LMPs),
+- **:simple-shadow: Shadow Prices:** Outputs dual values such as nodal clearing prices (LMPs),
 storage water values, scarcity and CO~2~ prices.
 
-- **Statistics:** Built-in tools for summarising and visualising results, such
+- **:simple-googlesheets: Statistics:** Built-in tools for summarising and visualising results, such
   as energy balances, capacities, costs, market values, curtailment, component
   revenues.
   
-- **Visualisations:** Built-in tools for plotting statistics, time series data
+- **:octicons-paintbrush-16: Visualisations:** Built-in tools for plotting statistics, time series data
   and spatial distributions of line loadings and nodal dispatch decisions.
   
-- **Documentation:** Comprehensive user guide, API reference, and plenty of
+- **:material-notebook: Documentation:** Comprehensive user guide, API reference, and plenty of
 examples are available.
 
-- **Community Support:** Active community on
+- **:fontawesome-solid-people-group: Community Support:** Active community on
   [GitHub](https://github.com/pypsa/pypsa) and
   [Discord](https://discord.gg/AnuJBk23FU) for user support and development
   discussions.
 
-- **MIT License:** Fully open-source and free for commercial and academic use.
+- **:material-lock-open: MIT License:** Fully open-source and free for commercial and academic use.
 
 ## Illustrations
 

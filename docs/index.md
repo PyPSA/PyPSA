@@ -21,7 +21,7 @@ hide:
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://github.com/PyPSA/pypsa?tab=coc-ov-file)
 
-PyPSA stands for **Python for Power System Analysis**. It is pronounced **pipes-ah**.
+PyPSA stands for **Python for Power System Analysis**. It is pronounced **pipes-ah**. :speaking_head:
 
 PyPSA is an open-source Python framework for optimising and simulating modern
 power and energy systems that include features such as conventional generators
@@ -32,7 +32,7 @@ designed to scale well with large networks and long time series. It is made for
 researchers, planners and utilities with basic coding aptitude who need a fast,
 easy-to-use and transparent tool for power and energy system analysis.
 
-Check out the [Features](features.md) for more information on the functionality.
+Check out the [:octicons-gear-16: Features](features.md) for more information on the functionality.
 
 !!! note
 
