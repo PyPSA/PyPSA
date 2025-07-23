@@ -23,6 +23,11 @@ class PlotAccessor:
         self.n = n  # TODO rename
 
     @functools.wraps(plot)
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Legacy plot method."""
+        return plot(self.n, *args, **kwargs)
+
+    @functools.wraps(plot)
     def map(self, *args: Any, **kwargs: Any) -> Any:
         """Plot method."""
         return plot(self.n, *args, **kwargs)

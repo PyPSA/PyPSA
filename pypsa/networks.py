@@ -12,6 +12,8 @@ try:
 except ImportError:
     from pathlib import Path
 
+import functools
+
 import linopy
 import numpy as np
 import pandas as pd
@@ -44,6 +46,7 @@ from pypsa.network.power_flow import (
 from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
+from pypsa.plot.maps import explore
 from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.version import __version_semver__
@@ -629,6 +632,11 @@ class Network(
 
         """
         self.crs = pyproj.CRS.from_epsg(new)
+
+    @functools.wraps(explore)
+    def explore(self, *args: Any, **kwargs: Any) -> Any:
+        """Interactive map plot method."""
+        return explore(self, *args, **kwargs)
 
     def copy(
         self,
