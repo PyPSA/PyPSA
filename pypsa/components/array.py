@@ -156,6 +156,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         res.index.name = sns.name
         if self.has_scenarios:
             res.columns.names = static.index.names
+            res.columns.name = None
         else:
             res.columns.name = "name"
         return res
@@ -164,7 +165,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         self,
         attr: str,
         snapshots: Sequence | None = None,
-        inds: Sequence | None = None,
+        components: Sequence | None = None,
     ) -> xarray.DataArray:
         """Get an attribute as a xarray DataArray.
 
@@ -186,11 +187,8 @@ class ComponentsArrayMixin(_ComponentsABC):
         snapshots : Sequence | None, optional
             Snapshots to include. If None, uses all snapshots for time-varying data
             or returns static data as-is
-        inds : pd.Index | None, optional
+        components : pd.Index | None, optional
             Component indices to filter by. If None, includes all components
-        drop_scenarios : bool, default False
-            If True, drops the scenario dimension from the resulting DataArray
-            by selecting the first scenario.
 
         Returns
         -------
@@ -198,23 +196,12 @@ class ComponentsArrayMixin(_ComponentsABC):
             The requested attribute data as an xarray DataArray with appropriate dimensions
 
         """
-        # Strip any index name information
-        # snapshots = getattr(snapshots, "values", snapshots) # TODO # noqa: ERA001
-        inds = getattr(inds, "values", inds)
-
         if attr == "active":
             res = xarray.DataArray(self.get_activity_mask(snapshots))
         elif attr in self.dynamic.keys() or snapshots is not None:
-            res = self._as_dynamic(attr, snapshots)
-            if self.has_scenarios:
-                # TODO implement this better
-                res.columns.name = None
-            res = xarray.DataArray(res)
+            res = xarray.DataArray(self._as_dynamic(attr, snapshots))
         else:
             res = xarray.DataArray(self.static[attr])
-
-        # Rename dimension
-        # res = res.rename({self.name: "component"}) # noqa: ERA001
 
         if self.has_scenarios:
             # untack the dimension that contains the scenarios
@@ -223,8 +210,8 @@ class ComponentsArrayMixin(_ComponentsABC):
             if "scenario" in res.dims:
                 res = res.reindex(scenario=self.scenarios)
 
-        if inds is not None:
-            res = res.sel(name=inds)
+        if components is not None:
+            res = res.sel(name=components)
 
         if self.has_periods:
             try:
@@ -232,6 +219,7 @@ class ComponentsArrayMixin(_ComponentsABC):
             except ValueError:
                 pass
 
+        # Set attibute name as DataArray name
         res.name = attr
 
         return res
