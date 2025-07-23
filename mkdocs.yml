@@ -13,7 +13,9 @@ nav:
     - Release Notes: release-notes.md
   - Getting Started:
     - Installation: home/installation.md
-    - Quickstart: home/quick-start.md
+    - examples/example-1.ipynb
+    - examples/example-2.ipynb
+    - examples/example-3.ipynb
   - Reference:
     - Users: home/users.md
     - Models: home/models.md
