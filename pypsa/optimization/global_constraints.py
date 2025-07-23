@@ -53,6 +53,10 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
         lambda df: df.type == "tech_capacity_expansion_limit"
     ]
 
+    if n.has_scenarios and not glcs.empty:
+        msg = "Technology expansion limits for stochastic networks are not implemented."
+        raise NotImplementedError(msg)
+
     for (carrier, sense, period), glcs_group in glcs.groupby(
         ["carrier_attribute", "sense", "investment_period"]
     ):
@@ -118,6 +122,10 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
     m = n.model
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
     buses = n.buses.index[n.buses[cols].notnull().any(axis=1)]
+
+    if n.has_scenarios and not buses.empty:
+        msg = "Nominal constraints per bus carrier are not implemented for stochastic networks."
+        raise NotImplementedError(msg)
 
     for col in cols:
         msg = (
@@ -390,38 +398,51 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             if isnan(glc.investment_period)
             else sns[sns.get_loc(glc.investment_period)]
         )
+
+        if n.has_scenarios:
+            scenario, constraint_name = name
+            name = scenario + "-" + constraint_name
+        else:
+            scenario = slice(None)
+
         lhs = []
         rhs = glc.constant
 
         # generators
         gens = n.generators.query("carrier == @glc.carrier_attribute")
         if not gens.empty:
-            names = _extract_names_for_multiindex(gens.index)
-            p = m["Generator-p"].sel(name=names, snapshot=snapshots)
+            gens = gens.loc[scenario]
+            p = m["Generator-p"].sel(name=gens.index, snapshot=snapshots)
+            if n.has_scenarios:
+                p = p.sel(scenario=scenario, drop=True)
 
             w = DataArray(weightings.generators[snapshots])
-            if "dim_0" in w.dims:
-                w = w.rename({"dim_0": "snapshot"})
             expr = (p * w).sum()
             lhs.append(expr)
 
         # storage units
         sus = n.storage_units.query(cond)
         if not sus.empty:
-            names = _extract_names_for_multiindex(sus.index)
-            soc = m["StorageUnit-state_of_charge"].sel(name=names, snapshot=snapshots)
+            sus = sus.loc[scenario]
+            soc = m["StorageUnit-state_of_charge"].sel(
+                name=sus.index, snapshot=snapshots
+            )
 
             soc = soc.ffill("snapshot").isel(snapshot=-1)
+            if n.has_scenarios:
+                soc = soc.sel(scenario=scenario, drop=True)
             lhs.append(-1 * soc.sum())
             rhs -= sus.state_of_charge_initial.sum()
 
         # stores
         stores = n.stores.query("carrier == @glc.carrier_attribute and not e_cyclic")
         if not stores.empty:
-            names = _extract_names_for_multiindex(stores.index)
-            e = m["Store-e"].sel(name=names, snapshot=snapshots)
+            stores = stores.loc[scenario]
+            e = m["Store-e"].sel(name=stores.indes, snapshot=snapshots)
 
             e = e.ffill("snapshot").isel(snapshot=-1)
+            if n.has_scenarios:
+                e = e.sel(scenario=scenario, drop=True)
             lhs.append(-e.sum())
             rhs -= stores.e_initial.sum()
 
@@ -451,6 +472,10 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
 
     def substr(s: str) -> str:
         return re.sub("[\\[\\]\\(\\)]", "", s)
+
+    if n.has_scenarios and not glcs.empty:
+        msg = "Transmission volume expansion limits for stochastic networks are not implemented."
+        raise NotImplementedError(msg)
 
     for name, glc in glcs.iterrows():
         lhs = []
