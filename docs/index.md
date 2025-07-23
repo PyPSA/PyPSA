@@ -21,28 +21,28 @@ hide:
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://github.com/PyPSA/pypsa?tab=coc-ov-file)
 
-PyPSA stands for "Python for Power System Analysis". It is pronounced "pipes-ah".
+PyPSA stands for **Python for Power System Analysis**. It is pronounced **pipes-ah**.
 
-PyPSA is an open source toolbox for simulating and optimising modern power and
-energy systems that include features such as conventional generators with unit
-commitment, variable wind and solar generation, storage units, coupling to other
-energy sectors, and mixed alternating and direct current networks. PyPSA is
-designed to scale well with large networks and long time series.
+PyPSA is an open-source Python framework for optimising and simulating modern
+power and energy systems that include features such as conventional generators
+with unit commitment, variable wind and solar generation, hydro-electricity,
+inter-temporal storage, coupling to other energy sectors, elastic demands, and
+linearised power flow with loss approximations in DC and AC networks. PyPSA is
+designed to scale well with large networks and long time series. It is made for
+researchers, planners and utilities with basic coding aptitude who need a fast,
+easy-to-use and transparent tool for power and energy system analysis.
 
-This project is maintained by the [Department of Digital Transformation in
-Energy Systems](https://tub-ensys.github.io) at the [Technical University of
-Berlin](https://www.tu.berlin). Previous versions were developed by the Energy
-System Modelling group at the [Institute for Automation and Applied
-Informatics](https://www.iai.kit.edu/english/index.php) at the [Karlsruhe
-Institute of Technology](http://www.kit.edu/english/index.php) funded by the
-[Helmholtz Association](https://www.helmholtz.de/en/), and by the [Renewable
-Energy
-Group](https://fias.uni-frankfurt.de/physics/schramm/renewable-energy-system-and-network-analysis/)
-at [FIAS](https://fias.uni-frankfurt.de/) to carry out simulations for the
-[CoNDyNet project](https://fias.institute/en/projects/condynet/), financed by the [German Federal
-Ministry for Education and Research (BMBF)](https://www.bmbf.de/bmbf/en/)
-as part of the [Stromnetze Research
-Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fuer-effiziente-dezentrale-stromnetze/).
+Check out the [Features](features.md) for more information on the functionality.
+
+!!! note
+
+    PyPSA is maintained by the [Department of Digital Transformation in
+    Energy Systems](https://tu.berlin/en/ensys) at the [Technical University of
+    Berlin](https://www.tu.berlin). Previous versions were developed at the [Karlsruhe
+    Institute of Technology](http://www.kit.edu/english/index.php) funded by the
+    [Helmholtz Association](https://www.helmholtz.de/en/), and
+    at [FIAS](https://fias.uni-frankfurt.de/) funded by the [German Federal
+    Ministry for Education and Research (BMBF)](https://www.bmbf.de/bmbf/en/).
 
 
 ## Quick Links
@@ -57,8 +57,6 @@ Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fu
 
     [:octicons-arrow-right-24: Quick Start](quick-start.md)
     
-    [:octicons-arrow-right-24: First Time Users Guide](first-time-users.md)
-
 -   :material-view-list:{ .lg .middle } **Overview**
 
     ---
@@ -114,13 +112,13 @@ Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fu
 
     [:octicons-arrow-right-24: API Reference](api.md)
 
--   :material-brain:{ .lg .middle } **Resources**
+<!-- -   :material-brain:{ .lg .middle } **Resources**
 
     ---
 
     There are many resources available from various sources on **Energy System Modelling** and **PyPSA**. Find **learning materials** here.
 
-    [:octicons-arrow-right-24: Resources](resources.md)
+    [:octicons-arrow-right-24: Resources](resources.md) -->
 
 -   :fontawesome-solid-users:{ .lg .middle } **Contributing**
 
@@ -129,14 +127,6 @@ Initiative](http://forschung-stromnetze.info/projekte/grundlagen-und-konzepte-fu
     PyPSA is an **open source project** and we welcome any contributions to **keep the project alive**. Find out how to **contribute here**. You don't need to be a developer to contribute.
 
     [:octicons-arrow-right-24: Contributing](contributing.md)
-
--   :octicons-tools-16:{ .lg .middle } **More Tools**
-
-    ---
-
-    PyPSA is just one of many tools available for energy system modelling. Check out other **tools**, **projects** and **models** in the PyPSA universe.
-
-    [:octicons-arrow-right-24: More Tools](more-tools.md)
 
 </div>
 

@@ -2,8 +2,6 @@
 todo: general update
 # Features
 
-## Functionality
-
 **PyPSA can calculate:**
 
 * static power flow (using both the full non-linear network equations and
@@ -35,39 +33,16 @@ todo: general update
   these is demonstrated in the [examples](examples.md).
 
 
-## Target users
-
-PyPSA is intended for researchers, planners and utilities who need a
-fast, easy-to-use and transparent tool for power and energy system
-analysis. PyPSA is free software and can be arbitrarily extended.
-
-
-## Screenshots
-
-[PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) optimising capacities of generation, storage and transmission lines (9% line volume expansion allowed) for a 95% reduction in CO2 emissions in Europe compared to 1990 levels:
+[PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) optimising capacities of generation, storage and transmission lines for a 95% reduction in CO~2~ emissions in Europe:
 <figure markdown="span">
   ![Buses](../assets/images/elec_s_256_lv1.09_Co2L-3H.png){ width="600" }
-  <figcaption>todo</figcaption>
 </figure>
 
-[SciGRID model](https://power.scigrid.de/) simulating the German power system for 2015. Interactive plots also be generated with the [plotly](https://plot.ly/python/) library, as shown in this [Notebook](https://pypsa.readthedocs.io/en/latest/examples/scigrid-lopf-then-pf.html)
+[SciGRID model](https://power.scigrid.de/) simulating the German power system for 2015.
 
 <figure markdown="span">
   ![Buses](../assets/images/stacked-gen_and_storage-scigrid.png){ width="600" }
-  <figcaption>todo</figcaption>
 </figure>
 <figure markdown="span">
   ![Buses](../assets/images/lmp_and_line-loading.png){ width="600" }
-  <figcaption>todo</figcaption>
-</figure>
-<figure markdown="span">
-  ![Buses](../assets/images/reactive-power.png){ width="600" }
-  <figcaption>todo</figcaption>
-</figure>
-
-Small meshed AC-DC toy model:
-
-<figure markdown="span">
-  ![](../assets/images/ac_dc_meshed.png){ width="300" }
-  <figcaption>Small meshed AC-DC toy model</figcaption>
 </figure>

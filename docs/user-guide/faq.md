@@ -2,9 +2,8 @@
 todo: general update
 todo: add structure
 todo: more questions
-# Frequently Asked Questions
 
-## Category
+# Frequently Asked Questions
 
 ### Does PyPSA model more than just the power system? E.g. methane, hydrogen, carbon dioxide networks?
 Yes, PyPSA can model any energy carrier or material flow. Typically this is done as a transport network with linear losses. Example: PyPSA-Eur gas networks. Fabian Hofmann’s [H2 and CO2 network paper](https://arxiv.org/abs/2402.19042).

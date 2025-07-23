@@ -20,8 +20,7 @@ Check out [what's new](v1-guide.md).
 
 ## [**v0.35.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1) <small>3rd July 2025</small> { id="v0.35.1" }
 
-Bug Fixes
----------
+### Bug Fixes
 
 - Fixed issue when copying a network with an unsolved model.
   (:octicons-git-pull-request-16:1265)
