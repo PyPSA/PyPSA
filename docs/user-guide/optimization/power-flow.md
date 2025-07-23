@@ -92,6 +92,17 @@ The dispatch limits of $p_{\ell,t}$ are now subtracted by $\psi_{l,t}$.
 
 These constraints are set in the function [`define_loss_constraints`]().
 
+The transmission loss approximation is not activated by default, but must be
+enabled by providing a number of tangents in [`n.optimize()`]().
+
+```python
+n.optimize(transmission_losses=3)
+```
+
+The higher the number of tangents, the more accurate the approximation, but also
+the more constraints are added to the optimisation problem. Typically, 2-4
+tangents are sufficient for a reasonably accurate approximation.
+
 !!! hint "Hint: Calculating transmission losses"
 
     The losses can be calculated with `n.lines_t.p0 + n.lines_t.p1`.
