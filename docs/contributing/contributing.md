@@ -1,7 +1,7 @@
 todo: Add uv, pip, conda
 
 
-# Contributing
+# Instructions for Contributing
 
 First of all, thank you for thinking about contributing to PyPSA! 
 
@@ -35,7 +35,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 
 What to work on, TODO, which issues, labeling etc.  #TODO: 
 
-### Code Style
+### Style
 
 **pre-commit**
 
@@ -116,40 +116,35 @@ pytest test_lpf_against_pypower.py
 Power flow is tested against PYPOWER (the Python implementation of MATPOWER)
 and pandapower.
 
-> **Warning**: Note that PYPOWER 5.0 has a bug in the linear load flow, which was fixed in the github version in January 2016.
-
-> **Note**: Note also that the test results against which everything is tested
-> were generated with the free software LP solver GLPK; other solver may
-> give other results (e.g. Gurobi can give a slightly better result).
-
 Unit testing is also performed in the CI/CD pipeline, similar to the linting and formatting.
 
 ## Documentation
 
-We strive to keep documentation useful and up to date for all PyPSA users. If you 
-encounter an area where documentation is not available or insufficient, we very much 
-welcome your contribution.
+The documentation is built with [MkDocs](https://www.mkdocs.org) and the
+[Material for MkDocs](https://squidfunk.github.io/mkdocs-material) theme.
 
-For bigger changes, we recommend to make them locally. Just follow the steps in 
+We strive to keep documentation useful and up to date for all PyPSA users. If
+you encounter an area where documentation is not available or insufficient, we
+very much welcome your contribution.
+
+!!! note
+
+   If you are not familiar with Markdown, consult the following [quick guide](https://www.markdownguide.org/basic-syntax/).
+
+For bigger changes, we recommend to draft them locally. Just follow the steps in 
 [Code Contributions](#code) to set up your local environment. In addition you can:
 
 1. Also install the documentation dependencies via `pip install -e .[docs]`.
-2. Make your changes in the corresponding .rst file under the `doc` folder.
-3. Compile your changes by running the following command in your terminal in the `doc` folder: `make html`
+2. Make your changes in the corresponding `.md` file in the `docs` directory.
+3. Compile your changes by running the following command in your terminal in the `doc` folder: `mkdocs serve`
    
-   * You may encounter some warnings, but end up with a message such as `build succeeded, XX warnings.` html files to review your changes can then be found under `doc/_build/html`.
+   * You may encounter some warnings, but end up with a link to a local server (e.g. `http://127.0.0.1:8000`).
 
 For simple changes, you can also edit the documentation directly on GitHub:
 
-1. If you are on the documentation page, click on the little book icon on the bottom 
-   left with `v: latest`, which indicates the version/ branch. `Edit`
-   under "On GitHub" will bring you straight to the source file.
+1. If you are on the documentation page, click on the little paper icon with the pen on the top right. This will bring you straight to the source file.
 2. Make your changes in the file.
-3. Commit your changes and create a pull request. 
-
-> **Note**: If you are not familiar with reStructuredText, you can find a quick guide [here](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html).
-> It is quite simple and you should be fine with just keeping the structure of 
-> the existing files.
+3. Commit your changes and create a pull request.
 
 ## Examples
 
@@ -162,27 +157,8 @@ that the notebook is clean and metadata is removed.
 Then for every notebook:
 
 1. Write the notebook (let's call it `foo.ipynb`) and place it
-   in `examples/notebooks/foo.ipynb`.
+   in `examples/foo.ipynb`.
 
-2. Provide a link to the documentation:
-   Include a file `foo.nblink` located in `doc/examples/`
-   with the following content:
+2. Reference it in the configuration file `docs/mkdocs.yml` where the other examples are listed.
 
-   ```json
-   {'path' : '../../examples/foo.ipynb'}
-   ```
-    
-   Adjust the path for your file's name.
-   This `nblink` allows us to link your notebook into the documentation.
-
-3. Link your file in the documentation:
-
-   * Include your `examples/foo.nblink` directly into one of the documentations 
-     toctrees
-   * or tell us where in the documentation you want your example to show up
-
-4. Commit your changes and create a pull request.
-
-The support for the `.ipynb` notebook format in our documentation
-is realised via the extensions [nbsphinx](https://nbsphinx.readthedocs.io/en/0.4.2/installation.html) 
-and [nbsphinx_link](https://nbsphinx.readthedocs.io/en/latest/).
+3. Commit your changes and create a pull request.

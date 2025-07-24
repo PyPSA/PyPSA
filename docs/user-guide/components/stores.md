@@ -1,20 +1,41 @@
 # Store
 
-The `Store` component connects to a single bus and provides fundamental energy storage functionality with independent storage energy and charge/discharge power capacity optimization.
+The `Store` component connects to a single bus and provides fundamental
+inter-temporal storage functionality of the carrier of the `Bus` it attaches to.
+It is not limited in charging or discharging power.
 
-To control charging and discharging power, separate `Link` components must be connected to the Store. This decoupled approach enables independent optimization of power and energy capacities, different efficiencies for charging and discharging processes, and asymmetric power ratings (different charging/discharging rate).
+To control charging and discharging power, separate `Link` components must be
+connected to the `Bus` to which the `Store` attaches. This decoupled approach
+enables independent optimization of power and energy capacities as well as
+asymmetric power ratings for charging and discharging.
 
-- `Store` component only "stores" energy without converting between energy carriers. It automatically inherits an energy carrier from the connected bus
-- Energy capacity (`e_nom`) can be optimized independently of charge-/discharge power constraints
-- `Store` component has no power capacity attribute `p_nom` (like `StorageUnit`), the charge/discharge power is controlled by a `Link` component connected to the Store
-- `marginal_cost` attribute applies equally to both charging and discharging operations, representing the cost per unit of energy stored or released. This differs from `StorageUnit` components where marginal costs apply only to the marginal cost of production (discharging).
-- The `marginal_cost` of the `Store` component can represent trading in external energy markets where the stored carrier can be bought or sold at market prices.
-- For modeling technical marginal costs where both charging and discharging increase the objective function, use two separate Link components with distinct cost structures for charging and discharging processes.
+!!! example "Hydrogen storage system with a `Store` and two `Link` components"
 
-## When to use storage unit instead
+    ```mermaid
+    graph LR
+        ElectricityBus["Electricity Bus"]:::bus
+        HydrogenBus["Hydrogen Bus"]:::bus
+        SteelTank["Steel Tank Store"]:::store
 
-Use `StorageUnit` when power and energy capacities have a fixed relationship and you need integrated power dispatch control within a single component. This is simpler for e.g. a storage device where the power-to-energy ratio is predetermined by the manufacturer.
+        ElectricityBus -->|Electrolyser Link| HydrogenBus
+        HydrogenBus -->|Hydrogen Turbine Link| ElectricityBus
+        HydrogenBus --> SteelTank
 
-See [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html) for implementation details.
+        classDef bus fill:#f9f,stroke:#333,stroke-width:2,shape:circle;
+        classDef store fill:#bbf,stroke:#333,stroke-width:2,shape:rect;
+    ```
+
+The `marginal_cost` attribute applies equally to both charging and discharging
+operations, representing the cost per unit of energy stored or released. This
+differs from `StorageUnit` components where marginal costs apply only to the
+discharging power. For instance, the `marginal_cost` of the `Store` component
+can represent trading in external energy markets where the stored carrier can be
+bought or sold at fixed market prices.
+
+!!! note "When to use `StorageUnit` instead?"
+
+    Use `StorageUnit` when power and energy capacities have a fixed relationship and you need integrated dispatch control within a single component. For example, this is recommended for a storage device where the power-to-energy ratio is predetermined by the manufacturer.
+    The `StorageUnit` also has attributes for hydro-electric `inflow` and `spillage`. 
+    See [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html) for implementation differences.
 
 # TODO Table

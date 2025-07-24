@@ -26,8 +26,7 @@ Check out [what's new](v1-guide.md).
 
   where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
 
-`v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
-=======================================================================================
+## [**v0.35.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1) <small>3rd July 2025</small> { id="v0.35.1" }
 
 ### Bug Fixes
 
@@ -40,7 +39,7 @@ Check out [what's new](v1-guide.md).
 - Fixed Excel import when snapshots sheet is missing.
   (:octicons-issue-16:1268)
 
-## [**v0.35.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0) <small>22th June 2025</small> { id="v0.35.0" }
+## [**v0.35.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0) 
 
 ### Features
 
