@@ -20,6 +20,7 @@ This section contains examples of network optimization with PyPSA. PyPSA allows 
     ../examples/simple-electricity-market-examples.ipynb
     ../examples/capacity-expansion-planning-single-node.ipynb
     ../examples/mga.ipynb
+    ../examples/demand-elasticity.ipynb
     ../examples/islanded-methanol-production.ipynb
     ../examples/transformer_example.ipynb
     ../examples/unit-commitment.ipynb
