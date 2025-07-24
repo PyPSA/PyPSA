@@ -305,6 +305,9 @@ class AbstractStatisticsAccessor(ABC):
         if aggregate_across_components:
             df = self._aggregate_across_components(df, agg)
 
+        if isinstance(df, pd.Series):
+            df.name = None
+
         return df
 
     def _aggregate_components_skip_iteration(self, vals: Any) -> bool:

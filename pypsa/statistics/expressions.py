@@ -35,15 +35,6 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     return n.dynamic(c).p
 
 
-def get_weightings(n: Network, c: str) -> pd.Series:
-    """Get the relevant snapshot weighting for a component."""
-    if c == "Generator":
-        return n.snapshot_weightings["generators"]
-    if c in ["StorageUnit", "Store"]:
-        return n.snapshot_weightings["stores"]
-    return n.snapshot_weightings["objective"]
-
-
 def port_efficiency(
     n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
@@ -1796,7 +1787,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             idx = transmission_branches.get_loc_level(c, level="component")[1]
             p = n.dynamic(c)[f"p{port}"][idx]
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
@@ -1922,7 +1913,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             p = sign * n.dynamic(c)[f"p{port}"]
             if direction == "supply":
                 p = p.clip(lower=0)
@@ -2040,7 +2031,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 n.get_switchable_as_dense(c, "p_max_pu") * n.static(c).p_nom_opt
                 - n.dynamic(c).p
             ).clip(lower=0)
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
@@ -2143,7 +2134,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         kwargs = {
@@ -2275,7 +2266,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     msg = f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
                     raise ValueError(msg)
             revenue = df * prices
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.objective
             return self._aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
