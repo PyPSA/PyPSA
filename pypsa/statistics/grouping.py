@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import logging
 from inspect import signature
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
     from pypsa import Network
 
-import warnings
 
 import pandas as pd
 
@@ -432,102 +431,3 @@ new_grouper_access = {
     "get_bus_and_carrier_and_bus_carrier": '["bus", "carrier", "bus_carrier"]',
     "get_carrier_and_bus_carrier": '["carrier", "bus_carrier"]',
 }
-
-
-def deprecated_grouper(func: Callable) -> Callable:
-    """Deprecate old grouper methods with custom deprecation warning.
-
-    Parameters
-    ----------
-    func : Callable
-        Function to deprecate.
-
-    Returns
-    -------
-    Callable
-        Same function wrapped with deprecation warning.
-
-    """
-
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        msg = (
-            f"`n.statistics.{func.__name__}` and `pypsa.statistics.{func.__name__}` "
-            f"are deprecated. Use "
-            f"`pypsa.statistics.groupers{new_grouper_access[func.__name__]}` instead."
-            "Deprecated in version 0.34 and will be removed in version 1.0."
-        )
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        return func(*args, **kwargs)
-
-    return wrapper
-
-
-class DeprecatedGroupers:
-    """Grouper class to allow full backwards compatiblity with old grouper methods.
-
-    Allows access to the old grouper methods, points them to new structure on
-    module level and raises a DeprecationWarning.
-    """
-
-    @deprecated_grouper
-    def get_carrier(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """Use `pypsa.statistics.groupers.carrier` instead."""
-        return groupers.carrier(*args, **kwargs)
-
-    @deprecated_grouper
-    def get_bus_carrier(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """Use `pypsa.statistics.groupers.bus_carrier` instead."""
-        return groupers.bus_carrier(*args, **kwargs)
-
-    @deprecated_grouper
-    def get_bus(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """Use `pypsa.statistics.groupers.bus` instead."""
-        return groupers.bus(*args, **kwargs)
-
-    @deprecated_grouper
-    def get_country(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """Use `pypsa.statistics.groupers.country` instead."""
-        return groupers.country(*args, **kwargs)
-
-    @deprecated_grouper
-    def get_unit(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """Use `pypsa.statistics.groupers.unit` instead."""
-        return groupers.unit(*args, **kwargs)
-
-    @deprecated_grouper
-    def get_name(self, *args: Any, **kwargs: Any) -> pd.Series:
-        """Use `pypsa.statistics.groupers.name` instead."""
-        return groupers.name(*args, **kwargs)
-
-    @deprecated_grouper
-    def get_bus_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """Use `pypsa.statistics.groupers["bus", "carrier"]` instead."""
-        return groupers["bus", "carrier"](*args, **kwargs)
-
-    @deprecated_grouper
-    def get_bus_unit_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """Use `pypsa.statistics.groupers["bus", "unit", "carrier"]` instead."""
-        return groupers["bus", "unit", "carrier"](*args, **kwargs)
-
-    @deprecated_grouper
-    def get_name_bus_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """Use `pypsa.statistics.groupers["name", "bus", "carrier"]` instead."""
-        return groupers["name", "bus", "carrier"](*args, **kwargs)
-
-    @deprecated_grouper
-    def get_country_and_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """Use `pypsa.statistics.groupers["country", "carrier"]` instead."""
-        return groupers["country", "carrier"](*args, **kwargs)
-
-    @deprecated_grouper
-    def get_bus_and_carrier_and_bus_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """Use `pypsa.statistics.groupers["bus", "carrier", "bus_carrier"]` instead."""
-        return groupers["bus", "carrier", "bus_carrier"](*args, **kwargs)
-
-    @deprecated_grouper
-    def get_carrier_and_bus_carrier(self, *args: Any, **kwargs: Any) -> list:
-        """Use `pypsa.statistics.groupers["carrier", "bus_carrier"]` instead."""
-        return groupers["carrier", "bus_carrier"](*args, **kwargs)
-
-
-deprecated_groupers = DeprecatedGroupers()

@@ -46,12 +46,25 @@ class _NetworkABC(ABC):
     transformers: pd.DataFrame
     stores: pd.DataFrame
     shunt_impedances: pd.DataFrame
+    carriers: pd.DataFrame
+    get_switchable_as_dense: Callable
+    get_committable_i: Callable
+    get_extendable_i: Callable
+    shapes: pd.DataFrame
+    component_attrs: pd.DataFrame
+    global_constraints: pd.DataFrame
 
     passive_branches: pd.DataFrame
 
     @property
     @abstractmethod
     def passive_branch_components(self) -> set[str]:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
+    def branch_components(self) -> set[str]:
         """Read only placeholder."""
         ...
 
