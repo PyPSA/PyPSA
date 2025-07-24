@@ -886,4 +886,4 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     dtype: float64
 
     """
-    return r / (1. - 1. / (1. + r) ** n)
+    return r / (1.0 - 1.0 / (1.0 + r) ** n)
