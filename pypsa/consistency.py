@@ -731,6 +731,9 @@ class NetworkConsistencyMixin(_NetworkABC):
     All attributes and methods can be used within any Network instance.
     """
 
+    def calculate_dependent_values(self) -> None:
+        """Calculate dependent values. Implemented by NetworkPowerFlowMixin."""
+
     def consistency_check(
         self, check_dtypes: bool = False, strict: Sequence | None = None
     ) -> None:
