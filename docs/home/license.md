@@ -1,7 +1,7 @@
 
 # License
 
-PyPSA is licensed under the [MIT](https://opensource.org/license/mit) license:
+PyPSA is licensed under the open-source [MIT](https://opensource.org/license/mit) license:
 
 ```text
 MIT License
