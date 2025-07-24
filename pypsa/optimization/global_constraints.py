@@ -88,7 +88,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
 
 @deprecated(
     deprecated_in="1.0",
-    removed_in="1.1",
+    removed_in="2.0",
     details="Use global constraint of type 'define_tech_capacity_expansion_limit' instead.",
 )
 def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> None:
