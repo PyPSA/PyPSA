@@ -7,10 +7,10 @@ import re
 from typing import TYPE_CHECKING
 
 import pandas as pd
+from deprecation import deprecated
 from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
-from deprecation import deprecated
 
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
