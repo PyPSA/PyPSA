@@ -853,3 +853,37 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
 
     """
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+
+
+def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
+    """Calculate the annuity factor for a given discount rate and lifetime.
+
+    Parameters
+    ----------
+    r : float | pd.Series
+        Discount rate (as a decimal, e.g. 0.05 for 5%).
+    n : int | pd.Series
+        Lifetime of loan or asset (in years).
+
+    Returns
+    -------
+    float | pd.Series
+        The annuity factor.
+
+    Examples
+    --------
+    >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
+    0.12950457496545661
+
+    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), pd.Series([10, 20]))
+    0    0.129505
+    1    0.067216
+    dtype: float64
+
+    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), 20)
+    0    0.080243
+    1    0.067216
+    dtype: float64
+
+    """
+    return r / (1. - 1. / (1. + r) ** n)

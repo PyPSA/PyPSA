@@ -17,6 +17,17 @@ Bug Fixes
 * Correct use of snapshot weighting columns in statistics module. The
   doscstring for ``n.snapshot_weightings`` was clarified.
 
+* Added utility function ``pypsa.common.annuity`` to calculate the annuity
+  factor for a given discount rate and lifetime. Also known as capital recovery
+  factor, it is used to convert a capital cost into an annualized cost. The
+  formula is: 
+
+  .. math::
+  
+      \frac{r}{1 - (1 + r)^{-n}}
+
+  where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
+
 `v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
 =======================================================================================
 
