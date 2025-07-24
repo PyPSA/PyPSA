@@ -7,6 +7,7 @@ import re
 from typing import TYPE_CHECKING
 
 import pandas as pd
+from deprecation import deprecated
 from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
@@ -85,6 +86,11 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
             )
 
 
+@deprecated(
+    deprecated_in="1.0",
+    removed_in="2.0",
+    details="Use global constraint of type 'define_tech_capacity_expansion_limit' instead.",
+)
 def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> None:
     """Set an capacity expansion limit for assets of the same carrier at the same
     bus (e.g. 'onwind' at bus '1'). The function searches for columns in the

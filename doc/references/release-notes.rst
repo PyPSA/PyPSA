@@ -17,6 +17,10 @@ Bug Fixes
 * Correct use of snapshot weighting columns in statistics module. The
   doscstring for ``n.snapshot_weightings`` was clarified.
 
+* The option to set bus-level capacity expansion limits per carrier via `Bus`
+  attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
+  constraint type `"tech_capacity_expansion_limit"` offers identical functionality.
+
 `v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
 =======================================================================================
 
