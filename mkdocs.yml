@@ -13,12 +13,19 @@ nav:
     - Release Notes: release-notes.md
   - Getting Started:
     - Installation: home/installation.md
-    - Quickstart: home/quick-start.md
+    - examples/example-1.ipynb
+    - examples/example-2.ipynb
+    - examples/example-3.ipynb
   - Reference:
     - Users: home/users.md
     - Models: home/models.md
     - Citing: home/citing.md
     - License: home/license.md
+  - Support:
+    - FAQ: user-guide/faq.md
+    - Support: user-guide/support.md
+    - Resources: user-guide/resources.md
+    - Troubleshooting: user-guide/troubleshooting.md
 
 - User Guide:
   - Overview: user-guide/user-guide.md
@@ -26,27 +33,40 @@ nav:
   - Core Design:
     - Design: user-guide/design.md
     - Component Types:
-      - Sub-Network: user-guide/components/sub_networks.md
       - Bus: user-guide/components/buses.md
       - Carrier: user-guide/components/carriers.md
-      - Global Constraints: user-guide/components/global_constraints.md
       - Generator: user-guide/components/generators.md
-      - Store: user-guide/components/stores.md
-      - StorageUnit: user-guide/components/storage_units.md
       - Load: user-guide/components/loads.md
-      - Shunt Impedance: user-guide/components/shunt_impedances.md
+      - Link: user-guide/components/links.md
+      - Store: user-guide/components/stores.md
+      - Storage Unit: user-guide/components/storage_units.md
       - Line: user-guide/components/lines.md
       - Line Types: user-guide/components/line_types.md
       - Transformer: user-guide/components/transformers.md
       - Transformer Types: user-guide/components/transformer_types.md
-      - Link: user-guide/components/links.md
+      - Shunt Impedance: user-guide/components/shunt_impedances.md
+      - Global Constraints: user-guide/components/global_constraints.md
       - Shapes: user-guide/components/shapes.md
+      - Sub-Network: user-guide/components/sub_networks.md
   - Optimization:
-    - Optimization with Linopy: user-guide/optimization-with-linopy.md
+    - Overview: user-guide/optimization/overview.md
+    - Formulations:
+      - Objective: user-guide/optimization/objective.md
+      - Energy Balance: user-guide/optimization/energy-balance.md
+      - Dispatch Limits: user-guide/optimization/dispatch-limits.md
+      - Capacity Limits: user-guide/optimization/capacity-limits.md
+      - Unit Commitment: user-guide/optimization/unit-commitment.md
+      - Storage: user-guide/optimization/storage.md
+      - Power Flow: user-guide/optimization/power-flow.md
+      - Contingencies: user-guide/optimization/contingencies.md
+      - Global Constraints: user-guide/optimization/global-constraints.md
+      - Custom Constraints: user-guide/optimization/custom-constraints.md
+      - Pathway Planning: user-guide/optimization/pathway-planning.md
+      - Stochastic Optimization: user-guide/optimization/stochastic.md
+      - Modelling-to-Generate-Alternatives (MGA): user-guide/optimization/modelling-to-generate-alternatives.md
+  - Simulation:
     - Power Flow: user-guide/power-flow.md
-    - System Optimization: user-guide/optimal-power-flow.md
-    - Contigency Analysis: user-guide/contingency-analysis.md
-    - Stochastic Optimization: user-guide/stochastic-optimization.md
+    - Linear Power Flow: user-guide/linear-power-flow.md
   - Usage:
     - Networks: user-guide/networks.md
     - Components: user-guide/components.md
@@ -55,38 +75,33 @@ nav:
     - Clustering: user-guide/clustering.md
     - Import and Export: user-guide/import-export.md
     - Statistics: user-guide/statistics.md
-    - Create plots: user-guide/plotting.md
-    - Compare multiple networks: user-guide/collection.md
+    - Plotting: user-guide/plotting.md
+    - Comparing networks: user-guide/collection.md
     - Options and settings: user-guide/options.md
     - Logging: user-guide/logging.md
-  - Support:
-    - FAQ: user-guide/faq.md
-    - Support: user-guide/support.md
-    - Troubleshooting: user-guide/troubleshooting.md
 
 - Examples:
   - Overview: examples/examples.md
-  - Basic Examples:
-    - examples/minimal_example_pf.ipynb
-    - examples/ac-dc-lopf.ipynb
-  - Power System Optimization:
-    - examples/capacity-constraint-per-bus.ipynb
-    - examples/multi-investment-optimisation.ipynb
-    - examples/chained-hydro-reservoirs.ipynb
-    - examples/generation-investment-screening-curve.ipynb
-    - examples/scigrid-lopf-then-pf.ipynb
-    - examples/scigrid-redispatch.ipynb
-    - examples/scigrid-sclopf.ipynb
+  - Power Systems (Core):
     - examples/simple-electricity-market-examples.ipynb
-    - examples/capacity-expansion-planning-single-node.ipynb
-    - examples/mga.ipynb
-    - examples/islanded-methanol-production.ipynb
-    - examples/transformer_example.ipynb
     - examples/unit-commitment.ipynb
-    - examples/reserve-power.ipynb
+    - examples/ac-dc-lopf.ipynb
+    - examples/scigrid-lopf-then-pf.ipynb
+    - examples/scigrid-sclopf.ipynb
+    - examples/capacity-expansion-planning-single-node.ipynb
+    - examples/multi-investment-optimisation.ipynb
     - examples/stochastic-optimization.ipynb
+    - examples/mga.ipynb
+    - examples/minimal_example_pf.ipynb
+  - Power System (Specialized):
+    - examples/scigrid-redispatch.ipynb
+    - examples/generation-investment-screening-curve.ipynb
+    - examples/chained-hydro-reservoirs.ipynb
+    - examples/transformer_example.ipynb
+    - examples/reserve-power.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
+    - examples/islanded-methanol-production.ipynb
     - examples/battery-electric-vehicle-charging.ipynb
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
     - examples/chp-fixed-heat-power-ratio.ipynb
@@ -97,7 +112,6 @@ nav:
     - examples/replace-generator-storage-units-with-store.ipynb
 
 - API Reference:
-  - Overview: api/api.md
   - Networks:
     - Network:
       - General: api/networks/network.md
@@ -139,29 +153,22 @@ nav:
     - Package Options: api/other/options.md
 
 - Contributing:
-  - Overview: contributing/contributing.md
+  - Instructions: contributing/contributing.md
   - Code of Conduct: contributing/code-of-conduct.md
   - Community: contributing/community.md
   - Contributors: contributing/contributors.md
 
-- Resources:
-  - Overview: resources/resources.md
-  - Energy System Modelling:
-    - Energy System Modelling: resources/energy-system-modelling.md
-    - Energy System Modelling with PyPSA: resources/energy-system-modelling-with-pypsa.md
-  - First Time Users: resources/first-time-users.md
-
-- More Tools:
-  - More Tools: more-tools/more-tools.md
-  - Frameworks:
-    - pypsa: https://github.com/pypsa/pypsa
-    - linopy: https://github.com/PyPSA/linopy
-    - atlite: https://github.com/PyPSA/atlite
-    - powerplantmatching: https://github.com/PyPSA/powerplantmatching
-    - technology-data: https://github.com/PyPSA/technology-data
-  - Models:
-    - PyPSA-Eur: https://github.com/PyPSA/PyPSA-Eur
-    - PyPSA-DE: https://github.com/PyPSA/PyPSA-DE
+# - More Tools:
+#   - More Tools: more-tools/more-tools.md
+#   - Frameworks:
+#     - pypsa: https://github.com/pypsa/pypsa
+#     - linopy: https://github.com/PyPSA/linopy
+#     - atlite: https://github.com/PyPSA/atlite
+#     - powerplantmatching: https://github.com/PyPSA/powerplantmatching
+#     - technology-data: https://github.com/PyPSA/technology-data
+#   - Models:
+#     - PyPSA-Eur: https://github.com/PyPSA/PyPSA-Eur
+#     - PyPSA-DE: https://github.com/PyPSA/PyPSA-DE
 
 # Theme settings
 theme:
@@ -169,8 +176,8 @@ theme:
   logo: assets/logo/logo-primary-dark.svg
   favicon: assets/logo/logo.svg
   custom_dir: docs/assets/overrides
-  # font:
-  #   text: Ubuntu
+  font:
+    text: Overpass
   features:
   - navigation.tabs
   - navigation.tabs.sticky
@@ -179,7 +186,8 @@ theme:
   - navigation.indexes  # Section indexes
   - navigation.path
   - navigation.top # Back to top button
-  - navigation.footer
+  # - navigation.foot
+  - header.autohide
   - content.action.edit
   - content.action.view
   - toc.follow
@@ -215,7 +223,11 @@ markdown_extensions:
 # Callouts/ Admonitions
 - admonition
 - pymdownx.details
-- pymdownx.superfences
+- pymdownx.superfences:
+    custom_fences:
+    - name: mermaid
+      class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_code_format
 - pymdownx.arithmatex:
     generic: true
 # Footnotes
@@ -240,6 +252,9 @@ markdown_extensions:
     toc_depth: 3
   # Grids
 - md_in_html
+- pymdownx.caret
+- pymdownx.tilde
+
 
 plugins:
 - search
@@ -247,6 +262,7 @@ plugins:
 - autolinks
 - table-reader
 - mkdocs-video
+# - git-authors
 - git-revision-date-localized:
     type: timeago
     timezone: Europe/Berlin

@@ -6,4 +6,6 @@ Please consider the following ways to reach out to the community and the develop
 * For **bugs and feature requests**, please use the [issue tracker](https://github.com/PyPSA/PyPSA/issues).
 * We strongly welcome anyone interested in providing **contributions** to this project. If you have any ideas, suggestions or encounter problems, feel invited to file issues or make pull requests on [Github](https://github.com/PyPSA/PyPSA).
 
-> **Note:** All questions benefit from being accompanied by a minimal working example (MWE) that illustrates the problem or question, and by sharing which approaches you have already tried. See [troubleshooting](https://pypsa.org/doc/contributing/troubleshooting.html) for more information on MWEs. 
+!!! note
+
+    All questions benefit from being accompanied by a minimal working example (MWE) that illustrates the problem or question, and by sharing which approaches you have already tried. See [troubleshooting](https://pypsa.org/doc/contributing/troubleshooting.html) for more information on MWEs.
