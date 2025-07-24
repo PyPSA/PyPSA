@@ -92,6 +92,7 @@ nav:
     - examples/multi-investment-optimisation.ipynb
     - examples/stochastic-optimization.ipynb
     - examples/mga.ipynb
+    - examples/near-opt-space.ipynb
     - examples/minimal_example_pf.ipynb
   - Power System (Specialized):
     - examples/scigrid-redispatch.ipynb
