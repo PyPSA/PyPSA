@@ -1,0 +1,1 @@
+::: pypsa.plot.PlotAccessor
