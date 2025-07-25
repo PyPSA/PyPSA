@@ -6,7 +6,7 @@ import pytest
 import pypsa
 from pypsa.common import expand_series
 from pypsa.descriptors import (
-    additional_linkports,
+    _additional_linkports,
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
@@ -106,6 +106,6 @@ def test_additional_linkports():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        ports = additional_linkports(n, n.links.columns)
+        ports = _additional_linkports(n, n.links.columns)
     assert ports == ["2"]
     assert ports == n.c.links.additional_ports

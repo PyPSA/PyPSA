@@ -17,12 +17,11 @@ import numpy as np
 import pandas as pd
 import validators
 import xarray as xr
-from deprecation import deprecated
 from pandas.errors import ParserError
 from pyproj import CRS
 
 from pypsa._options import options
-from pypsa.common import _check_for_update, check_optional_dependency, deprecated_kwargs
+from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_semver__, __version_semver_tuple__
@@ -1356,7 +1355,6 @@ class NetworkIOMixin(_NetworkABC):
             ", ".join(imported_components),
         )
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", csv_folder_name="path")
     def import_from_csv_folder(
         self,
         path: str | Path,
@@ -1392,7 +1390,6 @@ class NetworkIOMixin(_NetworkABC):
         with _ImporterCSV(path, encoding=encoding, quotechar=quotechar) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", csv_folder_name="path")
     def export_to_csv_folder(
         self,
         path: str,
@@ -1447,7 +1444,6 @@ class NetworkIOMixin(_NetworkABC):
                 exporter, export_standard_types=export_standard_types
             )
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", excel_file_path="path")
     def import_from_excel(
         self,
         path: str | Path,
@@ -1478,7 +1474,6 @@ class NetworkIOMixin(_NetworkABC):
         with _ImporterExcel(path, engine=engine) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", excel_file_path="path")
     def export_to_excel(
         self,
         path: str | Path,
@@ -1677,72 +1672,6 @@ class NetworkIOMixin(_NetworkABC):
                 exporter, export_standard_types=export_standard_types
             )
             return exporter.ds
-
-    @deprecated(
-        deprecated_in="0.29",
-        removed_in="1.0",
-        details="Use `n.add` instead. E.g. `n.add(class_name, df.index, **df)`.",
-    )
-    def import_components_from_dataframe(
-        self, dataframe: pd.DataFrame, cls_name: str
-    ) -> None:
-        """Import components from a pandas DataFrame.
-
-        This function is deprecated. Use :py:meth`pypsa.Network.add` instead. To get the
-        same behavior for importing components from a DataFrame, use
-        `n.add(cls_name, df.index, **df)`.
-
-        If columns are missing then defaults are used. If extra columns are added, these
-        are left in the resulting component dataframe.
-
-        !!! warning "Deprecated in v0.34"
-            Use :py:meth:`pypsa.Network.add` instead.
-
-        Parameters
-        ----------
-        dataframe : pandas.DataFrame
-            A DataFrame whose index is the names of the components and
-            whose columns are the non-default attributes.
-        cls_name : string
-            Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
-
-        See Also
-        --------
-        pypsa.Network.madd
-
-        """
-        self.add(cls_name, dataframe.index, **dataframe)
-
-    @deprecated(
-        deprecated_in="0.29",
-        removed_in="1.0",
-        details="Use `n.add` instead.",
-    )
-    def import_series_from_dataframe(
-        self, dataframe: pd.DataFrame, cls_name: str, attr: str
-    ) -> None:
-        """Import time series from a pandas DataFrame.
-
-        This function is deprecated. Use :py:meth:`pypsa.Network.add` instead, but it will
-        not work with the same data structure. To get a similar behavior, use
-        `n.dynamic(class_name)[attr] = df` but make sure that the index is aligned. Also note
-        that this is overwriting the attribute dataframe, not adding to it as before.
-        It is better to use :py:meth:`pypsa.Network.add` to import time series data.
-
-        Parameters
-        ----------
-        dataframe : pandas.DataFrame
-            A DataFrame whose index is ``n.snapshots`` and
-            whose columns are a subset of the relevant components.
-        cls_name : string
-            Name of class of component
-        attr : string
-            Name of time-varying series attribute
-
-        --------
-
-        """
-        self._import_series_from_df(dataframe, cls_name, attr)
 
     def _import_components_from_df(
         self, df: pd.DataFrame, cls_name: str, overwrite: bool = False

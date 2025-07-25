@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
@@ -347,79 +346,6 @@ class NetworkTransformMixin(_NetworkABC):
         dynamic = self.dynamic(c.name)
         for df in dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
-
-    @deprecated(
-        deprecated_in="0.31",
-        removed_in="1.0",
-        details="Use `n.add` as a drop-in replacement instead.",
-    )
-    def madd(
-        self,
-        class_name: str,
-        names: Sequence,
-        suffix: str = "",
-        **kwargs: Any,
-    ) -> pd.Index:
-        """Add multiple components to the network, along with their attributes.
-
-        .. deprecated:: 0.31
-          ``n.madd`` is deprecated and will be removed in a future version. Use
-            :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
-            removal of components.
-
-        Make sure when adding static attributes as pandas Series that they are indexed
-        by names. Make sure when adding time-varying attributes as pandas DataFrames that
-        their index is a superset of n.snapshots and their columns are a
-        subset of names.
-
-        Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
-
-        Parameters
-        ----------
-        class_name : string
-            Component class name in ("Bus", "Generator", "Load", "StorageUnit",
-            "Store", "ShuntImpedance", "Line", "Transformer", "Link").
-        names : list-like or pandas.Index
-            Component names
-        suffix : string, default ''
-            All components are named after names with this added suffix. It
-            is assumed that all Series and DataFrames are indexed by the original names.
-        kwargs
-            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
-            of pandas.DataFrame for time-varying
-
-        """
-        return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
-
-    @deprecated(
-        deprecated_in="0.31",
-        removed_in="1.0",
-        details="Use `n.remove` as a drop-in replacement instead.",
-    )
-    def mremove(self, class_name: str, names: Sequence) -> None:
-        """Remove multiple components from the network.
-
-        .. deprecated:: 0.31
-          ``n.mremove`` is deprecated and will be removed in a future version. Use
-            :py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple
-            removal of components.
-
-        ``n.mremove`` is deprecated and will be removed in version 1.0. Use
-        py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple removal of
-        components.
-
-        Removes them from component DataFrames.
-
-        Parameters
-        ----------
-        class_name : string
-            Component class name
-        names : list-like
-            Component names
-
-        """
-        self.remove(class_name=class_name, name=names)
 
     def merge(
         self,

@@ -11,7 +11,6 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
-from deprecation import deprecated
 from packaging.version import Version, parse
 from pandas import Series
 
@@ -495,20 +494,6 @@ class Clustering:
     n: Any
     busmap: pd.Series
     linemap: pd.Series
-
-    @property
-    @deprecated(
-        deprecated_in="0.32",
-        removed_in="1.0",
-        details="Use `clustering.n` instead.",
-    )
-    def network(self) -> Network:
-        """Get the network.
-
-        !!! warning "Deprecated in 0.32"
-            Use `clustering.n` instead.
-        """
-        return self.n
 
 
 def get_clustering_from_busmap(

@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any
 
 import linopy
 import pandas as pd
-from deprecation import deprecated
 from linopy import merge
 from numpy import inf, isfinite
 from xarray import DataArray, concat
@@ -1668,13 +1667,3 @@ def define_total_supply_constraints(
         eh_selected = eh.sel(name=names)
         energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
-
-
-@deprecated(
-    deprecated_in="0.31.2",
-    removed_in="1.0",
-    details="Use define_total_supply_constraints instead.",
-)
-def define_generators_constraints(n: Network, sns: Sequence) -> None:
-    """Define generator constraints (deprecated, use define_total_supply_constraints)."""
-    return define_total_supply_constraints(n, sns)
