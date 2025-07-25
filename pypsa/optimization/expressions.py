@@ -32,6 +32,7 @@ USE_EMPTY_PROPERTY = version.parse(ln.__version__) >= version.parse("0.5.1")
 
 def check_if_empty(expr: LinearExpression) -> bool:
     """Check if the expression is empty.
+
     This is a workaround for the issue that linopy does not support
     the empty property for older versions (`.empty` in >=0.5.1 vs `.empty()` in <0.5.1).
     """
@@ -69,10 +70,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             grouper = by
 
         grouper.insert(0, "component", c)  # for tracking the component
-        return grouper.rename_axis(c)
+        return grouper
 
     def _get_component_index(self, obj: LinearExpression, c: str) -> pd.Index:
-        return obj.indexes[c]
+        return obj.indexes["name"]
 
     def _concat_periods(self, exprs: dict[str, LinearExpression], c: str) -> Any:
         return ln.merge(list(exprs.values()), dim=c)
@@ -187,11 +188,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series | None:
             m = n.model
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
                 query = f"~{nominal_attrs[c]}_extendable"
                 capacity = capacity + n.df(c).query(query)["p_nom"]
-            costs = n.df(c)[cost_attribute][capacity.indexes[c]]
+            costs = n.df(c)[cost_attribute][capacity.indexes["name"]]
             return capacity * costs
 
         return self._aggregate_components(
@@ -240,11 +240,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             m = n.model
             attr = nominal_attrs[c]
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
-            capacity = capacity.rename({f"{c}-ext": c})
             if include_non_extendable:
                 query = f"~{attr}_extendable"
                 capacity = capacity + n.df(c).query(query)[attr]
-            efficiency = port_efficiency(n, c, port=port)[capacity.indexes[c]]
+            efficiency = port_efficiency(n, c, port=port)[capacity.indexes["name"]]
             if not at_port:
                 efficiency = abs(efficiency)
             res = capacity * efficiency
@@ -264,7 +263,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def opex(
+    def opex(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -317,7 +316,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def transmission(
+    def transmission(  # noqa: D417
         self,
         comps: Collection[str] | str | None = None,
         aggregate_time: str | bool = "sum",
@@ -329,8 +328,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the transmission of branch components in the network. Units
-        depend on the regarded bus carrier.
+        """Calculate the transmission of branch components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the flow between buses with
         carrier `bus_carrier` is calculated.
@@ -388,8 +388,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         kind: str | None = None,
     ) -> LinearExpression:
-        """Calculate the energy balance of components in the network. Positive
-        values represent a supply and negative a withdrawal. Units depend on
+        """Calculate the energy balance of components in the network.
+
+        Positive values represent a supply and negative a withdrawal. Units depend on
         the regarded bus carrier.
 
         For information on the list of arguments, see the docs in
@@ -464,8 +465,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the supply of components in the network. Units depend on the
-        regarded bus carrier.
+        """Calculate the supply of components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the supply to buses with carrier
         `bus_carrier` is calculated.
@@ -500,8 +502,9 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         carrier: str | Sequence[str] | None = None,
         nice_names: bool | None = None,
     ) -> LinearExpression:
-        """Calculate the withdrawal of components in the network. Units depend on
-        the regarded bus carrier.
+        """Calculate the withdrawal of components in the network.
+
+        Units depend on the regarded bus carrier.
 
         If `bus_carrier` is given, only the withdrawal from buses with
         carrier `bus_carrier` is calculated.
@@ -524,7 +527,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             kind="withdrawal",
         )
 
-    def curtailment(
+    def curtailment(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "sum",
@@ -560,10 +563,10 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             attr = nominal_attrs[c]
             capacity = (
-                n.model.variables[f"{c}-{attr}"].rename({f"{c}-ext": c})
+                n.model.variables[f"{c}-{attr}"]
                 + n.df(c).query(f"~{attr}_extendable")[attr]
             )
-            idx = capacity.indexes[c]
+            idx = capacity.indexes["name"]
             operation = self._get_operational_variable(c).loc[:, idx]
             sns = operation.indexes["snapshot"]
             p_max_pu = DataArray(n.get_switchable_as_dense(c, "p_max_pu")[idx]).loc[sns]
@@ -585,7 +588,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             nice_names=nice_names,
         )
 
-    def operation(
+    def operation(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
         aggregate_time: str | bool = "mean",

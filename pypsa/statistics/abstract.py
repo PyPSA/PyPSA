@@ -187,6 +187,9 @@ class AbstractStatisticsAccessor(ABC):
                         n, c, groupby, port=port, nice_names=nice_names
                     )
                     vals = self._aggregate_components_groupby(vals, grouping, agg, c)
+                # Avoid having 'component' as index name in multiindex
+                elif isinstance(vals, pd.DataFrame | pd.Series):
+                    vals = vals.rename_axis(c, axis=0)
                 values.append(vals)
 
             if not values:
@@ -230,7 +233,6 @@ class AbstractStatisticsAccessor(ABC):
         for p in n.investment_periods:
             mask = n.get_active_assets(c, p)
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
-
         return self._concat_periods(per_period, c)
 
     def _filter_bus_carrier(
