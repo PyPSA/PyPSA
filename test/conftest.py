@@ -9,20 +9,6 @@ from shapely.geometry import Polygon
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--test-docs-build",
-        action="store_true",
-        default=False,
-        help="run sphinx build test",
-    )
-
-
-def pytest_configure(config):
-    config.addinivalue_line("markers", "test_sphinx_build: mark test as sphinx build")
-
-
 COMPONENT_NAMES = [
     "sub_networks",
     "buses",
