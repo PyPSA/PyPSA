@@ -153,9 +153,6 @@ class MethodHandlerWrapper:
         return wrapper
 
 
-logger = logging.getLogger(__name__)
-
-
 @lru_cache(maxsize=1)
 def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -> str:
     """Log a message if a newer version is available.
@@ -859,3 +856,18 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
 
     """
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+
+
+def _scenarios_not_implemented(func: Callable) -> Callable:
+    """Raise ValueError when used with stochastic networks."""
+
+    @functools.wraps(func)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        # Check if self is the network or has an 'n' attribute pointing to the network
+        network = getattr(self, "n", self)
+        if network.has_scenarios:
+            msg = f"Method '{func.__name__}' is not yet implemented for stochastic networks."
+            raise ValueError(msg)
+        return func(self, *args, **kwargs)
+
+    return wrapper
