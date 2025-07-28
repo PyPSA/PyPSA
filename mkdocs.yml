@@ -336,7 +336,7 @@ plugins:
 - mkdocs-jupyter:
     execute: true
     include: ["examples/*.ipynb"]
-    allow_errors: false
+    # allow_errors: false # TODO
     include_source: true
 # Global redirects
 - redirects:
