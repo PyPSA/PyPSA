@@ -130,3 +130,15 @@ def test_as_xarray_dynamic_with_scenarios(n):
     )
 
     # TODO add test for non_dynamic_index
+
+
+def test_ds_property_consistency(n):
+    """Test that ds property returns the same data as individual da calls."""
+    ds = n.components.generators.ds
+
+    # Test all attributes match individual _as_xarray calls
+    for attr in ds.data_vars:
+        da_individual = n.components.generators._as_xarray(attr)
+        da_from_ds = ds[attr]
+        assert set(da_individual.coords) == set(da_from_ds.coords)
+        assert da_individual.equals(da_from_ds)

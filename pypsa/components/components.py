@@ -219,7 +219,6 @@ class Components(
         if key in self.__dict__:
             setattr(self, key, value)
         else:
-            # TODO: Is this to strict?
             msg = f"'{key}' not found in Component"
             raise KeyError(msg)
 
@@ -600,13 +599,52 @@ class Components(
 
     @property
     def ds(self) -> xarray.Dataset:
-        """Create a xarray data array view of the component."""
-        static_attrs = self.static.columns
-        dynamic_attrs = [
-            attr for attr in self.dynamic.keys() if not self.dynamic[attr].empty
-        ]
-        attrs = {*static_attrs, *dynamic_attrs}
-        data = {attr: self._as_xarray(attr) for attr in attrs}
+        """Create a xarray data array view of the component.
+
+        !!! note
+
+            Note that this will create a full copy of the component data. For large networks
+            this may be a bottleneck. Use the [pypsa.Components.da][] accessor instead to
+            access a specific attribute of the component.
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset with component attributes as variables and snapshots as coordinates.
+
+        See Also
+        --------
+        [pypsa.Components.da][] :
+            Accessor for a specific attribute of the component.
+
+        Examples
+        --------
+        >>> c = n.components.generators
+        >>> c.ds  # doctest: +ELLIPSIS
+        <xarray.Dataset> Size: ...
+        Dimensions:                  (name: 6, snapshot: 10)
+        Coordinates:
+          * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
+          * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
+        Data variables: (12/38)
+            bus                      (name) object ... 'Manchester' ... 'Frankfurt'
+            control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
+            type                     (name) object ... '' '' '' '' '' ''
+            p_nom                    (name) float64 ... 80.0 5e+04 100.0 ... 110.0 8e+04
+            p_nom_mod                (name) float64 ... 0.0 0.0 0.0 0.0 0.0 0.0
+            p_nom_extendable         (name) bool ... True True True True True True
+            ...
+
+        """
+        data = {}
+
+        for attr in self.static.columns:
+            data[attr] = self._as_xarray(attr)
+
+        for attr, df in self.dynamic.items():
+            if not df.empty:
+                data[attr] = self._as_xarray(attr)
+
         return xarray.Dataset(data)
 
     @property
