@@ -858,6 +858,8 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     """Calculate the annuity factor for a given discount rate and lifetime.
 
+    According to formula $r / (1 - (1 + r)^{-n})$.
+
     Parameters
     ----------
     r : float | pd.Series
