@@ -1,7 +1,10 @@
-"""Array module of PyPSA components.
+"""Network index module.
 
-Contains logic to combine static and dynamic pandas DataFrames to single xarray
-DataArray for each variable.
+Contains single mixin class which is used to inherit to [pypsa.Networks] class.
+Should not be used directly.
+
+Index methods and properties are used to access the different index levels, set them
+and convert the Network accordingly.
 """
 
 from __future__ import annotations
@@ -653,7 +656,8 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios : dict, Sequence, pd.Series, optional
             Scenarios to set for the network.
         **kwargs : Any
-            Additional keyword arguments.
+            Alternative way to set scenarios via keyword arguments.
+            E.g. `n.set_scenarios(low=0.5, high=0.5)`.
 
         """
         # Validate input

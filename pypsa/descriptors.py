@@ -182,7 +182,13 @@ def get_bounds_pu(
         Deprecated.
 
     """
-    return n.components[c].get_bounds_pu(sns, index, attr)
+    # TODO: Add Test
+    return (
+        n.components[c]
+        .get_bounds_pu(attr)
+        .sel(snapshots=sns, index=index)
+        .to_dataframe()
+    )
 
 
 def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:

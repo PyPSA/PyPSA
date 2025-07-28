@@ -55,8 +55,8 @@ class Generators(Components):
 
         Returns
         -------
-        tuple[pd.DataFrame | DataArray, pd.DataFrame | DataArray]
-            Tuple of (min_pu, max_pu) DataFrames or DataArrays.
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (min_pu, max_pu) DataArrays.
 
         """
         if attr not in self._operational_variables:
