@@ -1,0 +1,2 @@
+
+::: pypsa.statistics.StatisticsAccessor
