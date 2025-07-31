@@ -573,3 +573,14 @@ def test_sort_attrs():
     empty_df = pd.DataFrame()
     result = _sort_attrs(empty_df, ["a", "b"], axis=1)
     assert result.empty
+
+
+def test_version_warning(caplog):
+    # Assert no info logged with "version"
+    n = pypsa.examples.ac_dc_meshed()
+    assert "Importing network from PyPSA version" not in caplog.text
+
+    n._pypsa_version = "0.10.0"
+    n.export_to_netcdf("test.nc")
+    pypsa.Network("test.nc")
+    assert "Importing network from PyPSA version v0.10.0" in caplog.text
