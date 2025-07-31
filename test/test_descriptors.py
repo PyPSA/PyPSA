@@ -7,6 +7,7 @@ import pypsa
 from pypsa.common import expand_series
 from pypsa.descriptors import (
     _additional_linkports,
+    get_bounds_pu,
     get_extendable_i,
     get_non_extendable_i,
     get_switchable_as_dense,
@@ -109,3 +110,43 @@ def test_additional_linkports():
         ports = _additional_linkports(n, n.links.columns)
     assert ports == ["2"]
     assert ports == n.c.links.additional_ports
+
+
+def test_get_bounds_pu():
+    n = pypsa.Network()
+    n.snapshots = pd.date_range("2019-01-01", "2019-01-02", freq="h")
+    n.add("Bus", "bus0")
+    n.add("Generator", "gen0", bus="bus0", p_nom=100, p_min_pu=0.2, p_max_pu=0.8)
+    n.add("Generator", "gen1", bus="bus0", p_nom=200, p_min_pu=0.1, p_max_pu=0.9)
+
+    # Test deprecated function vs component method consistency
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        deprecated_result = get_bounds_pu(n, "Generator", n.snapshots, attr="p")
+
+    # Get bounds from component method directly
+    component_bounds = n.components["Generator"].get_bounds_pu(attr="p")
+    component_result = (
+        component_bounds[0].sel(snapshot=n.snapshots).to_dataframe().unstack(level=0),
+        component_bounds[1].sel(snapshot=n.snapshots).to_dataframe().unstack(level=0),
+    )
+
+    # Test that both methods return the same type and structure
+    assert isinstance(deprecated_result, tuple)
+    assert len(deprecated_result) == 2
+    assert isinstance(deprecated_result[0], pd.DataFrame)
+    assert isinstance(deprecated_result[1], pd.DataFrame)
+
+    # Check that the values are the same - this is the key test
+    pd.testing.assert_frame_equal(deprecated_result[0], component_result[0])
+    pd.testing.assert_frame_equal(deprecated_result[1], component_result[1])
+
+    # Basic sanity checks on data shape and values
+    assert deprecated_result[0].shape == (2, 25)  # 2 generators, 25 snapshots
+    assert deprecated_result[1].shape == (2, 25)
+
+    # Check some values are correct (not all, just to verify functionality)
+    assert 0.2 in deprecated_result[0].values  # gen0 min_pu
+    assert 0.8 in deprecated_result[1].values  # gen0 max_pu
+    assert 0.1 in deprecated_result[0].values  # gen1 min_pu
+    assert 0.9 in deprecated_result[1].values  # gen1 max_pu

@@ -412,12 +412,7 @@ def apply_line_types(n: Network) -> None:
     # Get unique line types from lines
     line_types_used = n.lines.loc[lines_with_types_b, "type"].unique()
 
-    if isinstance(n.line_types.index, pd.MultiIndex):
-        # For MultiIndex, check if the type names (last level) contain the required types
-        available_types = n.line_types.index.get_level_values(-1).unique()
-        missing_types = pd.Index(line_types_used).difference(available_types)
-    else:
-        missing_types = pd.Index(line_types_used).difference(n.line_types.index)
+    missing_types = pd.Index(line_types_used).difference(n.c.line_types.component_names)
 
     if not missing_types.empty:
         msg = f"The type(s) {', '.join(missing_types)} do(es) not exist in n.line_types"
@@ -425,12 +420,10 @@ def apply_line_types(n: Network) -> None:
 
     lines = n.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].copy()
 
-    if isinstance(n.line_types.index, pd.MultiIndex):
+    if n.has_scenarios:
         # For stochastic network, use the first scenario's line types
         # User changes across line type data are caught by the consistency check
-        line_types_to_use = n.line_types.xs(
-            n.line_types.index.get_level_values(0)[0], level=0
-        )
+        line_types_to_use = n.line_types.xs(n.c.line_types.component_names, level=0)
         lines = lines.join(line_types_to_use, on="type")
     else:
         lines = lines.join(n.line_types, on="type")
@@ -1341,7 +1334,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             n.calculate_dependent_values()
             self.find_bus_controls()
-            _allocate_pf_outputs(n, linear=False)
+            _allocate_pf_outputs(n, linear=True)
 
         # get indices for the components on this sub-network
         branches_i = self.branches_i(active_only=True)

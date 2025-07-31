@@ -67,8 +67,7 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        buses = n.buses.index.unique("name")
-        missing = ~component.static[attr].astype(str).isin(buses)
+        missing = ~component.static[attr].astype(str).isin(n.c.buses.component_names)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
@@ -105,7 +104,7 @@ def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
         for attr in _bus_columns(component.static):
             connected_buses.update(component.static[attr])
 
-    disconnected_buses = set(n.buses.index.unique("name")) - connected_buses
+    disconnected_buses = set(n.c.buses.component_names) - connected_buses
     if disconnected_buses:
         _log_or_raise(
             strict,
@@ -140,7 +139,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.carriers.index.unique("name"))
+            ~component.static["carrier"].isin(n.c.carriers.component_names)
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )
@@ -934,14 +933,14 @@ def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
 
     """
     if n.has_scenarios:
-        scenarios_sum = n.scenario_weightings["weight"].sum()
-        tolerance = 1e-10  # Allow for small floating point errors
-        if abs(scenarios_sum - 1.0) > tolerance:
+        total_weight = n.scenario_weightings["weight"].sum()
+
+        if not np.isclose(total_weight, 1.0, rtol=1e-10, atol=1e-10):
             _log_or_raise(
                 strict,
-                "Scenario probabilities do not sum to 1.0. Current sum: %g. "
-                "Scenarios may have been modified after initialization.",
-                scenarios_sum,
+                "Scenario probabilities must sum to 1.0 (got %.10g). "
+                "This may indicate scenarios were modified after initialization.",
+                total_weight,
             )
 
 
@@ -971,7 +970,7 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         return
 
     # Attributes that must be identical across all scenarios
-    invariant_attrs = {
+    INVARIANT_ATTRS = {
         "name",
         "bus",
         # "control" is excluded - different buses can have different control types across scenarios
@@ -993,7 +992,7 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
             continue  # No scenario dimension
 
         # Get attributes that exist for this component and are in invariant list
-        component_invariant_attrs = invariant_attrs.intersection(
+        component_invariant_attrs = INVARIANT_ATTRS.intersection(
             component.static.columns
         )
 
@@ -1016,7 +1015,7 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
                         .tolist()
                     )
                     _log_or_raise(
-                        True,  # We are always strict for this check
+                        True,
                         "Component '%s' of type '%s' has attribute '%s' that varies across scenarios. "
                         "This attribute must be identical across all scenarios. "
                         "Scenarios with different values: %s. Values: %s",
@@ -1050,33 +1049,25 @@ def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
         return
 
     # Check line_types consistency across scenarios
-    if (
-        hasattr(n, "line_types")
-        and not n.line_types.empty
-        and isinstance(n.line_types.index, pd.MultiIndex)
-    ):
-        # Get all scenarios
-        scenarios = n.line_types.index.get_level_values("scenario").unique()
+    if not n.line_types.empty and len(n.scenarios) > 1:
+        # Get reference line_types from first scenario
+        reference_scenario = n.scenarios[0]
+        reference_line_types = n.line_types.xs(reference_scenario, level="scenario")
 
-        if len(scenarios) > 1:
-            # Get reference line_types from first scenario
-            reference_scenario = scenarios[0]
-            reference_line_types = n.line_types.xs(reference_scenario, level="scenario")
+        # Check each other scenario
+        for scenario in n.scenarios[1:]:
+            scenario_line_types = n.line_types.xs(scenario, level="scenario")
 
-            # Check each other scenario
-            for scenario in scenarios[1:]:
-                scenario_line_types = n.line_types.xs(scenario, level="scenario")
-
-                # Check if DataFrames are equal
-                if not reference_line_types.equals(scenario_line_types):
-                    _log_or_raise(
-                        strict,
-                        "line_types must be identical across all scenarios. "
-                        "Found differences between scenario '%s' and '%s'. "
-                        "line_types define physical characteristics and cannot vary across scenarios.",
-                        reference_scenario,
-                        scenario,
-                    )
+            # Check if DataFrames are equal
+            if not reference_line_types.equals(scenario_line_types):
+                _log_or_raise(
+                    strict,
+                    "line_types must be identical across all scenarios. "
+                    "Found differences between scenario '%s' and '%s'. "
+                    "line_types define physical characteristics and cannot vary across scenarios.",
+                    reference_scenario,
+                    scenario,
+                )
 
 
 def check_stochastic_slack_bus_consistency(

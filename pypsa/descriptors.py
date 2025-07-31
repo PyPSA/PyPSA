@@ -153,7 +153,7 @@ def get_activity_mask(
     return n.components[c].get_activity_mask(sns, index)
 
 
-@deprecated_in_next_major(details="Deprecate with new-opt.")
+@deprecated_in_next_major(details="Use `n.components[c].get_bounds_pu` instead.")
 def get_bounds_pu(
     n: Network,
     c: str,
@@ -182,12 +182,15 @@ def get_bounds_pu(
         Deprecated.
 
     """
-    # TODO: Add Test
+    min_bounds, max_bounds = n.components[c].get_bounds_pu(attr)
+    sel_kwargs = {}
+    if sns is not None:
+        sel_kwargs["snapshot"] = sns
+    if index is not None:
+        sel_kwargs["name"] = index
     return (
-        n.components[c]
-        .get_bounds_pu(attr)
-        .sel(snapshots=sns, index=index)
-        .to_dataframe()
+        min_bounds.sel(**sel_kwargs).to_dataframe().unstack(level=0),
+        max_bounds.sel(**sel_kwargs).to_dataframe().unstack(level=0),
     )
 
 

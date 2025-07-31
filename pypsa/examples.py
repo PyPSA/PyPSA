@@ -173,10 +173,6 @@ def stochastic_network() -> Network:
     Snapshots: 2920
     Scenarios: 3
 
-    References
-    ----------
-    [^1]: See https://model.energy/
-
     """
     n = _retrieve_if_not_local(
         "examples/networks/stochastic-network/stochastic-network.nc"

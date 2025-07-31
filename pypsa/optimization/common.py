@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from deprecation import deprecated
 from numpy import hstack, ravel
 
+from pypsa.common import deprecated_in_next_major
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-@deprecated(
-    deprecated_in="0.35.0", removed_in="1.0", details="#TODO new-opt deprecation"
+@deprecated_in_next_major(
+    details="Use xarray functionality instead.",
 )
 def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     """Index a xarray.DataArray by a pandas.Index while renaming according to the new index name.

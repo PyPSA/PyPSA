@@ -444,25 +444,20 @@ class OptimizationAbstractMixin:
                     con = m.constraints[constraint]
 
                     component_dim = "name"
-                    # TODO make clean before new-opt-optimize merge
+                    use_component_dim = component_dim in con.lhs.indexes
 
-                    if component_dim in con.lhs.indexes:
-                        idx = con.lhs.indexes[component_dim].intersection(
-                            added_flow.indexes[c_affected]
-                        )
-                        sel = {component_dim: idx}
+                    dim_key = component_dim if use_component_dim else c_affected
+                    idx = con.lhs.indexes[dim_key].intersection(
+                        added_flow.indexes[c_affected]
+                    )
+                    sel = {dim_key: idx}
 
-                        # Rename to match con.lhs dimensions
+                    if use_component_dim:
                         added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
                             {c_affected: component_dim}
                         )
                         lhs = con.lhs.sel(sel) + added_flow_aligned
                     else:
-                        # fallback for original for tests
-                        idx = con.lhs.indexes[c_affected].intersection(
-                            added_flow.indexes[c_affected]
-                        )
-                        sel = {c_affected: idx}
                         lhs = con.lhs.sel(sel) + added_flow.sel({c_affected: idx})
 
                     name = constraint + f"-security-for-{c_outage_}-in-{sub_network}"
@@ -491,10 +486,6 @@ class OptimizationAbstractMixin:
             Number of snapshots to overlap between two iterations. Defaults to 0.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
-
-        Returns
-        -------
-        None
 
         """
         n = self._n
@@ -729,7 +720,7 @@ class OptimizationAbstractMixin:
 
         if status != "ok":
             logger.warning(
-                "optimization failed with status %s and condition %s",
+                "Optimization failed with status %s and condition %s",
                 status,
                 condition,
             )
