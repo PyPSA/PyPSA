@@ -1164,7 +1164,7 @@ class NetworkIOMixin(_NetworkABC):
 
         """
         # n.meta
-        self.meta = importer.get_meta() | {}
+        self.meta = importer.get_meta()
 
         # n.crs
         crs = importer.get_crs()
@@ -1174,16 +1174,18 @@ class NetworkIOMixin(_NetworkABC):
             self._crs = crs
 
         # other network attributes
-        attrs = importer.get_attributes() | {}
-        name = attrs.pop("name")
-        self.name = name if pd.notna(name) else ""
+        attrs = importer.get_attributes() or {}
+        if "name" in attrs:
+            name = attrs.pop("name")
+            if pd.notna(name):
+                self.name = name
 
-        version = attrs.pop("pypsa_version", "0.0.0").split(".")
-        major = int(version[0])
-        minor = int(version[1])
-        patch = int(version[2])
-
-        pypsa_version_tuple = (major, minor, patch)
+        if "pypsa_version" in attrs:
+            pypsa_version_tuple = tuple(
+                int(v) for v in attrs.pop("pypsa_version", "0.0.0").split(".")
+            )
+        else:
+            pypsa_version_tuple = (0, 0, 0)
 
         for attr, val in attrs.items():
             if attr in ["model", "objective", "objective_constant"]:
