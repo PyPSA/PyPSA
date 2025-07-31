@@ -1350,11 +1350,6 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
 
     lhs += [(eff_stand, previous_soc)]
 
-    if "scenario" in rhs.dims:
-        rhs = rhs.sortby("name")
-        soc_init = soc_init.sortby("name")
-        include_previous_soc = include_previous_soc.sortby("name")
-
     rhs = rhs.where(include_previous_soc, rhs - soc_init)
 
     m.add_constraints(lhs, "=", rhs, name=f"{component}-energy_balance", mask=active)
