@@ -1163,31 +1163,33 @@ class NetworkIOMixin(_NetworkABC):
             Skip importing time
 
         """
-        attrs = importer.get_attributes()
-        self.meta = importer.get_meta()
+        # n.meta
+        self.meta = importer.get_meta() | {}
+
+        # n.crs
         crs = importer.get_crs()
         crs = crs.pop("_crs", None)
         if crs is not None:
             crs = CRS.from_wkt(crs)
             self._crs = crs
 
-        pypsa_version_tuple = (0, 0, 0)
+        # other network attributes
+        attrs = importer.get_attributes() | {}
+        name = attrs.pop("name")
+        self.name = name if pd.notna(name) else ""
 
-        if attrs is not None:
-            name = attrs.pop("name")
-            self.name = name if pd.notna(name) else ""
+        version = attrs.pop("pypsa_version", "0.0.0").split(".")
+        major = int(version[0])
+        minor = int(version[1])
+        patch = int(version[2])
 
-            major = int(attrs.pop("pypsa_version", [0, 0, 0])[0])
-            minor = int(attrs.pop("pypsa_version", [0, 0, 0])[1])
-            patch = int(attrs.pop("pypsa_version", [0, 0, 0])[2])
+        pypsa_version_tuple = (major, minor, patch)
 
-            pypsa_version_tuple = (major, minor, patch)
-
-            for attr, val in attrs.items():
-                if attr in ["model", "objective", "objective_constant"]:
-                    setattr(self, f"_{attr}", val)
-                else:
-                    setattr(self, attr, val)
+        for attr, val in attrs.items():
+            if attr in ["model", "objective", "objective_constant"]:
+                setattr(self, f"_{attr}", val)
+            else:
+                setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
         if pypsa_version_tuple < __version_semver_tuple__:
