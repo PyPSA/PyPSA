@@ -1160,6 +1160,107 @@ def test_multiperiod_stochastic_coordinate_alignment():
         )
 
 
+def test_storage_unit_energy_balance_scenario_sorting_bug():
+    """Test that storage unit energy balance constraints have correct RHS values with scenarios.
+
+    This test specifically catches the bug where scenario-based sorting caused storage units
+    to get incorrect RHS values in their energy balance constraints. The bug occurred when:
+    1. Network has scenarios (triggering sorting code)
+    2. Storage units are present (creating energy balance constraints)
+    3. Different storage units have different inflow values
+
+    The sorting caused RHS values to be misaligned, so storage units would get RHS values
+    from other storage units alphabetically earlier in the sorted list.
+    """
+    n = pypsa.Network(snapshots=pd.date_range("2020-01-01", periods=1, freq="h"))
+
+    n.add("Carrier", "electricity")
+    n.add("Bus", "bus1", carrier="electricity")
+
+    # Add storage units with different names (to trigger alphabetical sorting)
+    # and different inflow values (to detect when values get misaligned)
+    n.add(
+        "StorageUnit",
+        "ZZ_storage",
+        bus="bus1",
+        p_nom=100,
+        inflow=0,
+        state_of_charge_initial=0,
+        cyclic_state_of_charge=True,
+    )
+    n.add(
+        "StorageUnit",
+        "AA_storage",
+        bus="bus1",
+        p_nom=100,
+        inflow=50,
+        state_of_charge_initial=0,
+        cyclic_state_of_charge=True,
+    )
+
+    n.add("Generator", "gen", bus="bus1", p_nom=200, marginal_cost=10)
+    n.add("Load", "load", bus="bus1", p_set=100)
+
+    # Test without scenarios first (should work correctly)
+    n_no_scenarios = n.copy()
+    n_no_scenarios.optimize.create_model()
+
+    constraint_no_scenarios = n_no_scenarios.model.constraints[
+        "StorageUnit-energy_balance"
+    ]
+
+    # Get RHS values for both storage units
+    zz_rhs_no_scenarios = constraint_no_scenarios.loc[
+        {"name": "ZZ_storage", "snapshot": n.snapshots[0]}
+    ].rhs.item()
+    aa_rhs_no_scenarios = constraint_no_scenarios.loc[
+        {"name": "AA_storage", "snapshot": n.snapshots[0]}
+    ].rhs.item()
+
+    # AA_storage has inflow=50, so its RHS should be -50 (negative inflow)
+    # ZZ_storage has inflow=0, so its RHS should be 0
+    assert abs(aa_rhs_no_scenarios - (-50.0)) < 1e-6, (
+        f"AA_storage should have RHS=-50, got {aa_rhs_no_scenarios}"
+    )
+    assert abs(zz_rhs_no_scenarios - 0.0) < 1e-6, (
+        f"ZZ_storage should have RHS=0, got {zz_rhs_no_scenarios}"
+    )
+
+    # Test with scenarios (this is where the bug would occur)
+    n_scenarios = n.copy()
+    n_scenarios.set_scenarios({"scenario1": 1.0})
+    n_scenarios.optimize.create_model()
+
+    constraint_scenarios = n_scenarios.model.constraints["StorageUnit-energy_balance"]
+
+    # Get RHS values for both storage units with scenarios
+    zz_rhs_scenarios = constraint_scenarios.loc[
+        {"name": "ZZ_storage", "snapshot": n.snapshots[0]}
+    ].rhs.item()
+    aa_rhs_scenarios = constraint_scenarios.loc[
+        {"name": "AA_storage", "snapshot": n.snapshots[0]}
+    ].rhs.item()
+
+    # The key test: RHS values should be the same with and without scenarios
+    # This would fail before the bug fix because sorting caused value misalignment
+    assert abs(aa_rhs_scenarios - aa_rhs_no_scenarios) < 1e-6, (
+        f"AA_storage RHS mismatch: without scenarios={aa_rhs_no_scenarios}, "
+        f"with scenarios={aa_rhs_scenarios}. This indicates the scenario sorting bug!"
+    )
+    assert abs(zz_rhs_scenarios - zz_rhs_no_scenarios) < 1e-6, (
+        f"ZZ_storage RHS mismatch: without scenarios={zz_rhs_no_scenarios}, "
+        f"with scenarios={zz_rhs_scenarios}. This indicates the scenario sorting bug!"
+    )
+
+    # Additional verification: each storage unit should still have its expected RHS value
+    assert abs(aa_rhs_scenarios - (-50.0)) < 1e-6, (
+        f"AA_storage should have RHS=-50 with scenarios, got {aa_rhs_scenarios}"
+    )
+    assert abs(zz_rhs_scenarios - 0.0) < 1e-6, (
+        f"ZZ_storage should have RHS=0 with scenarios, got {zz_rhs_scenarios}"
+    )
+
+
 @pytest.fixture
 def n():
     n = pypsa.Network(snapshots=range(10))
