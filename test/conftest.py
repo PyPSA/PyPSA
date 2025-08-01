@@ -49,6 +49,11 @@ def storage_hvdc_network():
 
 
 @pytest.fixture
+def scigrid_de_network():
+    return pypsa.examples.scigrid_de()
+
+
+@pytest.fixture
 def model_energy_network():
     return pypsa.examples.model_energy()
 
@@ -58,46 +63,19 @@ def stochastic_network():
     return pypsa.examples.stochastic_network()
 
 
-@pytest.fixture
-def n():
-    return pypsa.examples.ac_dc_meshed()
+# AC-DC-Meshed types
 
 
 @pytest.fixture
-def ac_dc_meshed_stoch():
-    n = pypsa.examples.ac_dc_meshed()
-    n.set_scenarios({"low": 0.5, "high": 0.5})
-    return n
-
-
-@pytest.fixture
-def ac_dc_meshed_stoch_r(ac_dc_network_r):
-    n = ac_dc_network_r.copy()
-    n.set_scenarios({"low": 0.5, "high": 0.5})
-    return n
-
-
-@pytest.fixture
-def scigrid_de_network():
-    return pypsa.examples.scigrid_de()
-
-
-@pytest.fixture
-def ac_dc_network_solved():
+def ac_dc_solved():
     n = pypsa.examples.ac_dc_meshed()
     n.optimize()
     del n.model.solver_model
     return n
 
 
-@pytest.fixture  # scope="session")
-def ac_dc_network_r():
-    csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
-    return pypsa.Network(csv_folder)
-
-
 @pytest.fixture
-def ac_dc_network_mi(ac_dc_network):
+def ac_dc_periods(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.investment_periods = [2013]
@@ -108,7 +86,43 @@ def ac_dc_network_mi(ac_dc_network):
 
 
 @pytest.fixture
-def ac_dc_network_shapes(ac_dc_network):
+def ac_dc_stochastic():
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    return n
+
+
+AC_DC_MESHED_TYPES = [
+    "ac_dc_network",
+    "ac_dc_solved",
+    "ac_dc_periods",
+    "ac_dc_stochastic",
+]
+
+
+@pytest.fixture(params=AC_DC_MESHED_TYPES)
+def ac_dc_types(request):
+    return request.getfixturevalue(request.param)
+
+
+# AC-DC-Meshed results
+
+
+@pytest.fixture
+def ac_dc_network_r():
+    csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
+    return pypsa.Network(csv_folder)
+
+
+@pytest.fixture
+def ac_dc_stochastic_r(ac_dc_network_r):
+    n = ac_dc_network_r.copy()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    return n
+
+
+@pytest.fixture
+def ac_dc_shapes(ac_dc_network):
     n = ac_dc_network
 
     # Create bounding boxes around points
@@ -138,6 +152,9 @@ def ac_dc_network_shapes(ac_dc_network):
     return n
 
 
+# Other network fixtures
+
+
 @pytest.fixture
 def scipy_network():
     n = pypsa.examples.scigrid_de()
@@ -161,6 +178,7 @@ def network_only_component_names():
     return n
 
 
+# Other fixture collections
 UNSOLVED_NETWORKS = [
     "ac_dc_network",
     "scigrid_de_network",
@@ -171,7 +189,7 @@ UNSOLVED_NETWORKS = [
 ]
 
 SOLVED_NETWORKS = [
-    "ac_dc_network_solved",
+    "ac_dc_solved",
 ]
 
 
@@ -185,6 +203,9 @@ def networks_including_solved(request):
     return request.getfixturevalue(request.param)
 
 
+# Network collections
+
+
 @pytest.fixture
 def network_collection(ac_dc_network_r):
     return pypsa.NetworkCollection(
@@ -193,6 +214,7 @@ def network_collection(ac_dc_network_r):
     )
 
 
+# Pandapower networks
 @pytest.fixture(scope="module")
 def pandapower_custom_network():
     try:
@@ -229,6 +251,9 @@ def pandapower_cigre_network():
     except ImportError:
         pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")
+
+
+# Complex stochastic network
 
 
 @pytest.fixture

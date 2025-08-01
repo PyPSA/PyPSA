@@ -73,9 +73,6 @@ def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Networ
         return io_function(file_path)
 
 
-# TODO: Restructure abc inheritance
-
-
 class _ImpExper:
     """Base class for importers and exporters."""
 

@@ -60,8 +60,8 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
 
 
 @pytest.mark.parametrize("strict", [[], ["shapes"]])
-def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog, strict):
-    n = ac_dc_network_shapes
+def test_shapes_with_missing_idx(ac_dc_shapes, caplog, strict):
+    n = ac_dc_shapes
     n.add(
         "Shape",
         "missing_idx",
@@ -69,7 +69,7 @@ def test_shapes_with_missing_idx(ac_dc_network_shapes, caplog, strict):
         component="Bus",
         idx="missing_idx",
     )
-    assert_log_or_error_in_consistency(ac_dc_network_shapes, caplog, strict=strict)
+    assert_log_or_error_in_consistency(ac_dc_shapes, caplog, strict=strict)
 
 
 @pytest.mark.parametrize("strict", [[], ["unknown_buses"]])

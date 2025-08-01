@@ -1,8 +1,11 @@
 import numpy as np
 import xarray
 
+from pypsa.components.array import _from_xarray
 
-def test_as_xarray_static(n):
+
+def test_as_xarray_static(ac_dc_network):
+    n = ac_dc_network
     da = n.components.generators._as_xarray("bus")
 
     assert isinstance(da, xarray.DataArray)
@@ -15,7 +18,8 @@ def test_as_xarray_static(n):
     assert np.array_equal(da.values, n.generators["bus"].values)
 
 
-def test_as_xarray_dynamic(n):
+def test_as_xarray_dynamic(ac_dc_network):
+    n = ac_dc_network
     da = n.components.generators._as_xarray("p_max_pu")
 
     assert isinstance(da, xarray.DataArray)
@@ -37,11 +41,12 @@ def test_as_xarray_dynamic(n):
     )
 
 
-def test_as_xarray_static_with_periods(n):
+def test_as_xarray_static_with_periods(ac_dc_network):
     """
     This is the same test as test_as_xarray_static, since static data is not
     affected by periods.
     """
+    n = ac_dc_network
     # Add investment periods to the network
     n.investment_periods = [2000, 2010]
 
@@ -57,7 +62,8 @@ def test_as_xarray_static_with_periods(n):
     assert np.array_equal(da.values, n.generators["bus"].values)
 
 
-def test_as_xarray_dynamic_with_periods(n):
+def test_as_xarray_dynamic_with_periods(ac_dc_network):
+    n = ac_dc_network
     # Add investment periods to the network
     n.investment_periods = [2000, 2010]
 
@@ -84,7 +90,8 @@ def test_as_xarray_dynamic_with_periods(n):
     )
 
 
-def test_as_xarray_static_with_scenarios(n):
+def test_as_xarray_static_with_scenarios(ac_dc_network):
+    n = ac_dc_network
     # Add scenarios to the network
     scenarios = ["scenario1", "scenario2"]
     n.scenarios = scenarios
@@ -103,7 +110,8 @@ def test_as_xarray_static_with_scenarios(n):
     assert np.array_equal(da.values.flatten(), n.generators["bus"].values)
 
 
-def test_as_xarray_dynamic_with_scenarios(n):
+def test_as_xarray_dynamic_with_scenarios(ac_dc_network):
+    n = ac_dc_network
     # Add scenarios to the network
     scenarios = ["scenario1", "scenario2"]
     n.scenarios = scenarios
@@ -132,7 +140,8 @@ def test_as_xarray_dynamic_with_scenarios(n):
     # TODO add test for non_dynamic_index
 
 
-def test_ds_property_consistency(n):
+def test_ds_property_consistency(ac_dc_network):
+    n = ac_dc_network
     """Test that ds property returns the same data as individual da calls."""
     ds = n.components.generators.ds
 
@@ -142,3 +151,13 @@ def test_ds_property_consistency(n):
         da_from_ds = ds[attr]
         assert set(da_individual.coords) == set(da_from_ds.coords)
         assert da_individual.equals(da_from_ds)
+
+
+def test_from_xarray(ac_dc_types):
+    n = ac_dc_types
+    for c in n.components:
+        for attr in c.static.columns:
+            da = c.da[attr]
+            df = _from_xarray(da)
+            if attr in c.dynamic and not c.dynamic[attr].empty:
+                assert df.equals(c._as_dynamic(attr))

@@ -53,37 +53,37 @@ def test_network_properties():
     assert "Scenarios:" in repr(n)
 
 
-def test_example_consistency(ac_dc_meshed_stoch):
-    n = ac_dc_meshed_stoch
+def test_example_consistency(ac_dc_stochastic):
+    n = ac_dc_stochastic
     n.lines.x = n.lines.x.where(n.lines.x > 0, 0.0001)  # Avoid zero reactance
     n.lines.r = n.lines.r.where(n.lines.r > 0, 0.0001)  # Avoid zero reactance
     n.consistency_check(strict="all")
 
 
-def test_component_functions(ac_dc_meshed_stoch):
-    assert isinstance(ac_dc_meshed_stoch.branches(), pd.DataFrame)
-    assert isinstance(ac_dc_meshed_stoch.passive_branches(), pd.DataFrame)
-    assert isinstance(ac_dc_meshed_stoch.controllable_branches(), pd.DataFrame)
+def test_component_functions(ac_dc_stochastic):
+    assert isinstance(ac_dc_stochastic.branches(), pd.DataFrame)
+    assert isinstance(ac_dc_stochastic.passive_branches(), pd.DataFrame)
+    assert isinstance(ac_dc_stochastic.controllable_branches(), pd.DataFrame)
 
 
-def test_calculate_dependent_values(ac_dc_meshed_stoch: pypsa.Network):
+def test_calculate_dependent_values(ac_dc_stochastic: pypsa.Network):
     """
     Test the calculation of dependent values in a stochastic network.
     This includes checking that the function runs without errors and that
     the expected attributes are present in the network object.
     """
-    n = ac_dc_meshed_stoch
+    n = ac_dc_stochastic
     n.calculate_dependent_values()
     assert n.lines.x_pu_eff.notnull().all()
 
 
-def test_determine_network_topology(ac_dc_meshed_stoch: pypsa.Network):
+def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
     """
     Test the determination of network topology in a stochastic network.
     This includes checking that the function runs without errors and that
     the expected attributes are present in the network object.
     """
-    n = ac_dc_meshed_stoch
+    n = ac_dc_stochastic
     n.determine_network_topology()
 
     assert not n.sub_networks.empty
@@ -102,8 +102,8 @@ def test_determine_network_topology(ac_dc_meshed_stoch: pypsa.Network):
     )
 
 
-def test_cycles(ac_dc_meshed_stoch: pypsa.Network):
-    n = ac_dc_meshed_stoch
+def test_cycles(ac_dc_stochastic: pypsa.Network):
+    n = ac_dc_stochastic
     C = n.cycles()
 
     assert isinstance(C, pd.DataFrame)
@@ -175,11 +175,11 @@ def test_model_creation(stochastic_benchmark_network):
     } == {"name", "scenario", "snapshot"}
 
 
-def test_statistics(ac_dc_meshed_stoch_r):
+def test_statistics(ac_dc_stochastic_r):
     """
     Test the statistics of a stochastic network.
     """
-    n = ac_dc_meshed_stoch_r
+    n = ac_dc_stochastic_r
     ds = n.statistics.installed_capacity()
     assert isinstance(ds, pd.Series)
     assert isinstance(ds.index, pd.MultiIndex)
@@ -199,20 +199,20 @@ def test_statistics(ac_dc_meshed_stoch_r):
     assert not df.empty
 
 
-def test_statistics_plot(ac_dc_meshed_stoch_r):
+def test_statistics_plot(ac_dc_stochastic_r):
     """
     Test the statistics plot of a stochastic network.
     """
-    n = ac_dc_meshed_stoch_r
+    n = ac_dc_stochastic_r
     s = n.statistics
     s.installed_capacity.plot.bar()
 
 
-def test_optimization_simple(ac_dc_meshed_stoch):
+def test_optimization_simple(ac_dc_stochastic):
     """
     Simple test case for the optimization of a stochastic network.
     """
-    n = ac_dc_meshed_stoch
+    n = ac_dc_stochastic
     n.optimize.create_model()
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
@@ -1308,9 +1308,9 @@ def n():
     return n
 
 
-def test_primary_energy_constraint_stochastic(ac_dc_meshed_stoch):
+def test_primary_energy_constraint_stochastic(ac_dc_stochastic):
     """Test primary energy constraint works correctly with stochastic networks."""
-    n = ac_dc_meshed_stoch
+    n = ac_dc_stochastic
     assert ("low", "co2_limit") in n.global_constraints.index
     assert ("high", "co2_limit") in n.global_constraints.index
     n.optimize.create_model()

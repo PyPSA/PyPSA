@@ -937,7 +937,6 @@ def define_nodal_balance_constraints(
         if expr.size:
             exprs.append(expr.groupby(cbuses).sum().rename(Bus="name"))
 
-    # TODO Why is this writing back to the dataframe? e.g. n.buses.index.name
     lhs = merge(exprs, join="outer").reindex(name=buses)
 
     # Prepare the RHS

@@ -95,28 +95,28 @@ class TestCSVDir:
         scipy_network.export_to_csv_folder(fn)
         pypsa.Network(fn)
 
-    def test_csv_io_multiindexed(self, ac_dc_network_mi, tmpdir):
+    def test_csv_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "csv_export"
-        ac_dc_network_mi.export_to_csv_folder(fn)
+        ac_dc_periods.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
             m.generators_t.p,
-            ac_dc_network_mi.generators_t.p,
+            ac_dc_periods.generators_t.p,
         )
 
-    def test_csv_io_shapes(self, ac_dc_network_shapes, tmpdir):
+    def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "csv_export"
-        ac_dc_network_shapes.export_to_csv_folder(fn)
+        ac_dc_shapes.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
             m.shapes,
-            ac_dc_network_shapes.shapes,
+            ac_dc_shapes.shapes,
             check_less_precise=True,
         )
 
-    def test_csv_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
+    def test_csv_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "csv_export"
-        n = ac_dc_network_shapes.copy()
+        n = ac_dc_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
@@ -189,34 +189,34 @@ class TestNetcdf:
 
         assert (imported_sns == exported_sns).all()
 
-    def test_netcdf_io_multiindexed(self, ac_dc_network_mi, tmpdir):
+    def test_netcdf_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "netcdf_export.nc"
-        ac_dc_network_mi.export_to_netcdf(fn)
+        ac_dc_periods.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
             m.generators_t.p,
-            ac_dc_network_mi.generators_t.p,
+            ac_dc_periods.generators_t.p,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
-            ac_dc_network_mi.snapshot_weightings[
+            ac_dc_periods.snapshot_weightings[
                 m.snapshot_weightings.columns
             ],  # reset order
         )
 
-    def test_netcdf_io_shapes(self, ac_dc_network_shapes, tmpdir):
+    def test_netcdf_io_shapes(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "netcdf_export.nc"
-        ac_dc_network_shapes.export_to_netcdf(fn)
+        ac_dc_shapes.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
             m.shapes,
-            ac_dc_network_shapes.shapes,
+            ac_dc_shapes.shapes,
             check_less_precise=True,
         )
 
-    def test_netcdf_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
+    def test_netcdf_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "netcdf_export.nc"
-        n = ac_dc_network_shapes.copy()
+        n = ac_dc_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_netcdf(fn)
         m = pypsa.Network(fn)
@@ -315,28 +315,28 @@ class TestHDF5:
         scipy_network.export_to_hdf5(fn)
         pypsa.Network(fn)
 
-    def test_hdf5_io_multiindexed(self, ac_dc_network_mi, tmpdir):
+    def test_hdf5_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
-        ac_dc_network_mi.export_to_hdf5(fn)
+        ac_dc_periods.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
             m.generators_t.p,
-            ac_dc_network_mi.generators_t.p,
+            ac_dc_periods.generators_t.p,
         )
 
-    def test_hdf5_io_shapes(self, ac_dc_network_shapes, tmpdir):
+    def test_hdf5_io_shapes(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
-        ac_dc_network_shapes.export_to_hdf5(fn)
+        ac_dc_shapes.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
             m.shapes,
-            ac_dc_network_shapes.shapes,
+            ac_dc_shapes.shapes,
             check_less_precise=True,
         )
 
-    def test_hdf5_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
+    def test_hdf5_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
-        n = ac_dc_network_shapes.copy()
+        n = ac_dc_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_hdf5(fn)
         m = pypsa.Network(fn)
@@ -409,33 +409,33 @@ class TestExcelIO:
         imported_sns = pypsa.Network(fn).snapshots
         assert (imported_sns == exported_sns).all()
 
-    def test_excel_io_multiindexed(self, ac_dc_network_mi, tmpdir):
+    def test_excel_io_multiindexed(self, ac_dc_periods, tmpdir):
         fn = tmpdir / "excel_export.xlsx"
-        ac_dc_network_mi.export_to_excel(fn)
+        ac_dc_periods.export_to_excel(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
             m.generators_t.p,
-            ac_dc_network_mi.generators_t.p,
+            ac_dc_periods.generators_t.p,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
-            ac_dc_network_mi.snapshot_weightings[m.snapshot_weightings.columns],
+            ac_dc_periods.snapshot_weightings[m.snapshot_weightings.columns],
             check_dtype=False,  # TODO Remove once validation layer leads to safer types
         )
 
-    def test_excel_io_shapes(self, ac_dc_network_shapes, tmpdir):
+    def test_excel_io_shapes(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "excel_export.xlsx"
-        ac_dc_network_shapes.export_to_excel(fn)
+        ac_dc_shapes.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
             m.shapes,
-            ac_dc_network_shapes.shapes,
+            ac_dc_shapes.shapes,
             check_less_precise=True,
         )
 
-    def test_excel_io_shapes_with_missing(self, ac_dc_network_shapes, tmpdir):
+    def test_excel_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "excel_export.xlsx"
-        n = ac_dc_network_shapes.copy()
+        n = ac_dc_shapes.copy()
         n.shapes.loc["Manchester", "geometry"] = None
         n.export_to_excel(fn)
         m = pypsa.Network(fn)

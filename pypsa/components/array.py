@@ -14,12 +14,69 @@ import pandas as pd
 import xarray
 
 from pypsa._options import options
-from pypsa.common import as_index
+from pypsa.common import UnexpectedError, as_index, list_as_string
 from pypsa.components.abstract import _ComponentsABC
 from pypsa.guards import _as_xarray_guard
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+def _from_xarray(da: xarray.DataArray) -> pd.DataFrame | pd.Series:
+    """Convert component attribute xarray view back to pandas dataframe or series."""
+    # Get available dimensions
+    dims = set(da.dims)
+
+    if dims in ({"name"}, {"name", "snapshot"}, {"snapshot"}):
+        return da.to_pandas()
+
+    elif dims == {"name", "scenario"}:
+        return da.to_pandas().stack()  # Unstack to create a Series with MultiIndex
+
+    elif dims == {"name", "snapshot", "scenario"}:
+        df = (
+            da.transpose("name", "scenario", "snapshot")
+            .stack(combined=("scenario", "name"))
+            .to_pandas()
+        )
+
+        df.columns.name = None
+        return df
+
+    # Handle auxiliary dimensions (e.g. from security constrained optimization)
+    elif len(dims) > 2:
+        # Find auxiliary dimensions
+        contingency_dims = [
+            d for d in dims if d not in {"snapshot", "name", "scenario"}
+        ]
+
+        if contingency_dims:
+            # Stack auxiliary dimensions with component dimension to create combined index
+            if "scenario" in dims:
+                stack_dims = ["name", "scenario"] + contingency_dims
+            else:
+                stack_dims = ["name"] + contingency_dims
+
+            combined_name = "combined"
+            df = da.stack({combined_name: stack_dims}).to_pandas()
+
+            if hasattr(df, "columns"):
+                df.columns.name = None
+
+            return df
+
+    # Handle cases with auxiliary dimensions but no component dimension (e.g. GlobalConstraint with cycle)
+    elif len(dims) == 2 and "snapshot" in dims:
+        # For 2D cases like ('snapshot', 'cycle'), just use to_pandas() directly
+        return da.to_pandas()
+
+    # Handle other cases
+    available_dims = list_as_string(dims)
+    msg = (
+        f"Unexpected combination of dimensions: {available_dims}. "
+        f"Expected some combination of 'snapshot', 'name', and 'scenario'."
+    )
+    raise UnexpectedError(msg)
 
 
 class _XarrayAccessor:
