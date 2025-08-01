@@ -1397,3 +1397,67 @@ def test_max_relative_growth_constraint(n):
         .sum()
     )
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
+
+
+@pytest.mark.parametrize("assign", [True, False])
+def test_assign_all_duals_stochastic(ac_dc_network, assign):
+    """Test that all duals are written back to the network with stochastic scenarios."""
+    n = ac_dc_network.copy()
+
+    # Set up two scenarios
+    n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
+
+    limit = 30_000
+
+    m = n.optimize.create_model()
+
+    transmission = m.variables["Link-p"]
+    m.add_constraints(
+        transmission.sum() <= limit, name="GlobalConstraint-generation_limit"
+    )
+    m.add_constraints(
+        transmission.sum(dim="name") <= limit,
+        name="GlobalConstraint-generation_limit_dynamic",
+    )
+
+    n.optimize.solve_model(assign_all_duals=assign)
+
+    assert ("generation_limit" in n.global_constraints.index) == assign
+    assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
+
+    if assign:
+        assert not n.buses_t.marginal_price.empty, (
+            "Marginal prices should always be assigned"
+        )
+
+        if "mu_upper" in n.generators_t:
+            assert not n.generators_t.mu_upper.empty, (
+                "Generator mu_upper should be assigned when assign_all_duals=True"
+            )
+        if "mu_lower" in n.generators_t:
+            assert not n.generators_t.mu_lower.empty, (
+                "Generator mu_lower should be assigned when assign_all_duals=True"
+            )
+
+        if "mu_upper" in n.links_t:
+            assert not n.links_t.mu_upper.empty, (
+                "Link mu_upper should be assigned when assign_all_duals=True"
+            )
+        if "mu_lower" in n.links_t:
+            assert not n.links_t.mu_lower.empty, (
+                "Link mu_lower should be assigned when assign_all_duals=True"
+            )
+
+        # Verify that stochastic dimensions are preserved in dual variables
+        if not n.buses_t.marginal_price.empty:
+            assert isinstance(n.buses_t.marginal_price.columns, pd.MultiIndex), (
+                "Marginal prices should have MultiIndex columns with scenarios"
+            )
+            scenarios_in_marginal_price = (
+                n.buses_t.marginal_price.columns.get_level_values("scenario").unique()
+            )
+            assert all(s in scenarios_in_marginal_price for s in n.scenarios), (
+                "All scenarios should be present in marginal prices"
+            )
+    else:
+        pass
