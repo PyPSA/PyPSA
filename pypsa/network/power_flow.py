@@ -423,7 +423,9 @@ def apply_line_types(n: Network) -> None:
     if n.has_scenarios:
         # For stochastic network, use the first scenario's line types
         # User changes across line type data are caught by the consistency check
-        line_types_to_use = n.line_types.xs(n.c.line_types.component_names, level=0)
+        line_types_to_use = n.line_types.xs(
+            n.line_types.index.get_level_values(0)[0], level=0
+        )
         lines = lines.join(line_types_to_use, on="type")
     else:
         lines = lines.join(n.line_types, on="type")
