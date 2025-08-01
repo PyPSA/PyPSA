@@ -699,7 +699,7 @@ class NetworkIndexMixin(_NetworkABC):
             msg = "Invalid type for `scenarios`. Must be dict, pd.DataFrame, pd.Series, or Sequence. "
             raise TypeError(msg)
 
-        if scenarios_.sum() != 1:
+        if abs(scenarios_.sum() - 1) > 1e-5:
             msg = (
                 "The sum of the weights in `scenarios` must be equal to 1. "
                 f"Current sum: {scenarios_.sum()}"
