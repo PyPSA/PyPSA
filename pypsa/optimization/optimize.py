@@ -610,12 +610,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if name == "objective_constant":
                 continue
 
-            try:
-                c, attr = name.split("-", 1)
-                df = _from_xarray(sol)
-            except ValueError:
-                # TODO Why is this needed?
-                continue
+            c, attr = name.split("-", 1)
+            df = _from_xarray(sol)
 
             if "snapshot" in sol.dims:
                 if c in n.passive_branch_components and attr == "s":
