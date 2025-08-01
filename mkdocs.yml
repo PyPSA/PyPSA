@@ -100,6 +100,7 @@ nav:
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer_example.ipynb
     - examples/reserve-power.ipynb
+    - examples/time-series-aggregation.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
