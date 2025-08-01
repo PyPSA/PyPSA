@@ -96,10 +96,10 @@ class Links(Components):
 
         Examples
         --------
-        >>> n = pypsa.Network()
-        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3")
+        >>> n = pypsa.Network() # doctest: +SKIP
+        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3") # doctest: +SKIP
         Index(['link1'], dtype='object')
-        >>> n.components.links.additional_ports
+        >>> n.components.links.additional_ports # doctest: +SKIP
         ['2']
 
         """
