@@ -14,6 +14,9 @@ Release Notes
 Bug Fixes
 ---------
 
+* Make compatible with xarray v2025.07
+  (https://github.com/PyPSA/PyPSA/pull/1304)
+
 * Correct use of snapshot weighting columns in statistics module. The
   doscstring for ``n.snapshot_weightings`` was clarified.
 
