@@ -94,6 +94,7 @@ nav:
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
     - examples/minimal_example_pf.ipynb
+    - examples/3-node-cem.ipynb
   - Power System (Specialized):
     - examples/scigrid-redispatch.ipynb
     - examples/generation-investment-screening-curve.ipynb
