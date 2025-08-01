@@ -127,7 +127,7 @@ def test_add_static(n_5bus, slicer):
         load_names = pd.Index([load_names])
 
     assert len(n_5bus.loads) == len(load_names)
-    assert n_5bus.loads.index.name == "Load"
+    assert n_5bus.loads.index.name == "name"
     assert n_5bus.loads.index.equals(load_names)
     assert (n_5bus.loads.bus == buses).all()
     assert (n_5bus.loads.p_set == 3).all()
@@ -153,7 +153,7 @@ def test_add_static_with_index(n_5bus, slicer):
     )
 
     assert len(n_5bus.loads) == len(load_names)
-    assert n_5bus.loads.index.name == "Load"
+    assert n_5bus.loads.index.name == "name"
     assert n_5bus.loads.index.equals(load_names)
     assert (n_5bus.loads.bus == buses).all()
     assert (n_5bus.loads.p_set == 3).all()
@@ -177,7 +177,7 @@ def test_add_varying_single(n_5bus_7sn):
     )
 
     assert len(n_5bus_7sn.loads) == 1
-    assert n_5bus_7sn.loads.index.name == "Load"
+    assert n_5bus_7sn.loads.index.name == "name"
     assert (n_5bus_7sn.loads.index == "load_1").all()
     assert (n_5bus_7sn.loads.bus == buses[0]).all()
     assert (p_set == n_5bus_7sn.loads_t.p_set.T).all().all()
@@ -207,7 +207,7 @@ def test_add_varying_multiple(n_5bus_7sn, slicer):
     )
 
     assert len(n_5bus_7sn.loads) == len(load_names)
-    assert n_5bus_7sn.loads.index.name == "Load"
+    assert n_5bus_7sn.loads.index.name == "name"
     assert n_5bus_7sn.loads.index.equals(load_names)
     assert (n_5bus_7sn.loads.bus == buses).all()
     assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
@@ -242,7 +242,7 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
     )
 
     assert len(n_5bus_7sn.loads) == len(load_names)
-    assert n_5bus_7sn.loads.index.name == "Load"
+    assert n_5bus_7sn.loads.index.name == "name"
     assert n_5bus_7sn.loads.index.equals(load_names)
     assert (n_5bus_7sn.loads.bus == buses).all()
     assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
@@ -295,6 +295,30 @@ def test_add_overwrite_varying(n_5bus_7sn, caplog):
     assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == p).all().all()
 
 
+def test_add_stochastic():
+    n = pypsa.Network()
+    n.add("Bus", "bus_1", v_mag_pu_set=0.1)
+    n.add("Bus", "bus_2", v_mag_pu_set=0.1)
+
+    multi_indexed = pd.MultiIndex.from_product(
+        [["bus_3", "bus_4"], ["scenario_1", "scenario_2"]]
+    )
+
+    with pytest.raises(TypeError, match="Component names must be a one-dimensional."):
+        n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
+
+    n.set_scenarios(["scenario_1", "scenario_2"])
+
+    with pytest.raises(
+        TypeError,
+        match=(
+            "Component names must be a one-dimensional. For stochastic networks, they "
+            "will be casted to all dimensions and data per scenario can be changed after adding them."
+        ),
+    ):
+        n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
+
+
 def test_multiple_add_defaults(n_5bus):
     """
     GIVEN   an empty PyPSA network with 5 buses.
@@ -334,7 +358,7 @@ def test_multiple_add_defaults(n_5bus):
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_equality_behavior(network_all):
+def test_equality_behavior(networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -342,7 +366,7 @@ def test_equality_behavior(network_all):
 
     THEN    the networks should be equal.
     """
-    n = network_all
+    n = networks
     deep_copy = copy.deepcopy(n)
     assert n is not deep_copy
     assert n.equals(deep_copy, log_mode="strict")
@@ -360,7 +384,7 @@ def test_equality_behavior(network_all):
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_copy_default_behavior(network_all):
+def test_copy_default_behavior(networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -369,7 +393,7 @@ def test_copy_default_behavior(network_all):
     THEN    the copied network should have the same generators, loads
     and timestamps.
     """
-    n = network_all
+    n = networks
     network_copy = n.copy()
     assert n == network_copy
     assert n is not network_copy
@@ -403,7 +427,7 @@ def test_copy_with_model(ac_dc_network):
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_copy_snapshots(network_all):
+def test_copy_snapshots(networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -411,19 +435,23 @@ def test_copy_snapshots(network_all):
 
     THEN    the copied network should only have the current time index.
     """
-    n = network_all
+    n = networks
+
+    if n.has_scenarios:
+        with pytest.raises(
+            NotImplementedError,
+            match="Copying a stochastic network with a selection is currently not supported.",
+        ):
+            n.copy(snapshots=n.snapshots[:5])
+
+        return
+
     copied_n = n.copy(snapshots=[])
     assert copied_n.snapshots.size == 1
 
     copied_n = n.copy(snapshots=n.snapshots[:5])
     n.set_snapshots(n.snapshots[:5])
-    try:
-        assert copied_n == n
-    except AssertionError:
-        from deepdiff import DeepDiff
-
-        differences = DeepDiff(copied_n, n)
-        raise AssertionError(f"DeepDiff: {differences}")
+    assert copied_n == n
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):
@@ -460,8 +488,8 @@ def test_single_add_network_with_time(ac_dc_network, n_5bus):
     assert new_buses.issuperset(n_5bus.buses.index)
 
 
-def test_shape_reprojection(ac_dc_network_shapes):
-    n = ac_dc_network_shapes
+def test_shape_reprojection(ac_dc_shapes):
+    n = ac_dc_shapes
 
     with pytest.warns(UserWarning):  # noqa
         area_before = n.shapes.geometry.area.sum()

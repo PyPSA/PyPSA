@@ -114,8 +114,8 @@ def test_class_method_access():
         ("investment_periods", "period"),
     ],
 )
-def test_as_index(ac_dc_network_mi, attr, expected_name):
-    n = ac_dc_network_mi
+def test_as_index(ac_dc_periods, attr, expected_name):
+    n = ac_dc_periods
 
     # Test with None values
     result = as_index(n, None, attr)

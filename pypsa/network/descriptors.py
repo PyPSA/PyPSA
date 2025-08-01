@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from pypsa.common import as_index, deprecated_in_next_major
+from pypsa.common import deprecated_in_next_major
+from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
@@ -127,22 +128,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         2015-01-01 01:00:00         0.485748             1.0     0.481290         1.0        0.752910            1.0
 
         """
-        sns = as_index(self, snapshots, "snapshots")
-
-        static = self.static(component)[attr]
-        empty = pd.DataFrame(index=sns)
-        dynamic = self.dynamic(component).get(attr, empty).loc[sns]
-
-        index = static.index
-        if inds is not None:
-            index = index.intersection(inds)
-
-        diff = index.difference(dynamic.columns)
-        static_to_dynamic = pd.DataFrame({**static[diff]}, index=sns)
-        res = pd.concat([dynamic, static_to_dynamic], axis=1, names=sns.names)[index]
-        res.index.name = sns.name
-        res.columns.name = component
-        return res
+        return as_components(self, component)._as_dynamic(attr, snapshots, inds)
 
     def get_switchable_as_iter(
         self,
@@ -175,7 +161,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
         --------
         >>> gen = n.get_switchable_as_iter('Generator', 'p_max_pu', n.snapshots[:2])
         >>> next(gen)  # doctest: +ELLIPSIS
-        Generator
+        name
         Manchester Wind    0.930020
         Manchester Gas     1.000000
         Norway Wind        0.974583
