@@ -11,6 +11,12 @@ Release Notes
 ..    To use the features already you have to install the ``master`` branch, e.g. 
 ..    ``pip install git+https://github.com/pypsa/pypsa``.
 
+* Start up and shut down variables are now initialised as continuous variables
+  with bounds [0,1] instead of as binary variables. They can already only take
+  the values 0 or 1 as they depend on the difference of the binary status
+  variables of adjacent snapshots. This should speed up the branch-and-bound
+  algorithm as it reduces the number of binary variables in the model.
+
 Bug Fixes
 ---------
 
