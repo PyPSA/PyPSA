@@ -82,6 +82,7 @@ docs = [
     "mkdocs-jupyter",
     "cairosvg",
     "pillow",
+    "tsam",
 ]
 
 # setuptools_scm settings
