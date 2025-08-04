@@ -44,7 +44,9 @@ def set_from_frame(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
     """Update values in time-dependent attribute from new dataframe."""
     dynamic = n.dynamic(c)
     if (attr not in dynamic) or (dynamic[attr].empty):
-        dynamic[attr] = df.reindex(n.snapshots).fillna(0.0)
+        dynamic[attr] = (
+            df.reindex(n.snapshots).reindex(n.c[c].static.index, axis=1).fillna(0.0)
+        )
     else:
         dynamic[attr].loc[df.index, df.columns] = df
         dynamic[attr] = dynamic[attr].fillna(0.0)

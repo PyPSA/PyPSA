@@ -121,7 +121,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     for c_name, attr in nom_attr:
         c = as_components(n, c_name)
-        ext_i = c.extendables
+        ext_i = c.extendables.difference(c.inactive_assets)
 
         if ext_i.empty:
             continue
@@ -215,7 +215,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # stand-by cost
     for c_name in ["Generator", "Link"]:
         c = as_components(n, c_name)
-        com_i = c.committables
+        com_i = c.committables.difference(c.inactive_assets)
 
         if com_i.empty:
             continue
@@ -234,7 +234,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # investment
     for c_name, attr in nominal_attrs.items():
         c = as_components(n, c_name)
-        ext_i = c.extendables
+        ext_i = c.extendables.difference(c.inactive_assets)
 
         if ext_i.empty:
             continue
@@ -262,7 +262,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c_name, attr in lookup.query("variable in @keys").index:
         c = as_components(n, c_name)
-        com_i = c.committables
+        com_i = c.committables.difference(c.inactive_assets)
 
         if com_i.empty:
             continue
@@ -837,7 +837,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         afterwards.
         """
         for c, attr in nominal_attrs.items():
-            ext_i = self._n.components[c].extendables
+            ext_i = self._n.components[c].extendables.difference(
+                self._n.components[c].inactive_assets
+            )
             self._n.static(c).loc[ext_i, attr] = self._n.static(c).loc[
                 ext_i, attr + "_opt"
             ]
