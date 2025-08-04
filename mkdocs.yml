@@ -115,6 +115,7 @@ nav:
     - examples/power-to-heat-water-tank.ipynb
   - Other:
     - examples/replace-generator-storage-units-with-store.ipynb
+    - examples/tracing-infeasibilities.ipynb
 
 - API Reference:
   - Networks:
