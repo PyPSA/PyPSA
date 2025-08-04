@@ -101,6 +101,7 @@ nav:
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer_example.ipynb
     - examples/reserve-power.ipynb
+    - examples/myopic-pathway.ipynb
     - examples/demand-elasticity.ipynb
     - examples/modular-expansion.ipynb
   - Sector Coupling:
