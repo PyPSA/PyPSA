@@ -94,6 +94,7 @@ nav:
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
     - examples/minimal_example_pf.ipynb
+    - examples/negative_prices_kvl_baker.ipynb
   - Power System (Specialized):
     - examples/scigrid-redispatch.ipynb
     - examples/generation-investment-screening-curve.ipynb
@@ -101,13 +102,14 @@ nav:
     - examples/transformer_example.ipynb
     - examples/reserve-power.ipynb
     - examples/myopic-pathway.ipynb
+    - examples/demand-elasticity.ipynb
+    - examples/modular-expansion.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
     - examples/battery-electric-vehicle-charging.ipynb
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
     - examples/chp-fixed-heat-power-ratio.ipynb
-    - examples/lopf-with-heating.ipynb
     - examples/power-to-gas-boiler-chp.ipynb
     - examples/power-to-heat-water-tank.ipynb
   - Other:
