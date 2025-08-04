@@ -703,7 +703,7 @@ class Components(
         Returns
         -------
         pd.Index
-            Index of extendable elements.
+            Single-level index of extendable elements.
 
         """
         extendable_col = self._operational_attrs["nom_extendable"]
@@ -712,6 +712,7 @@ class Components(
 
         idx = self.static.loc[self.static[extendable_col]].index
 
+        # Remove scenario dimension, since they cannot vary across scenarios
         if self.has_scenarios:
             idx = idx.unique("name")
 
@@ -724,7 +725,7 @@ class Components(
         Returns
         -------
         pd.Index
-            Index of non-extendable elements.
+            Single-level index of non-extendable elements.
 
         """
         extendable_col = self._operational_attrs["nom_extendable"]
@@ -732,6 +733,11 @@ class Components(
             return self.static.iloc[:0].index
 
         idx = self.static.loc[~self.static[extendable_col]].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.unique("name")
+
         return idx
 
     @property
@@ -741,13 +747,18 @@ class Components(
         Returns
         -------
         pd.Index
-            Index of committable elements.
+            Single-level index of committable elements.
 
         """
         if "committable" not in self.static:
             return self.static.iloc[:0].index
 
         idx = self.static.loc[self.static["committable"]].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.unique("name")
+
         return idx
 
 

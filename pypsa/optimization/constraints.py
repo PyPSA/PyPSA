@@ -81,9 +81,6 @@ def define_operational_constraints_for_non_extendables(
     fix_i = c.fixed
     fix_i = fix_i.difference(c.committables)
 
-    if c.has_scenarios:
-        fix_i = fix_i.get_level_values("name").unique()
-
     if fix_i.empty:
         return
 

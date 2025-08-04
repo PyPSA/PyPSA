@@ -641,6 +641,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         # if nominal capacity was no variable set optimal value to nominal
         for c, attr in lookup.query("nominal").index:
             fix_i = n.components[c].fixed
+            if self._n.has_scenarios:
+                fix_i = pd.MultiIndex.from_product([self._n.scenarios, fix_i])
             if not fix_i.empty:
                 n.static(c).loc[fix_i, f"{attr}_opt"] = n.static(c).loc[fix_i, attr]
 
