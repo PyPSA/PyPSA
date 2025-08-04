@@ -1,18 +1,14 @@
 """Plot the network interactively using plotly and folium."""
 
-import importlib
 import logging
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import geopandas as gpd
 import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
 import pydeck as pdk
-from shapely import linestrings
 
-from pypsa.constants import DEFAULT_EPSG
 from pypsa.plot.maps.common import apply_layouter, as_branch_series
 
 if TYPE_CHECKING:
@@ -328,13 +324,13 @@ class PydeckPlotter:
     """Class to create and manage an interactive pydeck map for a PyPSA network."""
 
     def __init__(self, n, map_style="light"):
-        """
-        Parameters
+        """Parameters
         ----------
         n : Network
             The PyPSA network to plot.
         map_style : str
             Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
+
         """
         self._n = n
         self._map_style = map_style
@@ -350,16 +346,16 @@ class PydeckPlotter:
         self._map_style = style
 
     def add_bus_layer(
-        self, 
+        self,
         bus_sizes: float | pd.Series | dict = 5000,
     ) -> None:
-        """
-        Adds a bus layer of Pydeck type ScatterplotLayer to the interactive map.
-        
+        """Adds a bus layer of Pydeck type ScatterplotLayer to the interactive map.
+
         Parameters
         ----------
         bus_sizes : float, pd.Series, or dict
             Bus size is set as a radius in meters. If a float, all buses will have the same radius.cIf a pd.Series or dict, the index should match the bus names in `n.buses`.
+
         """
         bus_data = self._n.buses.copy()
 
@@ -404,8 +400,7 @@ def explore(
     bus_sizes: float | pd.Series | dict = 5000,
     map_style: str = "light",
 ) -> "PydeckPlotter":
-    """
-    Create an interactive map of the PyPSA network using Pydeck.
+    """Create an interactive map of the PyPSA network using Pydeck.
 
     Parameters
     ----------
@@ -421,8 +416,8 @@ def explore(
     -------
     PydeckPlotter
         An instance of PydeckPlotter with the bus layer added.
+
     """
     plotter = PydeckPlotter(n, map_style=map_style)
     plotter.add_bus_layer(bus_sizes=bus_sizes)
     return plotter.show()
-
