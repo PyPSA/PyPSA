@@ -12,11 +12,13 @@ import xarray as xr
 from linopy import Model, merge
 from linopy.solvers import available_solvers
 
+from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
+from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
 from pypsa.optimization.constraints import (
@@ -596,6 +598,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             self._n.optimize.assign_solution()
             self._n.optimize.assign_duals(assign_all_duals)
             self._n.optimize.post_processing()
+
+        # Optional runtime verification
+        if options.debug.runtime_verification:
+            _optimize_guard(self._n)
 
         return status, condition
 

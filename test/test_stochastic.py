@@ -1419,7 +1419,7 @@ def test_max_relative_growth_constraint(n):
 @pytest.mark.parametrize("assign", [True, False])
 def test_assign_all_duals_stochastic(ac_dc_network, assign):
     """Test that all duals are written back to the network with stochastic scenarios."""
-    n = ac_dc_network.copy()
+    n = ac_dc_network
 
     # Set up two scenarios
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
@@ -1476,8 +1476,6 @@ def test_assign_all_duals_stochastic(ac_dc_network, assign):
             assert all(s in scenarios_in_marginal_price for s in n.scenarios), (
                 "All scenarios should be present in marginal prices"
             )
-    else:
-        pass
 
 
 def test_transmission_volume_expansion_limit_constraint_stochastic():
