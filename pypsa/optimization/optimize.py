@@ -135,10 +135,10 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
-            for i, period in enumerate(periods):
+            for period in periods:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.iloc[i]
+                weighted_cost += capital_cost * active * period_weighting.loc[period]
         else:
             # collapse time axis via any() so capex value isn’t broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
@@ -246,10 +246,10 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         # only charge capex for already-existing assets
         if n._multi_invest:
             weighted_cost = 0
-            for i, period in enumerate(periods):
+            for period in periods:
                 # collapse time axis via any() so capex value isn't broadcasted
                 active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
-                weighted_cost += capital_cost * active * period_weighting.iloc[i]
+                weighted_cost += capital_cost * active * period_weighting.loc[period]
         else:
             # collapse time axis via any() so capex value isn't broadcasted
             active = c.da.active.sel(name=ext_i).any(dim="snapshot")
