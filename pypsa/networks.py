@@ -883,12 +883,12 @@ class Network(
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
     def _empty_components(self) -> list:
-        """Get a list of all components that are not empty.
+        """Get a list of all components that are empty.
 
         Returns
         -------
         list
-            List of non-empty components.
+            List of empty components.
 
         """
         return [c.name for c in self.iterate_components() if c.empty]
