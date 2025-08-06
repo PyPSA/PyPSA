@@ -53,6 +53,7 @@ class _NetworkABC(ABC):
     shapes: pd.DataFrame
     component_attrs: pd.DataFrame
     global_constraints: pd.DataFrame
+    calculate_dependent_values: Callable
 
     passive_branches: pd.DataFrame
 
