@@ -590,6 +590,12 @@ def test_store_stochastic_optimization_bug():
     # Ensure the network has stores (it should)
     assert not n.stores.empty, "Test network should have stores"
 
+    # The bug occured in operation (1 - standing_loss)**eh due to dimension mismatch
+    n.stores.at["hydrogen storage", "e_nom"] = 1000
+    n.stores.at["hydrogen storage", "e_cyclic"] = False
+    n.stores.at["hydrogen storage", "e_initial"] = 800
+    n.stores.at["hydrogen storage", "standing_loss"] = 0.01
+
     # Test without scenarios first (should work)
     n_regular = n.copy()
     status_regular, condition_regular = n_regular.optimize()
@@ -616,6 +622,15 @@ def test_store_stochastic_optimization_bug():
     # Verify optimization results exist
     assert not n_stochastic.stores_t.e.empty
     assert not n_stochastic.stores_t.p.empty
+
+    # Verify specific energy level at second snapshot
+    # it is 800 × (1 - 0.01)³ due to 3h temporal clustering
+    second_hour_energy = n_stochastic.stores_t.e.loc[
+        n_stochastic.snapshots[1], ("scenario_a", "hydrogen storage")
+    ]
+    assert abs(second_hour_energy - 776.2392) < 0.01, (
+        f"Expected hydrogen storage energy ~776.24 at second snapshot, got {second_hour_energy}"
+    )
 
 
 def test_store_stochastic_dimensions():
