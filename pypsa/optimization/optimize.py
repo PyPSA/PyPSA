@@ -734,7 +734,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 or attribute_name in self._n.static(component_name).index
             ):
                 # GlobalConstraint scalar duals: assign directly to the "mu" column
-                self._n.static(component_name).loc[attribute_name, "mu"] = dual_values
+                if "scenario" in dual_values.dims:
+                    dual_df = _from_xarray(dual_values)
+                    set_from_frame(self._n, component_name, "mu", dual_df)
+                else:
+                    self._n.static(component_name).loc[attribute_name, "mu"] = (
+                        dual_values
+                    )
 
         if unassigned_constraints:
             logger.info(

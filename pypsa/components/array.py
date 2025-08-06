@@ -30,6 +30,10 @@ def _from_xarray(da: xarray.DataArray) -> pd.DataFrame | pd.Series:
     if dims in ({"name"}, {"name", "snapshot"}, {"snapshot"}):
         return da.to_pandas()
 
+    elif dims == {"scenario"}:
+        # e.g. scalar GlobalConstraint with scalar duals per scenario
+        return da.to_pandas()
+
     elif dims == {"name", "scenario"}:
         return da.to_pandas().stack()  # Unstack to create a Series with MultiIndex
 
