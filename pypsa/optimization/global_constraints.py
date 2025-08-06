@@ -296,7 +296,6 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
                 continue
 
             lhs = []
-            rhs = glc.constant
             emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0].loc[
                 scenario
             ]
@@ -340,8 +339,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
                 if n.has_scenarios:
                     soc = soc.sel(scenario=scenario, drop=True)
 
-                lhs.append((soc * -em_pu).sum())
-                rhs -= em_pu @ sus.state_of_charge_initial
+                lhs.append((soc * -em_pu).sum() + em_pu @ sus.state_of_charge_initial)
 
             # stores
             stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
@@ -354,8 +352,7 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
                 if n.has_scenarios:
                     e = e.sel(scenario=scenario, drop=True)
 
-                lhs.append((e * -em_pu).sum())
-                rhs -= em_pu @ stores.e_initial
+                lhs.append((e * -em_pu).sum() + em_pu @ stores.e_initial)
 
             if not lhs:
                 continue
@@ -370,8 +367,12 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         else:
             expression = expressions[0]
 
-        con = expression.to_constraint(sign=glc_group.sense, rhs=glc_group.constant)
-        m.add_constraints(con, name=f"GlobalConstraint-{name}")
+        m.add_constraints(
+            expression,
+            glc_group.sense,
+            glc_group.constant,
+            name=f"GlobalConstraint-{name}",
+        )
 
 
 def define_operational_limit(n: Network, sns: pd.Index) -> None:
