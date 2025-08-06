@@ -89,8 +89,8 @@ class NetworkComponentsMixin(_NetworkABC):
         >>> n.components # doctest: +ELLIPSIS
         PyPSA Components Store
         ======================
-        - 3 'SubNetwork' Components
         - 9 'Bus' Components
+        - 6 'Carrier' Components
         ...
 
         Access a single component:
