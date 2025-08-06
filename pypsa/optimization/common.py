@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 @deprecated_in_next_major(
-    details="Use xarray functionality instead.",
+    details="Use xarray functionality instead (e.g. `ds.sel({dim: index}).rename({dim: index.name})`).",
 )
 def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     """Index a xarray.DataArray by a pandas.Index while renaming according to the new index name.

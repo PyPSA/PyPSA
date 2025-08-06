@@ -880,13 +880,7 @@ def define_nodal_balance_constraints(
         ["Transformer", "s", "bus0", -1],
         ["Transformer", "s", "bus1", 1],
         ["Link", "p", "bus0", -1],
-        [
-            "Link",
-            "p",
-            "bus1",
-            # dirty as hell, TODO make sure as_xarray handles case when links empty AND scenarios there
-            links.da.efficiency.sel(snapshot=sns) if not links.static.empty else 0,
-        ],
+        ["Link", "p", "bus1", links.da.efficiency.sel(snapshot=sns)],
     ]
 
     if not links.empty:
