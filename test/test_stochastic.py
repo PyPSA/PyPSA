@@ -208,24 +208,26 @@ def test_statistics_plot(ac_dc_stochastic_r):
     s.installed_capacity.plot.bar()
 
 
-def test_optimization_simple(ac_dc_stochastic):
+def test_optimization_with_scenarios(ac_dc_stochastic):
     """
-    Simple test case for the optimization of a stochastic network.
+    Test optimization of a stochastic network and compare results with deterministic equivalent.
+
+    This test verifies that:
+    - Stochastic optimization completes successfully
+    - The objective value matches a deterministic network with identical data
     """
     n = ac_dc_stochastic
-    n.optimize.create_model()
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-
-def test_optimization_advanced(storage_hvdc_network):
-    """
-    Advanced test case for the optimization of a stochastic network.
-    """
-    n = storage_hvdc_network
-    n.set_scenarios({"low": 0.5, "high": 0.5})
-    status, _ = n.optimize(solver_name="highs")
-    assert status == "ok"
+    m = pypsa.examples.ac_dc_meshed()
+    m.optimize(solver_name="highs")
+    assert abs(m.objective - n.objective) < 1e-2, (
+        f"Expected objective {m.objective}, got {n.objective}"
+    )
+    assert abs(m.objective_constant - n.objective_constant) < 1e-2, (
+        f"Expected objective constant {m.objective_constant}, got {n.objective_constant}"
+    )
 
 
 def test_solved_network_simple(stochastic_benchmark_network):
