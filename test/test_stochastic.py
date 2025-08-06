@@ -1314,8 +1314,8 @@ def test_primary_energy_constraint_stochastic(ac_dc_stochastic):
     assert ("low", "co2_limit") in n.global_constraints.index
     assert ("high", "co2_limit") in n.global_constraints.index
     n.optimize.create_model()
-    assert "GlobalConstraint-low-co2_limit" in n.model.constraints
-    assert "GlobalConstraint-high-co2_limit" in n.model.constraints
+    assert "GlobalConstraint-co2_limit" in n.model.constraints
+    assert "scenario" in n.model.constraints["GlobalConstraint-co2_limit"].dims
 
 
 def test_operational_limit_constraint_stochastic():

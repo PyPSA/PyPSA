@@ -274,86 +274,104 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         period_weighting = n.investment_period_weightings.years[sns.unique("period")]
         weightings = weightings.mul(period_weighting, level=0, axis=0)
 
-    for name, glc in glcs.iterrows():
-        if isnan(glc.investment_period):
-            sns_sel = slice(None)
-        elif glc.investment_period in sns.unique("period"):
-            sns_sel = sns.get_loc(glc.investment_period)
+    unique_names = glcs.index.unique("name")
+
+    for name in unique_names:
+        if n.has_scenarios:
+            glc_group = glcs.xs(name, level="name")
+            scenarios = glc_group.index.get_level_values("scenario")
         else:
-            continue
+            glc_group = glcs.loc[name]
+            scenarios = [slice(None)]
+
+        expressions = []
+        for scenario in scenarios:
+            glc = glc_group.loc[scenario]
+
+            if isnan(glc.investment_period):
+                sns_sel = slice(None)
+            elif glc.investment_period in sns.unique("period"):
+                sns_sel = sns.get_loc(glc.investment_period)
+            else:
+                continue
+
+            lhs = []
+            rhs = glc.constant
+            emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0].loc[
+                scenario
+            ]
+
+            if emissions.empty:
+                continue
+
+            # generators
+            emission_carriers = emissions.index
+            gens = n.generators[n.generators.carrier.isin(emission_carriers)]
+
+            if not gens.empty:
+                gens = gens.loc[scenario]
+                efficiency = (
+                    n.components.generators._as_dynamic("efficiency")
+                    .loc[:, scenario]
+                    .loc[sns[sns_sel], gens.index]
+                )
+                em_pu = gens.carrier.map(emissions) / efficiency
+                em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0)
+
+                p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
+
+                if n.has_scenarios:
+                    p = p.sel(scenario=scenario, drop=True)
+
+                expr = (p * em_pu).sum()
+                lhs.append(expr)
+
+            # storage units
+            cond = "carrier in @emissions.index and not cyclic_state_of_charge"
+            sus = n.storage_units.query(cond)
+            if not sus.empty:
+                sus = sus.loc[scenario]
+                em_pu = sus.carrier.map(emissions)
+                soc = m["StorageUnit-state_of_charge"].sel(
+                    name=sus.index, snapshot=sns[sns_sel]
+                )
+
+                soc = soc.ffill("snapshot").isel(snapshot=-1)
+                if n.has_scenarios:
+                    soc = soc.sel(scenario=scenario, drop=True)
+
+                lhs.append((soc * -em_pu).sum())
+                rhs -= em_pu @ sus.state_of_charge_initial
+
+            # stores
+            stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
+            if not stores.empty:
+                stores = stores.loc[scenario]
+                em_pu = stores.carrier.map(emissions)
+                e = m["Store-e"].sel(name=stores.index, snapshot=sns[sns_sel])
+                e = e.ffill("snapshot").isel(snapshot=-1)
+
+                if n.has_scenarios:
+                    e = e.sel(scenario=scenario, drop=True)
+
+                lhs.append((e * -em_pu).sum())
+                rhs -= em_pu @ stores.e_initial
+
+            if not lhs:
+                continue
+
+            lhs = merge(lhs)
+            expressions.append(lhs)
 
         if n.has_scenarios:
-            scenario, constraint_name = name
-            name = scenario + "-" + constraint_name
+            expression = merge(expressions, dim="scenario").assign_coords(
+                scenario=scenarios
+            )
         else:
-            scenario = slice(None)
+            expression = expressions[0]
 
-        lhs = []
-        rhs = glc.constant
-        emissions = n.carriers[glc.carrier_attribute][lambda ds: ds != 0].loc[scenario]
-
-        if emissions.empty:
-            continue
-
-        # generators
-        emission_carriers = emissions.index
-        gens = n.generators[n.generators.carrier.isin(emission_carriers)]
-
-        if not gens.empty:
-            gens = gens.loc[scenario]
-            efficiency = (
-                n.components.generators._as_dynamic("efficiency")
-                .loc[:, scenario]
-                .loc[sns[sns_sel], gens.index]
-            )
-            em_pu = gens.carrier.map(emissions) / efficiency
-            em_pu = em_pu.multiply(weightings.generators[sns_sel], axis=0)
-
-            p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
-
-            if n.has_scenarios:
-                p = p.sel(scenario=scenario, drop=True)
-
-            expr = (p * em_pu).sum()
-            lhs.append(expr)
-
-        # storage units
-        cond = "carrier in @emissions.index and not cyclic_state_of_charge"
-        sus = n.storage_units.query(cond)
-        if not sus.empty:
-            sus = sus.loc[scenario]
-            em_pu = sus.carrier.map(emissions)
-            soc = m["StorageUnit-state_of_charge"].sel(
-                name=sus.index, snapshot=sns[sns_sel]
-            )
-
-            soc = soc.ffill("snapshot").isel(snapshot=-1)
-            if n.has_scenarios:
-                soc = soc.sel(scenario=scenario, drop=True)
-
-            lhs.append((soc * -em_pu).sum())
-            rhs -= em_pu @ sus.state_of_charge_initial
-
-        # stores
-        stores = n.stores.query("carrier in @emissions.index and not e_cyclic")
-        if not stores.empty:
-            stores = stores.loc[scenario]
-            em_pu = stores.carrier.map(emissions)
-            e = m["Store-e"].sel(name=stores.index, snapshot=sns[sns_sel])
-            e = e.ffill("snapshot").isel(snapshot=-1)
-
-            if n.has_scenarios:
-                e = e.sel(scenario=scenario, drop=True)
-
-            lhs.append((e * -em_pu).sum())
-            rhs -= em_pu @ stores.e_initial
-
-        if not lhs:
-            continue
-
-        lhs = merge(lhs)
-        sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, rhs, name=f"GlobalConstraint-{name}")
+        con = expression.to_constraint(sign=glc_group.sense, rhs=glc_group.constant)
+        m.add_constraints(con, name=f"GlobalConstraint-{name}")
 
 
 def define_operational_limit(n: Network, sns: pd.Index) -> None:
