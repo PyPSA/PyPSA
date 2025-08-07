@@ -78,8 +78,7 @@ def define_operational_constraints_for_non_extendables(
 
     """
     c = as_components(n, component)
-    fix_i = c.fixed
-    fix_i = fix_i.difference(c.committables)
+    fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
 
     if fix_i.empty:
         return
@@ -153,7 +152,7 @@ def define_operational_constraints_for_extendables(
     c = as_components(n, component)
     sns = as_index(n, sns, "snapshots")
 
-    ext_i = c.extendables
+    ext_i = c.extendables.difference(c.inactive_assets)
     if ext_i.empty:
         return
     if isinstance(ext_i, pd.MultiIndex):
@@ -236,7 +235,7 @@ def define_operational_constraints_for_committables(
 
     """
     c = as_components(n, component)
-    com_i = c.committables
+    com_i = c.committables.difference(c.inactive_assets)
 
     if com_i.empty:
         return
@@ -515,7 +514,7 @@ def define_nominal_constraints_for_extendables(
 
     """
     c = as_components(n, component)
-    ext_i = c.extendables
+    ext_i = c.extendables.difference(c.inactive_assets)
 
     if ext_i.empty:
         return
@@ -604,10 +603,10 @@ def define_ramp_limit_constraints(
     p = m[f"{c.name}-{attr}"]
 
     # Get different component groups for constraint application
-    com_i = c.committables
-    fix_i = c.fixed
+    com_i = c.committables.difference(c.inactive_assets)
+    fix_i = c.fixed.difference(c.inactive_assets)
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
-    ext_i = c.extendables
+    ext_i = c.extendables.difference(c.inactive_assets)
 
     # Auxiliary variables for constraint application
     ext_dim = ext_i.name if ext_i.name else c.name
@@ -918,6 +917,7 @@ def define_nodal_balance_constraints(
         expr = sign * m[f"{c.name}-{attr}"]
 
         cbuses = c._as_xarray(column)
+        cbuses = cbuses.sel(name=c.active_assets)
         # Only keep the first scenario if there are multiple
         if n.has_scenarios:
             cbuses = cbuses.isel(scenario=0, drop=True)
@@ -1038,7 +1038,10 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         exprs = []
         for c in C.index.unique("type"):
             C_branch = DataArray(C.loc[c])
-            flow = m[f"{c}-s"].sel(snapshot=snapshots, name=C_branch.indexes["name"])
+            flow = m[f"{c}-s"].sel(
+                snapshot=snapshots,
+                name=C_branch.indexes["name"].difference(n.c[c].inactive_assets),
+            )
             exprs.append(flow @ C_branch * 1e5)
         lhs.append(sum(exprs))
 

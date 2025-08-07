@@ -77,7 +77,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         self,
         investment_period: int | str | Sequence | None = None,
     ) -> pd.Series:
-        """Get active components mask of componen type in investment period(s).
+        """Get active components mask of component type in investment period(s).
 
         A component is considered active when:
 
@@ -142,6 +142,73 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
                 "build_year <= @period < build_year + lifetime"
             )
         return pd.DataFrame(active).any(axis=1) & self.static.active
+
+    @property
+    def active_assets(self) -> pd.Series:
+        """Get list of active assets.
+
+        See corresponding [pypsa.Components.inactive_assets][] for details.
+
+        Returns
+        -------
+        pd.Series
+            List of inactive assets
+
+        See Also
+        --------
+        [pypsa.Components.inactive_assets][]
+
+        """
+        active_assets = self.get_active_assets()
+        return active_assets[active_assets].index.get_level_values("name").unique()
+
+    @property
+    def inactive_assets(self) -> pd.Series:
+        """Get list of inactive assets.
+
+        An asset is considered inactive when one of the following conditions is met:
+        - `active` is set to False across all dimensions (investment periods, scenarios)
+        - `build_year` + `lifetime` never satisfies the condition for any investment period
+
+        Inactive assets are not considered in the optimization and are excluded from
+        the model entirely.
+
+        Returns
+        -------
+        pd.Series
+            List of inactive assets
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
+        Index(['g1'], dtype='object')
+        >>> n.add("Generator", "g2", active=False)
+        Index(['g2'], dtype='object')
+
+        List all components
+        >>> n.generators.index
+        Index(['g1', 'g2'], dtype='object', name='name')
+
+        List of inactive components
+        'g1' will be considered as active because it is active in at least one investment period
+        >>> n.components.generators.inactive_assets
+        Index(['g2'], dtype='object', name='name')
+
+        List of active components
+        >>> n.components.generators.active_assets
+        Index(['g1'], dtype='object', name='name')
+
+        `c.active_assets` and `c.inactive_assets` are mutually exclusive
+
+        See Also
+        --------
+        [pypsa.Components.get_active_assets][]
+
+        """
+        active_assets = self.get_active_assets()
+        return active_assets[~active_assets].index.get_level_values("name").unique()
 
     def get_activity_mask(
         self,

@@ -11,6 +11,10 @@ Release Notes
 ..    To use the features already you have to install the ``master`` branch, e.g. 
 ..    ``pip install git+https://github.com/pypsa/pypsa``.
 
+* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
+  the optimization model entirely. This has no effect on the results, but it can
+  reduce the memory footprint when solving the model.
+
 Bug Fixes
 ---------
 
