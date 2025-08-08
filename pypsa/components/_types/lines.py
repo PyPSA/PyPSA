@@ -2,17 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
 
+from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 from pypsa.geo import haversine_pts
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    import xarray as xr
 
 
 @patch_add_docstring
@@ -36,6 +40,40 @@ class Lines(Components):
     Components: 7
 
     """
+
+    _operational_variables = ["s"]
+
+    def get_bounds_pu(
+        self,
+        attr: str = "s",
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Get per unit bounds for lines.
+
+        For passive branch components, min_pu is the negative of max_pu.
+
+        Parameters
+        ----------
+        sns : pandas.Index/pandas.DateTimeIndex
+            Set of snapshots for the bounds
+        index : pd.Index, optional
+            Subset of the component elements
+        attr : string, optional
+            Attribute name for the bounds, e.g. "s"
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (min_pu, max_pu) DataArrays.
+
+        """
+        if attr not in self._operational_variables:
+            msg = f"Bounds can only be retrieved for operational attributes. For lines those are: {list_as_string(self._operational_variables)}."
+            raise ValueError(msg)
+
+        max_pu = self.da.s_max_pu
+        min_pu = -max_pu  # Lines specific: min_pu is the negative of max_pu
+
+        return min_pu, max_pu
 
     def add(
         self,
