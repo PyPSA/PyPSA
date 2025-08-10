@@ -84,6 +84,7 @@ docs = [
     "cairosvg",
     "pillow",
     "tsam",
+    "salib",
 ]
 
 # setuptools_scm settings

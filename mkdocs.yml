@@ -106,6 +106,7 @@ nav:
     - examples/demand-elasticity.ipynb
     - examples/modular-expansion.ipynb
     - examples/time-series-aggregation.ipynb
+    - examples/gsa.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
