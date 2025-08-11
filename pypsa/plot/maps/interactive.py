@@ -26,6 +26,8 @@ except ImportError:
     pltly_present = False
 
 
+pdk.settings.pydeck_offline = True  # Embed JavaScript and CSS into the HTML file
+
 logger = logging.getLogger(__name__)
 
 
@@ -343,8 +345,8 @@ class PydeckPlotter:
         """
         self._n = n
         self._map_style = map_style
-        self._layers = {}  # store layers by name
-        self._tooltip = None
+        self._layers: dict[str, pdk.Layer] = {}
+        self._tooltip: dict | None = None
 
     @property
     def map_style(self) -> str:
@@ -396,13 +398,17 @@ class PydeckPlotter:
             },
         }
 
-    def show(self) -> "PydeckPlotter":
-        """Create and return a Pydeck Deck object with the added layers."""
+    def show(self, notebook_display: bool = True) -> pdk.Deck:
+        """Display the interactive map."""
         deck = pdk.Deck(
             layers=list(self._layers.values()),
             map_style=self._map_style,
             tooltip=self._tooltip,
         )
+        if notebook_display:
+            return deck.show()
+        else:
+            deck.to_html("network_map.html", open_browser=True)
         return deck
 
 
