@@ -1336,7 +1336,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             n.calculate_dependent_values()
             self.find_bus_controls()
-            _allocate_pf_outputs(n, linear=True)
+            _allocate_pf_outputs(n, linear=False)
 
         # get indices for the components on this sub-network
         branches_i = self.branches_i(active_only=True)
