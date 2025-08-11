@@ -1373,8 +1373,8 @@ def test_operational_limit_constraint_stochastic():
 
     # Create model to verify constraints are properly added
     n.optimize.create_model()
-    assert "GlobalConstraint-scenario1-solar_limit" in n.model.constraints
-    assert "GlobalConstraint-scenario2-solar_limit" in n.model.constraints
+    assert "GlobalConstraint-solar_limit" in n.model.constraints
+    assert "scenario" in n.model.constraints["GlobalConstraint-solar_limit"].dims
 
 
 def test_max_growth_constraint_stochastic(n):
