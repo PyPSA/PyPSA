@@ -1437,45 +1437,49 @@ def test_assign_all_duals_stochastic(ac_dc_network, assign):
         name="GlobalConstraint-generation_limit_dynamic",
     )
 
-    n.optimize.solve_model(assign_all_duals=assign)
-
-    assert ("generation_limit" in n.global_constraints.index) == assign
-    assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
-
     if assign:
+        # TODO Add when custom constraints duals are written to extra custom constraint
+        with pytest.raises(NotImplementedError):
+            # This should raise because we are not assigning duals yet
+            n.optimize.solve_model(assign_all_duals=assign)
+
+        # assert ("generation_limit" in n.global_constraints.index) == assign
+        # assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
+        # if "mu_upper" in n.generators_t:
+        #     assert not n.generators_t.mu_upper.empty, (
+        #         "Generator mu_upper should be assigned when assign_all_duals=True"
+        #     )
+        # if "mu_lower" in n.generators_t:
+        #     assert not n.generators_t.mu_lower.empty, (
+        #         "Generator mu_lower should be assigned when assign_all_duals=True"
+        #     )
+
+        # if "mu_upper" in n.links_t:
+        #     assert not n.links_t.mu_upper.empty, (
+        #         "Link mu_upper should be assigned when assign_all_duals=True"
+        #     )
+        # if "mu_lower" in n.links_t:
+        #     assert not n.links_t.mu_lower.empty, (
+        #         "Link mu_lower should be assigned when assign_all_duals=True"
+        #     )
+
+        # # Verify that stochastic dimensions are preserved in dual variables
+        # if not n.buses_t.marginal_price.empty:
+        #     assert isinstance(n.buses_t.marginal_price.columns, pd.MultiIndex), (
+        #         "Marginal prices should have MultiIndex columns with scenarios"
+        #     )
+        #     scenarios_in_marginal_price = (
+        #         n.buses_t.marginal_price.columns.get_level_values("scenario").unique()
+        #     )
+        #     assert all(s in scenarios_in_marginal_price for s in n.scenarios), (
+        #         "All scenarios should be present in marginal prices"
+        #     )
+
+    else:
+        n.optimize.solve_model(assign_all_duals=assign)
         assert not n.buses_t.marginal_price.empty, (
             "Marginal prices should always be assigned"
         )
-
-        if "mu_upper" in n.generators_t:
-            assert not n.generators_t.mu_upper.empty, (
-                "Generator mu_upper should be assigned when assign_all_duals=True"
-            )
-        if "mu_lower" in n.generators_t:
-            assert not n.generators_t.mu_lower.empty, (
-                "Generator mu_lower should be assigned when assign_all_duals=True"
-            )
-
-        if "mu_upper" in n.links_t:
-            assert not n.links_t.mu_upper.empty, (
-                "Link mu_upper should be assigned when assign_all_duals=True"
-            )
-        if "mu_lower" in n.links_t:
-            assert not n.links_t.mu_lower.empty, (
-                "Link mu_lower should be assigned when assign_all_duals=True"
-            )
-
-        # Verify that stochastic dimensions are preserved in dual variables
-        if not n.buses_t.marginal_price.empty:
-            assert isinstance(n.buses_t.marginal_price.columns, pd.MultiIndex), (
-                "Marginal prices should have MultiIndex columns with scenarios"
-            )
-            scenarios_in_marginal_price = (
-                n.buses_t.marginal_price.columns.get_level_values("scenario").unique()
-            )
-            assert all(s in scenarios_in_marginal_price for s in n.scenarios), (
-                "All scenarios should be present in marginal prices"
-            )
 
 
 def test_transmission_volume_expansion_limit_constraint_stochastic():

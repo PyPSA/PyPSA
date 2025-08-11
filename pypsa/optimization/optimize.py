@@ -20,7 +20,7 @@ from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
+from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
@@ -616,48 +616,51 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if name == "objective_constant":
                 continue
 
-            c, attr = name.split("-", 1)
-            df = _from_xarray(sol)
+            _c_name, attr = name.split("-", 1)
+            c = n.c[_c_name]
+            df = _from_xarray(sol, c)
 
             if "snapshot" in sol.dims:
-                if c in n.passive_branch_components and attr == "s":
-                    set_from_frame(n, c, "p0", df)
-                    set_from_frame(n, c, "p1", -df)
+                if c.name in n.passive_branch_components and attr == "s":
+                    _set_dynamic_data(n, c.name, "p0", df)
+                    _set_dynamic_data(n, c.name, "p1", -df)
 
-                elif c == "Link" and attr == "p":
-                    set_from_frame(n, c, "p0", df)
+                elif c.name == "Link" and attr == "p":
+                    _set_dynamic_data(n, c.name, "p0", df)
 
-                    for i in ["1"] + n.components.links.additional_ports:
+                    for i in ["1"] + n.c.links.additional_ports:
                         i_eff = "" if i == "1" else i
                         eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
-                        set_from_frame(n, c, f"p{i}", -df * eff)
-                        n.dynamic(c)[f"p{i}"].loc[
-                            sns, n.links.index[n.links[f"bus{i}"] == ""]
-                        ] = float(n.components["Link"]["attrs"].loc[f"p{i}", "default"])
+                        _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
+                        c.dynamic[f"p{i}"].loc[
+                            sns, c.static.index[c.static[f"bus{i}"] == ""]
+                        ] = float(c.attrs.loc[f"p{i}", "default"])
 
                 else:
-                    set_from_frame(n, c, attr, df)
-            elif attr != "n_mod":
-                idx = df.index.intersection(n.components[c].component_names)
-                static = n.components[c].static
-                static.loc[:, attr + "_opt"] = static.index.get_level_values(
-                    "name"
-                ).map(df.loc[idx])
+                    _set_dynamic_data(n, c.name, attr, df)
+            # Ignore `n_mod`
+            elif attr == "n_mod":
+                pass
+            else:
+                c.static.update(df.rename(attr + "_opt"), overwrite=True)
 
-        # if nominal capacity was no variable set optimal value to nominal
-        for c, attr in lookup.query("nominal").index:
-            fix_i = n.components[c].fixed
-            if self._n.has_scenarios:
-                fix_i = pd.MultiIndex.from_product([self._n.scenarios, fix_i])
+        # If nominal capacity was no variable set optimal value to nominal
+        for c_name, attr in lookup.query("nominal").index:
+            c = n.components[c_name]
+            fix_i = c.fixed
+            if n.has_scenarios:
+                fix_i = pd.MultiIndex.from_product([n.scenarios, fix_i])
             if not fix_i.empty:
-                n.static(c).loc[fix_i, f"{attr}_opt"] = n.static(c).loc[fix_i, attr]
+                c.static.loc[fix_i, f"{attr}_opt"] = c.static.loc[fix_i, attr]
 
-        # recalculate storageunit net dispatch
-        if not n.static("StorageUnit").empty:
-            c = "StorageUnit"
-            n.dynamic(c)["p"] = n.dynamic(c)["p_dispatch"] - n.dynamic(c)["p_store"]
+        # Recalculate storageunit net dispatch
+        storage_units = n.c.storage_units
+        if not storage_units.empty:
+            storage_units.dynamic["p"] = (
+                storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
+            )
 
-        self._n._objective = m.objective.value
+        n._objective = m.objective.value
 
     def assign_duals(self, assign_all_duals: bool = False) -> None:
         """Map dual values i.e. shadow prices to network components.
@@ -679,74 +682,75 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # Process each constraint and its dual values
         for constraint_name, constraint in m.constraints.items():
-            dual_values = constraint.dual
-
             # Parse constraint name into component and attribute
+            # Dual variable doesn't have a designated component are ignored
+
+            # Split constraint name into component and attribute
+            # GlobalConstraints refer instead to the component name, e.g. "GlobalConstraint-X"
             try:
-                component_name, attribute_name = constraint_name.split("-", 1)
-            except ValueError:
+                prefix, suffix = constraint_name.split("-", 1)
+                c = self._n.components[prefix]
+            except (ValueError, KeyError):
                 unassigned_constraints.append(constraint_name)
                 continue
 
-            # TIME-VARYING DUALS (constraints with snapshot dimension)
-            if "snapshot" in dual_values.dims:
+            # Add placeholder for custom constraints, marked as GlobalConstraint
+            # TODO This should go to an actual custom constraint
+            if (
+                c.name == "GlobalConstraint"
+                and suffix not in c.static.index
+                and assign_all_duals
+            ):
+                if c.has_scenarios:
+                    msg = (
+                        "Dual values for custom constraints with scenarios are not "
+                        "yet supported for stochastic optimization."
+                    )
+                    raise NotImplementedError(msg)
+                else:
+                    c.static.loc[suffix] = None
+
+            # Get dual from constraint as formatted pandas DataFrame
+            dual_df = _from_xarray(constraint.dual, c)
+
+            # Dynamic duals (constraints with snapshot dimension)
+            if "snapshot" in constraint.dual.dims:
+                # Standard components: extract last part after final dash
+                # e.g., "Line-s-upper" -> "upper", "Generator-p-lower" -> "lower"
                 try:
-                    # Use from_xarray for all constraints (now handles GlobalConstraint cases too)
-                    dual_df = _from_xarray(dual_values.transpose("snapshot", ...))
+                    dual_spec = suffix.rsplit("-", 1)[-1]
+                except ValueError:
+                    dual_spec = suffix
+                # Don't try to split GlobalConstraint names, since they refer to
+                # component name instead of attribute name
+                if c.name == "GlobalConstraint":
+                    dual_spec = suffix
 
-                    # Determine what the dual variable will be called (e.g., "mu_<spec>")
-                    if "security" in attribute_name:
-                        # Security constraints: preserve more information to avoid conflicts
-                        # e.g., "fix-s-lower-security-for-Line-outage-in-SubNetwork-0"
-                        attr_parts = attribute_name.split("-")
-                        dual_spec = (
-                            "-".join(attr_parts[1:])
-                            if len(attr_parts) >= 3
-                            else attribute_name
-                        )
-                    elif component_name == "GlobalConstraint":
-                        dual_spec = attribute_name
-                    else:
-                        # Standard components: extract last part after final dash
-                        # e.g., "Line-s-upper" -> "upper", "Generator-p-lower" -> "lower"
-                        try:
-                            dual_spec = attribute_name.rsplit("-", 1)[-1]
-                        except ValueError:
-                            dual_spec = attribute_name
+                # Handle special cases for dual attribute name
 
-                    # Assign dual values to appropriate network attribute
-                    if attribute_name.endswith("nodal_balance"):
-                        # Special case: nodal balance duals become marginal prices
-                        set_from_frame(
-                            self._n, component_name, "marginal_price", dual_df
-                        )
-                    elif assign_all_duals or f"mu_{dual_spec}" in self._n.static(
-                        component_name
-                    ):
-                        # Standard case: assign as "mu_<spec>" (e.g., "mu_upper", "mu_generation_limit_dynamic")
-                        set_from_frame(
-                            self._n, component_name, "mu_" + dual_spec, dual_df
-                        )
-                    else:
-                        # Dual variable doesn't have a designated place and assign_all_duals=False
-                        unassigned_constraints.append(constraint_name)
+                # 1. Nodal balance duals become marginal prices
+                if suffix.endswith("nodal_balance"):
+                    dual_attr_name = "marginal_price"
 
-                except (KeyError, ValueError):
+                # Standard case: assign as "mu_<spec>"
+                # (e.g., "mu_upper", "mu_generation_limit_dynamic")
+                elif assign_all_duals or f"mu_{dual_spec}" in c.static:
+                    dual_attr_name = f"mu_{dual_spec}"
+
+                # Duals that don't have a placeholder are ignored
+                else:
                     unassigned_constraints.append(constraint_name)
+                    continue
+
+                # Assign dynamic duals to component
+                _set_dynamic_data(self._n, c.name, dual_attr_name, dual_df)
 
             # SCALAR DUALS (constraints without snapshot dimension)
-            elif component_name == "GlobalConstraint" and (
-                assign_all_duals
-                or attribute_name in self._n.static(component_name).index
-            ):
-                # GlobalConstraint scalar duals: assign directly to the "mu" column
-                if "scenario" in dual_values.dims:
-                    dual_df = _from_xarray(dual_values)
-                    set_from_frame(self._n, component_name, "mu", dual_df)
-                else:
-                    self._n.static(component_name).loc[attribute_name, "mu"] = (
-                        dual_values
-                    )
+            # else:
+            elif c.name == "GlobalConstraint" and suffix in c.static.index:
+                # Assign static duals to component
+                # Duals that don't have a placeholder are ignored with df.update
+                c.static.update(dual_df.rename("mu"), overwrite=True)
 
         if unassigned_constraints:
             logger.info(
@@ -778,7 +782,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # load
         if len(n.loads):
-            set_from_frame(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
+            _set_dynamic_data(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
 
         # line losses
         if "Line-loss" in n.model.variables:

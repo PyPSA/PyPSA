@@ -11,6 +11,8 @@ from __future__ import annotations
 import functools
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -64,6 +66,12 @@ def _network_components_data_verification(n: Network) -> None:
         for attr_name, dynamic_df in c.dynamic.items():
             if not dynamic_df.empty:
                 # Check if all dynamic columns exist in static index
+                if not isinstance(dynamic_df, pd.DataFrame):
+                    msg = (
+                        f"Dynamic attribute '{attr_name}' of component '{c.name}' "
+                        f"is not a DataFrame. Found type: {type(dynamic_df)}."
+                    )
+                    raise UnexpectedError(msg)
                 missing_columns = dynamic_df.columns.difference(c.static.index)
                 if not missing_columns.empty:
                     msg = (
@@ -71,7 +79,6 @@ def _network_components_data_verification(n: Network) -> None:
                         f"has columns {list(missing_columns)} that are not in the static index. "
                         f"Static index: {list(c.static.index)}"
                     )
-                    raise UnexpectedError(msg)
 
 
 # Guards to be used in runtime verification

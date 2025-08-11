@@ -2,7 +2,7 @@ import pytest
 
 
 def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
-    n = ac_dc_network.copy()
+    n = ac_dc_network
 
     limit = 30_000
 
@@ -22,7 +22,7 @@ def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
 
 
 def test_operational_limit_storage_hvdc(storage_hvdc_network):
-    n = storage_hvdc_network.copy()
+    n = storage_hvdc_network
 
     limit = 5_000
 
@@ -52,7 +52,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
 @pytest.mark.parametrize("assign", [True, False])
 def test_assign_all_duals(ac_dc_network, assign):
-    n = ac_dc_network.copy()
+    n = ac_dc_network
 
     limit = 30_000
 

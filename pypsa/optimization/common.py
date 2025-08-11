@@ -40,7 +40,7 @@ def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     return ds.sel({dim: index}).rename({dim: index.name})
 
 
-def set_from_frame(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
+def _set_dynamic_data(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
     """Update values in time-dependent attribute from new dataframe."""
     dynamic = n.dynamic(c)
     if (attr not in dynamic) or (dynamic[attr].empty):

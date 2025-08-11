@@ -1281,6 +1281,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         self._n = ref(n)
         self.name = name
 
+    # TODO assign __str__ and __repr__
     @property
     def n(self) -> Network:
         """Get the parent network of the sub-network.
