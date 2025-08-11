@@ -14,6 +14,7 @@ from shapely import linestrings
 
 from pypsa.constants import DEFAULT_EPSG
 from pypsa.plot.maps.common import apply_layouter, as_branch_series
+from pypsa.plot.maps.static import MapPlotter
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -347,6 +348,8 @@ class PydeckPlotter:
         self._map_style = map_style
         self._layers: dict[str, pdk.Layer] = {}
         self._tooltip: dict | None = None
+        self._view_state: pdk.ViewState | None = None
+        self._mapplotter = MapPlotter(n)  # Embed static map plotting functionality
 
     @property
     def map_style(self) -> str:
@@ -356,6 +359,43 @@ class PydeckPlotter:
     @map_style.setter
     def map_style(self, style: str) -> None:
         self._map_style = style
+
+    @property
+    def boundaries(self) -> tuple[float, float, float, float] | None:
+        """Get the plot boundaries."""
+        return self._mapplotter.boundaries
+
+    @boundaries.setter
+    def boundaries(self, value: tuple[float, float, float, float] | None) -> None:
+        self._mapplotter.boundaries = value
+
+    def set_boundaries(
+        self,
+        boundaries: tuple[float, float, float, float] | None = None,
+        margin: float = 0.5,
+        buses: pd.Index | None = None,
+    ) -> None:
+        """Set the boundaries for the map plotter."""
+        self._mapplotter.set_boundaries(
+            boundaries=boundaries, margin=margin, buses=buses
+        )
+
+    @property
+    def view_state(self) -> pdk.ViewState:
+        """Get the current view state of the map."""
+        if self._view_state is None:
+            xmin, xmax, ymin, ymax = self.boundaries
+            center_lon = (xmin + xmax) / 2
+            center_lat = (ymin + ymax) / 2
+            zoom = 5
+            self._view_state = pdk.ViewState(
+                longitude=center_lon,
+                latitude=center_lat,
+                zoom=zoom,
+                pitch=0,
+                bearing=0,
+            )
+        return self._view_state
 
     def add_bus_layer(
         self, 
@@ -398,17 +438,14 @@ class PydeckPlotter:
             },
         }
 
-    def show(self, notebook_display: bool = True) -> pdk.Deck:
+    def show(self) -> pdk.Deck:
         """Display the interactive map."""
         deck = pdk.Deck(
             layers=list(self._layers.values()),
             map_style=self._map_style,
             tooltip=self._tooltip,
+            initial_view_state=self._view_state,
         )
-        if notebook_display:
-            return deck.show()
-        else:
-            deck.to_html("network_map.html", open_browser=True)
         return deck
 
 
