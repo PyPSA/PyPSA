@@ -357,36 +357,20 @@ class PydeckPlotter:
         return self._map_style
 
     @map_style.setter
-    def map_style(self, style: str) -> None:
-        self._map_style = style
+    def map_style(self, map_style: str) -> None:
+        self._map_style = map_style
 
     @property
-    def boundaries(self) -> tuple[float, float, float, float] | None:
-        """Get the plot boundaries."""
-        return self._mapplotter.boundaries
-
-    @boundaries.setter
-    def boundaries(self, value: tuple[float, float, float, float] | None) -> None:
-        self._mapplotter.boundaries = value
-
-    def set_boundaries(
-        self,
-        boundaries: tuple[float, float, float, float] | None = None,
-        margin: float = 0.5,
-        buses: pd.Index | None = None,
-    ) -> None:
-        """Set the boundaries for the map plotter."""
-        self._mapplotter.set_boundaries(
-            boundaries=boundaries, margin=margin, buses=buses
-        )
+    def layers(self) -> dict[str, pdk.Layer]:
+        """Get the layers of the interactive map."""
+        return self._layers
 
     @property
     def view_state(self) -> pdk.ViewState:
         """Get the current view state of the map."""
         if self._view_state is None:
-            xmin, xmax, ymin, ymax = self.boundaries
-            center_lon = (xmin + xmax) / 2
-            center_lat = (ymin + ymax) / 2
+            center_lon = self._n.buses.x.mean()
+            center_lat = self._n.buses.y.mean()
             zoom = 5
             self._view_state = pdk.ViewState(
                 longitude=center_lon,
@@ -420,7 +404,7 @@ class PydeckPlotter:
 
         layer = pdk.Layer(
             "ScatterplotLayer",
-            data=bus_data,
+            data=bus_data.reset_index(),
             get_position=["x", "y"],
             get_color="[255, 0, 0, 100]",
             get_radius=get_radius,
@@ -438,15 +422,19 @@ class PydeckPlotter:
             },
         }
 
-    def show(self) -> pdk.Deck:
+    def explore(self) -> pdk.Deck:
         """Display the interactive map."""
         deck = pdk.Deck(
             layers=list(self._layers.values()),
             map_style=self._map_style,
             tooltip=self._tooltip,
-            initial_view_state=self._view_state,
+            initial_view_state=self.view_state,
         )
         return deck
+
+    def _repr_html_(self) -> str:
+        """Return the HTML representation of the interactive map for Jupyter notebooks."""
+        return self.explore()._repr_html_()
 
 
 def explore(
@@ -474,5 +462,5 @@ def explore(
     """
     plotter = PydeckPlotter(n, map_style=map_style)
     plotter.add_bus_layer(bus_sizes=bus_sizes)
-    return plotter.show()
 
+    return plotter
