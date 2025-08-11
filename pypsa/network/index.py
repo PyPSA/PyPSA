@@ -77,6 +77,10 @@ class NetworkIndexMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
+        # Always create normal pd.Index, never pd.RangeIndex
+        if isinstance(snapshots, range):
+            snapshots = list(snapshots)
+
         if isinstance(snapshots, pd.MultiIndex):
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"

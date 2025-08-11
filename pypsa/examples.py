@@ -178,6 +178,4 @@ def stochastic_network() -> Network:
         "examples/networks/stochastic-network/stochastic-network.nc"
     )
 
-    n.add("Carrier", "AC", color="indianred")
-
     return n

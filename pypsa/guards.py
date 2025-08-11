@@ -63,7 +63,26 @@ def _network_components_data_verification(n: Network) -> None:
 
     """
     for c in n.components:
+        if not c.static.index.name == "name" if not c.has_scenarios else None:
+            msg = f"Unexpected static index name for component '{c.name}': {c.static.index.name}"
+            raise UnexpectedError(msg)
+        # if not c.static.index.names == (
+        #     ["name"] if not c.has_scenarios else ["scenario", "name"]
+        # ):
+        #     msg = f"Unexpected static index names for component '{c.name}': {c.static.index.names}"
+        #     raise UnexpectedError(msg)
+        # TODO n.sub_networks needs a fix
+        # if not c.static.columns.name == None:
+        #     msg = f"Unexpected static columns name for component '{c.name}': {c.static.columns.name}"
+        #     raise UnexpectedError(msg)
+        pass
         for attr_name, dynamic_df in c.dynamic.items():
+            # if not dynamic_df.index.equals(c.snapshots):
+            #     msg = f"`n.c.dynamic['{attr_name}']` of component '{c.name}' has index that does not match snapshots. Expected: {c.snapshots}, Found: {dynamic_df.index}"
+            #     raise UnexpectedError(msg)
+            # if not dynamic_df.columns.isin(c.static.index).all():
+            #     msg = f"`n.c.dynamic['{attr_name}']` of component '{c.name}' has columns that are not in the static index. Found columns: {dynamic_df.columns[~dynamic_df.columns.isin(c.static.index)]}"
+            #     raise UnexpectedError(msg)
             if not dynamic_df.empty:
                 # Check if all dynamic columns exist in static index
                 if not isinstance(dynamic_df, pd.DataFrame):
@@ -79,6 +98,70 @@ def _network_components_data_verification(n: Network) -> None:
                         f"has columns {list(missing_columns)} that are not in the static index. "
                         f"Static index: {list(c.static.index)}"
                     )
+
+
+@_guard_error_handler
+def _network_index_data_verification(n: Network) -> None:
+    """Assert that network index data is consistent and valid.
+
+    Internal guard function - should only be called by other guard functions.
+
+    Parameters
+    ----------
+    n : Network
+        The PyPSA Network instance to validate.
+
+    Raises
+    ------
+    UnexpectedError
+        If any network index data is inconsistent or invalid.
+
+    """
+    # Verify snapshots index consistency
+    if len(n.snapshots) == 0:
+        msg = "Network snapshots must not be empty."
+        raise UnexpectedError(msg)
+
+    if not n.snapshots.name == "snapshot":
+        msg = f"Snapshots index must be named 'snapshot', found: {n.snapshots.name}"
+        raise UnexpectedError(msg)
+
+    # Verify MultiIndex structure for investment periods
+    if isinstance(n.snapshots, pd.MultiIndex):
+        if n.snapshots.nlevels != 2:
+            msg = f"Snapshots MultiIndex must have exactly 2 levels, found: {n.snapshots.nlevels}"
+            raise UnexpectedError(msg)
+
+        expected_names = ["period", "timestep"]
+        if list(n.snapshots.names) != expected_names:
+            msg = f"Snapshots MultiIndex must have names {expected_names}, found: {list(n.snapshots.names)}"
+            raise UnexpectedError(msg)
+
+    required_weighting_cols = ["objective", "stores", "generators"]
+    missing_cols = set(required_weighting_cols) - set(n._snapshots_data.columns)
+    if missing_cols:
+        msg = f"Snapshot weightings missing required columns: {missing_cols}"
+        raise UnexpectedError(msg)
+
+    # Verify investment period weightings if periods exist
+    if n.has_periods:
+        required_period_cols = ["objective", "years"]
+        missing_period_cols = set(required_period_cols) - set(
+            n._investment_periods_data.columns
+        )
+        if missing_period_cols:
+            msg = f"Investment period weightings missing required columns: {missing_period_cols}"
+            raise UnexpectedError(msg)
+
+    # Verify scenarios consistency if they exist
+    if n.has_scenarios:
+        if not n._scenarios_data.index.name == "scenario":
+            msg = f"Scenarios index must be named 'scenario', found: {n._scenarios_data.index.name}"
+            raise UnexpectedError(msg)
+
+        if "weight" not in n._scenarios_data.columns:
+            msg = "Scenarios data must have 'weight' column."
+            raise UnexpectedError(msg)
 
 
 # Guards to be used in runtime verification
@@ -100,8 +183,10 @@ def _as_xarray_guard(component: Any, res: xarray.DataArray) -> None:
 @_guard_error_handler
 def _consistency_check_guard(n: Network) -> None:
     _network_components_data_verification(n)
+    _network_index_data_verification(n)
 
 
 @_guard_error_handler
 def _optimize_guard(n: Network) -> None:
     _network_components_data_verification(n)
+    _network_index_data_verification(n)
