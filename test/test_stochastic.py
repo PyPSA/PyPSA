@@ -1478,3 +1478,47 @@ def test_assign_all_duals_stochastic(ac_dc_network, assign):
             )
     else:
         pass
+
+
+def test_transmission_volume_expansion_limit_constraint_stochastic():
+    """Test transmission volume expansion limit works correctly with scenarios."""
+    n = pypsa.Network(snapshots=range(3))
+
+    # Ensure carrier and buses/line exist and line is extendable
+    n.add("Carrier", "AC")
+    n.add("Bus", ["b1", "b2"], carrier="AC")
+    n.add(
+        "Line",
+        "l1",
+        bus0="b1",
+        bus1="b2",
+        length=1.0,
+        x=0.0001,
+        r=0.001,
+        s_nom_extendable=True,
+        carrier="AC",
+    )
+
+    n.add("Generator", "g", bus="b1", p_nom=100, marginal_cost=10, carrier="AC")
+    n.add("Load", "load1", bus="b2", p_set=[50, 50, 50])
+
+    n.add(
+        "GlobalConstraint",
+        "tx_vol",
+        type="transmission_volume_expansion_limit",
+        sense="<=",
+        constant=1e6,
+        carrier_attribute="AC",
+    )
+
+    # Scenarios
+    n.set_scenarios(["scenario1", "scenario2"])
+
+    # Verify constraint exists in both scenarios in the input table
+    assert ("scenario1", "tx_vol") in n.global_constraints.index
+    assert ("scenario2", "tx_vol") in n.global_constraints.index
+
+    # Build model and verify a single constraint with scenario dimension
+    n.optimize.create_model()
+    assert "GlobalConstraint-tx_vol" in n.model.constraints
+    assert "scenario" in n.model.constraints["GlobalConstraint-tx_vol"].dims

@@ -500,49 +500,105 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
     def substr(s: str) -> str:
         return re.sub("[\\[\\]\\(\\)]", "", s)
 
-    if n.has_scenarios and not glcs.empty:
-        msg = "Transmission volume expansion limits for stochastic networks are not implemented."
-        raise NotImplementedError(msg)
+    # Create one constraint per name, optionally with a scenario dimension
+    if glcs.empty:
+        return
 
-    for name, glc in glcs.iterrows():
-        lhs = []
-        # fmt: off
-        car = [substr(c.strip()) for c in  # noqa: F841
-               glc.carrier_attribute.split(",")]
-        # fmt: on
-        period = glc.investment_period
+    unique_names = (
+        glcs.index.unique("name")
+        if isinstance(glcs.index, pd.MultiIndex)
+        else glcs.index.unique()
+    )
 
-        for c in ["Line", "Link"]:
-            attr = nominal_attrs[c]
+    for name in unique_names:
+        if n.has_scenarios:
+            glc_group = glcs.xs(name, level="name")
+            scenarios = glc_group.index.get_level_values("scenario")
+        else:
+            glc_group = glcs.loc[name]
+            scenarios = [slice(None)]
 
-            ext_i = n.components[c].extendables
-            if ext_i.empty:
+        expressions = []
+        for scenario in scenarios:
+            glc = glc_group.loc[scenario]
+
+            lhs = []
+            # fmt: off
+            car = [substr(c.strip()) for c in  # noqa: F841
+                   glc.carrier_attribute.split(",")]
+            # fmt: on
+            period = glc.investment_period
+
+            for c in ["Line", "Link"]:
+                attr = nominal_attrs[c]
+
+                # Start from extendable components by name
+                ext_all = n.components[c].extendables
+                if ext_all.empty:
+                    continue
+
+                static = n.static(c)
+
+                # Filter by carrier, handling scenarios (MultiIndex) if present
+                if n.has_scenarios and isinstance(static.index, pd.MultiIndex):
+                    eligible_by_carrier = (
+                        static.query("carrier in @car")
+                        .groupby(level="name")
+                        .first()
+                        .index
+                    )
+                else:
+                    eligible_by_carrier = static.query("carrier in @car").index
+
+                ext_i = ext_all.intersection(eligible_by_carrier).rename(ext_all.name)
+                if ext_i.empty:
+                    continue
+
+                # Filter by investment period activity
+                if not isnan(period):
+                    active = n.get_active_assets(c, int(period))
+                    ext_i = ext_i[active.loc[ext_i]].rename(ext_i.name)
+                elif isinstance(sns, pd.MultiIndex):
+                    # Active in any of the periods present in sns
+                    periods = sns.unique("period")
+                    active_df = pd.concat(
+                        {p: n.get_active_assets(c, int(p)) for p in periods}, axis=1
+                    )
+                    active_any = active_df.any(axis=1)
+                    ext_i = ext_i[active_any.loc[ext_i]].rename(ext_i.name)
+
+                if ext_i.empty:
+                    continue
+
+                # Length per name (collapse scenario level if present)
+                if n.has_scenarios and isinstance(static.index, pd.MultiIndex):
+                    length = static.length.groupby(level="name").first().reindex(ext_i)
+                else:
+                    length = static.length.reindex(ext_i)
+
+                vars = m[f"{c}-{attr}"].loc[ext_i]
+                lhs.append(m.linexpr((length, vars)).sum())
+
+            if not lhs:
                 continue
 
-            ext_i = ext_i.intersection(
-                n.static(c).query("carrier in @car").index
-            ).rename(ext_i.name)
+            expr = merge(lhs)
+            expressions.append(expr)
 
-            if ext_i.empty:
-                continue
-
-            if not isnan(period):
-                ext_i = ext_i[n.get_active_assets(c, period)[ext_i]].rename(ext_i.name)
-            elif isinstance(sns, pd.MultiIndex):
-                ext_i = ext_i[
-                    n.get_active_assets(c, sns.unique("period"))[ext_i]
-                ].rename(ext_i.name)
-
-            length = n.static(c).length.reindex(ext_i)
-            vars = m[f"{c}-{attr}"].loc[ext_i]
-            lhs.append(m.linexpr((length, vars)).sum())
-
-        if not lhs:
+        if not expressions:
             continue
 
-        lhs = merge(lhs)
-        sign = "=" if glc.sense == "==" else glc.sense
-        m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
+        if n.has_scenarios:
+            expression = merge(expressions, dim="scenario").assign_coords(
+                scenario=scenarios
+            )
+        else:
+            expression = expressions[0]
+
+        sign = glc_group.sense
+        rhs = glc_group.constant
+
+        m.add_constraints(expression, sign, rhs, name=f"GlobalConstraint-{name}")
 
 
 def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
