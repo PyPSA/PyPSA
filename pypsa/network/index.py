@@ -240,7 +240,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         """
         if "timestep" in self.snapshots.names:
-            return self.snapshots.get_level_values("timestep").unique()
+            return self.snapshots.get_level_values("timestep").drop_duplicates()
         return self.snapshots
 
     @timesteps.setter
@@ -391,7 +391,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         """
         if "period" in self.snapshots.names:
-            return self.snapshots.get_level_values("period").unique()
+            return self.snapshots.get_level_values("period").drop_duplicates()
         return pd.Index([], name="period")
 
     @periods.setter

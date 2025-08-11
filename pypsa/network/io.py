@@ -975,7 +975,9 @@ class _ExporterNetCDF(_Exporter):
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save a static components data."""
         df = df.rename_axis(index={"name": list_name + "_i"})
-        self.ds[list_name + "_i"] = df.index.get_level_values(list_name + "_i").unique()
+        self.ds[list_name + "_i"] = df.index.get_level_values(
+            list_name + "_i"
+        ).drop_duplicates()
 
         if not df.columns.empty:
             df_array = df.to_xarray().rename(
@@ -1735,7 +1737,7 @@ class NetworkIOMixin(_NetworkABC):
         for attr in [attr for attr in df if attr.startswith("bus")]:
             # allow empty buses for multi-ports
             port = int(attr[-1]) if attr[-1].isdigit() else 0
-            buses = self.components.buses.static.index.unique("name")
+            buses = self.c.buses.component_names
             mask = ~df[attr].isin(buses)
             if port > 1:
                 mask &= df[attr].ne("")
