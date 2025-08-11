@@ -327,8 +327,13 @@ def iplot(
 class PydeckPlotter:
     """Class to create and manage an interactive pydeck map for a PyPSA network."""
 
-    def __init__(self, n, map_style="light"):
-        """
+    def __init__(
+        self,
+        n: "Network",
+        map_style: str = "light",
+    ) -> None:
+        """Initialize the PydeckPlotter.
+
         Parameters
         ----------
         n : Network
@@ -342,11 +347,12 @@ class PydeckPlotter:
         self._tooltip = None
 
     @property
-    def map_style(self):
+    def map_style(self) -> str:
+        """Get the current map style."""
         return self._map_style
 
     @map_style.setter
-    def map_style(self, style):
+    def map_style(self, style: str) -> None:
         self._map_style = style
 
     def add_bus_layer(
@@ -363,7 +369,7 @@ class PydeckPlotter:
         """
         bus_data = self._n.buses.copy()
 
-        if isinstance(bus_sizes, (dict, pd.Series)):
+        if isinstance(bus_sizes, (dict | pd.Series)):
             size_map = pd.Series(bus_sizes)
             bus_data.loc[:, "radius"] = size_map.reindex(bus_data.index).fillna(0)
             get_radius = "radius"
@@ -390,7 +396,8 @@ class PydeckPlotter:
             },
         }
 
-    def show(self):
+    def show(self) -> "PydeckPlotter":
+        """Create and return a Pydeck Deck object with the added layers."""
         deck = pdk.Deck(
             layers=list(self._layers.values()),
             map_style=self._map_style,
