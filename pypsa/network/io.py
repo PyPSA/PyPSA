@@ -1163,8 +1163,6 @@ class NetworkIOMixin(_NetworkABC):
                 # do not export derived attributes and object column of subnetwork
                 if col in ["g_pu", "b_pu"]:
                     continue
-                if col == "obj":
-                    static[col] = np.nan
                 if (
                     col in attrs.index
                     and pd.isnull(attrs.at[col, "default"])
@@ -1185,7 +1183,12 @@ class NetworkIOMixin(_NetworkABC):
                 exporter.remove_static(list_name)
                 continue
 
-            exporter.save_static(list_name, static[col_export])
+            static_export = static[col_export].copy()
+            # Stored SubNetwork obj column is not serializable
+            if "obj" in col_export and component == "SubNetwork":
+                static_export["obj"] = np.nan
+
+            exporter.save_static(list_name, static_export)
 
             # now do varying attributes
             for attr in dynamic:
