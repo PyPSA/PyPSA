@@ -12,8 +12,8 @@ import pandas as pd
 import pydeck as pdk
 from shapely import linestrings
 
-from pypsa.constants import DEFAULT_EPSG
-from pypsa.plot.maps.common import apply_layouter, as_branch_series
+from pypsa.common import _convert_to_series
+from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
 from pypsa.plot.maps.static import MapPlotter
 
 if TYPE_CHECKING:
@@ -330,10 +330,21 @@ def iplot(
 class PydeckPlotter:
     """Class to create and manage an interactive pydeck map for a PyPSA network."""
 
+    # Class-level constants
+    BUS_COLORS = "cadetblue"
+    VALID_MAP_STYLES = [
+        pdk.map_styles.LIGHT,
+        pdk.map_styles.DARK,
+        pdk.map_styles.ROAD,
+        pdk.map_styles.SATELLITE,
+        pdk.map_styles.DARK_NO_LABELS,
+        pdk.map_styles.LIGHT_NO_LABELS,
+    ]
+
     def __init__(
         self,
         n: "Network",
-        map_style: str = "light",
+        map_style: str,
     ) -> None:
         """Initialize the PydeckPlotter.
 
@@ -345,70 +356,97 @@ class PydeckPlotter:
             Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
         """
         self._n = n
-        self._map_style = map_style
+        self._map_style: str = self._init_map_style(map_style)
+        self._view_state: pdk.ViewState = self._init_view_state()
         self._layers: dict[str, pdk.Layer] = {}
         self._tooltip: dict | None = None
-        self._view_state: pdk.ViewState | None = None
         self._mapplotter = MapPlotter(n)  # Embed static map plotting functionality
+
+    def _init_map_style(self, map_style: str) -> None:
+        """Set the initial map style for the interactive map."""
+        if map_style not in self.VALID_MAP_STYLES:
+            msg = (
+                f"Invalid map style '{map_style}'.\n"
+                f"Must be one of: {', '.join(self.VALID_MAP_STYLES)}."
+            )
+            raise ValueError(msg)
+        return map_style
 
     @property
     def map_style(self) -> str:
         """Get the current map style."""
         return self._map_style
 
-    @map_style.setter
-    def map_style(self, map_style: str) -> None:
-        self._map_style = map_style
-
     @property
     def layers(self) -> dict[str, pdk.Layer]:
         """Get the layers of the interactive map."""
         return self._layers
 
+    def _init_view_state(self) -> pdk.ViewState:
+        """Compute the initial view state based on network bus coordinates."""
+        center_lon = self._n.buses.x.mean()
+        center_lat = self._n.buses.y.mean()
+        zoom = 5  # Default zoom level
+        return pdk.ViewState(
+            latitude=center_lat,
+            longitude=center_lon,
+            zoom=zoom,
+            pitch=0,  # Default pitch
+            bearing=0,  # Default bearing
+        )
+
     @property
     def view_state(self) -> pdk.ViewState:
         """Get the current view state of the map."""
-        if self._view_state is None:
-            center_lon = self._n.buses.x.mean()
-            center_lat = self._n.buses.y.mean()
-            zoom = 5
-            self._view_state = pdk.ViewState(
-                longitude=center_lon,
-                latitude=center_lat,
-                zoom=zoom,
-                pitch=0,
-                bearing=0,
-            )
         return self._view_state
 
     def add_bus_layer(
-        self, 
-        bus_sizes: float | pd.Series | dict = 5000,
+        self,
+        bus_sizes: float | dict | pd.Series = 5000,
+        bus_colors: str | dict | pd.Series = "cadetblue",
+        bus_alpha: float | dict | pd.Series = 0.5,
     ) -> None:
         """
         Adds a bus layer of Pydeck type ScatterplotLayer to the interactive map.
         
         Parameters
         ----------
-        bus_sizes : float, pd.Series, or dict
-            Bus size is set as a radius in meters. If a float, all buses will have the same radius.cIf a pd.Series or dict, the index should match the bus names in `n.buses`.
+        bus_sizes : float/dict/pandas.Series
+            Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
+            the function will draw pies for each bus (first index level) with
+            segments of different color (second index level). Such a Series is ob-
+            tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum().
+        bus_colors : str/dict/pandas.Series
+            Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+            pandas.Series with a Multiindex, bus_colors defaults to the
+            n.carriers['color'] column.
+        bus_alpha : float/dict/pandas.Series
+            Adds alpha channel to buses, defaults to 0.5.
+
         """
         bus_data = self._n.buses.copy()
 
-        if isinstance(bus_sizes, (dict | pd.Series)):
-            size_map = pd.Series(bus_sizes)
-            bus_data.loc[:, "radius"] = size_map.reindex(bus_data.index).fillna(0)
-            get_radius = "radius"
-        else:
-            get_radius = bus_sizes
+        # Map bus sizes
+        bus_data["radius"] = _convert_to_series(bus_sizes, bus_data.index)
+        get_radius = "radius"
+
+        # Map bus colors
+        bus_data["color"] = _convert_to_series(bus_colors, bus_data.index)
+        bus_data["alpha"] = _convert_to_series(bus_alpha, bus_data.index)
+
+        bus_data["rgba"] = bus_data.apply(
+            lambda row: to_rgba255(row["color"], row["alpha"]), axis=1
+        )
+        get_color = "rgba"
 
         layer = pdk.Layer(
             "ScatterplotLayer",
             data=bus_data.reset_index(),
             get_position=["x", "y"],
-            get_color="[255, 0, 0, 100]",
+            get_color=get_color,
             get_radius=get_radius,
             pickable=True,
+            auto_highlight=True,
         )
         self._layers["buses"] = layer
 
@@ -422,7 +460,7 @@ class PydeckPlotter:
             },
         }
 
-    def explore(self) -> pdk.Deck:
+    def deck(self) -> pdk.Deck:
         """Display the interactive map."""
         deck = pdk.Deck(
             layers=list(self._layers.values()),
@@ -432,15 +470,13 @@ class PydeckPlotter:
         )
         return deck
 
-    def _repr_html_(self) -> str:
-        """Return the HTML representation of the interactive map for Jupyter notebooks."""
-        return self.explore()._repr_html_()
-
 
 def explore(
     n: "Network",
-    bus_sizes: float | pd.Series | dict = 5000,
-    map_style: str = "light",
+    map_style: str = "dark",
+    bus_sizes: float | dict | pd.Series = 5000,
+    bus_colors: str | dict | pd.Series = "cadetblue",
+    bus_alpha: float | dict | pd.Series = 0.5,
 ) -> "PydeckPlotter":
     """
     Create an interactive map of the PyPSA network using Pydeck.
@@ -449,9 +485,17 @@ def explore(
     ----------
     n : Network
         The PyPSA network to plot.
-    bus_sizes : float, pd.Series, or dict
-        Bus size is set as a radius in meters. If a float, all buses will have the same radius.
-        If a pd.Series or dict, the index should match the bus names in `n.buses`.
+    bus_sizes : float/dict/pandas.Series
+        Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
+        the function will draw pies for each bus (first index level) with
+        segments of different color (second index level). Such a Series is ob-
+        tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum().
+    bus_colors : str/dict/pandas.Series
+        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
+        pandas.Series with a Multiindex, bus_colors defaults to the
+        n.carriers['color'] column.
+    bus_alpha : float/dict/pandas.Series
+        Adds alpha channel to buses, defaults to 0.5.
     map_style : str
         Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
 
@@ -461,6 +505,8 @@ def explore(
         An instance of PydeckPlotter with the bus layer added.
     """
     plotter = PydeckPlotter(n, map_style=map_style)
-    plotter.add_bus_layer(bus_sizes=bus_sizes)
+    plotter.add_bus_layer(
+        bus_sizes=bus_sizes, bus_colors=bus_colors, bus_alpha=bus_alpha
+    )
 
-    return plotter
+    return plotter.deck()

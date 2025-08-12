@@ -3,11 +3,22 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, overload
 
+import matplotlib.colors as mcolors
 import networkx as nx
 import pandas as pd
 
 if TYPE_CHECKING:
     from pypsa import Network
+
+
+def to_rgba255(
+    color: str,
+    alpha: float = 1.0,
+) -> list[int]:
+    """Convert a Matplotlib color name/hex to an RGBA list with 0-255 integer values."""
+    rgb = [round(c * 255) for c in mcolors.to_rgb(color)]
+    a = round(alpha * 255)
+    return rgb + [a]
 
 
 def as_branch_series(  # noqa
