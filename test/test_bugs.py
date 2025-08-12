@@ -162,3 +162,24 @@ def test_1268(tmpdir):
     n = pypsa.Network()
     n.import_from_excel(fn)
     assert len(n.buses) == 1
+
+
+def test_1319():
+    """
+    Copying a solved network should work after setting solver_model to None.
+    See https://github.com/PyPSA/PyPSA/issues/1319.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+
+    # Should raise error when trying to copy with solver_model attached
+    with pytest.raises(
+        ValueError, match="Copying a solved network with an attached solver model"
+    ):
+        n.copy()
+
+    # Should work after setting solver_model to None
+    n.model.solver_model = None
+    n_copy = n.copy()  # Should not raise an error
+    assert n_copy is not n
+    assert len(n_copy.buses) == len(n.buses)
