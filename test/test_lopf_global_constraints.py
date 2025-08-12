@@ -71,3 +71,24 @@ def test_assign_all_duals(ac_dc_network, assign):
 
     assert ("generation_limit" in n.global_constraints.index) == assign
     assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
+
+
+def test_assign_duals_noname(ac_dc_network):
+    n = ac_dc_network
+
+    limit = 10000
+
+    m = n.optimize.create_model()
+
+    investment = m.variables["Generator-p_nom"]
+
+    m.add_constraints(
+        investment.sum() == limit, name="GlobalConstraint-investment_limit"
+    )
+
+    n.optimize.solve_model(assign_all_duals=True)
+
+    # see n.global_constraints.mu -> co2_limit takes value of investment_limit
+    # n.model.constraints['GlobalConstraint-investment_limit'].dual
+
+    # assertions TODO
