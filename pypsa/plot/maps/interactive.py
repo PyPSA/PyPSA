@@ -359,7 +359,7 @@ class PydeckPlotter:
         self._map_style: str = self._init_map_style(map_style)
         self._view_state: pdk.ViewState = self._init_view_state()
         self._layers: dict[str, pdk.Layer] = {}
-        self._component_columns: list[str] = []
+        self._tooltip_columns: list[str] = []
         self._tooltip: dict | bool = False
         self._mapplotter = MapPlotter(n)  # Embed static map plotting functionality
 
@@ -401,6 +401,35 @@ class PydeckPlotter:
         """Get the current view state of the map."""
         return self._view_state
 
+    def prepare_component_data(
+        self,
+        component: str,
+        default_columns: list[str],
+        extra_columns: list[str] | None = None,
+    ) -> pd.DataFrame:
+        """Prepare data for a specific component type."""
+        df = self._n.static(component)
+        layer_columns = default_columns
+
+        if extra_columns:
+            missing_columns = [col for col in extra_columns if col not in df.columns]
+            valid_columns = [col for col in extra_columns if col in df.columns]
+
+            if missing_columns:
+                msg = (
+                    f"Columns {missing_columns} not found in {component}. "
+                    f"Using only valid columns: {valid_columns}."
+                )
+                logger.warning(msg)
+
+            layer_columns.extend(valid_columns)
+            self._tooltip_columns.extend(valid_columns)
+
+        df = df[layer_columns].copy()
+        df.index.name = "name"
+
+        return df
+
     def add_bus_layer(
         self,
         bus_columns: list | None = None,
@@ -417,58 +446,37 @@ class PydeckPlotter:
             List of bus columns to include. If None, only the bus index and x, y coordinates are used.
             Specify additional columns to include in the tooltip.
         bus_sizes : float/dict/pandas.Series
-            Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
-            the function will draw pies for each bus (first index level) with
-            segments of different color (second index level). Such a Series is ob-
-            tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum().
+            Sizes of bus points in meters, defaults to 5000.
         bus_colors : str/dict/pandas.Series
-            Colors for the buses, defaults to "cadetblue". If bus_sizes is a
-            pandas.Series with a Multiindex, bus_colors defaults to the
-            n.carriers['color'] column.
+            Colors for the buses, defaults to 'cadetblue'.
         bus_alpha : float/dict/pandas.Series
             Adds alpha channel to buses, defaults to 0.5.
 
         """
         # Check if columns exist and only keep the ones that also exist in the network
-        bus_layer_columns = ["x", "y"]  # Default columns for bus coordinates
-        if bus_columns:
-            missing_bus_columns = [
-                col for col in bus_columns if col not in self._n.buses.columns
-            ]
-            valid_bus_columns = [
-                col for col in bus_columns if col in self._n.buses.columns
-            ]
-            if missing_bus_columns:
-                msg = (
-                    f"Columns {missing_bus_columns} not found in buses. "
-                    f"Using only valid columns: {valid_bus_columns}."
-                )
-                logger.warning(msg)
-            bus_layer_columns = bus_layer_columns + valid_bus_columns
-            self._component_columns.extend(valid_bus_columns)
-
-        bus_data = self._n.buses[bus_layer_columns].copy()
-        bus_data.index.name = "name"
+        bus_data = self.prepare_component_data(
+            "Bus",
+            default_columns=["x", "y"],
+            extra_columns=bus_columns,
+        )
 
         # Map bus sizes
         bus_data["radius"] = _convert_to_series(bus_sizes, bus_data.index)
-        get_radius = "radius"
 
-        # Map bus colors
-        bus_data["color"] = _convert_to_series(bus_colors, bus_data.index)
-        bus_data["alpha"] = _convert_to_series(bus_alpha, bus_data.index)
+        # Convert colors to RGBA list
+        colors = _convert_to_series(bus_colors, bus_data.index).reindex(bus_data.index)
+        alphas = _convert_to_series(bus_alpha, bus_data.index).reindex(bus_data.index)
 
-        bus_data["rgba"] = bus_data.apply(
-            lambda row: to_rgba255(row["color"], row["alpha"]), axis=1
-        )
-        get_color = "rgba"
+        bus_data["rgba"] = [
+            to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
+        ]
 
         layer = pdk.Layer(
             "ScatterplotLayer",
             data=bus_data.reset_index(),
             get_position=["x", "y"],
-            get_color=get_color,
-            get_radius=get_radius,
+            get_color="rgba",
+            get_radius="radius",
             pickable=True,
             auto_highlight=True,
         )
@@ -476,10 +484,83 @@ class PydeckPlotter:
         # Append the bus layer to the layers property
         self._layers["buses"] = layer
 
+    # Add line and link layers
+    def add_line_layer(
+        self,
+        line_columns: list | None = None,
+        line_widths: float | dict | pd.Series = 500,
+        line_colors: str | dict | pd.Series = "rosybrown",
+        line_alpha: float | dict | pd.Series = 0.5,
+    ) -> None:
+        """Add a line layer of Pydeck type PathLayer to the interactive map.
+
+        Parameters
+        ----------
+        line_columns : list, default None
+            List of line columns to include. If None, only the bus0 and bus1 columns are used.
+            Specify additional columns to include in the tooltip.
+        line_widths : float/dict/pandas.Series
+            Widths of lines in meters, defaults to 500.
+        line_colors : str/dict/pandas.Series
+            Colors for the lines, defaults to 'rosybrown'.
+        line_alpha : float/dict/pandas.Series
+            Adds alpha channel to lines, defaults to 0.5.
+
+        """
+        # Prepare data for lines
+        line_data = self.prepare_component_data(
+            "Line",
+            default_columns=["bus0", "bus1"],
+            extra_columns=line_columns,
+        )
+
+        # Build path column as list of [lon, lat] pairs for each line
+        line_data["path"] = line_data.apply(
+            lambda row: [
+                [
+                    self._n.buses.loc[row["bus0"], "x"],
+                    self._n.buses.loc[row["bus0"], "y"],
+                ],
+                [
+                    self._n.buses.loc[row["bus1"], "x"],
+                    self._n.buses.loc[row["bus1"], "y"],
+                ],
+            ],
+            axis=1,
+        )
+
+        # Convert colors to RGBA list
+        colors = _convert_to_series(line_colors, line_data.index).reindex(
+            line_data.index
+        )
+        alphas = _convert_to_series(line_alpha, line_data.index).reindex(
+            line_data.index
+        )
+
+        line_data["rgba"] = [
+            to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
+        ]
+
+        # Map line widths
+        line_data["width"] = _convert_to_series(line_widths, line_data.index)
+
+        # Create PathLayer, use "path" column for get_path
+        layer = pdk.Layer(
+            "PathLayer",
+            data=line_data.reset_index(),
+            get_path="path",
+            get_width="width",
+            get_color="rgba",
+            pickable=True,
+            auto_highlight=True,
+        )
+
+        self._layers["lines"] = layer
+
     def add_tooltip(self) -> None:
         """Add a tooltip to the interactive map."""
         tooltip_html = "<b>{name}</b><br/>"
-        for col in self._component_columns:
+        for col in self._tooltip_columns:
             tooltip_html += f"<b>{col}:</b> {{{col}}}<br/>"
 
         self._tooltip = {
@@ -494,8 +575,9 @@ class PydeckPlotter:
 
     def deck(self) -> pdk.Deck:
         """Display the interactive map."""
+        layers = list(self._layers.values())
         deck = pdk.Deck(
-            layers=list(self._layers.values()),
+            layers=layers,
             map_style=self._map_style,
             tooltip=self._tooltip,
             initial_view_state=self.view_state,
@@ -509,6 +591,10 @@ def explore(
     bus_sizes: float | dict | pd.Series = 5000,
     bus_colors: str | dict | pd.Series = "cadetblue",
     bus_alpha: float | dict | pd.Series = 0.5,
+    line_columns: list | None = None,
+    line_widths: float | dict | pd.Series = 500,
+    line_colors: str | dict | pd.Series = "rosybrown",
+    line_alpha: float | dict | pd.Series = 0.5,
     map_style: str = "dark",
     tooltip: bool = True,
 ) -> pdk.Deck:
@@ -522,16 +608,20 @@ def explore(
         List of bus columns to include. If None, only the bus index and x, y coordinates are used.
         Specify additional columns to include in the tooltip.
     bus_sizes : float/dict/pandas.Series
-        Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
-        the function will draw pies for each bus (first index level) with
-        segments of different color (second index level). Such a Series is ob-
-        tained by e.g. n.generators.groupby(['bus', 'carrier']).p_nom.sum().
+        Sizes of bus points in meters, defaults to 5000.
     bus_colors : str/dict/pandas.Series
-        Colors for the buses, defaults to "cadetblue". If bus_sizes is a
-        pandas.Series with a Multiindex, bus_colors defaults to the
-        n.carriers['color'] column.
+        Colors for the buses, defaults to "cadetblue".
     bus_alpha : float/dict/pandas.Series
         Adds alpha channel to buses, defaults to 0.5.
+    line_columns : list, default None
+        List of line columns to include. If None, only the bus0 and bus1 columns are used
+        Specify additional columns to include in the tooltip.
+    line_widths : float/dict/pandas.Series
+        Widths of lines in meters, defaults to 500.
+    line_colors : str/dict/pandas.Series
+        Colors for the lines, defaults to 'rosybrown'.
+    line_alpha : float/dict/pandas.Series
+        Adds alpha channel to lines, defaults to 0.5.
     map_style : str
         Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
     tooltip : bool, default True
@@ -550,6 +640,13 @@ def explore(
         bus_sizes=bus_sizes,
         bus_colors=bus_colors,
         bus_alpha=bus_alpha,
+    )
+
+    plotter.add_line_layer(
+        line_columns=line_columns,
+        line_widths=line_widths,
+        line_colors=line_colors,
+        line_alpha=line_alpha,
     )
 
     if tooltip:
