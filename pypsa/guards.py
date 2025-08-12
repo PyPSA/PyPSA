@@ -63,7 +63,7 @@ def _network_components_data_verification(n: Network) -> None:
 
     """
     for c in n.components:
-        if not c.static.index.name == "name" if not c.has_scenarios else None:
+        if c.static.index.name != "name" if not c.has_scenarios else None:
             msg = f"Unexpected static index name for component '{c.name}': {c.static.index.name}"
             raise UnexpectedError(msg)
         # if not c.static.index.names == (
@@ -75,7 +75,6 @@ def _network_components_data_verification(n: Network) -> None:
         # if not c.static.columns.name == None:
         #     msg = f"Unexpected static columns name for component '{c.name}': {c.static.columns.name}"
         #     raise UnexpectedError(msg)
-        pass
         for attr_name, dynamic_df in c.dynamic.items():
             # if not dynamic_df.index.equals(c.snapshots):
             #     msg = f"`n.c.dynamic['{attr_name}']` of component '{c.name}' has index that does not match snapshots. Expected: {c.snapshots}, Found: {dynamic_df.index}"
@@ -122,7 +121,7 @@ def _network_index_data_verification(n: Network) -> None:
         msg = "Network snapshots must not be empty."
         raise UnexpectedError(msg)
 
-    if not n.snapshots.name == "snapshot":
+    if n.snapshots.name != "snapshot":
         msg = f"Snapshots index must be named 'snapshot', found: {n.snapshots.name}"
         raise UnexpectedError(msg)
 
@@ -155,7 +154,7 @@ def _network_index_data_verification(n: Network) -> None:
 
     # Verify scenarios consistency if they exist
     if n.has_scenarios:
-        if not n._scenarios_data.index.name == "scenario":
+        if n._scenarios_data.index.name != "scenario":
             msg = f"Scenarios index must be named 'scenario', found: {n._scenarios_data.index.name}"
             raise UnexpectedError(msg)
 
