@@ -940,7 +940,28 @@ class SubNetworkPowerFlowMixin:
     buses_i: pd.Index
     shunt_impedances_i: pd.Index
 
-
+    def find_system_splitting_contingencies(sn):
+        """Find system splitting contingencies in a sub-network."""
+        bridges = list(nx.bridges(sn.graph()))
+        # convert back to lines/transformers
+        bus0_bus1 = (
+            pd.concat(
+                [
+                    pd.DataFrame(data=bridges, columns=["bus0", "bus1"]),
+                    pd.DataFrame(data=bridges, columns=["bus1", "bus0"]),
+                ]
+            )
+            .set_index(["bus0", "bus1"])
+            .index
+        )
+        sn_branches = sn.branches().reset_index().set_index(["bus0", "bus1"])
+        return (
+            sn_branches.loc[
+                bus0_bus1.intersection(sn_branches.index), ["component", "name"]
+            ]
+            .set_index(["component", "name"])
+            .index
+        )
 
     def calculate_BODF(self, skip_pre: bool = False) -> None:
         """Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
