@@ -44,8 +44,6 @@ class NetworkGraphMixin:
 
         Parameters
         ----------
-        n : Network|SubNetwork
-            Network or sub-network.
         branch_components : [str]
             Components to use as branches. The default are
             passive_branch_components in the case of a SubNetwork and
@@ -118,8 +116,6 @@ class NetworkGraphMixin:
 
         Parameters
         ----------
-        n : Network | SubNetwork
-            Network or sub-network.
         branch_components : iterable sublist of `branch_components`
             Buses connected by any of the selected branches are adjacent
             (default: branch_components (network) or passive_branch_components (sub_network))
