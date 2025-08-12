@@ -928,6 +928,7 @@ class Network(
             (self.static(c) for c in self.passive_branch_components),
             keys=self.passive_branch_components,
             sort=True,
+            names=["component", "name"],
         )
 
     def controllable_branches(self) -> pd.DataFrame:
@@ -1304,7 +1305,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
             idx = c.static.query("active").index if active_only else c.static.index
             types += len(idx) * [c.name]
             names += list(idx)
-        return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))
+        return pd.MultiIndex.from_arrays([types, names], names=("component", "name"))
 
     def branches(self) -> pd.DataFrame:
         """Get the branches in the sub-network.
