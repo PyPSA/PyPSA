@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
 from pypsa.networks import Network
 from pypsa.version import __version_semver__, __version_semver_tuple__
@@ -17,6 +19,17 @@ def _repo_url(
     if master or __version_semver_tuple__ < (0, 35):  # Feature was added in 0.35.0
         return f"{url}master/"
     return f"{url}v{__version_semver__}/"
+
+
+def _check_url_availability(url: str) -> bool:
+    """Check if a URL is available by making a HEAD request."""
+    if not url.startswith(("http://", "https://")):
+        return False
+    try:
+        with urlopen(url) as response:  # noqa: S310
+            return response.status == 200
+    except (HTTPError, URLError, OSError):
+        return False
 
 
 def _retrieve_if_not_local(path: str | Path) -> Network:
@@ -179,3 +192,31 @@ def stochastic_network() -> Network:
     )
 
     return n
+
+
+def carbon_management() -> Network:
+    """Load the carbon management network example of PyPSA.
+
+    The Carbon Management Network has 20 days of data on the hybrid case from a
+    recently published paper on carbon management based on PyPSA-Eur. It is
+    sector-coupled and currently the most complex example network within PyPSA,
+    making it ideal for exploring the plotting and statistical functionality.
+
+    References
+    ----------
+    [^1]: Hofmann, F., Tries, C., Neumann, F. et al. H2 and CO2 network strategies for
+    the European energy system. Nat Energy 10, 715–724 (2025).
+    https://doi.org/10.1038/s41560-025-01752-6
+
+    """
+    primary_url = "https://tubcloud.tu-berlin.de/s/3qZPGxW3r4HF9Hn/download?path=%2F&files=carbon-management.nc"
+
+    if _check_url_availability(primary_url):
+        return Network(primary_url)
+    else:
+        msg = (
+            "The carbon management example is currently unavailable. Please check "
+            "your internet connection and make sure you are on the latest version of "
+            "PyPSA."
+        )
+        raise RuntimeError(msg)

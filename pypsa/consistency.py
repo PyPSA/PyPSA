@@ -17,11 +17,7 @@ from pypsa.guards import _consistency_check_guard
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from pypsa.typing import NetworkType
-
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
 
     from pypsa import Network
     from pypsa.components import Components
@@ -736,9 +732,6 @@ class NetworkConsistencyMixin(_NetworkABC):
     Class only inherits to [pypsa.Network][] and should not be used directly.
     All attributes and methods can be used within any Network instance.
     """
-
-    calculate_dependent_values: Callable
-    iterate_components: Callable
 
     def consistency_check(
         self, check_dtypes: bool = False, strict: Sequence | None = None

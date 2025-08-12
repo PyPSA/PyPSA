@@ -396,7 +396,7 @@ class Components(
         Examples
         --------
         >>> n.components.generators.description
-        'Power generator.'
+        'Power generator for the bus carrier it attaches to.'
 
         """
         return self.ctype.description
