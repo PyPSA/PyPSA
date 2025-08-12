@@ -89,11 +89,11 @@ def test_assign_duals_noname(ac_dc_network):
     dual_model_investment = float(
         n.model.constraints["GlobalConstraint-investment_limit"].dual
     )
-    dual_network_investment = float(n.global_constraints.mu.loc["investment_limit"])  # type: ignore
+    dual_network_investment = float(n.global_constraints.mu.loc["investment_limit"])
     assert dual_model_investment == pytest.approx(
         dual_network_investment, rel=1e-8, abs=1e-10
     )
 
     dual_model_co2 = float(n.model.constraints["GlobalConstraint-co2_limit"].dual)
-    dual_network_co2 = float(n.global_constraints.mu.loc["co2_limit"])  # type: ignore
+    dual_network_co2 = float(n.global_constraints.mu.loc["co2_limit"])
     assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
