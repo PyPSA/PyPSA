@@ -1,8 +1,8 @@
 # Transformer Types
 
 The `TransformerType` components describe standard 2-winding transformer types.
-If for a `Transformer` the attribute `type` is non-empty, the electrical
-parameters of the `TransformerType` are mapped to the `Transformer`.
+If for a [`Transformer`](/api/components/types/transformers) the attribute `type` is non-empty, the electrical
+parameters of the `TransformerType` are mapped to the [`Transformer`](/api/components/types/transformers).
 
 {{ read_csv('../../../pypsa/data/component_attrs/transformer_types.csv') }}
 

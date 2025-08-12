@@ -82,39 +82,40 @@ nav:
 
 - Examples:
   - Overview: examples/examples.md
-  - Power Systems (Core):
+  - Operational Problems:
     - examples/simple-electricity-market-examples.ipynb
     - examples/unit-commitment.ipynb
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb
+    - examples/minimal_example_pf.ipynb
+    - examples/negative_prices_kvl_baker.ipynb
+  - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
+    - examples/3-node-cem.ipynb
     - examples/multi-investment-optimisation.ipynb
+    - examples/myopic-pathway.ipynb
     - examples/stochastic-optimization.ipynb
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
-    - examples/minimal_example_pf.ipynb
-    - examples/3-node-cem.ipynb
-    - examples/negative_prices_kvl_baker.ipynb
-  - Power System (Specialized):
+    - examples/modular-expansion.ipynb
+  - Special Problems:
     - examples/scigrid-redispatch.ipynb
+    - examples/demand-elasticity.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
     - examples/transformer_example.ipynb
     - examples/reserve-power.ipynb
-    - examples/myopic-pathway.ipynb
-    - examples/demand-elasticity.ipynb
-    - examples/modular-expansion.ipynb
-    - examples/time-series-aggregation.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
     - examples/battery-electric-vehicle-charging.ipynb
-    - examples/biomass-synthetic-fuels-carbon-management.ipynb
     - examples/chp-fixed-heat-power-ratio.ipynb
     - examples/power-to-gas-boiler-chp.ipynb
     - examples/power-to-heat-water-tank.ipynb
-  - Other:
+    - examples/biomass-synthetic-fuels-carbon-management.ipynb
+  - Complexity Management:
+    - examples/time-series-aggregation.ipynb
     - examples/replace-generator-storage-units-with-store.ipynb
 
 - API Reference:

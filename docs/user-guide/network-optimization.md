@@ -4,7 +4,7 @@ PyPSA uses Linopy as the optimization backend. Linopy is a stand-alone package a
 
 ## Let's get started
 
-Now, we demonstrate the behaviour of the optimization with linopy. The core functions for the optimization can be called via the [pypsa.Network.optimize](https://pypsa.readthedocs.io/en/latest/api/optimization.html) accessor. The accessor is used for creating, solving, modifying the optimization problem. Further, it supports to run different optimization formulations and provides helper functions. 
+Now, we demonstrate the behaviour of the optimization with linopy. The core functions for the optimization can be called via the [pypsa.optimization.OptimizationAccessor.__call__](https://pypsa.readthedocs.io/en/latest/api/optimization.html) accessor. The accessor is used for creating, solving, modifying the optimization problem. Further, it supports to run different optimization formulations and provides helper functions. 
 
 At first, we run the ordinary linearized optimal power flow (LOPF). We then extend the formulation by some additional constraints.
 

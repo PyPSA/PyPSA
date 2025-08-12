@@ -1,11 +1,11 @@
 # Dispatch Limits
 
-Each `Generator` has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each `Link` has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each `Line` and `Transformer` has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.
+Each [`Generator`](/api/components/types/generators) has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each [`Link`](/api/components/types/links) has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each [`Line`](/api/components/types/lines) and [`Transformer`](/api/components/types/transformers) has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.
 
-!!! note "Dispatch limits of `Store` and `StorageUnit`"
+!!! note "Dispatch limits of [`Store`](/api/components/types/stores) and [`StorageUnit`](/api/components/types/storage_units)"
 
     Dispatch limits of stores and storage units are described together with their
-    storage consistency equations in the [Storage](/user-guide/optimization/storage.md) section.
+    storage consistency equations in the [Storage](storage.md) section.
 
 ## Non-extendable Components
 
@@ -22,7 +22,7 @@ For non-extendable components (`{p,s}_nom_extendable=False`), the dispatch is li
 
 where $\hat{g}_{n,s}$, $\hat{f}_{l}$, and $\hat{p}_{l}$ are the nominal capacities; $\underline{g}_{n,s,t}$, $\underline{f}_{l,t}$, $\bar{g}_{n,s,t}$, and $\bar{f}_{l,t}$ and $\bar{p}_{l,t}$ are time-dependent restrictions on the dispatch given per unit of nominal capacity (e.g. due to wind availability for generators or dynamic line rating and security margins for lines). 
 
-These constraints are set in the function [`define_operational_constraints_for_non_extendables`]().
+These constraints are set in the function `define_operational_constraints_for_non_extendables()`.
 
 ## Extendable Components
 
@@ -39,7 +39,7 @@ Constraint | Dual Variable | | Name |
 
 where $G_{n,s}$, $F_{l}$, and $P_{l}$ are the nominal capacities to be optimised. 
 
-These constraints are set in the function [`define_operational_constraints_for_extendables`]().
+These constraints are set in the function `define_operational_constraints_for_extendables()`.
 
 ## Fixed Dispatch
 
@@ -51,7 +51,7 @@ Constraint | Dual Variable | | Name |
 | $g_{n,s,t} = \tilde{g}_{n,s,t}$ | $w_t^o  \tilde{\mu}_{n,s,t}$ | `n.generators_t.mu_p_set` | `Generator-p_set` |
 | $f_{l,t} = \tilde{f}_{l,t}$ | $w_t^o  \tilde{\mu}_{l,t}$ | `n.links_t.mu_p_set` | `Link-p_set` |
 
-These constraints are set in the function [`define_fixed_operation_constraints`]().
+These constraints are set in the function `define_fixed_operation_constraints()`.
 
 <!-- TODO: mu_p_set should be called lambda_p_set becuase it is dual of equality constraint, not inequality constraint. -->
 
@@ -61,12 +61,12 @@ Generators and links can also have volume limits, i.e. the total dispatch over a
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
-| $\sum_t w_t^g g_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | `n.generators.xxx` | `Generator-e_sum_min` |
-| $\sum_t w_t^g g_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | `n.generators.xxx` | `Generator-e_sum_max` |
-| $\sum_t w_t^g f_{l,t} \geq \underline{e}_{l} \quad \forall l$ | `n.links.xxx` | `Link-e_sum_min` |
-| $\sum_t w_t^g f_{l,t} \leq \bar{e}_{l} \quad \forall l$ | `n.links.xxx` | `Link-e_sum_max` |
+| $\sum_t w_t^g g_{n,s,t} \geq \underline{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_min` |
+| $\sum_t w_t^g g_{n,s,t} \leq \bar{e}_{n,s} \quad \forall n,s$ | only in `n.model` | `Generator-e_sum_max` |
+| $\sum_t w_t^g f_{l,t} \geq \underline{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_min` |
+| $\sum_t w_t^g f_{l,t} \leq \bar{e}_{l} \quad \forall l$ | only in `n.model` | `Link-e_sum_max` |
 
-These constraints are set in the function [`define_total_supply_constraints`]().
+These constraints are set in the function `define_total_supply_constraints()`.
 
 
 !!! note "Mapping of symbols to attributes"

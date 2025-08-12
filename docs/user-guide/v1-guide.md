@@ -6,7 +6,7 @@ With the release of PyPSA 1.0, the documentation has been completely overhauled 
 
 ### Stochastic Optimization
 
-PyPSA now supports **two-stage stochastic programming** with scenario trees out of the box, which allows users to optimize investment decisions (first-stage) that are robust across multiple possible future realizations (scenarios) of uncertain parameters. See [:material-bookshelf: User Guide](stochastic-optimization.md) and [:material-notebook-multiple: Example Notebook](stochastic-optimization.ipynb).
+PyPSA now supports **two-stage stochastic programming** with scenario trees out of the box, which allows users to optimize investment decisions (first-stage) that are robust across multiple possible future realizations (scenarios) of uncertain parameters. See [:material-bookshelf: User Guide](optimization/stochastic-optimization.md) and [:material-notebook-multiple: Example Notebook](../examples/stochastic-optimization.ipynb).
 
 ```python
 >>> n = pypsa.examples.ac_dc_meshed()
