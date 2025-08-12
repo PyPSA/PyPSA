@@ -4,7 +4,7 @@
 Custom constraints allow users to tailor optimization problems to specific
 requirements or scenarios. Users can model more complex limits and interactions
 that are not captured by the default optimization formulations provided by
-[`n.optimize()`](). To build custom constraints, users can access, modify and
+[`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. To build custom constraints, users can access, modify and
 amend the [Linopy](https://linopy.readthedocs.io) model instance associated with
 a network object, `n.model`. 
 
@@ -104,7 +104,7 @@ the optimised values will be stored for the network component (e.g. `n.generator
 
 !!! note "Alternative approach using `n.optimize(extra_functionality=...)`"
 
-    The workflow described above is the recommended way to add custom constraints to a PyPSA network. It allows for direct access to the Linopy model instance and provides flexibility in defining and modifying constraints.  However, if you prefer a more integrated approach, you can use the `extra_functionality` argument in the [`n.optimize()`]() function. This allows you to pass a function that will be executed after the model is created and before it is solved, enabling you to add custom constraints or modify the model as needed:
+    The workflow described above is the recommended way to add custom constraints to a PyPSA network. It allows for direct access to the Linopy model instance and provides flexibility in defining and modifying constraints.  However, if you prefer a more integrated approach, you can use the `extra_functionality` argument in the [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] function. This allows you to pass a function that will be executed after the model is created and before it is solved, enabling you to add custom constraints or modify the model as needed:
 
     ```python
     def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
@@ -119,28 +119,3 @@ the optimised values will be stored for the network component (e.g. `n.generator
 
     The Linopy model instance, `n.model`, is not retained when exporting the network to files. It is only available in memory during the current session. If you need to retain the model instance beyond
     the current session, use Linopy functionality to save it separately with [`n.model.to_netcdf()`](https://linopy.readthedocs.io/en/latest/generated/linopy.model.Model.to_netcdf.html#linopy.model.Model.to_netcdf). That means, any custom constraints added to the model will not be saved when exporting the network to files.
-
-## Examples
-
-
-<div class="grid cards" markdown>
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/multi-investment-optimisation.ipynb)
-
-    ---
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
-
-</div>

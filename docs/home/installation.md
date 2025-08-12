@@ -28,7 +28,7 @@ PyPSA is written and tested to be compatible with Python 3.10 and above. We reco
 
 ## Solvers
 
-PyPSA passes optimisation problems (see [overview](optimal-power-flow/#overview)) to an external solver and is deeply integrated with the optimisation framework [linopy](https://github.com/PyPSA/linopy) to do so. Some examples of available solvers:
+PyPSA passes optimisation problems (see [overview](overview.md)) to an external solver and is deeply integrated with the optimisation framework [linopy](https://github.com/PyPSA/linopy) to do so. Some examples of available solvers:
 
 | Free solvers | Commercial solvers |
 | ------------- | ------------------- |
@@ -70,7 +70,7 @@ To upgrade PyPSA, run:
 
 === "uv"
 
-    todo
+    uv pip install -U pypsa
 
 Check the [release notes](https://pypsa.readthedocs.io/en/latest/release-notes.html) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes. If you are coming from a very old version (< `v1.0.0`), it makes sense to update gradually and fix any deprecation warnings before updating to the latest version.
 

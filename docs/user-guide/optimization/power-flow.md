@@ -21,7 +21,7 @@ space as other standard linearised formulations based on voltage angles that is
 commonly found in textbooks (B-Theta) or the formulation based on Power Transfer
 Distribution Factors (PTDFs).
 
-These constraints are set in the function [`define_kirchhoff_voltage_constraints`]() and carry the name `Kirchhoff-Voltage-Law`.
+These constraints are set in the function `define_kirchhoff_voltage_constraints()` and carry the name `Kirchhoff-Voltage-Law`.
 
 !!! tip "Tip: KVL with DC networks"
 
@@ -29,11 +29,11 @@ These constraints are set in the function [`define_kirchhoff_voltage_constraints
 
 !!! note "Note: Retrieving the PTDF matrix"
 
-    The PTDF matrix of sub-networks (i.e. synchronous zones) can be calculated with [`sn.calculate_ptdf()`]() method.
+    The PTDF matrix of sub-networks (i.e. synchronous zones) can be calculated with [`sn.calculate_PTDF()`][pypsa.networks.SubNetwork.calculate_PTDF] method.
 
-!!! tip "Tip: Using the `Link` component for Net Transfer Capacities (NTCs)"
+!!! tip "Tip: Using the [`Link`](/api/components/types/links) component for Net Transfer Capacities (NTCs)"
 
-    For simplified transmission representation using Net Transfer Capacities (NTCs), use the `Link` component with controllable power flow like a transport model. The `Link` component can also be used to represent a point-to-point HVDC link.
+    For simplified transmission representation using Net Transfer Capacities (NTCs), use the [`Link`](/api/components/types/links) component with controllable power flow like a transport model. The [`Link`](/api/components/types/links) component can also be used to represent a point-to-point HVDC link.
 
 !!! note "Note: Handling impedance changes with transmission expansion"
 
@@ -80,7 +80,7 @@ $$
 a_k = \psi_{l,t}(k) - m_k \left(\frac{k}{n} \cdot \bar{p}_{l,t} \overline{P}_{l} \right)
 $$
 
-The losses also modify the [power balance]() by adding the term to its left-hand side
+The losses also modify the [power balance](energy-balance.md) by adding the term to its left-hand side
 
 $$
 -0.5 \cdot \sum_{l} |K_{n,l}| \cdot \psi_{l,t} \quad \forall n,t
@@ -90,10 +90,10 @@ splitting losses equally between both connection points.
 
 The dispatch limits of $p_{\ell,t}$ are now subtracted by $\psi_{l,t}$.
 
-These constraints are set in the function [`define_loss_constraints`]().
+These constraints are set in the function `define_loss_constraints()`.
 
 The transmission loss approximation is not activated by default, but must be
-enabled by providing a number of tangents in [`n.optimize()`]().
+enabled by providing a number of tangents in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 ```python
 n.optimize(transmission_losses=3)
@@ -118,8 +118,8 @@ tangents are sufficient for a reasonably accurate approximation.
     | $\bar{P}_{l}$ | `n.lines.s_nom_opt` and `n.transformers.s_nom_opt` (if extendable) or `n.lines.s_nom` or `n.transformers.s_nom` (if non-extendable) | Decision variable / Parameter |
     | $x_l$         | `n.lines.x_pu_eff` or `n.transformers.x_pu_eff` | Parameter |
     | $r_l$         | `n.lines.r_pu_eff` or `n.transformers.r_pu_eff` | Parameter |
-    | $C_{l,c}$         | Cycle matrix calculated by [`find_cycles()`]() | Parameter |
-    | $K_{n,l}$         | Incidence matrix calculated by [`n.incidence_matrix()`]() | Parameter |
+    | $C_{l,c}$         | Cycle matrix calculated by `find_cycles()` | Parameter |
+    | $K_{n,l}$         | Incidence matrix calculated by [`n.incidence_matrix()`][pypsa.networks.SubNetwork.incidence_matrix] | Parameter |
 
 <!-- TODO: How to get incidence matrix for sub_network now? That function was deprecated? -->
 
@@ -128,23 +128,22 @@ tangents are sufficient for a reasonably accurate approximation.
 
 <div class="grid cards" markdown>
 
--   :material-notebook:{ .lg .middle } **Name**
+-   :material-notebook:{ .lg .middle } **Meshed AC-DC Networks**
 
     ---
 
-    Description
-    
-    [:material-notebook: Go to example](../examples/multi-investment-optimisation.ipynb)
+    Builds a stylized 3-node AC network coupled via AC-DC converters to a 3-node DC network.
+
+    [:octicons-arrow-right-24: Go to example](../../examples/ac-dc-lopf.ipynb)
+
+
+-   :material-notebook:{ .lg .middle } **Negative LMPs from Line Congestion**
 
     ---
 
--   :material-notebook:{ .lg .middle } **Name**
+    Explores how Kirchhoff's Voltage Law can lead to negative locational marginal prices when lines are congested.
 
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    [:octicons-arrow-right-24: Go to example](../../examples/negative_prices_kvl_baker.ipynb)
 
 </div>
 

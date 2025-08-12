@@ -1,4 +1,4 @@
-# Resources for Learning Energy System Modelling
+# Resources
 
 This page lists a set of resources for learning about energy system modelling with and without PyPSA.
 

@@ -1,13 +1,8 @@
-
-todo: pdate after decision on components API
-todo: Update with Components API
-todo: Update for data validation pr
-
 # Design
 
 ## Network Object
 
-The [pypsa.Network][] is an overall container for all network
+The [`pypsa.Network`][] is an overall container for all network
 [:material-bookshelf: Components](/user-guide/components). Components cannot
 exist without a network and are always attached to one. A network also holds
 functions to run different types of optimisation problems, compute power flows,
@@ -37,17 +32,21 @@ Components](/user-guide/components), which can also be accessed as a
 [`n.components.buses.defaults`][pypsa.Components.defaults].
 
 Components are grouped according to their properties in sets such as
-`n.one_port_components` (connecting to a single bus), `n.branch_components`
-(connecting two or more buses), `n.passive_branch_components` (whose power flow
-is determined passively by impedances and nodal power imbalances), and
-`n.controllable_branch_components` (whose power flow can be controlled by the
-optimisation).
+[`n.one_port_components`][pypsa.network.components.NetworkComponentsMixin.one_port_components]
+(connecting to a single bus),
+[`n.branch_components`][pypsa.network.components.NetworkComponentsMixin.branch_components]
+(connecting two or more buses),
+[`n.passive_branch_components`][pypsa.network.components.NetworkComponentsMixin.passive_branch_components]
+(whose power flow is determined passively by impedances and nodal power
+imbalances), and
+[`n.controllable_branch_components`][pypsa.network.components.NetworkComponentsMixin.controllable_branch_components]
+(whose power flow can be controlled by the optimisation).
 
 ## Buses
 
-The `Bus` is the fundamental node of the network, to which all other components
+The [`Bus`](/api/components/types/buses) is the fundamental node of the network, to which all other components
 attach. It enforces conservation of flows for all elements feeding in and out of
-it in any time step. A `Bus` can represent a power substation, but it can also
+it in any time step. A [`Bus`](/api/components/types/buses) can represent a power substation, but it can also
 be used for other, non-electric energy carriers (e.g. hydrogen, heat, oil) or
 even non-energy carriers (e.g. CO~2~ or steel) in different locations.
 
@@ -61,14 +60,14 @@ even non-energy carriers (e.g. CO~2~ or steel) in different locations.
 
 ## Energy Balances
 
-- Energy **enters** the model via `Generator` components, `Load` components with
-  negative sign, and `StorageUnit` or `Store` components with higher energy
+- Energy **enters** the model via [`Generator`](/api/components/types/generators) components, [`Load`](/api/components/types/loads) components with
+  negative sign, and [`StorageUnit`](/api/components/types/storage_units) or [`Store`](/api/components/types/stores) components with higher energy
   levels in the first than in the last time step, and any components with
   efficiency values greater than 1 (e.g. heat pumps).
 
-- Energy **leaves** the model via `Load` components, `Generator` components with
-  negative sign, `StorageUnit` or `Store` components with higher energy in the
-  last then in the first time step, and in `Link`, `Line` and `StorageUnit`
+- Energy **leaves** the model via [`Load`](/api/components/types/loads) components, [`Generator`](/api/components/types/generators) components with
+  negative sign, [`StorageUnit`](/api/components/types/storage_units) or [`Store`](/api/components/types/stores) components with higher energy in the
+  last then in the first time step, and in [`Link`](/api/components/types/links), [`Line`](/api/components/types/lines) and [`StorageUnit`](/api/components/types/storage_units)
   components with efficiency less than 1.
 
 ## Snapshots
@@ -77,8 +76,9 @@ Snapshots represent the time steps of the network, and are stored as
 `pandas.Index` or `pandas.MultiIndex`. Snapshots are used to represent the
 time-varying nature of the network, such as the availability of renewable energy
 sources, the demand for electricity, or the state of charge of storage units.
-All time-dependent series quantities are indexed by ``n.snapshots``.
-Networks default to a single snapshot called "now" and can be set with
+All time-dependent series quantities are indexed by
+[`n.snapshots`][pypsa.network.index.NetworkIndexMixin.snapshots]. Networks
+default to a single snapshot called "now" and can be set with
 [`n.set_snapshots()`][pypsa.Network.set_snapshots].
 
 
@@ -97,7 +97,7 @@ categories of snapshot weightings can be set. Objective weightings are used to
 weight snapshots in the objective function. Store weightings determine the state
 of charge change for stores and storage units. The generator weightings are used
 when calculating global constraints and energy balances. Snapshot weightings are
-stored as a `pandas.DataFrame` and indexed by `n.snapshots`. They default to a
+stored as a `pandas.DataFrame` and indexed by [`n.snapshots`][pypsa.network.index.NetworkIndexMixin.snapshots]. They default to a
 uniform snapshot weighting of 1 hour.
 
 ```py
@@ -108,8 +108,9 @@ uniform snapshot weighting of 1 hour.
 
 For long-term planning problems where the network is optimised for different
 time horizons, it is possible to define multiple investment periods (e.g. 2025,
-2035, 2045). Investment periods can be defined in `n.investment_periods`, a
-`pandas.Index` of monotonically increasing integers of years, with
+2035, 2045). Investment periods can be defined in
+[`n.investment_periods`][pypsa.network.index.NetworkIndexMixin.investment_periods],
+a `pandas.Index` of monotonically increasing integers of years, with
 [`n.set_investment_periods()`][pypsa.Network.set_investment_periods].
 
 ```py
@@ -121,13 +122,16 @@ By default, there are no investment periods defined, and the network is
 optimised for a single investment period (overnight scenario).
 
 Just like snapshots, investment periods can have weightings. These are defined
-in `n.investment_period_weightings`, which is a `pandas.DataFrame` indexed by
-`n.investment_periods` with two columns: "objective" and "years". Objective
-weightings are multiplied with all cost coefficients in the objective function
-of the respective investment period (e.g. for including a social discount rate).
-Years weightings denote the elapsed time until the subsequent investment period
-(e.g. for global constraints on emissions). They default to a uniform weighting
-of 1 for each investment period.
+in
+[`n.investment_period_weightings`][pypsa.network.index.NetworkIndexMixin.investment_period_weightings],
+which is a `pandas.DataFrame` indexed by
+[`n.investment_periods`][pypsa.network.index.NetworkIndexMixin.investment_periods]
+with two columns: "objective" and "years". Objective weightings are multiplied
+with all cost coefficients in the objective function of the respective
+investment period (e.g. for including a social discount rate). Years weightings
+denote the elapsed time until the subsequent investment period (e.g. for global
+constraints on emissions). They default to a uniform weighting of 1 for each
+investment period.
 
 ```py
 >>> n.investment_period_weightings
@@ -135,10 +139,10 @@ of 1 for each investment period.
 
 !!! note
 
-    When investment periods are used, `n.snapshots` becomes a `pandas.MultiIndex`
+    When investment periods are used, [`n.snapshots`][pypsa.network.index.NetworkIndexMixin.snapshots] becomes a `pandas.MultiIndex`
     with two index levels: a first level for the investment periods and a second
-    level for the time steps. As `n.snapshot_weightings` is indexed by
-    `n.snapshots`, its index is then also a `pandas.MultiIndex`. It is possible to have different snapshots
+    level for the time steps. As [`n.snapshot_weightings`][pypsa.network.index.NetworkIndexMixin.snapshot_weightings] is indexed by
+    [`n.snapshots`][pypsa.network.index.NetworkIndexMixin.snapshots], its index is then also a `pandas.MultiIndex`. It is possible to have different snapshots
     for each investment period, since users may want a higher resolution
     in later years where there are more renewables, and the weather may change due to climate change.
 
@@ -167,7 +171,7 @@ of 1 for each investment period.
 By default, the network is optimised for a deterministic scenario
 (`n.has_scenarios` is `False`). If scenarios are defined, the network is
 optimised for multiple scenarios in form of a two-stage stochastic programming
-framework (see [:material-book: Stochastic Programming]()).
+framework (see [:material-book: Stochastic Programming](/examples/stochastic-optimization.ipynb)).
 
 Scenario names are stored in `n.scenarios`, a `pandas.Index`, and are set
 with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
@@ -195,7 +199,7 @@ For each class of components, the data describing the components is stored in
 memory in `pandas.DataFrame` objects. 
 
 **Static data** is stored in a `pandas.DataFrame`, which is an attribute of the
-`pypsa.Network`, with names that follow the component names. For instance,
+[`pypsa.Network`][], with names that follow the component names. For instance,
 
 ```py
 >>> n.buses
@@ -206,7 +210,7 @@ string names of the components, while the columns correspond to the components'
 static attributes.
 
 **Time-varying data** is stored in a dictionary of `pandas.DataFrame` objects,
-which is an attribute of the `pypsa.Network`, with names that follow the
+which is an attribute of the [`pypsa.Network`][], with names that follow the
 component names with a `_t` suffix. For instance,
 
 ```py

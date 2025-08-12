@@ -6,13 +6,12 @@ lines). Only branch outages are considered here.
 
 !!! tip "Tip: Modelling of generator outages"
 
-    Generator outages can be modelled through stochastic optimisation, by setting the attribute `p_max_pu` to zero for a scenario-dependent outage period. See the [Stochastic Optimisation]() section for more details.
+    Generator outages can be modelled through stochastic optimisation, by setting the attribute `p_max_pu` to zero for a scenario-dependent outage period. See the [Stochastic Optimisation](../optimization/stochastic-optimization.md) section for more details.
 
 ## N-1 Security Constraints for SCLOPF
 
 The Security-Constrained Linear Optimal Power Flow (SCLOPF) builds on the Linear
-Optimal Power Flow (LOPF) (
-part of [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]) by including
+Optimal Power Flow (LOPF) (part of [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]) by including
 additional constraints that branches may not become overloaded after the outage
 of a selection of branches. The implementation follows Ronellenfitsch et al.
 (2017)[^1].
@@ -40,7 +39,7 @@ added to the optimisation problem:
 
 $$|p_{b,t} + BODF_{bc}p_{c,t}| \leq |P_b| \quad \forall b,c,t$$
 
-These constraints are added in the function [`optimize_security_constrained`]().
+These constraints are added in the function [`n.optimize_security_constrained()`][pypsa.optimization.OptimizationAccessor.optimize_security_constrained].
 
 !!! tip "Tip: Avoiding the computational burden of $N-1$ security constraints"
 
@@ -59,7 +58,7 @@ These constraints are added in the function [`optimize_security_constrained`]().
     | $p_{\{b,c\},t}$ | `n.{lines,transformers}_t.p0` | Decision Variable |
     | $P_b$ | For extendable components `n.{lines,transformers}.eval("s_max_pu * s_nom_opt")` | Decision Variable |
     | $P_b$ | For non-extendable components`n.{lines,transformers}.eval("s_max_pu * s_nom")` | Parameter |
-    | $BODF_{bc}$ | Calculated by [`sn.calculate_BODF()`]() | Parameter |
+    | $BODF_{bc}$ | Calculated by [`sn.calculate_BODF()`][pypsa.networks.SubNetwork.calculate_BODF] | Parameter |
 
 ## Calculating Branch Outage Distribution Factors (BODF)
 
@@ -107,23 +106,13 @@ $$BODF_{bb} = -1$$
 
 <div class="grid cards" markdown>
 
--   :material-notebook:{ .lg .middle } **Name**
+-   :material-notebook:{ .lg .middle } **Security-Constrained LOPF**
 
     ---
 
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    Implements N-1 security constraints in linear optimal power flow models to ensure grid reliability under line outage events.
 
-    ---
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    [:octicons-arrow-right-24: Go to example](../../examples/scigrid-sclopf.ipynb)
 
 </div>
 

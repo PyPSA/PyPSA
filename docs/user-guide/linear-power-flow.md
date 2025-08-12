@@ -73,22 +73,21 @@ For the linear power flow, the following data for each component are used. For t
 
 <div class="grid cards" markdown>
 
--   :material-notebook:{ .lg .middle } **Name**
+
+-   :material-notebook:{ .lg .middle } **Newton-Raphson Power Flow**
 
     ---
 
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    Solves non-linear AC power flow equations using the Newton-Raphson method to inspect voltage magnitudes and angles.
+
+    [:octicons-arrow-right-24: Go to example](../examples/minimal_example_pf.ipynb)
+
+-   :material-notebook:{ .lg .middle } **SciGRID Network**
 
     ---
 
--   :material-notebook:{ .lg .middle } **Name**
+    Performs linear optimal power flow on a high-resolution German grid model to analyze power flows and nodal prices.
 
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    [:octicons-arrow-right-24: Go to example](../examples/scigrid-lopf-then-pf.ipynb)
 
 </div>

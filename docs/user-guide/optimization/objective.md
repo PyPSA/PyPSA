@@ -152,30 +152,4 @@ where $sbc_{*,t}$, $suc_{*,t}$, and $sdc_{*,t}$ are the stand-by, start-up, and 
 
 Some decision variables do not show up in the objective function, such as the power flow on lines and transformers ($p_{l,t} \in \mathbb{R}$) and the storage unit charging ($h_{n,s,t}^+ \in \mathbb{R}$). They are only used to enforce constraints, e.g. the power flow on lines and transformers.
 
-The objective function is defined in the function [`define_objective`]().
-
-## Examples
-
-<div class="grid cards" markdown>
-
-
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
-
-    ---
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
-
-</div>
+The objective function is defined in the function `define_objective()`.

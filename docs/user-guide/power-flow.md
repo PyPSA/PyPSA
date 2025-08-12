@@ -9,11 +9,11 @@ snapshots as `n.pf(snapshots=n.snapshots[:24])`.
 
 The power flow calculation is independent of the optimisation. A common workflow
 is to first optimise the network with the linearised approximations of
-[`n.optimize()`][pypsa.Network.optimize] and then to run the non-linear power
+[`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] and then to run the non-linear power
 flow calculation on the optimised network with [`n.pf()`][pypsa.Network.pf] for
 validation, using the power imbalances from the optimisation as setpoints. There
 is a function that does this for you,
-[`n.optimize.optimize_and_run_non_linear_powerflow()`][pypsa.optimization.optimize_and_run_non_linear_powerflow].
+[`n.optimize.optimize_and_run_non_linear_powerflow()`][pypsa.optimization.OptimizationAccessor.optimize_and_run_non_linear_powerflow].
 
 ## AC networks (single slack)
 
@@ -125,7 +125,7 @@ For a transformer with tap ratio $\tau$ on the primary side `tap_side=0` and pha
   <figcaption>Transformer T equivalent model (tap HV)</figcaption>
 </figure>
 
-For a transformer with tap ratio $\tau$ on the secondary side `tap_side1` and phase shift $\theta_{\textrm{shift}}$, the equivalent T model is given by:
+For a transformer with tap ratio $\tau$ on the secondary side `tap_side=1` and phase shift $\theta_{\textrm{shift}}$, the equivalent T model is given by:
 
 <figure markdown="span">
   ![Transformer T equivalent model (tap LV)](../assets/images/transformer-t-equivalent-tap-lv.png){ width="600" }
@@ -214,22 +214,21 @@ For the non-linear power flow, the following data for each component are used. F
 
 <div class="grid cards" markdown>
 
--   :material-notebook:{ .lg .middle } **Name**
+-   :material-notebook:{ .lg .middle } **Newton-Raphson Power Flow**
 
     ---
 
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    Solves non-linear AC power flow equations using the Newton-Raphson method to inspect voltage magnitudes and angles.
+
+    [:octicons-arrow-right-24: Go to example](../examples/minimal_example_pf.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Transformers**
 
     ---
 
--   :material-notebook:{ .lg .middle } **Name**
+    Shows how transformers can be considered with varying tap ratios and phase
+    shifts.
 
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    [:octicons-arrow-right-24: Go to example](../examples/transformer_example.ipynb)>
 
 </div>

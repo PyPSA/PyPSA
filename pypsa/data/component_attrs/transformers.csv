@@ -37,5 +37,5 @@ b_pu,float,per unit,0,Per unit shunt susceptance calculated by `n.calculate_depe
 x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
 r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
 s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
-mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit  $-F \leq f$. Always non-negative.,Output
-mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \leq F$. Always non-negative.,Output
+mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit. Always non-negative.,Output
+mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit. Always non-negative.,Output

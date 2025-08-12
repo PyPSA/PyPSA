@@ -1,6 +1,6 @@
 # Shunt Impedance
 
-The `ShuntImpedance` components attach to a single bus and have a
+The [`ShuntImpedance`](/api/components/types/shunt_impedances) components attach to a single bus and have a
 voltage-dependent admittance. For shunt impedances the power consumption is
 given by $s_i = |V_i|^2 y_i^*$ so that $p_i + j q_i = |V_i|^2 (g_i -jb_i)$.
 However the `p` and `q` below are defined directly proportional to `g` and `b`
@@ -10,6 +10,6 @@ consuming active power from the bus and if $q>0$ it is supplying reactive power
 
 !!! note
 
-    Shunt impedances are only used in power flow calculations ([`n.pf()`][pypsa.Network.pf]), not in any of the optimisation problems ([`n.optimize()`][pypsa.Network.optimize]).
+    Shunt impedances are only used in power flow calculations ([`n.pf()`][pypsa.Network.pf]), not in any of the optimisation problems ([`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]).
 
-#TODO Table
+{{ read_csv('../../../pypsa/data/component_attrs/shunt_impedances.csv') }}

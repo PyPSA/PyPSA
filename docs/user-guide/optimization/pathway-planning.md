@@ -149,12 +149,12 @@ The limit may even change with each investment period, e.g. due to changes in la
 city development.
 
 See [Expansion Limit](../optimization/global-constraints.md#expansion-limit) and
-[Growth Limit](../optimization/global-constraints.md#growth-limit) for more
+[Growth Limit](../optimization/global-constraints.md#growth-limit-per-carrier) for more
 details on global constraints for expansion limits.
 
 ### Storage Cyclicity and Initial Energy Levels
 
-The cyclicity constraints for the `Store` and `StorageUnit` components and
+The cyclicity constraints for the [`Store`](/api/components/types/stores) and [`StorageUnit`](/api/components/types/storage_units) components and
 initial energy levels require special attention in the context of multiple
 investment periods.
 
@@ -182,23 +182,18 @@ set to `False`.
 
 <div class="grid cards" markdown>
 
--   :material-notebook:{ .lg .middle } **Name**
+-   :material-notebook:{ .lg .middle } **Pathway Planning**
 
-    ---
+    Optimizes investment decisions across multiple investment periods for a long-term transition pathway with perfect foresight.
 
-    Description
-    
-    [:material-notebook: Go to example](../examples/multi-investment-optimisation.ipynb)
+    [:octicons-arrow-right-24: Go to example](../../examples/multi-investment-optimisation.ipynb)
 
-    ---
+-   :material-notebook:{ .lg .middle } **Myopic Pathway Planning**
 
--   :material-notebook:{ .lg .middle } **Name**
+    Optimizes investment decisions across multiple investment periods for a
+    long-term transition pathway with myopic foresight.
 
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    [:octicons-arrow-right-24: Go to example](../../examples/myopic-pathway.ipynb)
 
 </div>
 

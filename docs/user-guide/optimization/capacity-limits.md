@@ -16,7 +16,7 @@ If the nominal capacity of a components is also the subject of optimisation (e.g
 | $E_{n,s} \leq \bar{E}_{n,s}$ | `n.stores.mu_upper` | `Store-ext-e_nom-upper` |
 | $H_{n,s} \geq \underline{H}_{n,s}$ | `n.storage_units.mu_lower` | `StorageUnit-ext-p_nom-lower` |
 
-These constraints are set in the function [`define_nominal_constraints_for_extendables`]().
+These constraints are set in the function `define_nominal_constraints_for_extendables`.
 
 ## Modularity Constraints
 
@@ -32,7 +32,7 @@ If `{p,s,e}_nom_mod>0`, the nominal capacity is given by:
 | $E_{n,s} = E^{\textrm{mod}}_{n,s} \cdot \tilde{E}_{n,s}$ | N/A | `Store-e_nom_modularity` |
 | $H_{n,s} = H^{\textrm{mod}}_{n,s} \cdot \tilde{H}_{n,s}$ | N/A | `StorageUnit-p_nom_modularity` |
 
-These constraints are set in the function [`define_modular_constraints`]().
+These constraints are set in the function `define_modular_constraints()`.
 
 
 ## Fixed Capacity
@@ -47,7 +47,7 @@ Additionally, the nominal capacity can be fixed to a certain value $\tilde{G}_{n
 | $E_{n,s} = \tilde{E}_{n,s}$ | `n.stores.lambda_e_nom_set` | `Store-e_nom_set` |
 | $H_{n,s} = \tilde{H}_{n,s}$ | `n.storage_units.lambda_s_nom_set` | `StorageUnit-s_nom_set` |
 
-These constraints are set in the function [`define_fixed_nominal_constraints`]().
+These constraints are set in the function `define_fixed_nominal_constraints()`.
 
 <!-- TODO requires documentation of `p_nom_set` and `s_nom_set` in component attributes as well as `lambda_p_nom_set (only with assign_all_duals=True). -->
 
@@ -118,4 +118,20 @@ These constraints are set in the function [`define_fixed_nominal_constraints`]()
         | $\bar{H}_{n,s}$   | `n.storage_units.p_nom_max` | Parameter |
         | $\tilde{H}_{n,s}$ | `n.storage_units.p_nom_mod` | Parameter |#
 
+
+## Examples
+
+
+<div class="grid cards" markdown>
+
+-   :material-notebook:{ .lg .middle } **Modular Capacity Expansion**
+
+    ---
+
+    Models discrete capacity additions with integer constraints on investment
+    decisions considering predefined unit sizes.
+
+    [:octicons-arrow-right-24: Go to example](../../examples/modular-expansion.ipynb)
+
+</div>
 
