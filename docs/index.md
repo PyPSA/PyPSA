@@ -55,7 +55,7 @@ Check out the [:octicons-gear-16: Features](features.md) for more information on
 
     [:octicons-arrow-right-24: Installation](installation.md)
 
-    [:octicons-arrow-right-24: Quick Start](quick-start.md)
+    [:octicons-arrow-right-24: Quick Start](examples/example-1.ipynb)
     
 -   :material-view-list:{ .lg .middle } **Overview**
 
@@ -110,15 +110,7 @@ Check out the [:octicons-gear-16: Features](features.md) for more information on
 
     The API Reference is generated from the docstrings in the code. It contains a detailed description of **all classes and functions**, their parameters and how to use them.
 
-    [:octicons-arrow-right-24: API Reference](api.md)
-
-<!-- -   :material-brain:{ .lg .middle } **Resources**
-
-    ---
-
-    There are many resources available from various sources on **Energy System Modelling** and **PyPSA**. Find **learning materials** here.
-
-    [:octicons-arrow-right-24: Resources](resources.md) -->
+    [:octicons-arrow-right-24: API Reference](network.md)
 
 -   :fontawesome-solid-users:{ .lg .middle } **Contributing**
 

@@ -1,9 +1,9 @@
 # Line Types
 
 The `LineType` components describe standard line types with per length values
-for impedances. If for a `Line` the attribute `type` is non-empty, it is mapped
+for impedances. If for a [`Line`](/api/components/types/lines) the attribute `type` is non-empty, it is mapped
 to the `LineType`'s electrical parameters and multiplied with the `length`
-attribute of the `Line`.
+attribute of the [`Line`](/api/components/types/lines).
 
 {{ read_csv('../../../pypsa/data/component_attrs/line_types.csv') }}
 
