@@ -950,7 +950,6 @@ class SubNetworkPowerFlowMixin:
     buses_i: pd.Index
     shunt_impedances_i: pd.Index
 
-
     def calculate_BODF(self, skip_pre: bool = False) -> None:
         """Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
 
