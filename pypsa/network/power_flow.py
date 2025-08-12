@@ -673,17 +673,27 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
 
 
 def find_system_splitting_contingencies(sub_network: sn) -> pd.Index:
-    """
-    Find system splitting contingencies in a sub-network.
-    """
+    """Find system splitting contingencies in a sub-network."""
     bridges = list(nx.bridges(sn.graph()))
     # convert back to lines/transformers
-    bus0_bus1 = pd.concat([
-        pd.DataFrame(data=bridges, columns=['bus0', 'bus1']),
-        pd.DataFrame(data=bridges, columns=['bus1', 'bus0'])
-    ]).set_index(['bus0', 'bus1']).index
-    sn_branches = sn.branches().reset_index().set_index(['bus0', 'bus1'])
-    return sn_branches.loc[bus0_bus1.intersection(sn_branches.index), ['component', 'name']].set_index(['component', 'name']).index
+    bus0_bus1 = (
+        pd.concat(
+            [
+                pd.DataFrame(data=bridges, columns=["bus0", "bus1"]),
+                pd.DataFrame(data=bridges, columns=["bus1", "bus0"]),
+            ]
+        )
+        .set_index(["bus0", "bus1"])
+        .index
+    )
+    sn_branches = sn.branches().reset_index().set_index(["bus0", "bus1"])
+    return (
+        sn_branches.loc[
+            bus0_bus1.intersection(sn_branches.index), ["component", "name"]
+        ]
+        .set_index(["component", "name"])
+        .index
+    )
 
 
 @deprecated_common_kwargs
