@@ -142,11 +142,7 @@ class Network(
 
         # Investment periods coordinate
         cols = ["objective", "years"]
-        # Note: The index is derived from n.snapshots since periods are only a coordinate
-        # of snapshots.
-        self._investment_periods_data = pd.DataFrame(
-            index=self.investment_periods, columns=cols
-        )
+        self._investment_periods_data = pd.DataFrame(index=self.periods, columns=cols)
 
         # Scenarios
         cols = ["weight"]

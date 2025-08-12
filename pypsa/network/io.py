@@ -1301,7 +1301,7 @@ class NetworkIOMixin(_NetworkABC):
         # read in investment period weightings
         periods = importer.get_investment_periods()
 
-        if periods is not None:
+        if periods is not None and not periods.empty:
             self.periods = periods.index
 
             self._investment_periods_data = periods.reindex(self.investment_periods)
