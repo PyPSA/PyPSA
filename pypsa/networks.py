@@ -695,7 +695,12 @@ class Network(
         DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
-        if self.is_solved and hasattr(self._model, "solver_model"):
+        if (
+            self.is_solved
+            and hasattr(self._model, "solver_model")
+            and self._model is not None
+            and self._model.solver_model is not None
+        ):
             msg = "Copying a solved network with an attached solver model is not supported."
             msg += " Please delete the model first using `n.model.solver_model = None`."
             raise ValueError(msg)

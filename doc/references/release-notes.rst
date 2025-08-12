@@ -28,6 +28,9 @@ Features
 Bug Fixes
 ---------
 
+* Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
+  (https://github.com/PyPSA/PyPSA/issues/1325)
+
 * Correct use of snapshot weighting columns in statistics module. The
   doscstring for ``n.snapshot_weightings`` was clarified.
 
