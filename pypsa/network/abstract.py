@@ -46,6 +46,7 @@ class _NetworkABC(ABC):
     buses: pd.DataFrame
     generators: pd.DataFrame
     lines: pd.DataFrame
+    line_types: pd.DataFrame
     links: pd.DataFrame
     transformers: pd.DataFrame
     stores: pd.DataFrame
