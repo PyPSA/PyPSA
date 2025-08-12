@@ -74,21 +74,26 @@ def test_assign_all_duals(ac_dc_network, assign):
 
 
 def test_assign_duals_noname(ac_dc_network):
+    """Test that dual values are correctly assigned back to network,
+    also for a special case of constraints without component dimension."""
     n = ac_dc_network
 
     limit = 10000
-
     m = n.optimize.create_model()
-
     investment = m.variables["Generator-p_nom"]
-
     m.add_constraints(
         investment.sum() == limit, name="GlobalConstraint-investment_limit"
     )
-
     n.optimize.solve_model(assign_all_duals=True)
 
-    # see n.global_constraints.mu -> co2_limit takes value of investment_limit
-    # n.model.constraints['GlobalConstraint-investment_limit'].dual
+    dual_model_investment = float(
+        n.model.constraints["GlobalConstraint-investment_limit"].dual
+    )
+    dual_network_investment = float(n.global_constraints.mu.loc["investment_limit"])  # type: ignore
+    assert dual_model_investment == pytest.approx(
+        dual_network_investment, rel=1e-8, abs=1e-10
+    )
 
-    # assertions TODO
+    dual_model_co2 = float(n.model.constraints["GlobalConstraint-co2_limit"].dual)
+    dual_network_co2 = float(n.global_constraints.mu.loc["co2_limit"])  # type: ignore
+    assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
