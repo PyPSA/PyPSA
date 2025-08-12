@@ -7,7 +7,7 @@
 
 As of July 2025, the following humans have contributed to PyPSA with more than 10 commits:
 
-- Fabian Neumann ([:octicons-mark-github-16: @fneum](https://github.com/fneum))
+- Fabian Neumann (:octicons-mark-github-16: [@fneum](https://github.com/fneum))
 - Tom Brown (:octicons-mark-github-16: [@nworbmot](https://github.com/nworbmot))
 - Fabian Hofmann (:octicons-mark-github-16: [@FabianHofmann](https://github.com/FabianHofmann))
 - Jonas Hörsch (:octicons-mark-github-16: [@coroa](https://github.com/coroa))

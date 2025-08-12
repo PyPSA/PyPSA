@@ -1,6 +1,6 @@
 # Unit Commitment
 
-Unit commitment constraints are implemented for the `Generator` and `Link`
+Unit commitment constraints are implemented for the [`Generator`](/api/components/types/generators) and [`Link`](/api/components/types/links)
 components. They are used to model the start-up and shut-down constraints, as
 well as ramping constraints. The implementation is based on Taylor (2015)[^1],
 and is supplemented with work by Hua et al. (2017)[^2] for a tightened linear
@@ -86,7 +86,7 @@ Furthermore, two **state transition variables** for start-up ($su_{*,t} \in \{0,
 
 
 
-These constraints are defined in the function [`define_operational_constraints_for_committables`]().
+These constraints are defined in the function `define_operational_constraints_for_committables()`.
 
 ??? note "Mapping of symbols to component attributes"
 
@@ -182,7 +182,7 @@ For **committable** and **non-extendable** components, additional ramp limits at
     | $(f_{l,t} - f_{l,t-1}) \geq \left[ -rd_{l,t} \cdot u_{l,t} -rdsd_{l,t}(u_{l,t-1} - u_{l,t})\right] \hat{f}_{l}$ | `Link-com-p-ramp_limit_down` |
     | $(f_{l,t} - f_{l,t-1}) \leq \left[ru_{l,t} \cdot u_{l,t-1} + rusu_{l} (u_{l,t} - u_{l,t-1})\right] \hat{f}_{l}$ | `Link-com-p-ramp_limit_up` |
 
-These constraints are defined in the function [`define_ramp_limit_constraints`]().
+These constraints are defined in the function `define_ramp_limit_constraints()`.
 
 ??? note "Mapping of symbols to component attributes"
 
@@ -288,30 +288,20 @@ To tighten the relaxation, additional constraints are introduced that improve ca
     \end{gather*}$$
 
 
-These constraints are defined in the function [`define_operational_constraints_for_committables`]().
+These constraints are defined in the function `define_operational_constraints_for_committables()`.
 
 ## Examples
 
 
 <div class="grid cards" markdown>
 
--   :material-notebook:{ .lg .middle } **Name**
+-   :material-notebook:{ .lg .middle } **Unit Commitment**
 
     ---
 
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    Models generator unit commitment with start-up and shut-down costs, ramping limits, minimum part loads, up and down times using binary variables.
 
-    ---
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
+    [:octicons-arrow-right-24: Go to example](../../examples/unit-commitment.ipynb)
 
 </div>
 
