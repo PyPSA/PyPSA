@@ -698,6 +698,7 @@ class Network(
         if (
             self.is_solved
             and hasattr(self._model, "solver_model")
+            and self._model is not None
             and self._model.solver_model is not None
         ):
             msg = "Copying a solved network with an attached solver model is not supported."
