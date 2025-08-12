@@ -84,13 +84,18 @@ jobs:
     - name: Update environment
       if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
       run: |
-        conda env update -n pypsa-eur -f envs/linux-64.lock.yaml
-        echo "Run conda list" && conda list
+        conda env update -n pypsa-eur -f envs/linux-64.lock.yaml --quiet
+        conda list
 
     - name: Install package from ref
       if: env.pinned == 'false'
       run: |
         python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        conda list
+
+    - name: Check pypsa version
+      run: |
+        python -c "import pypsa; print(pypsa.__version__)"
 
     - name: Run snakemake test workflows
       if: env.pinned == 'false'
