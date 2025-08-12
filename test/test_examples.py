@@ -34,9 +34,8 @@ def test_check_url_availability():
     assert not _check_url_availability("invalid-url")
     assert not _check_url_availability("ftp://example.com")
     assert not _check_url_availability("")
+    assert not _check_url_availability("https://google.com/invalid-url")
 
     # Test valid URL format (should return True for valid URLs)
-    assert _check_url_availability("https://httpbin.org/status/200")
-
-    # Test 404 response (should return False)
-    assert not _check_url_availability("https://httpbin.org/status/404")
+    assert _check_url_availability("https://google.com")
+    assert _check_url_availability("https://google.com/search?q=pypsa")
