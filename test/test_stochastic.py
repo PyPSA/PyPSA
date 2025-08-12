@@ -104,14 +104,14 @@ def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
 
 def test_cycles(ac_dc_stochastic: pypsa.Network):
     n = ac_dc_stochastic
-    C = n.cycles()
+    C = n.cycle_matrix()
 
     assert isinstance(C, pd.DataFrame)
     assert C.notnull().all().all()  # Check for NaN values
 
     # repeat with apply weights
     n.calculate_dependent_values()
-    C = n.cycles(apply_weights=True)
+    C = n.cycle_matrix(apply_weights=True)
     assert isinstance(C, pd.DataFrame)
     assert C.notnull().all().all()  # Check for NaN values
 

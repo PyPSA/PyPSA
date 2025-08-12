@@ -20,7 +20,7 @@ def test_simple_cycle() -> None:
     n.add("Line", "line2-0", bus0="bus2", bus1="bus0", x=0.1, s_nom=100)
 
     # Get the cycles
-    cycles_df = n.cycles()
+    cycles_df = n.cycle_matrix()
 
     # A simple network with one cycle should have one column in the cycles matrix
     assert cycles_df.shape[1] == 1, f"Expected 1 cycle, got {cycles_df.shape[1]}"
@@ -68,7 +68,7 @@ def test_multiple_cycles() -> None:
     # line1-4 already added
 
     # Get the cycles
-    cycles_df = n.cycles()
+    cycles_df = n.cycle_matrix()
 
     # Network should have 2 independent cycles
     assert cycles_df.shape[1] == 2, f"Expected 2 cycles, got {cycles_df.shape[1]}"
@@ -105,7 +105,7 @@ def test_no_cycles() -> None:
     n.add("Line", "line0-3", bus0="bus0", bus1="bus3", x=0.1, s_nom=100)
 
     # Get the cycles
-    cycles_df = n.cycles()
+    cycles_df = n.cycle_matrix()
 
     # Should be an empty DataFrame with no cycles
     assert cycles_df.empty or cycles_df.shape[1] == 0, (
@@ -134,7 +134,7 @@ def test_multiple_subnetworks() -> None:
     n.add("Line", "sub2_line2-0", bus0="sub2_bus2", bus1="sub2_bus0", x=0.1, s_nom=100)
 
     # Get the cycles
-    cycles_df = n.cycles()
+    cycles_df = n.cycle_matrix()
 
     # Should have 2 cycles (one from each subnetwork)
     assert cycles_df.shape[1] == 2, f"Expected 2 cycles, got {cycles_df.shape[1]}"
@@ -174,7 +174,7 @@ def test_mixed_branch_types() -> None:
     n.add("Line", "line2-0", bus0="bus2", bus1="bus0", x=0.1, s_nom=100)
 
     # Get the cycles
-    cycles_df = n.cycles()
+    cycles_df = n.cycle_matrix()
 
     # Should have 1 cycle
     assert cycles_df.shape[1] == 1, f"Expected 1 cycle, got {cycles_df.shape[1]}"
@@ -244,25 +244,25 @@ def test_investment_periods() -> None:
     )  # Available only in 2040
 
     # Test for 2020: should have no complete cycles
-    cycles_2020 = n.cycles(investment_period=2020)
+    cycles_2020 = n.cycle_matrix(investment_period=2020)
     assert cycles_2020.empty or cycles_2020.shape[1] == 0, (
         "Should have no cycles in 2020"
     )
 
     # Test for 2030: should have no complete cycles
-    cycles_2030 = n.cycles(investment_period=2030)
+    cycles_2030 = n.cycle_matrix(investment_period=2030)
     assert cycles_2030.empty or cycles_2030.shape[1] == 0, (
         "Should have no cycles in 2030"
     )
 
     # Test for 2040: should have one complete cycle
-    cycles_2040 = n.cycles(investment_period=2040)
+    cycles_2040 = n.cycle_matrix(investment_period=2040)
     assert cycles_2040.shape[1] == 1, (
         f"Expected 1 cycle in 2040, got {cycles_2040.shape[1]}"
     )
 
     # Test without investment period: should include all branches
-    cycles_all = n.cycles()
+    cycles_all = n.cycle_matrix()
     assert cycles_all.shape[1] == 1, (
         f"Expected 1 cycle with all branches, got {cycles_all.shape[1]}"
     )
@@ -287,10 +287,10 @@ def test_weighted_cycles() -> None:
     n.calculate_dependent_values()
 
     # Get the unweighted cycles
-    cycles_unweighted = n.cycles(apply_weights=False)
+    cycles_unweighted = n.cycle_matrix(apply_weights=False)
 
     # Get the weighted cycles
-    cycles_weighted = n.cycles(apply_weights=True)
+    cycles_weighted = n.cycle_matrix(apply_weights=True)
 
     # Both should have the same structure
     assert cycles_unweighted.shape == cycles_weighted.shape
@@ -333,8 +333,8 @@ def test_weighted_cycles_dc_network() -> None:
     n.calculate_dependent_values()
 
     # Get the unweighted and weighted cycles
-    cycles_unweighted = n.cycles(apply_weights=False)
-    cycles_weighted = n.cycles(apply_weights=True)
+    cycles_unweighted = n.cycle_matrix(apply_weights=False)
+    cycles_weighted = n.cycle_matrix(apply_weights=True)
 
     # Both should have the same structure
     assert cycles_unweighted.shape == cycles_weighted.shape

@@ -1120,7 +1120,7 @@ class Network(
 
         return self
 
-    def cycles(
+    def cycle_matrix(
         self, investment_period: str | int | None = None, apply_weights: bool = False
     ) -> pd.DataFrame:
         """Get the cycles in the network and represent them as a DataFrame.
@@ -1140,7 +1140,8 @@ class Network(
             If not given, all branches are considered regardless of
             build_year and lifetime.
         apply_weights : bool, default False
-            Whether to apply weights to the cycles.
+            Whether to apply weights (e.g., reactance for AC lines,
+            resistance for DC lines) to the cycles.
 
         Returns
         -------

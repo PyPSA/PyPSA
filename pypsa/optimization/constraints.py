@@ -1025,7 +1025,7 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
     lhs = []
     for period in periods:
         snapshots = sns if period is None else sns[sns.get_loc(period)]
-        C = n.cycles(investment_period=period, apply_weights=True)
+        C = n.cycle_matrix(investment_period=period, apply_weights=True)
         if C.empty:
             continue
 
