@@ -53,7 +53,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_nz: University of Canterbury](https://www.canterbury.ac.nz/)** at the [Sustainable Energy Research Group (SERG)](https://www.canterbury.ac.nz/research/about-uc-research/research-groups-and-centres/sustainable-energy-research-group) uses PyPSA for energy transition in New Zealand.
 
-- **[:flag_gb: The University of Edinburgh](https://www.ed.ac.uk/)** introduced PyPSA-GB, an open-source model of Great Britain's power system for simulating future energy scenarios: [doi.org/10.1016/j.esr.2024.101375](https://doi.org/10.1016/j.esr.2024.101375)
+- **[:scotland: The University of Edinburgh](https://www.ed.ac.uk/)** introduced PyPSA-GB, an open-source model of Great Britain's power system for simulating future energy scenarios: [doi.org/10.1016/j.esr.2024.101375](https://doi.org/10.1016/j.esr.2024.101375)
 
 - **[:flag_kr: Korea University](https://www.korea.ac.kr/sites/ko/index.do)** at the [Energy Innovation Lab](https://energyinnovation.korea.ac.kr/) uses PyPSA-Earth to support development of the country's long-term energy strategy.
 
@@ -78,7 +78,7 @@ The following universities, research institutes, companies, governmental and non
 
 - **[:flag_de: Fraunhofer Institute for Solar Energy Systems (ISE)](https://www.ise.fraunhofer.de/)**: uses PyPSA for grid modelling, for example in a research paper: [doi:/10.1016/j.epsr.2020.106349](https://doi.org/10.1016/j.epsr.2020.106349)
 
-- **[:flag_de: Fraunhofer-Institut für Energiewirtschaft und Energiesystemtechnik (IEE)](https://www.iee.fraunhofer.de/)** used PyPSA for an investigation of power-to-X in South Africa together with **[:flag_za: Stellenbosch University](http://www.sun.ac.za/english)** in [this report](20240430_PtX-Allocation-Study_Stakeholder-Workshop-Interim-Results.pdf).
+- **[:flag_de: Fraunhofer-Institut für Energiewirtschaft und Energiesystemtechnik (IEE)](https://www.iee.fraunhofer.de/)** used PyPSA for an investigation of power-to-X in South Africa together with **[:flag_za: Stellenbosch University](http://www.sun.ac.za/english)** in [this project](https://www.iee.fraunhofer.de/en/research_projects/search/2023/ptx-south-africa.html).
 
 - **[:flag_se: RISE Research Institutes of Sweden AB (RISE)](https://www.ri.se/)** for energy systems research in the [RESILIENT project](https://resilient-project.github.io/).
 

@@ -6,23 +6,23 @@ todo: Add overview with short intro to all examples (maybe images)
 ## Power System Optimization
 <div class="grid cards" markdown>
 
--   :material-notebook-multiple:{ .lg .middle } **Meshed AC-DC**
+
+-   :material-notebook:{ .lg .middle } **Unit Commitment**
 
     ---
-    
-    Build a simple 3-node AC network coupled via AC-DC converters to a 3-node DC network.
 
-    [:octicons-arrow-right-24: Examples](examples.md)
+    Models generator unit commitment with start-up and shut-down costs, ramping limits, minimum part loads, up and down times using binary variables.
 
--   :material-chart-line:{ .lg .middle } **Stochastic Optimization**
+    [:octicons-arrow-right-24: Go to example](unit-commitment.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Single-Node Capacity Expansion**
 
     ---
-    
-    Comprehensive example to stochastic optimization in PyPSA
 
-    [:octicons-arrow-right-24: Stochastic Optimization](stochastic-optimization.ipynb)
+    Models investment decisions for generation and storage in a single-node system in the style of [model.energy](https://model.energy).
 
-- 
+    [:octicons-arrow-right-24: Go to example](capacity-expansion-planning-single-node.ipynb)
+
 </div>
 
 ## Sector Coupling

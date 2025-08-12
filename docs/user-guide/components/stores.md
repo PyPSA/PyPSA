@@ -1,15 +1,15 @@
 # Store
 
-The `Store` component connects to a single bus and provides fundamental
-inter-temporal storage functionality of the carrier of the `Bus` it attaches to.
+The [`Store`](/api/components/types/stores) component connects to a single bus and provides fundamental
+inter-temporal storage functionality of the carrier of the [`Bus`](/api/components/types/buses) it attaches to.
 It is not limited in charging or discharging power.
 
-To control charging and discharging power, separate `Link` components must be
-connected to the `Bus` to which the `Store` attaches. This decoupled approach
+To control charging and discharging power, separate [`Link`](/api/components/types/links) components must be
+connected to the [`Bus`](/api/components/types/buses) to which the [`Store`](/api/components/types/stores) attaches. This decoupled approach
 enables independent optimization of power and energy capacities as well as
 asymmetric power ratings for charging and discharging.
 
-!!! example "Hydrogen storage system with a `Store` and two `Link` components"
+!!! example "Hydrogen storage system with a [`Store`](/api/components/types/stores) and two [`Link`](/api/components/types/links) components"
 
     ```mermaid
     graph LR
@@ -27,15 +27,15 @@ asymmetric power ratings for charging and discharging.
 
 The `marginal_cost` attribute applies equally to both charging and discharging
 operations, representing the cost per unit of energy stored or released. This
-differs from `StorageUnit` components where marginal costs apply only to the
-discharging power. For instance, the `marginal_cost` of the `Store` component
+differs from [`StorageUnit`](/api/components/types/storage_units) components where marginal costs apply only to the
+discharging power. For instance, the `marginal_cost` of the [`Store`](/api/components/types/stores) component
 can represent trading in external energy markets where the stored carrier can be
 bought or sold at fixed market prices.
 
-!!! note "When to use `StorageUnit` instead?"
+!!! note "When to use [`StorageUnit`](/api/components/types/storage_units) instead?"
 
-    Use `StorageUnit` when power and energy capacities have a fixed relationship and you need integrated dispatch control within a single component. For example, this is recommended for a storage device where the power-to-energy ratio is predetermined by the manufacturer.
-    The `StorageUnit` also has attributes for hydro-electric `inflow` and `spillage`. 
+    Use [`StorageUnit`](/api/components/types/storage_units) when power and energy capacities have a fixed relationship and you need integrated dispatch control within a single component. For example, this is recommended for a storage device where the power-to-energy ratio is predetermined by the manufacturer.
+    The [`StorageUnit`](/api/components/types/storage_units) also has attributes for hydro-electric `inflow` and `spillage`. 
     See [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html) for implementation differences.
 
-# TODO Table
+{{ read_csv('../../../pypsa/data/component_attrs/stores.csv') }}
