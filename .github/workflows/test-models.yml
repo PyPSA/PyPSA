@@ -64,7 +64,7 @@ jobs:
         path: |
           data
           cutouts
-        key: data-cutouts-pypsa-eur-${{ env.week }}
+        key: data-cutouts-pypsa-eur-${{ env.WEEK }}
 
     - uses: conda-incubator/setup-miniconda@v3
       if: env.pinned == 'false'
@@ -78,7 +78,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-eur-${{ env.week }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
+        key: conda-pypsa-eur-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
       id: cache-env
 
     - name: Update environment
@@ -165,7 +165,7 @@ jobs:
           data
           cutouts
           resources/ariadne_database.csv
-        key: data-cutouts-pypsa-de-${{ env.week }}
+        key: data-cutouts-pypsa-de-${{ env.WEEK }}
 
     - uses: conda-incubator/setup-miniconda@v3
       if: env.pinned == 'false'
@@ -179,7 +179,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-de-${{ env.week }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
+        key: conda-pypsa-de-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
       id: cache-env
 
     - name: Update environment
