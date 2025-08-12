@@ -1120,7 +1120,7 @@ class Network(
     ) -> pd.DataFrame:
         """Get the cycles in the network and represent them as a DataFrame.
 
-        This function identifies all cycles in the network topology and
+        This function identifies a cycle basis of the network topology and
         returns a DataFrame representation of the cycle matrix. The cycles
         matrix is a sparse matrix with branches as rows and independent
         cycles as columns. An entry of +1 indicates the branch is traversed
