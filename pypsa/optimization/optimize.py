@@ -710,11 +710,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 else:
                     c.static.loc[suffix] = None
 
-            # Get dual from constraint as formatted pandas DataFrame
-            dual_df = _from_xarray(constraint.dual, c)
-
             # Dynamic duals (constraints with snapshot dimension)
             if "snapshot" in constraint.dual.dims:
+                # Get dual from constraint as formatted pandas DataFrame
+                dual_df = _from_xarray(constraint.dual, c)
+
                 # Standard components: extract last part after final dash
                 # e.g., "Line-s-upper" -> "upper", "Generator-p-lower" -> "lower"
                 try:
@@ -748,9 +748,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             # SCALAR DUALS (constraints without snapshot dimension)
             # else:
             elif c.name == "GlobalConstraint" and suffix in c.static.index:
-                # Assign static duals to component
-                # Duals that don't have a placeholder are ignored with df.update
-                c.static.update(dual_df.rename("mu"), overwrite=True)
+                if c.has_scenarios:
+                    raise NotImplementedError()
+
+                c.static.loc[suffix, "mu"] = constraint.dual
 
         if unassigned_constraints:
             logger.info(
