@@ -5,20 +5,17 @@ Should not be used directly.
 
 Index methods and properties are used to access the different index levels, set them
 and convert the Network accordingly.
-
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
+from typing import Any
 
 import pandas as pd
 
 from pypsa.network.abstract import _NetworkABC
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -80,22 +77,25 @@ class NetworkIndexMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
+        # Always create normal pd.Index, never pd.RangeIndex
+        if isinstance(snapshots, range):
+            snapshots = list(snapshots)
+
         if isinstance(snapshots, pd.MultiIndex):
             if snapshots.nlevels != 2:
                 msg = "Maximally two levels of MultiIndex supported"
                 raise ValueError(msg)
             sns = snapshots.rename(["period", "timestep"])
             sns.name = "snapshot"
-            self._snapshots = sns
         else:
-            self._snapshots = pd.Index(snapshots, name="snapshot")
+            sns = pd.Index(snapshots, name="snapshot")
 
-        if len(self._snapshots) == 0:
+        if len(sns) == 0:
             msg = "Snapshots must not be empty."
             raise ValueError(msg)
 
-        self.snapshot_weightings = self.snapshot_weightings.reindex(
-            self._snapshots, fill_value=default_snapshot_weightings
+        self._snapshots_data = self._snapshots_data.reindex(
+            sns, fill_value=default_snapshot_weightings
         )
 
         if isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
@@ -106,8 +106,8 @@ class NetworkIndexMixin(_NetworkABC):
                 .ffill()  # fill last value by assuming same as the one before
                 .apply(lambda x: x.total_seconds() / 3600)
             )
-            self._snapshot_weightings = pd.DataFrame(
-                dict.fromkeys(self._snapshot_weightings.columns, hours_per_step)
+            self._snapshots_data = pd.DataFrame(
+                dict.fromkeys(self._snapshots_data.columns, hours_per_step)
             )
         elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             logger.info(
@@ -120,21 +120,21 @@ class NetworkIndexMixin(_NetworkABC):
 
             for k in dynamic:
                 if dynamic[k].empty:  # avoid expensive reindex operation
-                    dynamic[k].index = self._snapshots
+                    dynamic[k].index = self.snapshots
                 elif k in attrs.default[attrs.varying]:
                     if isinstance(dynamic[k].index, pd.MultiIndex):
                         dynamic[k] = dynamic[k].reindex(
-                            self._snapshots, fill_value=attrs.default[attrs.varying][k]
+                            self.snapshots, fill_value=attrs.default[attrs.varying][k]
                         )
                     else:
                         # Make sure to keep timestep level in case of MultiIndex
                         dynamic[k] = dynamic[k].reindex(
-                            self._snapshots,
+                            self.snapshots,
                             fill_value=attrs.default[attrs.varying][k],
                             level="timestep",
                         )
                 else:
-                    dynamic[k] = dynamic[k].reindex(self._snapshots)
+                    dynamic[k] = dynamic[k].reindex(self.snapshots)
 
         # NB: No need to rebind dynamic to self, since haven't changed it
 
@@ -172,7 +172,7 @@ class NetworkIndexMixin(_NetworkABC):
                       dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
-        return self._snapshots
+        return self._snapshots_data.index
 
     @snapshots.setter
     def snapshots(self, snapshots: Sequence) -> None:
@@ -244,7 +244,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         """
         if "timestep" in self.snapshots.names:
-            return self.snapshots.get_level_values("timestep").unique()
+            return self.snapshots.get_level_values("timestep").drop_duplicates()
         return self.snapshots
 
     @timesteps.setter
@@ -339,14 +339,12 @@ class NetworkIndexMixin(_NetworkABC):
                     )
                     dynamic[k].index.name = "snapshot"
 
-            self._snapshots = pd.MultiIndex.from_product(
-                [periods_, self.snapshots], names=names
-            )
-            self._snapshots.name = "snapshot"
-            self._snapshot_weightings = pd.concat(
+            sns = pd.MultiIndex.from_product([periods_, self.snapshots], names=names)
+            sns.name = "snapshot"
+            self._snapshots_data = pd.concat(
                 dict.fromkeys(periods_, self.snapshot_weightings), names=names
             )
-            self._snapshot_weightings.index.name = "snapshot"
+            self._snapshots_data.index.name = "snapshot"
 
         self.investment_period_weightings = self.investment_period_weightings.reindex(
             self.periods, fill_value=1.0
@@ -397,7 +395,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         """
         if "period" in self.snapshots.names:
-            return self.snapshots.get_level_values("period").unique()
+            return self.snapshots.get_level_values("period").drop_duplicates()
         return pd.Index([], name="period")
 
     @periods.setter
@@ -584,7 +582,7 @@ class NetworkIndexMixin(_NetworkABC):
         2015-01-01 02:00:00          9     1.0         1.0
 
         """
-        return self._snapshot_weightings
+        return self._snapshots_data
 
     @snapshot_weightings.setter
     def snapshot_weightings(self, df: pd.DataFrame) -> None:
@@ -594,8 +592,9 @@ class NetworkIndexMixin(_NetworkABC):
 
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
-            df = pd.DataFrame(dict.fromkeys(self._snapshot_weightings.columns, df))
-        self._snapshot_weightings = df
+            df = pd.DataFrame(dict.fromkeys(self._snapshots_data.columns, df))
+        df.index.names = self.snapshots.names
+        self._snapshots_data = df
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -631,7 +630,7 @@ class NetworkIndexMixin(_NetworkABC):
         2             7    2
 
         """
-        return self._investment_period_weightings
+        return self._investment_periods_data
 
     @investment_period_weightings.setter
     def investment_period_weightings(self, df: pd.DataFrame) -> None:
@@ -642,7 +641,119 @@ class NetworkIndexMixin(_NetworkABC):
             logger.info(
                 "Applying weightings to all columns of `investment_period_weightings`"
             )
-            df = pd.DataFrame(
-                dict.fromkeys(self._investment_period_weightings.columns, df)
+            df = pd.DataFrame(dict.fromkeys(self._investment_periods_data.columns, df))
+        self._investment_periods_data = df
+
+    # -----------
+    # Scenarios
+    # -----------
+
+    def set_scenarios(
+        self,
+        scenarios: dict | Sequence | pd.Series | pd.DataFrame | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Set scenarios for the network to create a stochastic network.
+
+        Parameters
+        ----------
+        scenarios : dict, Sequence, pd.Series, optional
+            Scenarios to set for the network.
+        **kwargs : Any
+            Alternative way to set scenarios via keyword arguments.
+            E.g. `n.set_scenarios(low=0.5, high=0.5)`.
+
+        """
+        # Validate input
+        if self.has_scenarios:
+            msg = (
+                "Changing scenarios on a network that already has scenarios defined is not "
+                "yet supported."
             )
-        self._investment_period_weightings = df
+            raise NotImplementedError(msg)
+        if scenarios is None and not kwargs:
+            msg = (
+                "You must pass either `scenarios` or keyword arguments "
+                "to set_scenarios."
+            )
+            raise ValueError(msg)
+        if kwargs and scenarios is not None:
+            msg = (
+                "You can pass scenarios either via `scenarios` or via "
+                "keyword arguments, but not both."
+            )
+            raise ValueError(msg)
+
+        if isinstance(scenarios, dict):
+            scenarios_ = pd.Series(scenarios)
+        elif isinstance(scenarios, pd.Series):
+            scenarios_ = scenarios
+        elif isinstance(scenarios, pd.DataFrame):
+            if scenarios.shape[1] != 1:
+                msg = "`scenarios` DataFrame must have exactly one column."
+                raise ValueError(msg)
+            scenarios_ = scenarios.iloc[:, 0]
+        elif isinstance(scenarios, Sequence):
+            scenarios_ = pd.Series(
+                [1 / len(scenarios)] * len(scenarios), index=scenarios
+            )
+        elif kwargs:
+            scenarios_ = pd.Series(kwargs)
+        else:
+            msg = "Invalid type for `scenarios`. Must be dict, pd.DataFrame, pd.Series, or Sequence. "
+            raise TypeError(msg)
+
+        if abs(scenarios_.sum() - 1) > 1e-5:
+            msg = (
+                "The sum of the weights in `scenarios` must be equal to 1. "
+                f"Current sum: {scenarios_.sum()}"
+            )
+            raise ValueError(msg)
+
+        scenarios_ = scenarios_.rename("weight")
+        scenarios_.index = scenarios_.index.astype(str)
+        scenarios_.index.name = "scenario"
+
+        for c in self.components.values():
+            c.static = pd.concat(
+                dict.fromkeys(scenarios_.index, c.static), names=["scenario"]
+            )
+            for k, v in c.dynamic.items():
+                c.dynamic[k] = pd.concat(
+                    dict.fromkeys(scenarios_.index, v), names=["scenario"], axis=1
+                )
+
+        self._scenarios_data = scenarios_.to_frame()
+
+    @property
+    def scenarios(self) -> pd.Index:
+        """Get the scenarios index for the network.
+
+        Returns
+        -------
+        pd.Index
+            The scenarios index for the network.
+
+        """
+        return self._scenarios_data.index
+
+    @scenarios.setter
+    def scenarios(self, scenarios: dict | pd.Series | Sequence) -> None:
+        self.set_scenarios(scenarios)
+
+    @property
+    def scenario_weightings(self) -> pd.DataFrame:
+        """Get the scenario weightings for the network.
+
+        Returns
+        -------
+        pd.DataFrame
+            The scenario weightings as a DataFrame with 'weight' column.
+
+        """
+        return self._scenarios_data
+
+    @property
+    def has_scenarios(self) -> bool:
+        """Boolean indicating if the network has scenarios defined."""
+        return len(self._scenarios_data) > 0

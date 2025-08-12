@@ -162,6 +162,38 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
     return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")
 
 
+def stochastic_network() -> Network:
+    """Load the stochastic network example.
+
+    For details check the example notebook. #TODO new-docs link.
+
+    Returns
+    -------
+    pypsa.Network
+        Stochastic network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.stochastic_network()
+    >>> n
+    Stochastic PyPSA Network 'Stochastic-Network'
+    ---------------------------------------------
+    Components:
+     - Bus: 3
+     - Carrier: 1
+     - Generator: 12
+     - Load: 3
+    Snapshots: 2920
+    Scenarios: 3
+
+    """
+    n = _retrieve_if_not_local(
+        "examples/networks/stochastic-network/stochastic-network.nc"
+    )
+
+    return n
+
+
 def carbon_management() -> Network:
     """Load the carbon management network example of PyPSA.
 

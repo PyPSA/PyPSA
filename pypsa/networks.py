@@ -7,6 +7,11 @@ import logging
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
+from pypsa.common import deprecated_in_next_major, equals
+from pypsa.components.components import Components
+from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
+from pypsa.statistics.abstract import AbstractStatisticsAccessor
+
 try:
     from cloudpathlib import AnyPath as Path
 except ImportError:
@@ -25,13 +30,10 @@ from scipy.sparse import csgraph
 from pypsa.clustering import ClusteringAccessor
 from pypsa.common import (
     as_index,
-    deprecated_in_next_major,
-    equals,
 )
-from pypsa.components.components import Components, SubNetworkComponents
+from pypsa.components.components import SubNetworkComponents
 from pypsa.components.store import ComponentsStore
 from pypsa.consistency import NetworkConsistencyMixin
-from pypsa.constants import DEFAULT_EPSG, DEFAULT_TIMESTAMP
 from pypsa.definitions.structures import Dict
 from pypsa.network.components import NetworkComponentsMixin
 from pypsa.network.descriptors import NetworkDescriptorsMixin
@@ -47,12 +49,11 @@ from pypsa.network.transform import NetworkTransformMixin
 from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore
-from pypsa.statistics.abstract import AbstractStatisticsAccessor
 from pypsa.statistics.expressions import StatisticsAccessor
 from pypsa.version import __version_semver__
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable, Iterator, Sequence
+    from collections.abc import Collection, Iterator, Sequence
 
     from scipy.sparse import spmatrix
 
@@ -85,7 +86,7 @@ class Network(
     # Optimization
     _multi_invest: int
     _linearized_uc: int
-    iteration: int  # TODO Remove/ use property
+    iteration: int
 
     # ----------------
     # Dunder methods
@@ -133,15 +134,20 @@ class Network(
         self._meta: dict = {}
         self._crs: CRS = CRS.from_epsg(DEFAULT_EPSG)
 
-        self._snapshots = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
-
+        # Dimensions
+        # Snapshots
         cols = ["objective", "stores", "generators"]
-        self._snapshot_weightings = pd.DataFrame(1, index=self.snapshots, columns=cols)
+        index = pd.Index([DEFAULT_TIMESTAMP], name="snapshot")
+        self._snapshots_data = pd.DataFrame(1, index=index, columns=cols)
 
+        # Investment periods coordinate
         cols = ["objective", "years"]
-        self._investment_period_weightings: pd.DataFrame = pd.DataFrame(
-            index=self.investment_periods, columns=cols
-        )
+        self._investment_periods_data = pd.DataFrame(index=self.periods, columns=cols)
+
+        # Scenarios
+        cols = ["weight"]
+        index = pd.Index([], name="scenario")
+        self._scenarios_data: pd.DataFrame = pd.DataFrame([], index=index, columns=cols)
 
         self._model: linopy.Model | None = None
         self._objective: float | None = None
@@ -204,7 +210,8 @@ class Network(
 
     def __str__(self) -> str:
         """Human Readable string representation of the network."""
-        return f"PyPSA Network '{self.name}'"
+        prefix = "Stochastic PyPSA Network" if self.has_scenarios else "PyPSA Network"
+        return f"{prefix} '{self.name}'"
 
     def __repr__(self) -> str:
         """Return a string representation for the REPL."""
@@ -222,7 +229,12 @@ class Network(
             header = "Empty " + header
             content += " none"
         content += "\n"
+
         content += f"Snapshots: {len(self.snapshots)}"
+        content += "\n"
+
+        if self.has_scenarios:
+            content += f"Scenarios: {len(self.scenarios)}"
 
         return header + content
 
@@ -431,30 +443,27 @@ class Network(
         <BLANKLINE>
         Variables:
         ----------
-        * Generator-p_nom (Generator-ext)
-        * Line-s_nom (Line-ext)
-        * Link-p_nom (Link-ext)
-        * Generator-p (snapshot, Generator)
-        * Line-s (snapshot, Line)
-        * Link-p (snapshot, Link)
+        * Generator-p_nom (name)
+        * Line-s_nom (name)
+        * Link-p_nom (name)
+        * Generator-p (snapshot, name)
+        * Line-s (snapshot, name)
+        * Link-p (snapshot, name)
         * objective_constant
         <BLANKLINE>
         Constraints:
         ------------
-        * Generator-ext-p_nom-lower (Generator-ext)
-        * Generator-ext-p_nom-upper (Generator-ext)
-        * Line-ext-s_nom-lower (Line-ext)
-        * Line-ext-s_nom-upper (Line-ext)
-        * Link-ext-p_nom-lower (Link-ext)
-        * Link-ext-p_nom-upper (Link-ext)
-        * Generator-ext-p-lower (snapshot, Generator-ext)
-        * Generator-ext-p-upper (snapshot, Generator-ext)
-        * Line-ext-s-lower (snapshot, Line-ext)
-        * Line-ext-s-upper (snapshot, Line-ext)
-        * Link-ext-p-lower (snapshot, Link-ext)
-        * Link-ext-p-upper (snapshot, Link-ext)
-        * Bus-nodal_balance (Bus, snapshot)
-        * Kirchhoff-Voltage-Law (snapshot, cycles)
+        * Generator-ext-p_nom-lower (name)
+        * Line-ext-s_nom-lower (name)
+        * Link-ext-p_nom-lower (name)
+        * Generator-ext-p-lower (snapshot, name)
+        * Generator-ext-p-upper (snapshot, name)
+        * Line-ext-s-lower (snapshot, name)
+        * Line-ext-s-upper (snapshot, name)
+        * Link-ext-p-lower (snapshot, name)
+        * Link-ext-p-upper (snapshot, name)
+        * Bus-nodal_balance (name, snapshot)
+        * Kirchhoff-Voltage-Law (snapshot, cycle)
         * GlobalConstraint-co2_limit
         <BLANKLINE>
         Status:
@@ -488,11 +497,12 @@ class Network(
 
         Examples
         --------
-        >>> n.objective # doctest: +ELLIPSIS
-        -34742...
+        >>> n.objective # doctest: +SKIP
+        -47274166...
 
-        >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
-        np.float64(18441...)
+        >>> n.objective + n.objective_constant # doctest: +SKIP
+        <xarray.DataArray ()> Size: 8B
+        array(18441021...)
 
         """
         if self._objective is None:
@@ -515,11 +525,13 @@ class Network(
 
         Examples
         --------
-        >>> n.objective_constant # doctest: +ELLIPSIS
-        np.float64(21915...)
+        >>> n.objective_constant # doctest: +SKIP
+        <xarray.DataArray ()> Size: 8B
+        array(65715187...)
 
-        >>> n.objective + n.objective_constant # doctest: +ELLIPSIS
-        np.float64(18441...)
+        >>> n.objective + n.objective_constant # doctest: +SKIP
+        <xarray.DataArray ()> Size: 8B
+        array(18441021...)
 
         """
         if self._objective_constant is None:
@@ -708,7 +720,15 @@ class Network(
         # Use copy.deepcopy if no arguments are passed
         args = [snapshots, investment_periods, ignore_standard_types]
         if all(arg is None or arg is False for arg in args):
-            return copy.deepcopy(self)
+            copied_network = copy.deepcopy(self)
+            return copied_network
+
+        if self.has_scenarios:
+            msg = (
+                "Copying a stochastic network with a selection is currently not "
+                "supported. Use `n.copy()` to copy the entire network."
+            )
+            raise NotImplementedError(msg)
 
         # Convert to pandas.Index
         snapshots_ = as_index(self, snapshots, "snapshots")
@@ -863,6 +883,17 @@ class Network(
 
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
+    def _empty_components(self) -> list:
+        """Get a list of all components that are empty.
+
+        Returns
+        -------
+        list
+            List of empty components.
+
+        """
+        return [c.name for c in self.iterate_components() if c.empty]
+
     def branches(self) -> pd.DataFrame:
         """Get branches.
 
@@ -898,11 +929,17 @@ class Network(
         [pypsa.Network.controllable_branches][]
 
         """
+        comps = list(set(self.branch_components) - set(self._empty_components()))
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.branch_components),
-            keys=self.branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
-            names=["component", "name"],
+            names=names,
         )
 
     def passive_branches(self) -> pd.DataFrame:
@@ -917,22 +954,32 @@ class Network(
         Examples
         --------
         >>> n.passive_branches() # doctest: +ELLIPSIS
-            active    b  b_pu  build_year  ...  v_nom         x      x_pu  x_pu_eff
-        Line 0    True  0.0   0.0           0  ...  380.0  0.796878  0.000006  0.000006
-             1    True  0.0   0.0           0  ...  380.0  0.391560  0.000003  0.000003
-             2    True  0.0   0.0           0  ...  200.0  0.000000  0.000000  0.000000
-             3    True  0.0   0.0           0  ...  200.0  0.000000  0.000000  0.000000
-             4    True  0.0   0.0           0  ...  200.0  0.000000  0.000000  0.000000
-             5    True  0.0   0.0           0  ...  380.0  0.238800  0.000002  0.000002
-             6    True  0.0   0.0           0  ...  380.0  0.400000  0.000003  0.000003
+                    active    b  b_pu  ...         x      x_pu  x_pu_eff
+        component                     ...
+        0            True  0.0   0.0  ...  0.796878  0.000006  0.000006
+        1            True  0.0   0.0  ...  0.391560  0.000003  0.000003
+        2            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+        3            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+        4            True  0.0   0.0  ...  0.000000  0.000000  0.000000
+        5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
+        6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
         [7 rows x 37 columns]
 
         """
+        comps = list(
+            set(self.passive_branch_components) - set(self._empty_components())
+        )
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.passive_branch_components),
-            keys=self.passive_branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
+            names=names,
         )
 
     def controllable_branches(self) -> pd.DataFrame:
@@ -947,11 +994,17 @@ class Network(
         Examples
         --------
         >>> n.controllable_branches() # doctest: +ELLIPSIS
-                                        active  build_year  ... type up_time_before
-            Link                                   ...
-        Link Norwich Converter    True           0  ...                   1
-            Norway Converter     True           0  ...                   1
-        ...
+                        active    b  b_pu  ...         x      x_pu  x_pu_eff
+        component name                     ...
+        Line      0       True  0.0   0.0  ...  0.796878  0.000006  0.000006
+                1       True  0.0   0.0  ...  0.391560  0.000003  0.000003
+                2       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                3       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                4       True  0.0   0.0  ...  0.000000  0.000000  0.000000
+                5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
+                6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
+        <BLANKLINE>
+        [7 rows x 37 columns]
 
         See Also
         --------
@@ -959,10 +1012,19 @@ class Network(
         [pypsa.Network.passive_branches][]
 
         """
+        comps = list(
+            set(self.passive_branch_components) - set(self._empty_components())
+        )
+        names = (
+            ["component", "scenario", "name"]
+            if self.has_scenarios
+            else ["component", "name"]
+        )
         return pd.concat(
-            (self.static(c) for c in self.controllable_branch_components),
-            keys=self.controllable_branch_components,
+            (self.static(c) for c in comps),
+            keys=comps,
             sort=True,
+            names=names,
         )
 
     def determine_network_topology(
@@ -981,27 +1043,42 @@ class Network(
         adjacency_matrix = self.adjacency_matrix(
             branch_components=self.passive_branch_components,
             investment_period=investment_period,
+            return_dataframe=True,
         )
         n_components, labels = csgraph.connected_components(
-            adjacency_matrix, directed=False
+            adjacency_matrix.values, directed=False
         )
+        labels = pd.Series(labels, adjacency_matrix.index, name="sub_network")
+        sub_network_map = labels.astype(str)
 
         # remove all old sub_networks
-        for sub_network in self.sub_networks.index:
-            obj = self.sub_networks.at[sub_network, "obj"]
-            self.remove("SubNetwork", sub_network)
-            del obj
+        if not self.sub_networks.empty:
+            # Delete sub-network objects first
+            for sub_network in self.sub_networks.index:
+                obj = self.sub_networks.at[sub_network, "obj"]
+                del obj
+
+            # Clear the sub_networks DataFrame completely
+            # This handles both regular and stochastic cases
+            self.sub_networks.drop(self.sub_networks.index, inplace=True)
+            for dynamic in self.sub_networks_t.values():
+                dynamic.drop(dynamic.columns, inplace=True)
+
+        if self.has_scenarios:
+            bus_carrier = self.buses.carrier.xs(self.scenarios[0], level="scenario")
+        else:
+            bus_carrier = self.buses.carrier
 
         for i in np.arange(n_components):
             # index of first bus
-            buses_i = (labels == i).nonzero()[0]
+            buses = labels.index[labels == i]
 
-            if skip_isolated_buses and (len(buses_i) == 1):
+            if skip_isolated_buses and (len(buses) == 1):
                 continue
 
-            carrier = self.buses.carrier.iat[buses_i[0]]
+            carrier = bus_carrier.at[buses[0]]
 
-            if carrier not in ["AC", "DC"] and len(buses_i) > 1:
+            if carrier not in ["AC", "DC"] and len(buses) > 1:
                 logger.warning(
                     "Warning, sub network %d is not electric but "
                     "contains multiple buses\nand branches. Passive "
@@ -1009,26 +1086,28 @@ class Network(
                     i,
                 )
 
-            if (self.buses.carrier.iloc[buses_i] != carrier).any():
+            if (bus_carrier.loc[buses] != carrier).any():
                 logger.warning(
                     "Warning, sub network %d contains buses with "
                     "mixed carriers! Value counts:"
                     "\n%s",
                     i,
-                    self.buses.carrier.iloc[buses_i].value_counts(),
+                    bus_carrier.loc[buses].value_counts(),
                 )
 
-            self.add("SubNetwork", i, carrier=carrier)
+            self.add("SubNetwork", str(i), carrier=carrier)
 
         # add objects
         self.sub_networks["obj"] = [
             SubNetwork(self, name) for name in self.sub_networks.index
         ]
 
-        self.buses.loc[:, "sub_network"] = labels.astype(str)
+        self.buses = self.buses.drop(columns="sub_network").join(
+            sub_network_map, "name"
+        )[self.buses.columns]
 
         for c in self.iterate_components(self.passive_branch_components):
-            c.static["sub_network"] = c.static.bus0.map(self.buses["sub_network"])
+            c.static["sub_network"] = c.static.bus0.map(sub_network_map)
 
             if investment_period is not None:
                 active = self.get_active_assets(c.name, investment_period)
@@ -1040,6 +1119,85 @@ class Network(
             sub.find_bus_controls()
 
         return self
+
+    def cycle_matrix(
+        self, investment_period: str | int | None = None, apply_weights: bool = False
+    ) -> pd.DataFrame:
+        """Get the cycles in the network and represent them as a DataFrame.
+
+        This function identifies a cycle basis of the network topology and
+        returns a DataFrame representation of the cycle matrix. The cycles
+        matrix is a sparse matrix with branches as rows and independent
+        cycles as columns. An entry of +1 indicates the branch is traversed
+        in the direction from bus0 to bus1 in that cycle, -1 indicates
+        the opposite direction, and 0 indicates the branch is not part
+        of the cycle.
+
+        Parameters
+        ----------
+        investment_period : str or int, optional
+            Investment period to use when determining network topology.
+            If not given, all branches are considered regardless of
+            build_year and lifetime.
+        apply_weights : bool, default False
+            Whether to apply weights (e.g., reactance for AC lines,
+            resistance for DC lines) to the cycles.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame with branches as rows (MultiIndex of (component, name))
+            and cycles as columns. Each column represents an independent cycle
+            in the network.
+
+        """
+        self.determine_network_topology(
+            investment_period=investment_period, skip_isolated_buses=True
+        )
+        self.calculate_dependent_values()
+
+        cycles = []
+
+        # Process each sub-network to find its cycles
+        for sub_network in self.sub_networks.obj:
+            branches = sub_network.branches()
+
+            if self.has_scenarios:
+                branches = branches.xs(self.scenarios[0], level="scenario")
+
+            branches_i = branches.index
+            branches_i.names = ["type", "component"]
+            if not hasattr(sub_network, "C") or not sub_network.C.size:
+                continue
+
+            # Convert sparse matrix to DataFrame
+            C = pd.DataFrame(sub_network.C.todense(), index=branches_i)
+            cycles.append(C)
+
+        if not cycles:
+            return pd.DataFrame()
+
+        # Combine all cycles and fill missing values with 0
+        cycles_df = pd.concat(cycles, axis=1, ignore_index=True).fillna(0)
+
+        # Get all branch components
+        existing_branch_components = cycles_df.index.unique("type")
+        branches = self.branches()
+
+        if self.has_scenarios:
+            branches = branches.xs(self.scenarios[0], level="scenario")
+
+        branches.index.names = ["type", "name"]
+        branches_i = branches.loc[existing_branch_components].index
+
+        if apply_weights:
+            is_ac = branches.sub_network.map(self.sub_networks.carrier) == "AC"
+            weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
+            weights = weights[cycles_df.index]
+            cycles_df = cycles_df.multiply(weights, axis=0)
+
+        # Reindex to include all branches (even those not in cycles)
+        return cycles_df.reindex(branches_i, fill_value=0).rename_axis(columns="cycle")
 
     @deprecated_in_next_major(
         details="Use `n.components.<component>` instead.",
@@ -1087,31 +1245,6 @@ class Network(
             if not (skip_empty and self.static(c_name).empty)
         )
 
-    def __dir__(self) -> Iterable[str]:
-        """Return a list of valid attributes and methods of the network.
-
-        This method is used by dir() and help() to show available attributes.
-        It filters out properties that would raise AttributeError when accessed,
-        because they are not available in the network yet.
-
-        Returns
-        -------
-        list[str]
-            List of valid attribute and method names.
-
-        """
-        attrs = super().__dir__()
-
-        # Filter out properties that would raise AttributeError
-        if self._objective_constant is None:
-            attrs = [attr for attr in attrs if attr != "objective_constant"]
-        if self._objective is None:
-            attrs = [attr for attr in attrs if attr != "objective"]
-        if self._model is None:
-            attrs = [attr for attr in attrs if attr != "model"]
-
-        return attrs
-
 
 class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     """SubNetwork for electric buses (AC or DC).
@@ -1150,6 +1283,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         self._n = ref(n)
         self.name = name
 
+    # TODO assign __str__ and __repr__
     @property
     def n(self) -> Network:
         """Get the parent network of the sub-network.
@@ -1205,7 +1339,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 if c.name in {"Bus"} | self.n.passive_branch_components:
                     return value[value.sub_network == self.name]
                 if c.name in self.n.one_port_components:
-                    buses = self.buses_i()
+                    buses = self.buses_i().unique("name")
                     return value[value.bus.isin(buses)]
                 msg = f"Component {c.name} not supported for sub-networks"
                 raise ValueError(msg)
@@ -1281,6 +1415,30 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         return self.n.investment_period_weightings
 
+    @property
+    def scenarios(self) -> pd.Series:
+        """Get the scenarios for the network.
+
+        Returns
+        -------
+        pd.Series
+            The scenarios for the network.
+
+        """
+        return self.n.scenarios
+
+    @property
+    def has_scenarios(self) -> bool:
+        """Check if the network has scenarios.
+
+        Returns
+        -------
+        bool
+            True if the network has scenarios, False otherwise.
+
+        """
+        return self.n.has_scenarios
+
     def branches_i(self, active_only: bool = False) -> pd.MultiIndex:
         """Get the index of the branches in the sub-network.
 
@@ -1306,7 +1464,8 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         types = []
         names = []
         for c in self.iterate_components(self.n.passive_branch_components):
-            idx = c.static.query("active").index if active_only else c.static.index
+            static = c.static
+            idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
             names += list(idx)
         return pd.MultiIndex.from_arrays([types, names], names=("type", "name"))

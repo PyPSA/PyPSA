@@ -14,7 +14,7 @@ e_initial,float,MWh,0,Energy before the snapshots in the optimisation.,Input (op
 e_initial_per_period,boolean,n/a,False,"Switch: if True, then at the beginning of each investment period `e` is set to `e_initial`.",Input (optional)
 e_cyclic,boolean,n/a,False,"Switch: if True, then `e_initial` is ignored and the initial energy is set to the final energy for the group of snapshots in the optimisation.",Input (optional)
 e_cyclic_per_period,boolean,n/a,True,"Switch: if True, then the cyclic constraints are applied to each investment period separately.",Input (optional)
-p_set,static or series,MW,0,Active power set point (for power flow only),Input (optional)
+p_set,static or series,MW,n/a,Active power set point (for power flow only),Input (optional)
 q_set,static or series,MVar,0,Reactive power set point (for power flow only),Input (optional)
 e_set,static or series,MWh,NaN,Fixed energy filling level set point (for optimisation only),Input (optional)
 sign,float,n/a,1,Sign denoting orientation of the energy variable (`e`).,Input (optional)
@@ -30,6 +30,6 @@ p,series,MW,0,Power at bus (positive if net supply),Output
 q,series,MVar,0,Reactive power (positive if net supply),Output
 e,series,MWh,0,Energy level of store as calculated by the optimisation.,Output
 e_nom_opt,float,MWh,0,Optimised nominal energy capacity outputed by optimisation.,Output
-mu_upper,series,currency/MWh,0,Shadow price of upper `e_nom` limit,Output
-mu_lower,series,currency/MWh,0,Shadow price of lower `e_nom` limit,Output
-mu_energy_balance,series,currency/MWh,0,Shadow price of storage consistency equations (i.e. water values),Output
+mu_upper,series,currency/MWh,n/a,Shadow price of upper `e_nom` limit,Output
+mu_lower,series,currency/MWh,n/a,Shadow price of lower `e_nom` limit,Output
+mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations (i.e. water values),Output

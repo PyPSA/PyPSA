@@ -8,14 +8,19 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from linopy import Model, merge
 from linopy.solvers import available_solvers
 
+from pypsa._options import options
 from pypsa.common import as_index
-from pypsa.descriptors import get_committable_i, nominal_attrs
+from pypsa.components.array import _from_xarray
+from pypsa.components.common import as_components
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
+from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
-from pypsa.optimization.common import get_strongly_meshed_buses, set_from_frame
+from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
@@ -67,7 +72,42 @@ lookup = pd.read_csv(
 
 
 def define_objective(n: Network, sns: pd.Index) -> None:
-    """Define and write out the objective function."""
+    """Define and write the optimization objective function.
+
+    Builds the (linear or quadratic) objective by assembling the following terms:
+
+    1. **Constant term** for already-built capacity
+       Calculates capex of existing assets and stores it in `n.objective_constant`.
+    2. **Operating costs**
+       Marginal generation costs, storage operation costs, and spill costs weighted by snapshot durations.
+    3. **Quadratic costs**
+       If present, adds second-order marginal cost terms to convex quadratic objective.
+    4. **Stand-by costs**
+       Fixed costs for committed assets (e.g. generators and links) when online.
+    5. **Investment costs**
+       Capex for new capacity, weighted by investment periods if `n._multi_invest` is True.
+    6. **Unit-commitment costs**
+       Start-up and shut-down costs for committable components.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the Linopy model and component data.
+    sns : pandas.Index
+        Snapshots (and, for multi-investment, periods) over which to build the objective.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    - The final objective expression is assigned to `n.model.objective`.
+    - Applies snapshot and investment-period weightings to operational and capex terms.
+    - For a stochastic problem, scenario probabilities are applied as weightings to all cost (includes *both* investment terms).
+
+    """
+    weighted_cost: xr.DataArray | int
     m = n.model
     objective = []
     is_quadratic = False
@@ -78,30 +118,51 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # constant for already done investment
     nom_attr = nominal_attrs.items()
-    constant = 0
-    for c, attr in nom_attr:
-        ext_i = n.get_extendable_i(c)
-        cost = n.static(c)["capital_cost"][ext_i]
-        if cost.empty:
+    constant: xr.DataArray | float = 0
+    terms = []
+
+    for c_name, attr in nom_attr:
+        c = as_components(n, c_name)
+        ext_i = c.extendables
+
+        if ext_i.empty:
             continue
 
+        capital_cost = c.da.capital_cost.sel(name=ext_i)
+        if capital_cost.size == 0:
+            continue
+
+        nominal = c.da[attr].sel(name=ext_i)
+
+        # only charge capex for already-existing assets
         if n._multi_invest:
-            active = pd.concat(
-                {
-                    period: n.get_active_assets(c, period)[ext_i]
-                    for period in sns.unique("period")
-                },
-                axis=1,
-            )
-            cost = active @ period_weighting * cost
+            weighted_cost = 0
+            for period in periods:
+                # collapse time axis via any() so capex value isn't broadcasted
+                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
+                weighted_cost += capital_cost * active * period_weighting.loc[period]
         else:
-            active = n.get_active_assets(c)[ext_i]
-            cost = cost[active]
+            # collapse time axis via any() so capex value isn’t broadcasted
+            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
 
-        constant += (cost * n.static(c)[attr][ext_i]).sum()
+        terms.append((weighted_cost * nominal).sum(dim=["name"]))
 
-    n._objective_constant = constant
-    if constant != 0:
+    constant += sum(terms)
+
+    # Handle constant for stochastic vs deterministic networks
+    if n.has_scenarios and isinstance(constant, xr.DataArray):
+        # For stochastic networks, weight constant by scenario probabilities
+        weighted_constant = sum(
+            constant.sel(scenario=s) * n.scenario_weightings.loc[s, "weight"]
+            for s in n.scenarios
+        )
+        n._objective_constant = float(weighted_constant)
+        has_const = (constant != 0).any().item()
+    else:
+        n._objective_constant = float(constant)
+        has_const = constant != 0
+    if has_const:
         object_const = m.add_variables(constant, constant, name="objective_constant")
         objective.append(-1 * object_const)
 
@@ -111,83 +172,110 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         weighting = weighting.mul(period_weighting, level=0).loc[sns]
     else:
         weighting = weighting.loc[sns]
+    weight = xr.DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
 
     # marginal costs, marginal storage cost, and spill cost
     for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
-        for c, attr in lookup.query(cost_type).index:
-            cost = (
-                get_as_dense(n, c, cost_type, sns)
-                .loc[:, lambda ds: (ds != 0).any()]
-                .mul(weighting, axis=0)
-            )
-            if cost.empty:
+        for c_name, attr in lookup.query(cost_type).index:
+            c = as_components(n, c_name)
+
+            if c.static.empty:
                 continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
-            objective.append((operation * cost).sum())
+
+            var_name = f"{c.name}-{attr}"
+            if var_name not in m.variables and cost_type == "spill_cost":
+                continue
+
+            cost = c.da[cost_type].sel(snapshot=sns)
+            if cost.size == 0 or (cost == 0).all():
+                continue
+
+            cost = cost * weight
+
+            operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
+            objective.append((operation * cost).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
-    for c, attr in lookup.query("marginal_cost_quadratic").index:
-        if "marginal_cost_quadratic" in n.static(c):
-            cost = (
-                get_as_dense(n, c, "marginal_cost_quadratic", sns)
-                .loc[:, lambda ds: (ds != 0).any()]
-                .mul(weighting, axis=0)
-            )
-            if cost.empty:
-                continue
-            operation = m[f"{c}-{attr}"].sel({"snapshot": sns, c: cost.columns})
-            objective.append((operation * operation * cost).sum())
-            is_quadratic = True
+    for c_name, attr in lookup.query("marginal_cost_quadratic").index:
+        c = as_components(n, c_name)
+
+        if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
+            continue
+
+        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns)
+        if cost.size == 0 or (cost == 0).all():
+            continue
+
+        cost = cost * weight
+
+        operation = m[f"{c.name}-{attr}"].sel(
+            snapshot=sns, name=cost.coords["name"].values
+        )
+        objective.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
+        is_quadratic = True
 
     # stand-by cost
-    comps = {"Generator", "Link"}
-    for c in comps:
-        com_i = get_committable_i(n, c)
+    for c_name in ["Generator", "Link"]:
+        c = as_components(n, c_name)
+        com_i = c.committables
 
         if com_i.empty:
             continue
 
-        stand_by_cost = (
-            get_as_dense(n, c, "stand_by_cost", sns, com_i)
-            .loc[:, lambda ds: (ds != 0).any()]
-            .mul(weighting, axis=0)
-        )
-        stand_by_cost.columns.name = f"{c}-com"
-        status = n.model.variables[f"{c}-status"].loc[:, stand_by_cost.columns]
-        objective.append((status * stand_by_cost).sum())
-
-    # investment
-    for c, attr in nominal_attrs.items():
-        ext_i = n.get_extendable_i(c)
-        cost = n.static(c)["capital_cost"][ext_i]
-        if cost.empty:
+        stand_by_cost = c.da.stand_by_cost.sel(name=com_i, snapshot=sns)
+        if stand_by_cost.size == 0 or (stand_by_cost == 0).all():
             continue
 
-        if n._multi_invest:
-            active = pd.concat(
-                {
-                    period: n.get_active_assets(c, period)[ext_i]
-                    for period in sns.unique("period")
-                },
-                axis=1,
-            )
-            cost = active @ period_weighting * cost
-        else:
-            active = n.get_active_assets(c)[ext_i]
-            cost = cost[active]
+        stand_by_cost = stand_by_cost * weight
 
-        caps = m[f"{c}-{attr}"]
-        objective.append((caps * cost).sum())
+        status = m[f"{c.name}-status"].sel(
+            snapshot=sns, name=stand_by_cost.coords["name"].values
+        )
+        objective.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
+
+    # investment
+    for c_name, attr in nominal_attrs.items():
+        c = as_components(n, c_name)
+        ext_i = c.extendables
+
+        if ext_i.empty:
+            continue
+
+        capital_cost = c.da.capital_cost.sel(name=ext_i)
+        if capital_cost.size == 0 or (capital_cost == 0).all():
+            continue
+
+        # only charge capex for already-existing assets
+        if n._multi_invest:
+            weighted_cost = 0
+            for period in periods:
+                # collapse time axis via any() so capex value isn't broadcasted
+                active = c.da.active.sel(period=period, name=ext_i).any(dim="timestep")
+                weighted_cost += capital_cost * active * period_weighting.loc[period]
+        else:
+            # collapse time axis via any() so capex value isn't broadcasted
+            active = c.da.active.sel(name=ext_i).any(dim="snapshot")
+            weighted_cost = capital_cost * active
+
+        caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
+        objective.append((caps * weighted_cost).sum(dim=["name"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
-    for c, attr in lookup.query("variable in @keys").index:
-        com_i = n.get_committable_i(c)
-        cost = n.static(c)[attr + "_cost"].reindex(com_i)
+    for c_name, attr in lookup.query("variable in @keys").index:
+        c = as_components(n, c_name)
+        com_i = c.committables
 
-        if cost.sum():
-            var = m[f"{c}-{attr}"]
-            objective.append((var * cost).sum())
+        if com_i.empty:
+            continue
+
+        cost = c.da[attr + "_cost"].sel(name=com_i)
+
+        if cost.size == 0 or cost.sum().item() == 0:
+            continue
+
+        var = m[f"{c.name}-{attr}"].sel(name=com_i)
+        objective.append((var * cost).sum(dim=["name", "snapshot"]))
 
     if not objective:
         msg = (
@@ -196,13 +284,25 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         )
         raise ValueError(msg)
 
-    m.objective = sum(objective) if is_quadratic else merge(objective)
+    terms = []
+    if n.has_scenarios:
+        # Apply scenario probabilities as weights to the objective
+        for s, p in n.scenario_weightings["weight"].items():
+            selected = [e.sel(scenario=s) for e in objective]
+            merged = merge(selected)
+            terms.append(merged * p)
+    else:
+        terms = objective
+
+    # Ensure we're returning the correct expression type (MGA compatibility)
+    m.objective = sum(terms) if is_quadratic else merge(terms)
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
     """Optimization accessor for building and solving models using linopy."""
 
     def __init__(self, n: Network) -> None:
+        """Initialize the optimization accessor."""
         self._n = n
         self.expressions = StatisticExpressionsAccessor(self._n)
 
@@ -276,12 +376,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         if solver_options is None:
             solver_options = {}
 
-        sns = as_index(self._n, snapshots, "snapshots")
-        self._n._multi_invest = int(multi_investment_periods)
-        self._n._linearized_uc = linearized_unit_commitment
+        n = self._n
+        sns = as_index(n, snapshots, "snapshots")
+        n._multi_invest = int(multi_investment_periods)
+        n._linearized_uc = linearized_unit_commitment
 
-        self._n.consistency_check(strict=["unknown_buses"])
-        m = self._n.optimize.create_model(
+        n.consistency_check(strict=["unknown_buses"])
+        m = n.optimize.create_model(
             sns,
             multi_investment_periods,
             transmission_losses,
@@ -290,20 +391,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             **model_kwargs,
         )
         if extra_functionality:
-            extra_functionality(self._n, sns)
+            extra_functionality(n, sns)
         status, condition = m.solve(solver_name=solver_name, **solver_options, **kwargs)
 
         if status == "ok":
-            self._n.optimize.assign_solution()
-            self._n.optimize.assign_duals(assign_all_duals)
-            self._n.optimize.post_processing()
+            n.optimize.assign_solution()
+            n.optimize.assign_duals(assign_all_duals)
+            n.optimize.post_processing()
 
         if (
             condition == "infeasible"
             and compute_infeasibilities
             and "gurobi" in available_solvers
         ):
-            self._n.model.print_infeasibilities()
+            n.model.print_infeasibilities()
 
         return status, condition
 
@@ -325,13 +426,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         snapshots : list or index slice
             A list of snapshots to optimise, must be a subset of
             n.snapshots, defaults to n.snapshots
-        multi_investment_periods : bool, default False
+        multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
             investment periods. Then, snapshots should be a ``pd.MultiIndex``.
-        transmission_losses : int, default 0
-        linearized_unit_commitment : bool, default False
+        transmission_losses : int, default: 0
+            Whether an approximation of transmission losses should be included
+            in the linearised power flow formulation.
+        linearized_unit_commitment : bool, default: False
             Whether to optimise using the linearised unit commitment formulation or not.
-        consistency_check : bool, default True
+        consistency_check : bool, default: True
             Whether to run the consistency check before building the model.
         **kwargs:
             Keyword arguments used by `linopy.Model()`, such as `solver_dir` or `chunk`.
@@ -341,65 +444,74 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         linopy.model
 
         """
-        sns = as_index(self._n, snapshots, "snapshots")
-        self._n._linearized_uc = int(linearized_unit_commitment)
-        self._n._multi_invest = int(multi_investment_periods)
+        n = self._n
+        sns = as_index(n, snapshots, "snapshots")
+        n._linearized_uc = int(linearized_unit_commitment)
+        n._multi_invest = int(multi_investment_periods)
         if consistency_check:
-            self._n.consistency_check()
+            n.consistency_check()
 
         kwargs.setdefault("force_dim_names", True)
-        self._n._model = Model(**kwargs)
-        self._n.model.parameters = self._n.model.parameters.assign(snapshots=sns)
+        n._model = Model(**kwargs)
+        n.model.parameters = n.model.parameters.assign(snapshots=sns)
 
         # Define variables
         for c, attr in lookup.query("nominal").index:
-            define_nominal_variables(self._n, c, attr)
-            define_modular_variables(self._n, c, attr)
+            define_nominal_variables(n, c, attr)
+            define_modular_variables(n, c, attr)
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
-            define_operational_variables(self._n, sns, c, attr)
-            define_status_variables(self._n, sns, c)
-            define_start_up_variables(self._n, sns, c)
-            define_shut_down_variables(self._n, sns, c)
+            define_operational_variables(n, sns, c, attr)
+            define_status_variables(n, sns, c, linearized_unit_commitment)
+            define_start_up_variables(n, sns, c, linearized_unit_commitment)
+            define_shut_down_variables(n, sns, c, linearized_unit_commitment)
 
-        define_spillage_variables(self._n, sns)
-        define_operational_variables(self._n, sns, "Store", "p")
+        define_spillage_variables(n, sns)
+        define_operational_variables(n, sns, "Store", "p")
 
         if transmission_losses:
-            for c in self._n.passive_branch_components:
-                define_loss_variables(self._n, sns, c)
+            for c in n.passive_branch_components:
+                define_loss_variables(n, sns, c)
 
         # Define constraints
         for c, attr in lookup.query("nominal").index:
-            define_nominal_constraints_for_extendables(self._n, c, attr)
-            define_fixed_nominal_constraints(self._n, c, attr)
-            define_modular_constraints(self._n, c, attr)
+            define_nominal_constraints_for_extendables(n, c, attr)
+            define_fixed_nominal_constraints(n, c, attr)
+            define_modular_constraints(n, c, attr)
 
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_constraints_for_non_extendables(
-                self._n, sns, c, attr, transmission_losses
+                n, sns, c, attr, transmission_losses
             )
             define_operational_constraints_for_extendables(
-                self._n, sns, c, attr, transmission_losses
+                n, sns, c, attr, transmission_losses
             )
-            define_operational_constraints_for_committables(self._n, sns, c)
-            define_ramp_limit_constraints(self._n, sns, c, attr)
-            define_fixed_operation_constraints(self._n, sns, c, attr)
+            define_operational_constraints_for_committables(n, sns, c)
+            define_ramp_limit_constraints(n, sns, c, attr)
+            define_fixed_operation_constraints(n, sns, c, attr)
 
         meshed_threshold = kwargs.get("meshed_threshold", 45)
-        meshed_buses = get_strongly_meshed_buses(self._n, threshold=meshed_threshold)
-        weakly_meshed_buses = self._n.buses.index.difference(meshed_buses)
+        meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
+
+        if isinstance(n.buses.index, pd.MultiIndex):
+            bus_names = n.buses.index.get_level_values(1)
+            weakly_meshed_buses = pd.Index(
+                [b for b in bus_names if b not in meshed_buses], name="Bus"
+            )
+        else:
+            weakly_meshed_buses = n.buses.index.difference(meshed_buses)
+
         if not meshed_buses.empty and not weakly_meshed_buses.empty:
             # Write constraint for buses many terms and for buses with a few terms
             # separately. This reduces memory usage for large networks.
             define_nodal_balance_constraints(
-                self._n,
+                n,
                 sns,
                 transmission_losses=transmission_losses,
                 buses=weakly_meshed_buses,
             )
             define_nodal_balance_constraints(
-                self._n,
+                n,
                 sns,
                 transmission_losses=transmission_losses,
                 buses=meshed_buses,
@@ -407,30 +519,30 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             )
         else:
             define_nodal_balance_constraints(
-                self._n, sns, transmission_losses=transmission_losses
+                n, sns, transmission_losses=transmission_losses
             )
 
-        define_kirchhoff_voltage_constraints(self._n, sns)
-        define_storage_unit_constraints(self._n, sns)
-        define_store_constraints(self._n, sns)
-        define_total_supply_constraints(self._n, sns)
+        define_kirchhoff_voltage_constraints(n, sns)
+        define_storage_unit_constraints(n, sns)
+        define_store_constraints(n, sns)
+        define_total_supply_constraints(n, sns)
 
         if transmission_losses:
-            for c in self._n.passive_branch_components:
-                define_loss_constraints(self._n, sns, c, transmission_losses)
+            for c in n.passive_branch_components:
+                define_loss_constraints(n, sns, c, transmission_losses)
 
         # Define global constraints
-        define_primary_energy_limit(self._n, sns)
-        define_transmission_expansion_cost_limit(self._n, sns)
-        define_transmission_volume_expansion_limit(self._n, sns)
-        define_tech_capacity_expansion_limit(self._n, sns)
-        define_operational_limit(self._n, sns)
-        define_nominal_constraints_per_bus_carrier(self._n, sns)
-        define_growth_limit(self._n, sns)
+        define_primary_energy_limit(n, sns)
+        define_transmission_expansion_cost_limit(n, sns)
+        define_transmission_volume_expansion_limit(n, sns)
+        define_tech_capacity_expansion_limit(n, sns)
+        define_operational_limit(n, sns)
+        define_nominal_constraints_per_bus_carrier(n, sns)
+        define_growth_limit(n, sns)
 
-        define_objective(self._n, sns)
+        define_objective(n, sns)
 
-        return self._n.model
+        return n.model
 
     def solve_model(
         self,
@@ -444,6 +556,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         Parameters
         ----------
+        extra_functionality : callable
+            This function must take two arguments
+            `extra_functionality(n, snapshots)` and is called after
+            the model building is complete, but before it is sent to the
+            solver. It allows the user to
+            add/change constraints and add/change the objective function.
         solver_name : str
             Name of the solver to use.
         solver_options : dict
@@ -481,64 +599,68 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             self._n.optimize.assign_duals(assign_all_duals)
             self._n.optimize.post_processing()
 
+        # Optional runtime verification
+        if options.debug.runtime_verification:
+            _optimize_guard(self._n)
+
         return status, condition
 
     def assign_solution(self) -> None:
         """Map solution to network components."""
-        m = self._n.model
-        sns = self._n.model.parameters.snapshots.to_index()
+        n = self._n
+        m = n.model
+        sns = n.model.parameters.snapshots.to_index()
 
         for name, variable in m.variables.items():
             sol = variable.solution
             if name == "objective_constant":
                 continue
 
-            try:
-                c, attr = name.split("-", 1)
-                df = sol.to_pandas()
-            except ValueError:
-                continue
+            _c_name, attr = name.split("-", 1)
+            c = n.c[_c_name]
+            df = _from_xarray(sol, c)
 
             if "snapshot" in sol.dims:
-                if c in self._n.passive_branch_components and attr == "s":
-                    set_from_frame(self._n, c, "p0", df)
-                    set_from_frame(self._n, c, "p1", -df)
+                if c.name in n.passive_branch_components and attr == "s":
+                    _set_dynamic_data(n, c.name, "p0", df)
+                    _set_dynamic_data(n, c.name, "p1", -df)
 
-                elif c == "Link" and attr == "p":
-                    set_from_frame(self._n, c, "p0", df)
+                elif c.name == "Link" and attr == "p":
+                    _set_dynamic_data(n, c.name, "p0", df)
 
-                    for i in ["1"] + self._n.c.links.additional_ports:
+                    for i in ["1"] + n.c.links.additional_ports:
                         i_eff = "" if i == "1" else i
-                        eff = get_as_dense(self._n, "Link", f"efficiency{i_eff}", sns)
-                        set_from_frame(self._n, c, f"p{i}", -df * eff)
-                        self._n.dynamic(c)[f"p{i}"].loc[
-                            sns, self._n.links.index[self._n.links[f"bus{i}"] == ""]
-                        ] = float(
-                            self._n.components["Link"]["attrs"].loc[f"p{i}", "default"]
-                        )
+                        eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
+                        _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
+                        c.dynamic[f"p{i}"].loc[
+                            sns, c.static.index[c.static[f"bus{i}"] == ""]
+                        ] = float(c.attrs.loc[f"p{i}", "default"])
 
                 else:
-                    set_from_frame(self._n, c, attr, df)
-            elif attr != "n_mod":
-                idx = df.index.intersection(self._n.static(c).index)
-                self._n.static(c).loc[idx, attr + "_opt"] = df.loc[idx]
+                    _set_dynamic_data(n, c.name, attr, df)
+            # Ignore `n_mod`
+            elif attr == "n_mod":
+                pass
+            else:
+                c.static.update(df.rename(attr + "_opt"), overwrite=True)
 
-        # if nominal capacity was no variable set optimal value to nominal
-        for c, attr in lookup.query("nominal").index:
-            fix_i = self._n.get_non_extendable_i(c)
+        # If nominal capacity was no variable set optimal value to nominal
+        for c_name, attr in lookup.query("nominal").index:
+            c = n.components[c_name]
+            fix_i = c.fixed
+            if n.has_scenarios:
+                fix_i = pd.MultiIndex.from_product([n.scenarios, fix_i])
             if not fix_i.empty:
-                self._n.static(c).loc[fix_i, f"{attr}_opt"] = self._n.static(c).loc[
-                    fix_i, attr
-                ]
+                c.static.loc[fix_i, f"{attr}_opt"] = c.static.loc[fix_i, attr]
 
-        # recalculate storageunit net dispatch
-        if not self._n.static("StorageUnit").empty:
-            c = "StorageUnit"
-            self._n.dynamic(c)["p"] = (
-                self._n.dynamic(c)["p_dispatch"] - self._n.dynamic(c)["p_store"]
+        # Recalculate storageunit net dispatch
+        storage_units = n.c.storage_units
+        if not storage_units.empty:
+            storage_units.dynamic["p"] = (
+                storage_units.dynamic["p_dispatch"] - storage_units.dynamic["p_store"]
             )
 
-        self._n._objective = m.objective.value
+        n._objective = m.objective.value
 
     def assign_duals(self, assign_all_duals: bool = False) -> None:
         """Map dual values i.e. shadow prices to network components.
@@ -551,47 +673,90 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         """
         m = self._n.model
-        unassigned = []
+        unassigned_constraints = []
+
+        # Early return if no dual values are available
         if all("dual" not in constraint for _, constraint in m.constraints.items()):
             logger.info("No shadow prices were assigned to the network.")
             return
 
-        for name, constraint in m.constraints.items():
-            dual = constraint.dual
+        # Process each constraint and its dual values
+        for constraint_name, constraint in m.constraints.items():
+            # Parse constraint name into component and attribute
+            # Dual variable doesn't have a designated component are ignored
+
+            # Split constraint name into component and attribute
+            # GlobalConstraints refer instead to the component name, e.g. "GlobalConstraint-X"
             try:
-                c, attr = name.split("-", 1)
-            except ValueError:
-                unassigned.append(name)
+                prefix, suffix = constraint_name.split("-", 1)
+                c = self._n.components[prefix]
+            except (ValueError, KeyError):
+                unassigned_constraints.append(constraint_name)
                 continue
 
-            if "snapshot" in dual.dims:
-                try:
-                    df = dual.transpose("snapshot", ...).to_pandas()
-
-                    try:
-                        spec = attr.rsplit("-", 1)[-1]
-                    except ValueError:
-                        spec = attr
-
-                    if attr.endswith("nodal_balance"):
-                        set_from_frame(self._n, c, "marginal_price", df)
-                    elif assign_all_duals or f"mu_{spec}" in self._n.static(c):
-                        set_from_frame(self._n, c, "mu_" + spec, df)
-                    else:
-                        unassigned.append(name)
-
-                except:  # noqa: E722 # TODO: specify exception
-                    unassigned.append(name)
-
-            elif (c == "GlobalConstraint") and (
-                assign_all_duals or attr in self._n.static(c).index
+            # Add placeholder for custom constraints, marked as GlobalConstraint
+            # TODO This should go to an actual custom constraint
+            if (
+                c.name == "GlobalConstraint"
+                and suffix not in c.static.index
+                and assign_all_duals
             ):
-                self._n.static(c).loc[attr, "mu"] = dual
+                if c.has_scenarios:
+                    msg = (
+                        "Dual values for custom constraints with scenarios are not "
+                        "yet supported for stochastic optimization."
+                    )
+                    raise NotImplementedError(msg)
+                else:
+                    c.static.loc[suffix] = None
 
-        if unassigned:
+            # Dynamic duals (constraints with snapshot dimension)
+            if "snapshot" in constraint.dual.dims:
+                # Get dual from constraint as formatted pandas DataFrame
+                dual_df = _from_xarray(constraint.dual, c)
+
+                # Standard components: extract last part after final dash
+                # e.g., "Line-s-upper" -> "upper", "Generator-p-lower" -> "lower"
+                try:
+                    dual_spec = suffix.rsplit("-", 1)[-1]
+                except ValueError:
+                    dual_spec = suffix
+                # Don't try to split GlobalConstraint names, since they refer to
+                # component name instead of attribute name
+                if c.name == "GlobalConstraint":
+                    dual_spec = suffix
+
+                # Handle special cases for dual attribute name
+
+                # 1. Nodal balance duals become marginal prices
+                if suffix.endswith("nodal_balance"):
+                    dual_attr_name = "marginal_price"
+
+                # Standard case: assign as "mu_<spec>"
+                # (e.g., "mu_upper", "mu_generation_limit_dynamic")
+                elif assign_all_duals or f"mu_{dual_spec}" in c.static:
+                    dual_attr_name = f"mu_{dual_spec}"
+
+                # Duals that don't have a placeholder are ignored
+                else:
+                    unassigned_constraints.append(constraint_name)
+                    continue
+
+                # Assign dynamic duals to component
+                _set_dynamic_data(self._n, c.name, dual_attr_name, dual_df)
+
+            # SCALAR DUALS (constraints without snapshot dimension)
+            # else:
+            elif c.name == "GlobalConstraint" and suffix in c.static.index:
+                if c.has_scenarios:
+                    raise NotImplementedError()
+
+                c.static.loc[suffix, "mu"] = constraint.dual
+
+        if unassigned_constraints:
             logger.info(
                 "The shadow-prices of the constraints %s were not assigned to the network.",
-                ", ".join(unassigned),
+                ", ".join(unassigned_constraints),
             )
 
     def post_processing(self) -> None:
@@ -600,32 +765,31 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         This calculates quantities derived from the optimized values such as
         power injection per bus and snapshot, voltage angle.
         """
-        sns = self._n.model.parameters.snapshots.to_index()
+        n = self._n
+        sns = n.model.parameters.snapshots.to_index()
 
         # correct prices with objective weightings
-        if self._n._multi_invest:
-            period_weighting = self._n.investment_period_weightings.objective
-            weightings = self._n.snapshot_weightings.objective.mul(
+        if n._multi_invest:
+            period_weighting = n.investment_period_weightings.objective
+            weightings = n.snapshot_weightings.objective.mul(
                 period_weighting, level=0, axis=0
             ).loc[sns]
         else:
-            weightings = self._n.snapshot_weightings.objective.loc[sns]
+            weightings = n.snapshot_weightings.objective.loc[sns]
 
-        self._n.buses_t.marginal_price.loc[sns] = self._n.buses_t.marginal_price.loc[
-            sns
-        ].divide(weightings, axis=0)
+        n.buses_t.marginal_price.loc[sns] = n.buses_t.marginal_price.loc[sns].divide(
+            weightings, axis=0
+        )
 
         # load
-        if len(self._n.loads):
-            set_from_frame(
-                self._n, "Load", "p", get_as_dense(self._n, "Load", "p_set", sns)
-            )
+        if len(n.loads):
+            _set_dynamic_data(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
 
         # line losses
-        if "Line-loss" in self._n.model.variables:
-            losses = self._n.model["Line-loss"].solution.to_pandas()
-            self._n.lines_t.p0 += losses / 2
-            self._n.lines_t.p1 += losses / 2
+        if "Line-loss" in n.model.variables:
+            losses = n.model["Line-loss"].solution.to_pandas()
+            n.lines_t.p0 += losses / 2
+            n.lines_t.p1 += losses / 2
 
         # recalculate injection
         ca = [
@@ -637,45 +801,50 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Link", "p1", "bus1"),
         ]
         ca.extend(
-            [("Link", f"p{i}", f"bus{i}") for i in self._n.c.links.additional_ports]
+            [("Link", f"p{i}", f"bus{i}") for i in n.components.links.additional_ports]
         )
 
         def sign(c: str) -> int:
-            return (
-                self._n.static(c).sign if "sign" in self._n.static(c) else -1
-            )  # sign for 'Link'
+            return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
 
-        self._n.buses_t.p = (
+        n.buses_t.p = (
             pd.concat(
                 [
-                    self._n.dynamic(c)[attr]
+                    n.dynamic(c)[attr]
                     .mul(sign(c))
-                    .rename(columns=self._n.static(c)[group])
+                    .rename(columns=n.static(c)[group], level="name")
                     for c, attr, group in ca
                 ],
                 axis=1,
             )
             .T.groupby(level=0)
             .sum()
-            .T.reindex(columns=self._n.buses.index, fill_value=0.0)
+            .T.reindex(columns=n.buses.index, fill_value=0.0)
         )
 
-        def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
-            buses_i = sub.buses_o
-            if len(buses_i) == 1:
-                return pd.DataFrame(0, index=sns, columns=buses_i)
-            sub.calculate_B_H(skip_pre=True)
-            Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
-            Z -= Z[sub.slack_bus]
-            return self._n.buses_t.p.reindex(columns=buses_i) @ Z
+        if not n.has_scenarios:
 
-        # TODO: if multi investment optimization, the network topology is not the necessarily the same,
-        # i.e. one has to iterate over the periods in order to get the correct angles.
-        # Determine_network_topology is not necessarily called (only if KVL was assigned)
-        if "obj" in self._n.sub_networks:
-            self._n.buses_t.v_ang = pd.concat(
-                [v_ang_for_(sub) for sub in self._n.sub_networks.obj], axis=1
-            ).reindex(columns=self._n.buses.index, fill_value=0.0)
+            def v_ang_for_(sub: SubNetwork) -> pd.DataFrame:
+                buses_i = sub.buses_o
+                if len(buses_i) == 1:
+                    return pd.DataFrame(0, index=sns, columns=buses_i)
+                sub.calculate_B_H(skip_pre=True)
+                Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
+                Z -= Z[sub.slack_bus]
+                return n.buses_t.p.reindex(columns=buses_i) @ Z
+
+            # TODO: if multi investment optimization, the network topology is not the necessarily the same,
+            # i.e. one has to iterate over the periods in order to get the correct angles.
+
+            # Determine_network_topology is not necessarily called (only if KVL was assigned)
+            if n.sub_networks.empty:
+                n.determine_network_topology()
+
+            # Calculate voltage angles (only needed for power flow)
+            if "obj" in n.sub_networks:
+                n.buses_t.v_ang = pd.concat(
+                    [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
+                ).reindex(columns=n.buses.index, fill_value=0.0)
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.
@@ -685,7 +854,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         afterwards.
         """
         for c, attr in nominal_attrs.items():
-            ext_i = self._n.get_extendable_i(c)
+            ext_i = self._n.components[c].extendables
             self._n.static(c).loc[ext_i, attr] = self._n.static(c).loc[
                 ext_i, attr + "_opt"
             ]
@@ -717,6 +886,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         Parameters
         ----------
+        suffix : str, default: " load shedding"
+            Suffix of the load shedding generators. See suffix parameter of
+            [pypsa.Network.add].
         buses : pandas.Index, optional
             Subset of buses where load shedding should be available.
             Defaults to all buses.
