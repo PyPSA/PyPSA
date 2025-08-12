@@ -359,7 +359,8 @@ class PydeckPlotter:
         self._map_style: str = self._init_map_style(map_style)
         self._view_state: pdk.ViewState = self._init_view_state()
         self._layers: dict[str, pdk.Layer] = {}
-        self._tooltip: dict | None = None
+        self._component_columns: list[str] = []
+        self._tooltip: dict | bool = False
         self._mapplotter = MapPlotter(n)  # Embed static map plotting functionality
 
     def _init_map_style(self, map_style: str) -> None:
@@ -402,6 +403,7 @@ class PydeckPlotter:
 
     def add_bus_layer(
         self,
+        bus_columns: list | None = None,
         bus_sizes: float | dict | pd.Series = 5000,
         bus_colors: str | dict | pd.Series = "cadetblue",
         bus_alpha: float | dict | pd.Series = 0.5,
@@ -411,6 +413,9 @@ class PydeckPlotter:
         
         Parameters
         ----------
+        bus_columns : list, default None
+            List of bus columns to include. If None, only the bus index and x, y coordinates are used.
+            Specify additional columns to include in the tooltip.
         bus_sizes : float/dict/pandas.Series
             Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
             the function will draw pies for each bus (first index level) with
@@ -424,7 +429,26 @@ class PydeckPlotter:
             Adds alpha channel to buses, defaults to 0.5.
 
         """
-        bus_data = self._n.buses.copy()
+        # Check if columns exist and only keep the ones that also exist in the network
+        bus_layer_columns = ["x", "y"]  # Default columns for bus coordinates
+        if bus_columns:
+            missing_bus_columns = [
+                col for col in bus_columns if col not in self._n.buses.columns
+            ]
+            valid_bus_columns = [
+                col for col in bus_columns if col in self._n.buses.columns
+            ]
+            if missing_bus_columns:
+                msg = (
+                    f"Columns {missing_bus_columns} not found in buses. "
+                    f"Using only valid columns: {valid_bus_columns}."
+                )
+                logger.warning(msg)
+            bus_layer_columns = bus_layer_columns + valid_bus_columns
+            self._component_columns.extend(valid_bus_columns)
+
+        bus_data = self._n.buses[bus_layer_columns].copy()
+        bus_data.index.name = "name"
 
         # Map bus sizes
         bus_data["radius"] = _convert_to_series(bus_sizes, bus_data.index)
@@ -448,15 +472,23 @@ class PydeckPlotter:
             pickable=True,
             auto_highlight=True,
         )
+
+        # Append the bus layer to the layers property
         self._layers["buses"] = layer
 
+    def add_tooltip(self) -> None:
+        """Add a tooltip to the interactive map."""
+        tooltip_html = "<b>{name}</b><br/>"
+        for col in self._component_columns:
+            tooltip_html += f"<b>{col}:</b> {{{col}}}<br/>"
+
         self._tooltip = {
-            "html": "<b>{name}</b>",
+            "html": tooltip_html,
             "style": {
                 "backgroundColor": "black",
                 "color": "white",
-                "fontFamily": "sans-serif",
-                "fontSize": "10px",
+                "fontFamily": "Arial",
+                "fontSize": "12px",
             },
         }
 
@@ -473,18 +505,22 @@ class PydeckPlotter:
 
 def explore(
     n: "Network",
-    map_style: str = "dark",
+    bus_columns: list | None = None,
     bus_sizes: float | dict | pd.Series = 5000,
     bus_colors: str | dict | pd.Series = "cadetblue",
     bus_alpha: float | dict | pd.Series = 0.5,
-) -> "PydeckPlotter":
-    """
-    Create an interactive map of the PyPSA network using Pydeck.
+    map_style: str = "dark",
+    tooltip: bool = True,
+) -> pdk.Deck:
+    """Create an interactive map of the PyPSA network using Pydeck.
 
     Parameters
     ----------
     n : Network
         The PyPSA network to plot.
+    bus_columns : list, default None
+        List of bus columns to include. If None, only the bus index and x, y coordinates are used.
+        Specify additional columns to include in the tooltip.
     bus_sizes : float/dict/pandas.Series
         Sizes of bus points, defaults to 1e-2. If a multiindexed Series is passed,
         the function will draw pies for each bus (first index level) with
@@ -498,15 +534,25 @@ def explore(
         Adds alpha channel to buses, defaults to 0.5.
     map_style : str
         Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
+    tooltip : bool, default True
+        Whether to add a tooltip to the bus layer.
 
     Returns
     -------
-    PydeckPlotter
-        An instance of PydeckPlotter with the bus layer added.
+    pdk.Deck
+        The interactive map as a Pydeck Deck object.
+
     """
     plotter = PydeckPlotter(n, map_style=map_style)
+
     plotter.add_bus_layer(
-        bus_sizes=bus_sizes, bus_colors=bus_colors, bus_alpha=bus_alpha
+        bus_columns=bus_columns,
+        bus_sizes=bus_sizes,
+        bus_colors=bus_colors,
+        bus_alpha=bus_alpha,
     )
+
+    if tooltip:
+        plotter.add_tooltip()
 
     return plotter.deck()
