@@ -14,7 +14,7 @@ For details on what a MWE is and how to create one, see this blog on how [Craft 
 
 If you are experiencing problems with PyPSA or with the importing of the
 libraries on which PyPSA depends, please first check that you are working with
-the latest versions of all packages. See [Upgrading PyPSA](installation.md#upgrading-pypsa).
+the latest versions of all packages. See [Upgrading PyPSA](installation.md#upgrading).
 
 ## Consistency check
 
@@ -81,7 +81,7 @@ here are some suggestions to try out:
 * Your problem may be infeasible, i.e. there is no solution that satisfies all
   constraints. If you are using Gurobi, you can check which constraints cause an
   infeasibility by adding the keyword argument `compute_infeasibilities` to
-  [`n.optimize()`]() to compute an [Irreducible
+  [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] to compute an [Irreducible
   Inconsistent Subset
   (IIS)](https://support.gurobi.com/hc/en-us/articles/360029969391-How-do-I-determine-why-my-model-is-infeasible):
 
