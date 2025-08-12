@@ -164,4 +164,4 @@ def carbon_management() -> Network:
     https://doi.org/10.1038/s41560-025-01752-6
 
     """
-    return Network("https://go.pypsa.org/examples/carbon-management/")
+    return Network("https://go.pypsa.org/examples/carbon-management.nc")
