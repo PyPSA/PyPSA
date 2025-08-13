@@ -85,6 +85,8 @@ docs = [
     "pillow",
     "tsam",
     "gurobipy",
+    "openpyxl",
+    "python-calamine",
 ]
 
 # setuptools_scm settings
