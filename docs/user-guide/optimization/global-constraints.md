@@ -23,7 +23,7 @@ $$\begin{gather*}\sum_{n,s,t}  w_t^g \cdot \eta_{n,s,t}^{-1} \cdot g_{n,s,t}\cdo
 
 The first sum is over generators; the second sum is over stores; the third over storage units. The shadow price $\mu$ would represent the CO~2~ price in this case.
 
-This global constraint is added in the function [`define_primary_energy_limit`]().
+This global constraint is added in the function `define_primary_energy_limit()`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -56,7 +56,7 @@ without the consideration of specific emissions and efficiencies. The shadow
 price $\mu$ (in currency/MWh) would represent the reduction in system costs if
 the operational limit were relaxed by one unit.
 
-This global constraint is added in the function [`define_operational_limit`]().
+This global constraint is added in the function `define_operational_limit()`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -71,13 +71,13 @@ This global constraint is added in the function [`define_operational_limit`]().
 
 ## Volume Limit on Transmission Expansion
 
-This global constraint can be used to limit the expansion volume in MWkm of transmission lines and links (`type="transmission_volume_expansion_limit"`). The `carrier_attribute` specifies the subset of carriers to consider. These can be individual carriers or concatenated by commas, e.g. "AC", "DC", "AC,DC", or a `Link` carrier such as "H2 pipeline". With `sense="<="`, the constraint is defined as
+This global constraint can be used to limit the expansion volume in MWkm of transmission lines and links (`type="transmission_volume_expansion_limit"`). The `carrier_attribute` specifies the subset of carriers to consider. These can be individual carriers or concatenated by commas, e.g. "AC", "DC", "AC,DC", or a [`Link`](/api/components/types/links) carrier such as "H2 pipeline". With `sense="<="`, the constraint is defined as
 
 $$\sum_{l\in L_{\textrm{carriers}}} d_{l} F_{l} \leq \Gamma \quad \leftrightarrow  \quad \mu$$
 
 where $L_{\textrm{carriers}}$ is the set of lines and links with the specified carriers, $\Gamma$ is the maximum allowed volume expansion in MWkm, $d_{l}$ is the distance of line or link $l$ in km and $F_{l}$ is the capacity of line or link $l$ in MW. The shadow price $\mu$ represents the marginal benefit of expanding the transmission capacity in currency/MWkm/a.
 
-This global constraint is added in the function [`define_transmission_volume_expansion_limit`]().
+This global constraint is added in the function `define_transmission_volume_expansion_limit()`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -90,13 +90,13 @@ This global constraint is added in the function [`define_transmission_volume_exp
 
 ## Cost Limit on Transmission Expansion
 
-This global constraint can be used to limit the total investment cost in currency/a of transmission lines and links (`type="transmission_expansion_cost_limit"`). The `carrier_attribute` specifies the subset of carriers to consider. These can be individual carriers or concatenated by commas, e.g. "AC", "DC", "AC,DC", or a `Link` carrier such as "H2 pipeline". With `sense="<="`, the constraint is defined as
+This global constraint can be used to limit the total investment cost in currency/a of transmission lines and links (`type="transmission_expansion_cost_limit"`). The `carrier_attribute` specifies the subset of carriers to consider. These can be individual carriers or concatenated by commas, e.g. "AC", "DC", "AC,DC", or a [`Link`](/api/components/types/links) carrier such as "H2 pipeline". With `sense="<="`, the constraint is defined as
 
 $$\sum_{l\in L_{\textrm{carriers}}} c_{l} F_{l} \leq \Gamma \quad \leftrightarrow  \quad \mu$$
 
 where $L_{\textrm{carriers}}$ is the set of lines and links with the specified carriers, $c_{l}$ is the capital cost of line or link $l$ in currency/MW/a, $F_{l}$ is the capacity of line or link $l$ in MW and $\Gamma$ is the maximum allowed cost of line expansion in currency/a. The shadow price $mu$ represents how much the total system cost could be reduced if the spending limit was increased by one currency/a.
 
-This global constraint is added in the function [`define_transmission_expansion_cost_limit`]().
+This global constraint is added in the function `define_transmission_expansion_cost_limit()`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -123,7 +123,7 @@ where $A$ are the investment periods, $s$ are all extendable generators of the s
 
 In general, the constraint would iterate over all investment variables for generators $G_{n,s}$, lines and transformers $P_{l}$, links $F_{l}$, stores $E_{n,s}$ and storage units $H_{n,s}$ for the specified carrier and bus. For components connecting two buses, the bus selection is done by `bus0`.
 
-This global constraint is added in the function [`define_tech_capacity_expansion_limit`]().
+This global constraint is added in the function `define_tech_capacity_expansion_limit()`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -159,7 +159,7 @@ This constraint only applies to networks with multiple investment periods and on
 
 In general, the constraint would iterate over all investment variables for generators $G_{n,s}$, lines and transformers $P_{l}$, links $F_{l}$, stores $E_{n,s}$ and storage units $H_{n,s}$ for the specified carrier. For components connecting two buses, the bus selection is done by `bus0`.
 
-This global constraint is added in the function [`define_growth_limit`]() and carries the name `Carrier-growth_limit`.
+This global constraint is added in the function `define_growth_limit()` and carries the name `Carrier-growth_limit`.
 
 ??? note "Mapping symbols to component attributes"
 
@@ -173,32 +173,3 @@ This global constraint is added in the function [`define_growth_limit`]() and ca
     | $\gamma_s$ | `n.carriers.max_relative_growth` | Parameter |
     | $\Gamma_s$ | `n.carriers.max_growth` | Parameter |
 
-
-<!-- ## Nominal Constraints per Bus Carrier
-
-This global constraint is added in the function [`define_nominal_constraints_per_bus_carrier`]() and carries the name `Bus-{column_name}`. -->
-
-## Examples
-
-
-<div class="grid cards" markdown>
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/multi-investment-optimisation.ipynb)
-
-    ---
-
--   :material-notebook:{ .lg .middle } **Name**
-
-    ---
-
-    Description
-    
-    [:material-notebook: Go to example](../examples/XXX.ipynb)
-
-</div>

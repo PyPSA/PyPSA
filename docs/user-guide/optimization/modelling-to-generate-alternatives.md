@@ -1,5 +1,7 @@
 # Modelling to Generate Alternatives (MGA)
 
+## Searching for alternatives with given cost slack
+
 The function [`n.optimize.optimize_mga`][pypsa.optimization.OptimizationAccessor.optimize_mga] runs modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions. This is a technique where a solved network is re-optimized with an alternative objective function, while adding a global constraint limiting the total system cost.
 
 For example, the alternative objective function may represent total installed renewable capacity; minimizing this subject to a total system cost constraint could lead to a slightly more expensive system containing fewer renewables but more storage or backup capacity.
@@ -8,9 +10,7 @@ In `optimize_mga`, the bound on total system cost is specified as a relative inc
 
 Numerous research articles cover the theory and application of MGA in the context of energy systems modelling; many of them have used PyPSA under the hood. See for instance [Brown et al. (2021)](https://doi.org/10.1016/j.epsr.2020.106690), [Grochowicz et al. (2023)](https://doi.org/10.1016/j.eneco.2022.106496) and [Lau et al. (2024)](https://doi.org/10.1088/2753-3751/ad7d10) (the latter containing a brief literature review) for an introduction to the topic.
 
-See also the [:material-notebook: example notebook](../examples/mga.ipynb) showing how to use [`n.optimize.optimize_mga`][pypsa.optimization.OptimizationAccessor.optimize_mga] and inspect the results in more detail.
-
-### Exploring trade-offs in the near-optimal space
+## Exploring trade-offs in the near-optimal space
 
 Often, it is useful to explore the trade-offs between several alternative objectives using near-optimal techniques. While this can be done using the `optimize_mga` function, described above, PyPSA includes several convenient functions facilitating such exploration.
 
@@ -24,6 +24,31 @@ As running `optimize_mga_in_direction` in multiple different directions is a com
 
 Moreover, three functions ([`pypsa.optimization.abstract.generate_directions_random`][pypsa.optimization.abstract.generate_directions_random], [`pypsa.optimization.abstract.generate_directions_evenly_spaced`][pypsa.optimization.abstract.generate_directions_evenly_spaced], [`pypsa.optimization.abstract.generate_directions_halton`][pypsa.optimization.abstract.generate_directions_halton]) are provided which generate sets of directions in the format expected by `optimize_mga_in_multiple_directions`. Of course, you can also provide your own directions.
 
-An [:material-notebook: example notebook](../examples/near-opt-space.ipynb) explores the use of `optimize_mga_in_direction` and its parallelized cousin, as well is showing the difference between between different direction generation methods.
-
 The function [`n.optimize.optimize_mga`][pypsa.optimization.OptimizationAccessor.optimize_mga] runs modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
+
+
+## Examples
+
+
+<div class="grid cards" markdown>
+
+
+-   :material-notebook:{ .lg .middle } **Modelling-to-Generate Alternatives**
+
+    ---
+
+    Explores near-optimal solution diversity by generating alternative system
+    designs with similar costs.
+
+    [:octicons-arrow-right-24: Go to example](../../examples/mga.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Exploring Near-Optimal Spaces**
+
+    ---
+
+    Explores near-optimal space to understand flexibility in investment
+    decisions while maintaining cost-effectiveness.
+
+    [:octicons-arrow-right-24: Go to example](../../examples/near-opt-space.ipynb)
+
+</div>
