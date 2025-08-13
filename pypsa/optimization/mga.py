@@ -629,12 +629,13 @@ class OptimizationAbstractMGAMixin:
         Examples
         --------
         >>> import pypsa
-        >>> # Assume network n is already optimized
+        >>> n = pypsa.examples.model_energy()
+        >>> n.optimize(solver_name="highs")
         >>> dimensions = {
-        ...     'wind': {'Generator': {'p_nom': wind_weights}},
-        ...     'solar': {'Generator': {'p_nom': solar_weights}}
+        ...     "wind": {"Generator": {"p_nom": {"wind": 1}}},
+        ...     "solar": {"Generator": {"p_nom": {"solar": 1}}}
         ... }
-        >>> directions = pypsa.optimize.mga.generate_directions_random(['wind', 'solar'], 10)
+        >>> directions = pypsa.optimization.mga.generate_directions_random(["wind", "solar"], 10)
         >>> dirs_df, coords_df = n.optimize.optimize_mga_in_multiple_directions(
         ...     directions, dimensions, max_parallel=2
         ... )
