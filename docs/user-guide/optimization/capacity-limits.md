@@ -41,15 +41,13 @@ Additionally, the nominal capacity can be fixed to a certain value $\tilde{G}_{n
 
 | Constraint | Dual Variable | Name |
 |-------------------|------------------|------------------|
-| $G_{n,s} = \tilde{G}_{n,s}$ | `n.generators.lambda_p_nom_set` | `Generator-p_nom_set` |
-| $F_{l} = \tilde{F}_{l}$ | `n.links.lambda_p_nom_set` | `Link-p_nom_set` |
-| $P_{l} = \tilde{P}_{l}$ | `n.{lines,transformers}.lambda_s_nom_set` | `{Line,Transformer}-s_nom_set` |
-| $E_{n,s} = \tilde{E}_{n,s}$ | `n.stores.lambda_e_nom_set` | `Store-e_nom_set` |
-| $H_{n,s} = \tilde{H}_{n,s}$ | `n.storage_units.lambda_s_nom_set` | `StorageUnit-s_nom_set` |
+| $G_{n,s} = \tilde{G}_{n,s}$ | only in `n.model` | `Generator-p_nom_set` |
+| $F_{l} = \tilde{F}_{l}$ | only in `n.model` | `Link-p_nom_set` |
+| $P_{l} = \tilde{P}_{l}$ | only in `n.model` | `{Line,Transformer}-s_nom_set` |
+| $E_{n,s} = \tilde{E}_{n,s}$ | only in `n.model` | `Store-e_nom_set` |
+| $H_{n,s} = \tilde{H}_{n,s}$ | only in `n.model` | `StorageUnit-p_nom_set` |
 
 These constraints are set in the function `define_fixed_nominal_constraints()`.
-
-<!-- TODO requires documentation of `p_nom_set` and `s_nom_set` in component attributes as well as `lambda_p_nom_set (only with assign_all_duals=True). -->
 
 !!! note "Why not just set `p_nom_extendable=False`?"
 
@@ -67,6 +65,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | $\underline{G}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
         | $\bar{G}_{n,s}$   | `n.generators.p_nom_max` | Parameter |
         | $\tilde{G}_{n,s}$ | `n.generators.p_nom_mod` | Parameter |
+
 
     === "Link"
 
