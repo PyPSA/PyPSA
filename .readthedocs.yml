@@ -9,8 +9,6 @@ build:
     - git fetch --unshallow # Needed to get version tags
     pre_install:
     - pip install mkdocs-material
-    post_install:
-    - pip install git+https://github.com/PyPSA/PyPSA.git@new-opt
 
 mkdocs:
   configuration: mkdocs.yml
