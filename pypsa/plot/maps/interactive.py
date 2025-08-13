@@ -8,9 +8,21 @@ import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
 import pydeck as pdk
+import pyproj
 
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
+
+UNIT_TRIANGLE = np.array(
+    [
+        [0.866, 0],  # np.sqrt(3)/2
+        [0, 0.5],  # base right
+        [0, -0.5],  # base left
+    ]
+)
+
+proj = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+proj_inv = pyproj.Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -397,6 +409,79 @@ class PydeckPlotter:
         """Get the current view state of the map."""
         return self._view_state
 
+    # Geometric functions
+    @staticmethod
+    def rotate_triangle(
+        triangle: np.ndarray,
+        angle_rad: float,
+    ) -> np.ndarray:
+        """Rotate triangle around origin by angle in radians."""
+        c, s = np.cos(angle_rad), np.sin(angle_rad)
+        R = np.array([[c, -s], [s, c]])
+        return triangle @ R.T
+
+    @staticmethod
+    def scale_triangle_by_width(
+        triangle: np.ndarray,
+        base_width_m: float,
+    ) -> np.ndarray:
+        """Scale a unit triangle so that base width = base_width_m and length is proportional (equilateral ratio)."""
+        length_m = (np.sqrt(3) / 2) * base_width_m
+        x_scale = length_m / (np.sqrt(3) / 2)
+        y_scale = base_width_m / 1.0
+        return triangle * np.array([x_scale, y_scale])
+
+    @staticmethod
+    def translate_triangle(
+        triangle: np.ndarray,
+        offset: tuple[float, float],
+    ) -> np.ndarray:
+        """Translate triangle by offset (dx, dy)."""
+        return triangle + np.array(offset)
+
+    def create_projected_arrows(
+        self,
+        flows: pd.Series,
+        size_factor: float = 2.5,
+    ) -> pd.DataFrame:
+        """Create polygons for arrows based on line data and flows."""
+
+        def make_polygon(row: pd.Series) -> list[tuple[float, float]]:
+            """Create a polygon for an arrow based on a row of line data."""
+            flow = flows.loc[row.name]
+
+            x0, y0 = proj.transform(row["bus0_x"], row["bus0_y"])
+            x1, y1 = proj.transform(row["bus1_x"], row["bus1_y"])
+            dx, dy = x1 - x0, y1 - y0
+
+            mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+            angle = np.arctan2(dy, dx) * np.sign(flow)
+
+            base_width_m = abs(flow) * 5 / 3 * size_factor
+            tri = PydeckPlotter.scale_triangle_by_width(UNIT_TRIANGLE, base_width_m)
+            tri = PydeckPlotter.rotate_triangle(tri, angle)
+            tri = PydeckPlotter.translate_triangle(tri, (mx, my))
+
+            return [proj_inv.transform(*p) for p in tri]
+
+        line_data = self._n.lines.copy()
+        line_data["bus0_x"] = line_data.apply(
+            lambda row: self._n.buses.loc[row["bus0"], "x"], axis=1
+        )
+        line_data["bus0_y"] = line_data.apply(
+            lambda row: self._n.buses.loc[row["bus0"], "y"], axis=1
+        )
+        line_data["bus1_x"] = line_data.apply(
+            lambda row: self._n.buses.loc[row["bus1"], "x"], axis=1
+        )
+        line_data["bus1_y"] = line_data.apply(
+            lambda row: self._n.buses.loc[row["bus1"], "y"], axis=1
+        )
+        line_data["arrow"] = line_data.apply(make_polygon, axis=1)
+
+        return line_data[["arrow"]]
+
+    # Data wrangling
     def prepare_component_data(
         self,
         component: str,
@@ -426,6 +511,7 @@ class PydeckPlotter:
 
         return df
 
+    # Layer functions
     def add_bus_layer(
         self,
         bus_columns: list | None = None,
@@ -558,6 +644,35 @@ class PydeckPlotter:
 
         self._layers["lines"] = layer
 
+    def add_arrow_layer(
+        self,
+        # flows: pd.Series,
+        size_factor: float = 2.5,
+    ) -> None:
+        """Add an arrow layer to the interactive map based on line flows.
+
+        Parameters
+        ----------
+        flows : pd.Series
+            Series of line flows indexed by line names.
+        size_factor : float, default 2.5
+            Factor to scale the arrow size.
+
+        """
+        flows = self._n.lines.s_nom
+
+        arrow_data = self.create_projected_arrows(flows, size_factor)
+
+        layer = pdk.Layer(
+            "PolygonLayer",
+            data=arrow_data,
+            get_polygon="arrow",
+            pickable=False,
+            auto_highlight=True,
+            get_fill_color=[255, 0, 0, 255],
+        )
+        self._layers["arrows"] = layer
+
     # TODO: Activate custom tooltip
     def add_tooltip(self) -> None:
         """Add a tooltip to the interactive map."""
@@ -643,6 +758,8 @@ def explore(
         bus_colors=bus_colors,
         bus_alpha=bus_alpha,
     )
+
+    plotter.add_arrow_layer(size_factor=4.0)
 
     plotter.add_line_layer(
         line_columns=line_columns,
