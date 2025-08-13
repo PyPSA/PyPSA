@@ -430,7 +430,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             lhs = []
 
             # generators
-            gens = n.generators.query("carrier == @glc.carrier_attribute")
+            gens = n.generators.query("carrier == @glc.carrier_attribute and active")
             if not gens.empty:
                 gens = gens.loc[scenario]
                 p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
@@ -442,7 +442,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 lhs.append(expr)
 
             # storage units (non-cyclic): subtract end SoC and add initial SoC as constant
-            cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge"
+            cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge and active"
             sus = n.storage_units.query(cond)
             if not sus.empty:
                 sus = sus.loc[scenario]
@@ -456,7 +456,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
             # stores (non-cyclic): subtract end e and add initial e as constant
             stores = n.stores.query(
-                "carrier == @glc.carrier_attribute and not e_cyclic"
+                "carrier == @glc.carrier_attribute and not e_cyclic and active"
             )
             if not stores.empty:
                 stores = stores.loc[scenario]

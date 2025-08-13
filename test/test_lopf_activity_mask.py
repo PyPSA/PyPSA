@@ -265,3 +265,72 @@ def test_mixed_components_with_active_attribute():
     assert "gen_inactive" not in n.model.variables["Generator-p"].coords["name"]
     assert "link_inactive" not in n.model.variables["Link-p"].coords["name"]
     assert "store_inactive" not in n.model.variables["Store-p"].coords["name"]
+
+
+def test_inactive_stores_with_global_operational_limit():
+    """Test that inactive stores are excluded from global operational limits."""
+    n = pypsa.Network()
+
+    n.set_snapshots(pd.date_range("2023-01-01", periods=3, freq="h"))
+
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Bus", "bus1", carrier="AC")
+    n.add("Carrier", "electricity")
+    n.add("Carrier", "AC")
+
+    n.add("Load", "load", bus="bus0", p_set=100)
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus0",
+        p_nom=200,
+        marginal_cost=10,
+        carrier="electricity",
+    )
+
+    # Add active and inactive stores with the same carrier
+    n.add(
+        "Store",
+        "store_active",
+        bus="bus0",
+        e_nom=500,
+        e_cyclic=False,
+        e_initial=100,
+        active=True,
+        carrier="electricity",
+    )
+    n.add(
+        "Store",
+        "store_inactive",
+        bus="bus1",
+        e_nom=300,
+        e_cyclic=False,
+        e_initial=50,
+        active=False,
+        carrier="electricity",
+    )
+
+    # Add global operational limit for electricity carrier
+    n.add(
+        "GlobalConstraint",
+        "electricity_limit",
+        type="operational_limit",
+        carrier_attribute="electricity",
+        sense="<=",
+        constant=1000,  # Generous limit to allow optimization to succeed
+    )
+
+    status, _ = n.optimize()
+
+    assert status == "ok"
+
+    # Test inactive store has zero flow
+    assert (n.stores_t.p["store_inactive"] == 0).all()
+
+    # Test inactive store is not in model variables
+    assert "store_inactive" not in n.model.variables["Store-p"].coords["name"]
+    assert "store_active" in n.model.variables["Store-p"].coords["name"]
+
+    # Test inactive store is not in model constraints related to energy
+    assert "store_inactive" not in n.model.variables["Store-e"].coords["name"]
+    assert "store_active" in n.model.variables["Store-e"].coords["name"]
