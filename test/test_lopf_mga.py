@@ -180,7 +180,7 @@ def test_generate_directions():
     n_directions = 5
 
     # Test generate_directions_random
-    random_directions = pypsa.optimization.abstract.generate_directions_random(
+    random_directions = pypsa.optimization.mga.generate_directions_random(
         keys, n_directions, seed=0
     )
     assert random_directions.shape == (n_directions, len(keys))
@@ -190,21 +190,17 @@ def test_generate_directions():
     # Test generate_directions_evenly_spaced
     keys_2d = ["x", "y"]
     n_directions_2d = 4
-    evenly_spaced_directions = (
-        pypsa.optimization.abstract.generate_directions_evenly_spaced(
-            keys_2d, n_directions_2d
-        )
+    evenly_spaced_directions = pypsa.optimization.mga.generate_directions_evenly_spaced(
+        keys_2d, n_directions_2d
     )
     assert evenly_spaced_directions.shape == (n_directions_2d, len(keys_2d))
     for _, row in evenly_spaced_directions.iterrows():
         almost_equal(sum(val**2 for val in row), 1.0)  # Check unit vector normalization
     with pytest.raises(ValueError, match="This function only supports two keys"):
-        pypsa.optimization.abstract.generate_directions_evenly_spaced(
-            keys, n_directions
-        )
+        pypsa.optimization.mga.generate_directions_evenly_spaced(keys, n_directions)
 
     # Test generate_directions_halton
-    halton_directions = pypsa.optimization.abstract.generate_directions_halton(
+    halton_directions = pypsa.optimization.mga.generate_directions_halton(
         keys, n_directions, seed=0
     )
     assert halton_directions.shape == (n_directions, len(keys))
