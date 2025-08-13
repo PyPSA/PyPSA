@@ -1,16 +1,13 @@
 """Plot the network interactively using plotly and folium."""
 
-import importlib
 import logging
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import geopandas as gpd
 import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
 import pydeck as pdk
-from shapely import linestrings
 
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
@@ -354,6 +351,7 @@ class PydeckPlotter:
             The PyPSA network to plot.
         map_style : str
             Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
+
         """
         self._n = n
         self._map_style: str = self._init_map_style(map_style)
@@ -437,9 +435,8 @@ class PydeckPlotter:
         bus_colors: str | dict | pd.Series = "cadetblue",
         bus_alpha: float | dict | pd.Series = 0.5,
     ) -> None:
-        """
-        Adds a bus layer of Pydeck type ScatterplotLayer to the interactive map.
-        
+        """Adds a bus layer of Pydeck type ScatterplotLayer to the interactive map.
+
         Parameters
         ----------
         bus_columns : list, default None
