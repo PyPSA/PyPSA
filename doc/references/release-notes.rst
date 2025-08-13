@@ -31,6 +31,10 @@ Features
   reduce the memory footprint when solving the model.
 
 
+* The option to set bus-level capacity expansion limits per carrier via `Bus`
+  attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
+  constraint type `"tech_capacity_expansion_limit"` offers identical functionality.
+  
 Bug Fixes
 ---------
 
