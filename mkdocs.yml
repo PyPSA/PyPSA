@@ -113,7 +113,7 @@ nav:
     - examples/power-to-gas-boiler-chp.ipynb
     - examples/power-to-heat-water-tank.ipynb
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
-  - Complexity Management:
+  - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/replace-generator-storage-units-with-store.ipynb
     - examples/tracing-infeasibilities.ipynb
@@ -328,7 +328,7 @@ plugins:
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
     execute: true
-    include: ["examples/*.ipynb"]
+    include: ["examples/example-1.ipynb"]
     # allow_errors: false # TODO
     include_source: true
 # Global redirects
