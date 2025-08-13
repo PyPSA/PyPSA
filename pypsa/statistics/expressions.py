@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
@@ -11,7 +10,6 @@ import pandas as pd
 from pypsa._options import options
 from pypsa.common import (
     MethodHandlerWrapper,
-    deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import nominal_attrs
@@ -33,15 +31,6 @@ def get_operation(n: Network, c: str) -> pd.DataFrame:
     if c == "Store":
         return n.dynamic(c).e
     return n.dynamic(c).p
-
-
-def get_weightings(n: Network, c: str) -> pd.Series:
-    """Get the relevant snapshot weighting for a component."""
-    if c == "Generator":
-        return n.snapshot_weightings["generators"]
-    if c in ["StorageUnit", "Store"]:
-        return n.snapshot_weightings["stores"]
-    return n.snapshot_weightings["objective"]
 
 
 def port_efficiency(
@@ -476,7 +465,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names: bool | None = None,
         drop_zero: bool | None = None,
         round: int | None = None,
-        aggregate_time: None = None,
     ) -> pd.DataFrame:
         """Calculate **multiple statistical values** for a network.
 
@@ -523,8 +511,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             Number of decimal places to round the result to. Defaults to module wide
             option (default: 2). See `pypsa.options.params.statistics.describe()` for more
             information.
-        aggregate_time : None
-            Deprecated. Use dedicated functions for individual statistics instead.
 
         Returns
         -------
@@ -542,14 +528,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         dtype: float64
 
         """
-        if aggregate_time is not None:
-            warnings.warn(
-                "The parameter `aggregate_time` is deprecated for the summary function."
-                "Please use it for individual statistics instead. Deprecated in "
-                "version 0.34 and will be removed in version 1.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
         funcs: list[Callable] = [
             self.optimal_capacity,
             self.installed_capacity,
@@ -1796,7 +1774,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             idx = transmission_branches.get_loc_level(c, level="component")[1]
             p = n.dynamic(c)[f"p{port}"][idx]
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
@@ -1817,7 +1795,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
     def energy_balance(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
@@ -1922,7 +1899,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             p = sign * n.dynamic(c)[f"p{port}"]
             if direction == "supply":
                 p = p.clip(lower=0)
@@ -2040,7 +2017,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 n.get_switchable_as_dense(c, "p_max_pu") * n.static(c).p_nom_opt
                 - n.dynamic(c).p
             ).clip(lower=0)
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         df = self._aggregate_components(
@@ -2143,7 +2120,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
         kwargs = {
@@ -2165,7 +2142,6 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
-    @deprecated_kwargs(kind="direction", deprecated_in="0.34", removed_in="1.0")
     def revenue(  # noqa: D417
         self,
         comps: str | Sequence[str] | None = None,
@@ -2272,7 +2248,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     msg = f"Argument 'direction' must be 'input', 'output' or None, got {direction}"
                     raise ValueError(msg)
             revenue = df * prices
-            weights = get_weightings(n, c)
+            weights = n.snapshot_weightings.objective
             return self._aggregate_timeseries(revenue, weights, agg=aggregate_time)
 
         df = self._aggregate_components(

@@ -10,17 +10,16 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 
-from pypsa.common import deprecated_common_kwargs
 from pypsa.constants import RE_PORTS_FILTER
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
 
     from pypsa import Network
     from pypsa.components import Components
+    from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +39,8 @@ def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     logger.warning(message, *args)
 
 
-@deprecated_common_kwargs
 def check_for_unknown_buses(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check if buses are attached to component but are not defined in the network.
 
@@ -78,8 +76,7 @@ def check_for_unknown_buses(
             )
 
 
-@deprecated_common_kwargs
-def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
+def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
     """Check if network has buses that are not connected to any component.
 
     Activate strict mode in general consistency check by passing `['disconnected_buses']`
@@ -112,9 +109,8 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
         )
 
 
-@deprecated_common_kwargs
 def check_for_unknown_carriers(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check if carriers are attached to component but are not defined in the network.
 
@@ -152,9 +148,8 @@ def check_for_unknown_carriers(
             )
 
 
-@deprecated_common_kwargs
 def check_for_zero_impedances(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check if component has zero impedances. Only checks passive branch components.
 
@@ -191,7 +186,6 @@ def check_for_zero_impedances(
                 )
 
 
-@deprecated_common_kwargs
 def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
     """Check if component has zero s_nom. Only checks transformers.
 
@@ -223,8 +217,9 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
-def check_time_series(n: Network, component: Components, strict: bool = False) -> None:
+def check_time_series(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
     """Check if time series of component are aligned with network snapshots.
 
     Activate strict mode in general consistency check by passing `['time_series']` to
@@ -272,9 +267,8 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
             )
 
 
-@deprecated_common_kwargs
 def check_static_power_attributes(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check static attrs p_now, s_nom, e_nom in any component.
 
@@ -327,9 +321,8 @@ def check_static_power_attributes(
                     )
 
 
-@deprecated_common_kwargs
 def check_time_series_power_attributes(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
 
@@ -423,8 +416,7 @@ def check_time_series_power_attributes(
                 )
 
 
-@deprecated_common_kwargs
-def check_assets(n: Network, component: Components, strict: bool = False) -> None:
+def check_assets(n: NetworkType, component: Components, strict: bool = False) -> None:
     """Check if assets are only committable or extendable, but not both.
 
     Activate strict mode in general consistency check by passing `['assets']` to the
@@ -460,7 +452,6 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
             )
 
 
-@deprecated_common_kwargs
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
 
@@ -513,7 +504,6 @@ def check_generators(component: Components, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
 def check_dtypes_(component: Components, strict: bool = False) -> None:
     """Check if the dtypes of the attributes in the component are as expected.
 
@@ -522,8 +512,6 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     Parameters
     ----------
-    n : pypsa.Network
-        The network to check.
     component : pypsa.Component
         The component to check.
     strict : bool, optional
@@ -573,8 +561,7 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
-def check_investment_periods(n: Network, strict: bool = False) -> None:
+def check_investment_periods(n: NetworkType, strict: bool = False) -> None:
     """Check if investment periods are aligned with snapshots.
 
     Activate strict mode in general consistency check by passing `['investment_periods']`
@@ -614,8 +601,7 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
         _log_or_raise(strict, msg)
 
 
-@deprecated_common_kwargs
-def check_shapes(n: Network, strict: bool = False) -> None:
+def check_shapes(n: NetworkType, strict: bool = False) -> None:
     """Check if shapes are aligned with related components.
 
     Activate strict mode in general consistency check by passing `['shapes']` to the
@@ -650,9 +636,8 @@ def check_shapes(n: Network, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
 def check_nans_for_component_default_attrs(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check for missing values in component attributes.
 
@@ -739,37 +724,12 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
         )
 
 
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.consistency_check` instead.",
-)
-def consistency_check(
-    n: Network, check_dtypes: bool = False, strict: Sequence | None = None
-) -> None:
-    """Use `n.consistency_check` instead."""
-    return n.consistency_check(check_dtypes=check_dtypes, strict=strict)
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.consistency_check_plots` instead.",
-)
-def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> None:
-    """Use `n.consistency_check_plots` instead."""
-    return n.consistency_check_plots(strict=strict)
-
-
 class NetworkConsistencyMixin(_NetworkABC):
     """Mixin class for network consistency checks.
 
     Class only inherits to [pypsa.Network][] and should not be used directly.
     All attributes and methods can be used within any Network instance.
     """
-
-    calculate_dependent_values: Callable
-    iterate_components: Callable
 
     def consistency_check(
         self, check_dtypes: bool = False, strict: Sequence | None = None
@@ -899,7 +859,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.consistency.consistency_check][] : General consistency check method, which can be
+        [pypsa.Network.consistency_check][] : General consistency check method, which can be
             runs all consistency checks.
         [pypsa.consistency.check_for_unknown_buses][] : Check if buses are attached to
             component but are not defined in the network.

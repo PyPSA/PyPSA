@@ -15,7 +15,6 @@ import linopy
 import numpy as np
 import pandas as pd
 import xarray as xr
-from deprecation import deprecated
 from linopy import LinearExpression, QuadraticExpression, merge
 from scipy.stats.qmc import Halton
 
@@ -34,7 +33,6 @@ def discretized_capacity(
     unit_size: float,
     threshold: float,
     fractional_last_unit_size: bool,
-    min_units: int | None = None,
 ) -> float:
     """Discretize a optimal capacity to a capacity that is either a multiple of a unit size
     or the maximum capacity, depending on the variable `fractional_last_unit_size`.
@@ -60,11 +58,6 @@ def discretized_capacity(
         The threshold relative to the unit size for discretizing the capacity.
     fractional_last_unit_size : bool
         Whether only multiples of the unit size or the maximum capacity.
-    min_units: int, default None
-        The minimum number of units that should be installed.
-
-        .. deprecated:: 0.31
-            The `min_units` parameter is deprecated and will be removed in future versions.
 
     Returns
     -------
@@ -103,18 +96,9 @@ def discretized_capacity(
     4
 
     """
-    if min_units is not None:
-        msg = (
-            "The `min_units` parameter is deprecated and will be removed in future "
-            "versions. Deprecated in version 0.32 and will be removed in version 1.0."
-        )
-        raise DeprecationWarning(msg)
     units = nom_opt // unit_size + (nom_opt % unit_size >= threshold * unit_size)
 
-    if min_units is not None:
-        block_capacity = max(min_units, units) * unit_size
-    else:
-        block_capacity = units * unit_size
+    block_capacity = units * unit_size
     if nom_max % unit_size == 0:
         return block_capacity
 
@@ -128,163 +112,6 @@ def discretized_capacity(
             return nom_max
         return (nom_opt // unit_size) * unit_size
     return block_capacity
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.optimize_transmission_expansion_iteratively` instead.",
-)
-def optimize_transmission_expansion_iteratively(
-    n: Network,
-    snapshots: Sequence | None = None,
-    msq_threshold: float = 0.05,
-    min_iterations: int = 1,
-    max_iterations: int = 100,
-    track_iterations: bool = False,
-    line_unit_size: float | None = None,
-    link_unit_size: dict | None = None,
-    line_threshold: float | None = None,
-    link_threshold: dict | None = None,
-    fractional_last_unit_size: bool = False,
-    **kwargs: Any,
-) -> tuple[str, str]:
-    """Use `n.optimize.optimize_transmission_expansion_iteratively` instead."""
-    return n.optimize.optimize_transmission_expansion_iteratively(
-        snapshots=snapshots,
-        msq_threshold=msq_threshold,
-        min_iterations=min_iterations,
-        max_iterations=max_iterations,
-        track_iterations=track_iterations,
-        line_unit_size=line_unit_size,
-        link_unit_size=link_unit_size,
-        line_threshold=line_threshold,
-        link_threshold=link_threshold,
-        fractional_last_unit_size=fractional_last_unit_size,
-        **kwargs,
-    )
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.optimize_security_constrained` instead.",
-)
-def optimize_security_constrained(
-    n: Network,
-    snapshots: Sequence | None = None,
-    branch_outages: Sequence | pd.Index | pd.MultiIndex | None = None,
-    multi_investment_periods: bool = False,
-    model_kwargs: dict | None = None,
-    **kwargs: Any,
-) -> tuple[str, str]:
-    """Compute Security-Constrained Linear Optimal Power Flow (SCLOPF).
-
-    This ensures that no branch is overloaded even given the branch outages.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-    snapshots : list-like, optional
-        Set of snapshots to consider in the optimization. The default is None.
-    branch_outages : list-like/pandas.Index/pandas.MultiIndex, optional
-        Subset of passive branches to consider as possible outages. If a list
-        or a pandas.Index is passed, it is assumed to identify lines. If a
-        multiindex is passed, its first level has to contain the component names,
-        the second the assets. The default None results in all passive branches
-        to be considered.
-    multi_investment_periods : bool, default False
-        Whether to optimise as a single investment period or to optimise in multiple
-        investment periods. Then, snapshots should be a ``pd.MultiIndex``.
-    model_kwargs: dict
-        Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
-    **kwargs:
-        Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
-        `problem_fn` or solver options directly passed to the solver.
-
-    """
-    return n.optimize.optimize_security_constrained(
-        snapshots=snapshots,
-        branch_outages=branch_outages,
-        multi_investment_periods=multi_investment_periods,
-        model_kwargs=model_kwargs,
-        **kwargs,
-    )
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.optimize_with_rolling_horizon` instead.",
-)
-def optimize_with_rolling_horizon(
-    n: Network,
-    snapshots: Sequence | None = None,
-    horizon: int = 100,
-    overlap: int = 0,
-    **kwargs: Any,
-) -> Network:
-    """Use `n.optimize.optimize_with_rolling_horizon` instead."""
-    return n.optimize.optimize_with_rolling_horizon(
-        snapshots=snapshots,
-        horizon=horizon,
-        overlap=overlap,
-        **kwargs,
-    )
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.optimize_mga` instead.",
-)
-def optimize_mga(
-    n: Network,
-    snapshots: Sequence | None = None,
-    multi_investment_periods: bool = False,
-    weights: dict | None = None,
-    sense: str | int = "min",
-    slack: float = 0.05,
-    model_kwargs: dict | None = None,
-    **kwargs: Any,
-) -> tuple[str, str]:
-    """Use `n.optimize.optimize_mga` instead."""
-    return n.optimize.optimize_mga(
-        snapshots=snapshots,
-        multi_investment_periods=multi_investment_periods,
-        weights=weights,
-        sense=sense,
-        slack=slack,
-        model_kwargs=model_kwargs,
-        **kwargs,
-    )
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.optimize.optimize_and_run_non_linear_powerflow` instead.",
-)
-def optimize_and_run_non_linear_powerflow(
-    n: Network,
-    snapshots: Sequence | None = None,
-    skip_pre: bool = False,
-    x_tol: float = 1e-06,
-    use_seed: bool = False,
-    distribute_slack: bool = False,
-    slack_weights: str = "p_set",
-    **kwargs: Any,
-) -> dict:
-    """Use `n.optimize.optimize_and_run_non_linear_powerflow` instead."""
-    return n.optimize.optimize_and_run_non_linear_powerflow(
-        snapshots=snapshots,
-        skip_pre=skip_pre,
-        x_tol=x_tol,
-        use_seed=use_seed,
-        distribute_slack=distribute_slack,
-        slack_weights=slack_weights,
-        **kwargs,
-    )
 
 
 def generate_directions_random(

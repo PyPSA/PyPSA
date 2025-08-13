@@ -33,11 +33,6 @@ def legacy_component():
     return component
 
 
-def test_deprecated_arguments():
-    with pytest.warns(DeprecationWarning):  # noqa
-        Component(name="Generator", list_name="x", attrs=pd.DataFrame())
-
-
 def test_component_initialization(legacy_component):
     component = legacy_component
     assert component.name == "Generator"

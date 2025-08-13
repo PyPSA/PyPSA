@@ -98,10 +98,6 @@ class Components(
     Components inherits from it, adds logic and methods, but does not store any data
     itself.
 
-    !!! warning
-        This class is under ongoing development and will be subject to changes.
-        It is not recommended to use this class outside of PyPSA.
-
     """
 
     def __init__(
@@ -386,7 +382,7 @@ class Components(
         Examples
         --------
         >>> n.components.generators.description
-        'Power generator.'
+        'Power generator for the bus carrier it attaches to.'
 
         """
         return self.ctype.description

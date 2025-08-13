@@ -3,21 +3,16 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
 import scipy as sp
-from deprecation import deprecated
-
-from pypsa.common import deprecated_common_kwargs
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable
 
     import pandas as pd
-
-    from pypsa import Network, SubNetwork
 
 
 class OrderedGraph(nx.MultiGraph):
@@ -25,39 +20,6 @@ class OrderedGraph(nx.MultiGraph):
 
     node_dict_factory = OrderedDict
     adjlist_dict_factory = OrderedDict
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.graph` instead.",
-)
-@deprecated_common_kwargs
-def graph(n: Network | SubNetwork, *args: Any, **kwargs: Any) -> Any:
-    """Use `n.graph` instead."""
-    return n.graph(*args, **kwargs)
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.adjacency_matrix` instead.",
-)
-@deprecated_common_kwargs
-def adjacency_matrix(n: Network | SubNetwork, *args: Any, **kwargs: Any) -> Any:
-    """Use `n.adjacency_matrix` instead."""
-    return n.adjacency_matrix(*args, **kwargs)
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.incidence_matrix` instead.",
-)
-@deprecated_common_kwargs
-def incidence_matrix(n: Network | SubNetwork, *args: Any, **kwargs: Any) -> Any:
-    """Use `n.incidence_matrix` instead."""
-    return n.incidence_matrix(*args, **kwargs)
 
 
 class NetworkGraphMixin:
@@ -82,8 +44,6 @@ class NetworkGraphMixin:
 
         Parameters
         ----------
-        n : Network|SubNetwork
-            Network or sub-network.
         branch_components : [str]
             Components to use as branches. The default are
             passive_branch_components in the case of a SubNetwork and
@@ -156,8 +116,6 @@ class NetworkGraphMixin:
 
         Parameters
         ----------
-        n : Network | SubNetwork
-            Network or sub-network.
         branch_components : iterable sublist of `branch_components`
             Buses connected by any of the selected branches are adjacent
             (default: branch_components (network) or passive_branch_components (sub_network))
