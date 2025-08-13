@@ -21,24 +21,46 @@ from pypsa.guards import _as_xarray_guard
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pypsa import Components
 
-def _from_xarray(da: xarray.DataArray) -> pd.DataFrame | pd.Series:
-    """Convert component attribute xarray view back to pandas dataframe or series."""
-    # Get available dimensions
+
+def _from_xarray(da: xarray.DataArray, c: Components) -> pd.DataFrame | pd.Series:
+    """Convert component attribute xarray view back to pandas dataframe or series.
+
+    Based on the dimensions the method returns the pandas format as stored in Network:
+
+    - name: single-indexed series with names as rows and single column as attribute
+    - name, snapshot: dataframe with snapshots as rows and names as columns
+    - name, scenario: multi-index series with name and scenarios as rows
+    - name, snapshot, scenario: multi-index dataframe with snapshots as rows and name/ scenarios as columns
+
+    If name or scenarios (if stochastic) are missing, they will be expanded to cover them
+
+    """
+    # Add missing dimensions if needed
+    if "name" not in da.dims:
+        da = da.expand_dims(name=c.component_names)
+    if "scenario" not in da.dims and c.has_scenarios:
+        da = da.expand_dims(scenario=c.scenarios)
+
     dims = set(da.dims)
+    if dims in ({"name"}, {"name", "snapshot"}):
+        return da.transpose("snapshot", "name", missing_dims="ignore").to_pandas()
 
-    if dims in ({"name"}, {"name", "snapshot"}, {"snapshot"}):
-        return da.to_pandas()
-
+    # c.static with scenarios
     elif dims == {"name", "scenario"}:
-        return da.to_pandas().stack()  # Unstack to create a Series with MultiIndex
+        return da.transpose("scenario", "name").to_pandas().stack()
 
+    # c.dynamic with scenarios
     elif dims == {"name", "snapshot", "scenario"}:
         df = (
-            da.transpose("name", "scenario", "snapshot")
+            da.transpose("name", "scenario", "snapshot", ...)
             .stack(combined=("scenario", "name"))
             .to_pandas()
         )
+        # Always return dataframes, also for one-column data
+        if isinstance(df, pd.Series):
+            df = df.to_frame()
 
         df.columns.name = None
         return df

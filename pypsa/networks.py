@@ -142,11 +142,7 @@ class Network(
 
         # Investment periods coordinate
         cols = ["objective", "years"]
-        # Note: The index is derived from n.snapshots since periods are only a coordinate
-        # of snapshots.
-        self._investment_periods_data = pd.DataFrame(
-            index=self.investment_periods, columns=cols
-        )
+        self._investment_periods_data = pd.DataFrame(index=self.periods, columns=cols)
 
         # Scenarios
         cols = ["weight"]
@@ -711,7 +707,12 @@ class Network(
         DatetimeIndex(['2015-01-01'], dtype='datetime64[ns]', name='snapshot', freq=None)
 
         """
-        if self.is_solved and hasattr(self.model, "solver_model"):
+        if (
+            self.is_solved
+            and hasattr(self._model, "solver_model")
+            and self._model is not None
+            and self._model.solver_model is not None
+        ):
             msg = "Copying a solved network with an attached solver model is not supported."
             msg += " Please delete the model first using `n.model.solver_model = None`."
             raise ValueError(msg)
@@ -883,12 +884,12 @@ class Network(
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
     def _empty_components(self) -> list:
-        """Get a list of all components that are not empty.
+        """Get a list of all components that are empty.
 
         Returns
         -------
         list
-            List of non-empty components.
+            List of empty components.
 
         """
         return [c.name for c in self.iterate_components() if c.empty]
@@ -1119,12 +1120,12 @@ class Network(
 
         return self
 
-    def cycles(
+    def cycle_matrix(
         self, investment_period: str | int | None = None, apply_weights: bool = False
     ) -> pd.DataFrame:
         """Get the cycles in the network and represent them as a DataFrame.
 
-        This function identifies all cycles in the network topology and
+        This function identifies a cycle basis of the network topology and
         returns a DataFrame representation of the cycle matrix. The cycles
         matrix is a sparse matrix with branches as rows and independent
         cycles as columns. An entry of +1 indicates the branch is traversed
@@ -1139,7 +1140,8 @@ class Network(
             If not given, all branches are considered regardless of
             build_year and lifetime.
         apply_weights : bool, default False
-            Whether to apply weights to the cycles.
+            Whether to apply weights (e.g., reactance for AC lines,
+            resistance for DC lines) to the cycles.
 
         Returns
         -------
@@ -1281,6 +1283,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         self._n = ref(n)
         self.name = name
 
+    # TODO assign __str__ and __repr__
     @property
     def n(self) -> Network:
         """Get the parent network of the sub-network.

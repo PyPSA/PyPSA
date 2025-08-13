@@ -46,6 +46,7 @@ class _NetworkABC(ABC):
     buses: pd.DataFrame
     generators: pd.DataFrame
     lines: pd.DataFrame
+    line_types: pd.DataFrame
     links: pd.DataFrame
     transformers: pd.DataFrame
     stores: pd.DataFrame
@@ -57,6 +58,7 @@ class _NetworkABC(ABC):
     shapes: pd.DataFrame
     component_attrs: pd.DataFrame
     global_constraints: pd.DataFrame
+    calculate_dependent_values: Callable
 
     passive_branches: pd.DataFrame
 

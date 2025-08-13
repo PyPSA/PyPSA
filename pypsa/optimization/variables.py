@@ -208,8 +208,6 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
 
     active = c.da.active.sel(snapshot=sns)
 
-    # align "active" and "upper" arrays on the same order across scenario/snapshot/component axes
-    # .align() TODO low high
     active_aligned, upper_aligned = xr.align(active, upper, join="inner")
     active = active_aligned.where(upper_aligned > 0, False)
 

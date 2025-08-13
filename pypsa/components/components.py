@@ -396,7 +396,7 @@ class Components(
         Examples
         --------
         >>> n.components.generators.description
-        'Power generator.'
+        'Power generator for the bus carrier it attaches to.'
 
         """
         return self.ctype.description
@@ -714,7 +714,7 @@ class Components(
 
         # Remove scenario dimension, since they cannot vary across scenarios
         if self.has_scenarios:
-            idx = idx.unique("name")
+            idx = idx.get_level_values("name").drop_duplicates()
 
         return idx
 
@@ -736,7 +736,7 @@ class Components(
 
         # Remove scenario dimension, since they cannot vary across scenarios
         if self.has_scenarios:
-            idx = idx.unique("name")
+            idx = idx.get_level_values("name").drop_duplicates()
 
         return idx
 
@@ -757,7 +757,7 @@ class Components(
 
         # Remove scenario dimension, since they cannot vary across scenarios
         if self.has_scenarios:
-            idx = idx.unique("name")
+            idx = idx.get_level_values("name").drop_duplicates()
 
         return idx
 

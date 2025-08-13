@@ -975,7 +975,9 @@ class _ExporterNetCDF(_Exporter):
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save a static components data."""
         df = df.rename_axis(index={"name": list_name + "_i"})
-        self.ds[list_name + "_i"] = df.index.get_level_values(list_name + "_i").unique()
+        self.ds[list_name + "_i"] = df.index.get_level_values(
+            list_name + "_i"
+        ).drop_duplicates()
 
         if not df.columns.empty:
             df_array = df.to_xarray().rename(
@@ -1161,8 +1163,6 @@ class NetworkIOMixin(_NetworkABC):
                 # do not export derived attributes and object column of subnetwork
                 if col in ["g_pu", "b_pu"]:
                     continue
-                if col == "obj":
-                    static[col] = np.nan
                 if (
                     col in attrs.index
                     and pd.isnull(attrs.at[col, "default"])
@@ -1183,7 +1183,12 @@ class NetworkIOMixin(_NetworkABC):
                 exporter.remove_static(list_name)
                 continue
 
-            exporter.save_static(list_name, static[col_export])
+            static_export = static[col_export].copy()
+            # Stored SubNetwork obj column is not serializable
+            if "obj" in col_export and component == "SubNetwork":
+                static_export["obj"] = np.nan
+
+            exporter.save_static(list_name, static_export)
 
             # now do varying attributes
             for attr in dynamic:
@@ -1231,31 +1236,35 @@ class NetworkIOMixin(_NetworkABC):
             Skip importing time
 
         """
-        attrs = importer.get_attributes()
+        # n.meta
         self.meta = importer.get_meta()
+
+        # n.crs
         crs = importer.get_crs()
         crs = crs.pop("_crs", None)
         if crs is not None:
             crs = CRS.from_wkt(crs)
             self._crs = crs
 
-        pypsa_version_tuple = (0, 0, 0)
-
-        if attrs is not None:
+        # other network attributes
+        attrs = importer.get_attributes() or {}
+        if "name" in attrs:
             name = attrs.pop("name")
-            self.name = name if pd.notna(name) else ""
+            if pd.notna(name):
+                self.name = name
 
-            major = int(attrs.pop("pypsa_version", [0, 0, 0])[0])
-            minor = int(attrs.pop("pypsa_version", [0, 0, 0])[1])
-            patch = int(attrs.pop("pypsa_version", [0, 0, 0])[2])
+        if "pypsa_version" in attrs:
+            pypsa_version_tuple = tuple(
+                int(v) for v in attrs.pop("pypsa_version", "0.0.0").split(".")
+            )
+        else:
+            pypsa_version_tuple = (0, 0, 0)
 
-            pypsa_version_tuple = (major, minor, patch)
-
-            for attr, val in attrs.items():
-                if attr in ["model", "objective", "objective_constant"]:
-                    setattr(self, f"_{attr}", val)
-                else:
-                    setattr(self, attr, val)
+        for attr, val in attrs.items():
+            if attr in ["model", "objective", "objective_constant"]:
+                setattr(self, f"_{attr}", val)
+            else:
+                setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
         if pypsa_version_tuple < __version_semver_tuple__:
@@ -1299,7 +1308,7 @@ class NetworkIOMixin(_NetworkABC):
         # read in investment period weightings
         periods = importer.get_investment_periods()
 
-        if periods is not None:
+        if periods is not None and not periods.empty:
             self.periods = periods.index
 
             self._investment_periods_data = periods.reindex(self.investment_periods)
@@ -1735,7 +1744,7 @@ class NetworkIOMixin(_NetworkABC):
         for attr in [attr for attr in df if attr.startswith("bus")]:
             # allow empty buses for multi-ports
             port = int(attr[-1]) if attr[-1].isdigit() else 0
-            buses = self.components.buses.static.index.unique("name")
+            buses = self.c.buses.component_names
             mask = ~df[attr].isin(buses)
             if port > 1:
                 mask &= df[attr].ne("")

@@ -395,6 +395,30 @@ def test_global_constraint_primary_energy_store(n_sts):
     assert round(soc_diff @ emissions, 0) == 3000
 
 
+def test_global_constraint_primary_energy_storage_stochastic(n_sus):
+    """
+    Test global constraints with primary energy for storage in stochastic networks.
+
+    This test ensures that multi-period optimization with storage units and
+    global constraints work correctly when scenarios are present.
+    """
+
+    c = "StorageUnit"
+
+    n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
+    n_sus.static(c)["state_of_charge_initial"] = 200
+    n_sus.static(c)["cyclic_state_of_charge"] = False
+    n_sus.static(c)["state_of_charge_initial_per_period"] = False
+    n_sus.static(c)["carrier"] = "emitting_carrier"
+
+    n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
+    n_sus.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    status, cond = n_sus.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    assert n_sus.model.constraints["GlobalConstraint-co2limit"].rhs[0] == -77000.0
+
+
 def test_global_constraint_transmission_expansion_limit(n):
     n.add(
         "GlobalConstraint",

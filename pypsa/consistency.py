@@ -11,15 +11,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa._options import options
 from pypsa.constants import RE_PORTS_FILTER
+from pypsa.guards import _consistency_check_guard
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from pypsa.typing import NetworkType
-
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
 
     from pypsa import Network
     from pypsa.components import Components
@@ -735,9 +733,6 @@ class NetworkConsistencyMixin(_NetworkABC):
     All attributes and methods can be used within any Network instance.
     """
 
-    calculate_dependent_values: Callable
-    iterate_components: Callable
-
     def consistency_check(
         self, check_dtypes: bool = False, strict: Sequence | None = None
     ) -> None:
@@ -864,6 +859,10 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
         check_line_types_consistency(self, "line_types" in strict)
         check_stochastic_slack_bus_consistency(self, "slack_bus_consistency" in strict)
+
+        # Optional runtime verification
+        if options.debug.runtime_verification:
+            _consistency_check_guard(self)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
         """Check network for consistency for plotting functions.

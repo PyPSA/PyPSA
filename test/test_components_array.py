@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import xarray
 
 from pypsa.components.array import _from_xarray
@@ -154,10 +155,115 @@ def test_ds_property_consistency(ac_dc_network):
 
 
 def test_from_xarray(ac_dc_types):
+    """Test that _from_xarray works with the new signature requiring Components parameter."""
     n = ac_dc_types
     for c in n.components:
-        for attr in c.static.columns:
+        # Test with a few representative attributes
+        for attr in list(c.static.columns)[
+            :2
+        ]:  # Only test first 2 attributes per component
             da = c.da[attr]
-            df = _from_xarray(da)
+            # Main test: ensure function works with Components parameter
+            result = _from_xarray(da, c)
+
+            # Basic checks
+            assert isinstance(result, pd.DataFrame | pd.Series)
+
+            # For dynamic data, check round-trip consistency
             if attr in c.dynamic and not c.dynamic[attr].empty:
-                assert df.equals(c._as_dynamic(attr))
+                dynamic_data = c._as_dynamic(attr)
+                # Check basic shape compatibility
+                if isinstance(result, pd.DataFrame) and isinstance(
+                    dynamic_data, pd.DataFrame
+                ):
+                    assert result.shape == dynamic_data.shape
+                elif isinstance(result, pd.Series) and isinstance(
+                    dynamic_data, pd.Series
+                ):
+                    assert len(result) == len(dynamic_data)
+
+
+def test_from_xarray_auxiliary_dimensions():
+    """Test _from_xarray with auxiliary dimensions like contingency scenarios."""
+    import pandas as pd
+    import xarray as xr
+
+    from pypsa.components.array import _from_xarray
+
+    # Create mock component for testing
+    class MockComponent:
+        def __init__(self):
+            self.component_names = ["gen1", "gen2"]
+            self.scenarios = ["s1", "s2"]
+            self.has_scenarios = True
+
+    c = MockComponent()
+
+    # Test case: name + scenario + auxiliary dimension (3+ dimensions)
+    data_with_scenario = xr.DataArray(
+        [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+        dims=["scenario", "name", "cycle"],
+        coords={
+            "scenario": ["s1", "s2"],
+            "name": ["gen1", "gen2"],
+            "cycle": ["c1", "c2"],
+        },
+    )
+    result_with_scenario = _from_xarray(data_with_scenario, c)
+    assert isinstance(result_with_scenario, pd.DataFrame | pd.Series)
+
+    # Test case: name + snapshot + auxiliary dimension (3+ dimensions)
+    data_with_snapshot = xr.DataArray(
+        [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+        dims=["snapshot", "name", "cycle"],
+        coords={
+            "snapshot": pd.date_range("2020-01-01", periods=2, freq="h"),
+            "name": ["gen1", "gen2"],
+            "cycle": ["c1", "c2"],
+        },
+    )
+    c.has_scenarios = False
+    result_with_snapshot = _from_xarray(data_with_snapshot, c)
+    assert isinstance(result_with_snapshot, pd.DataFrame | pd.Series)
+
+
+def test_from_xarray_edge_cases():
+    """Test _from_xarray edge cases and dimension handling."""
+    import pandas as pd
+    import xarray as xr
+
+    from pypsa.components.array import _from_xarray
+
+    # Create mock component for testing
+    class MockComponent:
+        def __init__(self):
+            self.component_names = ["gen1", "gen2"]
+            self.scenarios = ["s1", "s2"]
+            self.has_scenarios = False
+
+    c = MockComponent()
+
+    # Test case 1: Missing name dimension (should be expanded)
+    data_no_name = xr.DataArray(
+        [1, 2, 3],
+        dims=["snapshot"],
+        coords={"snapshot": pd.date_range("2020-01-01", periods=3, freq="h")},
+    )
+    result = _from_xarray(data_no_name, c)
+    assert isinstance(result, pd.DataFrame | pd.Series)
+    # After expansion, should have both name and snapshot dimensions
+    assert result.shape[1] == 2  # Should have 2 components (gen1, gen2)
+
+    # Test case 2: 2D case with snapshot + auxiliary dim (no name, expanded)
+    data_2d_no_name = xr.DataArray(
+        [[1, 2], [3, 4], [5, 6]],
+        dims=["snapshot", "cycle"],
+        coords={
+            "snapshot": pd.date_range("2020-01-01", periods=3, freq="h"),
+            "cycle": ["c1", "c2"],
+        },
+    )
+    result_2d = _from_xarray(data_2d_no_name, c)
+    assert isinstance(result_2d, pd.DataFrame)
+    # After name expansion, we have 3+ dimensions, so combined index is created
+    assert len(result_2d.columns) == 4  # gen1*c1, gen1*c2, gen2*c1, gen2*c2

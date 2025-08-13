@@ -507,9 +507,9 @@ def test_dynamic_ramp_rates():
     assert (n.generators_t.p.diff().loc[6:, "gen1"]).min() >= -100
 
 
-def test_dynamic_ramp_rates_for_commitables():
+def test_dynamic_start_up_rates_for_commitables():
     """
-    This test checks that ramp rate constraints and unit commitment functionality runs through
+    This test checks that start up ramp rate constraints within unit commitment functionality runs through and is considered correctly.
     """
     n = pypsa.Network()
 
@@ -522,9 +522,6 @@ def test_dynamic_ramp_rates_for_commitables():
     gen1_marginal = pd.Series(100, index=n.snapshots)
     gen1_marginal[[4, 5, 6, 10, 11, 12]] = 200
 
-    static_ramp_up = 0.8
-    static_ramp_down = 1
-
     n.add(
         "Generator",
         "gen1",
@@ -533,8 +530,11 @@ def test_dynamic_ramp_rates_for_commitables():
         committable=True,
         p_min_pu=0.3,
         p_max_pu=1,
-        ramp_limit_up=static_ramp_up * 1,
-        ramp_limit_down=static_ramp_down * 1,
+        ramp_limit_up=1,
+        ramp_limit_start_up=0.3,
+        ramp_limit_shut_down=1,
+        start_up_cost=10,
+        shut_down_cost=10,
         marginal_cost=gen1_marginal,
     )
 
@@ -543,3 +543,18 @@ def test_dynamic_ramp_rates_for_commitables():
     status, _ = n.optimize(snapshots=n.snapshots)
 
     assert status == "ok"
+
+    # Check that ramp_limit_start_up constraint is respected
+    gen1_status = n.generators_t.status["gen1"]
+    gen1_p = n.generators_t.p["gen1"]
+
+    # Find startup events (status changes from 0 to 1)
+    startup_snapshots = gen1_status[
+        (gen1_status == 1) & (gen1_status.shift(1) == 0)
+    ].index
+
+    for snapshot in startup_snapshots:
+        expected_max_startup = 0.3 * 100  # ramp_limit_start_up * p_nom
+        assert gen1_p[snapshot] <= expected_max_startup, (
+            f"Startup ramp limit violated at snapshot {snapshot}: {gen1_p[snapshot]} > {expected_max_startup}"
+        )

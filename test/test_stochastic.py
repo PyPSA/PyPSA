@@ -104,14 +104,14 @@ def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
 
 def test_cycles(ac_dc_stochastic: pypsa.Network):
     n = ac_dc_stochastic
-    C = n.cycles()
+    C = n.cycle_matrix()
 
     assert isinstance(C, pd.DataFrame)
     assert C.notnull().all().all()  # Check for NaN values
 
     # repeat with apply weights
     n.calculate_dependent_values()
-    C = n.cycles(apply_weights=True)
+    C = n.cycle_matrix(apply_weights=True)
     assert isinstance(C, pd.DataFrame)
     assert C.notnull().all().all()  # Check for NaN values
 
@@ -208,24 +208,26 @@ def test_statistics_plot(ac_dc_stochastic_r):
     s.installed_capacity.plot.bar()
 
 
-def test_optimization_simple(ac_dc_stochastic):
+def test_optimization_with_scenarios(ac_dc_stochastic):
     """
-    Simple test case for the optimization of a stochastic network.
+    Test optimization of a stochastic network and compare results with deterministic equivalent.
+
+    This test verifies that:
+    - Stochastic optimization completes successfully
+    - The objective value matches a deterministic network with identical data
     """
     n = ac_dc_stochastic
-    n.optimize.create_model()
     status, _ = n.optimize(solver_name="highs")
     assert status == "ok"
 
-
-def test_optimization_advanced(storage_hvdc_network):
-    """
-    Advanced test case for the optimization of a stochastic network.
-    """
-    n = storage_hvdc_network
-    n.set_scenarios({"low": 0.5, "high": 0.5})
-    status, _ = n.optimize(solver_name="highs")
-    assert status == "ok"
+    m = pypsa.examples.ac_dc_meshed()
+    m.optimize(solver_name="highs")
+    assert abs(m.objective - n.objective) < 1e-2, (
+        f"Expected objective {m.objective}, got {n.objective}"
+    )
+    assert abs(m.objective_constant - n.objective_constant) < 1e-2, (
+        f"Expected objective constant {m.objective_constant}, got {n.objective_constant}"
+    )
 
 
 def test_solved_network_simple(stochastic_benchmark_network):
@@ -588,6 +590,12 @@ def test_store_stochastic_optimization_bug():
     # Ensure the network has stores (it should)
     assert not n.stores.empty, "Test network should have stores"
 
+    # The bug occured in operation (1 - standing_loss)**eh due to dimension mismatch
+    n.stores.at["hydrogen storage", "e_nom"] = 1000
+    n.stores.at["hydrogen storage", "e_cyclic"] = False
+    n.stores.at["hydrogen storage", "e_initial"] = 800
+    n.stores.at["hydrogen storage", "standing_loss"] = 0.01
+
     # Test without scenarios first (should work)
     n_regular = n.copy()
     status_regular, condition_regular = n_regular.optimize()
@@ -614,6 +622,15 @@ def test_store_stochastic_optimization_bug():
     # Verify optimization results exist
     assert not n_stochastic.stores_t.e.empty
     assert not n_stochastic.stores_t.p.empty
+
+    # Verify specific energy level at second snapshot
+    # it is 800 × (1 - 0.01)³ due to 3h temporal clustering
+    second_hour_energy = n_stochastic.stores_t.e.loc[
+        n_stochastic.snapshots[1], ("scenario_a", "hydrogen storage")
+    ]
+    assert abs(second_hour_energy - 776.2392) < 0.01, (
+        f"Expected hydrogen storage energy ~776.24 at second snapshot, got {second_hour_energy}"
+    )
 
 
 def test_store_stochastic_dimensions():
@@ -1314,8 +1331,8 @@ def test_primary_energy_constraint_stochastic(ac_dc_stochastic):
     assert ("low", "co2_limit") in n.global_constraints.index
     assert ("high", "co2_limit") in n.global_constraints.index
     n.optimize.create_model()
-    assert "GlobalConstraint-low-co2_limit" in n.model.constraints
-    assert "GlobalConstraint-high-co2_limit" in n.model.constraints
+    assert "GlobalConstraint-co2_limit" in n.model.constraints
+    assert "scenario" in n.model.constraints["GlobalConstraint-co2_limit"].dims
 
 
 def test_operational_limit_constraint_stochastic():
@@ -1356,8 +1373,8 @@ def test_operational_limit_constraint_stochastic():
 
     # Create model to verify constraints are properly added
     n.optimize.create_model()
-    assert "GlobalConstraint-scenario1-solar_limit" in n.model.constraints
-    assert "GlobalConstraint-scenario2-solar_limit" in n.model.constraints
+    assert "GlobalConstraint-solar_limit" in n.model.constraints
+    assert "scenario" in n.model.constraints["GlobalConstraint-solar_limit"].dims
 
 
 def test_max_growth_constraint_stochastic(n):
@@ -1402,7 +1419,7 @@ def test_max_relative_growth_constraint(n):
 @pytest.mark.parametrize("assign", [True, False])
 def test_assign_all_duals_stochastic(ac_dc_network, assign):
     """Test that all duals are written back to the network with stochastic scenarios."""
-    n = ac_dc_network.copy()
+    n = ac_dc_network
 
     # Set up two scenarios
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
@@ -1420,44 +1437,90 @@ def test_assign_all_duals_stochastic(ac_dc_network, assign):
         name="GlobalConstraint-generation_limit_dynamic",
     )
 
-    n.optimize.solve_model(assign_all_duals=assign)
-
-    assert ("generation_limit" in n.global_constraints.index) == assign
-    assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
-
     if assign:
+        # TODO Add when custom constraints duals are written to extra custom constraint
+        with pytest.raises(NotImplementedError):
+            # This should raise because we are not assigning duals yet
+            n.optimize.solve_model(assign_all_duals=assign)
+
+        # assert ("generation_limit" in n.global_constraints.index) == assign
+        # assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
+        # if "mu_upper" in n.generators_t:
+        #     assert not n.generators_t.mu_upper.empty, (
+        #         "Generator mu_upper should be assigned when assign_all_duals=True"
+        #     )
+        # if "mu_lower" in n.generators_t:
+        #     assert not n.generators_t.mu_lower.empty, (
+        #         "Generator mu_lower should be assigned when assign_all_duals=True"
+        #     )
+
+        # if "mu_upper" in n.links_t:
+        #     assert not n.links_t.mu_upper.empty, (
+        #         "Link mu_upper should be assigned when assign_all_duals=True"
+        #     )
+        # if "mu_lower" in n.links_t:
+        #     assert not n.links_t.mu_lower.empty, (
+        #         "Link mu_lower should be assigned when assign_all_duals=True"
+        #     )
+
+        # # Verify that stochastic dimensions are preserved in dual variables
+        # if not n.buses_t.marginal_price.empty:
+        #     assert isinstance(n.buses_t.marginal_price.columns, pd.MultiIndex), (
+        #         "Marginal prices should have MultiIndex columns with scenarios"
+        #     )
+        #     scenarios_in_marginal_price = (
+        #         n.buses_t.marginal_price.columns.get_level_values("scenario").unique()
+        #     )
+        #     assert all(s in scenarios_in_marginal_price for s in n.scenarios), (
+        #         "All scenarios should be present in marginal prices"
+        #     )
+
+    else:
+        n.optimize.solve_model(assign_all_duals=assign)
         assert not n.buses_t.marginal_price.empty, (
             "Marginal prices should always be assigned"
         )
 
-        if "mu_upper" in n.generators_t:
-            assert not n.generators_t.mu_upper.empty, (
-                "Generator mu_upper should be assigned when assign_all_duals=True"
-            )
-        if "mu_lower" in n.generators_t:
-            assert not n.generators_t.mu_lower.empty, (
-                "Generator mu_lower should be assigned when assign_all_duals=True"
-            )
 
-        if "mu_upper" in n.links_t:
-            assert not n.links_t.mu_upper.empty, (
-                "Link mu_upper should be assigned when assign_all_duals=True"
-            )
-        if "mu_lower" in n.links_t:
-            assert not n.links_t.mu_lower.empty, (
-                "Link mu_lower should be assigned when assign_all_duals=True"
-            )
+def test_transmission_volume_expansion_limit_constraint_stochastic():
+    """Test transmission volume expansion limit works correctly with scenarios."""
+    n = pypsa.Network(snapshots=range(3))
 
-        # Verify that stochastic dimensions are preserved in dual variables
-        if not n.buses_t.marginal_price.empty:
-            assert isinstance(n.buses_t.marginal_price.columns, pd.MultiIndex), (
-                "Marginal prices should have MultiIndex columns with scenarios"
-            )
-            scenarios_in_marginal_price = (
-                n.buses_t.marginal_price.columns.get_level_values("scenario").unique()
-            )
-            assert all(s in scenarios_in_marginal_price for s in n.scenarios), (
-                "All scenarios should be present in marginal prices"
-            )
-    else:
-        pass
+    # Ensure carrier and buses/line exist and line is extendable
+    n.add("Carrier", "AC")
+    n.add("Bus", ["b1", "b2"], carrier="AC")
+    n.add(
+        "Line",
+        "l1",
+        bus0="b1",
+        bus1="b2",
+        length=1.0,
+        x=0.0001,
+        r=0.001,
+        s_nom_extendable=True,
+        carrier="AC",
+    )
+
+    n.add("Generator", "g", bus="b1", p_nom=100, marginal_cost=10, carrier="AC")
+    n.add("Load", "load1", bus="b2", p_set=[50, 50, 50])
+
+    n.add(
+        "GlobalConstraint",
+        "tx_vol",
+        type="transmission_volume_expansion_limit",
+        sense="<=",
+        constant=1e6,
+        carrier_attribute="AC",
+    )
+
+    # Scenarios
+    n.set_scenarios(["scenario1", "scenario2"])
+
+    # Verify constraint exists in both scenarios in the input table
+    assert ("scenario1", "tx_vol") in n.global_constraints.index
+    assert ("scenario2", "tx_vol") in n.global_constraints.index
+
+    # Build model and verify a single constraint with scenario dimension
+    n.optimize.create_model()
+    assert "GlobalConstraint-tx_vol" in n.model.constraints
+    assert "scenario" in n.model.constraints["GlobalConstraint-tx_vol"].dims

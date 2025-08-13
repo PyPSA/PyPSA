@@ -460,7 +460,10 @@ class OptimizationAbstractMixin:
                     else:
                         lhs = con.lhs.sel(sel) + added_flow.sel({c_affected: idx})
 
-                    name = constraint + f"-security-for-{c_outage_}-in-{sub_network}"
+                    name = (
+                        constraint
+                        + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
+                    )
                     m.add_constraints(
                         lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name
                     )

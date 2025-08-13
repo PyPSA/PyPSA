@@ -50,7 +50,7 @@ class ComponentsIndexMixin(_ComponentsABC):
         Index(['g1', 'g2'], dtype='object', name='name')
 
         """
-        return self.static.index.get_level_values("name").unique()
+        return self.static.index.get_level_values("name").drop_duplicates()
 
     # Derived from attached Network
 

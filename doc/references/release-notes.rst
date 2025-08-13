@@ -11,15 +11,9 @@ Release Notes
 ..    To use the features already you have to install the ``master`` branch, e.g. 
 ..    ``pip install git+https://github.com/pypsa/pypsa``.
 
-* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
-  the optimization model entirely. This has no effect on the results, but it can
-  reduce the memory footprint when solving the model.
 
-Bug Fixes
----------
-
-* Correct use of snapshot weighting columns in statistics module. The
-  doscstring for ``n.snapshot_weightings`` was clarified.
+Features
+--------
 
 * Added utility function ``pypsa.common.annuity`` to calculate the annuity
   factor for a given discount rate and lifetime. Also known as capital recovery
@@ -31,6 +25,24 @@ Bug Fixes
       \frac{r}{1 - (1 + r)^{-n}}
 
   where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
+
+* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
+  the optimization model entirely. This has no effect on the results, but it can
+  reduce the memory footprint when solving the model.
+
+
+Bug Fixes
+---------
+
+* Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
+  (https://github.com/PyPSA/PyPSA/issues/1325)
+
+* Correct use of snapshot weighting columns in statistics module. The
+  doscstring for ``n.snapshot_weightings`` was clarified.
+
+* Resolved an issue where the network version was not correctly identified during I/O, 
+  resulting in false update information being logged.
+  (https://github.com/PyPSA/PyPSA/pull/1300)
 
 `v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
 =======================================================================================

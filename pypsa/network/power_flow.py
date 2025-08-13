@@ -43,6 +43,7 @@ def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
 
 
 pd.Series.zsum = zsum
+
 logger = logging.getLogger(__name__)
 
 
@@ -843,8 +844,6 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         Parameters
         ----------
-        n : Network
-            Network instance.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -960,8 +959,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            Sub-network instance.
         skip_pre : bool, default False
             Skip the preliminary step of computing the PTDF.
 
@@ -992,8 +989,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to calculate the PTDF for.
         skip_pre : bool, default False
             Skip the preliminary steps of computing topology, calculating dependent values,
             finding bus controls and computing B and H.
@@ -1275,8 +1270,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to run the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -1336,7 +1329,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             n.calculate_dependent_values()
             self.find_bus_controls()
-            _allocate_pf_outputs(n, linear=True)
+            _allocate_pf_outputs(n, linear=False)
 
         # get indices for the components on this sub-network
         branches_i = self.branches_i(active_only=True)
@@ -1671,8 +1664,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to perform the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots

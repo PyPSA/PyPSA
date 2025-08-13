@@ -2,7 +2,7 @@ import pytest
 
 
 def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
-    n = ac_dc_network.copy()
+    n = ac_dc_network
 
     limit = 30_000
 
@@ -22,7 +22,7 @@ def test_operational_limit_n_ac_dc_meshed(ac_dc_network):
 
 
 def test_operational_limit_storage_hvdc(storage_hvdc_network):
-    n = storage_hvdc_network.copy()
+    n = storage_hvdc_network
 
     limit = 5_000
 
@@ -52,7 +52,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
 @pytest.mark.parametrize("assign", [True, False])
 def test_assign_all_duals(ac_dc_network, assign):
-    n = ac_dc_network.copy()
+    n = ac_dc_network
 
     limit = 30_000
 
@@ -71,3 +71,29 @@ def test_assign_all_duals(ac_dc_network, assign):
 
     assert ("generation_limit" in n.global_constraints.index) == assign
     assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
+
+
+def test_assign_duals_noname(ac_dc_network):
+    """Test that dual values are correctly assigned back to network,
+    also for a special case of constraints without component dimension."""
+    n = ac_dc_network
+
+    limit = 10000
+    m = n.optimize.create_model()
+    investment = m.variables["Generator-p_nom"]
+    m.add_constraints(
+        investment.sum() == limit, name="GlobalConstraint-investment_limit"
+    )
+    n.optimize.solve_model(assign_all_duals=True)
+
+    dual_model_investment = float(
+        n.model.constraints["GlobalConstraint-investment_limit"].dual
+    )
+    dual_network_investment = float(n.global_constraints.mu.loc["investment_limit"])
+    assert dual_model_investment == pytest.approx(
+        dual_network_investment, rel=1e-8, abs=1e-10
+    )
+
+    dual_model_co2 = float(n.model.constraints["GlobalConstraint-co2_limit"].dual)
+    dual_network_co2 = float(n.global_constraints.mu.loc["co2_limit"])
+    assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
