@@ -31,14 +31,6 @@ except ImportError:
     explore_deps_present = False
 
 
-def test_deprecated_namespace(ac_dc_network):
-    from pypsa.plot import plot as plot_deprecated
-
-    with pytest.warns(DeprecationWarning):  # noqa
-        plot_deprecated(ac_dc_network)
-    plt.close()
-
-
 @pytest.mark.parametrize("margin", [None, 0.1])
 @pytest.mark.parametrize("jitter", [None, 1])
 @pytest.mark.skipif(os.name == "nt", reason="tcl_findLibrary on Windows")
@@ -338,3 +330,35 @@ def test_network_explore(ac_dc_network):
     n = ac_dc_network
 
     n.plot.explore()
+
+
+def test_plot_alias_for_plot_map(ac_dc_network):
+    """Test that n.plot() is an alias for n.plot.map()."""
+    n = ac_dc_network
+
+    # Both should return the same type of object and produce equivalent plots
+    # Test without geomap to avoid external dependencies
+    result1 = n.plot(geomap=False)
+    plt.close()
+
+    result2 = n.plot.map(geomap=False)
+    plt.close()
+
+    # Both should return the same type of object
+    assert type(result1) is type(result2)
+
+
+@pytest.mark.skipif(
+    not explore_deps_present,
+    reason="Dependencies for n.plot.explore() not installed: folium, mapclassify",
+)
+def test_plot_explore_alias_for_explore(ac_dc_network):
+    """Test that n.plot.explore is an alias for n.explore()."""
+    n = ac_dc_network
+
+    # Both should return the same type of object
+    result1 = n.plot.explore()
+    result2 = n.explore()
+
+    # Both should return folium Map objects
+    assert type(result1) is type(result2)

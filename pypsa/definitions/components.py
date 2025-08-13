@@ -6,8 +6,6 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from deprecation import deprecated
-
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -78,35 +76,3 @@ class ComponentType:
         """
         # TODO make this actually for the REPL
         return f"'{self.name}' Component Type"
-
-    @property
-    @deprecated(
-        deprecated_in="0.32.0",
-        removed_in="1.0",
-        details="Use the 'category' attribute instead.",
-    )
-    def type(self) -> str:
-        """Getter for the 'type' attribute.
-
-        Returns
-        -------
-        str
-
-        """
-        return self.category
-
-    @property
-    @deprecated(
-        deprecated_in="0.32.0",
-        removed_in="1.0",
-        details="Use the 'defaults' attribute instead.",
-    )
-    def attrs(self) -> pd.DataFrame:
-        """Getter for the 'attrs' attribute.
-
-        Returns
-        -------
-        pd.DataFrame
-
-        """
-        return self.defaults

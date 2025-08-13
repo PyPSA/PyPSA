@@ -16,7 +16,6 @@ General methods
 .. autosummary::
     :toctree: _source/
 
-    ~pypsa.Network.read_in_default_standard_types
     ~pypsa.Network.static
     ~pypsa.Network.df
     ~pypsa.Network.dynamic
@@ -25,9 +24,7 @@ General methods
     ~pypsa.Network.set_snapshots
     ~pypsa.Network.set_investment_periods
     ~pypsa.Network.add
-    ~pypsa.Network.madd
     ~pypsa.Network.remove
-    ~pypsa.Network.mremove
     ~pypsa.Network.copy
     ~pypsa.Network.equals
     ~pypsa.Network.branches
@@ -68,8 +65,7 @@ Input and output methods
     ~pypsa.Network.export_to_netcdf
     ~pypsa.Network.import_from_pypower_ppc
     ~pypsa.Network.import_from_pandapower_net
-    ~pypsa.Network.import_components_from_dataframe
-    ~pypsa.Network.import_series_from_dataframe 
+ 
 
 Power flow methods
 ~~~~~~~~~~~~~~~~~~~

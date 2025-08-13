@@ -32,9 +32,7 @@ logger = logging.getLogger(__name__)
 class UnexpectedError(AssertionError):
     """Custom error for unexpected conditions with issue tracker reference."""
 
-    URL_CREATE_ISSUE = (
-        "https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml"
-    )
+    URL_CREATE_ISSUE = "https://go.pypsa.org/report-bug"
 
     def __init__(self, message: str = "") -> None:
         """Initialize the UnexpectedError.
@@ -51,7 +49,7 @@ class UnexpectedError(AssertionError):
         ... except UnexpectedError as e:
         ...     print(str(e))  # doctest: +ELLIPSIS
         This is an unexpected error.
-        Please track this issue in our issue tracker: https://github.com/PyPSA/PyPSA/issues/new?template=bug_report.yaml
+        Please track this issue in our issue tracker: https://go.pypsa.org/report-bug
 
         """
         track_message = (
@@ -153,9 +151,6 @@ class MethodHandlerWrapper:
         wrapper.__doc__ = self.func.__doc__
 
         return wrapper
-
-
-logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -266,7 +261,7 @@ def as_index(
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    if force_subset and not values_.isin(n_attr).all():
+    if force_subset and not all(val in n_attr for val in values_):
         msg = (
             f"Values must be a subset of the network attribute "
             f"'{network_attribute}'. Pass force_subset=False to disable this check."
@@ -363,14 +358,16 @@ def equals(
             msg = f"numpy arrays differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
             return handle_diff(msg)
 
-    elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
+    elif isinstance(a, pd.DataFrame | pd.Series | pd.Index):
         if a.empty and b.empty:
             return True
         if not a.equals(b):
             # TODO: Resolve with data validation PR
             # Check if dtypes are equal
             try:
-                pd_testing.assert_frame_equal(a, b, check_dtype=False)
+                pd_testing.assert_frame_equal(
+                    a, b, check_dtype=False, check_exact=False
+                )
             except AssertionError:
                 msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
                 return handle_diff(msg)
@@ -393,7 +390,7 @@ def equals(
                 return handle_diff(msg)
 
     # Iterators
-    elif isinstance(a, (dict | Dict)):
+    elif isinstance(a, dict | Dict):
         for k, v in a.items():
             if k not in b:
                 msg = f"Key '{k}' missing from second dict at '{current_path}'"
@@ -406,7 +403,7 @@ def equals(
                 msg = f"Key '{k}' missing from first dict at '{current_path}'"
                 return handle_diff(msg)
 
-    elif isinstance(a, (list | tuple)):
+    elif isinstance(a, list | tuple):
         if len(a) != len(b):
             msg = f"Collections have different lengths at '{current_path}': {len(a)} != {len(b)}"
             return handle_diff(msg)
@@ -418,6 +415,12 @@ def equals(
     # Nans
     elif pd.isna(a) and pd.isna(b):
         pass
+
+    # Floating point numbers with tolerance
+    elif isinstance(a, float | int) and isinstance(b, float | int):
+        if not np.isclose(a, b, rtol=1e-9, atol=1e-12):
+            msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
 
     # Other objects
     elif a != b:
@@ -626,7 +629,7 @@ def deprecated_namespace(
 
 
 def list_as_string(
-    list_: Sequence | dict, prefix: str = "", style: str = "comma-separated"
+    list_: Sequence | dict | set, prefix: str = "", style: str = "comma-separated"
 ) -> str:
     """Convert a list to a formatted string.
 
@@ -853,3 +856,54 @@ def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
 
     """
     return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+
+
+def _scenarios_not_implemented(func: Callable) -> Callable:
+    """Raise ValueError when used with stochastic networks."""
+
+    @functools.wraps(func)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        # Check if self is the network or has an 'n' attribute pointing to the network
+        network = getattr(self, "n", self)
+        if network.has_scenarios:
+            msg = f"Method '{func.__name__}' is not yet implemented for stochastic networks."
+            raise ValueError(msg)
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
+    """Calculate the annuity factor for a given discount rate and lifetime.
+
+    According to formula $r / (1 - (1 + r)^{-n})$.
+
+    Parameters
+    ----------
+    r : float | pd.Series
+        Discount rate (as a decimal, e.g. 0.05 for 5%).
+    n : int | pd.Series
+        Lifetime of loan or asset (in years).
+
+    Returns
+    -------
+    float | pd.Series
+        The annuity factor.
+
+    Examples
+    --------
+    >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
+    0.12950457496545661
+
+    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), pd.Series([10, 20]))
+    0    0.129505
+    1    0.067216
+    dtype: float64
+
+    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), 20)
+    0    0.080243
+    1    0.067216
+    dtype: float64
+
+    """
+    return r / (1.0 - 1.0 / (1.0 + r) ** n)

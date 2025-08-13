@@ -24,4 +24,3 @@ This section contains examples of network optimization with PyPSA. PyPSA allows 
     ../examples/transformer_example.ipynb
     ../examples/unit-commitment.ipynb
     ../examples/reserve-power.ipynb
-    ../examples/optimization-with-linopy-migrate-extra-functionalities.ipynb
