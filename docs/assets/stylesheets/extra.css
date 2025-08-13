@@ -33,7 +33,28 @@
           mask-image: var(--md-admonition-icon--deprecation);
 }
 
-/* Maximum space for text block */
-.md-grid {
-  max-width: 70%;
+/* Hide In/Out prompts */
+.md-typeset .jp-InputPrompt,
+.md-typeset .jp-OutputPrompt,
+.md-typeset .prompt { display: none !important; }
+
+/* Clamp notebook width to Material content width */
+.md-content__inner :is(.jp-Notebook, .nbconvert-document) {
+  max-width: var(--md-typeset-width) !important;
+  margin-inline: auto !important;
+  width: 100% !important;
+}
+
+/* Use Material’s code font in notebook code (inputs + outputs) */
+.md-typeset :is(.jp-Notebook, .nbconvert-document) pre {
+  font-family: var(--md-code-font) !important;
+  font-size: 15px !important;
+}
+
+/* Remove the frame around input cells */
+.md-typeset :is(.jp-InputArea, .jp-InputArea-editor, .jp-Cell-inputWrapper, .cell .input_area, .CodeMirror, .cm-editor) {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  background: transparent !important;
 }
