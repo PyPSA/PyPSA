@@ -441,14 +441,28 @@ class PydeckPlotter:
 
     def create_projected_arrows(
         self,
-        flows: pd.Series,
-        size_factor: float = 2.5,
+        line_flows: pd.Series,
+        arrow_size_factor: float = 2.5,
     ) -> pd.DataFrame:
-        """Create polygons for arrows based on line data and flows."""
+        """Create polygons for arrows based on line data and flows.
+
+        Parameters
+        ----------
+        line_flows : pd.Series
+            Series of line flows indexed by line names.
+        arrow_size_factor : float, default 2.5
+            Factor to scale the arrow size.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing polygons (lists of tuples) for each line's arrow.
+
+        """
 
         def make_polygon(row: pd.Series) -> list[tuple[float, float]]:
             """Create a polygon for an arrow based on a row of line data."""
-            flow = flows.loc[row.name]
+            flow = line_flows.loc[row.name]
 
             x0, y0 = proj.transform(row["bus0_x"], row["bus0_y"])
             x1, y1 = proj.transform(row["bus1_x"], row["bus1_y"])
@@ -457,7 +471,7 @@ class PydeckPlotter:
             mx, my = (x0 + x1) / 2, (y0 + y1) / 2
             angle = np.arctan2(dy, dx) * np.sign(flow)
 
-            base_width_m = abs(flow) * 5 / 3 * size_factor
+            base_width_m = abs(flow) * 5 / 3 * arrow_size_factor
             tri = PydeckPlotter.scale_triangle_by_width(UNIT_TRIANGLE, base_width_m)
             tri = PydeckPlotter.rotate_triangle(tri, angle)
             tri = PydeckPlotter.translate_triangle(tri, (mx, my))
@@ -646,30 +660,41 @@ class PydeckPlotter:
 
     def add_arrow_layer(
         self,
-        # flows: pd.Series,
-        size_factor: float = 2.5,
+        line_flows: float | dict | pd.Series = 500,
+        arrow_size_factor: float = 2.5,
+        arrow_colors: str | dict | pd.Series = "rosybrown",
     ) -> None:
         """Add an arrow layer to the interactive map based on line flows.
 
         Parameters
         ----------
-        flows : pd.Series
-            Series of line flows indexed by line names.
-        size_factor : float, default 2.5
+        line_flows : float/dict/pandas.Series
+            Series of line flows indexed by line names, defaults to 500.
+            If a float is provided, it will be used as a constant flow for all lines.
+        arrow_size_factor : float, default 2.5
             Factor to scale the arrow size.
+        arrow_colors : str/dict/pandas.Series
+            Colors for the arrows, defaults to 'rosybrown'.
 
         """
-        flows = self._n.lines.s_nom
+        line_flows = _convert_to_series(line_flows, self._n.lines.index)
+        line_flows = self.create_projected_arrows(line_flows, arrow_size_factor)
 
-        arrow_data = self.create_projected_arrows(flows, size_factor)
+        colors = _convert_to_series(arrow_colors, line_flows.index).reindex(
+            line_flows.index
+        )
+        line_flows["rgba"] = [
+            to_rgba255(c, a)
+            for c, a in zip(colors, pd.Series(255, index=colors.index), strict=False)
+        ]
 
         layer = pdk.Layer(
             "PolygonLayer",
-            data=arrow_data,
+            data=line_flows,
             get_polygon="arrow",
+            get_fill_color="rgba",
             pickable=False,
             auto_highlight=True,
-            get_fill_color=[255, 0, 0, 255],
         )
         self._layers["arrows"] = layer
 
@@ -710,8 +735,11 @@ def explore(
     bus_alpha: float | dict | pd.Series = 0.5,
     line_columns: list | None = None,
     line_widths: float | dict | pd.Series = 500,
+    line_flows: float | dict | pd.Series = 500,
     line_colors: str | dict | pd.Series = "rosybrown",
     line_alpha: float | dict | pd.Series = 0.5,
+    arrow_size_factor: float = 2.5,
+    arrow_colors: str | dict | pd.Series = "rosybrown",
     map_style: str = "light",
     tooltip: bool = True,
 ) -> pdk.Deck:
@@ -735,10 +763,16 @@ def explore(
         Specify additional columns to include in the tooltip.
     line_widths : float/dict/pandas.Series
         Widths of lines in meters, defaults to 500.
+    line_flows : float/dict/pandas.Series
+        Series of line flows indexed by line names, defaults to 500.
     line_colors : str/dict/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     line_alpha : float/dict/pandas.Series
         Add alpha channel to lines, defaults to 0.5.
+    arrow_size_factor : float, default 2.5
+        Factor to scale the arrow size in relation to line_flows. A value of 1 denotes a multiplier of 1xline_width.
+    arrow_colors : str/dict/pandas.Series
+        Colors for the arrows, defaults to 'rosybrown'.
     map_style : str
         Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
     tooltip : bool, default True
@@ -759,7 +793,11 @@ def explore(
         bus_alpha=bus_alpha,
     )
 
-    plotter.add_arrow_layer(size_factor=4.0)
+    plotter.add_arrow_layer(
+        line_flows=line_flows,
+        arrow_size_factor=arrow_size_factor,
+        arrow_colors=arrow_colors,
+    )
 
     plotter.add_line_layer(
         line_columns=line_columns,
