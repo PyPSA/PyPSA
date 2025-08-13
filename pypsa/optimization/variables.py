@@ -206,7 +206,7 @@ def define_spillage_variables(n: Network, sns: Sequence) -> None:
     if (upper.max() <= 0).all():
         return
 
-    active = c.da.active.sel(snapshot=sns)
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     active_aligned, upper_aligned = xr.align(active, upper, join="inner")
     active = active_aligned.where(upper_aligned > 0, False)

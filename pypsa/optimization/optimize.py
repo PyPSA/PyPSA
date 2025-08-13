@@ -853,14 +853,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         already performed and a operational optimization should be done
         afterwards.
         """
+        n = self._n
         for c, attr in nominal_attrs.items():
-            ext_i = self._n.components[c].extendables.difference(
-                self._n.components[c].inactive_assets
-            )
-            self._n.static(c).loc[ext_i, attr] = self._n.static(c).loc[
-                ext_i, attr + "_opt"
-            ]
-            self._n.static(c)[attr + "_extendable"] = False
+            ext_i = n.c[c].extendables.difference(n.c[c].inactive_assets)
+            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
+            n.static(c)[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """Fix dispatch of all assets to optimized values.

@@ -940,7 +940,9 @@ def define_nodal_balance_constraints(
             dims=["snapshot", "name"],
         )
     else:
-        loads_values = loads.da.p_set.where(loads.da.active.sel(snapshot=sns))
+        loads_values = loads.da.p_set.where(
+            loads.da.active.sel(name=loads.active_assets, snapshot=sns)
+        )
         loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
         load_buses = loads._as_xarray("bus").rename("Bus")
         if n.has_scenarios:
@@ -1196,7 +1198,7 @@ def define_fixed_operation_constraints(
     if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
         return
 
-    fix = c.da[attr_set].sel(snapshot=sns)
+    fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)
 
     if fix.isnull().all():
         return
@@ -1254,7 +1256,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     component = "StorageUnit"
     dim = "snapshot"
     c = as_components(n, component)
-    active = c.da.active.sel(snapshot=sns)
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
         return
@@ -1398,7 +1400,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     component = "Store"
     dim = "snapshot"
     c = as_components(n, component)
-    active = c.da.active.sel(snapshot=sns)
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
         return
@@ -1520,7 +1522,7 @@ def define_loss_constraints(
         return
 
     tangents = transmission_losses
-    active = c.da.active.sel(snapshot=sns)
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
 

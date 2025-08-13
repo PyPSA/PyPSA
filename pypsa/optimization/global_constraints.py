@@ -533,7 +533,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
                 attr = nominal_attrs[c]
 
                 # Start from extendable components by name
-                ext_all = n.components[c].extendables
+                ext_all = n.c[c].extendables.difference(n.c[c].inactive_assets)
                 if ext_all.empty:
                     continue
 

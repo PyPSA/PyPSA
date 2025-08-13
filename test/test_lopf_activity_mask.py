@@ -15,6 +15,17 @@ def test_optimize(ac_dc_network):
 
     assert n.links_t.p0.loc[:, inactive_links].eq(0).all().all()
 
+    assert "Bremen Converter" in n.model.variables["Link-p_nom"].coords["name"]
+    assert "DC link" not in n.model.variables["Link-p_nom"].coords["name"]
+
+    assert "Bremen Converter" in n.model.variables["Link-p"].coords["name"]
+    assert "DC link" not in n.model.variables["Link-p"].coords["name"]
+
+    assert (
+        "Bremen Converter" in n.model.constraints["Link-ext-p_nom-lower"].coords["name"]
+    )
+    assert "DC link" not in n.model.constraints["Link-ext-p_nom-lower"].coords["name"]
+
 
 def test_optimize_with_power_flow(scipy_network):
     """
