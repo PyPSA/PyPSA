@@ -98,13 +98,6 @@ nav:
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
     - examples/modular-expansion.ipynb
-  - Special Problems:
-    - examples/scigrid-redispatch.ipynb
-    - examples/demand-elasticity.ipynb
-    - examples/generation-investment-screening-curve.ipynb
-    - examples/chained-hydro-reservoirs.ipynb
-    - examples/transformer_example.ipynb
-    - examples/reserve-power.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
@@ -113,6 +106,13 @@ nav:
     - examples/power-to-gas-boiler-chp.ipynb
     - examples/power-to-heat-water-tank.ipynb
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
+  - Advanced Topics:
+    - examples/scigrid-redispatch.ipynb
+    - examples/demand-elasticity.ipynb
+    - examples/generation-investment-screening-curve.ipynb
+    - examples/chained-hydro-reservoirs.ipynb
+    - examples/transformer_example.ipynb
+    - examples/reserve-power.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/replace-generator-storage-units-with-store.ipynb
@@ -328,7 +328,7 @@ plugins:
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
     execute: true
-    include: ["examples/example-1.ipynb"]
+    include: ["examples/*.ipynb"]
     # allow_errors: false # TODO
     include_source: true
 # Global redirects
