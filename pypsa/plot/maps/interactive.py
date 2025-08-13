@@ -11,7 +11,6 @@ import pydeck as pdk
 
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
-from pypsa.plot.maps.static import MapPlotter
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -92,7 +91,7 @@ def iplot(
         pandas.Series with a Multiindex, bus_colors defaults to the
         n.carriers['color'] column.
     bus_alpha : float
-        Adds alpha channel to buses, defaults to 1.
+        Add alpha channel to buses, defaults to 1.
     bus_sizes : float/pandas.Series
         Sizes of bus points, defaults to 10.
     bus_cmap : mcolors.Colormap/str
@@ -358,10 +357,9 @@ class PydeckPlotter:
         self._view_state: pdk.ViewState = self._init_view_state()
         self._layers: dict[str, pdk.Layer] = {}
         self._tooltip_columns: list[str] = ["value"]
-        self._tooltip: dict | bool = True
-        self._mapplotter = MapPlotter(n)  # Embed static map plotting functionality
+        self._tooltip: dict | bool = False
 
-    def _init_map_style(self, map_style: str) -> None:
+    def _init_map_style(self, map_style: str) -> str:
         """Set the initial map style for the interactive map."""
         if map_style not in self.VALID_MAP_STYLES:
             msg = (
@@ -435,7 +433,7 @@ class PydeckPlotter:
         bus_colors: str | dict | pd.Series = "cadetblue",
         bus_alpha: float | dict | pd.Series = 0.5,
     ) -> None:
-        """Adds a bus layer of Pydeck type ScatterplotLayer to the interactive map.
+        """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
 
         Parameters
         ----------
@@ -447,7 +445,7 @@ class PydeckPlotter:
         bus_colors : str/dict/pandas.Series
             Colors for the buses, defaults to 'cadetblue'.
         bus_alpha : float/dict/pandas.Series
-            Adds alpha channel to buses, defaults to 0.5.
+            Add alpha channel to buses, defaults to 0.5.
 
         """
         # Check if columns exist and only keep the ones that also exist in the network
@@ -504,7 +502,7 @@ class PydeckPlotter:
         line_colors : str/dict/pandas.Series
             Colors for the lines, defaults to 'rosybrown'.
         line_alpha : float/dict/pandas.Series
-            Adds alpha channel to lines, defaults to 0.5.
+            Add alpha channel to lines, defaults to 0.5.
 
         """
         # Prepare data for lines
@@ -616,7 +614,7 @@ def explore(
     bus_colors : str/dict/pandas.Series
         Colors for the buses, defaults to "cadetblue".
     bus_alpha : float/dict/pandas.Series
-        Adds alpha channel to buses, defaults to 0.5.
+        Add alpha channel to buses, defaults to 0.5.
     line_columns : list, default None
         List of line columns to include. If None, only the bus0 and bus1 columns are used
         Specify additional columns to include in the tooltip.
@@ -625,7 +623,7 @@ def explore(
     line_colors : str/dict/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     line_alpha : float/dict/pandas.Series
-        Adds alpha channel to lines, defaults to 0.5.
+        Add alpha channel to lines, defaults to 0.5.
     map_style : str
         Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
     tooltip : bool, default True
