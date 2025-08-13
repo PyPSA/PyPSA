@@ -14,8 +14,8 @@ def test_optimize_security_constrained(scipy_network):
     # Choose the contingencies
     branch_outages = n.lines.index[:2]
 
-    # Run security-constrained optimization with dual assignment
-    # Fight numerical instability using https://ergo-code.github.io/HiGHS/
+    # # Run security-constrained optimization with dual assignment
+    # # Fight numerical instability using https://ergo-code.github.io/HiGHS/
     solver_options = {
         "primal_feasibility_tolerance": 1e-9,
         "dual_feasibility_tolerance": 1e-9,

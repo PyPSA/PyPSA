@@ -436,36 +436,27 @@ class OptimizationAbstractMixin:
                 added_flow = flow_outage * bodf
 
                 for bound, kind in product(("lower", "upper"), ("fix", "ext")):
-                    coord = c_affected + "-" + kind
-                    constraint = coord + "-s-" + bound
+                    constraint = c_affected + "-" + kind + "-s-" + bound
                     if constraint not in m.constraints:
                         continue
 
                     con = m.constraints[constraint]
 
-                    component_dim = "name"
-                    use_component_dim = component_dim in con.lhs.indexes
-
-                    dim_key = component_dim if use_component_dim else c_affected
-                    idx = con.lhs.indexes[dim_key].intersection(
+                    idx = con.lhs.indexes["name"].intersection(
                         added_flow.indexes[c_affected]
                     )
-                    sel = {dim_key: idx}
 
-                    if use_component_dim:
-                        added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
-                            {c_affected: component_dim}
-                        )
-                        lhs = con.lhs.sel(sel) + added_flow_aligned
-                    else:
-                        lhs = con.lhs.sel(sel) + added_flow.sel({c_affected: idx})
+                    added_flow_aligned = added_flow.sel({c_affected: idx}).rename(
+                        {c_affected: "name"}
+                    )
+                    lhs = con.lhs.sel(name=idx) + added_flow_aligned
 
                     name = (
                         constraint
                         + f"-security-for-{c_outage_}-in-sub-network-{sub_network.name}"
                     )
                     m.add_constraints(
-                        lhs, con.sign.sel(sel), con.rhs.sel(sel), name=name
+                        lhs, con.sign.sel(name=idx), con.rhs.sel(name=idx), name=name
                     )
 
         return n.optimize.solve_model(**kwargs)
