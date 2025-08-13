@@ -65,6 +65,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | $\underline{G}_{n,s}$ | `n.generators.p_nom_min` | Parameter |
         | $\bar{G}_{n,s}$   | `n.generators.p_nom_max` | Parameter |
         | $\tilde{G}_{n,s}$ | `n.generators.p_nom_mod` | Parameter |
+        | $\hat{G}_{n,s}$   | `n.generators.p_nom_set` | Parameter |
 
 
     === "Link"
@@ -76,6 +77,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | $\underline{F}_{l}$ | `n.links.p_nom_min` | Parameter |
         | $\bar{F}_{l}$     | `n.links.p_nom_max` | Parameter |
         | $\tilde{F}_{l}$   | `n.links.p_nom_mod` | Parameter |
+        | $\hat{F}_{l}$     | `n.links.p_nom_set` | Parameter |
 
     === "Line"
 
@@ -86,6 +88,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | $\underline{P}_{l}$ | `n.lines.s_nom_min` | Parameter |
         | $\bar{P}_{l}$     | `n.lines.s_nom_max` | Parameter |
         | $\tilde{P}_{l}$   | `n.lines.s_nom_mod` | Parameter |
+        | $\hat{P}_{l}$     | `n.lines.s_nom_set` | Parameter |
 
     === "Transformer"
 
@@ -96,6 +99,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | $\underline{P}_{l}$ | `n.transformers.s_nom_min` | Parameter |
         | $\bar{P}_{l}$     | `n.transformers.s_nom_max` | Parameter |
         | $\tilde{P}_{l}$   | `n.transformers.s_nom_mod` | Parameter |
+        | $\hat{P}_{l}$     | `n.transformers.s_nom_set` | Parameter |
 
     === "Store"
 
@@ -106,7 +110,8 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | $\underline{E}_{n,s}$ | `n.stores.e_nom_min` | Parameter |
         | $\bar{E}_{n,s}$   | `n.stores.e_nom_max` | Parameter |
         | $\tilde{E}_{n,s}$ | `n.stores.e_nom_mod` | Parameter |
-    
+        | $\hat{E}_{n,s}$   | `n.stores.e_nom_set` | Parameter |
+
     === "Storage Unit"
 
         | Symbol | Attribute | Type |
@@ -115,7 +120,8 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
         | $H^{\textrm{mod}}_{n,s}$   | not stored | Decision variable |
         | $\underline{H}_{n,s}$ | `n.storage_units.p_nom_min` | Parameter |
         | $\bar{H}_{n,s}$   | `n.storage_units.p_nom_max` | Parameter |
-        | $\tilde{H}_{n,s}$ | `n.storage_units.p_nom_mod` | Parameter |#
+        | $\tilde{H}_{n,s}$ | `n.storage_units.p_nom_mod` | Parameter |
+        | $\hat{H}_{n,s}$   | `n.storage_units.p_nom_set` | Parameter |
 
 
 ## Examples
