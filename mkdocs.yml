@@ -70,10 +70,9 @@ nav:
   - Usage:
     - Networks: user-guide/networks.md
     - Components: user-guide/components.md
-    - Descriptors: user-guide/network-descriptors.md
     - Optimization: user-guide/network-optimization.md
-    - Clustering: user-guide/clustering.md
     - Import and Export: user-guide/import-export.md
+    - Clustering: user-guide/clustering.md
     - Statistics: user-guide/statistics.md
     - Plotting: user-guide/plotting.md
     - Comparing networks: user-guide/collection.md
@@ -163,20 +162,7 @@ nav:
 - Contributing:
   - Instructions: contributing/contributing.md
   - Code of Conduct: contributing/code-of-conduct.md
-  - Community: contributing/community.md
   - Contributors: contributing/contributors.md
-
-# - More Tools:
-#   - More Tools: more-tools/more-tools.md
-#   - Frameworks:
-#     - pypsa: https://github.com/pypsa/pypsa
-#     - linopy: https://github.com/PyPSA/linopy
-#     - atlite: https://github.com/PyPSA/atlite
-#     - powerplantmatching: https://github.com/PyPSA/powerplantmatching
-#     - technology-data: https://github.com/PyPSA/technology-data
-#   - Models:
-#     - PyPSA-Eur: https://github.com/PyPSA/PyPSA-Eur
-#     - PyPSA-DE: https://github.com/PyPSA/PyPSA-DE
 
 # Theme settings
 theme:
