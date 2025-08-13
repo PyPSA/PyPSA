@@ -2,6 +2,7 @@ import doctest
 import importlib
 import pkgutil
 import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -76,3 +77,18 @@ def test_doctest(module, close_matplotlib_figures):
         failures += runner.run(test).failed
 
     assert failures == 0, f"{failures} doctest(s) failed in module {module.__name__}"
+
+
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 10),
+    reason="Doctest fail until linopy supports numpy 2 on all python versions",
+)
+@pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
+@pytest.mark.parametrize(
+    "fpath", [*Path("docs").glob("**/*.md"), Path("README.md")], ids=str
+)
+def test_markdown_code_blocks(fpath):
+    """Test Python code blocks in markdown files using mktestdocs."""
+    from mktestdocs import check_md_file
+
+    check_md_file(fpath=fpath, memory=True)

@@ -7,5 +7,3 @@ The [`Line`](/api/components/types/lines) components represent power transmissio
     - Use the [`Link`](/api/components/types/links) for power lines with controllable power flow, such as point-to-point HVDC links.
     - Use the [`Link`](/api/components/types/links) for any connection between buses with different carrier.
 
-
-{{ read_csv('../../../pypsa/data/component_attrs/lines.csv') }}
