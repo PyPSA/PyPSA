@@ -1,5 +1,5 @@
 Two components are available for modelling storage: [`Store`](/api/components/types/stores) and [`StorageUnit`](/api/components/types/storage_units). See
-the [Store Component](../components/stores.md) and [Storage Unit Component](../components/storage_units.md) descriptions for an overview of
+the [Store Component](../components/stores.md) and [Storage Unit Component](../components/storage-units.md) descriptions for an overview of
 the conceptual differences.
 
 
@@ -84,8 +84,6 @@ $$e_{n,s,t=-1} = e_{n,s,t=|T|-1}$$
     | $\tilde{e}_{n,s,t}$ | `n.stores_t.e_set` | Parameter |
     | $\eta_{\textrm{stand},n,s}$ | `n.stores.standing_loss` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
-
-<!-- TODO mu_energy_balance should be called lambda_energy_balance because it is dual of equality constraint, not inequality constraint. -->
 
 ## Storage Units
 

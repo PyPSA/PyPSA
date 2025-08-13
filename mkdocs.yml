@@ -6,6 +6,7 @@ edit_uri: edit/master/docs/
 
 # Navigation
 nav:
+
 - Home:
   - Home: index.md
   - Overview:
@@ -23,9 +24,9 @@ nav:
     - License: home/license.md
   - Support:
     - FAQ: user-guide/faq.md
+    - Troubleshooting: user-guide/troubleshooting.md
     - Support: user-guide/support.md
     - Resources: user-guide/resources.md
-    - Troubleshooting: user-guide/troubleshooting.md
 
 - User Guide:
   - Overview: user-guide/user-guide.md
@@ -39,15 +40,15 @@ nav:
       - Load: user-guide/components/loads.md
       - Link: user-guide/components/links.md
       - Store: user-guide/components/stores.md
-      - Storage Unit: user-guide/components/storage_units.md
+      - Storage Unit: user-guide/components/storage-units.md
       - Line: user-guide/components/lines.md
-      - Line Types: user-guide/components/line_types.md
+      - Line Types: user-guide/components/line-types.md
       - Transformer: user-guide/components/transformers.md
-      - Transformer Types: user-guide/components/transformer_types.md
-      - Shunt Impedance: user-guide/components/shunt_impedances.md
-      - Global Constraints: user-guide/components/global_constraints.md
+      - Transformer Types: user-guide/components/transformer-types.md
+      - Shunt Impedance: user-guide/components/shunt-impedances.md
+      - Global Constraints: user-guide/components/global-constraints.md
       - Shapes: user-guide/components/shapes.md
-      - Sub-Network: user-guide/components/sub_networks.md
+      - Sub-Network: user-guide/components/sub-networks.md
   - Optimization:
     - Overview: user-guide/optimization/overview.md
     - Formulations:
@@ -70,10 +71,9 @@ nav:
   - Usage:
     - Networks: user-guide/networks.md
     - Components: user-guide/components.md
-    - Descriptors: user-guide/network-descriptors.md
     - Optimization: user-guide/network-optimization.md
-    - Clustering: user-guide/clustering.md
     - Import and Export: user-guide/import-export.md
+    - Clustering: user-guide/clustering.md
     - Statistics: user-guide/statistics.md
     - Plotting: user-guide/plotting.md
     - Comparing networks: user-guide/collection.md
@@ -88,8 +88,8 @@ nav:
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb
-    - examples/minimal_example_pf.ipynb
-    - examples/negative_prices_kvl_baker.ipynb
+    - examples/minimal-example-pf.ipynb
+    - examples/negative-prices-kvl-baker.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb
@@ -99,13 +99,6 @@ nav:
     - examples/mga.ipynb
     - examples/near-opt-space.ipynb
     - examples/modular-expansion.ipynb
-  - Special Problems:
-    - examples/scigrid-redispatch.ipynb
-    - examples/demand-elasticity.ipynb
-    - examples/generation-investment-screening-curve.ipynb
-    - examples/chained-hydro-reservoirs.ipynb
-    - examples/transformer_example.ipynb
-    - examples/reserve-power.ipynb
   - Sector Coupling:
     - examples/sector-coupling-single-node.ipynb
     - examples/islanded-methanol-production.ipynb
@@ -114,7 +107,14 @@ nav:
     - examples/power-to-gas-boiler-chp.ipynb
     - examples/power-to-heat-water-tank.ipynb
     - examples/biomass-synthetic-fuels-carbon-management.ipynb
-  - Complexity Management:
+  - Advanced Topics:
+    - examples/scigrid-redispatch.ipynb
+    - examples/demand-elasticity.ipynb
+    - examples/generation-investment-screening-curve.ipynb
+    - examples/chained-hydro-reservoirs.ipynb
+    - examples/transformer-example.ipynb
+    - examples/reserve-power.ipynb
+  - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
     - examples/replace-generator-storage-units-with-store.ipynb
     - examples/tracing-infeasibilities.ipynb
@@ -137,18 +137,18 @@ nav:
     - Network Collection: api/networks/collection.md
     - Utilities: api/common.md
   - Components:
-    - ComponentsData: api/components/components_data.md
+    - ComponentsData: api/components/components-data.md
     - Components: api/components/components.md
     - Component Types:
-      - Sub-Network: api/components/types/sub_networks.md
+      - Sub-Network: api/components/types/sub-networks.md
       - Bus: api/components/types/buses.md
       - Carrier: api/components/types/carriers.md
-      - Global Constraints: api/components/types/global_constraints.md
+      - Global Constraints: api/components/types/global-constraints.md
       - Generator: api/components/types/generators.md
       - Store: api/components/types/stores.md
-      - StorageUnit: api/components/types/storage_units.md
+      - StorageUnit: api/components/types/storage-units.md
       - Load: api/components/types/loads.md
-      - Shunt Impedance: api/components/types/shunt_impedances.md
+      - Shunt Impedance: api/components/types/shunt-impedances.md
       - Line: api/components/types/lines.md
       - Transformer: api/components/types/transformers.md
       - Link: api/components/types/links.md
@@ -162,21 +162,8 @@ nav:
 
 - Contributing:
   - Instructions: contributing/contributing.md
-  - Code of Conduct: contributing/code-of-conduct.md
-  - Community: contributing/community.md
+  - Code of Conduct: CODE_OF_CONDUCT.md
   - Contributors: contributing/contributors.md
-
-# - More Tools:
-#   - More Tools: more-tools/more-tools.md
-#   - Frameworks:
-#     - pypsa: https://github.com/pypsa/pypsa
-#     - linopy: https://github.com/PyPSA/linopy
-#     - atlite: https://github.com/PyPSA/atlite
-#     - powerplantmatching: https://github.com/PyPSA/powerplantmatching
-#     - technology-data: https://github.com/PyPSA/technology-data
-#   - Models:
-#     - PyPSA-Eur: https://github.com/PyPSA/PyPSA-Eur
-#     - PyPSA-DE: https://github.com/PyPSA/PyPSA-DE
 
 # Theme settings
 theme:
@@ -198,6 +185,7 @@ theme:
   - header.autohide
   - content.action.edit
   - content.action.view
+  - content.code.copy # Code copy button
   - toc.follow
   - search
   - search.suggest
@@ -223,12 +211,15 @@ extra_css:
 - assets/stylesheets/extra.css
 
 extra_javascript:
-- assets/javascript/readthedocs.js
+- assets/javascripts/readthedocs.js
 - assets/javascripts/mathjax.js
 - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 markdown_extensions:
+# ==== Standard Extensions ====
+
 # Callouts/ Admonitions
+# https://squidfunk.github.io/mkdocs-material/reference/admonitions/
 - admonition
 - pymdownx.details
 - pymdownx.superfences:
@@ -236,33 +227,42 @@ markdown_extensions:
     - name: mermaid
       class: mermaid
       format: !!python/name:pymdownx.superfences.fence_code_format
+
+# Grids
+- md_in_html
+
+# Toctree with permalinks
+- toc:
+    title: On this page
+    permalink: true
+    toc_depth: 3
+# Footnotes
+# https://squidfunk.github.io/mkdocs-material/reference/footnotes/
+- footnotes
+
+# ==== Pymdown Extensions ====
+# Latex math
+# https://facelessuser.github.io/pymdown-extensions/extensions/arithmatex/#overview
 - pymdownx.arithmatex:
     generic: true
-# Footnotes
-- footnotes
 # Tabbed content
+# https://facelessuser.github.io/pymdown-extensions/extensions/tabbed/
 - pymdownx.tabbed:
-    alternate_style: true  # Abbreviations
+    alternate_style: true
+# Emojis
+# https://facelessuser.github.io/pymdown-extensions/extensions/emoji/
+- pymdownx.emoji:
+    emoji_index: !!python/name:material.extensions.emoji.twemoji
+    emoji_generator: !!python/name:material.extensions.emoji.to_svg
+# Formatting
+- pymdownx.caret
+- pymdownx.tilde
+
 - pymdownx.snippets:
     auto_append:
     - includes/abbreviations.md
 - abbr
 - attr_list
-- md_in_html
-  # Emojis
-- pymdownx.emoji:
-    emoji_index: !!python/name:material.extensions.emoji.twemoji
-    emoji_generator: !!python/name:material.extensions.emoji.to_svg
-  # Toctree with permalinks
-- toc:
-    title: On this page
-    permalink: true
-    toc_depth: 3
-  # Grids
-- md_in_html
-- pymdownx.caret
-- pymdownx.tilde
-
 
 plugins:
 - search
@@ -270,22 +270,17 @@ plugins:
 - autolinks
 - table-reader
 - mkdocs-video
-# - git-authors
 - git-revision-date-localized:
     type: timeago
     timezone: Europe/Berlin
     enable_creation_date: true
-# - git-committers:
-#     repository: PyPSA/PyPSA
-#     branch: v1-docs # TODO: Change to master before merging
-#     token: !!python/object/apply:os.getenv ["MKDOCS_GIT_COMMITTERS_APIKEY"]
 - argref:
     autolinks:
     - reference_prefix: ":octicons-git-pull-request-16:"
       target_url: https://github.com/PyPSA/PyPSA/pull/<num>
 - social:
     cards_layout_options:
-      font_family: Ubuntu
+      font_family: Overpass
       background_color: "#292F36"
 
 # Docstring generation
@@ -342,8 +337,8 @@ plugins:
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
     execute: true
-    include: ["examples/*.ipynb"]
-    # allow_errors: false # TODO
+    include: ["*.ipynb"]
+    # allow_errors: false
     include_source: true
 # Global redirects
 - redirects:
@@ -351,6 +346,7 @@ plugins:
       'home/release-notes.md': 'release-notes.md'
       'changelog.md': 'release-notes.md'
       'whats-new.md': 'release-notes.md'
+      'code-of-conduct.md': 'CODE_OF_CONDUCT.md'
 
 hooks:
 - docs/assets/overrides/hooks/shortcodes.py
@@ -359,12 +355,17 @@ extra:
   social:
   - icon: fontawesome/brands/discord
     link: https://discord.com/invite/AnuJBk23FU
+  - icon: fontawesome/brands/youtube
+    link: https://www.youtube.com/@pypsa-official
   - icon: fontawesome/brands/github
     link: https://github.com/PyPSA
+  - icon: fontawesome/solid/globe
+    link: https://pypsa.org
 
   extra:
-  homepage: https://pypsa.org
+    homepage: https://pypsa.org
 
+# TODO: Enable
 # validation:
 #   omitted_files: warn
 #   absolute_links: warn

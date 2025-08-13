@@ -2,7 +2,15 @@
 
 <!-- Announcement bar -->
 {% block announce %}
-🎉 <b>PyPSA 1.0</b> is here! Check out <b><a href="/user-guide/v1-guide/">what's new</a></b> and the new <b><a href="https://pypsa.org/">landing page</a></b>. 🎉
+🎉 <b>PyPSA 1.0</b> is here! Check out <b><a href="{{ base_url }}/user-guide/v1-guide/">what's new</a></b> and the new <b><a href="https://pypsa.org/">landing page</a></b>. 🎉
+{% endblock %}
+
+<!-- Outdated version warning -->
+{% block outdated %}
+  You're not viewing the latest version.
+  <a href="{{ '../' ~ base_url }}"> 
+    <strong>Click here to go to latest.</strong>
+  </a>
 {% endblock %}
 
 <!-- Readthedocs Site Navigation -->

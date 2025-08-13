@@ -14,7 +14,12 @@ if TYPE_CHECKING:
 
 
 class ClusteringAccessor:
-    """Clustering accessor for clustering a network spatially and temporally."""
+    """Clustering accessor for clustering a network spatially and temporally.
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Clustering](/user-guide/clustering)
+    """
 
     def __init__(self, n: "Network") -> None:
         """Initialize the ClusteringAccessor."""

@@ -4,16 +4,21 @@ hides:
 ---
 # Release Notes
 
+<!-- ## Upcoming Release
 
-## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>30th July 2025</small> 🎉 { id="v1.0.0" } 
+!!! info "Upcoming Release"
 
-### PyPSA 1.0 is here!
+    The features listed below have not yet been released, but will be included in the 
+    next update! If you would like to use these features in the meantime, you will need 
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`. -->
 
-Check out [what's new](v1-guide.md).
+## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>xx September 2025</small> 🎉 { id="v1.0.0" } 
 
+### **PyPSA 1.0** is here!
 
-Features
---------
+Check out [What's new in PyPSA v1.0](v1-guide.md).
+
+### Features
 
 * New feature for interactive map plotting: PyDeck-based interactive maps (https://github.com/PyPSA/PyPSA/pull/1312)
 
@@ -30,24 +35,38 @@ Features
   * Risk-averse optimization mode augments expected operational costs with a Conditional Value at Risk (CVaR) penalty, controlled by ``omega`` (trade-off between expectation and risk) and ``alpha`` (tail level).
   * New API to enable risk preference: ``Network.set_risk_preference(alpha=..., omega=...)``. Inspect via ``n.has_risk_preference`` and ``n.risk_preference``.
 
-
 * Added utility function ``pypsa.common.annuity`` to calculate the annuity
   factor for a given discount rate and lifetime. Also known as capital recovery
-  factor, it is used to convert a capital cost into an annualized cost. The
-  formula is: 
+  factor, it is used to convert a capital cost into an annualized cost.
 
-  .. math::
-  
-      \frac{r}{1 - (1 + r)^{-n}}
+* The **optimization module was heavily refactored**. While the underlying `pandas`-based
+  data structure remains the same, the optimization module now uses an `xarray` view via
+  the [`Components`][pypsa.components.Components] class to write the optimization model.
+  The xarray view allows for easier problem forumlation with an object which contains 
+  all components data across all dimensions andcoordinates (e.g. `name`, `snapshots` 
+  with `timesteps` and `periods` and `scenarios`)
+  (:octicons-git-pull-request-16:1154)
 
-  where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
+* PyPSA now supports **stochastic networks** for two-stage optimization under uncertainty. 
+  This enables modelling scenarios with different probabilities for parameters like fuel 
+  prices, demand, or renewable availability.
+  (:octicons-git-pull-request-16:1154)
 
-* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
+* Inactive components (see [pypsa.Components.inactive_assets][]) are now excluded from the
   the optimization model entirely. This has no effect on the results, but it can
   reduce the memory footprint when solving the model.
+  (:octicons-git-pull-request-16:1310)
 
+* Introduces additional MGA functionality. Allows for solving a network in a direction
+  given in the coordinate space of user-specified dimensions, and also
+  introduces a parallelized function to solve in multiple directions at
+  once. (:octicons-git-pull-request-16:1269, :octicons-git-pull-request-16:1272)
 
-* The option to set bus-level capacity expansion limits per carrier via `Bus`
+* New example networks: [pypsa.examples.carbon_management][] and 
+  [pypsa.examples.stochastic_network][]
+  (:octicons-git-pull-request-16:1314)
+
+* The option to set bus-level capacity expansion limits per carrier via [`Bus`][pypsa.components.Bus]
   attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
   constraint type `"tech_capacity_expansion_limit"` offers identical functionality.
 
@@ -74,18 +93,21 @@ Features
 * Improve performance of loading networks by avoiding re-ordering dataframe columns and indices where unnecessary; especially impactful for networks with large numbers of components.
 
 
-Bug Fixes
----------
+### Bug Fixes
 
-* Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
-  (https://github.com/PyPSA/PyPSA/issues/1351)
+* Fixed issue when copying a solved network after setting `n.model.solver_model` to `None`.
+  (:octicons-git-pull-request-16:1325)
+
+* Make compatible with xarray v2025.07
+  (:octicons-git-pull-request-16:1304)
   
 * Correct use of snapshot weighting columns in statistics module. The
-  doscstring for ``n.snapshot_weightings`` was clarified.
+  doscstring for [pypsa.Network.snapshot_weightings][] was clarified.
+  (:octicons-git-pull-request-16:1326)
 
 * Resolved an issue where the network version was not correctly identified during I/O, 
   resulting in false update information being logged.
-  (https://github.com/PyPSA/PyPSA/pull/1300)
+  (:octicons-git-pull-request-16:1300)
 
 
 * Fix ``get_transmission_carriers()`` to handle components without carrier attribute (e.g., Transformer).
@@ -110,7 +132,7 @@ Bug Fixes
   (:octicons-git-pull-request-16:1264)
 
 - Fixed Excel import when snapshots sheet is missing.
-  (:octicons-issue-16:1268)
+  (:octicons-git-pull-request-16:1268)
 
 ## [**v0.35.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0) 
 
@@ -118,8 +140,8 @@ Bug Fixes
 
 - New **interactive** plotting library (:octicons-git-pull-request-16:1189)
 
-  - :meth:`n.statistics.energy_balance.iplot() <pypsa.iplot.statistics.plotter.StatisticInteractivePlotter.__call__>` to get the pre defined default plot
-  - :meth:`n.statistics.energy_balance.iplot.bar() <pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar>` to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
+  - :meth: [`pypsa.Network.statistics.energy_balance.iplot()`][pypsa.iplot.statistics.plotter.StatisticInteractivePlotter.__call__] to get the pre defined default plot
+  - :meth: [`pypsa.Network.statistics.energy_balance.iplot.bar()`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar] to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
 
 - The function ``n.statistics.opex()`` now includes all operational cost
   components: marginal costs, quadratic marginal costs, storage costs, spill
@@ -499,8 +521,8 @@ Bug Fixes
     components using the new argument ``overwrite``. Because of the more strict 
     alignment checks, this might be a **breaking change** for some users.
   
-  - Therefore the methods [`n.madd`][pypsa.Network.madd] and 
-    [`n.mremove`][pypsa.Network.mremove] are now deprecated and will point to
+  - Therefore the methods `n.madd` and 
+    `n.mremove` are now deprecated and will point to
     their generalised counterparts.
 
 * New function :meth:`n.optimize_and_run_non_linear_powerflow <pypsa.optimization.optimize.OptimizationAccessor.optimize_and_run_non_linear_powerflow>`

@@ -1093,6 +1093,10 @@ class NetworkIOMixin(_NetworkABC):
 
     Class only inherits to [pypsa.Network][] and should not be used directly.
     All attributes and methods can be used within any Network instance.
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Import and Export](/user-guide/networks.md)
     """
 
     def _export_to_exporter(

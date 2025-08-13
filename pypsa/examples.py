@@ -219,6 +219,24 @@ def carbon_management() -> Network:
     the European energy system. Nat Energy 10, 715–724 (2025).
     https://doi.org/10.1038/s41560-025-01752-6
 
+    Examples
+    --------
+    >>> n = pypsa.examples.carbon_management()
+    >>> n
+    PyPSA Network 'Carbon-Management'
+    ----------------------------
+    Components:
+     - Bus: 10
+     - Carrier: 10
+     - Generator: 10
+     - GlobalConstraint: 1
+     - Line: 10
+     - Load: 10
+     - Store: 10
+     - Store: 10
+     - Store: 10
+     - Store: 10
+
     """
     primary_url = (
         "https://tubcloud.tu-berlin.de/s/b37rfZrBymTFpZ4/download/carbon-management.nc"
