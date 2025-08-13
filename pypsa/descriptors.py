@@ -121,7 +121,7 @@ def get_active_assets(
         Boolean mask for active components
 
     """
-    return n.component(c).get_active_assets(investment_period=investment_period)
+    return n.components[c].get_active_assets(investment_period=investment_period)
 
 
 @deprecated_in_next_major(details="Use `n.components[c].get_activity_mask` instead.")
@@ -153,7 +153,7 @@ def get_activity_mask(
     return n.components[c].get_activity_mask(sns, index)
 
 
-@deprecated_in_next_major(details="Deprecate with new-opt.")
+@deprecated_in_next_major(details="Use `n.components[c].get_bounds_pu` instead.")
 def get_bounds_pu(
     n: Network,
     c: str,
@@ -174,36 +174,24 @@ def get_bounds_pu(
         Network instance.
     c : string
         Component name, e.g. "Generator", "Line".
-    sns : pandas.Index/pandas.DateTimeIndex
-        set of snapshots for the bounds
-    index : pd.Index, default None
-        Subset of the component elements. If None (default) bounds of all
-        elements are returned.
     attr : string, default None
         attribute name for the bounds, e.g. "p", "s", "p_store"
+    sns : pandas.Index/pandas.DateTimeIndex
+        Deprecated.
+    index : pd.Index, default None
+        Deprecated.
 
     """
-    min_pu_str = nominal_attrs[c].replace("nom", "min_pu")
-    max_pu_str = nominal_attrs[c].replace("nom", "max_pu")
-
-    max_pu = get_switchable_as_dense(n, c, max_pu_str, sns)
-    if c in n.passive_branch_components:
-        min_pu = -max_pu
-    elif c == "StorageUnit":
-        min_pu = pd.DataFrame(0, max_pu.index, max_pu.columns)
-        if attr == "p_store":
-            max_pu = -get_switchable_as_dense(n, c, min_pu_str, sns)
-        if attr == "state_of_charge":
-            from pypsa.common import expand_series  # noqa: PLC0415
-
-            max_pu = expand_series(n.static(c).max_hours, sns).T
-            min_pu = pd.DataFrame(0, *max_pu.axes)
-    else:
-        min_pu = get_switchable_as_dense(n, c, min_pu_str, sns)
-
-    if index is None:
-        return min_pu, max_pu
-    return min_pu.reindex(columns=index), max_pu.reindex(columns=index)
+    min_bounds, max_bounds = n.components[c].get_bounds_pu(attr)
+    sel_kwargs = {}
+    if sns is not None:
+        sel_kwargs["snapshot"] = sns
+    if index is not None:
+        sel_kwargs["name"] = index
+    return (
+        min_bounds.sel(**sel_kwargs).to_dataframe().unstack(level=0),
+        max_bounds.sel(**sel_kwargs).to_dataframe().unstack(level=0),
+    )
 
 
 def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
@@ -291,8 +279,7 @@ def _update_linkports_component_attrs(
         )
         # Also update container for varying attributes
         if attr in ["efficiency", "p"] and target not in n.dynamic(c):
-            df = pd.DataFrame(index=n.snapshots, columns=[], dtype=float)
-            df.columns.name = c
+            df = pd.DataFrame(index=n.snapshots, columns=n.links.index[:0], dtype=float)
             n.dynamic(c)[target] = df
         elif attr == "bus" and target not in n.static(c).columns:
             n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]

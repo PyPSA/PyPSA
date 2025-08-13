@@ -48,7 +48,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             Dictionary of operational attribute names
 
         """
-        # TODO: refactor component attrs store
+        # TODO if we expose this, this needs further refinment and checks, specially
+        # because of edge case StorageUnit with multiple operational variables
 
         base = {
             "Generator": "p",
@@ -106,7 +107,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=True)
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        Generator
+        name
         g1    False
         g2     True
         Name: active, dtype: bool
@@ -119,7 +120,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=False)
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
-        Generator
+        name
         g1     True
         g2    False
         Name: active, dtype: bool
@@ -149,9 +150,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     ) -> pd.DataFrame:
         """Get active components mask indexed by snapshots.
 
-        Wrapper around the
-        `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
-        Get's the boolean mask for active components, but indexed by snapshots and
+        Gets the boolean mask for active components, indexed by snapshots and
         components instead of just components.
 
         Parameters
@@ -170,24 +169,24 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
         Index(['g2'], dtype='object')
         >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
-        Generator          g1     g2
+        name                g1     g2
         period timestep
-        2020   1         True  False
-               2         True  False
-               3         True  False
-        2021   1         True  False
-               2         True  False
-               3         True  False
-        2022   1         True  False
-               2         True  False
-               3         True  False
+        2020   1          True  False
+               2          True  False
+               3          True  False
+        2021   1         False  False
+               2         False  False
+               3         False  False
+        2022   1         False  False
+               2         False  False
+               3         False  False
 
         """
         sns_ = as_index(self.n_save, sns, "snapshots")
 
-        if getattr(self.n_save, "_multi_invest", False):
+        if self.has_investment_periods:
             active_assets_per_period = {
-                period: self.get_active_assets(period)
+                period: self.get_active_assets(investment_period=period)
                 for period in self.investment_periods
             }
             mask = (
@@ -206,55 +205,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         if index is not None:
             mask = mask.reindex(columns=index)
 
+        mask.index.name = "snapshot"
+        if isinstance(mask.index, pd.MultiIndex):
+            mask.index.names = ["period", "timestep"]
+
         return mask
-
-    @property
-    def extendables(self) -> pd.Index:
-        """Get the index of extendable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of extendable components.
-
-        """
-        extendable_col = self._operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static[extendable_col]].index
-
-        return idx.rename(f"{self.name}-ext")
-
-    @property
-    def fixed(self) -> pd.Index:
-        """Get the index of non-extendable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of non-extendable components.
-
-        """
-        extendable_col = self._operational_attrs["nom_extendable"]
-        if extendable_col not in self.static.columns:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[~self.static[extendable_col]].index
-        return idx.rename(f"{self.name}-fix")
-
-    @property
-    def committables(self) -> pd.Index:
-        """Get the index of committable components of this component type.
-
-        Returns
-        -------
-        pd.Index
-            Index of committable components.
-
-        """
-        if "committable" not in self.static:
-            return self.static.iloc[:0].index
-
-        idx = self.static.loc[self.static["committable"]].index
-        return idx.rename(f"{self.name}-com")

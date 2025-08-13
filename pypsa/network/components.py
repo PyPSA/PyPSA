@@ -89,8 +89,8 @@ class NetworkComponentsMixin(_NetworkABC):
         >>> n.components # doctest: +ELLIPSIS
         PyPSA Components Store
         ======================
-        - 3 'SubNetwork' Components
         - 9 'Bus' Components
+        - 6 'Carrier' Components
         ...
 
         Access a single component:
@@ -101,9 +101,18 @@ class NetworkComponentsMixin(_NetworkABC):
         Components: 6
 
         Which is the same reference when accessing the component directly:
-        >>> n.generators # doctest: +SKIP
-        #TODO
-        >>> n.generators is n.components.generators.static # TODO
+        >>> n.generators
+                                        bus control  ... weight    p_nom_opt
+        name                                 ...
+        Manchester Wind  Manchester   Slack  ...    1.0  4090.809778
+        Manchester Gas   Manchester      PQ  ...    1.0    -0.000000
+        Norway Wind          Norway      PQ  ...    1.0  1533.599858
+        Norway Gas           Norway      PQ  ...    1.0    -0.000000
+        Frankfurt Wind    Frankfurt   Slack  ...    1.0  1667.724420
+        Frankfurt Gas     Frankfurt      PQ  ...    1.0   982.034483
+        <BLANKLINE>
+        [6 rows x 37 columns]
+        >>> n.generators is n.components.generators.static
         True
 
         Returns
