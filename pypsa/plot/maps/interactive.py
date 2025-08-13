@@ -359,8 +359,8 @@ class PydeckPlotter:
         self._map_style: str = self._init_map_style(map_style)
         self._view_state: pdk.ViewState = self._init_view_state()
         self._layers: dict[str, pdk.Layer] = {}
-        self._tooltip_columns: list[str] = []
-        self._tooltip: dict | bool = False
+        self._tooltip_columns: list[str] = ["value"]
+        self._tooltip: dict | bool = True
         self._mapplotter = MapPlotter(n)  # Embed static map plotting functionality
 
     def _init_map_style(self, map_style: str) -> None:
@@ -463,6 +463,9 @@ class PydeckPlotter:
         # Map bus sizes
         bus_data["radius"] = _convert_to_series(bus_sizes, bus_data.index)
 
+        # For default tooltip
+        bus_data["value"] = bus_data["radius"]
+
         # Convert colors to RGBA list
         colors = _convert_to_series(bus_colors, bus_data.index).reindex(bus_data.index)
         alphas = _convert_to_series(bus_alpha, bus_data.index).reindex(bus_data.index)
@@ -544,6 +547,9 @@ class PydeckPlotter:
         # Map line widths
         line_data["width"] = _convert_to_series(line_widths, line_data.index)
 
+        # For default tooltip
+        line_data["value"] = line_data["width"]
+
         # Create PathLayer, use "path" column for get_path
         layer = pdk.Layer(
             "PathLayer",
@@ -557,6 +563,7 @@ class PydeckPlotter:
 
         self._layers["lines"] = layer
 
+    # TODO: Activate custom tooltip
     def add_tooltip(self) -> None:
         """Add a tooltip to the interactive map."""
         tooltip_html = "<b>{name}</b><br/>"
@@ -595,7 +602,7 @@ def explore(
     line_widths: float | dict | pd.Series = 500,
     line_colors: str | dict | pd.Series = "rosybrown",
     line_alpha: float | dict | pd.Series = 0.5,
-    map_style: str = "dark",
+    map_style: str = "light",
     tooltip: bool = True,
 ) -> pdk.Deck:
     """Create an interactive map of the PyPSA network using Pydeck.
