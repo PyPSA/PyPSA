@@ -1,8 +1,12 @@
+"""Run modelling-to-generate-alternatives (MGA) optimizations."""
+
 from __future__ import annotations
 
-import copy
 import logging
-from multiprocessing import Pool
+import signal
+import tempfile
+from multiprocessing import get_context
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
@@ -156,6 +160,17 @@ def _convert_to_dict(obj: Any) -> Any:
     if isinstance(obj, dict):
         return {k: _convert_to_dict(v) for k, v in obj.items()}
     return obj
+
+
+def _worker_init() -> None:
+    """Initialize worker processes with proper signal handling."""
+    # Ignore SIGINT in worker processes (let parent handle it)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    logging.basicConfig(
+        level=logging.WARNING,  # Reduce noise from workers
+        format="[Worker %(process)d] %(levelname)s: %(message)s",
+    )
 
 
 class OptimizationAbstractMGAMixin:
@@ -423,6 +438,9 @@ class OptimizationAbstractMGAMixin:
             the dimensions (matching those in the `direction`
             argument), and the values are dictionaries with the same
             structure as the `weights` argument in `optimize_mga`.
+        snapshots : Sequence | None, optional
+            Set of snapshots to consider in the optimization. If None, uses all
+            snapshots from the network. Defaults to None.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimize in
             multiple investment periods. Then, snapshots should be a
@@ -502,7 +520,7 @@ class OptimizationAbstractMGAMixin:
 
     @staticmethod
     def _solve_single_direction(
-        n: Network,
+        fn: str,
         direction: dict,
         dimensions: dict,
         snapshots: Sequence,
@@ -513,20 +531,37 @@ class OptimizationAbstractMGAMixin:
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
 
-        This wrapper is necessary in order to copy the network (to
-        avoid race conditions).
+        This wrapper is necessary since the network is read from a file in
+        this case; also simplifies the return argument management.
+
         """
-        n_copy = copy.deepcopy(n)
-        _, _, coordinates = n_copy.optimize.optimize_mga_in_direction(
-            direction=direction,
-            dimensions=dimensions,
-            snapshots=snapshots,
-            multi_investment_periods=multi_investment_periods,
-            slack=slack,
-            model_kwargs=model_kwargs,
-            **kwargs,
-        )
-        return (direction, coordinates)
+        # Import Network here to avoid circular import issues
+        from pypsa import Network
+
+        try:
+            n = Network(fn)
+            _, _, coordinates = n.optimize.optimize_mga_in_direction(
+                direction=direction,
+                dimensions=dimensions,
+                snapshots=snapshots,
+                multi_investment_periods=multi_investment_periods,
+                slack=slack,
+                model_kwargs=model_kwargs,
+                **kwargs,
+            )
+        except KeyboardInterrupt:
+            # Handle interruption gracefully
+            logger.info("Worker process interrupted")
+            return (direction, None)
+        except Exception as e:
+            # Log error but don't crash the worker
+            logger.warning(
+                "Error solving in direction",
+                extra={"direction": direction, "error": str(e)},
+            )
+            return (direction, None)
+        else:
+            return (direction, coordinates)
 
     def optimize_mga_in_multiple_directions(
         self,
@@ -539,34 +574,141 @@ class OptimizationAbstractMGAMixin:
         max_parallel: int = 4,
         **kwargs: Any,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        # Remove solver model stored by linopy if present; it cannot be pickled
-        if hasattr(self._n.model, "solver_model"):
-            del self._n.model.solver_model
+        """Run MGA optimization in multiple directions in parallel.
+
+        This method performs modelling-to-generate-alternatives (MGA) optimization
+        across multiple directions simultaneously using parallel processing. Each
+        direction represents a different objective in the low-dimensional projection
+        space defined by the dimensions parameter.
+
+        Note that, in order to achieve parallelism, this method exports the network
+        to a temporary NetCDF file which is then re-imported in each parallel process.
+        This leads to a slight overhead in IO and disk space. The temporary file is
+        always cleaned up after the optimization is complete, regardless of whether
+        any errors occurred during the optimization.
+
+        Parameters
+        ----------
+        directions : list[dict] | pd.DataFrame
+            Multiple directions in the low-dimensional space. If a list, each element
+            should be a dictionary with keys matching those in `dimensions` and values
+            representing vector coordinates. If a DataFrame, rows represent directions
+            and columns represent dimension names.
+        dimensions : dict
+            A dictionary representing the dimensions of the low-dimensional space.
+            The keys are user-defined names for the dimensions (matching those in the
+            `directions` argument), and the values are dictionaries with the same
+            structure as the `weights` argument in `optimize_mga`.
+        snapshots : Sequence | None, optional
+            Set of snapshots to consider in the optimization. If None, uses all
+            snapshots from the network. Defaults to None.
+        multi_investment_periods : bool, default False
+            Whether to optimize as a single investment period or to optimize in
+            multiple investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+        slack : float
+            Cost slack for budget constraint. Defaults to 0.05.
+        model_kwargs: dict
+            Keyword arguments used by `linopy.Model`, such as `solver_dir` or
+            `chunk`.
+        max_parallel : int
+            Maximum number of parallel processes to use for solving multiple directions.
+            Defaults to 4.
+        **kwargs:
+            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
+
+        Returns
+        -------
+        directions_df : pd.DataFrame
+            DataFrame containing the successfully solved directions, where each row
+            represents a direction and columns correspond to dimension names.
+        coordinates_df : pd.DataFrame
+            DataFrame containing the coordinates of each successfully solved network
+            in the user-defined dimensions. Rows correspond to solved directions
+            and columns to dimension names.
+
+        Examples
+        --------
+        >>> import pypsa
+        >>> # Assume network n is already optimized
+        >>> dimensions = {
+        ...     'wind': {'Generator': {'p_nom': wind_weights}},
+        ...     'solar': {'Generator': {'p_nom': solar_weights}}
+        ... }
+        >>> directions = pypsa.optimize.mga.generate_directions_random(['wind', 'solar'], 10)
+        >>> dirs_df, coords_df = n.optimize.optimize_mga_in_multiple_directions(
+        ...     directions, dimensions, max_parallel=2
+        ... )
+
+        """
         # Iterate over rows of `directions` if a DataFrame
         if isinstance(directions, pd.DataFrame):
             directions = list(directions.T.to_dict().values())
-        # Use a process pool to solve in parallel
-        with Pool(processes=max_parallel) as pool:
-            # Pass `self` as the first argument to the static method
-            results = pool.starmap(
-                OptimizationAbstractMGAMixin._solve_single_direction,
-                [
-                    (
-                        self._n,
-                        direction,
-                        dimensions,
-                        snapshots,
-                        multi_investment_periods,
-                        slack,
-                        model_kwargs,
-                        kwargs,
-                    )
-                    for direction in directions
-                ],
-            )
 
-        # Filter for successful optimizations only
-        successful_directions, successful_coordinates = zip(
-            *[(dir, coord) for dir, coord in results if coord is not None], strict=True
-        )
-        return pd.DataFrame(successful_directions), pd.DataFrame(successful_coordinates)
+        # Create temporary file to export the network. Note: cannot pass
+        # the network as an argument directly since it is not picklable.
+        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
+            fn = f.name
+
+        # Wrap in try-finally to ensure the temporary file is deleted
+        # even if an error occurs
+        try:
+            self._n.export_to_netcdf(fn)
+
+            # Use a process pool to solve in parallel
+            with (
+                get_context("spawn").Pool(
+                    processes=max_parallel,
+                    initializer=_worker_init,
+                    maxtasksperchild=1,  # Kill workers after each task to prevent memory leaks
+                ) as pool
+            ):
+                try:
+                    results = pool.starmap(
+                        OptimizationAbstractMGAMixin._solve_single_direction,
+                        [
+                            (
+                                fn,
+                                direction,
+                                dimensions,
+                                snapshots,
+                                multi_investment_periods,
+                                slack,
+                                model_kwargs,
+                                kwargs,
+                            )
+                            for direction in directions
+                        ],
+                    )
+                except Exception:
+                    # Terminate all workers if something goes wrong
+                    pool.terminate()
+                    pool.join()
+                    raise
+
+            # Separate successful and failed results
+            successful = [
+                (direction, coords)
+                for direction, coords in results
+                if coords is not None
+            ]
+            failed_count = len(results) - len(successful)
+
+            if failed_count > 0:
+                logger.warning(
+                    "%s out of %s optimizations failed", failed_count, len(results)
+                )
+
+            if not successful:
+                return pd.DataFrame(), pd.DataFrame()
+
+            successful_directions, successful_coordinates = zip(
+                *successful, strict=True
+            )
+            return (
+                pd.DataFrame(successful_directions),
+                pd.DataFrame(successful_coordinates),
+            )
+        finally:
+            # Clean up temporary file
+            if Path(fn).exists():
+                Path(fn).unlink()
