@@ -69,6 +69,8 @@ dev = [
     "mypy",
     "jupyter>=1.1.1",
     "typing-extensions>=4.14.0",
+    "mkdocs-linkcheck",
+    "mktestdocs",
 ]
 docs = [    
     "mkdocs-material",
@@ -77,7 +79,6 @@ docs = [
     "mkdocs-redirects",
     "mkdocs-video",
     "mkdocs-git-revision-date-localized-plugin",
-    "mkdocs-git-committers-plugin",
     "mkdocs-argref-plugin",
     "mkdocs-table-reader-plugin",
     "mkdocstrings-python",
@@ -86,6 +87,8 @@ docs = [
     "pillow",
     "tsam",
     "gurobipy",
+    "openpyxl",
+    "python-calamine",
 ]
 
 # setuptools_scm settings

@@ -41,13 +41,13 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     
     Solves non-linear AC power flow equations using the Newton-Raphson method to inspect voltage magnitudes and angles.
 
-    [:octicons-arrow-right-24: Go to example](minimal_example_pf.ipynb)
+    [:octicons-arrow-right-24: Go to example](minimal-example-pf.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Negative LMPs from Line Congestion**
     
     Explores how Kirchhoff's Voltage Law can lead to negative locational marginal prices when lines are congested.
 
-    [:octicons-arrow-right-24: Go to example](negative_prices_kvl_baker.ipynb)
+    [:octicons-arrow-right-24: Go to example](negative-prices-kvl-baker.ipynb)
 
 </div>
 
@@ -149,7 +149,7 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     Shows how transformers can be considered with varying tap ratios and phase
     shifts.
 
-    [:octicons-arrow-right-24: Go to example](transformer_example.ipynb)
+    [:octicons-arrow-right-24: Go to example](transformer-example.ipynb)
 
 
 -   :material-notebook:{ .lg .middle } **Reserve Constraints**
@@ -232,5 +232,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
     Shows how storage units can be replaced by more fundamental links and stores.
 
     [:octicons-arrow-right-24: Go to example](replace-generator-storage-units-with-store.ipynb)
+
+-   :material-notebook:{ .lg .middle } **Tracing Infeasibilities**
+
+    Shows how to trace infeasibilities in the optimization problem using Irreducible Infeasible Subsets (IIS).
+
+    [:octicons-arrow-right-24: Go to example](tracing-infeasibilities.ipynb)
+
 
 </div>

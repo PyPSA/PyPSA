@@ -43,5 +43,3 @@ plant).
 !!! example "[`Link`](/api/components/types/links) with multiple inputs and a single output"
 
     Suppose a link representing a methanation process takes as inputs one unit of hydrogen and 0.5 units of carbon dioxide, and gives as outputs 0.8 units of methane and 0.2 units of heat. Then `bus0` connects to hydrogen, `bus1` connects to carbon dioxide with `efficiency=-0.5` (since 0.5 units of carbon dioxide is taken for each unit of hydrogen), `bus2` connects to methane with `efficiency2=0.8` and `bus3` to heat with `efficiency3=0.2`. [This example](https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.html) illustrates many modelling processes with multiple inputs and outputs using links.
-
-{{ read_csv('../../../pypsa/data/component_attrs/links.csv') }}

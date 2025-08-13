@@ -5,6 +5,7 @@ PyPSA offers a variety of functions for plotting networks. These include the abi
 Various key metrics that can be calculated on any PyPSA network are described in the [:material-bookshelf: Statistics](statistics.md) section. The plotting module lets you create plots of any of these metrics.
 
 !!! info
+
     The examples below are based on two networks: `n_simple` is based on a minimal three-node network, which is available via [pypsa.examples.ac_dc_meshed][], and `n` is the more complex hybrid scenario network from a recently published paper on carbon management. This network is also available in PyPSA via [pypsa.examples.carbon_management][].
     
     Load the networks:
@@ -217,6 +218,7 @@ Parameters which are available in the base statistics method, to filter and aggr
 Behind the scenes, each plotting method selects a different set of parameters to call the relevant statistics method. Therefore, the default value can be different for each plot type/metric. Most of these parameters can also be passed directly to the plotting method. Please refer to the [Statistics User Guide](statistics.md) for more details.
 
 !!! tip
+
     To decide which subset of data to show in your plot, it is often helpful to experiment with the relevant statistics method first to find the right parameters. Once you are happy with your selection, simply pass the parameters to the plotting method and the same selection will be applied. You can also pass them alongside all the other available plotting parameters. Check the API reference for details.
 
 
