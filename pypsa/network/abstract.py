@@ -19,20 +19,24 @@ if TYPE_CHECKING:
 
 
 class _NetworkABC(ABC):
+    # Indexing
     snapshots: pd.Index | pd.MultiIndex
     snapshot_weightings: pd.DataFrame
-    _snapshot_weightings: pd.DataFrame
-    _investment_period_weightings: pd.DataFrame
+    _snapshots_data: pd.DataFrame
+    investment_periods: pd.Index
+    investment_period_weightings: pd.DataFrame
+    _investment_periods_data: pd.DataFrame
+    scenarios: pd.Series
+    scenario_weightings: pd.DataFrame
+    _scenarios_data: pd.DataFrame
     static: pd.DataFrame
     dynamic: Callable
     _import_series_from_df: Callable
     add: Callable
     crs: Any
-    investment_period_weightings: pd.DataFrame
     standard_type_components: pd.DataFrame
     srid: Any
     set_snapshots: Callable
-    investment_periods: pd.Index
     remove: Callable
     iterate_components: Callable
     copy: Callable
@@ -42,6 +46,7 @@ class _NetworkABC(ABC):
     buses: pd.DataFrame
     generators: pd.DataFrame
     lines: pd.DataFrame
+    line_types: pd.DataFrame
     links: pd.DataFrame
     transformers: pd.DataFrame
     stores: pd.DataFrame
@@ -56,6 +61,18 @@ class _NetworkABC(ABC):
     calculate_dependent_values: Callable
 
     passive_branches: pd.DataFrame
+
+    @property
+    @abstractmethod
+    def has_scenarios(self) -> bool:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
+    def has_periods(self) -> bool:
+        """Read only placeholder."""
+        ...
 
     @property
     @abstractmethod

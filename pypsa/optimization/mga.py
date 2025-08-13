@@ -49,6 +49,7 @@ def generate_directions_random(
     See Also
     --------
     [pypsa.Network.optimize.optimize_mga_in_multiple_directions][]
+
     """
     # Use numpy with random seed 0 to generate a random array with
     # `len(keys)` columns and `n_directions` rows.
@@ -87,6 +88,7 @@ def generate_directions_evenly_spaced(
     See Also
     --------
     [pypsa.Network.optimize.optimize_mga_in_multiple_directions][]
+
     """
     # Check that there are exactly two keys
     if len(keys) != 2:
@@ -129,6 +131,7 @@ def generate_directions_halton(
     See Also
     --------
     [pypsa.Network.optimize.optimize_mga_in_multiple_directions][]
+
     """
     n = len(keys)
     halton_sampler = Halton(n, rng=np.random.default_rng(seed))
@@ -187,6 +190,7 @@ class OptimizationAbstractMGAMixin:
         -------
         linopy.LinearExpression
             A linear expression built according to the specified weights.
+
         """
         m = model or self._n.model
         expr = []
@@ -225,6 +229,7 @@ class OptimizationAbstractMGAMixin:
             The percentage by which the total cost is allowed to exceed the
             optimal cost. For example, a slack of 0.05 means the total cost
             must be <= 1.05 * optimal_cost.
+
         """
         # Check that the network has a model and that it has been solved
         n = self._n
@@ -261,11 +266,12 @@ class OptimizationAbstractMGAMixin:
         model_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> tuple[str, str]:
-        """Run modelling-to-generate-alternatives (MGA) on network to find near-
-        optimal solutions.
+        """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
 
         Parameters
         ----------
+        snapshots : list-like
+            Set of snapshots to consider in the optimization. The default is None.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimize in
             multiple investment periods. Then, snapshots should be a
@@ -298,16 +304,15 @@ class OptimizationAbstractMGAMixin:
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
 
         """
-        if snapshots is None:
-            snapshots = self._n.snapshots
-
         if model_kwargs is None:
             model_kwargs = {}
+        n = self._n
+
+        if snapshots is None:
+            snapshots = n.snapshots
 
         if weights is None:
-            weights = {
-                "Generator": {"p_nom": pd.Series(1, index=self._n.generators.index)}
-            }
+            weights = {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
 
         # check that network has been solved
         if not self._n.is_solved:
@@ -315,7 +320,7 @@ class OptimizationAbstractMGAMixin:
             raise ValueError(msg)
 
         # create basic model
-        m = self._n.optimize.create_model(
+        m = n.optimize.create_model(
             snapshots=snapshots,
             multi_investment_periods=multi_investment_periods,
             **model_kwargs,
@@ -349,9 +354,9 @@ class OptimizationAbstractMGAMixin:
         status, condition = self._n.optimize.solve_model(**kwargs)
 
         # write MGA coefficients into metadata
-        self._n.meta["slack"] = slack
-        self._n.meta["sense"] = sense
-        self._n.meta["weights"] = _convert_to_dict(weights)
+        n.meta["slack"] = slack
+        n.meta["sense"] = sense
+        n.meta["weights"] = _convert_to_dict(weights)
 
         return status, condition
 
@@ -377,6 +382,7 @@ class OptimizationAbstractMGAMixin:
             network in the dimensions given by the user. The index
             consists of the keys in the `dimensions` argument; values
             are floats.
+
         """
         # Check that the network has a solved linopy model
         if not self._n.is_solved:
@@ -445,6 +451,7 @@ class OptimizationAbstractMGAMixin:
             consists of the keys in the `dimensions` argument; values
             are floats. If the optimization status is not "ok", then
             this value is None.
+
         """
         # Check consistency of `direction` and `dimensions` arguments: keys have to be the same
         if set(direction.keys()) != set(dimensions.keys()):

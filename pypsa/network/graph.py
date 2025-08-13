@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 import scipy as sp
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterable
-
-    import pandas as pd
 
 
 class OrderedGraph(nx.MultiGraph):
@@ -55,7 +55,7 @@ class NetworkGraphMixin:
             weight. False skips edges with infinite weight. If a float is given it
             is used instead.
         include_inactive : bool
-            Whether to include inactive branches in the graph.
+            Whether to include inactive components in the graph.
 
         Returns
         -------
@@ -63,21 +63,25 @@ class NetworkGraphMixin:
             NetworkX graph
 
         """
+        n = self
         from pypsa import Network, SubNetwork  # noqa: PLC0415
 
-        if isinstance(self, Network):
+        if isinstance(n, Network):
             if branch_components is None:
-                branch_components = self.branch_components
+                branch_components = n.branch_components
             else:
                 branch_components = set(branch_components)
-            buses_i = self.buses.index
-        elif isinstance(self, SubNetwork):
+            buses_i = n.buses.index
+        elif isinstance(n, SubNetwork):
             if branch_components is None:
-                branch_components = self.n.passive_branch_components
-            buses_i = self.buses_i()
+                branch_components = n.n.passive_branch_components
+            buses_i = n.buses_i()
         else:
             msg = "graph must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+
+        if n.has_scenarios:
+            buses_i = buses_i.unique("name")
 
         graph = OrderedGraph()
 
@@ -86,9 +90,13 @@ class NetworkGraphMixin:
 
         # Multigraph uses the branch type and name as key
         def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
-            for c in self.iterate_components(branch_components):
-                for branch in c.static.loc[
-                    slice(None) if include_inactive else c.static.query("active").index
+            for c in n.iterate_components(branch_components):
+                static = c.static
+                if n.has_scenarios:
+                    static = c.static.loc[n.scenarios[0]]
+
+                for branch in static.loc[
+                    slice(None) if include_inactive else static.query("active").index
                 ].itertuples():
                     if weight is None:
                         data = {}
@@ -98,7 +106,6 @@ class NetworkGraphMixin:
                             if inf_weight is False:
                                 continue
                             data["weight"] = inf_weight
-
                     yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
 
         graph.add_edges_from(gen_edges())
@@ -111,77 +118,100 @@ class NetworkGraphMixin:
         investment_period: int | str | None = None,
         busorder: pd.Index | None = None,
         weights: pd.Series | None = None,
-    ) -> sp.sparse.coo_matrix:
-        """Construct a sparse adjacency matrix (directed).
+        return_dataframe: bool | None = None,
+    ) -> pd.DataFrame | sp.sparse.coo_matrix:
+        """Construct an adjacency matrix (directed) as a pandas DataFrame or sparse matrix.
 
         Parameters
         ----------
         branch_components : iterable sublist of `branch_components`
             Buses connected by any of the selected branches are adjacent
             (default: branch_components (network) or passive_branch_components (sub_network))
-        investment_period : int | str | None
-            Investment period to use for the matrix representation of the adjacency matrix.
+        investment_period : int | str | None, default None
+            If given, only assets active in the given investment period are considered
+            in the network topology.
         busorder : pd.Index subset of n.buses.index
             Basis to use for the matrix representation of the adjacency matrix
             (default: buses.index (network) or buses_i() (sub_network))
         weights : pd.Series or None (default)
             If given must provide a weight for each branch, multi-indexed
             on branch_component name and branch name.
+        return_dataframe : bool | None, default None
+            If True, returns a pandas DataFrame. If False, returns a sparse coo_matrix
+            for backwards compatibility. If None (default), returns a sparse coo_matrix
+            with a deprecation warning.
 
         Returns
         -------
-        adjacency_matrix : sp.sparse.coo_matrix
-        Directed adjacency matrix
-
-        Examples
-        --------
-        >>> n.adjacency_matrix()  # doctest: +ELLIPSIS
-        <COOrdinate sparse matrix of dtype 'float64'
-            with ... stored elements and shape (..., ...)>
+        adjacency_matrix : pd.DataFrame or sp.sparse.coo_matrix
+            Directed adjacency matrix as DataFrame (if return_dataframe=True) or
+            sparse matrix (if return_dataframe=False) with bus indices
 
         """
         from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
-        if isinstance(self, Network):
+        n = self
+        if isinstance(n, Network):
             if branch_components is None:
-                branch_components = self.branch_components
+                branch_components = n.branch_components
             if busorder is None:
-                busorder = self.buses.index
-        elif isinstance(self, SubNetwork):
+                busorder = n.buses.index
+        elif isinstance(n, SubNetwork):
             if branch_components is None:
-                branch_components = self.n.passive_branch_components
+                branch_components = n.n.passive_branch_components
             if busorder is None:
-                busorder = self.buses_i()
+                busorder = n.buses_i()
         else:
             msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
 
-        no_buses = len(busorder)
-        no_branches = 0
-        bus0_inds = []
-        bus1_inds = []
-        weight_vals = []
-        for c in self.iterate_components(branch_components):
+        # Initialize empty DataFrame with buses as both rows and columns
+        if n.has_scenarios:
+            busorder = busorder.unique("name")
+
+        dtype = int if weights is None else float
+        adjacency_df = pd.DataFrame(0, index=busorder, columns=busorder, dtype=dtype)
+
+        # Build adjacency matrix component by component
+        for c in n.iterate_components(branch_components):
             active = c.get_active_assets(investment_period)
-            sel = c.static[active].index
+            sel = c.static[active].index.unique("name")
+            static = c.static.reindex(sel, level="name")
 
-            no_branches = len(c.static.loc[sel])
-            bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
-            bus1_inds.append(busorder.get_indexer(c.static.loc[sel, "bus1"]))
-            weight_vals.append(
-                np.ones(no_branches) if weights is None else weights[c.name][sel].values
+            # Skip if no branches in this component
+            if len(static) == 0:
+                continue
+
+            # Get bus0 and bus1 from static data
+            bus0 = static.bus0
+            bus1 = static.bus1
+
+            # Set weights for these connections
+            if weights is None:
+                # Set default weights of 1 for all branches
+                for b0, b1 in zip(bus0, bus1, strict=False):
+                    adjacency_df.at[b0, b1] = 1
+            else:
+                # Use provided weights
+                for b0, b1, idx in zip(bus0, bus1, sel, strict=False):
+                    adjacency_df.at[b0, b1] = weights[c.name][idx]
+
+        # Handle deprecation warning for None case
+        if return_dataframe is None:
+            warnings.warn(
+                "In future versions, adjacency_matrix will return a pandas DataFrame by default. "
+                "To maintain the current behavior, explicitly set return_dataframe=False. "
+                "To adopt the new behavior and silence this warning, set return_dataframe=True.",
+                FutureWarning,
+                stacklevel=2,
             )
+            return_dataframe = False
 
-        if no_branches == 0:
-            return sp.sparse.coo_matrix((no_buses, no_buses))
-
-        bus0_inds = np.concatenate(bus0_inds)
-        bus1_inds = np.concatenate(bus1_inds)
-        weight_vals = np.concatenate(weight_vals)
-
-        return sp.sparse.coo_matrix(
-            (weight_vals, (bus0_inds, bus1_inds)), shape=(no_buses, no_buses)
-        )
+        if return_dataframe:
+            return adjacency_df
+        else:
+            # Convert to sparse matrix for backwards compatibility
+            return sp.sparse.coo_matrix(adjacency_df.values)
 
     def incidence_matrix(
         self,

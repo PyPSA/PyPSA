@@ -279,7 +279,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 )
 
         if draw_legend_patches and hasattr(self.ax, "figure"):
-            carriers = bus_sizes.index.get_level_values("carrier").unique()
+            carriers = bus_sizes.index.get_level_values("carrier").drop_duplicates()
             colors = self.get_carrier_colors(carriers, nice_names=False)
             labels = self.get_carrier_labels(carriers, nice_names=nice_names)
 
