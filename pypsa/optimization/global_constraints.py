@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from typing import TYPE_CHECKING
 
 import pandas as pd
-from deprecation import deprecated
 from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
@@ -87,11 +87,6 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
             )
 
 
-@deprecated(
-    deprecated_in="1.0",
-    removed_in="2.0",
-    details="Use global constraint of type 'define_tech_capacity_expansion_limit' instead.",
-)
 def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> None:
     """Set an capacity expansion limit for assets of the same carrier at the same bus.
 
@@ -112,6 +107,14 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
     cols = n.buses.columns[n.buses.columns.str.startswith("nom_")]
     buses = n.buses.index[n.buses[cols].notnull().any(axis=1)]
 
+    if not cols.empty:
+        warnings.warn(
+            "Nominal constraints per bus carrier are deprecated and will be removed in the future. "
+            "Use global constraint of type 'define_tech_capacity_expansion_limit' instead."
+            "Deprecated in PyPSA 1.0 and will be removed in PyPSA 2.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     if n.has_scenarios and not buses.empty:
         msg = "Nominal constraints per bus carrier are not implemented for stochastic networks."
         raise NotImplementedError(msg)
