@@ -2,8 +2,9 @@ import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.descriptors import expand_series, nominal_attrs
+from pypsa.common import expand_series
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.descriptors import nominal_attrs
 
 TOLERANCE = 1e-2
 
@@ -311,3 +312,83 @@ def test_define_generator_constraints():
     assert n.generators_t.p["gen1"].eq(0).all()
     assert n.snapshot_weightings.generators @ n.generators_t.p["gen2"] == e_sum_min
     assert n.snapshot_weightings.generators @ n.generators_t.p["gen3"] == e_sum_max
+
+
+def test_define_fixed_operational_constraints_positive():
+    """
+    Test fixed operational constraints: fix to a positive value
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=4, marginal_cost=0)
+    n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
+    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
+
+    n.generators_t.p_set["gen2"] = 10
+
+    n.optimize()
+
+    assert n.generators_t.p["gen2"].eq(10).all()
+    assert n.generators_t.p["gen0"].eq(0).all()
+
+
+def test_define_fixed_operational_constraints_zero():
+    """
+    Test fixed operational constraints: fix to a zero value
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=4, marginal_cost=0)
+    n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
+    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
+
+    n.generators_t.p_set["gen0"] = 0
+
+    n.optimize()
+
+    assert n.generators_t.p["gen0"].eq(0).all()
+    assert n.generators_t.p["gen1"].eq(5).all()
+    assert n.generators_t.p["gen2"].eq(5).all()
+
+
+def test_define_fixed_operational_constraints_extendable():
+    """
+    Test fixed operational constraints: extendable component"
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=0,
+    )
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=5,
+    )
+    n.add(
+        "Generator",
+        "gen2",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=9,
+    )
+
+    n.generators_t.p_set["gen1"] = 5
+
+    n.optimize()
+
+    assert n.generators_t.p["gen0"].eq(5).all()
+    assert n.generators_t.p["gen1"].eq(5).all()
+    assert n.generators_t.p["gen2"].eq(0).all()

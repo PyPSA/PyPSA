@@ -47,7 +47,7 @@ class PlotsGenerator(ABC):
         carriers = self._n.carriers
         if isinstance(carriers.index, pd.MultiIndex):
             for level in carriers.index.names:
-                if level != "component":
+                if level != "name":
                     carriers = carriers.droplevel(level)
             unique_carriers = carriers[~carriers.index.duplicated(keep="first")]
             return unique_carriers.sort_index()

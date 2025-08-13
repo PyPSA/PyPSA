@@ -10,17 +10,18 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 
-from pypsa.common import deprecated_common_kwargs
+from pypsa._options import options
 from pypsa.constants import RE_PORTS_FILTER
+from pypsa.guards import _consistency_check_guard
 from pypsa.network.abstract import _NetworkABC
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Sequence
+    from collections.abc import Sequence
 
     from pypsa import Network
     from pypsa.components import Components
+    from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +41,8 @@ def _log_or_raise(strict: bool, message: str, *args: Any) -> None:
     logger.warning(message, *args)
 
 
-@deprecated_common_kwargs
 def check_for_unknown_buses(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check if buses are attached to component but are not defined in the network.
 
@@ -65,7 +65,7 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.buses.index)
+        missing = ~component.static[attr].astype(str).isin(n.c.buses.component_names)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
@@ -78,8 +78,7 @@ def check_for_unknown_buses(
             )
 
 
-@deprecated_common_kwargs
-def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
+def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
     """Check if network has buses that are not connected to any component.
 
     Activate strict mode in general consistency check by passing `['disconnected_buses']`
@@ -103,7 +102,7 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
         for attr in _bus_columns(component.static):
             connected_buses.update(component.static[attr])
 
-    disconnected_buses = set(n.buses.index) - connected_buses
+    disconnected_buses = set(n.c.buses.component_names) - connected_buses
     if disconnected_buses:
         _log_or_raise(
             strict,
@@ -112,9 +111,8 @@ def check_for_disconnected_buses(n: Network, strict: bool = False) -> None:
         )
 
 
-@deprecated_common_kwargs
 def check_for_unknown_carriers(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check if carriers are attached to component but are not defined in the network.
 
@@ -139,7 +137,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.carriers.index)
+            ~component.static["carrier"].isin(n.c.carriers.component_names)
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )
@@ -152,9 +150,8 @@ def check_for_unknown_carriers(
             )
 
 
-@deprecated_common_kwargs
 def check_for_zero_impedances(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check if component has zero impedances. Only checks passive branch components.
 
@@ -191,7 +188,6 @@ def check_for_zero_impedances(
                 )
 
 
-@deprecated_common_kwargs
 def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
     """Check if component has zero s_nom. Only checks transformers.
 
@@ -223,8 +219,9 @@ def check_for_zero_s_nom(component: Components, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
-def check_time_series(n: Network, component: Components, strict: bool = False) -> None:
+def check_time_series(
+    n: NetworkType, component: Components, strict: bool = False
+) -> None:
     """Check if time series of component are aligned with network snapshots.
 
     Activate strict mode in general consistency check by passing `['time_series']` to
@@ -272,9 +269,8 @@ def check_time_series(n: Network, component: Components, strict: bool = False) -
             )
 
 
-@deprecated_common_kwargs
 def check_static_power_attributes(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check static attrs p_now, s_nom, e_nom in any component.
 
@@ -327,9 +323,8 @@ def check_static_power_attributes(
                     )
 
 
-@deprecated_common_kwargs
 def check_time_series_power_attributes(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check `p_max_pu` and `e_max_pu` nan and infinite values in time series.
 
@@ -423,8 +418,7 @@ def check_time_series_power_attributes(
                 )
 
 
-@deprecated_common_kwargs
-def check_assets(n: Network, component: Components, strict: bool = False) -> None:
+def check_assets(n: NetworkType, component: Components, strict: bool = False) -> None:
     """Check if assets are only committable or extendable, but not both.
 
     Activate strict mode in general consistency check by passing `['assets']` to the
@@ -447,8 +441,8 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
 
     """
     if component.name in {"Generator", "Link"}:
-        committables = n.get_committable_i(component.name)
-        extendables = n.get_extendable_i(component.name)
+        committables = component.committables
+        extendables = component.extendables
         intersection = committables.intersection(extendables)
         if not intersection.empty:
             _log_or_raise(
@@ -460,7 +454,6 @@ def check_assets(n: Network, component: Components, strict: bool = False) -> Non
             )
 
 
-@deprecated_common_kwargs
 def check_generators(component: Components, strict: bool = False) -> None:
     """Check the consistency of generator attributes before the simulation.
 
@@ -513,7 +506,6 @@ def check_generators(component: Components, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
 def check_dtypes_(component: Components, strict: bool = False) -> None:
     """Check if the dtypes of the attributes in the component are as expected.
 
@@ -522,8 +514,6 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
 
     Parameters
     ----------
-    n : pypsa.Network
-        The network to check.
     component : pypsa.Component
         The component to check.
     strict : bool, optional
@@ -573,8 +563,7 @@ def check_dtypes_(component: Components, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
-def check_investment_periods(n: Network, strict: bool = False) -> None:
+def check_investment_periods(n: NetworkType, strict: bool = False) -> None:
     """Check if investment periods are aligned with snapshots.
 
     Activate strict mode in general consistency check by passing `['investment_periods']`
@@ -614,8 +603,7 @@ def check_investment_periods(n: Network, strict: bool = False) -> None:
         _log_or_raise(strict, msg)
 
 
-@deprecated_common_kwargs
-def check_shapes(n: Network, strict: bool = False) -> None:
+def check_shapes(n: NetworkType, strict: bool = False) -> None:
     """Check if shapes are aligned with related components.
 
     Activate strict mode in general consistency check by passing `['shapes']` to the
@@ -650,9 +638,8 @@ def check_shapes(n: Network, strict: bool = False) -> None:
             )
 
 
-@deprecated_common_kwargs
 def check_nans_for_component_default_attrs(
-    n: Network, component: Components, strict: bool = False
+    n: NetworkType, component: Components, strict: bool = False
 ) -> None:
     """Check for missing values in component attributes.
 
@@ -739,37 +726,12 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
         )
 
 
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.consistency_check` instead.",
-)
-def consistency_check(
-    n: Network, check_dtypes: bool = False, strict: Sequence | None = None
-) -> None:
-    """Use `n.consistency_check` instead."""
-    return n.consistency_check(check_dtypes=check_dtypes, strict=strict)
-
-
-@deprecated(
-    deprecated_in="0.35",
-    removed_in="1.0",
-    details="Use `n.consistency_check_plots` instead.",
-)
-def plotting_consistency_check(n: Network, strict: Sequence | None = None) -> None:
-    """Use `n.consistency_check_plots` instead."""
-    return n.consistency_check_plots(strict=strict)
-
-
 class NetworkConsistencyMixin(_NetworkABC):
     """Mixin class for network consistency checks.
 
     Class only inherits to [pypsa.Network][] and should not be used directly.
     All attributes and methods can be used within any Network instance.
     """
-
-    calculate_dependent_values: Callable
-    iterate_components: Callable
 
     def consistency_check(
         self, check_dtypes: bool = False, strict: Sequence | None = None
@@ -819,6 +781,10 @@ class NetworkConsistencyMixin(_NetworkABC):
         [pypsa.consistency.check_shapes][] : Check if shapes are aligned with related components.
         [pypsa.consistency.check_nans_for_component_default_attrs][] : Check for missing values
             in component attributes.
+        [pypsa.consistency.check_scenarios_sum_to_one][] : Check if scenarios probabilities sum to 1.
+        [pypsa.consistency.check_scenario_invariant_attributes][] : Check if certain component attributes are invariant across scenarios.
+        [pypsa.consistency.check_line_types_consistency][] : Check if line_types are identical across scenarios.
+        [pypsa.consistency.check_stochastic_slack_bus_consistency][] : Check if same slack bus is chosen across scenarios.
 
         """
         if strict is None:
@@ -839,6 +805,10 @@ class NetworkConsistencyMixin(_NetworkABC):
             "investment_periods",
             "shapes",
             "dtypes",
+            "scenarios_sum",
+            "scenario_invariant_attrs",
+            "line_types",
+            "slack_bus_consistency",
         ]
 
         if "all" in strict:
@@ -885,6 +855,14 @@ class NetworkConsistencyMixin(_NetworkABC):
         check_for_disconnected_buses(self, "disconnected_buses" in strict)
         check_investment_periods(self, "investment_periods" in strict)
         check_shapes(self, "shapes" in strict)
+        check_scenarios_sum_to_one(self, "scenarios_sum" in strict)
+        check_scenario_invariant_attributes(self, "scenario_invariant_attrs" in strict)
+        check_line_types_consistency(self, "line_types" in strict)
+        check_stochastic_slack_bus_consistency(self, "slack_bus_consistency" in strict)
+
+        # Optional runtime verification
+        if options.debug.runtime_verification:
+            _consistency_check_guard(self)
 
     def consistency_check_plots(self, strict: Sequence | None = None) -> None:
         """Check network for consistency for plotting functions.
@@ -899,7 +877,7 @@ class NetworkConsistencyMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.consistency.consistency_check][] : General consistency check method, which can be
+        [pypsa.Network.consistency_check][] : General consistency check method, which can be
             runs all consistency checks.
         [pypsa.consistency.check_for_unknown_buses][] : Check if buses are attached to
             component but are not defined in the network.
@@ -929,3 +907,225 @@ class NetworkConsistencyMixin(_NetworkABC):
             self,  # type: ignore
             strict="missing_carrier_colors" in strict,
         )
+
+
+def check_scenarios_sum_to_one(n: NetworkType, strict: bool = False) -> None:
+    """Check if scenarios probabilities sum to 1.
+
+    This check verifies that scenario probabilities have not been modified after
+    initialization to break the constraint that they must sum to 1.
+
+    Activate strict mode in general consistency check by passing `['scenarios_sum']`
+    to the `strict` argument.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    if n.has_scenarios:
+        total_weight = n.scenario_weightings["weight"].sum()
+
+        if not np.isclose(total_weight, 1.0, rtol=1e-10, atol=1e-10):
+            _log_or_raise(
+                strict,
+                "Scenario probabilities must sum to 1.0 (got %.10g). "
+                "This may indicate scenarios were modified after initialization.",
+                total_weight,
+            )
+
+
+def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) -> None:
+    """Check if invariant component attributes are not changed across scenarios.
+
+    There are some component attributes that must remain the same across scenarios.
+    These attributes define the topology of the network or the mathematical structure.
+    We raise an error if user attemps to modify them across scenarios.
+    Any difference in values (including NaN vs non-NaN) will trigger an error.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    # This test is for stochastic networks only
+    if not n.has_scenarios:
+        return
+
+    # Attributes that must be identical across all scenarios
+    INVARIANT_ATTRS = {
+        "name",
+        "bus",
+        # "control" is excluded - different buses can have different control types across scenarios
+        # but we ensure consistent slack bus selection separately
+        "type",
+        "p_nom_extendable",  # changes mathematical problem
+        "committable",  # changes mathematical problem
+        "sign",
+        "carrier",
+        "weight",
+        "p_nom_opt",  # optimization result
+        "build_year",
+        "lifetime",
+        "active",  # theoretically can be different, but problematic with "Line"
+    }
+
+    for component in n.iterate_components():
+        if component.static.index.nlevels < 2:
+            continue  # No scenario dimension
+
+        # Get attributes that exist for this component and are in invariant list
+        component_invariant_attrs = INVARIANT_ATTRS.intersection(
+            component.static.columns
+        )
+
+        if not component_invariant_attrs:
+            continue
+
+        # Group by component name (second level of MultiIndex) and check for differences
+        grouped = component.static.groupby(level=1)  # Group by component name
+
+        for attr in component_invariant_attrs:
+            for comp_name, group in grouped:
+                # Check if all scenarios have the same value for this attribute
+                unique_values = group[attr].unique()
+
+                # If there's more than one unique value, it's an error - no exceptions
+                if len(unique_values) > 1:
+                    scenarios_with_diff = (
+                        group[group[attr] != group[attr].iloc[0]]
+                        .index.get_level_values(0)
+                        .tolist()
+                    )
+                    _log_or_raise(
+                        True,
+                        "Component '%s' of type '%s' has attribute '%s' that varies across scenarios. "
+                        "This attribute must be identical across all scenarios. "
+                        "Scenarios with different values: %s. Values: %s",
+                        comp_name,
+                        component.name,
+                        attr,
+                        scenarios_with_diff,
+                        group[attr].to_dict(),
+                    )
+
+
+def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
+    """Check that line_types are identical across all scenarios.
+
+    In stochastic networks, line_types must be identical across all scenarios
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    if not n.has_scenarios:
+        return
+
+    # Check line_types consistency across scenarios
+    if not n.line_types.empty and len(n.scenarios) > 1:
+        # Get reference line_types from first scenario
+        reference_scenario = n.scenarios[0]
+        reference_line_types = n.line_types.xs(reference_scenario, level="scenario")
+
+        # Check each other scenario
+        for scenario in n.scenarios[1:]:
+            scenario_line_types = n.line_types.xs(scenario, level="scenario")
+
+            # Check if DataFrames are equal
+            if not reference_line_types.equals(scenario_line_types):
+                _log_or_raise(
+                    strict,
+                    "line_types must be identical across all scenarios. "
+                    "Found differences between scenario '%s' and '%s'. "
+                    "line_types define physical characteristics and cannot vary across scenarios.",
+                    reference_scenario,
+                    scenario,
+                )
+
+
+def check_stochastic_slack_bus_consistency(
+    n: NetworkType, strict: bool = False
+) -> None:
+    """Check that the same bus is chosen as slack across all scenarios in stochastic networks.
+
+    Ensure that the same bus is consistently chosen as the slack bus
+    to maintain mathematical consistency of the optimization problem.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        The network to check.
+    strict : bool, optional
+        If True, raise an error instead of logging a warning.
+
+    See Also
+    --------
+    [pypsa.Network.consistency_check][] : General consistency check method, which runs
+    all consistency checks.
+
+    """
+    # This test is for stochastic networks only
+    if not n.has_scenarios:
+        return
+
+    # Check that each sub-network has the same slack bus across all scenarios
+    if n.has_scenarios and "control" in n.buses.columns:
+        # Extract slack buses for each scenario
+        slack_buses_by_scenario = {}
+
+        for scenario in n.scenarios:
+            if n.buses.index.nlevels > 1:
+                # MultiIndex case (stochastic network)
+                scenario_buses = n.buses.xs(scenario, level="scenario")
+                slack_buses = scenario_buses[scenario_buses.control == "Slack"]
+                slack_buses_by_scenario[scenario] = set(slack_buses.index)
+            else:
+                # Single scenario case, shouldn't reach here for stochastic networks
+                slack_buses = n.buses[n.buses.control == "Slack"]
+                slack_buses_by_scenario[scenario] = set(slack_buses.index)
+
+        # Compare slack buses across scenarios
+        if len(slack_buses_by_scenario) > 1:
+            scenarios = list(slack_buses_by_scenario.keys())
+            reference_slack_buses = slack_buses_by_scenario[scenarios[0]]
+
+            for scenario in scenarios[1:]:
+                current_slack_buses = slack_buses_by_scenario[scenario]
+                if reference_slack_buses != current_slack_buses:
+                    _log_or_raise(
+                        strict,
+                        "Different slack buses found across scenarios. "
+                        "This can cause mathematical inconsistency in stochastic optimization. "
+                        "Reference scenario '%s' has slack buses %s, "
+                        "but scenario '%s' has slack buses %s",
+                        scenarios[0],
+                        reference_slack_buses,
+                        scenario,
+                        current_slack_buses,
+                    )

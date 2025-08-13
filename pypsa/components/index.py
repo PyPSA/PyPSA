@@ -18,6 +18,7 @@ from pypsa.components.abstract import _ComponentsABC
 if TYPE_CHECKING:
     import pandas as pd
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,10 +47,10 @@ class ComponentsIndexMixin(_ComponentsABC):
         >>> n.add("Generator", "g2")  # doctest: +ELLIPSIS
         Index(['g2'], dtype='object')
         >>> n.generators.index
-        Index(['g1', 'g2'], dtype='object', name='Generator')
+        Index(['g1', 'g2'], dtype='object', name='name')
 
         """
-        return self.static.index.get_level_values("component").unique()
+        return self.static.index.get_level_values("name").drop_duplicates()
 
     # Derived from attached Network
 
@@ -115,12 +116,15 @@ class ComponentsIndexMixin(_ComponentsABC):
 
     @property
     def has_periods(self) -> bool:
-        """Indicator whether network has periods.
-
-        See Also
-        --------
-        [pypsa.Network.has_periods][] :
-            Indicator whether network has periods.
-
-        """
+        """Investment periods of the network."""
         return self.n_save.has_periods
+
+    @property
+    def scenarios(self) -> pd.Index:
+        """Scenarios of networks."""
+        return self.n_save.scenarios
+
+    @property
+    def has_scenarios(self) -> bool:
+        """Boolean indicating if the network has scenarios defined."""
+        return len(self.scenarios) > 0

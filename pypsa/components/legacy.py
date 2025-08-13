@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any
 
 from pypsa.common import UnexpectedError
@@ -72,36 +71,11 @@ class Component:
         n: Any | None = None,
         static: pd.DataFrame | None = None,
         dynamic: Dict | None = None,
-        list_name: str | None = None,
-        attrs: pd.DataFrame | None = None,
-        investment_periods: pd.Index | None = None,
-        ind: None = None,
     ) -> Any:
         # Deprecation warnings
         if (name and ctype is not None) or (not name and ctype is None):
             msg = "One out of 'name' or 'ct' must be given."
             raise ValueError(msg)
-        if list_name is not None or attrs is not None:
-            warnings.warn(
-                "Passing 'list_name' and 'attrs' is deprecated and they will be "
-                "retrieved via the 'name' argument. Deprecated in version 0.31 and "
-                "will be removed in version 1.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if ind is not None:
-            warnings.warn(
-                "The 'ind' attribute is deprecated. Deprecated in version 0.31 and "
-                "will be removed in version 1.0.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        if investment_periods is not None:
-            msg = (
-                "The 'investment_periods' attribute is deprecated. Pass 'n' instead."
-                "Deprecated in version 0.31 and will be removed in version 1.0."
-            )
-            raise DeprecationWarning(msg)
 
         if name:
             ctype_ = get_component_type(name)

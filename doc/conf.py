@@ -234,6 +234,7 @@ htmlhelp_basename = "PyPSAdoc"
 
 # -- Options for nbsphinx -------------------------------------------------
 # nbsphinx_kernel_name = 'pypsa'
+nbsphinx_allow_errors = True
 nbsphinx_prolog = """
 {% set docname = env.doc2path(env.docname, base=None).replace("nblink", "ipynb").replace("examples/", "examples/notebooks/") %}
 {% if env.config.release != 'master' %}

@@ -33,15 +33,13 @@ Other
 .. autosummary::
     :toctree: _source/
 
-    pypsa.pf.aggregate_multi_graph
-    pypsa.pf.apply_line_types
-    pypsa.pf.apply_transformer_t_model
-    pypsa.pf.apply_transformer_types
-    pypsa.pf.find_cycles
-    pypsa.pf.find_tree
-    pypsa.pf.network_batch_lpf
-    pypsa.pf.network_lpf
-    pypsa.pf.network_pf
-    pypsa.pf.newton_raphson_sparse
-    pypsa.pf.sub_network_pf_singlebus
-    pypsa.pf.wye_to_delta
+    pypsa.network.power_flow.aggregate_multi_graph
+    pypsa.network.power_flow.apply_line_types
+    pypsa.network.power_flow.apply_transformer_t_model
+    pypsa.network.power_flow.apply_transformer_types
+    pypsa.network.power_flow.find_cycles
+    pypsa.network.power_flow.find_tree
+    pypsa.network.power_flow.network_batch_lpf
+    pypsa.network.power_flow.newton_raphson_sparse
+    pypsa.network.power_flow.sub_network_pf_singlebus
+    pypsa.network.power_flow.wye_to_delta

@@ -32,7 +32,7 @@ dependencies = [
     "pandas>=0.24",
     "xarray<2025.07.0",
     "netcdf4",
-    "linopy>=0.4",
+    "linopy>=0.5.5",
     "matplotlib",
     "plotly",
     "seaborn",
@@ -203,6 +203,7 @@ ignore = [
     'PLR0912',
     'PT011',
     'PLW2901',
+    'ERA001', #TODO add again
     ]
 
 
@@ -220,8 +221,8 @@ ignore = [
     'TRY'    # tryceratops
 ]
 
-# Still to be fixed
-"{*/optimization/**,pypsa/pf.py,test/**}" = [
+# Ignore for test files
+"{test/**}" = [
     'D100', # Missing docstring in public module
     'D101', # Missing docstring in public class
     'D102', # Missing docstring in public method
@@ -234,7 +235,6 @@ ignore = [
     'D413', # Missing blank line after last section
     'D415', # First line should end with a period, question mark, or exclamation point
     'D417', # Missing argument descriptions in the docstring
-
     ]
 
 "{test,examples}/**"=[

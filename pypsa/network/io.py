@@ -17,12 +17,11 @@ import numpy as np
 import pandas as pd
 import validators
 import xarray as xr
-from deprecation import deprecated
 from pandas.errors import ParserError
 from pyproj import CRS
 
 from pypsa._options import options
-from pypsa.common import _check_for_update, check_optional_dependency, deprecated_kwargs
+from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_semver__, __version_semver_tuple__
@@ -72,9 +71,6 @@ def _retrieve_from_url(url: str, io_function: Callable) -> pd.DataFrame | Networ
             msg = f"Failed to retrieve network data from {url}: {e}"
             raise ValueError(msg) from e
         return io_function(file_path)
-
-
-# TODO: Restructure abc inheritance
 
 
 class _ImpExper:
@@ -138,6 +134,10 @@ class _Exporter(_ImpExper):
         """Save investment periods data."""
 
     @abstractmethod
+    def save_scenarios(self, scenarios: pd.DataFrame) -> None:
+        """Save scenarios data."""
+
+    @abstractmethod
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save static components data."""
 
@@ -148,6 +148,9 @@ class _Exporter(_ImpExper):
 
 class _Importer(_ImpExper):
     """Importer class."""
+
+    def get_scenarios(self) -> pd.DataFrame | None:
+        return None
 
 
 class _ImporterCSV(_Importer):
@@ -323,6 +326,11 @@ class _ExporterCSV(_Exporter):
                 fn, encoding=self.encoding, quotechar=self.quotechar
             )
 
+    def save_scenarios(self, scenarios: pd.DataFrame) -> None:
+        """Save scenarios data."""
+        msg = "Stochastic networks are not supported in the CSV exporter. Use netcdf instead."
+        raise NotImplementedError(msg)
+
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save static components data."""
         fn = self.path.joinpath(list_name + ".csv")
@@ -473,6 +481,7 @@ class _ImporterExcel(_Importer):
         try:
             df = self.sheets["investment_periods"]
             df = df.set_index(df.columns[0])
+            df.index = df.index.astype(int)
         except (ValueError, KeyError):
             return None
         else:
@@ -589,6 +598,11 @@ class _ExporterExcel(_Exporter):
     def save_investment_periods(self, investment_periods: pd.Index) -> None:
         """Save investment periods data."""
         investment_periods.to_excel(self.writer, sheet_name="investment_periods")
+
+    def save_scenarios(self, scenarios: pd.DataFrame) -> None:
+        """Save scenarios data."""
+        msg = "Stochastic networks are not supported in the Excel exporter. Use netcdf instead."
+        raise NotImplementedError(msg)
 
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save static components data."""
@@ -761,6 +775,11 @@ class _ExporterHDF5(_Exporter):
             index=False,
         )
 
+    def save_scenarios(self, scenarios: pd.DataFrame) -> None:
+        """Save scenarios data."""
+        msg = "Stochastic networks are not supported in the HDF5 exporter. Use netcdf instead."
+        raise NotImplementedError(msg)
+
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save a static components data."""
         df = df.rename_axis(index="name")
@@ -841,6 +860,13 @@ class _ImporterNetCDF(_Importer):
         """Get investment periods data."""
         return self.get_static("investment_periods", "investment_periods")
 
+    def get_scenarios(self) -> pd.DataFrame:
+        """Get scenarios data."""
+        if "scenario_weight" in self.ds:
+            df = self.ds["scenario_weight"].to_pandas().rename("weight").to_frame()
+            df.index.name = "scenario"
+            return df
+
     def get_static(self, list_name: str, index_name: str | None = None) -> pd.DataFrame:
         """Get static components data."""
         t = list_name + "_"
@@ -849,11 +875,20 @@ class _ImporterNetCDF(_Importer):
             index_name = list_name + "_i"
         if index_name not in self.ds.coords:
             return None
-        index = self.ds.coords[index_name].to_index().rename("name")
-        df = pd.DataFrame(index=index)
+        df = pd.DataFrame()
         for attr in self.ds.data_vars.keys():
             if attr.startswith(t) and attr[i : i + 2] != "t_":
-                df[attr[i:]] = self.ds[attr].to_pandas()
+                loaded_df = self.ds[attr].to_pandas()
+                if isinstance(loaded_df, pd.DataFrame):
+                    loaded_df = loaded_df.stack()
+                df[attr[i:]] = loaded_df
+
+        if df.empty:
+            index = self.ds.coords[index_name].to_index().rename("name")
+            if "scenario" in self.ds.coords:
+                scenario_index = self.ds.coords["scenario"].to_index()
+                index = pd.MultiIndex.from_product([scenario_index, index])
+            df = pd.DataFrame(index=index)
         return df
 
     def get_series(self, list_name: str) -> Iterable[tuple[str, pd.DataFrame]]:
@@ -861,9 +896,19 @@ class _ImporterNetCDF(_Importer):
         t = list_name + "_t_"
         for attr in self.ds.data_vars.keys():
             if attr.startswith(t):
-                df = self.ds[attr].to_pandas()
-                df.index.name = "name"
-                df.columns.name = "name"
+                try:
+                    df = self.ds[attr].to_pandas()
+                    # df.index.name = "name"
+                    df.columns.name = "name"
+                # Handle multi-indexed (scenarios)
+                except ValueError:
+                    df = (
+                        self.ds[attr]
+                        .stack(combined=("scenario", attr + "_i"))
+                        .to_pandas()
+                    )
+                    df.columns.names = ["scenario", "name"]
+
                 yield attr[len(t) :], df
 
     def finish(self) -> None:
@@ -922,17 +967,32 @@ class _ExporterNetCDF(_Exporter):
         for attr in investment_periods.columns:
             self.ds["investment_periods_" + attr] = investment_periods[attr]
 
+    def save_scenarios(self, scenarios: pd.Index) -> None:
+        """Save scenarios data."""
+        for attr in scenarios.columns:
+            self.ds["scenario_" + attr] = scenarios[attr]
+
     def save_static(self, list_name: str, df: pd.DataFrame) -> None:
         """Save a static components data."""
-        df = df.rename_axis(index=list_name + "_i")
-        self.ds[list_name + "_i"] = df.index
-        for attr in df.columns:
-            self.ds[list_name + "_" + attr] = df[attr]
+        df = df.rename_axis(index={"name": list_name + "_i"})
+        self.ds[list_name + "_i"] = df.index.get_level_values(
+            list_name + "_i"
+        ).drop_duplicates()
+
+        if not df.columns.empty:
+            df_array = df.to_xarray().rename(
+                {attr: list_name + "_" + attr for attr in df.columns}
+            )
+            self.ds = self.ds.merge(df_array, overwrite_vars=True)
 
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save a dynamic components data."""
-        df = df.rename_axis(index="snapshots", columns=list_name + "_t_" + attr + "_i")
-        self.ds[list_name + "_t_" + attr] = df
+        df = df.rename_axis(
+            index="snapshots", columns={"name": list_name + "_t_" + attr + "_i"}
+        )
+        self.ds[list_name + "_t_" + attr] = df.stack(
+            level=df.columns.names, future_stack=True
+        ).to_xarray()
 
     def set_compression_encoding(self) -> None:
         """Set compression encoding for all variables."""
@@ -1062,20 +1122,21 @@ class NetworkIOMixin(_NetworkABC):
 
         exporter.save_meta(self.meta)
 
-        # now export snapshots
-        if isinstance(self.snapshot_weightings.index, pd.MultiIndex):
-            self.snapshot_weightings.index.rename(["period", "timestep"], inplace=True)
-        else:
-            self.snapshot_weightings.index.rename("snapshot", inplace=True)
+        # export snapshots
         snapshots = self.snapshot_weightings.reset_index()
         exporter.save_snapshots(snapshots)
 
         # export investment period weightings
-        investment_periods = self.investment_period_weightings
-        exporter.save_investment_periods(investment_periods)
+        if self.has_periods:
+            investment_periods = self.investment_period_weightings
+            exporter.save_investment_periods(investment_periods)
+
+        # export scenarios
+        if self.has_scenarios:
+            exporter.save_scenarios(self.scenario_weightings)
 
         exported_components = []
-        for component in self.all_components - {"SubNetwork"}:
+        for component in self.all_components:
             list_name = self.components[component]["list_name"]
             attrs = self.components[component]["attrs"]
 
@@ -1088,18 +1149,19 @@ class NetworkIOMixin(_NetworkABC):
                 )
 
             if not export_standard_types and component in self.standard_type_components:
-                static = static.drop(self.components[component]["standard_types"].index)
-
-            # first do static attributes
-            static = static.rename_axis(index="name")
-            if static.empty:
-                exporter.remove_static(list_name)
-                continue
+                if isinstance(static.index, pd.MultiIndex):
+                    static = static.drop(
+                        self.components[component]["standard_types"].index, level="name"
+                    )
+                else:
+                    static = static.drop(
+                        self.components[component]["standard_types"].index
+                    )
 
             col_export = []
             for col in static.columns:
-                # do not export derived attributes
-                if col in ["sub_network", "r_pu", "x_pu", "g_pu", "b_pu"]:
+                # do not export derived attributes and object column of subnetwork
+                if col in ["g_pu", "b_pu"]:
                     continue
                 if (
                     col in attrs.index
@@ -1116,7 +1178,17 @@ class NetworkIOMixin(_NetworkABC):
 
                 col_export.append(col)
 
-            exporter.save_static(list_name, static[col_export])
+            # first do static attributes
+            if static.empty:
+                exporter.remove_static(list_name)
+                continue
+
+            static_export = static[col_export].copy()
+            # Stored SubNetwork obj column is not serializable
+            if "obj" in col_export and component == "SubNetwork":
+                static_export["obj"] = np.nan
+
+            exporter.save_static(list_name, static_export)
 
             # now do varying attributes
             for attr in dynamic:
@@ -1145,7 +1217,7 @@ class NetworkIOMixin(_NetworkABC):
         logger.info(
             "Exported network '%s'%s contains: %s",
             self.name,
-            f"saved to '{exporter.path}" if exporter.path else "no file",
+            f" saved to '{exporter.path}" if exporter.path else "",
             ", ".join(exported_components),
         )
 
@@ -1164,31 +1236,35 @@ class NetworkIOMixin(_NetworkABC):
             Skip importing time
 
         """
-        attrs = importer.get_attributes()
+        # n.meta
         self.meta = importer.get_meta()
+
+        # n.crs
         crs = importer.get_crs()
         crs = crs.pop("_crs", None)
         if crs is not None:
             crs = CRS.from_wkt(crs)
             self._crs = crs
 
-        pypsa_version_tuple = (0, 0, 0)
-
-        if attrs is not None:
+        # other network attributes
+        attrs = importer.get_attributes() or {}
+        if "name" in attrs:
             name = attrs.pop("name")
-            self.name = name if pd.notna(name) else ""
+            if pd.notna(name):
+                self.name = name
 
-            major = int(attrs.pop("pypsa_version", [0, 0, 0])[0])
-            minor = int(attrs.pop("pypsa_version", [0, 0, 0])[1])
-            patch = int(attrs.pop("pypsa_version", [0, 0, 0])[2])
+        if "pypsa_version" in attrs:
+            pypsa_version_tuple = tuple(
+                int(v) for v in attrs.pop("pypsa_version", "0.0.0").split(".")
+            )
+        else:
+            pypsa_version_tuple = (0, 0, 0)
 
-            pypsa_version_tuple = (major, minor, patch)
-
-            for attr, val in attrs.items():
-                if attr in ["model", "objective", "objective_constant"]:
-                    setattr(self, f"_{attr}", val)
-                else:
-                    setattr(self, attr, val)
+        for attr, val in attrs.items():
+            if attr in ["model", "objective", "objective_constant"]:
+                setattr(self, f"_{attr}", val)
+            else:
+                setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
         if pypsa_version_tuple < __version_semver_tuple__:
@@ -1216,7 +1292,7 @@ class NetworkIOMixin(_NetworkABC):
             if snapshot_levels := {"period", "timestep", "snapshot"}.intersection(
                 df.columns
             ):
-                df.set_index(sorted(snapshot_levels), inplace=True)
+                df = df.set_index(sorted(snapshot_levels))
             self.set_snapshots(df.index)
 
             cols = ["objective", "stores", "generators"]
@@ -1229,23 +1305,23 @@ class NetworkIOMixin(_NetworkABC):
             elif "weightings" in df.columns:
                 self.snapshot_weightings = df["weightings"].reindex(self.snapshots)
 
-            self.set_snapshots(df.index)
-
         # read in investment period weightings
         periods = importer.get_investment_periods()
 
-        if periods is not None:
+        if periods is not None and not periods.empty:
             self.periods = periods.index
 
-            self._investment_period_weightings = periods.reindex(
-                self.investment_periods
-            )
+            self._investment_periods_data = periods.reindex(self.investment_periods)
+
+        scenarios = importer.get_scenarios()
+        if scenarios is not None:
+            self.scenarios = scenarios
 
         imported_components = []
 
         # now read in other components; make sure buses and carriers come first
         for component in ["Bus", "Carrier"] + sorted(
-            self.all_components - {"Bus", "Carrier", "SubNetwork"}
+            self.all_components - {"Bus", "Carrier"}
         ):
             list_name = self.components[component]["list_name"]
 
@@ -1259,7 +1335,7 @@ class NetworkIOMixin(_NetworkABC):
             if component == "Link":
                 _update_linkports_component_attrs(self, where=df)
 
-            self.add(component, df.index, **df)
+            self._import_components_from_df(df, component)
 
             if not skip_time:
                 for attr, df in importer.get_series(list_name):
@@ -1270,13 +1346,21 @@ class NetworkIOMixin(_NetworkABC):
 
             imported_components.append(list_name)
 
+        for component in self.standard_type_components:
+            if self.has_scenarios and not isinstance(
+                self.components[component].static.index, pd.MultiIndex
+            ):
+                self.components[component].static = pd.concat(
+                    dict.fromkeys(self.scenarios, self.components[component].static),
+                    names=["scenario"],
+                )
+
         logger.info(
             "Imported network '%s' has %s",
             self.name,
             ", ".join(imported_components),
         )
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", csv_folder_name="path")
     def import_from_csv_folder(
         self,
         path: str | Path,
@@ -1312,7 +1396,6 @@ class NetworkIOMixin(_NetworkABC):
         with _ImporterCSV(path, encoding=encoding, quotechar=quotechar) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", csv_folder_name="path")
     def export_to_csv_folder(
         self,
         path: str,
@@ -1367,7 +1450,6 @@ class NetworkIOMixin(_NetworkABC):
                 exporter, export_standard_types=export_standard_types
             )
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", excel_file_path="path")
     def import_from_excel(
         self,
         path: str | Path,
@@ -1398,7 +1480,6 @@ class NetworkIOMixin(_NetworkABC):
         with _ImporterExcel(path, engine=engine) as importer:
             self._import_from_importer(importer, basename=basename, skip_time=skip_time)
 
-    @deprecated_kwargs(deprecated_in="0.35", removed_in="1.0", excel_file_path="path")
     def export_to_excel(
         self,
         path: str | Path,
@@ -1598,72 +1679,6 @@ class NetworkIOMixin(_NetworkABC):
             )
             return exporter.ds
 
-    @deprecated(
-        deprecated_in="0.29",
-        removed_in="1.0",
-        details="Use `n.add` instead. E.g. `n.add(class_name, df.index, **df)`.",
-    )
-    def import_components_from_dataframe(
-        self, dataframe: pd.DataFrame, cls_name: str
-    ) -> None:
-        """Import components from a pandas DataFrame.
-
-        This function is deprecated. Use :py:meth`pypsa.Network.add` instead. To get the
-        same behavior for importing components from a DataFrame, use
-        `n.add(cls_name, df.index, **df)`.
-
-        If columns are missing then defaults are used. If extra columns are added, these
-        are left in the resulting component dataframe.
-
-        !!! warning "Deprecated in v0.34"
-            Use :py:meth:`pypsa.Network.add` instead.
-
-        Parameters
-        ----------
-        dataframe : pandas.DataFrame
-            A DataFrame whose index is the names of the components and
-            whose columns are the non-default attributes.
-        cls_name : string
-            Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
-
-        See Also
-        --------
-        pypsa.Network.madd
-
-        """
-        self.add(cls_name, dataframe.index, **dataframe)
-
-    @deprecated(
-        deprecated_in="0.29",
-        removed_in="1.0",
-        details="Use `n.add` instead.",
-    )
-    def import_series_from_dataframe(
-        self, dataframe: pd.DataFrame, cls_name: str, attr: str
-    ) -> None:
-        """Import time series from a pandas DataFrame.
-
-        This function is deprecated. Use :py:meth:`pypsa.Network.add` instead, but it will
-        not work with the same data structure. To get a similar behavior, use
-        `n.dynamic(class_name)[attr] = df` but make sure that the index is aligned. Also note
-        that this is overwriting the attribute dataframe, not adding to it as before.
-        It is better to use :py:meth:`pypsa.Network.add` to import time series data.
-
-        Parameters
-        ----------
-        dataframe : pandas.DataFrame
-            A DataFrame whose index is ``n.snapshots`` and
-            whose columns are a subset of the relevant components.
-        cls_name : string
-            Name of class of component
-        attr : string
-            Name of time-varying series attribute
-
-        --------
-
-        """
-        self._import_series_from_df(dataframe, cls_name, attr)
-
     def _import_components_from_df(
         self, df: pd.DataFrame, cls_name: str, overwrite: bool = False
     ) -> None:
@@ -1694,7 +1709,12 @@ class NetworkIOMixin(_NetworkABC):
 
         # Clean dataframe and ensure correct types
         df = pd.DataFrame(df)
-        df.index = df.index.astype(str)
+        # Handle single and multi-index
+        df.index = (
+            df.index.astype(str)
+            if not isinstance(df.index, pd.MultiIndex)
+            else df.index.set_levels([level.astype(str) for level in df.index.levels])
+        )
 
         # Fill nan values with default values
         df = df.fillna(attrs["default"].to_dict())
@@ -1724,7 +1744,8 @@ class NetworkIOMixin(_NetworkABC):
         for attr in [attr for attr in df if attr.startswith("bus")]:
             # allow empty buses for multi-ports
             port = int(attr[-1]) if attr[-1].isdigit() else 0
-            mask = ~df[attr].isin(self.components.buses.static.index)
+            buses = self.c.buses.component_names
+            mask = ~df[attr].isin(buses)
             if port > 1:
                 mask &= df[attr].ne("")
             missing = df.index[mask]
@@ -1763,7 +1784,11 @@ class NetworkIOMixin(_NetworkABC):
         # Align index (component names) and columns (attributes)
         new_static = _sort_attrs(new_static, attrs.index, axis=1)
 
-        new_static.index.name = cls_name
+        new_static.index.names = (
+            ["name"]
+            if not isinstance(new_static.index, pd.MultiIndex)
+            else ["scenario", "name"]
+        )
         self.components[cls_name].static = new_static
 
         # Now deal with time-dependent properties
@@ -1815,8 +1840,11 @@ class NetworkIOMixin(_NetworkABC):
             except KeyError:
                 pass  # Don't drop any columns if the data doesn't exist yet
 
-        df.columns.name = cls_name
-        df.index.name = "snapshot"
+        # df.columns.names = ["name"] if not isinstance(df.index, pd.MultiIndex) else ["scenario", "name"]
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns.names = ["scenario", "name"]
+        else:
+            df.columns.names = ["name"]
 
         # Check if components exist in static df
         diff = df.columns.difference(static.index)
@@ -1852,14 +1880,24 @@ class NetworkIOMixin(_NetworkABC):
             df = df.reindex(self.snapshots, fill_value=attrs.loc[attr].default)
 
         if not attrs.loc[attr].static:
+            # Preserve static component order for consistency
+            ordered_columns = _sort_attrs(
+                pd.DataFrame(columns=df.columns.union(static.index)),
+                static.index.tolist(),
+                axis=1,
+            ).columns
             dynamic[attr] = dynamic[attr].reindex(
-                columns=df.columns.union(static.index),
+                columns=ordered_columns,
                 fill_value=attrs.loc[attr].default,
             )
         else:
-            dynamic[attr] = dynamic[attr].reindex(
-                columns=(df.columns.union(dynamic[attr].columns))
-            )
+            # Preserve existing dynamic order for static attrs
+            ordered_columns = _sort_attrs(
+                pd.DataFrame(columns=df.columns.union(dynamic[attr].columns)),
+                dynamic[attr].columns.tolist(),
+                axis=1,
+            ).columns
+            dynamic[attr] = dynamic[attr].reindex(columns=ordered_columns)
 
         dynamic[attr].loc[self.snapshots, df.columns] = df.loc[
             self.snapshots, df.columns

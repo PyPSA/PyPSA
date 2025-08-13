@@ -43,6 +43,7 @@ def zsum(s: pd.Series, *args: Any, **kwargs: Any) -> Any:
 
 
 pd.Series.zsum = zsum
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,7 +62,6 @@ def imag(X: pd.Series) -> pd.Series:
     return np.imag(X.to_numpy())
 
 
-@deprecated_common_kwargs
 def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
     to_allocate = {
         "Generator": ["p"],
@@ -137,7 +137,6 @@ def _calculate_controllable_nodal_power_balance(
             )
 
 
-@deprecated_common_kwargs
 def _network_prepare_and_run_pf(
     n: Network,
     snapshots: Sequence | None,
@@ -226,7 +225,6 @@ def _network_prepare_and_run_pf(
     return None
 
 
-@deprecated_common_kwargs
 def allocate_series_dataframes(n: Network, series: dict) -> None:
     """Populate time-varying outputs with default values.
 
@@ -406,24 +404,32 @@ def sub_network_pf_singlebus(
     return 0, 0.0, True  # dummy substitute for newton raphson output
 
 
-@deprecated_common_kwargs
 def apply_line_types(n: Network) -> None:
     """Calculate line electrical parameters x, r, b, g from standard types."""
     lines_with_types_b = n.lines.type != ""
     if lines_with_types_b.zsum() == 0:
         return
 
-    missing_types = pd.Index(
-        n.lines.loc[lines_with_types_b, "type"].unique()
-    ).difference(n.line_types.index)
+    # Get unique line types from lines
+    line_types_used = n.lines.loc[lines_with_types_b, "type"].unique()
+
+    missing_types = pd.Index(line_types_used).difference(n.c.line_types.component_names)
+
     if not missing_types.empty:
         msg = f"The type(s) {', '.join(missing_types)} do(es) not exist in n.line_types"
         raise ValueError(msg)
 
-    # Get a copy of the lines data
-    lines = n.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].join(
-        n.line_types, on="type"
-    )
+    lines = n.lines.loc[lines_with_types_b, ["type", "length", "num_parallel"]].copy()
+
+    if n.has_scenarios:
+        # For stochastic network, use the first scenario's line types
+        # User changes across line type data are caught by the consistency check
+        line_types_to_use = n.line_types.xs(
+            n.line_types.index.get_level_values(0)[0], level=0
+        )
+        lines = lines.join(line_types_to_use, on="type")
+    else:
+        lines = lines.join(n.line_types, on="type")
 
     for attr in ["r", "x"]:
         lines[attr] = (
@@ -444,7 +450,6 @@ def apply_line_types(n: Network) -> None:
         n.lines.loc[lines_with_types_b, attr] = lines[attr]
 
 
-@deprecated_common_kwargs
 def apply_transformer_types(n: Network) -> None:
     """Calculate transformer electrical parameters x, r, b, g from standard types."""
     trafos_with_types_b = n.transformers.type != ""
@@ -523,7 +528,6 @@ def wye_to_delta(
     return (summand / z2, summand / z1, summand / z3)
 
 
-@deprecated_common_kwargs
 def apply_transformer_t_model(n: Network) -> None:
     """Convert given T-model parameters to PI-model parameters.
 
@@ -639,6 +643,11 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
     Cycles with infinite impedance are skipped.
     """
     branches_bus0 = sub_network.branches()["bus0"]
+
+    if sub_network.n.has_scenarios and not branches_bus0.empty:
+        first_scenario = sub_network.n.scenarios[0]
+        branches_bus0 = branches_bus0.xs(first_scenario, level="scenario")
+
     branches_i = branches_bus0.index
 
     # reduce to a non-multi-graph for cycles with > 2 edges
@@ -698,9 +707,14 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_types(self)
 
-        self.lines["v_nom"] = self.lines.bus0.map(self.buses.v_nom)
+        buses = self.buses
+
+        if self.has_scenarios:
+            buses = buses.xs(self.scenarios[0], level="scenario")
+
+        self.lines["v_nom"] = self.lines.bus0.map(buses.v_nom)
         self.lines.loc[self.lines.carrier == "", "carrier"] = self.lines.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.lines["x_pu"] = self.lines.x / (self.lines.v_nom**2)
@@ -724,9 +738,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         apply_transformer_t_model(self)
 
-        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(
-            self.buses.v_nom
-        )
+        self.shunt_impedances["v_nom"] = self.shunt_impedances["bus"].map(buses.v_nom)
         self.shunt_impedances["b_pu"] = (
             self.shunt_impedances.b * self.shunt_impedances.v_nom**2
         )
@@ -735,11 +747,11 @@ class NetworkPowerFlowMixin(_NetworkABC):
         )
 
         self.links.loc[self.links.carrier == "", "carrier"] = self.links.bus0.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         self.stores.loc[self.stores.carrier == "", "carrier"] = self.stores.bus.map(
-            self.buses.carrier
+            buses.carrier
         )
 
         _update_linkports_component_attrs(self)
@@ -821,7 +833,7 @@ class NetworkPowerFlowMixin(_NetworkABC):
             use_seed=use_seed,
             distribute_slack=distribute_slack,
             slack_weights=slack_weights,
-        )
+        )  # type: ignore
 
     def lpf_contingency(
         self,
@@ -832,8 +844,6 @@ class NetworkPowerFlowMixin(_NetworkABC):
 
         Parameters
         ----------
-        n : Network
-            Network instance.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -872,7 +882,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
             {
                 c: self.dynamic(c).p0.loc[snapshot]
                 for c in self.passive_branch_components
-            }
+            },
+            names=["component", "name"],
         )
         p0 = p0_base.to_frame("base")
 
@@ -948,8 +959,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            Sub-network instance.
         skip_pre : bool, default False
             Skip the preliminary step of computing the PTDF.
 
@@ -980,8 +989,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to calculate the PTDF for.
         skip_pre : bool, default False
             Skip the preliminary steps of computing topology, calculating dependent values,
             finding bus controls and computing B and H.
@@ -1164,17 +1171,21 @@ class SubNetworkPowerFlowMixin:
     def find_slack_bus(self) -> None:
         """Find the slack bus in a connected sub-network."""
         gens = self.generators()
+        gen_names = gens.index.get_level_values("name")
 
         if len(gens) == 0:
             self.slack_generator = None
-            self.slack_bus = self.buses_i()[0]
+            self.slack_bus = self.buses_i().get_level_values("name")[0]
 
         else:
-            slacks = gens[gens.control == "Slack"].index
+            slacks = gens[gens.control == "Slack"].index.unique("name")
+            network_gen_names = self.n.generators.index.get_level_values("name")
 
             if len(slacks) == 0:
-                self.slack_generator = gens.index[0]
-                self.n.generators.loc[self.slack_generator, "control"] = "Slack"
+                self.slack_generator = gen_names[0]
+
+                is_slack_generators = network_gen_names == self.slack_generator
+                self.n.generators.loc[is_slack_generators, "control"] = "Slack"
                 logger.debug(
                     "No slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
@@ -1185,15 +1196,20 @@ class SubNetworkPowerFlowMixin:
                 self.slack_generator = slacks[0]
             else:
                 self.slack_generator = slacks[0]
-                self.n.generators.loc[slacks[1:], "control"] = "PV"
+                non_slack_generators = network_gen_names.isin(slacks[1:])
+                self.n.generators.loc[non_slack_generators, "control"] = "PV"
                 logger.debug(
                     "More than one slack generator found in sub-network %s, using %s as the slack generator",
                     self.name,
                     self.slack_generator,
                 )
 
-            self.slack_bus = gens.bus[self.slack_generator]
-
+            if isinstance(gens.index, pd.MultiIndex):
+                self.slack_bus = gens.bus.xs(self.slack_generator, level="name").values[
+                    0
+                ]
+            else:
+                self.slack_bus = gens.bus.loc[self.slack_generator]
         # also put it into the dataframe
         self.n.sub_networks.at[self.name, "slack_bus"] = self.slack_bus
 
@@ -1226,8 +1242,11 @@ class SubNetworkPowerFlowMixin:
             n.buses.loc[pvs.index, "control"] = "PV"
             n.buses.loc[pvs.index, "generator"] = pvs
 
-        n.buses.loc[self.slack_bus, "control"] = "Slack"
-        n.buses.loc[self.slack_bus, "generator"] = self.slack_generator
+        is_slack_bus = n.buses.index.get_level_values("name") == self.slack_bus
+        n.buses.loc[is_slack_bus, "control"] = "Slack"
+        n.buses.loc[is_slack_bus, "generator"] = (
+            self.slack_generator if self.slack_generator is not None else ""
+        )
 
         buses_control = n.buses.loc[buses_i, "control"]
         self.pvs = buses_control.index[buses_control == "PV"]
@@ -1251,8 +1270,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to run the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -1647,8 +1664,6 @@ class SubNetworkPowerFlowMixin:
 
         Parameters
         ----------
-        sub_network : pypsa.SubNetwork
-            The sub-network to perform the power flow on.
         snapshots : list-like|single snapshot
             A subset or an elements of n.snapshots on which to run
             the power flow, defaults to n.snapshots
@@ -1670,7 +1685,7 @@ class SubNetworkPowerFlowMixin:
         if not skip_pre:
             n.calculate_dependent_values()
             self.find_bus_controls()
-            n._allocate_pf_outputs(linear=True)
+            _allocate_pf_outputs(n, linear=True)
 
         # get indices for the components on this sub-network
         buses_o = self.buses_o
@@ -1687,6 +1702,8 @@ class SubNetworkPowerFlowMixin:
             c_p_set = get_as_dense(
                 n, c.name, "p_set", sns, c.static.query("active").index
             )
+            # power flow calculations require a starting point for the algorithm, while p_set default is n/a
+            c_p_set = c_p_set.fillna(0)
             n.dynamic(c.name).p.loc[sns, c.static.query("active").index] = c_p_set
 
         # set the power injection at each node
