@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 from numpy import hstack, ravel
 
+from pypsa.common import deprecated_in_next_major
 from pypsa.constants import RE_PORTS
 
 if TYPE_CHECKING:
@@ -15,15 +16,20 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
+@deprecated_in_next_major(
+    details="Use xarray functionality instead (e.g. `ds.sel({dim: index}).rename({dim: index.name})`).",
+)
 def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
-    """Index a xarray.DataArray by a pandas.Index while renaming according to the
-    new index name.
+    """Index a xarray.DataArray by a pandas.Index while renaming according to the new index name.
 
     Parameters
     ----------
     ds : xr.DataArray
+        The input DataArray to reindex.
     dim : str
+        The dimension name to reindex.
     index : pd.Index
+        The new index to use for reindexing.
 
     Returns
     -------
@@ -34,7 +40,7 @@ def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     return ds.sel({dim: index}).rename({dim: index.name})
 
 
-def set_from_frame(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
+def _set_dynamic_data(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
     """Update values in time-dependent attribute from new dataframe."""
     dynamic = n.dynamic(c)
     if (attr not in dynamic) or (dynamic[attr].empty):
@@ -50,8 +56,9 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     Parameters
     ----------
     n : Network
-    threshhold: int
-        number of attached components to be counted as strongly meshed
+        The network to analyze.
+    threshold : int
+        Number of attached components to be counted as strongly meshed.
 
     Returns
     -------
@@ -59,7 +66,12 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
 
     """
     all_buses = pd.Series(
-        hstack([ravel(c.static.filter(regex=RE_PORTS)) for c in n.iterate_components()])
+        hstack(
+            [
+                ravel(c.static.filter(regex=RE_PORTS.pattern))
+                for c in n.iterate_components()
+            ]
+        )
     )
     all_buses = all_buses[all_buses != ""]
     counts = all_buses.value_counts()

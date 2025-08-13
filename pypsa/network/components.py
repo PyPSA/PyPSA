@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from pypsa._options import option_context, options
+from pypsa._options import options
 from pypsa.common import deprecated_in_next_major
 from pypsa.components.legacy import Component
 from pypsa.components.store import ComponentsStore
@@ -89,21 +89,30 @@ class NetworkComponentsMixin(_NetworkABC):
         >>> n.components # doctest: +ELLIPSIS
         PyPSA Components Store
         ======================
-        - 3 'SubNetwork' Components
         - 9 'Bus' Components
+        - 6 'Carrier' Components
         ...
 
         Access a single component:
         >>> n.components.generators
         'Generator' Components
         ----------------------
-        Attached to PyPSA Network 'AC-DC'
+        Attached to PyPSA Network 'AC-DC-Meshed'
         Components: 6
 
         Which is the same reference when accessing the component directly:
-        >>> n.generators # doctest: +SKIP
-        #TODO
-        >>> n.generators is n.components.generators.static # TODO
+        >>> n.generators
+                                        bus control  ... weight    p_nom_opt
+        name                                 ...
+        Manchester Wind  Manchester   Slack  ...    1.0  4090.809778
+        Manchester Gas   Manchester      PQ  ...    1.0    -0.000000
+        Norway Wind          Norway      PQ  ...    1.0  1533.599858
+        Norway Gas           Norway      PQ  ...    1.0    -0.000000
+        Frankfurt Wind    Frankfurt   Slack  ...    1.0  1667.724420
+        Frankfurt Gas     Frankfurt      PQ  ...    1.0   982.034483
+        <BLANKLINE>
+        [6 rows x 37 columns]
+        >>> n.generators is n.components.generators.static
         True
 
         Returns
@@ -659,8 +668,7 @@ class NetworkComponentsMixin(_NetworkABC):
             Component attributes informations.
 
         """
-        with option_context("warnings.components_store_iter", False):
-            return Dict({value.name: value.defaults for value in self.components})
+        return Dict({value.name: value.defaults for value in self.components})
 
     @deprecated_in_next_major(
         details="Use `self.components[<component>].static` instead."

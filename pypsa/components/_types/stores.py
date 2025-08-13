@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
+
+from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
@@ -11,6 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pandas as pd
+    import xarray as xr
 
 
 @patch_add_docstring
@@ -21,20 +26,41 @@ class Stores(Components):
     stores is implemented here. Functionality for all components is implemented in
     the abstract base class.
 
-    .. warning::
-        This class is under ongoing development and will be subject to changes.
-        It is not recommended to use this class outside of PyPSA.
-
-    See Also
-    --------
-    [pypsa.Components][] : Base class for all components.
-
     Examples
     --------
     >>> n.components.stores
     Empty 'Store' Components
 
+    See Also
+    --------
+    [pypsa.Components][] : Base class for all components.
+
     """
+
+    _operational_variables = ["e"]
+
+    def get_bounds_pu(
+        self,
+        attr: str = "e",
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Get per unit bounds for stores.
+
+        Parameters
+        ----------
+        attr : string, optional
+            Attribute name for the bounds, e.g. "e"
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (min_pu, max_pu) DataArrays.
+
+        """
+        if attr not in self._operational_variables:
+            msg = f"Bounds can only be retrieved for operational attributes. For stores those are: {list_as_string(self._operational_variables)}."
+            raise ValueError(msg)
+
+        return self.da.e_min_pu, self.da.e_max_pu
 
     def add(
         self,

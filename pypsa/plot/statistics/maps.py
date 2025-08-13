@@ -89,7 +89,9 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         # Get non-transmission carriers
         # TODO solve circular import by refactoring to descriptors.py
-        from pypsa.statistics.expressions import get_transmission_carriers
+        from pypsa.statistics.expressions import (  # noqa: PLC0415
+            get_transmission_carriers,
+        )
 
         trans_carriers = get_transmission_carriers(n, bus_carrier=bus_carrier).unique(
             "carrier"
@@ -277,7 +279,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
                 )
 
         if draw_legend_patches and hasattr(self.ax, "figure"):
-            carriers = bus_sizes.index.get_level_values("carrier").unique()
+            carriers = bus_sizes.index.get_level_values("carrier").drop_duplicates()
             colors = self.get_carrier_colors(carriers, nice_names=False)
             labels = self.get_carrier_labels(carriers, nice_names=nice_names)
 
@@ -295,7 +297,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
 
         # Ensure ax has a figure (might be None if initialization failed)
         if self.ax is None or not hasattr(self.ax, "figure"):
-            import matplotlib.pyplot as plt
+            import matplotlib.pyplot as plt  # noqa: PLC0415
 
             fig = plt.gcf()
             return fig, self.ax or plt.gca()

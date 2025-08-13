@@ -2,18 +2,66 @@
 Release Notes
 #######################
 
-Upcoming Release
-================
+.. Upcoming Release
+.. ================
 
-.. warning:: 
+.. .. warning:: 
   
-   The features listed below are not released yet, but will be part of the next release! 
-   To use the features already you have to install the ``master`` branch, e.g. 
-   ``pip install git+https://github.com/pypsa/pypsa``.
+..    The features listed below are not released yet, but will be part of the next release! 
+..    To use the features already you have to install the ``master`` branch, e.g. 
+..    ``pip install git+https://github.com/pypsa/pypsa``.
+
+Features
+--------
+
+* Added utility function ``pypsa.common.annuity`` to calculate the annuity
+  factor for a given discount rate and lifetime. Also known as capital recovery
+  factor, it is used to convert a capital cost into an annualized cost. The
+  formula is: 
+
+  .. math::
+  
+      \frac{r}{1 - (1 + r)^{-n}}
+
+  where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
+
+Bug Fixes
+---------
+
+* Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
+  (https://github.com/PyPSA/PyPSA/issues/1325)
+
+* Correct use of snapshot weighting columns in statistics module. The
+  doscstring for ``n.snapshot_weightings`` was clarified.
+
+* Resolved an issue where the network version was not correctly identified during I/O, 
+  resulting in false update information being logged.
+  (https://github.com/PyPSA/PyPSA/pull/1300)
+
+`v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
+=======================================================================================
+
+Bug Fixes
+---------
+
+* Fixed issue when copying a network with an unsolved model.
+  (https://github.com/PyPSA/PyPSA/pull/5)
+
+* Fixed missing dependency issue for `typing-extensions`.
+  (https://github.com/PyPSA/PyPSA/pull/1264)
+
+* Fixed Excel import when snapshots sheet is missing.
+  (https://github.com/PyPSA/PyPSA/issues/1268)
+
+`v0.35.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0>`__ (22th June 2025)
+=======================================================================================
+
+Features
+--------
 
 * New **interactive** plotting library
 
-  * You can now create plots on any PyPSA statistic. Try them with:
+  * You can now create plots on any PyPSA statistic. (https://github.com/PyPSA/PyPSA/pull/1189)
 
     * :meth:`n.statistics.energy_balance.iplot() <pypsa.iplot.statistics.plotter.StatisticInteractivePlotter.__call__>` to get the pre defined default plot
     * :meth:`n.statistics.energy_balance.iplot.bar() <pypsa.plot.statistics.plotter.StatisticInteractivePlotter.bar>` to get a bar plot. replace `bar` with `line`, `area`, `map` or `scatter` to get the respective plot.
@@ -32,25 +80,35 @@ Upcoming Release
 * The components subpackage was further restructured. The known API remains untouched.
   (https://github.com/PyPSA/PyPSA/pull/1223)
 
-* New experimental **NetworkCollection**
+* New experimental **NetworkCollection** (https://github.com/PyPSA/PyPSA/pull/1212)
 
   * You can now create a container for multiple `Network` objects. Use is with
     ``pypsa.NetworkCollection()`` and pass a list of networks. The feature is
     experimental and might change with the next release. Documentation and API
-    reference will follow with a stable version of that feature.
+    reference will follow with a stable version of it.
 
 * Add new statistics function ``n.statistics.prices()`` which can return
   time-averaged or consumption-weighted prices by bus or bus carrier.
 
 Bug Fixes
---------
+---------
 
+* Bugfix: The function ``n.statistics.opex()`` now considers the correct
+  snapshot weightings ``n.snapshot_weightings.objective``.
+  (https://github.com/PyPSA/PyPSA/pull/1247) 
+  
 * Fixed unaligned statistics index names when ``groupby=False``
   (https://github.com/PyPSA/PyPSA/pull/1205)
 
 * Fixed interactive area plots in stacked more with `facet_row` and `facet_col`.
+  (https://github.com/PyPSA/PyPSA/pull/1212)
 
-* The doc-strings of the statistics function are now properly displayed again, ie. the output of `n.statistics.energy_balance?`.
+* The docstrings of the statistics function are now properly displayed again, ie. the output of `n.statistics.energy_balance?`.
+  (https://github.com/PyPSA/PyPSA/pull/1212)
+
+* Fixed various some I/O edge cases for better data preservation during import/export
+  (https://github.com/PyPSA/PyPSA/pull/1255, https://github.com/PyPSA/PyPSA/pull/1256, 
+  https://github.com/PyPSA/PyPSA/pull/1258)
 
 `v0.34.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.34.1>`__ (7th April 2025)
 =======================================================================================

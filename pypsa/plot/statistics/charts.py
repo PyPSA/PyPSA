@@ -607,7 +607,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             List of groupby columns and boolean for component aggregation
 
         """
-        filtered = ["value", "component", "snapshot"]
+        filtered = ["value", "name", "snapshot"]
         filtered_cols = [c for c in args if c not in filtered and c is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}

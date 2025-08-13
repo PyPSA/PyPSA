@@ -1,5 +1,6 @@
 """Plot the network interactively using plotly and folium."""
 
+import importlib
 import logging
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
@@ -191,28 +192,6 @@ def iplot(
     if bus_colorbar is not None:
         bus_trace["marker"]["colorbar"] = bus_colorbar
 
-    # Plot branches:
-    if isinstance(line_widths, pd.Series) and isinstance(
-        line_widths.index, pd.MultiIndex
-    ):
-        msg = (
-            "Index of argument 'line_widths' is a Multiindex, "
-            "this is not support since pypsa v0.17 and will be removed in v1.0. "
-            "Set differing widths with arguments 'line_widths', "
-            "'link_widths' and 'transformer_widths'."
-        )
-        raise DeprecationWarning(msg)
-    if isinstance(line_colors, pd.Series) and isinstance(
-        line_colors.index, pd.MultiIndex
-    ):
-        msg = (
-            "Index of argument 'line_colors' is a Multiindex, "
-            "this is not support since pypsa v0.17. and will be removed in v1.0. "
-            "Set differing colors with arguments 'line_colors', "
-            "'link_colors' and 'transformer_colors'."
-        )
-        raise DeprecationWarning(msg)
-
     if branch_components is None:
         branch_components = n.branch_components
 
@@ -377,14 +356,17 @@ def explore(
         A Folium map object with the PyPSA.Network components plotted.
 
     """
-    try:
-        import mapclassify  # noqa: F401
-        from folium import Element, LayerControl, Map, TileLayer
-    except ImportError:
+    # Check if required packages are available
+    folium_available = importlib.util.find_spec("folium") is not None
+    mapclassify_available = importlib.util.find_spec("mapclassify") is not None
+
+    if not (folium_available and mapclassify_available):
         logger.warning(
             "folium and mapclassify need to be installed to use `n.explore()`."
         )
         return None
+
+    from folium import Element, LayerControl, Map, TileLayer  # noqa: PLC0415
 
     if n.crs and crs is None:
         crs = n.crs

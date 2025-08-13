@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
+
+from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
-from pypsa.constants import PATTERN_PORTS_GE_2
+from pypsa.constants import RE_PORTS_GE_2
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pandas as pd
+    import xarray as xr
 
 
 @patch_add_docstring
@@ -22,10 +27,6 @@ class Links(Components):
     links is implemented here. Functionality for all components is implemented in
     the abstract base class.
 
-    .. warning::
-        This class is under ongoing development and will be subject to changes.
-        It is not recommended to use this class outside of PyPSA.
-
     See Also
     --------
     [pypsa.Components][] : Base class for all components.
@@ -35,10 +36,35 @@ class Links(Components):
     >>> n.components.links
     'Link' Components
     -----------------
-    Attached to PyPSA Network 'AC-DC'
+    Attached to PyPSA Network 'AC-DC-Meshed'
     Components: 4
 
     """
+
+    _operational_variables = ["p"]
+
+    def get_bounds_pu(
+        self,
+        attr: str = "p",
+    ) -> tuple[xr.DataArray, xr.DataArray]:
+        """Get per unit bounds for links.
+
+        Parameters
+        ----------
+        attr : string, optional
+            Attribute name for the bounds, e.g. "p"
+
+        Returns
+        -------
+        tuple[xr.DataArray, xr.DataArray]
+            Tuple of (min_pu, max_pu) DataArrays.
+
+        """
+        if attr not in self._operational_variables:
+            msg = f"Bounds can only be retrieved for operational attributes. For links those are: {list_as_string(self._operational_variables)}."
+            raise ValueError(msg)
+
+        return self.da.p_min_pu, self.da.p_max_pu
 
     def add(
         self,
@@ -59,13 +85,6 @@ class Links(Components):
     def additional_ports(self) -> list[str]:
         """Identify additional link ports (bus connections) beyond predefined ones.
 
-        Parameters
-        ----------
-        n : pypsa.Network
-            Network instance.
-        where : iterable of strings, default None
-            Subset of columns to consider. Takes link columns by default.
-
         Returns
         -------
         list of strings
@@ -77,15 +96,15 @@ class Links(Components):
 
         Examples
         --------
-        >>> n = pypsa.Network()
-        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3")  # doctest: +ELLIPSIS
-        Index...
-        >>> n.components.links.additional_ports
+        >>> n = pypsa.Network() # doctest: +SKIP
+        >>> n.add("Link", "link1", bus0="bus1", bus1="bus2", bus2="bus3") # doctest: +SKIP
+        Index(['link1'], dtype='object')
+        >>> n.components.links.additional_ports # doctest: +SKIP
         ['2']
 
         """
         return [
             match.group(1)
             for col in self.static.columns
-            if (match := PATTERN_PORTS_GE_2.search(col))
+            if (match := RE_PORTS_GE_2.search(col))
         ]

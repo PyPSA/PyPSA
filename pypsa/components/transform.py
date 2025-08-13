@@ -98,13 +98,13 @@ class ComponentsTransformMixin:
         >>> c
         'Generator' Components
         ----------------------
-        Attached to Unnamed PyPSA Network
+        Attached to PyPSA Network 'Unnamed Network'
         Components: 1
 
         With static data (and default values for all attributes):
         >>> c.static[["carrier", "p_nom"]]
-                        carrier  p_nom
-        Generator
+                       carrier  p_nom
+        name
         my-generator-1      AC    0.0
 
         Add multiple components with static attributes:
@@ -117,13 +117,13 @@ class ComponentsTransformMixin:
         >>> c
         'Generator' Components
         ----------------------
-        Attached to Unnamed PyPSA Network
+        Attached to PyPSA Network 'Unnamed Network'
         Components: 3
 
         With static data:
         >>> c.static[["carrier", "p_nom"]]
-                    carrier  p_nom
-        Generator
+                   carrier  p_nom
+        name
         my-generator-1      AC    0.0
         my-generator-2      AC   10.0
         my-generator-3      DC   10.0
@@ -180,12 +180,12 @@ class ComponentsTransformMixin:
         Which updates the bus components
 
         >>> c.static.index
-        Index(['bus2'], dtype='object', name='Bus')
+        Index(['bus2'], dtype='object', name='name')
 
         and all references in the network
 
         >>> n.generators.bus
-        Generator
+        name
         gen1    bus2
         Name: bus, dtype: object
 
