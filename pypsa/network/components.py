@@ -148,35 +148,39 @@ class NetworkComponentsMixin(_NetworkABC):
     def sub_networks(self) -> Any:
         return (
             self.c.sub_networks.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.subnetworks
         )
 
     @sub_networks.setter
     def sub_networks(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.sub_networks.static = value
 
     @property
     def buses(self) -> Any:
-        return self.c.buses.static if options.api.legacy_components else self.c.buses
+        return (
+            self.c.buses.static if not options.api.new_components_api else self.c.buses
+        )
 
     @buses.setter
     def buses(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.buses.static = value
 
     @property
     def carriers(self) -> Any:
         return (
-            self.c.carriers.static if options.api.legacy_components else self.c.carriers
+            self.c.carriers.static
+            if not options.api.new_components_api
+            else self.c.carriers
         )
 
     @carriers.setter
     def carriers(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.carriers.static = value
 
@@ -184,23 +188,25 @@ class NetworkComponentsMixin(_NetworkABC):
     def global_constraints(self) -> Any:
         return (
             self.c.global_constraints.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.global_constraints
         )
 
     @global_constraints.setter
     def global_constraints(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.global_constraints.static = value
 
     @property
     def lines(self) -> Any:
-        return self.c.lines.static if options.api.legacy_components else self.c.lines
+        return (
+            self.c.lines.static if not options.api.new_components_api else self.c.lines
+        )
 
     @lines.setter
     def lines(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.lines.static = value
 
@@ -208,13 +214,13 @@ class NetworkComponentsMixin(_NetworkABC):
     def line_types(self) -> Any:
         return (
             self.c.line_types.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.line_types
         )
 
     @line_types.setter
     def line_types(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.line_types.static = value
 
@@ -222,13 +228,13 @@ class NetworkComponentsMixin(_NetworkABC):
     def transformers(self) -> Any:
         return (
             self.c.transformers.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.transformers
         )
 
     @transformers.setter
     def transformers(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.transformers.static = value
 
@@ -236,33 +242,37 @@ class NetworkComponentsMixin(_NetworkABC):
     def transformer_types(self) -> Any:
         return (
             self.c.transformer_types.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.transformer_types
         )
 
     @transformer_types.setter
     def transformer_types(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.transformer_types.static = value
 
     @property
     def links(self) -> Any:
-        return self.c.links.static if options.api.legacy_components else self.c.links
+        return (
+            self.c.links.static if not options.api.new_components_api else self.c.links
+        )
 
     @links.setter
     def links(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.links.static = value
 
     @property
     def loads(self) -> Any:
-        return self.c.loads.static if options.api.legacy_components else self.c.loads
+        return (
+            self.c.loads.static if not options.api.new_components_api else self.c.loads
+        )
 
     @loads.setter
     def loads(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.loads.static = value
 
@@ -270,13 +280,13 @@ class NetworkComponentsMixin(_NetworkABC):
     def generators(self) -> Any:
         return (
             self.c.generators.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.generators
         )
 
     @generators.setter
     def generators(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.generators.static = value
 
@@ -284,23 +294,27 @@ class NetworkComponentsMixin(_NetworkABC):
     def storage_units(self) -> Any:
         return (
             self.c.storage_units.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.storage_units
         )
 
     @storage_units.setter
     def storage_units(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.storage_units.static = value
 
     @property
     def stores(self) -> Any:
-        return self.c.stores.static if options.api.legacy_components else self.c.stores
+        return (
+            self.c.stores.static
+            if not options.api.new_components_api
+            else self.c.stores
+        )
 
     @stores.setter
     def stores(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.stores.static = value
 
@@ -308,65 +322,69 @@ class NetworkComponentsMixin(_NetworkABC):
     def shunt_impedances(self) -> Any:
         return (
             self.c.shunt_impedances.static
-            if options.api.legacy_components
+            if not options.api.new_components_api
             else self.c.shunt_impedances
         )
 
     @shunt_impedances.setter
     def shunt_impedances(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.shunt_impedances.static = value
 
     @property
     def shapes(self) -> Any:
-        return self.c.shapes.static if options.api.legacy_components else self.c.shapes
+        return (
+            self.c.shapes.static
+            if not options.api.new_components_api
+            else self.c.shapes
+        )
 
     @shapes.setter
     def shapes(self, value: pd.DataFrame) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise AttributeError(_STATIC_SETTER_WARNING)
         self.c.shapes.static = value
 
     @property
     def sub_networks_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("sub_networks"))
         return self.c.sub_networks.dynamic
 
     @sub_networks_t.setter
     def sub_networks_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("sub_networks"))
         self.c.sub_networks.dynamic = value
 
     @property
     def buses_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("buses"))
         return self.c.buses.dynamic
 
     @buses_t.setter
     def buses_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("buses"))
         self.c.buses.dynamic = value
 
     @property
     def carriers_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("carriers"))
         return self.c.carriers.dynamic
 
     @carriers_t.setter
     def carriers_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("carriers"))
         self.c.carriers.dynamic = value
 
     @property
     def global_constraints_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(
                 _DYNAMIC_GETTER_WARNING.format("global_constraints")
             )
@@ -374,7 +392,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @global_constraints_t.setter
     def global_constraints_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(
                 _DYNAMIC_SETTER_WARNING.format("global_constraints")
             )
@@ -382,43 +400,43 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def lines_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("lines"))
         return self.c.lines.dynamic
 
     @lines_t.setter
     def lines_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("lines"))
         self.c.lines.dynamic = value
 
     @property
     def line_types_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("line_types"))
         return self.c.line_types.dynamic
 
     @line_types_t.setter
     def line_types_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("line_types"))
         self.c.line_types.dynamic = value
 
     @property
     def transformers_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("transformers"))
         return self.c.transformers.dynamic
 
     @transformers_t.setter
     def transformers_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("transformers"))
         self.c.transformers.dynamic = value
 
     @property
     def transformer_types_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(
                 _DYNAMIC_GETTER_WARNING.format("transformer_types")
             )
@@ -426,7 +444,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @transformer_types_t.setter
     def transformer_types_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(
                 _DYNAMIC_SETTER_WARNING.format("transformer_types")
             )
@@ -434,85 +452,85 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def links_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("links"))
         return self.c.links.dynamic
 
     @links_t.setter
     def links_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("links"))
         self.c.links.dynamic = value
 
     @property
     def loads_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("loads"))
         return self.c.loads.dynamic
 
     @loads_t.setter
     def loads_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("loads"))
         self.c.loads.dynamic = value
 
     @property
     def generators_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("generators"))
         return self.c.generators.dynamic
 
     @generators_t.setter
     def generators_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("generators"))
         self.c.generators.dynamic = value
 
     @property
     def storage_units_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("storage_units"))
         return self.c.storage_units.dynamic
 
     @storage_units_t.setter
     def storage_units_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("storage_units"))
         self.c.storage_units.dynamic = value
 
     @property
     def stores_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("stores"))
         return self.c.stores.dynamic
 
     @stores_t.setter
     def stores_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("stores"))
         self.c.stores.dynamic = value
 
     @property
     def shunt_impedances_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("shunt_impedances"))
         return self.c.shunt_impedances.dynamic
 
     @shunt_impedances_t.setter
     def shunt_impedances_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("shunt_impedances"))
         self.c.shunt_impedances.dynamic = value
 
     @property
     def shapes_t(self) -> Dict:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("shapes"))
         return self.c.shapes.dynamic
 
     @shapes_t.setter
     def shapes_t(self, value: Dict) -> None:
-        if not options.api.legacy_components:
+        if options.api.new_components_api:
             raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("shapes"))
         self.c.shapes.dynamic = value
 

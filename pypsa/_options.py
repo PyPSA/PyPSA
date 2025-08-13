@@ -314,7 +314,7 @@ class OptionsNode:
         >>> pypsa.options.describe_options() # doctest: +ELLIPSIS
         PyPSA Options
         =============
-        api.legacy_components:
+        api.new_components_api:
             Default: True
             Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
         debug.runtime_verification:
@@ -355,7 +355,7 @@ class OptionsNode:
         >>> pypsa.options.describe() # doctest: +ELLIPSIS
         PyPSA Options
         =============
-        api.legacy_components:
+        api.new_components_api:
             Default: True
             Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
         debug.runtime_verification:
@@ -435,12 +435,12 @@ options._add_option(
 
 # API
 options._add_option(
-    "api.legacy_components",
-    True,
-    "WARNING: Experimental feature. Not all PyPSA functionality is supported yet. "
-    "Use legacy components API for backwards compatibility to PyPSA versions prior to "
-    "1.0.0. It is still recommended to use the new API and not to rely on the legacy "
-    "API. This option will be removed with PyPSA 2.0.0.",
+    "api.new_components_api",
+    False,
+    "Activate the new components API, which replaces the static components data access "
+    "with the more flexible components class. This will just change the api and not any "
+    "functionality. Components class features are always available. "
+    "See https://go.pypsa.org/new-components-api for more details.",
 )
 
 # Warnings category

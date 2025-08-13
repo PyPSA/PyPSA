@@ -556,15 +556,15 @@ def test_components_repr(ac_dc_network):
     assert len(repr(n)) > len(str(n))
 
 
-@pytest.mark.parametrize("legacy_components", [True, False])
-def test_api_components_legacy(legacy_components):
+@pytest.mark.parametrize("new_components_api", [True, False])
+def test_api_components_legacy(new_components_api):
     """
     Test the API of the components module.
     """
-    with pypsa.option_context("api.legacy_components", legacy_components):
+    with pypsa.option_context("api.new_components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
 
-        if legacy_components:
+        if not new_components_api:
             assert n.buses is n.components.buses.static
             assert n.buses_t is n.components.buses.dynamic
             assert n.lines is n.components.lines.static
@@ -583,15 +583,15 @@ def test_api_components_legacy(legacy_components):
                 assert n.generators_t is n.components.generators.dynamic
 
 
-@pytest.mark.parametrize("legacy_components", [True, False])
-def test_api_legacy_components(component_name, legacy_components):
+@pytest.mark.parametrize("new_components_api", [True, False])
+def test_api_new_components_api(component_name, new_components_api):
     """
     Test the API of the components module.
     """
 
-    with pypsa.option_context("api.legacy_components", legacy_components):
+    with pypsa.option_context("api.new_components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
-        if legacy_components:
+        if not new_components_api:
             assert n.static(component_name) is n.c[component_name].static
             assert n.dynamic(component_name) is n.c[component_name].dynamic
 
