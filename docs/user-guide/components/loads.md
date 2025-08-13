@@ -9,5 +9,3 @@ reactive power (i.e. behaving like an inductor).
 !!! note "When to use [`Generator`](/api/components/types/generators) instead?"
 
     Use the [`Generator`](/api/components/types/generators) component with a negative `sign` to model elastic demands following a linear demand curve or to represent a comnsumption at a given price.
-
-{{ read_csv('../../../pypsa/data/component_attrs/loads.csv') }} 

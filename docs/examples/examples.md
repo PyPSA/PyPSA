@@ -233,4 +233,11 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](replace-generator-storage-units-with-store.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Tracing Infeasibilities**
+
+    Shows how to trace infeasibilities in the optimization problem using Irreducible Infeasible Subsets (IIS).
+
+    [:octicons-arrow-right-24: Go to example](tracing-infeasibilities.ipynb)
+
+
 </div>
