@@ -1410,7 +1410,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     eh = DataArray(elapsed_h)
 
     # Unstack in stochastic networks with MultiIndex snapshots
-    if n.has_scenarios:
+    if n.has_scenarios and "dim_1" in eh.dims:
         eh = eh.unstack("dim_1")
 
     # standing efficiency
