@@ -1406,7 +1406,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         return
 
     # elapsed hours
-    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.active_assets)
     eh = DataArray(elapsed_h)
 
     # Unstack in stochastic networks with MultiIndex snapshots
@@ -1414,7 +1414,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         eh = eh.unstack("dim_1")
 
     # standing efficiency
-    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns)) ** eh
+    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
 
     e = m[f"{component}-e"]
     p = m[f"{component}-p"]
@@ -1424,7 +1424,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_e` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.e_cyclic
+    noncyclic_b = ~c.da.e_cyclic.sel(name=c.active_assets)
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     # Calculate previous energy state with proper handling of boundaries
@@ -1433,14 +1433,16 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     # We add initial e for non-cyclic assets to rhs
-    e_init = c.da.e_initial
+    e_init = c.da.e_initial.sel(name=c.active_assets)
     rhs = DataArray(0)
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimization, we update previous_e and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = e.coords["period"]
-        per_period = c.da.e_cyclic_per_period | c.da.e_initial_per_period
+        per_period = c.da.e_cyclic_per_period.sel(
+            name=c.active_assets
+        ) | c.da.e_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
         # Normally, we should use groupby, but it's broken for multi-index

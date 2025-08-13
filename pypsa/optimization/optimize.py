@@ -186,7 +186,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             if var_name not in m.variables and cost_type == "spill_cost":
                 continue
 
-            cost = c.da[cost_type].sel(snapshot=sns)
+            cost = c.da[cost_type].sel(snapshot=sns, name=c.active_assets)
             if cost.size == 0 or (cost == 0).all():
                 continue
 
