@@ -117,6 +117,7 @@ nav:
   - Complexity Management:
     - examples/time-series-aggregation.ipynb
     - examples/replace-generator-storage-units-with-store.ipynb
+    - examples/tracing-infeasibilities.ipynb
 
 - API Reference:
   - Networks:
