@@ -14,22 +14,22 @@ def test_optimize_security_constrained(scipy_network):
     # Choose the contingencies
     branch_outages = n.lines.index[:2]
 
-    # Run security-constrained optimization with dual assignment
-    # Fight numerical instability using https://ergo-code.github.io/HiGHS/
-    solver_options = {
-        "primal_feasibility_tolerance": 1e-9,
-        "dual_feasibility_tolerance": 1e-9,
-        "time_limit": 300,
-        "presolve": "on",
-        "parallel": "off",
-        "random_seed": 123,
-    }
+    # # Run security-constrained optimization with dual assignment
+    # # Fight numerical instability using https://ergo-code.github.io/HiGHS/
+    # solver_options = {
+    #     "primal_feasibility_tolerance": 1e-9,
+    #     "dual_feasibility_tolerance": 1e-9,
+    #     "time_limit": 300,
+    #     "presolve": "on",
+    #     "parallel": "off",
+    #     "random_seed": 123,
+    # }
 
     n.optimize.optimize_security_constrained(
         n.snapshots[0],
         branch_outages=branch_outages,
         assign_all_duals=True,
-        solver_options=solver_options,
+        # solver_options=solver_options,
     )
 
     # For the PF, set the P to the optimised P
