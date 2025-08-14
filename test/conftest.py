@@ -81,7 +81,7 @@ def ac_dc_periods(ac_dc_network):
     n.investment_periods = [2013]
     gens_i = n.c.generators.static.index
     rng = np.random.default_rng()  # Create a random number generator
-    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
+    n.c.generators.dynamic.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
     return n
 
 

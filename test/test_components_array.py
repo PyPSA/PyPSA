@@ -32,7 +32,7 @@ def test_as_xarray_dynamic(ac_dc_network):
 
     # Check data
     non_dynamic_index = n.c.generators.static.index.difference(
-        n.generators_t.p_max_pu.columns
+        n.c.generators.dynamic.p_max_pu.columns
     )
     assert np.array_equal(
         da.sel(name=non_dynamic_index),
@@ -40,8 +40,8 @@ def test_as_xarray_dynamic(ac_dc_network):
         * n.c.generators.static.loc[non_dynamic_index, "p_max_pu"].values,
     )
     assert np.array_equal(
-        da.sel(name=n.generators_t["p_max_pu"].columns),
-        n.generators_t["p_max_pu"].values,
+        da.sel(name=n.c.generators.dynamic["p_max_pu"].columns),
+        n.c.generators.dynamic["p_max_pu"].values,
     )
 
 
@@ -84,7 +84,7 @@ def test_as_xarray_dynamic_with_periods(ac_dc_network):
 
     # Check data
     non_dynamic_index = n.c.generators.static.index.difference(
-        n.generators_t.p_max_pu.columns
+        n.c.generators.dynamic.p_max_pu.columns
     )
     assert np.array_equal(
         da.sel(name=non_dynamic_index),
@@ -92,8 +92,8 @@ def test_as_xarray_dynamic_with_periods(ac_dc_network):
         * n.c.generators.static.loc[non_dynamic_index, "p_max_pu"].values,
     )
     assert np.array_equal(
-        da.sel(name=n.generators_t["p_max_pu"].columns),
-        n.generators_t["p_max_pu"].values,
+        da.sel(name=n.c.generators.dynamic["p_max_pu"].columns),
+        n.c.generators.dynamic["p_max_pu"].values,
     )
 
 
@@ -135,13 +135,13 @@ def test_as_xarray_dynamic_with_scenarios(ac_dc_network):
     assert np.array_equal(da.scenario, scenarios)
 
     # Check data
-    # non_dynamic_index = n.c.generators.static.index.difference(n.generators_t.p_max_pu.columns)
+    # non_dynamic_index = n.c.generators.static.index.difference(n.c.generators.dynamic.p_max_pu.columns)
     assert np.array_equal(
         da.sel(
             scenario=scenarios[0],
-            name=n.generators_t.p_max_pu.columns.get_level_values(1).unique(),
+            name=n.c.generators.dynamic.p_max_pu.columns.get_level_values(1).unique(),
         ).values,
-        n.generators_t.p_max_pu[scenarios[0]].values,
+        n.c.generators.dynamic.p_max_pu[scenarios[0]].values,
     )
 
     # TODO add test for non_dynamic_index

@@ -12,8 +12,11 @@ def test_optimize_losses(scipy_network, transmission_losses):
         transmission_losses=transmission_losses,
     )
 
-    gen = n.generators_t.p.iloc[0].sum() + n.storage_units_t.p.iloc[0].sum()
-    dem = n.loads_t.p_set.iloc[0].sum()
+    gen = (
+        n.c.generators.dynamic.p.iloc[0].sum()
+        + n.c.storage_units.dynamic.p.iloc[0].sum()
+    )
+    dem = n.c.loads.dynamic.p_set.iloc[0].sum()
 
     assert gen > 1.01 * dem, "For this example, losses should be greater than 1%"
     assert gen < 1.05 * dem, "For this example, losses should be lower than 5%"

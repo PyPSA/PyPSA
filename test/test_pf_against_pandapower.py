@@ -55,7 +55,7 @@ def test_pandapower_custom_case(
     equal(n.c.lines.dynamic.q0.loc[DEFAULT_TIMESTAMP], net.res_line.q_from_mvar)
     equal(n.c.lines.dynamic.q1.loc[DEFAULT_TIMESTAMP], net.res_line.q_to_mvar)
 
-    equal(n.transformers_t.p0.loc[DEFAULT_TIMESTAMP], net.res_trafo.p_hv_mw)
-    equal(n.transformers_t.p1.loc[DEFAULT_TIMESTAMP], net.res_trafo.p_lv_mw)
-    equal(n.transformers_t.q0.loc[DEFAULT_TIMESTAMP], net.res_trafo.q_hv_mvar)
-    equal(n.transformers_t.q1.loc[DEFAULT_TIMESTAMP], net.res_trafo.q_lv_mvar)
+    equal(n.c.transformers.dynamic.p0.loc[DEFAULT_TIMESTAMP], net.res_trafo.p_hv_mw)
+    equal(n.c.transformers.dynamic.p1.loc[DEFAULT_TIMESTAMP], net.res_trafo.p_lv_mw)
+    equal(n.c.transformers.dynamic.q0.loc[DEFAULT_TIMESTAMP], net.res_trafo.q_hv_mvar)
+    equal(n.c.transformers.dynamic.q1.loc[DEFAULT_TIMESTAMP], net.res_trafo.q_lv_mvar)

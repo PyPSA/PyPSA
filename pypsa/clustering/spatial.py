@@ -632,7 +632,7 @@ def get_clustering_from_busmap(
     clustered.add("Link", new_links.index, **new_links)
 
     if with_time:
-        for attr, df in n.links_t.items():
+        for attr, df in n.c.links.dynamic.items():
             if not df.empty:
                 clustered._import_series_from_df(df, "Link", attr)
 

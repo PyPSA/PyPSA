@@ -521,10 +521,14 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
             if i:
                 if not n.c.stores.static.empty:
-                    n.c.stores.static.e_initial = n.stores_t.e.loc[snapshots[start - 1]]
+                    n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
+                        snapshots[start - 1]
+                    ]
                 if not n.c.storage_units.static.empty:
                     n.c.storage_units.static.state_of_charge_initial = (
-                        n.storage_units_t.state_of_charge.loc[snapshots[start - 1]]
+                        n.c.storage_units.dynamic.state_of_charge.loc[
+                            snapshots[start - 1]
+                        ]
                     )
 
             status, condition = n.optimize(sns, **kwargs)

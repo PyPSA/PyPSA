@@ -758,8 +758,8 @@ class Network(
         if len(snapshots_) > 0:
             n.set_snapshots(snapshots_)
             # Apply time-varying data
-            for component in self.iterate_components():
-                dynamic = getattr(n, component.list_name + "_t")
+            for component in self.components:
+                dynamic = getattr(n.c, component.list_name).dynamic
                 for k in component.dynamic:
                     # Check if all snapshots_ are in the index
                     if set(snapshots_).issubset(component.dynamic[k].index):
@@ -1063,7 +1063,7 @@ class Network(
             self.c.sub_networks.static.drop(
                 self.c.sub_networks.static.index, inplace=True
             )
-            for dynamic in self.sub_networks_t.values():
+            for dynamic in self.c.sub_networks.dynamic.values():
                 dynamic.drop(dynamic.columns, inplace=True)
 
         if self.has_scenarios:

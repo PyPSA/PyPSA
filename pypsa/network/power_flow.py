@@ -108,7 +108,7 @@ def _calculate_controllable_nodal_power_balance(
             ] = c_n_set
 
         # set the power injection at each node from controllable components
-        network.buses_t[power].loc[snapshots, buses_o] = sum(
+        network.c.buses.dynamic[power].loc[snapshots, buses_o] = sum(
             (
                 (
                     c.dynamic[power].loc[snapshots, c.static.query("active").index]
@@ -124,7 +124,7 @@ def _calculate_controllable_nodal_power_balance(
         )
 
         if power == "p":
-            network.buses_t[power].loc[snapshots, buses_o] += sum(
+            network.c.buses.dynamic[power].loc[snapshots, buses_o] += sum(
                 -c.dynamic[power + str(i)]
                 .loc[snapshots]
                 .T.groupby(c.static[f"bus{str(i)}"])
@@ -164,13 +164,13 @@ def _network_prepare_and_run_pf(
     # deal with links
     if not n.c.links.static.empty:
         p_set = get_as_dense(n, "Link", "p_set", sns)
-        n.links_t.p0.loc[sns] = p_set.loc[sns]
+        n.c.links.dynamic.p0.loc[sns] = p_set.loc[sns]
         for i in ["1"] + n.c.links.additional_ports:
             eff_name = "efficiency" if i == "1" else f"efficiency{i}"
             efficiency = get_as_dense(n, "Link", eff_name, sns)
             links = n.c.links.static.index[n.c.links.static[f"bus{i}"] != ""]
-            n.links_t[f"p{i}"].loc[sns, links] = (
-                -n.links_t.p0.loc[sns, links] * efficiency.loc[sns, links]
+            n.c.links.dynamic[f"p{i}"].loc[sns, links] = (
+                -n.c.links.dynamic.p0.loc[sns, links] * efficiency.loc[sns, links]
             )
 
     itdf = pd.DataFrame(index=sns, columns=n.c.sub_networks.static.index, dtype=int)
@@ -387,17 +387,17 @@ def sub_network_pf_singlebus(
                 )
             else:
                 bus_generator_shares = slack_weights.pipe(normed).fillna(0)  # type: ignore
-            n.generators_t.p.loc[sns, group.index] += (
+            n.c.generators.dynamic.p.loc[sns, group.index] += (
                 bus_generator_shares.multiply(
                     -n.c.buses.dynamic.p.loc[sns, bus], axis=0
                 )
             )  # fmt: skip
     else:
-        n.generators_t.p.loc[sns, sub_network.slack_generator] -= (
+        n.c.generators.dynamic.p.loc[sns, sub_network.slack_generator] -= (
             n.c.buses.dynamic.p.loc[sns, sub_network.slack_bus]
         )  # fmt: skip
 
-    n.generators_t.q.loc[sns, sub_network.slack_generator] -= (
+    n.c.generators.dynamic.q.loc[sns, sub_network.slack_generator] -= (
         n.c.buses.dynamic.q.loc[sns, sub_network.slack_bus]
     )  # fmt: skip
 
@@ -1634,10 +1634,10 @@ class SubNetworkPowerFlowMixin:
                     n.c.shunt_impedances.static.loc[shunt_impedances_i, "bus"]
                 ),
             ]
-            n.shunt_impedances_t.p.loc[sns, shunt_impedances_i] = (
+            n.c.shunt_impedances.dynamic.p.loc[sns, shunt_impedances_i] = (
                 shunt_impedances_v_mag_pu**2
             ) * n.c.shunt_impedances.static.loc[shunt_impedances_i, "g_pu"].values
-            n.shunt_impedances_t.q.loc[sns, shunt_impedances_i] = (
+            n.c.shunt_impedances.dynamic.q.loc[sns, shunt_impedances_i] = (
                 shunt_impedances_v_mag_pu**2
             ) * n.c.shunt_impedances.static.loc[shunt_impedances_i, "b_pu"].values
 
@@ -1657,7 +1657,7 @@ class SubNetworkPowerFlowMixin:
                         .apply(normed, axis=1)
                         .fillna(0)
                     )
-                    n.generators_t.p.loc[sns, group.index] += (
+                    n.c.generators.dynamic.p.loc[sns, group.index] += (
                         bus_generator_shares.multiply(
                             distributed_slack_power.loc[sns, bus], axis=0
                         )
@@ -1677,26 +1677,25 @@ class SubNetworkPowerFlowMixin:
                         bus_generator_shares = bus_generators_p_nom.pipe(normed).fillna(
                             0
                         )
-                    n.generators_t.p.loc[sns, group.index] += (
+                    n.c.generators.dynamic.p.loc[sns, group.index] += (
                         distributed_slack_power.loc[sns, bus].apply(
                             lambda row, shares=bus_generator_shares: row * shares
                         )
                     )
         else:
-            n.generators_t.p.loc[sns, self.slack_generator] += (
+            n.c.generators.dynamic.p.loc[sns, self.slack_generator] += (
                 n.c.buses.dynamic.p.loc[sns, self.slack_bus] - ss[:, slack_index].real
             )
 
         # set the Q of the slack and PV generators
-        n.generators_t.q.loc[sns, self.slack_generator] += (
+        n.c.generators.dynamic.q.loc[sns, self.slack_generator] += (
             n.c.buses.dynamic.q.loc[sns, self.slack_bus] - ss[:, slack_index].imag
         )
 
-        n.generators_t.q.loc[sns, n.c.buses.static.loc[self.pvs, "generator"]] += (
-            np.asarray(
-                n.c.buses.dynamic.q.loc[sns, self.pvs]
-                - ss[:, buses_indexer(self.pvs)].imag
-            )
+        n.c.generators.dynamic.q.loc[
+            sns, n.c.buses.static.loc[self.pvs, "generator"]
+        ] += np.asarray(
+            n.c.buses.dynamic.q.loc[sns, self.pvs] - ss[:, buses_indexer(self.pvs)].imag
         )
 
         return iters, diffs, convs
@@ -1739,7 +1738,7 @@ class SubNetworkPowerFlowMixin:
 
         # allow all shunt impedances to dispatch as set
         shunt_impedances_i = self.shunt_impedances_i()
-        n.shunt_impedances_t.p.loc[sns, shunt_impedances_i] = (
+        n.c.shunt_impedances.dynamic.p.loc[sns, shunt_impedances_i] = (
             n.c.shunt_impedances.static.g_pu.loc[shunt_impedances_i].values
         )
 
@@ -1810,6 +1809,6 @@ class SubNetworkPowerFlowMixin:
 
         # let slack generator take up the slack
         if self.slack_generator is not None:
-            n.generators_t.p.loc[sns, self.slack_generator] += (
+            n.c.generators.dynamic.p.loc[sns, self.slack_generator] += (
                 slack_adjustment
             )  # fmt: skip

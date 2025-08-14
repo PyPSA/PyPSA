@@ -63,7 +63,7 @@ def test_remove(ac_dc_network):
     n.remove("Generator", generators)
 
     assert not generators.issubset(n.c.generators.static.index)
-    assert not generators.issubset(n.generators_t.p_max_pu.columns)
+    assert not generators.issubset(n.c.generators.dynamic.p_max_pu.columns)
 
 
 def test_remove_misspelled_component(ac_dc_network):
@@ -180,7 +180,7 @@ def test_add_varying_single(n_5bus_7sn):
     assert n_5bus_7sn.c.loads.static.index.name == "name"
     assert (n_5bus_7sn.c.loads.static.index == "load_1").all()
     assert (n_5bus_7sn.c.loads.static.bus == buses[0]).all()
-    assert (p_set == n_5bus_7sn.loads_t.p_set.T).all().all()
+    assert (p_set == n_5bus_7sn.c.loads.dynamic.p_set.T).all().all()
     assert (
         n_5bus_7sn.c.loads.static.p_set == 0
     ).all()  # Assert that default value is set
@@ -212,7 +212,7 @@ def test_add_varying_multiple(n_5bus_7sn, slicer):
     assert n_5bus_7sn.c.loads.static.index.name == "name"
     assert n_5bus_7sn.c.loads.static.index.equals(load_names)
     assert (n_5bus_7sn.c.loads.static.bus == buses).all()
-    assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
+    assert (n_5bus_7sn.c.loads.dynamic.p_set == p_set).all().all()
     assert (
         n_5bus_7sn.c.loads.static.p_set == 0
     ).all()  # Assert that default value is set
@@ -249,7 +249,7 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
     assert n_5bus_7sn.c.loads.static.index.name == "name"
     assert n_5bus_7sn.c.loads.static.index.equals(load_names)
     assert (n_5bus_7sn.c.loads.static.bus == buses).all()
-    assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
+    assert (n_5bus_7sn.c.loads.dynamic.p_set == p_set).all().all()
     assert (
         n_5bus_7sn.c.loads.static.p_set == 0
     ).all()  # Assert that default value is set
@@ -286,19 +286,19 @@ def test_add_overwrite_varying(n_5bus_7sn, caplog):
     bus_names = [f"bus_{i} " for i in range(6)]
 
     n_5bus_7sn.add("Bus", bus_names, p=[1] * 6)
-    assert (n_5bus_7sn.buses_t.p.iloc[:, :5] == 0).all().all()
-    assert (n_5bus_7sn.buses_t.p.iloc[:, 5] == 1).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.iloc[:, :5] == 0).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.iloc[:, 5] == 1).all().all()
     assert caplog.records[-1].levelname == "WARNING"
 
     n_5bus_7sn.add("Bus", bus_names[:5], p=[2] * 5, overwrite=True)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[5]] == 1).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == 2).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[5]] == 1).all().all()
 
     p = rng.random(size=(7, 5))
     n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=False)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == 2).all().all()
     n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=True)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == p).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == p).all().all()
 
 
 def test_add_stochastic():
@@ -514,7 +514,9 @@ def test_components_referencing(ac_dc_network):
     with pypsa.option_context("api.new_components_api", False):
         ac_dc_network = pypsa.examples.ac_dc_meshed()
         assert id(ac_dc_network.buses) == id(ac_dc_network.components.buses.static)
-        assert id(ac_dc_network.buses_t) == id(ac_dc_network.components.buses.dynamic)
+        assert id(ac_dc_network.c.buses.dynamic) == id(
+            ac_dc_network.components.buses.dynamic
+        )
         assert id(ac_dc_network.components.buses) == id(ac_dc_network.components.Bus)
 
 
@@ -574,11 +576,11 @@ def test_api_components_legacy(new_components_api):
 
         if not new_components_api:
             assert n.buses is n.components.buses.static
-            assert n.buses_t is n.components.buses.dynamic
+            assert n.c.buses.dynamic is n.components.buses.dynamic
             assert n.lines is n.components.lines.static
-            assert n.lines_t is n.components.lines.dynamic
+            assert n.c.lines.dynamic is n.components.lines.dynamic
             assert n.generators is n.components.generators.static
-            assert n.generators_t is n.components.generators.dynamic
+            assert n.c.generators.dynamic is n.components.generators.dynamic
         else:
             assert n.buses is n.components.buses
             with pytest.raises(DeprecationWarning):

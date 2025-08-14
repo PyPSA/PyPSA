@@ -204,8 +204,8 @@ def test_simple_network(n):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n.generators_t.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
-    assert (n.generators_t.p.loc[[2050], "gen1-2020"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2050], "gen1-2020"] == 0).all()
 
     assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
@@ -215,8 +215,8 @@ def test_simple_network_snapshot_subset(n):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n.generators_t.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
-    assert (n.generators_t.p.loc[[2050], "gen1-2020"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
+    assert (n.c.generators.dynamic.p.loc[[2050], "gen1-2020"] == 0).all()
 
     assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
@@ -230,8 +230,8 @@ def test_simple_network_storage_noncyclic(n_sus):
     assert status == "ok"
     assert cond == "optimal"
 
-    soc = n_sus.storage_units_t.state_of_charge
-    p = n_sus.storage_units_t.p
+    soc = n_sus.c.storage_units.dynamic.state_of_charge
+    p = n_sus.c.storage_units.dynamic.p
     assert round((soc + p).loc[idx[2020, 0], "sto1-2020"], 4) == 200
     assert soc.loc[idx[2040, 9], "sto1-2020"] == 0
 
@@ -245,12 +245,14 @@ def test_simple_network_storage_noncyclic_per_period(n_sus):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sus.storage_units_t.p.loc[[2020, 2030, 2040], "sto1-2050"] == 0).all()
-    assert (n_sus.storage_units_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (
+        n_sus.c.storage_units.dynamic.p.loc[[2020, 2030, 2040], "sto1-2050"] == 0
+    ).all()
+    assert (n_sus.c.storage_units.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    soc_initial = (n_sus.storage_units_t.state_of_charge + n_sus.storage_units_t.p).loc[
-        idx[:, 0], :
-    ]
+    soc_initial = (
+        n_sus.c.storage_units.dynamic.state_of_charge + n_sus.c.storage_units.dynamic.p
+    ).loc[idx[:, 0], :]
     soc_initial = soc_initial.droplevel("timestep")
     assert soc_initial.loc[2020, "sto1-2020"] == 200
     assert soc_initial.loc[2030, "sto1-2020"] == 200
@@ -265,8 +267,8 @@ def test_simple_network_storage_cyclic(n_sus):
     assert status == "ok"
     assert cond == "optimal"
 
-    soc = n_sus.storage_units_t.state_of_charge
-    p = n_sus.storage_units_t.p
+    soc = n_sus.c.storage_units.dynamic.state_of_charge
+    p = n_sus.c.storage_units.dynamic.p
     assert (
         soc.loc[idx[2040, 9], "sto1-2020"] == (soc + p).loc[idx[2020, 0], "sto1-2020"]
     )
@@ -284,8 +286,8 @@ def test_simple_network_storage_cyclic_per_period(n_sus):
     assert status == "ok"
     assert cond == "optimal"
 
-    soc = n_sus.storage_units_t.state_of_charge
-    p = n_sus.storage_units_t.p
+    soc = n_sus.c.storage_units.dynamic.state_of_charge
+    p = n_sus.c.storage_units.dynamic.p
     assert (
         soc.loc[idx[2020, 9], "sto1-2020"] == (soc + p).loc[idx[2020, 0], "sto1-2020"]
     )
@@ -299,9 +301,9 @@ def test_simple_network_store_noncyclic(n_sts):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e_initial = (n_sts.stores_t.e + n_sts.stores_t.p).loc[idx[:, 0], :]
+    e_initial = (n_sts.c.stores.dynamic.e + n_sts.c.stores.dynamic.p).loc[idx[:, 0], :]
     e_initial = e_initial.droplevel("timestep")
     assert e_initial.loc[2020, "sto1-2020"] == 20
 
@@ -314,9 +316,9 @@ def test_simple_network_store_noncyclic_per_period(n_sts):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e_initial = (n_sts.stores_t.e + n_sts.stores_t.p).loc[idx[:, 0], :]
+    e_initial = (n_sts.c.stores.dynamic.e + n_sts.c.stores.dynamic.p).loc[idx[:, 0], :]
     e_initial = e_initial.droplevel("timestep")
     assert e_initial.loc[2020, "sto1-2020"] == 20
     assert e_initial.loc[2030, "sto1-2020"] == 20
@@ -333,10 +335,10 @@ def test_simple_network_store_cyclic(n_sts):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e = n_sts.stores_t.e
-    p = n_sts.stores_t.p
+    e = n_sts.c.stores.dynamic.e
+    p = n_sts.c.stores.dynamic.p
     assert e.loc[idx[2040, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 
@@ -349,10 +351,10 @@ def test_simple_network_store_cyclic_per_period(n_sts):
     assert status == "ok"
     assert cond == "optimal"
 
-    assert (n_sts.stores_t.p.loc[[2050], "sto1-2020"] == 0).all()
+    assert (n_sts.c.stores.dynamic.p.loc[[2050], "sto1-2020"] == 0).all()
 
-    e = n_sts.stores_t.e
-    p = n_sts.stores_t.p
+    e = n_sts.c.stores.dynamic.e
+    p = n_sts.c.stores.dynamic.p
     assert e.loc[idx[2020, 9], "sto1-2020"] == (e + p).loc[idx[2020, 0], "sto1-2020"]
 
 

@@ -43,9 +43,9 @@ def test_stand_by_cost():
     n.optimize()
 
     cost = (
-        n.generators_t.p * n.c.generators.static.marginal_cost
+        n.c.generators.dynamic.p * n.c.generators.static.marginal_cost
         + (
-            n.generators_t.status.reindex(
+            n.c.generators.dynamic.status.reindex(
                 columns=n.c.generators.static.index, fill_value=0
             )
             * n.c.generators.static.stand_by_cost

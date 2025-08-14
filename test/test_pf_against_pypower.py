@@ -108,7 +108,7 @@ def test_pypower_case():
 
     # compare generator dispatch
     for s in ["p", "q"]:
-        s_pypsa = getattr(n.generators_t, s).loc[DEFAULT_TIMESTAMP].values
+        s_pypsa = getattr(n.c.generators.dynamic, s).loc[DEFAULT_TIMESTAMP].values
         s_pypower = results_df["gen"][s].values
         equal(s_pypsa, s_pypower)
 

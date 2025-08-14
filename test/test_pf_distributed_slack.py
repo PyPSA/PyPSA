@@ -17,8 +17,8 @@ def test_pf_distributed_slack(scipy_network):
     n.optimize(n.snapshots)
 
     # For the PF, set the P to the optimised P
-    n.generators_t.p_set = n.generators_t.p
-    n.storage_units_t.p_set = n.storage_units_t.p
+    n.c.generators.dynamic.p_set = n.c.generators.dynamic.p
+    n.c.storage_units.dynamic.p_set = n.c.storage_units.dynamic.p
 
     # set all buses to PV, since we don't know what Q set points are
     n.c.generators.static.control = "PV"
@@ -30,16 +30,16 @@ def test_pf_distributed_slack(scipy_network):
     n.pf(distribute_slack=True, slack_weights="p_set")
 
     equal(
-        n.generators_t.p_set.apply(normed, axis=1),
-        (n.generators_t.p - n.generators_t.p_set).apply(normed, axis=1),
+        n.c.generators.dynamic.p_set.apply(normed, axis=1),
+        (n.c.generators.dynamic.p - n.c.generators.dynamic.p_set).apply(normed, axis=1),
     )
 
     # by capacity
     n.pf(distribute_slack=True, slack_weights="p_nom")
 
-    slack_shares_by_capacity = (n.generators_t.p - n.generators_t.p_set).apply(
-        normed, axis=1
-    )
+    slack_shares_by_capacity = (
+        n.c.generators.dynamic.p - n.c.generators.dynamic.p_set
+    ).apply(normed, axis=1)
 
     for _, row in slack_shares_by_capacity.iterrows():
         equal(n.c.generators.static.p_nom.pipe(normed).fillna(0.0), row)
@@ -61,7 +61,7 @@ def test_pf_distributed_slack(scipy_network):
 
     equal(
         slack_shares_by_capacity,
-        (n.generators_t.p - n.generators_t.p_set).apply(normed, axis=1),
+        (n.c.generators.dynamic.p - n.c.generators.dynamic.p_set).apply(normed, axis=1),
     )
 
     custom_weights = {
@@ -72,5 +72,5 @@ def test_pf_distributed_slack(scipy_network):
 
     equal(
         slack_shares_by_capacity,
-        (n.generators_t.p - n.generators_t.p_set).apply(normed, axis=1),
+        (n.c.generators.dynamic.p - n.c.generators.dynamic.p_set).apply(normed, axis=1),
     )

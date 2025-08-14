@@ -22,7 +22,7 @@ def target_gen_p():
 def test_optimize(storage_hvdc_network, target_gen_p):
     n = storage_hvdc_network
     n.optimize()
-    equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
+    equal(n.c.generators.dynamic.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 
 def test_storage_energy_marginal_cost():
@@ -92,13 +92,13 @@ def test_spill_cost():
         for i in range(sets_of_snapshots):
             if i == 1:
                 n.c.storage_units.static.state_of_charge_initial = (
-                    n.storage_units_t.state_of_charge.loc[n.snapshots[4]]
+                    n.c.storage_units.dynamic.state_of_charge.loc[n.snapshots[4]]
                 )
             n.optimize(
                 n.snapshots[i * len(p_set) : (i + 1) * len(p_set) + overlap],
             )
 
-        spill = n.storage_units_t["spill"].loc[:, "hydro"]
+        spill = n.c.storage_units.dynamic["spill"].loc[:, "hydro"]
         total_spill = spill.sum()
 
         if has_spill_cost:

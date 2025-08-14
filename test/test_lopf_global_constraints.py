@@ -49,7 +49,7 @@ def test_operational_limit_storage_hvdc(storage_hvdc_network):
 
     soc_diff = (
         n.c.storage_units.static.state_of_charge_initial.sum()
-        - n.storage_units_t.state_of_charge.sum(1).iloc[-1]
+        - n.c.storage_units.dynamic.state_of_charge.sum(1).iloc[-1]
     )
     assert soc_diff.round(3) == limit
 
@@ -74,7 +74,7 @@ def test_assign_all_duals(ac_dc_network, assign):
     n.optimize.solve_model(assign_all_duals=assign)
 
     assert ("generation_limit" in n.c.global_constraints.static.index) == assign
-    assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
+    assert ("mu_generation_limit_dynamic" in n.c.global_constraints.dynamic) == assign
 
 
 def test_assign_duals_noname(ac_dc_network):

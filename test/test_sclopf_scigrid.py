@@ -33,8 +33,8 @@ def test_optimize_security_constrained(scipy_network):
     )
 
     # For the PF, set the P to the optimised P
-    n.generators_t.p_set = n.generators_t.p.copy()
-    n.storage_units_t.p_set = n.storage_units_t.p.copy()
+    n.c.generators.dynamic.p_set = n.c.generators.dynamic.p.copy()
+    n.c.storage_units.dynamic.p_set = n.c.storage_units.dynamic.p.copy()
 
     # Check no lines are overloaded with the linear contingency analysis
     p0_test = n.lpf_contingency(n.snapshots[0], branch_outages=branch_outages)

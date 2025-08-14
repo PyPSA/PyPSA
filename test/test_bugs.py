@@ -65,7 +65,7 @@ def test_331():
     n.optimize()
     n.add("Generator", "generator2", bus="bus", p_nom=5, marginal_cost=5)
     n.optimize()
-    assert "generator2" in n.generators_t.p
+    assert "generator2" in n.c.generators.dynamic.p
 
 
 def test_nomansland_bus(caplog):

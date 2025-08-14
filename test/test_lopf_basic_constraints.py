@@ -257,9 +257,9 @@ def test_define_generator_constraints_static():
 
     n.optimize()
 
-    assert n.generators_t.p["gen0"].eq(0).all()
-    assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.generators_t.p["gen2"].eq(10).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(10).all()
 
 
 def test_define_generator_constraints():
@@ -310,10 +310,16 @@ def test_define_generator_constraints():
 
     n.optimize()
 
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen0"] == 10 * eh
-    assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen2"] == e_sum_min
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen3"] == e_sum_max
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen0"] == 10 * eh
+    )
+    assert n.c.generators.dynamic.p["gen1"].eq(0).all()
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen2"] == e_sum_min
+    )
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen3"] == e_sum_max
+    )
 
 
 def test_define_fixed_operational_constraints_positive():
@@ -327,12 +333,12 @@ def test_define_fixed_operational_constraints_positive():
     n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
     n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
 
-    n.generators_t.p_set["gen2"] = 10
+    n.c.generators.dynamic.p_set["gen2"] = 10
 
     n.optimize()
 
-    assert n.generators_t.p["gen2"].eq(10).all()
-    assert n.generators_t.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(10).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
 
 
 def test_define_fixed_operational_constraints_zero():
@@ -346,13 +352,13 @@ def test_define_fixed_operational_constraints_zero():
     n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
     n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
 
-    n.generators_t.p_set["gen0"] = 0
+    n.c.generators.dynamic.p_set["gen0"] = 0
 
     n.optimize()
 
-    assert n.generators_t.p["gen0"].eq(0).all()
-    assert n.generators_t.p["gen1"].eq(5).all()
-    assert n.generators_t.p["gen2"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(5).all()
 
 
 def test_define_fixed_operational_constraints_extendable():
@@ -387,10 +393,10 @@ def test_define_fixed_operational_constraints_extendable():
         marginal_cost=9,
     )
 
-    n.generators_t.p_set["gen1"] = 5
+    n.c.generators.dynamic.p_set["gen1"] = 5
 
     n.optimize()
 
-    assert n.generators_t.p["gen0"].eq(5).all()
-    assert n.generators_t.p["gen1"].eq(5).all()
-    assert n.generators_t.p["gen2"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(0).all()

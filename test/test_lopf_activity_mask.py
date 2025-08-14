@@ -16,7 +16,7 @@ def test_optimize(ac_dc_network):
 
     assert status == "ok"
 
-    assert n.links_t.p0.loc[:, inactive_links].eq(0).all().all()
+    assert n.c.links.dynamic.p0.loc[:, inactive_links].eq(0).all().all()
 
     assert "Bremen Converter" in n.model.variables["Link-p_nom"].coords["name"]
     assert "DC link" not in n.model.variables["Link-p_nom"].coords["name"]
@@ -113,7 +113,7 @@ def test_generators_with_active_attribute():
     assert status == "ok"
 
     # Inactive generator should have zero output
-    assert (n.generators_t.p["gen_inactive"] == 0).all()
+    assert (n.c.generators.dynamic.p["gen_inactive"] == 0).all()
 
     # Inactive generator should not be in model variables
     assert "gen_inactive" not in n.model.variables["Generator-p"].coords["name"]
@@ -166,7 +166,7 @@ def test_stores_with_active_attribute():
     assert status == "ok"
 
     # Inactive store should have zero flow
-    assert (n.stores_t.p["store_inactive"] == 0).all()
+    assert (n.c.stores.dynamic.p["store_inactive"] == 0).all()
 
     # Inactive store should not be in model variables
     assert "store_inactive" not in n.model.variables["Store-p"].coords["name"]
@@ -257,9 +257,9 @@ def test_mixed_components_with_active_attribute():
     assert status == "ok"
 
     # Test inactive components have zero flows
-    assert (n.generators_t.p["gen_inactive"] == 0).all()
-    assert (n.links_t.p0["link_inactive"] == 0).all()
-    assert (n.stores_t.p["store_inactive"] == 0).all()
+    assert (n.c.generators.dynamic.p["gen_inactive"] == 0).all()
+    assert (n.c.links.dynamic.p0["link_inactive"] == 0).all()
+    assert (n.c.stores.dynamic.p["store_inactive"] == 0).all()
 
     # Test inactive components not in model variables
     assert "gen_inactive" not in n.model.variables["Generator-p"].coords["name"]
@@ -325,7 +325,7 @@ def test_inactive_stores_with_global_operational_limit():
     assert status == "ok"
 
     # Test inactive store has zero flow
-    assert (n.stores_t.p["store_inactive"] == 0).all()
+    assert (n.c.stores.dynamic.p["store_inactive"] == 0).all()
 
     # Test inactive store is not in model variables
     assert "store_inactive" not in n.model.variables["Store-p"].coords["name"]

@@ -36,7 +36,7 @@ def test_aggregate_generators(ac_dc_network):
     )
     assert np.allclose(
         dynamic["p_max_pu"]["all wind"],
-        (n.generators_t.p_max_pu * capacity_norm).sum(axis=1),
+        (n.c.generators.dynamic.p_max_pu * capacity_norm).sum(axis=1),
     )
     assert np.allclose(
         df.loc["all wind", "marginal_cost"],
@@ -66,7 +66,7 @@ def test_aggregate_generators_custom_strategies(ac_dc_network):
         == n.c.generators.static.loc["Frankfurt Wind", "p_nom_max"] * 3
     )
     assert np.allclose(
-        dynamic["p_max_pu"]["all wind"], n.generators_t.p_max_pu.max(axis=1)
+        dynamic["p_max_pu"]["all wind"], n.c.generators.dynamic.p_max_pu.max(axis=1)
     )
 
 

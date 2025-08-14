@@ -44,11 +44,11 @@ def test_unit_commitment():
 
     expected_status = np.array([[1, 1, 1, 0], [0, 0, 0, 1]], dtype=float).T
 
-    equal(n.generators_t.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array([[4000, 6000, 5000, 0], [0, 0, 0, 800]], dtype=float).T
 
-    equal(n.generators_t.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 def test_minimum_up_time():
@@ -92,13 +92,13 @@ def test_minimum_up_time():
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
-    equal(n.generators_t.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array(
         [[3900, 0, 4900, 3000], [100, 800, 100, 0]], dtype=float
     ).T
 
-    equal(n.generators_t.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 def test_minimum_up_time_up_time_before():
@@ -142,13 +142,13 @@ def test_minimum_up_time_up_time_before():
 
     expected_status = np.array([[1, 0, 1, 1], [1, 1, 1, 0]], dtype=float).T
 
-    equal(n.generators_t.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array(
         [[3900, 0, 4900, 3000], [100, 800, 100, 0]], dtype=float
     ).T
 
-    equal(n.generators_t.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 def test_minimum_down_time():
@@ -190,11 +190,11 @@ def test_minimum_down_time():
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 
-    equal(n.generators_t.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array([[0, 0, 3000, 8000], [3000, 800, 0, 0]], dtype=float).T
 
-    equal(n.generators_t.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 def test_minimum_down_time_up_time_before():
@@ -237,11 +237,11 @@ def test_minimum_down_time_up_time_before():
 
     expected_status = np.array([[0, 0, 1, 1], [1, 1, 0, 0]], dtype=float).T
 
-    equal(n.generators_t.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array([[0, 0, 3000, 8000], [3000, 800, 0, 0]], dtype=float).T
 
-    equal(n.generators_t.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 def test_start_up_costs():
@@ -358,13 +358,13 @@ def test_unit_commitment_rolling_horizon():
     expected_status = np.array(
         [[1, 1, 0, 0, 0, 0, 0], [0, 0, 1, 1, 1, 1, 1]], dtype=float
     ).T
-    equal(n.generators_t.status.values, expected_status)
+    equal(n.c.generators.dynamic.status.values, expected_status)
 
     expected_dispatch = np.array(
         [[4000, 6000, 0, 0, 0, 0, 0], [0, 0, 800, 5000, 3000, 950, 800]]
     ).T
 
-    equal(n.generators_t.p.values, expected_dispatch)
+    equal(n.c.generators.dynamic.p.values, expected_dispatch)
 
 
 def test_linearized_unit_commitment():
@@ -456,11 +456,11 @@ def test_link_unit_commitment():
 
     expected_status = [1.0, 1.0, 1.0, 1.0]
 
-    equal(n.links_t.status["OCGT"].values, expected_status)
+    equal(n.c.links.dynamic.status["OCGT"].values, expected_status)
 
     expected_dispatch = [3200.0, 5200.0, 600.0, 4200.0]
 
-    equal(-n.links_t.p1["OCGT"].values, expected_dispatch)
+    equal(-n.c.links.dynamic.p1["OCGT"].values, expected_dispatch)
 
     assert round(n.objective, 1) == 267333.0
 
@@ -501,10 +501,10 @@ def test_dynamic_ramp_rates():
 
     n.optimize()
 
-    assert (n.generators_t.p.diff().loc[0:6, "gen1"]).max() <= 0.5 * 80
-    assert (n.generators_t.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100
-    assert (n.generators_t.p.diff().loc[6:, "gen1"]).max() <= 80
-    assert (n.generators_t.p.diff().loc[6:, "gen1"]).min() >= -100
+    assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).max() <= 0.5 * 80
+    assert (n.c.generators.dynamic.p.diff().loc[0:6, "gen1"]).min() >= -0.5 * 100
+    assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).max() <= 80
+    assert (n.c.generators.dynamic.p.diff().loc[6:, "gen1"]).min() >= -100
 
 
 def test_dynamic_start_up_rates_for_commitables():
@@ -545,8 +545,8 @@ def test_dynamic_start_up_rates_for_commitables():
     assert status == "ok"
 
     # Check that ramp_limit_start_up constraint is respected
-    gen1_status = n.generators_t.status["gen1"]
-    gen1_p = n.generators_t.p["gen1"]
+    gen1_status = n.c.generators.dynamic.status["gen1"]
+    gen1_p = n.c.generators.dynamic.p["gen1"]
 
     # Find startup events (status changes from 0 to 1)
     startup_snapshots = gen1_status[
