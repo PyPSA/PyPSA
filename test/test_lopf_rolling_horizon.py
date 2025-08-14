@@ -53,8 +53,14 @@ def test_rolling_horizon(committable):
         assert status == "ok"
 
     ramping = n.generators_t.p.diff().fillna(0)
-    assert (ramping <= n.generators.eval("ramp_limit_up * p_nom_opt")).all().all()
-    assert (ramping >= -n.generators.eval("ramp_limit_down * p_nom_opt")).all().all()
+    assert (
+        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
+    )
+    assert (
+        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
+        .all()
+        .all()
+    )
 
 
 @pytest.mark.parametrize("committable", [True, False])
@@ -71,8 +77,14 @@ def test_rolling_horizon_integrated(committable):
 
     n.optimize.optimize_with_rolling_horizon(horizon=3)
     ramping = n.generators_t.p.diff().fillna(0)
-    assert (ramping <= n.generators.eval("ramp_limit_up * p_nom_opt")).all().all()
-    assert (ramping >= -n.generators.eval("ramp_limit_down * p_nom_opt")).all().all()
+    assert (
+        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
+    )
+    assert (
+        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
+        .all()
+        .all()
+    )
 
 
 def test_rolling_horizon_integrated_overlap():
@@ -91,5 +103,11 @@ def test_rolling_horizon_integrated_overlap():
 
     n.optimize.optimize_with_rolling_horizon(horizon=3, overlap=1)
     ramping = n.generators_t.p.diff().fillna(0)
-    assert (ramping <= n.generators.eval("ramp_limit_up * p_nom_opt")).all().all()
-    assert (ramping >= -n.generators.eval("ramp_limit_down * p_nom_opt")).all().all()
+    assert (
+        (ramping <= n.c.generators.static.eval("ramp_limit_up * p_nom_opt")).all().all()
+    )
+    assert (
+        (ramping >= -n.c.generators.static.eval("ramp_limit_down * p_nom_opt"))
+        .all()
+        .all()
+    )

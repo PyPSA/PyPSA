@@ -408,7 +408,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         if groupby is None:
             groupby = ["carrier", "bus_carrier"]
         if (
-            self._n.buses.carrier.unique().size > 1
+            self._n.c.buses.static.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
         ):

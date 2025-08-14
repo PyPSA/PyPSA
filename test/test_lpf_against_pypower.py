@@ -103,8 +103,8 @@ def test_pypower_case():
 
     # compare branch flows
     for item in ["lines", "transformers"]:
-        df = getattr(n, item)
-        dynamic = getattr(n, item + "_t")
+        df = getattr(n.c, item).static
+        dynamic = getattr(n.c, item).dynamic
 
         for si in ["p0", "p1"]:
             si_pypsa = getattr(dynamic, si).loc[DEFAULT_TIMESTAMP].values

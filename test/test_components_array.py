@@ -13,10 +13,10 @@ def test_as_xarray_static(ac_dc_network):
 
     # Check coords
     assert list(da.coords) == ["name"]
-    assert np.array_equal(da.coords["name"], n.generators.index)
+    assert np.array_equal(da.coords["name"], n.c.generators.static.index)
 
     # Check data
-    assert np.array_equal(da.values, n.generators["bus"].values)
+    assert np.array_equal(da.values, n.c.generators.static["bus"].values)
 
 
 def test_as_xarray_dynamic(ac_dc_network):
@@ -28,13 +28,16 @@ def test_as_xarray_dynamic(ac_dc_network):
     # Check coords
     assert list(da.coords) == ["snapshot", "name"]
     assert np.array_equal(da.snapshot, n.snapshots)
-    assert np.array_equal(da.coords["name"], n.generators.index)
+    assert np.array_equal(da.coords["name"], n.c.generators.static.index)
 
     # Check data
-    non_dynamic_index = n.generators.index.difference(n.generators_t.p_max_pu.columns)
+    non_dynamic_index = n.c.generators.static.index.difference(
+        n.generators_t.p_max_pu.columns
+    )
     assert np.array_equal(
         da.sel(name=non_dynamic_index),
-        np.ones((10, 3)) * n.generators.loc[non_dynamic_index, "p_max_pu"].values,
+        np.ones((10, 3))
+        * n.c.generators.static.loc[non_dynamic_index, "p_max_pu"].values,
     )
     assert np.array_equal(
         da.sel(name=n.generators_t["p_max_pu"].columns),
@@ -57,10 +60,10 @@ def test_as_xarray_static_with_periods(ac_dc_network):
 
     # Check coords
     assert list(da.coords) == ["name"]
-    assert np.array_equal(da.coords["name"], n.generators.index)
+    assert np.array_equal(da.coords["name"], n.c.generators.static.index)
 
     # Check data
-    assert np.array_equal(da.values, n.generators["bus"].values)
+    assert np.array_equal(da.values, n.c.generators.static["bus"].values)
 
 
 def test_as_xarray_dynamic_with_periods(ac_dc_network):
@@ -77,13 +80,16 @@ def test_as_xarray_dynamic_with_periods(ac_dc_network):
     assert np.array_equal(da.snapshot, n.snapshots)
     assert np.array_equal(da.period.to_index().unique(), n.periods)
     assert np.array_equal(da.timestep.to_index().unique(), n.timesteps)
-    assert np.array_equal(da.coords["name"], n.generators.index)
+    assert np.array_equal(da.coords["name"], n.c.generators.static.index)
 
     # Check data
-    non_dynamic_index = n.generators.index.difference(n.generators_t.p_max_pu.columns)
+    non_dynamic_index = n.c.generators.static.index.difference(
+        n.generators_t.p_max_pu.columns
+    )
     assert np.array_equal(
         da.sel(name=non_dynamic_index),
-        np.ones((20, 3)) * n.generators.loc[non_dynamic_index, "p_max_pu"].values,
+        np.ones((20, 3))
+        * n.c.generators.static.loc[non_dynamic_index, "p_max_pu"].values,
     )
     assert np.array_equal(
         da.sel(name=n.generators_t["p_max_pu"].columns),
@@ -103,12 +109,12 @@ def test_as_xarray_static_with_scenarios(ac_dc_network):
     # Check coords
     assert list(da.coords) == ["scenario", "name"]
     assert np.array_equal(
-        da.coords["name"], n.generators.index.get_level_values("name").unique()
+        da.coords["name"], n.c.generators.static.index.get_level_values("name").unique()
     )
     assert np.array_equal(da.scenario, scenarios)
 
     # Check data
-    assert np.array_equal(da.values.flatten(), n.generators["bus"].values)
+    assert np.array_equal(da.values.flatten(), n.c.generators.static["bus"].values)
 
 
 def test_as_xarray_dynamic_with_scenarios(ac_dc_network):
@@ -124,12 +130,12 @@ def test_as_xarray_dynamic_with_scenarios(ac_dc_network):
     # Check coords
     assert np.array_equal(da.snapshot, n.snapshots)
     # assert np.array_equal(
-    #     da.coords["name"], n.generators.index.get_level_values("component").unique()
+    #     da.coords["name"], n.c.generators.static.index.get_level_values("component").unique()
     # ) # TODO sorting
     assert np.array_equal(da.scenario, scenarios)
 
     # Check data
-    # non_dynamic_index = n.generators.index.difference(n.generators_t.p_max_pu.columns)
+    # non_dynamic_index = n.c.generators.static.index.difference(n.generators_t.p_max_pu.columns)
     assert np.array_equal(
         da.sel(
             scenario=scenarios[0],

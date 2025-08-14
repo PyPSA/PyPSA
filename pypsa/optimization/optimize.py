@@ -493,13 +493,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         meshed_threshold = kwargs.get("meshed_threshold", 45)
         meshed_buses = get_strongly_meshed_buses(n, threshold=meshed_threshold)
 
-        if isinstance(n.buses.index, pd.MultiIndex):
-            bus_names = n.buses.index.get_level_values(1)
+        if isinstance(n.c.buses.static.index, pd.MultiIndex):
+            bus_names = n.c.buses.static.index.get_level_values(1)
             weakly_meshed_buses = pd.Index(
                 [b for b in bus_names if b not in meshed_buses], name="Bus"
             )
         else:
-            weakly_meshed_buses = n.buses.index.difference(meshed_buses)
+            weakly_meshed_buses = n.c.buses.static.index.difference(meshed_buses)
 
         if not meshed_buses.empty and not weakly_meshed_buses.empty:
             # Write constraint for buses many terms and for buses with a few terms
@@ -777,8 +777,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         else:
             weightings = n.snapshot_weightings.objective.loc[sns]
 
-        n.buses_t.marginal_price.loc[sns] = n.buses_t.marginal_price.loc[sns].divide(
-            weightings, axis=0
+        n.c.buses.dynamic.marginal_price.loc[sns] = (
+            n.c.buses.dynamic.marginal_price.loc[sns].divide(weightings, axis=0)
         )
 
         # load
@@ -788,8 +788,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         # line losses
         if "Line-loss" in n.model.variables:
             losses = n.model["Line-loss"].solution.to_pandas()
-            n.lines_t.p0 += losses / 2
-            n.lines_t.p1 += losses / 2
+            n.c.lines.dynamic.p0 += losses / 2
+            n.c.lines.dynamic.p1 += losses / 2
 
         # recalculate injection
         ca = [
@@ -807,7 +807,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         def sign(c: str) -> int:
             return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
 
-        n.buses_t.p = (
+        n.c.buses.dynamic.p = (
             pd.concat(
                 [
                     n.dynamic(c)[attr]
@@ -819,7 +819,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             )
             .T.groupby(level=0)
             .sum()
-            .T.reindex(columns=n.buses.index, fill_value=0.0)
+            .T.reindex(columns=n.c.buses.static.index, fill_value=0.0)
         )
 
         if not n.has_scenarios:
@@ -831,20 +831,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 sub.calculate_B_H(skip_pre=True)
                 Z = pd.DataFrame(np.linalg.pinv((sub.B).todense()), buses_i, buses_i)
                 Z -= Z[sub.slack_bus]
-                return n.buses_t.p.reindex(columns=buses_i) @ Z
+                return n.c.buses.dynamic.p.reindex(columns=buses_i) @ Z
 
             # TODO: if multi investment optimization, the network topology is not the necessarily the same,
             # i.e. one has to iterate over the periods in order to get the correct angles.
 
             # Determine_network_topology is not necessarily called (only if KVL was assigned)
-            if n.sub_networks.empty:
+            if n.c.sub_networks.static.empty:
                 n.determine_network_topology()
 
             # Calculate voltage angles (only needed for power flow)
-            if "obj" in n.sub_networks:
-                n.buses_t.v_ang = pd.concat(
-                    [v_ang_for_(sub) for sub in n.sub_networks.obj], axis=1
-                ).reindex(columns=n.buses.index, fill_value=0.0)
+            if "obj" in n.c.sub_networks.static:
+                n.c.buses.dynamic.v_ang = pd.concat(
+                    [v_ang_for_(sub) for sub in n.c.sub_networks.static.obj], axis=1
+                ).reindex(columns=n.c.buses.static.index, fill_value=0.0)
 
     def fix_optimal_capacities(self) -> None:
         """Fix capacities of extendable assets to optimized capacities.
@@ -901,10 +901,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Maximal load shedding. The default is 1e9 (kW).
 
         """
-        if "Load" not in self._n.carriers.index:
+        if "Load" not in self._n.c.carriers.static.index:
             self._n.add("Carrier", "Load")
         if buses is None:
-            buses = self._n.buses.index
+            buses = self._n.c.buses.static.index
 
         return self._n.add(
             "Generator",

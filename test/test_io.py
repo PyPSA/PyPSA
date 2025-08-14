@@ -109,20 +109,20 @@ class TestCSVDir:
         ac_dc_shapes.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_csv_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "csv_export"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -209,20 +209,20 @@ class TestNetcdf:
         ac_dc_shapes.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_netcdf_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "netcdf_export.nc"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -329,20 +329,20 @@ class TestHDF5:
         ac_dc_shapes.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_hdf5_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -428,20 +428,20 @@ class TestExcelIO:
         ac_dc_shapes.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_excel_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "excel_export.xlsx"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -610,11 +610,13 @@ def test_import_from_pandapower_network(
             use_pandapower_index=use_pandapower_index,
             extra_line_data=extra_line_data,
         )
-        assert len(n.buses) == len(net.bus)
-        assert len(n.generators) == (len(net.gen) + len(net.sgen) + len(net.ext_grid))
+        assert len(n.c.buses.static) == len(net.bus)
+        assert len(n.c.generators.static) == (
+            len(net.gen) + len(net.sgen) + len(net.ext_grid)
+        )
         assert len(n.loads) == len(net.load)
-        assert len(n.transformers) == len(net.trafo)
-        assert len(n.shunt_impedances) == len(net.shunt)
+        assert len(n.c.transformers.static) == len(net.trafo)
+        assert len(n.c.shunt_impedances.static) == len(net.shunt)
 
 
 def test_io_time_dependent_efficiencies(tmpdir):

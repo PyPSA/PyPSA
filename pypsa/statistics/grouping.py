@@ -266,7 +266,7 @@ class Groupers:
         carrier_series = static.get("carrier", fall_back).rename("carrier")
         if nice_names:
             carrier_series = carrier_series.replace(
-                n.carriers.nice_name[lambda ds: ds != ""]
+                n.c.carriers.static.nice_name[lambda ds: ds != ""]
             ).replace("", "-")
         return carrier_series
 
@@ -341,7 +341,7 @@ class Groupers:
         """
         bus = f"bus{port}"
         component_buses = n.static(c)[bus]
-        buses_country = n.buses.country
+        buses_country = n.c.buses.static.country
         return self._map_with_multiindex(component_buses, buses_country).rename(
             "country"
         )
@@ -366,7 +366,7 @@ class Groupers:
         """
         bus = f"bus{port}"
         component_buses = n.static(c)[bus]
-        buses_location = n.buses.location
+        buses_location = n.c.buses.static.location
         return self._map_with_multiindex(component_buses, buses_location).rename(
             "location"
         )
@@ -391,7 +391,7 @@ class Groupers:
         """
         bus = f"bus{port}"
         component_buses = n.static(c)[bus]
-        buses_unit = n.buses.unit
+        buses_unit = n.c.buses.static.unit
         return self._map_with_multiindex(component_buses, buses_unit).rename("unit")
 
     def name(self, n: Network, c: str) -> pd.Series:

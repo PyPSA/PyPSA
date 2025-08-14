@@ -249,9 +249,9 @@ class AbstractStatisticsAccessor(ABC):
 
         idx = self._get_component_index(obj, c)
         ports = n.static(c).loc[idx, f"bus{port}"]
-        port_carriers = ports.map(n.buses.carrier)
+        port_carriers = ports.map(n.c.buses.static.carrier)
         if isinstance(bus_carrier, str):
-            if bus_carrier in n.buses.carrier.unique():
+            if bus_carrier in n.c.buses.static.carrier.unique():
                 mask = port_carriers == bus_carrier
             else:
                 mask = port_carriers.str.contains(bus_carrier, regex=True)

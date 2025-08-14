@@ -609,11 +609,11 @@ class Network(
 
         """
         current = self.crs
-        self.shapes.to_crs(new, inplace=True)
-        self._crs = self.shapes.crs
+        self.c.shapes.static.to_crs(new, inplace=True)
+        self._crs = self.c.shapes.static.crs
         transformer = Transformer.from_crs(current, self.crs)
-        self.buses["x"], self.buses["y"] = transformer.transform(
-            self.buses["x"], self.buses["y"]
+        self.c.buses.static["x"], self.c.buses.static["y"] = transformer.transform(
+            self.c.buses.static["x"], self.c.buses.static["y"]
         )
 
     @property
@@ -827,10 +827,10 @@ class Network(
 
         n.add(
             "Bus",
-            pd.DataFrame(self.buses.loc[key]).assign(sub_network="").index,
-            **pd.DataFrame(self.buses.loc[key]).assign(sub_network=""),
+            pd.DataFrame(self.c.buses.static.loc[key]).assign(sub_network="").index,
+            **pd.DataFrame(self.c.buses.static.loc[key]).assign(sub_network=""),
         )
-        buses_i = n.buses.index
+        buses_i = n.c.buses.static.index
 
         rest_components = (
             self.all_components
@@ -1052,22 +1052,26 @@ class Network(
         sub_network_map = labels.astype(str)
 
         # remove all old sub_networks
-        if not self.sub_networks.empty:
+        if not self.c.sub_networks.static.empty:
             # Delete sub-network objects first
-            for sub_network in self.sub_networks.index:
-                obj = self.sub_networks.at[sub_network, "obj"]
+            for sub_network in self.c.sub_networks.static.index:
+                obj = self.c.sub_networks.static.at[sub_network, "obj"]
                 del obj
 
             # Clear the sub_networks DataFrame completely
             # This handles both regular and stochastic cases
-            self.sub_networks.drop(self.sub_networks.index, inplace=True)
+            self.c.sub_networks.static.drop(
+                self.c.sub_networks.static.index, inplace=True
+            )
             for dynamic in self.sub_networks_t.values():
                 dynamic.drop(dynamic.columns, inplace=True)
 
         if self.has_scenarios:
-            bus_carrier = self.buses.carrier.xs(self.scenarios[0], level="scenario")
+            bus_carrier = self.c.buses.static.carrier.xs(
+                self.scenarios[0], level="scenario"
+            )
         else:
-            bus_carrier = self.buses.carrier
+            bus_carrier = self.c.buses.static.carrier
 
         for i in np.arange(n_components):
             # index of first bus
@@ -1098,13 +1102,13 @@ class Network(
             self.add("SubNetwork", str(i), carrier=carrier)
 
         # add objects
-        self.sub_networks["obj"] = [
-            SubNetwork(self, name) for name in self.sub_networks.index
+        self.c.sub_networks.static["obj"] = [
+            SubNetwork(self, name) for name in self.c.sub_networks.static.index
         ]
 
-        self.buses = self.buses.drop(columns="sub_network").join(
+        self.c.buses.static = self.c.buses.static.drop(columns="sub_network").join(
             sub_network_map, "name"
-        )[self.buses.columns]
+        )[self.c.buses.static.columns]
 
         for c in self.iterate_components(self.passive_branch_components):
             c.static["sub_network"] = c.static.bus0.map(sub_network_map)
@@ -1114,7 +1118,7 @@ class Network(
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 
-        for sub in self.sub_networks.obj:
+        for sub in self.c.sub_networks.static.obj:
             find_cycles(sub)
             sub.find_bus_controls()
 
@@ -1159,7 +1163,7 @@ class Network(
         cycles = []
 
         # Process each sub-network to find its cycles
-        for sub_network in self.sub_networks.obj:
+        for sub_network in self.c.sub_networks.static.obj:
             branches = sub_network.branches()
 
             if self.has_scenarios:
@@ -1191,7 +1195,7 @@ class Network(
         branches_i = branches.loc[existing_branch_components].index
 
         if apply_weights:
-            is_ac = branches.sub_network.map(self.sub_networks.carrier) == "AC"
+            is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
             weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
             weights = weights[cycles_df.index]
             cycles_df = cycles_df.multiply(weights, axis=0)

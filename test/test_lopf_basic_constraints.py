@@ -20,7 +20,7 @@ def describe_storage_unit_contraints(n):
     Therefor p_store is necessarily equal to negative entries of p, vice
     versa for p_dispatch.
     """
-    sus = n.storage_units
+    sus = n.c.storage_units.static
     sus_i = sus.index
     if sus_i.empty:
         return None
@@ -80,7 +80,7 @@ def describe_nodal_balance_constraint(n):
         .T
     )
     return (
-        (n.buses_t.p - network_injection)
+        (n.c.buses.dynamic.p - network_injection)
         .unstack()
         .describe()
         .to_frame("Nodal Balance Constr.")
@@ -146,7 +146,7 @@ def describe_store_contraints(n):
     """
     Checks whether all stores are balanced over time.
     """
-    stores = n.stores
+    stores = n.c.stores.static
     stores_i = stores.index
     if stores_i.empty:
         return None
@@ -169,17 +169,19 @@ def describe_store_contraints(n):
 
 
 def describe_cycle_constraints(n):
-    weightings = n.lines.x_pu_eff.where(n.lines.carrier == "AC", n.lines.r_pu_eff)
+    weightings = n.c.lines.static.x_pu_eff.where(
+        n.c.lines.static.carrier == "AC", n.c.lines.static.r_pu_eff
+    )
 
     def cycle_flow(sub):
         C = pd.DataFrame(sub.C.todense(), index=sub.lines_i())
         if C.empty:
             return None
         C_weighted = 1e5 * C.mul(weightings[sub.lines_i()], axis=0)
-        return C_weighted.apply(lambda ds: ds @ n.lines_t.p0[ds.index].T)
+        return C_weighted.apply(lambda ds: ds @ n.c.lines.dynamic.p0[ds.index].T)
 
     return (
-        pd.concat([cycle_flow(sub) for sub in n.sub_networks.obj], axis=0)
+        pd.concat([cycle_flow(sub) for sub in n.c.sub_networks.static.obj], axis=0)
         .stack()
         .describe()
         .to_frame("Cycle Constr.")
@@ -202,7 +204,7 @@ funcs = (
 def solved_n(ac_dc_network):
     n = ac_dc_network
     n.optimize()
-    n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
+    n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(n.c.buses.static.carrier)
     return n
 
 
@@ -238,8 +240,8 @@ def test_optimization_with_strongly_meshed_bus():
 
     n.optimize()
 
-    assert n.buses_t.marginal_price.shape == (2, 2)
-    assert n.buses_t.marginal_price.eq(10).all().all()
+    assert n.c.buses.dynamic.marginal_price.shape == (2, 2)
+    assert n.c.buses.dynamic.marginal_price.eq(10).all().all()
 
 
 def test_define_generator_constraints_static():

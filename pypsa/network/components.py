@@ -149,7 +149,7 @@ class NetworkComponentsMixin(_NetworkABC):
         return (
             self.c.sub_networks.static
             if not options.api.new_components_api
-            else self.c.subnetworks
+            else self.c.sub_networks
         )
 
     @sub_networks.setter

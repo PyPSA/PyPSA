@@ -2147,11 +2147,13 @@ class NetworkIOMixin(_NetworkABC):
                 **pdf[self.components[component]["list_name"]],
             )
 
-        self.generators["control"] = self.generators.bus.map(self.buses["control"])
+        self.c.generators.static["control"] = self.c.generators.static.bus.map(
+            self.c.buses.static["control"]
+        )
 
         # for consistency with pypower, take the v_mag set point from the generators
-        self.buses.loc[self.generators.bus, "v_mag_pu_set"] = np.asarray(
-            self.generators["v_set_pu"]
+        self.c.buses.static.loc[self.c.generators.static.bus, "v_mag_pu_set"] = (
+            np.asarray(self.c.generators.static["v_set_pu"])
         )
 
     def import_from_pandapower_net(

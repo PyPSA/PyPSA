@@ -301,7 +301,7 @@ def test_weighted_cycles() -> None:
         line_idx = ("Line", line)
         if not (cycles_weighted.loc[line_idx] == 0).all():
             # For AC networks, weight should be the per-unit effective reactance
-            x_value = n.lines.at[line, "x_pu_eff"]
+            x_value = n.c.lines.static.at[line, "x_pu_eff"]
             # Find the column where this line has a non-zero value
             col = cycles_weighted.columns[(cycles_weighted.loc[line_idx] != 0).values][
                 0
@@ -353,6 +353,6 @@ def test_weighted_cycles_dc_network() -> None:
             unweighted_val = cycles_unweighted.loc[line_idx, col]
 
             # For DC, weighted value should be r_value * unweighted_val
-            r_value = n.lines.at[line, "r_pu_eff"]
+            r_value = n.c.lines.static.at[line, "r_pu_eff"]
             weighted_val = cycles_weighted.loc[line_idx, col]
             assert np.isclose(weighted_val, r_value * unweighted_val)

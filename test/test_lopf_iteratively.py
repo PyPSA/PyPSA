@@ -37,9 +37,11 @@ def test_optimize_post_discretization():
     )
 
     assert status == "ok"
-    assert all(n.lines.query("s_nom_extendable").s_nom_opt % line_unit_size == 0.0)
     assert all(
-        n.links.query("p_nom_extendable and carrier == 'HVDC'").p_nom_opt
+        n.c.lines.static.query("s_nom_extendable").s_nom_opt % line_unit_size == 0.0
+    )
+    assert all(
+        n.c.links.static.query("p_nom_extendable and carrier == 'HVDC'").p_nom_opt
         % link_unit_size["HVDC"]
         == 0.0
     )

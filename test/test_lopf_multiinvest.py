@@ -66,8 +66,8 @@ def n():
 def n_sus(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.remove("Generator", n.generators.query('bus == "1"').index)
-    n.generators.capital_cost *= 5
+    n.remove("Generator", n.c.generators.static.query('bus == "1"').index)
+    n.c.generators.static.capital_cost *= 5
 
     for i, period in enumerate(n.investment_periods):
         factor = (10 + i) / 10
@@ -88,8 +88,8 @@ def n_sus(n):
 def n_sts(n):
     # only keep generators which are getting more expensiv and push generator
     # capital cost, so that sus are activated
-    n.remove("Generator", n.generators.query('bus == "1"').index)
-    n.generators.capital_cost *= 5
+    n.remove("Generator", n.c.generators.static.query('bus == "1"').index)
+    n.c.generators.static.capital_cost *= 5
 
     n.add("Bus", "1 battery")
 
@@ -171,7 +171,7 @@ def test_tiny_with_default():
     n.add("Load", 1, bus=1, p_set=100)
     status, _ = n.optimize(**kwargs)
     assert status == "ok"
-    assert n.generators.p_nom_opt.item() == 100
+    assert n.c.generators.static.p_nom_opt.item() == 100
 
 
 def test_tiny_with_build_year():
@@ -184,7 +184,7 @@ def test_tiny_with_build_year():
     n.add("Load", 1, bus=1, p_set=100)
     status, _ = n.optimize(**kwargs)
     assert status == "ok"
-    assert n.generators.p_nom_opt.item() == 100
+    assert n.c.generators.static.p_nom_opt.item() == 100
 
 
 def test_tiny_infeasible():
@@ -207,7 +207,7 @@ def test_simple_network(n):
     assert (n.generators_t.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
     assert (n.generators_t.p.loc[[2050], "gen1-2020"] == 0).all()
 
-    assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
+    assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
 def test_simple_network_snapshot_subset(n):
@@ -218,13 +218,13 @@ def test_simple_network_snapshot_subset(n):
     assert (n.generators_t.p.loc[[2020, 2030, 2040], "gen1-2050"] == 0).all()
     assert (n.generators_t.p.loc[[2050], "gen1-2020"] == 0).all()
 
-    assert (n.lines_t.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
+    assert (n.c.lines.dynamic.p0.loc[[2020, 2030, 2040], "line-2050"] == 0).all()
 
 
 def test_simple_network_storage_noncyclic(n_sus):
-    n_sus.storage_units["state_of_charge_initial"] = 200
-    n_sus.storage_units["cyclic_state_of_charge"] = False
-    n_sus.storage_units["state_of_charge_initial_per_period"] = False
+    n_sus.c.storage_units.static["state_of_charge_initial"] = 200
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = False
+    n_sus.c.storage_units.static["state_of_charge_initial_per_period"] = False
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
@@ -237,9 +237,9 @@ def test_simple_network_storage_noncyclic(n_sus):
 
 
 def test_simple_network_storage_noncyclic_per_period(n_sus):
-    n_sus.storage_units["state_of_charge_initial"] = 200
-    n_sus.storage_units["cyclic_state_of_charge"] = False
-    n_sus.storage_units["state_of_charge_initial_per_period"] = True
+    n_sus.c.storage_units.static["state_of_charge_initial"] = 200
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = False
+    n_sus.c.storage_units.static["state_of_charge_initial_per_period"] = True
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
@@ -258,8 +258,8 @@ def test_simple_network_storage_noncyclic_per_period(n_sus):
 
 
 def test_simple_network_storage_cyclic(n_sus):
-    n_sus.storage_units["cyclic_state_of_charge"] = True
-    n_sus.storage_units["cyclic_state_of_charge_per_period"] = False
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = True
+    n_sus.c.storage_units.static["cyclic_state_of_charge_per_period"] = False
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
@@ -277,8 +277,8 @@ def test_simple_network_storage_cyclic(n_sus):
 
 def test_simple_network_storage_cyclic_per_period(n_sus):
     # Watch out breaks with xarray version 2022.06.00 !
-    n_sus.storage_units["cyclic_state_of_charge"] = True
-    n_sus.storage_units["cyclic_state_of_charge_per_period"] = True
+    n_sus.c.storage_units.static["cyclic_state_of_charge"] = True
+    n_sus.c.storage_units.static["cyclic_state_of_charge_per_period"] = True
 
     status, cond = n_sus.optimize(**kwargs)
     assert status == "ok"
@@ -292,8 +292,8 @@ def test_simple_network_storage_cyclic_per_period(n_sus):
 
 
 def test_simple_network_store_noncyclic(n_sts):
-    n_sts.stores["e_cyclic"] = False
-    n_sts.stores["e_initial_per_period"] = False
+    n_sts.c.stores.static["e_cyclic"] = False
+    n_sts.c.stores.static["e_initial_per_period"] = False
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
@@ -307,8 +307,8 @@ def test_simple_network_store_noncyclic(n_sts):
 
 
 def test_simple_network_store_noncyclic_per_period(n_sts):
-    n_sts.stores["e_cyclic"] = False
-    n_sts.stores["e_initial_per_period"] = True
+    n_sts.c.stores.static["e_cyclic"] = False
+    n_sts.c.stores.static["e_initial_per_period"] = True
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
@@ -326,8 +326,8 @@ def test_simple_network_store_noncyclic_per_period(n_sts):
 
 
 def test_simple_network_store_cyclic(n_sts):
-    n_sts.stores["e_cyclic"] = True
-    n_sts.stores["e_cyclic_per_period"] = False
+    n_sts.c.stores.static["e_cyclic"] = True
+    n_sts.c.stores.static["e_cyclic_per_period"] = False
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
@@ -342,8 +342,8 @@ def test_simple_network_store_cyclic(n_sts):
 
 def test_simple_network_store_cyclic_per_period(n_sts):
     # Watch out breaks with xarray version 2022.06.00 !
-    n_sts.stores["e_cyclic"] = True
-    n_sts.stores["e_cyclic_per_period"] = True
+    n_sts.c.stores.static["e_cyclic"] = True
+    n_sts.c.stores.static["e_cyclic_per_period"] = True
 
     status, cond = n_sts.optimize(**kwargs)
     assert status == "ok"
@@ -371,7 +371,7 @@ def test_global_constraint_primary_energy_storage(n_sus):
     active = get_activity_mask(n_sus, c)
     soc_end = n_sus.dynamic(c).state_of_charge.where(active).ffill().iloc[-1]
     soc_diff = n_sus.static(c).state_of_charge_initial - soc_end
-    emissions = n_sus.static(c).carrier.map(n_sus.carriers.co2_emissions)
+    emissions = n_sus.static(c).carrier.map(n_sus.c.carriers.static.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 
@@ -382,7 +382,7 @@ def test_global_constraint_primary_energy_store(n_sts):
     n_sts.static(c)["e_cyclic"] = False
     n_sts.static(c)["e_initial_per_period"] = False
 
-    n_sts.buses.loc["1 battery", "carrier"] = "emitting_carrier"
+    n_sts.c.buses.static.loc["1 battery", "carrier"] = "emitting_carrier"
 
     n_sts.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
@@ -391,7 +391,7 @@ def test_global_constraint_primary_energy_store(n_sts):
     active = get_activity_mask(n_sts, c)
     soc_end = n_sts.dynamic(c).e.where(active).ffill().iloc[-1]
     soc_diff = n_sts.static(c).e_initial - soc_end
-    emissions = n_sts.static(c).carrier.map(n_sts.carriers.co2_emissions)
+    emissions = n_sts.static(c).carrier.map(n_sts.c.carriers.static.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 
@@ -430,16 +430,16 @@ def test_global_constraint_transmission_expansion_limit(n):
     )
 
     status, cond = n.optimize(**kwargs)
-    assert n.lines.s_nom_opt.sum() == 100
+    assert n.c.lines.static.s_nom_opt.sum() == 100
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = n.optimize(n.snapshots[:10], **kwargs)
-    assert n.lines.loc["line-2020", "s_nom_opt"] == 100
+    assert n.c.lines.static.loc["line-2020", "s_nom_opt"] == 100
 
-    n.global_constraints["investment_period"] = 2030
+    n.c.global_constraints.static["investment_period"] = 2030
     status, cond = n.optimize(**kwargs)
-    assert n.lines.s_nom_opt[["line-2020", "line-2030"]].sum() == 100
+    assert n.c.lines.static.s_nom_opt[["line-2020", "line-2030"]].sum() == 100
 
 
 def test_global_constraint_transmission_cost_limit(n):
@@ -462,16 +462,22 @@ def test_global_constraint_transmission_cost_limit(n):
     weight = active @ n.investment_period_weightings.objective
 
     status, cond = n.optimize(**kwargs)
-    assert round((weight * n.lines.eval("s_nom_opt * capital_cost")).sum(), 2) == 1000
+    assert (
+        round((weight * n.c.lines.static.eval("s_nom_opt * capital_cost")).sum(), 2)
+        == 1000
+    )
 
     # when only optimizing the first 10 snapshots the contraint must hold for
     # the 2020 period
     status, cond = n.optimize(n.snapshots[:10], **kwargs)
-    assert round(n.lines.eval("s_nom_opt * capital_cost")["line-2020"].sum(), 2) == 1000
+    assert (
+        round(n.c.lines.static.eval("s_nom_opt * capital_cost")["line-2020"].sum(), 2)
+        == 1000
+    )
 
-    n.global_constraints["investment_period"] = 2030
+    n.c.global_constraints.static["investment_period"] = 2030
     status, cond = n.optimize(**kwargs)
-    lines = n.lines.loc[["line-2020", "line-2030"]]
+    lines = n.c.lines.static.loc[["line-2020", "line-2030"]]
     assert round(lines.eval("s_nom_opt * capital_cost").sum(), 2) == 1000
 
 
@@ -487,38 +493,41 @@ def test_global_constraint_bus_tech_limit(n):
     )
 
     status, cond = n.optimize(**kwargs)
-    assert round(n.generators.p_nom_opt[["gen1-2020", "gen2-2020"]], 1).sum() == 300
+    assert (
+        round(n.c.generators.static.p_nom_opt[["gen1-2020", "gen2-2020"]], 1).sum()
+        == 300
+    )
 
-    n.global_constraints["bus"] = 1
+    n.c.global_constraints.static["bus"] = 1
     status, cond = n.optimize(**kwargs)
-    assert n.generators.at["gen1-2020", "p_nom_opt"] == 300
+    assert n.c.generators.static.at["gen1-2020", "p_nom_opt"] == 300
 
     # make the constraint non-binding and check that the shadow price is zero
-    n.global_constraints.sense = "<="
+    n.c.global_constraints.static.sense = "<="
     status, cond = n.optimize(**kwargs)
-    assert n.global_constraints.at["expansion_limit", "mu"] == 0
+    assert n.c.global_constraints.static.at["expansion_limit", "mu"] == 0
 
 
 def test_nominal_constraint_bus_carrier_expansion_limit(n):
-    n.buses.at["1", "nom_max_gencarrier"] = 100
+    n.c.buses.static.at["1", "nom_max_gencarrier"] = 100
     with pytest.warns(
         DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
     ):
         status, cond = n.optimize(**kwargs)
     gen1s = [f"gen1-{period}" for period in n.investment_periods]
-    assert round(n.generators.p_nom_opt[gen1s], 0).sum() == 100
-    n.buses.drop(["nom_max_gencarrier"], inplace=True, axis=1)
+    assert round(n.c.generators.static.p_nom_opt[gen1s], 0).sum() == 100
+    n.c.buses.static.drop(["nom_max_gencarrier"], inplace=True, axis=1)
 
-    n.buses.at["1", "nom_max_gencarrier_2020"] = 100
+    n.c.buses.static.at["1", "nom_max_gencarrier_2020"] = 100
     with pytest.warns(
         DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
     ):
         status, cond = n.optimize(**kwargs)
-    assert n.generators.at["gen1-2020", "p_nom_opt"] == 100
-    n.buses.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
+    assert n.c.generators.static.at["gen1-2020", "p_nom_opt"] == 100
+    n.c.buses.static.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
 
     # make the constraint non-binding and check that the shadow price is zero
-    n.buses.at["1", "nom_min_gencarrier_2020"] = 100
+    n.c.buses.static.at["1", "nom_min_gencarrier_2020"] = 100
     with pytest.warns(
         DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
     ):
@@ -528,17 +537,22 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
 
 def test_max_growth_constraint(n):
     # test generator grow limit
-    gen_carrier = n.generators.carrier.unique()[0]
-    n.carriers.at[gen_carrier, "max_growth"] = 218
+    gen_carrier = n.c.generators.static.carrier.unique()[0]
+    n.c.carriers.static.at[gen_carrier, "max_growth"] = 218
     status, cond = n.optimize(**kwargs)
-    assert all(n.generators.p_nom_opt.groupby(n.generators.build_year).sum() <= 218)
+    assert all(
+        n.c.generators.static.p_nom_opt.groupby(n.c.generators.static.build_year).sum()
+        <= 218
+    )
 
 
 def test_max_relative_growth_constraint(n):
     # test generator relative grow limit
-    gen_carrier = n.generators.carrier.unique()[0]
-    n.carriers.at[gen_carrier, "max_growth"] = 218
-    n.carriers.at[gen_carrier, "max_relative_growth"] = 1.5
+    gen_carrier = n.c.generators.static.carrier.unique()[0]
+    n.c.carriers.static.at[gen_carrier, "max_growth"] = 218
+    n.c.carriers.static.at[gen_carrier, "max_relative_growth"] = 1.5
     status, cond = n.optimize(**kwargs)
-    built_per_period = n.generators.p_nom_opt.groupby(n.generators.build_year).sum()
+    built_per_period = n.c.generators.static.p_nom_opt.groupby(
+        n.c.generators.static.build_year
+    ).sum()
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)

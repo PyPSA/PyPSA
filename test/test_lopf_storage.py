@@ -91,7 +91,7 @@ def test_spill_cost():
         overlap = 2
         for i in range(sets_of_snapshots):
             if i == 1:
-                n.storage_units.state_of_charge_initial = (
+                n.c.storage_units.static.state_of_charge_initial = (
                     n.storage_units_t.state_of_charge.loc[n.snapshots[4]]
                 )
             n.optimize(

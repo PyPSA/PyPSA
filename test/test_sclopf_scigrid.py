@@ -9,10 +9,10 @@ def test_optimize_security_constrained(scipy_network):
 
     # There are some infeasibilities without line extensions
     for line_name in ["316", "527", "602"]:
-        n.lines.loc[line_name, "s_nom"] = 1200
+        n.c.lines.static.loc[line_name, "s_nom"] = 1200
 
     # Choose the contingencies
-    branch_outages = n.lines.index[:2]
+    branch_outages = n.c.lines.static.index[:2]
 
     # # Run security-constrained optimization with dual assignment
     # # Fight numerical instability using https://ergo-code.github.io/HiGHS/
@@ -50,11 +50,17 @@ def test_optimize_security_constrained(scipy_network):
     # === Dual variable assignment checks ===
 
     # Verify that marginal prices are assigned (nodal balance duals)
-    assert hasattr(n.buses_t, "marginal_price"), "Marginal prices should be assigned"
-    assert not n.buses_t.marginal_price.empty, "Marginal prices should not be empty"
+    assert hasattr(n.c.buses.dynamic, "marginal_price"), (
+        "Marginal prices should be assigned"
+    )
+    assert not n.c.buses.dynamic.marginal_price.empty, (
+        "Marginal prices should not be empty"
+    )
 
-    # Check that line constraint duals are assigned to n.lines_t.mu_*
-    line_dual_attrs = [attr for attr in n.lines_t.keys() if attr.startswith("mu_")]
+    # Check that line constraint duals are assigned to n.c.lines.dynamic.mu_*
+    line_dual_attrs = [
+        attr for attr in n.c.lines.dynamic.keys() if attr.startswith("mu_")
+    ]
 
     # Verify that standard line duals are assigned
     assert "mu_lower" in line_dual_attrs, "mu_lower should be assigned"

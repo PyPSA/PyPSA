@@ -351,12 +351,12 @@ def aggregatebuses(
     attrs = n.components[c]["attrs"]
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
-    columns = [c for c in n.buses.columns if c not in output_columns]
+    columns = [c for c in n.c.buses.static.columns if c not in output_columns]
 
     strategies = {**DEFAULT_BUS_STRATEGIES, **custom_strategies}
     strategies = align_strategies(strategies, columns, c)
 
-    aggregated = n.buses.groupby(busmap).agg(strategies)
+    aggregated = n.c.buses.static.groupby(busmap).agg(strategies)
     aggregated.index = flatten_multiindex(aggregated.index).rename(c)
 
     return aggregated
@@ -408,11 +408,13 @@ def aggregatelines(
     static = static.loc[idx]
 
     orig_length = static.length
-    orig_v_nom = static.bus0.map(n.buses.v_nom)
+    orig_v_nom = static.bus0.map(n.c.buses.static.v_nom)
 
     bus_strategies = {**DEFAULT_BUS_STRATEGIES, **bus_strategies}
     cols = ["x", "y", "v_nom"]
-    buses = n.buses[cols].groupby(busmap).agg({c: bus_strategies[c] for c in cols})
+    buses = (
+        n.c.buses.static[cols].groupby(busmap).agg({c: bus_strategies[c] for c in cols})
+    )
 
     static = static.assign(bus0=static.bus0.map(busmap), bus1=static.bus1.map(busmap))
     reverse_order = static.bus0 > static.bus1
@@ -463,7 +465,7 @@ def aggregatelines(
     if with_time:
         dynamic_strategies = align_strategies(strategies, n.dynamic("Line"), "Line")
 
-        for attr, data in n.lines_t.items():
+        for attr, data in n.c.lines.dynamic.items():
             if data.empty:
                 dynamic[attr] = data
                 continue
@@ -543,7 +545,7 @@ def get_clustering_from_busmap(
     clustered.add("Line", lines.index, **lines)
 
     # Carry forward global constraints to clustered n.
-    clustered.global_constraints = n.global_constraints
+    clustered.c.global_constraints.static = n.c.global_constraints.static
 
     if with_time:
         clustered.set_snapshots(n.snapshots)
@@ -605,7 +607,10 @@ def get_clustering_from_busmap(
                     clustered._import_series_from_df(df, c.name, attr)
 
     new_links = (
-        n.links.assign(bus0=n.links.bus0.map(busmap), bus1=n.links.bus1.map(busmap))
+        n.c.links.static.assign(
+            bus0=n.c.links.static.bus0.map(busmap),
+            bus1=n.c.links.static.bus1.map(busmap),
+        )
         .dropna(subset=["bus0", "bus1"])
         .loc[lambda df: df.bus0 != df.bus1]
     )
@@ -620,7 +625,9 @@ def get_clustering_from_busmap(
         0,
     )
     if scale_link_capital_costs:
-        new_links["capital_cost"] *= (new_links.length / n.links.length).fillna(1)
+        new_links["capital_cost"] *= (
+            new_links.length / n.c.links.static.length
+        ).fillna(1)
 
     clustered.add("Link", new_links.index, **new_links)
 
@@ -629,7 +636,7 @@ def get_clustering_from_busmap(
             if not df.empty:
                 clustered._import_series_from_df(df, "Link", attr)
 
-    clustered.add("Carrier", n.carriers.index, **n.carriers)
+    clustered.add("Carrier", n.c.carriers.static.index, **n.c.carriers.static)
 
     clustered.determine_network_topology()
 
@@ -680,12 +687,12 @@ def busmap_by_kmeans(
     from sklearn.cluster import KMeans  # noqa: PLC0415
 
     if buses_i is None:
-        buses_i = n.buses.index
+        buses_i = n.c.buses.static.index
 
     # since one cannot weight points directly in the scikit-learn
     # implementation of k-means, just add additional points at
     # same position
-    points = n.buses.loc[buses_i, ["x", "y"]].values.repeat(
+    points = n.c.buses.static.loc[buses_i, ["x", "y"]].values.repeat(
         bus_weightings.reindex(buses_i).astype(int), axis=0
     )
 
@@ -695,7 +702,7 @@ def busmap_by_kmeans(
     kmeans.fit(points)
 
     return pd.Series(
-        data=kmeans.predict(n.buses.loc[buses_i, ["x", "y"]].values),
+        data=kmeans.predict(n.c.buses.static.loc[buses_i, ["x", "y"]].values),
         index=buses_i,
     ).astype(str)
 
@@ -800,7 +807,7 @@ def busmap_by_hac(
     from sklearn.cluster import AgglomerativeClustering as HAC  # noqa: PLC0415
 
     if buses_i is None:
-        buses_i = n.buses.index
+        buses_i = n.c.buses.static.index
 
     if branch_components is None:
         branch_components = n.branch_components
@@ -814,7 +821,7 @@ def busmap_by_hac(
 
         feature = pd.DataFrame(index=buses_i, columns=[""], data=0)
 
-    buses_x = n.buses.index.get_indexer(buses_i)
+    buses_x = n.c.buses.static.index.get_indexer(buses_i)
 
     adjacency_df = n.adjacency_matrix(
         branch_components=branch_components, return_dataframe=True
@@ -935,11 +942,11 @@ def busmap_by_greedy_modularity(
         raise NotImplementedError(msg)
 
     if buses_i is None:
-        buses_i = n.buses.index
+        buses_i = n.c.buses.static.index
 
     n.calculate_dependent_values()
 
-    lines = n.lines.query("bus0 in @buses_i and bus1 in @buses_i")
+    lines = n.c.lines.static.query("bus0 in @buses_i and bus1 in @buses_i")
     lines = (
         lines[["bus0", "bus1"]]
         .assign(weight=lines.s_nom / abs(lines.r + 1j * lines.x))
@@ -1020,18 +1027,21 @@ def busmap_by_stubs(
     Returns
     -------
     busmap : pandas.Series
-        Mapping of n.buses to k-means clusters (indexed by
+        Mapping of n.c.buses.static to k-means clusters (indexed by
         non-negative integers).
 
     """
-    busmap = pd.Series(n.buses.index, n.buses.index)
+    busmap = pd.Series(n.c.buses.static.index, n.c.buses.static.index)
 
     G = n.graph()
 
     def attrs_match(u: str, v: str) -> bool:
         return (
             matching_attrs is None
-            or (n.buses.loc[u, matching_attrs] == n.buses.loc[v, matching_attrs]).all()
+            or (
+                n.c.buses.static.loc[u, matching_attrs]
+                == n.c.buses.static.loc[v, matching_attrs]
+            ).all()
         )
 
     while True:

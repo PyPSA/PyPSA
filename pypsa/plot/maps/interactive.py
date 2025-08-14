@@ -89,7 +89,7 @@ def iplot(
     bus_colors : dict/pandas.Series
         Colors for the buses, defaults to "cadetblue". If bus_sizes is a
         pandas.Series with a Multiindex, bus_colors defaults to the
-        n.carriers['color'] column.
+        n.c.carriers.static['color'] column.
     bus_alpha : float
         Adds alpha channel to buses, defaults to 1.
     bus_sizes : float/pandas.Series
@@ -165,7 +165,7 @@ def iplot(
         fig = {"data": [], "layout": {}}
 
     if bus_text is None:
-        bus_text = "Bus " + n.buses.index
+        bus_text = "Bus " + n.c.buses.static.index
     if mapbox_parameters is None:
         mapbox_parameters = {}
     x, y = apply_layouter(n, layouter=layouter, inplace=False)
@@ -303,8 +303,8 @@ def iplot(
             raise ValueError(msg)
 
         if "center" not in mapbox_parameters:
-            lon = (n.buses.x.min() + n.buses.x.max()) / 2
-            lat = (n.buses.y.min() + n.buses.y.max()) / 2
+            lon = (n.c.buses.static.x.min() + n.c.buses.static.x.max()) / 2
+            lat = (n.c.buses.static.y.min() + n.c.buses.static.y.max()) / 2
             mapbox_parameters["center"] = {"lat": lat, "lon": lon}
 
         if "zoom" not in mapbox_parameters:
@@ -410,11 +410,11 @@ def explore(
     ]
     components_present = []
 
-    if not n.transformers.empty and "Transformer" in components:
-        x1 = n.transformers.bus0.map(n.buses.x)
-        y1 = n.transformers.bus0.map(n.buses.y)
-        x2 = n.transformers.bus1.map(n.buses.x)
-        y2 = n.transformers.bus1.map(n.buses.y)
+    if not n.c.transformers.static.empty and "Transformer" in components:
+        x1 = n.c.transformers.static.bus0.map(n.c.buses.static.x)
+        y1 = n.c.transformers.static.bus0.map(n.c.buses.static.y)
+        x2 = n.c.transformers.static.bus1.map(n.c.buses.static.x)
+        y2 = n.c.transformers.static.bus1.map(n.c.buses.static.y)
         valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
 
         if num_invalid := sum(~valid_rows):
@@ -423,7 +423,7 @@ def explore(
             )
 
         gdf_transformers = gpd.GeoDataFrame(
-            n.transformers[valid_rows],
+            n.c.transformers.static[valid_rows],
             geometry=linestrings(
                 np.stack(
                     [
@@ -445,18 +445,18 @@ def explore(
         )
         components_present.append("Transformer")
 
-    if not n.lines.empty and "Line" in components:
-        x1 = n.lines.bus0.map(n.buses.x)
-        y1 = n.lines.bus0.map(n.buses.y)
-        x2 = n.lines.bus1.map(n.buses.x)
-        y2 = n.lines.bus1.map(n.buses.y)
+    if not n.c.lines.static.empty and "Line" in components:
+        x1 = n.c.lines.static.bus0.map(n.c.buses.static.x)
+        y1 = n.c.lines.static.bus0.map(n.c.buses.static.y)
+        x2 = n.c.lines.static.bus1.map(n.c.buses.static.x)
+        y2 = n.c.lines.static.bus1.map(n.c.buses.static.y)
         valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
 
         if num_invalid := sum(~valid_rows):
             logger.info("Omitting %d lines due to missing coordinates.", num_invalid)
 
         gdf_lines = gpd.GeoDataFrame(
-            n.lines[valid_rows],
+            n.c.lines.static[valid_rows],
             geometry=linestrings(
                 np.stack(
                     [
@@ -474,18 +474,18 @@ def explore(
         )
         components_present.append("Line")
 
-    if not n.links.empty and "Link" in components:
-        x1 = n.links.bus0.map(n.buses.x)
-        y1 = n.links.bus0.map(n.buses.y)
-        x2 = n.links.bus1.map(n.buses.x)
-        y2 = n.links.bus1.map(n.buses.y)
+    if not n.c.links.static.empty and "Link" in components:
+        x1 = n.c.links.static.bus0.map(n.c.buses.static.x)
+        y1 = n.c.links.static.bus0.map(n.c.buses.static.y)
+        x2 = n.c.links.static.bus1.map(n.c.buses.static.x)
+        y2 = n.c.links.static.bus1.map(n.c.buses.static.y)
         valid_rows = ~(x1.isna() | y1.isna() | x2.isna() | y2.isna())
 
         if num_invalid := sum(~valid_rows):
             logger.info("Omitting %d links due to missing coordinates.", num_invalid)
 
         gdf_links = gpd.GeoDataFrame(
-            n.links[valid_rows],
+            n.c.links.static[valid_rows],
             geometry=linestrings(
                 np.stack(
                     [
@@ -503,9 +503,11 @@ def explore(
         )
         components_present.append("Link")
 
-    if not n.buses.empty and "Bus" in components:
+    if not n.c.buses.static.empty and "Bus" in components:
         gdf_buses = gpd.GeoDataFrame(
-            n.buses, geometry=gpd.points_from_xy(n.buses.x, n.buses.y), crs=crs
+            n.c.buses.static,
+            geometry=gpd.points_from_xy(n.c.buses.static.x, n.c.buses.static.y),
+            crs=crs,
         )
 
         gdf_buses[gdf_buses.is_valid].explore(
@@ -518,11 +520,12 @@ def explore(
         )
         components_present.append("Bus")
 
-    if not n.generators.empty and "Generator" in components:
+    if not n.c.generators.static.empty and "Generator" in components:
         gdf_generators = gpd.GeoDataFrame(
-            n.generators,
+            n.c.generators.static,
             geometry=gpd.points_from_xy(
-                n.generators.bus.map(n.buses.x), n.generators.bus.map(n.buses.y)
+                n.c.generators.static.bus.map(n.c.buses.static.x),
+                n.c.generators.static.bus.map(n.c.buses.static.y),
             ),
             crs=crs,
         )
@@ -537,13 +540,13 @@ def explore(
         )
         components_present.append("Generator")
 
-    if not n.loads.empty and "Load" in components:
-        loads = n.loads.copy()
-        loads["p_set_sum"] = n.loads_t.p_set.sum(axis=0).round(1)
+    if not n.c.loads.static.empty and "Load" in components:
+        loads = n.c.loads.static.copy()
+        loads["p_set_sum"] = n.c.loads_t.p_set.sum(axis=0).round(1)
         gdf_loads = gpd.GeoDataFrame(
             loads,
             geometry=gpd.points_from_xy(
-                loads.bus.map(n.buses.x), loads.bus.map(n.buses.y)
+                loads.bus.map(n.c.buses.static.x), loads.bus.map(n.c.buses.static.y)
             ),
             crs=crs,
         )
@@ -558,11 +561,12 @@ def explore(
         )
         components_present.append("Load")
 
-    if not n.storage_units.empty and "StorageUnit" in components:
+    if not n.c.storage_units.static.empty and "StorageUnit" in components:
         gdf_storage_units = gpd.GeoDataFrame(
-            n.storage_units,
+            n.c.storage_units.static,
             geometry=gpd.points_from_xy(
-                n.storage_units.bus.map(n.buses.x), n.storage_units.bus.map(n.buses.y)
+                n.c.storage_units.static.bus.map(n.c.buses.static.x),
+                n.c.storage_units.static.bus.map(n.c.buses.static.y),
             ),
             crs=crs,
         )

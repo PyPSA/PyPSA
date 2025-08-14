@@ -865,7 +865,7 @@ def define_nodal_balance_constraints(
     """
     m = n.model
     if buses is None:
-        buses = n.buses.index.unique("name")
+        buses = n.c.buses.static.index.unique("name")
 
     links = as_components(n, "Link")
 

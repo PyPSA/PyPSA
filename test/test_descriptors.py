@@ -107,7 +107,7 @@ def test_additional_linkports():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        ports = _additional_linkports(n, n.links.columns)
+        ports = _additional_linkports(n, n.c.links.static.columns)
     assert ports == ["2"]
     assert ports == n.c.links.additional_ports
 
