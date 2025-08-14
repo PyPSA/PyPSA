@@ -121,8 +121,6 @@ tangents are sufficient for a reasonably accurate approximation.
     | $C_{l,c}$         | Cycle matrix calculated by `find_cycles()` | Parameter |
     | $K_{n,l}$         | Incidence matrix calculated by [`n.incidence_matrix()`][pypsa.networks.SubNetwork.incidence_matrix] | Parameter |
 
-<!-- TODO: How to get incidence matrix for sub_network now? That function was deprecated? -->
-
 ## Examples
 
 

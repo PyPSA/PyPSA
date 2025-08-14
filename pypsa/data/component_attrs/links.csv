@@ -13,6 +13,7 @@ p_nom_mod,float,MW,0,Unit size of link module (e.g. fixed blocks of 100 MW).,Inp
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended.,Input (optional)
 p_nom_min,float,MW,0,"If `p_nom_extendable=True`, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If `p_nom_extendable=True`, set its maximum value.",Input (optional)
+p_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.",Input (optional)
 p_set,static or series,MW,n/a,The dispatch set point for `p0` of the link (for optimisation and power flow).,Input (optional)
 p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
 p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)

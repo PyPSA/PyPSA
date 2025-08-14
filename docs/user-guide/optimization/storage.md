@@ -85,8 +85,6 @@ $$e_{n,s,t=-1} = e_{n,s,t=|T|-1}$$
     | $\eta_{\textrm{stand},n,s}$ | `n.stores.standing_loss` | Parameter |
     | $w_t^s$ | `n.snapshot_weightings.stores` | Parameter |
 
-<!-- TODO mu_energy_balance should be called lambda_energy_balance because it is dual of equality constraint, not inequality constraint. -->
-
 ## Storage Units
 
 Storage units have three time-dependent variables, the discharge $h_{n,s,t}^-$ in MW, the charge $h_{n,s,t}^+$ in MW and the state of charge $soc_{n,s,t}$ in MWh.
