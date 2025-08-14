@@ -765,7 +765,9 @@ def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd
 
     """
     if isinstance(variable, dict):
-        return pd.Series(variable)
+        return pd.Series(variable).reindex(
+            index
+        )  # Reindex to ensure all index values are present
     if not isinstance(variable, pd.Series):
         return pd.Series(variable, index=index)
     return variable
