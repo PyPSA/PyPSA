@@ -43,10 +43,10 @@ jobs:
         - ubuntu-latest
         - macos-latest
         - windows-latest
+        api: [current]
         include:
         - os: ubuntu-latest
-          python-version: ${{ fromJSON(needs.build.outputs.python-versions) }}
-          api: new_api
+          api: new
 
     env:
       MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
@@ -82,12 +82,12 @@ jobs:
         uv pip install "$(ls dist/*.whl)"
 
     - name: Run unit tests (old API)
-      if: matrix.api == 'old_api'
+      if: matrix.api == 'current'
       run: |
         uv run pytest --mpl --cov=pypsa && uv run coverage xml
 
     - name: Run unit tests (new API)
-      if: matrix.api == 'new_api'
+      if: matrix.api == 'new'
       run: |
         uv run pytest --new-components-api
 
