@@ -179,10 +179,9 @@ def stochastic_network() -> Network:
     Stochastic PyPSA Network 'Stochastic-Network'
     ---------------------------------------------
     Components:
-     - Bus: 3
-     - Carrier: 1
-     - Generator: 12
-     - Load: 3
+        - Bus: 3
+        - Generator: 12
+        - Load: 3
     Snapshots: 2920
     Scenarios: 3
 

@@ -1,67 +1,67 @@
-# import doctest
-# import importlib
-# import pkgutil
-# import sys
+import doctest
+import importlib
+import pkgutil
+import sys
 
-# import numpy as np
-# import pandas as pd
-# import pytest
+import numpy as np
+import pandas as pd
+import pytest
 
-# import pypsa
+import pypsa
 
-# try:
-#     import cartopy  # noqa
+try:
+    import cartopy  # noqa
 
-#     cartopy_available = True
-# except ImportError:
-#     cartopy_available = False
+    cartopy_available = True
+except ImportError:
+    cartopy_available = False
 
-# sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
-# # Warning: Keep in sync with settings in doc/conf.py
-# n = pypsa.examples.ac_dc_meshed()
-# n.optimize()
+sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
+# Warning: Keep in sync with settings in doc/conf.py
+n = pypsa.examples.ac_dc_meshed()
+n.optimize()
 
-# doctest_globals = {
-#     "np": np,
-#     "pd": pd,
-#     "pypsa": pypsa,
-#     "n": n,
-#     "c": pypsa.examples.ac_dc_meshed().components.generators,
-#     "sub_network_parent": pypsa.examples.ac_dc_meshed().determine_network_topology(),
-#     "sub_network": sub_network_parent.sub_networks.loc["0", "obj"],
-# }
+doctest_globals = {
+    "np": np,
+    "pd": pd,
+    "pypsa": pypsa,
+    "n": n,
+    "c": pypsa.examples.ac_dc_meshed().components.generators,
+    "sub_network_parent": pypsa.examples.ac_dc_meshed().determine_network_topology(),
+    "sub_network": sub_network_parent.sub_networks.loc["0", "obj"],
+}
 
-# modules = [
-#     importlib.import_module(name)
-#     for _, name, _ in pkgutil.walk_packages(pypsa.__path__, pypsa.__name__ + ".")
-#     if name not in ["pypsa.utils", "pypsa.components.utils", "pypsa.typing"]
-# ]
+modules = [
+    importlib.import_module(name)
+    for _, name, _ in pkgutil.walk_packages(pypsa.__path__, pypsa.__name__ + ".")
+    if name not in ["pypsa.utils", "pypsa.components.utils", "pypsa.typing"]
+]
 
 
-# @pytest.mark.skipif(
-#     sys.version_info[:2] == (3, 10),
-#     reason="Doctest fail until linopy supports numpy 2 on all python versions",
-# )
-# @pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
-# @pytest.mark.parametrize("module", modules)
-# def test_doctest(module):
-#     finder = doctest.DocTestFinder()
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 10),
+    reason="Doctest fail until linopy supports numpy 2 on all python versions",
+)
+@pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
+@pytest.mark.parametrize("module", modules)
+def test_doctest(module):
+    finder = doctest.DocTestFinder()
 
-#     runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
+    runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
 
-#     tests = finder.find(module)
+    tests = finder.find(module)
 
-#     failures = 0
+    failures = 0
 
-#     for test in tests:
-#         # Create a fresh copy of the globals for each test
+    for test in tests:
+        # Create a fresh copy of the globals for each test
 
-#         test_globals = dict(doctest_globals)
+        test_globals = dict(doctest_globals)
 
-#         test.globs.update(test_globals)
+        test.globs.update(test_globals)
 
-#         # Run the test
+        # Run the test
 
-#         failures += runner.run(test).failed
+        failures += runner.run(test).failed
 
-#     assert failures == 0, f"{failures} doctest(s) failed in module {module.__name__}"
+    assert failures == 0, f"{failures} doctest(s) failed in module {module.__name__}"

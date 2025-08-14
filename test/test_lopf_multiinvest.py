@@ -501,19 +501,28 @@ def test_global_constraint_bus_tech_limit(n):
 
 def test_nominal_constraint_bus_carrier_expansion_limit(n):
     n.buses.at["1", "nom_max_gencarrier"] = 100
-    status, cond = n.optimize(**kwargs)
+    with pytest.warns(
+        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+    ):
+        status, cond = n.optimize(**kwargs)
     gen1s = [f"gen1-{period}" for period in n.investment_periods]
     assert round(n.generators.p_nom_opt[gen1s], 0).sum() == 100
     n.buses.drop(["nom_max_gencarrier"], inplace=True, axis=1)
 
     n.buses.at["1", "nom_max_gencarrier_2020"] = 100
-    status, cond = n.optimize(**kwargs)
+    with pytest.warns(
+        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+    ):
+        status, cond = n.optimize(**kwargs)
     assert n.generators.at["gen1-2020", "p_nom_opt"] == 100
     n.buses.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
 
     # make the constraint non-binding and check that the shadow price is zero
     n.buses.at["1", "nom_min_gencarrier_2020"] = 100
-    status, cond = n.optimize(**kwargs)
+    with pytest.warns(
+        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+    ):
+        status, cond = n.optimize(**kwargs)
     assert (n.model.constraints["Bus-nom_min_gencarrier_2020"].dual).item() == 0
 
 
