@@ -1,7 +1,3 @@
-
-todo: add structure
-todo: more questions
-
 # Frequently Asked Questions
 
 ## Does PyPSA model more than just the power system? Can methane, hydrogen, carbon dioxide networks be included?

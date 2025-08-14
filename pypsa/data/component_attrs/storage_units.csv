@@ -8,6 +8,7 @@ p_nom_mod,float,MW,0,Nominal power of the storage unit module. Introduces intege
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended in optimisation.,Input (optional)
 p_nom_min,float,MW,0,"If `p_nom_extendable=True`, set the minimum value of `p_nom_opt`.",Input (optional)
 p_nom_max,float,MW,inf,"If `p_nom_extendable=True`, set the maximum value of `p_nom_opt`.",Input (optional)
+p_nom_set,float,MW,n/a,"If `p_nom_extendable=True`, set the value of `p_nom_opt`.",Input (optional)
 p_min_pu,static or series,per unit,-1,The minimum output for each snapshot per unit of `p_nom` for the optimisation. Negative sign implies storing mode withdrawing power from bus.,Input (optional)
 p_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of `p_nom` for the optimisation. Positive sign implies discharging mode injecting power into bus.,Input (optional)
 p_set,static or series,MW,n/a,Active power set point (for power flow only),Input (optional)
