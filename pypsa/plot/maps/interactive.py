@@ -710,6 +710,7 @@ class PydeckPlotter:
 
         # Map line widths
         c_data["width"] = _convert_to_series(branch_widths, c_data.index)
+        c_data["width"] = c_data["width"].abs()
 
         # For default tooltip
         arrow_sym = "&#x2B95;"
