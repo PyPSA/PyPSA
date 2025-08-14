@@ -56,9 +56,8 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
             if "carrier" not in static:
                 continue
 
-            ext_i = n.components[c].extendables.intersection(
-                static.index[static.carrier == carrier]
-            )
+            ext_i = n.components[c].extendables.difference(n.c[c].inactive_assets)
+            ext_i = ext_i.intersection(static.index[static.carrier == carrier])
             if period is not None:
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
 
@@ -155,9 +154,8 @@ def define_nominal_constraints_per_bus_carrier(n: Network, sns: pd.Index) -> Non
             if c not in n.one_port_components or "carrier" not in static:
                 continue
 
-            ext_i = n.components[c].extendables.intersection(
-                static.index[static.carrier == carrier]
-            )
+            ext_i = n.c[c].extendables.difference(n.c[c].inactive_assets)
+            ext_i = ext_i.intersection(static.index[static.carrier == carrier])
             if period is not None:
                 ext_i = ext_i[n.get_active_assets(c, period)[ext_i]]
 
@@ -229,7 +227,9 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
             carrier_map = component_carriers
 
         carriers_match = unique_component_names[carrier_map.isin(carrier_i)]
-        limited_names = carriers_match.intersection(n.components[c].extendables)
+        limited_names = carriers_match.intersection(
+            n.c[c].extendables.difference(n.c[c].inactive_assets)
+        )
 
         if limited_names.empty:
             continue
@@ -430,7 +430,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
             lhs = []
 
             # generators
-            gens = n.generators.query("carrier == @glc.carrier_attribute")
+            gens = n.generators.query("carrier == @glc.carrier_attribute and active")
             if not gens.empty:
                 gens = gens.loc[scenario]
                 p = m["Generator-p"].sel(name=gens.index, snapshot=sns[sns_sel])
@@ -442,7 +442,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                 lhs.append(expr)
 
             # storage units (non-cyclic): subtract end SoC and add initial SoC as constant
-            cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge"
+            cond = "carrier == @glc.carrier_attribute and not cyclic_state_of_charge and active"
             sus = n.storage_units.query(cond)
             if not sus.empty:
                 sus = sus.loc[scenario]
@@ -456,7 +456,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
 
             # stores (non-cyclic): subtract end e and add initial e as constant
             stores = n.stores.query(
-                "carrier == @glc.carrier_attribute and not e_cyclic"
+                "carrier == @glc.carrier_attribute and not e_cyclic and active"
             )
             if not stores.empty:
                 stores = stores.loc[scenario]
@@ -542,7 +542,7 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
                 attr = nominal_attrs[c]
 
                 # Start from extendable components by name
-                ext_all = n.components[c].extendables
+                ext_all = n.c[c].extendables.difference(n.c[c].inactive_assets)
                 if ext_all.empty:
                     continue
 
@@ -644,7 +644,7 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         for c in ["Line", "Link"]:
             attr = nominal_attrs[c]
 
-            ext_i = n.components[c].extendables
+            ext_i = n.components[c].extendables.difference(n.c[c].inactive_assets)
             if ext_i.empty:
                 continue
 
