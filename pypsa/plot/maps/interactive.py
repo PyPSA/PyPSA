@@ -363,7 +363,7 @@ class PydeckPlotter:
         self._map_style: str = self._init_map_style(map_style)
         self._view_state: pdk.ViewState = self._init_view_state()
         self._layers: dict[str, pdk.Layer] = {}
-        self._tooltip_columns: list[str] = ["value"]
+        self._tooltip_columns: list[str] = ["value", "coords"]
         self._tooltip: dict | bool = False
 
     def _init_map_style(self, map_style: str) -> str:
@@ -537,6 +537,9 @@ class PydeckPlotter:
         layer_columns = default_columns
 
         if extra_columns:
+            extra_columns = [
+                col for col in extra_columns if col not in default_columns
+            ]  # Drop default columns from extra_columns
             missing_columns = [col for col in extra_columns if col not in df.columns]
             valid_columns = [col for col in extra_columns if col in df.columns]
 
@@ -598,6 +601,9 @@ class PydeckPlotter:
 
         # For default tooltip
         bus_data["value"] = bus_data["radius"].round(3)
+        bus_data["coords"] = bus_data[["x", "y"]].apply(
+            lambda row: f"({row['x']:.3f}, {row['y']:.3f})", axis=1
+        )
 
         # Convert colors to RGBA list
         colors = _convert_to_series(bus_colors, bus_data.index)
@@ -699,7 +705,15 @@ class PydeckPlotter:
         c_data["width"] = _convert_to_series(branch_widths, c_data.index)
 
         # For default tooltip
+        arrow_sym = "&#x2B95;"
         c_data["value"] = c_data["width"].round(3)
+        c_data["coords"] = c_data.apply(
+            lambda row: (
+                f"({row['path'][0][0]:.3f}, {row['path'][0][1]:.3f}) {arrow_sym} "
+                f"({row['path'][1][0]:.3f}, {row['path'][1][1]:.3f})"
+            ),
+            axis=1,
+        )
 
         # Create PathLayer, use "path" column for get_path
         layer = pdk.Layer(
@@ -935,14 +949,12 @@ def explore(
                 branch_columns=kwargs["branch_columns"],
             )
 
-            arrow_colors = (
-                kwargs["branch_colors"] if arrow_colors is None else arrow_colors
-            )
+            ac = kwargs["branch_colors"] if arrow_colors is None else arrow_colors
             plotter.add_arrow_layer(
                 c_name=c_name,
                 branch_flow=kwargs["branch_flow"],
                 arrow_size_factor=arrow_size_factor,
-                arrow_colors=arrow_colors,
+                arrow_colors=ac,
                 arrow_alpha=arrow_alpha,
             )
 
