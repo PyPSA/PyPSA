@@ -390,13 +390,13 @@ class PydeckPlotter:
         """Compute the initial view state based on network bus coordinates."""
         center_lon = self._n.buses.x.mean()
         center_lat = self._n.buses.y.mean()
-        zoom = 5  # Default zoom level
+        zoom = 4  # Default zoom level
         return pdk.ViewState(
             latitude=center_lat,
             longitude=center_lon,
             zoom=zoom,
-            pitch=0,  # Default pitch
-            bearing=0,  # Default bearing
+            pitch=45,  # Default pitch
+            bearing=-15,  # Default bearing
         )
 
     @property
@@ -621,6 +621,9 @@ class PydeckPlotter:
             get_radius="radius",
             pickable=True,
             auto_highlight=True,
+            parameters={
+                "depthTest": False
+            },  # To prevent z-fighting issues/flickering in 3D space
         )
 
         # Append the bus layer to the layers property
@@ -724,6 +727,9 @@ class PydeckPlotter:
             get_color="rgba",
             pickable=True,
             auto_highlight=True,
+            parameters={
+                "depthTest": False
+            },  # To prevent z-fighting issues/flickering in 3D space
         )
 
         self._layers[c_name] = layer
@@ -775,8 +781,11 @@ class PydeckPlotter:
             data=branch_flow,
             get_polygon="arrow",
             get_fill_color="rgba",
-            pickable=True,
+            pickable=False,  # Disable tooltips for arrow heads
             auto_highlight=True,
+            parameters={
+                "depthTest": False
+            },  # To prevent z-fighting issues/flickering in 3D space
         )
         self._layers[f"{c_name}_arrows"] = layer
 
@@ -805,6 +814,7 @@ class PydeckPlotter:
             map_style=self._map_style,
             tooltip=self._tooltip,
             initial_view_state=self.view_state,
+            # set 3d view
         )
         return deck
 
