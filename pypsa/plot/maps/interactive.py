@@ -681,6 +681,10 @@ class PydeckPlotter:
             logger.warning(msg)
             c_data = c_data.drop(missing_buses.index)
 
+            # If no data remains after dropping missing buses, return early
+            if c_data.empty:
+                return
+
         # Build path column as list of [lon, lat] pairs for each line
         c_data["path"] = c_data.apply(
             lambda row: [
