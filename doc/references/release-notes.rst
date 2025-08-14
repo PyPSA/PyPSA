@@ -16,8 +16,66 @@ Upcoming Release
   now raised. (https://github.com/PyPSA/PyPSA/pull/1259)
 
 
+
+Features
+--------
+
+* Added utility function ``pypsa.common.annuity`` to calculate the annuity
+  factor for a given discount rate and lifetime. Also known as capital recovery
+  factor, it is used to convert a capital cost into an annualized cost. The
+  formula is: 
+
+  .. math::
+  
+      \frac{r}{1 - (1 + r)^{-n}}
+
+  where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
+
+* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
+  the optimization model entirely. This has no effect on the results, but it can
+  reduce the memory footprint when solving the model.
+
+
+* The option to set bus-level capacity expansion limits per carrier via `Bus`
+  attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
+  constraint type `"tech_capacity_expansion_limit"` offers identical functionality.
+  
+Bug Fixes
+---------
+
+* Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
+  (https://github.com/PyPSA/PyPSA/issues/1325)
+
+* Make compatible with xarray v2025.07
+  (https://github.com/PyPSA/PyPSA/pull/1304)
+  
+* Correct use of snapshot weighting columns in statistics module. The
+  doscstring for ``n.snapshot_weightings`` was clarified.
+
+* Resolved an issue where the network version was not correctly identified during I/O, 
+  resulting in false update information being logged.
+  (https://github.com/PyPSA/PyPSA/pull/1300)
+
+`v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
+=======================================================================================
+
+Bug Fixes
+---------
+
+* Fixed issue when copying a network with an unsolved model.
+  (https://github.com/PyPSA/PyPSA/pull/5)
+
+* Fixed missing dependency issue for `typing-extensions`.
+  (https://github.com/PyPSA/PyPSA/pull/1264)
+
+* Fixed Excel import when snapshots sheet is missing.
+  (https://github.com/PyPSA/PyPSA/issues/1268)
+
 `v0.35.0 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0>`__ (22th June 2025)
 =======================================================================================
+
+Features
+--------
 
 * New **interactive** plotting library
 
@@ -48,7 +106,7 @@ Upcoming Release
     reference will follow with a stable version of it.
 
 Bug Fixes
---------
+---------
 
 * Bugfix: The function ``n.statistics.opex()`` now considers the correct
   snapshot weightings ``n.snapshot_weightings.objective``.

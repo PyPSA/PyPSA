@@ -395,6 +395,30 @@ def test_global_constraint_primary_energy_store(n_sts):
     assert round(soc_diff @ emissions, 0) == 3000
 
 
+def test_global_constraint_primary_energy_storage_stochastic(n_sus):
+    """
+    Test global constraints with primary energy for storage in stochastic networks.
+
+    This test ensures that multi-period optimization with storage units and
+    global constraints work correctly when scenarios are present.
+    """
+
+    c = "StorageUnit"
+
+    n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
+    n_sus.static(c)["state_of_charge_initial"] = 200
+    n_sus.static(c)["cyclic_state_of_charge"] = False
+    n_sus.static(c)["state_of_charge_initial_per_period"] = False
+    n_sus.static(c)["carrier"] = "emitting_carrier"
+
+    n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
+    n_sus.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    status, cond = n_sus.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    assert n_sus.model.constraints["GlobalConstraint-co2limit"].rhs[0] == -77000.0
+
+
 def test_global_constraint_transmission_expansion_limit(n):
     n.add(
         "GlobalConstraint",
@@ -477,19 +501,28 @@ def test_global_constraint_bus_tech_limit(n):
 
 def test_nominal_constraint_bus_carrier_expansion_limit(n):
     n.buses.at["1", "nom_max_gencarrier"] = 100
-    status, cond = n.optimize(**kwargs)
+    with pytest.warns(
+        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+    ):
+        status, cond = n.optimize(**kwargs)
     gen1s = [f"gen1-{period}" for period in n.investment_periods]
     assert round(n.generators.p_nom_opt[gen1s], 0).sum() == 100
     n.buses.drop(["nom_max_gencarrier"], inplace=True, axis=1)
 
     n.buses.at["1", "nom_max_gencarrier_2020"] = 100
-    status, cond = n.optimize(**kwargs)
+    with pytest.warns(
+        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+    ):
+        status, cond = n.optimize(**kwargs)
     assert n.generators.at["gen1-2020", "p_nom_opt"] == 100
     n.buses.drop(["nom_max_gencarrier_2020"], inplace=True, axis=1)
 
     # make the constraint non-binding and check that the shadow price is zero
     n.buses.at["1", "nom_min_gencarrier_2020"] = 100
-    status, cond = n.optimize(**kwargs)
+    with pytest.warns(
+        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+    ):
+        status, cond = n.optimize(**kwargs)
     assert (n.model.constraints["Bus-nom_min_gencarrier_2020"].dual).item() == 0
 
 

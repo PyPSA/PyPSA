@@ -1,8 +1,17 @@
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_array_almost_equal as almost_equal
 
 import pypsa
+
+try:
+    import openpyxl  # noqa: F401
+    import python_calamine  # noqa: F401
+
+    excel_installed = True
+except ImportError:
+    excel_installed = False
 
 
 def test_1144():
@@ -136,3 +145,41 @@ def test_multiport_assignment_defaults_multiple_add():
     n.add("Link", ["link"], bus0="bus", bus1="bus2")
     n.add("Link", ["link2"], bus0="bus", bus1="bus2", bus2="bus")
     assert n.links.loc["link", "bus2"] == ""
+
+
+@pytest.mark.skipif(not excel_installed, reason="openpyxl not installed")
+def test_1268(tmpdir):
+    """
+    Excel import without snapshots sheet should not raise KeyError.
+    See https://github.com/PyPSA/PyPSA/issues/1268.
+    """
+    fn = str(tmpdir / "no_snapshots.xlsx")
+
+    buses = pd.DataFrame({"v_nom": [132]}, index=["bus1"])
+    with pd.ExcelWriter(fn, engine="openpyxl") as writer:
+        buses.to_excel(writer, sheet_name="buses")
+
+    n = pypsa.Network()
+    n.import_from_excel(fn)
+    assert len(n.buses) == 1
+
+
+def test_1319():
+    """
+    Copying a solved network should work after setting solver_model to None.
+    See https://github.com/PyPSA/PyPSA/issues/1319.
+    """
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+
+    # Should raise error when trying to copy with solver_model attached
+    with pytest.raises(
+        ValueError, match="Copying a solved network with an attached solver model"
+    ):
+        n.copy()
+
+    # Should work after setting solver_model to None
+    n.model.solver_model = None
+    n_copy = n.copy()  # Should not raise an error
+    assert n_copy is not n
+    assert len(n_copy.buses) == len(n.buses)

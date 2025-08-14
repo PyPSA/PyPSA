@@ -40,7 +40,22 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def component_names(self) -> pd.Index:
+        pass
+
+    @property
+    @abstractmethod
     def snapshots(self) -> pd.Index:
+        pass
+
+    @property
+    @abstractmethod
+    def has_scenarios(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
+    def scenarios(self) -> pd.Index:
         pass
 
     @property
@@ -50,9 +65,60 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
+    def has_periods(self) -> bool:
+        pass
+
+    @property
+    @abstractmethod
     def investment_periods(self) -> pd.Index:
+        pass
+
+    @property
+    @abstractmethod
+    def extendables(self) -> pd.Index:
+        pass
+
+    @property
+    @abstractmethod
+    def committables(self) -> pd.Index:
+        pass
+
+    @property
+    @abstractmethod
+    def fixed(self) -> pd.Index:
+        pass
+
+    @abstractmethod
+    def get_activity_mask(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
+    def _as_dynamic(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         pass
 
     @abstractmethod
     def get_active_assets(self, *args: Any, **kwargs: Any) -> pd.DataFrame:
         pass
+
+    def get_bounds_pu(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Get per unit bounds for components.
+
+        Parameters
+        ----------
+        args : Any
+            Arguments for the method
+        kwargs : Any
+            Keyword arguments for the method
+
+        Returns
+        -------
+        tuple[pd.DataFrame, pd.DataFrame]
+            Tuple of (min_pu, max_pu) DataFrames.
+
+        """
+        msg = f"Bounds can only be retrieved for components with operational attributes and not for {self.name} components."
+        raise AttributeError(msg)

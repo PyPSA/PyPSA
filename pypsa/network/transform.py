@@ -172,7 +172,7 @@ class NetworkTransformMixin(_NetworkABC):
         ...       p_set=np.random.rand(len(snapshots), len(buses)))
         Index(['0 load', '1 load', '2 load', '3 load', '4 load', '5 load', '6 load',
                '7 load', '8 load', '9 load', '10 load', '11 load', '12 load'],
-              dtype='object', name='Bus')
+              dtype='object', name='name')
         >>> # add wind availability as pandas DataFrame
         >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
@@ -194,6 +194,14 @@ class NetworkTransformMixin(_NetworkABC):
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
+
+        # Check if multi-index names are passed
+        if isinstance(name, pd.MultiIndex):
+            msg = "Component names must be a one-dimensional."
+            if self.has_scenarios:
+                msg += " For stochastic networks, they will be casted to all dimensions and data per scenario can be changed after adding them."
+            raise TypeError(msg)
+
         names = pd.Index([name]) if single_component else pd.Index(name)
         names = names.astype(str) + suffix
 
@@ -370,13 +378,13 @@ class NetworkTransformMixin(_NetworkABC):
         >>> n.add("Bus", ["bus0", "bus1"])
         Index(['bus0', 'bus1'], dtype='object')
         >>> n.add("Bus", "bus2", p_min_pu=[1, 1])
-        Index(['bus2'], dtype='object', name='Bus')
+        Index(['bus2'], dtype='object', name='name')
         >>> n.components.buses.static
-              v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
-        Bus                         ...
-        bus0    1.0       0.0  0.0  ...          inf      PQ
-        bus1    1.0       0.0  0.0  ...          inf      PQ
-        bus2    1.0       0.0  0.0  ...          inf      PQ
+               v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
+        name                             ...
+        bus0         1.0       0.0  0.0  ...          inf      PQ
+        bus1         1.0       0.0  0.0  ...          inf      PQ
+        bus2         1.0       0.0  0.0  ...          inf      PQ
         <BLANKLINE>
         [3 rows x 13 columns]
 
@@ -386,10 +394,10 @@ class NetworkTransformMixin(_NetworkABC):
 
         Any component data is dropped from the component DataFrames.
         >>> n.components.buses.static
-            v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
-        Bus                         ...
-        bus0    1.0       0.0  0.0  ...          inf      PQ
-        bus1    1.0       0.0  0.0  ...          inf      PQ
+               v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
+        name                             ...
+        bus0         1.0       0.0  0.0  ...          inf      PQ
+        bus1         1.0       0.0  0.0  ...          inf      PQ
         <BLANKLINE>
         [2 rows x 13 columns]
         >>> n.components.buses.dynamic.p_min_pu
@@ -421,79 +429,6 @@ class NetworkTransformMixin(_NetworkABC):
         for df in dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
-    @deprecated(
-        deprecated_in="0.31",
-        removed_in="1.0",
-        details="Use `n.add` as a drop-in replacement instead.",
-    )
-    def madd(
-        self,
-        class_name: str,
-        names: Sequence,
-        suffix: str = "",
-        **kwargs: Any,
-    ) -> pd.Index:
-        """Add multiple components to the network, along with their attributes.
-
-        .. deprecated:: 0.31
-          ``n.madd`` is deprecated and will be removed in a future version. Use
-            :py:meth:`pypsa.Network.add` instead. It can handle both single and multiple
-            removal of components.
-
-        Make sure when adding static attributes as pandas Series that they are indexed
-        by names. Make sure when adding time-varying attributes as pandas DataFrames that
-        their index is a superset of n.snapshots and their columns are a
-        subset of names.
-
-        Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
-
-        Parameters
-        ----------
-        class_name : string
-            Component class name in ("Bus", "Generator", "Load", "StorageUnit",
-            "Store", "ShuntImpedance", "Line", "Transformer", "Link").
-        names : list-like or pandas.Index
-            Component names
-        suffix : string, default ''
-            All components are named after names with this added suffix. It
-            is assumed that all Series and DataFrames are indexed by the original names.
-        kwargs
-            Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
-            of pandas.DataFrame for time-varying
-
-        """
-        return self.add(class_name=class_name, name=names, suffix=suffix, **kwargs)
-
-    @deprecated(
-        deprecated_in="0.31",
-        removed_in="1.0",
-        details="Use `n.remove` as a drop-in replacement instead.",
-    )
-    def mremove(self, class_name: str, names: Sequence) -> None:
-        """Remove multiple components from the network.
-
-        .. deprecated:: 0.31
-          ``n.mremove`` is deprecated and will be removed in a future version. Use
-            :py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple
-            removal of components.
-
-        ``n.mremove`` is deprecated and will be removed in version 1.0. Use
-        py:meth:`pypsa.Network.remove` instead. It can handle both single and multiple removal of
-        components.
-
-        Removes them from component DataFrames.
-
-        Parameters
-        ----------
-        class_name : string
-            Component class name
-        names : list-like
-            Component names
-
-        """
-        self.remove(class_name=class_name, name=names)
-
     def merge(
         self,
         other: Network,
@@ -514,8 +449,6 @@ class NetworkTransformMixin(_NetworkABC):
 
         Parameters
         ----------
-        n : pypsa.Network
-            Network to add to.
         other : pypsa.Network
             Network to add from.
         components_to_skip : list-like, default None
@@ -613,12 +546,12 @@ class NetworkTransformMixin(_NetworkABC):
         Which updates the bus components
 
         >>> n.buses.index
-        Index(['bus2'], dtype='object', name='Bus')
+        Index(['bus2'], dtype='object', name='name')
 
         and all references in the network
 
         >>> n.generators.bus
-        Generator
+        name
         gen1    bus2
         Name: bus, dtype: object
 
