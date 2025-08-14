@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from deprecation import deprecated
 from Levenshtein import distance
 
 from pypsa._options import options
