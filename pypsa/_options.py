@@ -315,8 +315,8 @@ class OptionsNode:
         PyPSA Options
         =============
         api.new_components_api:
-            Default: True
-            Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+            Default: False
+            Description: Activate the new components API, which replaces the static components data access with the more flexible components class. This will just change the api and not any functionality. Components class features are always available. See https://go.pypsa.org/new-components-api for more details.
         debug.runtime_verification:
             Default: False
             Description: Enable runtime verification of PyPSA's internal state. This is useful for debugging and development purposes. This will lead to overhead in performance and should not be used in production.
@@ -356,8 +356,8 @@ class OptionsNode:
         PyPSA Options
         =============
         api.new_components_api:
-            Default: True
-            Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+            Default: False
+            Description: Activate the new components API, which replaces the static components data access with the more flexible components class. This will just change the api and not any functionality. Components class features are always available. See https://go.pypsa.org/new-components-api for more details.
         debug.runtime_verification:
             Default: False
             Description: Enable runtime verification of PyPSA's internal state. This is useful for debugging and development purposes. This will lead to overhead in performance and should not be used in production.

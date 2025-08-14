@@ -11,6 +11,23 @@ from pypsa.constants import DEFAULT_EPSG
 
 pypsa.options.debug.runtime_verification = True
 
+
+def pytest_addoption(parser):
+    """Add custom pytest command line options."""
+    parser.addoption(
+        "--new-components-api",
+        action="store_true",
+        default=False,
+        help="Activate the new components API (options.api.new_components_api)",
+    )
+
+
+def pytest_configure(config):
+    """Configure pytest session with custom options."""
+    if config.getoption("--new-components-api"):
+        pypsa.options.api.new_components_api = True
+
+
 COMPONENT_NAMES = [
     "sub_networks",
     "buses",

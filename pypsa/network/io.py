@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import tempfile
+import warnings
 from abc import abstractmethod
 from functools import partial
 from typing import TYPE_CHECKING, Any, overload
@@ -1086,19 +1087,31 @@ class NetworkIOMixin(_NetworkABC):
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
-        # first export network properties
-        _attrs = {
-            attr: getattr(self, attr)
-            for attr in dir(self)
-            if (
-                not attr.startswith("__")
-                and isinstance(getattr(self, attr), allowed_types)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=".*the API for how to access components data has.*",
+                category=DeprecationWarning,
             )
-        }
+
+            _attrs = {
+                attr: getattr(self, attr)
+                for attr in dir(self)
+                if (
+                    not attr.startswith("__")
+                    and isinstance(getattr(self, attr), allowed_types)
+                )
+            }
         _attrs = {}
         for attr in dir(self):
             if not attr.startswith("__"):
-                value = getattr(self, attr)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=".*the API for how to access components data has.*",
+                        category=DeprecationWarning,
+                    )
+                    value = getattr(self, attr)
                 if isinstance(value, allowed_types):
                     # TODO: This needs to be refactored with NetworkData class
                     # Skip properties without setter, but not 'pypsa_version'

@@ -13,6 +13,7 @@ are set.
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 
 from pypsa._options import options
@@ -349,189 +350,301 @@ class NetworkComponentsMixin(_NetworkABC):
     @property
     def sub_networks_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("sub_networks"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("sub_networks"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.sub_networks.dynamic
 
     @sub_networks_t.setter
     def sub_networks_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("sub_networks"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("sub_networks"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.sub_networks.dynamic = value
 
     @property
     def buses_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("buses"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("buses"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.buses.dynamic
 
     @buses_t.setter
     def buses_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("buses"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("buses"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.buses.dynamic = value
 
     @property
     def carriers_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("carriers"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("carriers"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.carriers.dynamic
 
     @carriers_t.setter
     def carriers_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("carriers"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("carriers"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.carriers.dynamic = value
 
     @property
     def global_constraints_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(
-                _DYNAMIC_GETTER_WARNING.format("global_constraints")
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("global_constraints"),
+                DeprecationWarning,
+                stacklevel=2,
             )
         return self.c.global_constraints.dynamic
 
     @global_constraints_t.setter
     def global_constraints_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(
-                _DYNAMIC_SETTER_WARNING.format("global_constraints")
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("global_constraints"),
+                DeprecationWarning,
+                stacklevel=2,
             )
         self.c.global_constraints.dynamic = value
 
     @property
     def lines_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("lines"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("lines"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.lines.dynamic
 
     @lines_t.setter
     def lines_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("lines"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("lines"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.lines.dynamic = value
 
     @property
     def line_types_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("line_types"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("line_types"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.line_types.dynamic
 
     @line_types_t.setter
     def line_types_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("line_types"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("line_types"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.line_types.dynamic = value
 
     @property
     def transformers_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("transformers"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("transformers"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.transformers.dynamic
 
     @transformers_t.setter
     def transformers_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("transformers"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("transformers"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.transformers.dynamic = value
 
     @property
     def transformer_types_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(
-                _DYNAMIC_GETTER_WARNING.format("transformer_types")
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("transformer_types"),
+                DeprecationWarning,
+                stacklevel=2,
             )
         return self.c.transformer_types.dynamic
 
     @transformer_types_t.setter
     def transformer_types_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(
-                _DYNAMIC_SETTER_WARNING.format("transformer_types")
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("transformer_types"),
+                DeprecationWarning,
+                stacklevel=2,
             )
         self.c.transformer_types.dynamic = value
 
     @property
     def links_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("links"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("links"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.links.dynamic
 
     @links_t.setter
     def links_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("links"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("links"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.links.dynamic = value
 
     @property
     def loads_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("loads"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("loads"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.loads.dynamic
 
     @loads_t.setter
     def loads_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("loads"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("loads"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.loads.dynamic = value
 
     @property
     def generators_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("generators"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("generators"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.generators.dynamic
 
     @generators_t.setter
     def generators_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("generators"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("generators"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.generators.dynamic = value
 
     @property
     def storage_units_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("storage_units"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("storage_units"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.storage_units.dynamic
 
     @storage_units_t.setter
     def storage_units_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("storage_units"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("storage_units"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.storage_units.dynamic = value
 
     @property
     def stores_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("stores"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("stores"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.stores.dynamic
 
     @stores_t.setter
     def stores_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("stores"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("stores"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.stores.dynamic = value
 
     @property
     def shunt_impedances_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("shunt_impedances"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("shunt_impedances"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.shunt_impedances.dynamic
 
     @shunt_impedances_t.setter
     def shunt_impedances_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("shunt_impedances"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("shunt_impedances"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.shunt_impedances.dynamic = value
 
     @property
     def shapes_t(self) -> Dict:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_GETTER_WARNING.format("shapes"))
+            warnings.warn(
+                _DYNAMIC_GETTER_WARNING.format("shapes"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         return self.c.shapes.dynamic
 
     @shapes_t.setter
     def shapes_t(self, value: Dict) -> None:
         if options.api.new_components_api:
-            raise DeprecationWarning(_DYNAMIC_SETTER_WARNING.format("shapes"))
+            warnings.warn(
+                _DYNAMIC_SETTER_WARNING.format("shapes"),
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self.c.shapes.dynamic = value
 
     @property
