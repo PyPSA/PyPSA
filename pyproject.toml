@@ -220,9 +220,6 @@ ignore = [
     'PL',    # pylint
     'TRY'    # tryceratops
 ]
-"pypsa/optimization/mga.py" = [
-    'PLC0415'   # top-level imports
-]
 
 # Ignore for test files
 "{test/**}" = [

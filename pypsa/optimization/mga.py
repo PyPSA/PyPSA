@@ -535,8 +535,7 @@ class OptimizationAbstractMGAMixin:
         this case; also simplifies the return argument management.
 
         """
-        # Import Network here to avoid circular import issues
-        from pypsa import Network
+        from pypsa.networks import Network  # noqa: PLC0415
 
         try:
             n = Network(fn)
@@ -628,9 +627,6 @@ class OptimizationAbstractMGAMixin:
 
         Examples
         --------
-        >>> import pypsa
-        >>> n = pypsa.examples.model_energy()
-        >>> n.optimize(solver_name="highs")
         >>> dimensions = {
         ...     "wind": {"Generator": {"p_nom": {"wind": 1}}},
         ...     "solar": {"Generator": {"p_nom": {"solar": 1}}}
@@ -639,6 +635,18 @@ class OptimizationAbstractMGAMixin:
         >>> dirs_df, coords_df = n.optimize.optimize_mga_in_multiple_directions(
         ...     directions, dimensions, max_parallel=2
         ... )
+        >>> dirs_df # doctest: +SKIP
+                wind     solar
+        0  0.958766  0.284198
+        1 -0.937432 -0.348170
+        2 -0.805652  0.592389
+        ...
+        >>> coords_df # doctest: +ELLIPSIS
+        wind  solar
+        0   0.0    0.0
+        1   0.0    0.0
+        2   0.0    0.0
+        ...
 
         """
         # Iterate over rows of `directions` if a DataFrame
