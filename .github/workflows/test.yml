@@ -84,7 +84,7 @@ jobs:
         uv pip install "$(ls dist/*.whl)"
 
     - name: Run unit tests (old API)
-      if: matrix.api == 'old'
+      if: matrix.api == 'default'
       run: |
         uv run pytest --mpl --cov=pypsa && uv run coverage xml
 
