@@ -1,13 +1,11 @@
-#######
-Options
-#######
+# Package Options
 
-Set module wide options. 
+::: pypsa._options.OptionsNode
+    options:
+        heading_level: 2
+        show_root_heading: False
+        show_root_toc_entry: False
 
-.. autosummary::
-    :toctree: _source/
-
-    pypsa.get_option
-    pypsa.set_option
-    pypsa.describe_options
-    pypsa.option_context
+::: pypsa.option_context
+    options:
+        heading_level: 2

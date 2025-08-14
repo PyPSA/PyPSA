@@ -1,11 +1,7 @@
-#####################
-Example Networks
-#####################
+# Examples
 
-
-.. autosummary::
-    :toctree: _source/
-
-    pypsa.examples.ac_dc_meshed
-    pypsa.examples.storage_hvdc
-    pypsa.examples.scigrid_de
+::: pypsa.examples
+    options:
+        heading_level: 2
+        show_root_heading: False
+        show_root_toc_entry: False
