@@ -43,10 +43,6 @@ $$\sum_t w_t = 8760$$
 
 In this case the objective function gives total system cost in EUR/a to meet the total demand.
 
-### Stochastic optimisation
-
-For the very simplest stochastic optimisation you can use the weightings `w_t` as probabilities for the snapshots, which can represent different load/weather conditions. More sophisticated functionality is planned.
-
 ## Variables
 
 | Variable | Description |

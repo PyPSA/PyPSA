@@ -53,4 +53,5 @@ uv.lock
 CLAUDE.md
 .claude
 .github/copilot-instructions.md
-uv.lock
+site/
+doc/_build/
