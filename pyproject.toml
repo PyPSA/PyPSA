@@ -69,18 +69,19 @@ dev = [
     "jupyter>=1.1.1",
     "typing-extensions>=4.14.0",
 ]
-docs = [
-    "numpydoc==1.8.0",
-    "sphinx==8.1.3",
-    "sphinx-book-theme==1.1.3",
-    "pydata-sphinx-theme==0.16.1",
-    "sphinx-reredirects==0.1.5",
-    "nbsphinx==0.9.7",
-    "nbsphinx-link==1.3.1",
-    "scikit-learn==1.6.1",
-    "ipython<9.0.0; python_version < '3.11'",
-    "ipython==9.0.1; python_version >= '3.11'",
-    "ipykernel==6.29.5",
+docs = [    
+    "mkdocs-material",
+    "mkdocs-ezlinks-plugin",
+    "mkdocs-autolinks-plugin",
+    "mkdocs-redirects",
+    "mkdocs-video",
+    "mkdocs-git-revision-date-localized-plugin",
+    "mkdocs-git-committers-plugin",
+    "mkdocs-argref-plugin",
+    "mkdocstrings-python",
+    "mkdocs-jupyter",
+    "cairosvg",
+    "pillow",
 ]
 
 # setuptools_scm settings
@@ -123,7 +124,7 @@ exclude_also = [
 # Static type checker settings
 
 [tool.mypy]
-exclude = ['dev/*', 'examples/*', 'doc/*']
+exclude = ['dev/*', 'examples/*', 'docs/*']
 ignore_missing_imports = true
 no_implicit_optional = true
 warn_unused_ignores = true
@@ -210,7 +211,7 @@ ignore = [
 
 
 [tool.ruff.lint.per-file-ignores]
-"{test,examples,doc}/**" = [
+"{test,examples,doc,docs}/**" = [
     'D',     # pydocstyle
     'ERA',   # eradicate
     'S',     # flake8-bandit
@@ -239,7 +240,7 @@ ignore = [
     'D417', # Missing argument descriptions in the docstring
     ]
 
-"{test,examples}/**"=[
+"{test,examples,docs}/**"=[
     'ANN' # flake8-annotations
 ]
 

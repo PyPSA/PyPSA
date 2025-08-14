@@ -460,6 +460,12 @@ def test_copy_snapshots(networks):
     assert copied_n == n
 
 
+def test_copy_solved(ac_dc_network):
+    ac_dc_network.optimize()
+    with pytest.raises(NotImplementedError, match="not supported yet."):
+        copied_n = ac_dc_network.copy()  # noqa: F841
+
+
 def test_single_add_network_static(ac_dc_network, n_5bus):
     """
     GIVEN   the AC DC exemplary pypsa network and an empty PyPSA network with 5
