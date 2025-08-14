@@ -13,17 +13,6 @@ import pyproj
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
 
-UNIT_TRIANGLE = np.array(
-    [
-        [0.866, 0],  # np.sqrt(3)/2
-        [0, 0.5],  # base right
-        [0, -0.5],  # base left
-    ]
-)
-
-proj = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-proj_inv = pyproj.Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
-
 if TYPE_CHECKING:
     from pypsa import Network
 
@@ -33,9 +22,6 @@ try:
     import plotly.offline as pltly
 except ImportError:
     pltly_present = False
-
-
-pdk.settings.pydeck_offline = True  # Embed JavaScript and CSS into the HTML file
 
 logger = logging.getLogger(__name__)
 
@@ -340,14 +326,23 @@ class PydeckPlotter:
 
     # Class-level constants
     BUS_COLORS = "cadetblue"
-    VALID_MAP_STYLES = [
-        pdk.map_styles.LIGHT,
-        pdk.map_styles.DARK,
-        pdk.map_styles.ROAD,
-        pdk.map_styles.SATELLITE,
-        pdk.map_styles.DARK_NO_LABELS,
-        pdk.map_styles.LIGHT_NO_LABELS,
-    ]
+    VALID_MAP_STYLES = {
+        "light": pdk.map_styles.LIGHT,
+        "dark": pdk.map_styles.DARK,
+        "road": pdk.map_styles.ROAD,
+        "satellite": pdk.map_styles.SATELLITE,
+        "dark_no_labels": pdk.map_styles.DARK_NO_LABELS,
+        "light_no_labels": pdk.map_styles.LIGHT_NO_LABELS,
+    }
+    UNIT_TRIANGLE = np.array(
+        [
+            [0.866, 0],  # np.sqrt(3)/2
+            [0, 0.5],  # base right
+            [0, -0.5],  # base left
+        ]
+    )
+    PROJ = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    PROJ_INV = pyproj.Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
     def __init__(
         self,
@@ -420,6 +415,7 @@ class PydeckPlotter:
         R = np.array([[c, -s], [s, c]])
         return triangle @ R.T
 
+    # TODO: Scaling is not a 100 % correct, as it does not account for projection distortion. To be improved in the future
     @staticmethod
     def scale_triangle_by_width(
         triangle: np.ndarray,
@@ -441,15 +437,19 @@ class PydeckPlotter:
 
     def create_projected_arrows(
         self,
-        line_flows: pd.Series,
+        c_name: str,
+        branch_flow: float | dict | pd.Series | None = None,
         arrow_size_factor: float = 2.5,
     ) -> pd.DataFrame:
         """Create polygons for arrows based on line data and flows.
 
         Parameters
         ----------
-        line_flows : pd.Series
-            Series of line flows indexed by line names.
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        branch_flow : float/dict/pandas.Series/None
+            Series of line flows indexed by line names, defaults to None. If None, no arrows will be created.
+            If a float is provided, it will be used as a constant flow for all lines.
         arrow_size_factor : float, default 2.5
             Factor to scale the arrow size.
 
@@ -460,40 +460,70 @@ class PydeckPlotter:
 
         """
 
-        def make_polygon(row: pd.Series) -> list[tuple[float, float]]:
+        def make_polygon(
+            branch_flow: pd.Series,
+            row: pd.Series,
+        ) -> list[tuple[float, float]]:
             """Create a polygon for an arrow based on a row of line data."""
-            flow = line_flows.loc[row.name]
+            EPS = 1e-6  # Small epsilon to avoid numerical issues
+            f = branch_flow.loc[row.name]
+            if np.isnan(f) or (abs(f) < EPS):
+                return []  # No flow, no arrow
 
-            x0, y0 = proj.transform(row["bus0_x"], row["bus0_y"])
-            x1, y1 = proj.transform(row["bus1_x"], row["bus1_y"])
+            # Check if bus coordinates exist
+            if (
+                pd.isna(row["bus0_x"])
+                or pd.isna(row["bus0_y"])
+                or pd.isna(row["bus1_x"])
+                or pd.isna(row["bus1_y"])
+            ):
+                msg = f"Skipping arrow for {row.name} due to missing bus coordinates."
+                logger.warning(msg)
+                return []
+
+            x0, y0 = PydeckPlotter.PROJ.transform(row["bus0_x"], row["bus0_y"])
+            if np.isnan(x0) or np.isnan(y0):
+                return []
+            x1, y1 = PydeckPlotter.PROJ.transform(row["bus1_x"], row["bus1_y"])
+            if np.isnan(x1) or np.isnan(y1):
+                return []
             dx, dy = x1 - x0, y1 - y0
 
             mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-            angle = np.arctan2(dy, dx) * np.sign(flow)
+            angle = np.arctan2(dy, dx) * np.sign(f)
 
-            base_width_m = abs(flow) * 5 / 3 * arrow_size_factor
-            tri = PydeckPlotter.scale_triangle_by_width(UNIT_TRIANGLE, base_width_m)
+            base_width_m = abs(f) * 5 / 3 * arrow_size_factor
+            tri = PydeckPlotter.scale_triangle_by_width(
+                PydeckPlotter.UNIT_TRIANGLE, base_width_m
+            )
             tri = PydeckPlotter.rotate_triangle(tri, angle)
             tri = PydeckPlotter.translate_triangle(tri, (mx, my))
 
-            return [proj_inv.transform(*p) for p in tri]
+            return [PydeckPlotter.PROJ_INV.transform(*p) for p in tri]
 
-        line_data = self._n.lines.copy()
-        line_data["bus0_x"] = line_data.apply(
-            lambda row: self._n.buses.loc[row["bus0"], "x"], axis=1
-        )
-        line_data["bus0_y"] = line_data.apply(
-            lambda row: self._n.buses.loc[row["bus0"], "y"], axis=1
-        )
-        line_data["bus1_x"] = line_data.apply(
-            lambda row: self._n.buses.loc[row["bus1"], "x"], axis=1
-        )
-        line_data["bus1_y"] = line_data.apply(
-            lambda row: self._n.buses.loc[row["bus1"], "y"], axis=1
-        )
-        line_data["arrow"] = line_data.apply(make_polygon, axis=1)
+        branch_data = self._n.static(c_name).copy()
+        branch_flow = _convert_to_series(branch_flow, self._n.static(c_name).index)
 
-        return line_data[["arrow"]]
+        if arrow_size_factor < 0:
+            msg = "arrow_size_factor must be greater than 0."
+            raise ValueError(msg)
+        if arrow_size_factor == 0:
+            return [[] for _ in range(len(branch_data))]  # Return empty polygons
+
+        branch_data = branch_data.join(
+            self._n.buses[["x", "y"]].rename(columns={"x": "bus0_x", "y": "bus0_y"}),
+            on="bus0",
+        )
+        branch_data = branch_data.join(
+            self._n.buses[["x", "y"]].rename(columns={"x": "bus1_x", "y": "bus1_y"}),
+            on="bus1",
+        )
+        branch_data["arrow"] = branch_data.apply(
+            lambda row: make_polygon(branch_flow, row),
+            axis=1,
+        )
+
+        return branch_data[["arrow"]]
 
     # Data wrangling
     def prepare_component_data(
@@ -518,34 +548,42 @@ class PydeckPlotter:
                 logger.warning(msg)
 
             layer_columns.extend(valid_columns)
-            self._tooltip_columns.extend(valid_columns)
+            self._tooltip_columns = list(set(self._tooltip_columns + valid_columns))
 
         df = df[layer_columns].copy()
         df.index.name = "name"
+
+        if extra_columns:
+            # Round all numeric columns to 3 decimal places. Only columns in valid_columns
+            numeric_cols = [
+                col for col in valid_columns if pd.api.types.is_numeric_dtype(df[col])
+            ]
+            for col in numeric_cols:
+                df[col] = df[col].round(3)
 
         return df
 
     # Layer functions
     def add_bus_layer(
         self,
-        bus_columns: list | None = None,
         bus_sizes: float | dict | pd.Series = 5000,
         bus_colors: str | dict | pd.Series = "cadetblue",
-        bus_alpha: float | dict | pd.Series = 0.5,
+        bus_alpha: float | dict | pd.Series = 0.7,
+        bus_columns: list | None = None,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
 
         Parameters
         ----------
-        bus_columns : list, default None
-            List of bus columns to include. If None, only the bus index and x, y coordinates are used.
-            Specify additional columns to include in the tooltip.
         bus_sizes : float/dict/pandas.Series
             Sizes of bus points in meters, defaults to 5000.
         bus_colors : str/dict/pandas.Series
             Colors for the buses, defaults to 'cadetblue'.
         bus_alpha : float/dict/pandas.Series
-            Add alpha channel to buses, defaults to 0.5.
+            Add alpha channel to buses, defaults to 0.7.
+        bus_columns : list, default None
+            List of bus columns to include. If None, only the bus index and x, y coordinates are used.
+            Specify additional columns to include in the tooltip.
 
         """
         # Check if columns exist and only keep the ones that also exist in the network
@@ -559,11 +597,11 @@ class PydeckPlotter:
         bus_data["radius"] = _convert_to_series(bus_sizes, bus_data.index)
 
         # For default tooltip
-        bus_data["value"] = bus_data["radius"]
+        bus_data["value"] = bus_data["radius"].round(3)
 
         # Convert colors to RGBA list
-        colors = _convert_to_series(bus_colors, bus_data.index).reindex(bus_data.index)
-        alphas = _convert_to_series(bus_alpha, bus_data.index).reindex(bus_data.index)
+        colors = _convert_to_series(bus_colors, bus_data.index)
+        alphas = _convert_to_series(bus_alpha, bus_data.index)
 
         bus_data["rgba"] = [
             to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
@@ -580,40 +618,62 @@ class PydeckPlotter:
         )
 
         # Append the bus layer to the layers property
-        self._layers["buses"] = layer
+        self._layers["Bus"] = layer
 
-    # Add line and link layers
-    def add_line_layer(
+    # Add branch layer
+    def add_branch_layer(
         self,
-        line_columns: list | None = None,
-        line_widths: float | dict | pd.Series = 500,
-        line_colors: str | dict | pd.Series = "rosybrown",
-        line_alpha: float | dict | pd.Series = 0.5,
+        c_name: str,
+        branch_colors: str | dict | pd.Series = "rosybrown",
+        branch_alpha: float | dict | pd.Series = 0.7,
+        branch_widths: float | dict | pd.Series = 1500,
+        branch_columns: list | None = None,
     ) -> None:
         """Add a line layer of Pydeck type PathLayer to the interactive map.
 
         Parameters
         ----------
-        line_columns : list, default None
-            List of line columns to include. If None, only the bus0 and bus1 columns are used.
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        branch_colors : str/dict/pandas.Series
+            Colors for the branch component, defaults to 'rosybrown'.
+        branch_alpha : float/dict/pandas.Series
+            Add alpha channel to branch components, defaults to 0.7.
+        branch_widths : float/dict/pandas.Series
+            Widths of branch component in meters, defaults to 1500.
+        branch_columns : list, default None
+            List of branch columns to include. If None, only the bus0 and bus1 columns are used.
             Specify additional columns to include in the tooltip.
-        line_widths : float/dict/pandas.Series
-            Widths of lines in meters, defaults to 500.
-        line_colors : str/dict/pandas.Series
-            Colors for the lines, defaults to 'rosybrown'.
-        line_alpha : float/dict/pandas.Series
-            Add alpha channel to lines, defaults to 0.5.
 
         """
+        if self._n.static(c_name).empty:
+            msg = f"No data found for component '{c_name}'. Skipping layer creation."
+            logger.warning(msg)
+            return
+
         # Prepare data for lines
-        line_data = self.prepare_component_data(
-            "Line",
+        c_data = self.prepare_component_data(
+            c_name,
             default_columns=["bus0", "bus1"],
-            extra_columns=line_columns,
+            extra_columns=branch_columns,
         )
 
+        # Only keep rows where both bus0 and bus1 are present
+        missing_buses = c_data.loc[
+            ~c_data["bus0"].isin(self._n.buses.index)
+            | ~c_data["bus1"].isin(self._n.buses.index)
+        ]
+        if not missing_buses.empty:
+            # TODO: Store missing buses and branches with missing buses in property if needed later
+            msg = (
+                f"Found {len(missing_buses)} row(s) in '{c_name}' with missing buses. "
+                "These rows will be dropped."
+            )
+            logger.warning(msg)
+            c_data = c_data.drop(missing_buses.index)
+
         # Build path column as list of [lon, lat] pairs for each line
-        line_data["path"] = line_data.apply(
+        c_data["path"] = c_data.apply(
             lambda row: [
                 [
                     self._n.buses.loc[row["bus0"], "x"],
@@ -628,27 +688,23 @@ class PydeckPlotter:
         )
 
         # Convert colors to RGBA list
-        colors = _convert_to_series(line_colors, line_data.index).reindex(
-            line_data.index
-        )
-        alphas = _convert_to_series(line_alpha, line_data.index).reindex(
-            line_data.index
-        )
+        colors = _convert_to_series(branch_colors, c_data.index)
+        alphas = _convert_to_series(branch_alpha, c_data.index)
 
-        line_data["rgba"] = [
+        c_data["rgba"] = [
             to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
         ]
 
         # Map line widths
-        line_data["width"] = _convert_to_series(line_widths, line_data.index)
+        c_data["width"] = _convert_to_series(branch_widths, c_data.index)
 
         # For default tooltip
-        line_data["value"] = line_data["width"]
+        c_data["value"] = c_data["width"].round(3)
 
         # Create PathLayer, use "path" column for get_path
         layer = pdk.Layer(
             "PathLayer",
-            data=line_data.reset_index(),
+            data=c_data.reset_index(),
             get_path="path",
             get_width="width",
             get_color="rgba",
@@ -656,49 +712,61 @@ class PydeckPlotter:
             auto_highlight=True,
         )
 
-        self._layers["lines"] = layer
+        self._layers[c_name] = layer
 
     def add_arrow_layer(
         self,
-        line_flows: float | dict | pd.Series = 500,
+        c_name: str,
+        branch_flow: float | dict | pd.Series | None = None,
         arrow_size_factor: float = 2.5,
-        arrow_colors: str | dict | pd.Series = "rosybrown",
+        arrow_colors: str | dict | pd.Series = "black",
+        arrow_alpha: float | dict | pd.Series = 1.0,
     ) -> None:
         """Add an arrow layer to the interactive map based on line flows.
 
         Parameters
         ----------
-        line_flows : float/dict/pandas.Series
-            Series of line flows indexed by line names, defaults to 500.
-            If a float is provided, it will be used as a constant flow for all lines.
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        branch_flow : float/dict/pandas.Series/None
+            Series of branch flows indexed by line names, defaults to None. If None, no arrows will be created.
+            If a float is provided, it will be used as a constant flow for all branch components.
         arrow_size_factor : float, default 2.5
             Factor to scale the arrow size.
         arrow_colors : str/dict/pandas.Series
-            Colors for the arrows, defaults to 'rosybrown'.
+            Colors for the arrows, defaults to 'black'.
+        arrow_alpha : float/dict/pandas.Series
+            Add alpha channel to arrows, defaults to 1.0.
 
         """
-        line_flows = _convert_to_series(line_flows, self._n.lines.index)
-        line_flows = self.create_projected_arrows(line_flows, arrow_size_factor)
+        if (
+            self._n.static(c_name).empty
+            or (branch_flow is None)
+            or (arrow_size_factor == 0)
+        ):
+            return
 
-        colors = _convert_to_series(arrow_colors, line_flows.index).reindex(
-            line_flows.index
+        branch_flow = self.create_projected_arrows(
+            c_name, branch_flow, arrow_size_factor
         )
-        line_flows["rgba"] = [
-            to_rgba255(c, a)
-            for c, a in zip(colors, pd.Series(255, index=colors.index), strict=False)
+
+        colors = _convert_to_series(arrow_colors, branch_flow.index)
+        alphas = _convert_to_series(arrow_alpha, branch_flow.index)
+        branch_flow["rgba"] = [
+            to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
         ]
 
         layer = pdk.Layer(
             "PolygonLayer",
-            data=line_flows,
+            data=branch_flow,
             get_polygon="arrow",
             get_fill_color="rgba",
-            pickable=False,
+            pickable=True,
             auto_highlight=True,
         )
-        self._layers["arrows"] = layer
+        self._layers[f"{c_name}_arrows"] = layer
 
-    # TODO: Activate custom tooltip
+    # TODO: Find a way to hide empty tooltip columns. Note, tooltips per layer are not supported by Pydeck.
     def add_tooltip(self) -> None:
         """Add a tooltip to the interactive map."""
         tooltip_html = "<b>{name}</b><br/>"
@@ -729,17 +797,28 @@ class PydeckPlotter:
 
 def explore(
     n: "Network",
-    bus_columns: list | None = None,
     bus_sizes: float | dict | pd.Series = 5000,
     bus_colors: str | dict | pd.Series = "cadetblue",
-    bus_alpha: float | dict | pd.Series = 0.5,
-    line_columns: list | None = None,
-    line_widths: float | dict | pd.Series = 500,
-    line_flows: float | dict | pd.Series = 500,
+    bus_alpha: float | dict | pd.Series = 0.7,
+    bus_columns: list | None = None,
+    line_flow: float | dict | pd.Series | None = None,
     line_colors: str | dict | pd.Series = "rosybrown",
-    line_alpha: float | dict | pd.Series = 0.5,
+    line_alpha: float | dict | pd.Series = 0.7,
+    line_widths: float | dict | pd.Series = 1500,
+    line_columns: list | None = None,
+    link_flow: float | dict | pd.Series | None = None,
+    link_colors: str | dict | pd.Series = "darkseagreen",
+    link_alpha: float | dict | pd.Series = 0.7,
+    link_widths: float | dict | pd.Series = 1500,
+    link_columns: list | None = None,
+    transformer_flow: float | dict | pd.Series | None = None,
+    transformer_colors: str | dict | pd.Series = "orange",
+    transformer_alpha: float | dict | pd.Series = 0.7,
+    transformer_widths: float | dict | pd.Series = 1500,
+    transformer_columns: list | None = None,
     arrow_size_factor: float = 2.5,
-    arrow_colors: str | dict | pd.Series = "rosybrown",
+    arrow_colors: str | dict | pd.Series | None = None,
+    arrow_alpha: float | dict | pd.Series = 1.0,
     map_style: str = "light",
     tooltip: bool = True,
 ) -> pdk.Deck:
@@ -749,30 +828,57 @@ def explore(
     ----------
     n : Network
         The PyPSA network to plot.
-    bus_columns : list, default None
-        List of bus columns to include. If None, only the bus index and x, y coordinates are used.
-        Specify additional columns to include in the tooltip.
     bus_sizes : float/dict/pandas.Series
         Sizes of bus points in meters, defaults to 5000.
     bus_colors : str/dict/pandas.Series
         Colors for the buses, defaults to "cadetblue".
     bus_alpha : float/dict/pandas.Series
-        Add alpha channel to buses, defaults to 0.5.
-    line_columns : list, default None
-        List of line columns to include. If None, only the bus0 and bus1 columns are used
+        Add alpha channel to buses, defaults to 0.7.
+    bus_columns : list, default None
+        List of bus columns to include. If None, only the bus index and x, y coordinates are used.
         Specify additional columns to include in the tooltip.
-    line_widths : float/dict/pandas.Series
-        Widths of lines in meters, defaults to 500.
-    line_flows : float/dict/pandas.Series
-        Series of line flows indexed by line names, defaults to 500.
+    line_flow : float/dict/pandas.Series/None
+        Series of line flows indexed by line names, defaults to None. If None, no arrows will be created.
+        If a float is provided, it will be used as a constant flow for all lines.
     line_colors : str/dict/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     line_alpha : float/dict/pandas.Series
-        Add alpha channel to lines, defaults to 0.5.
+        Add alpha channel to lines, defaults to 0.7.
+    line_widths : float/dict/pandas.Series
+        Widths of lines in meters, defaults to 1500.
+    line_columns : list, default None
+        List of line columns to include. If None, only the bus0 and bus1 columns are used.
+        Specify additional columns to include in the tooltip.
+    link_flow : float/dict/pandas.Series/None
+        Series of link flows indexed by link names, defaults to None. If None, no arrows will be created.
+        If a float is provided, it will be used as a constant flow for all links.
+    link_colors : str/dict/pandas.Series
+        Colors for the links, defaults to 'darkseagreen'.
+    link_alpha : float/dict/pandas.Series
+        Add alpha channel to links, defaults to 0.7.
+    link_widths : float/dict/pandas.Series
+        Widths of links in meters, defaults to 1500.
+    link_columns : list, default None
+        List of link columns to include. If None, only the bus0 and bus1 columns are used.
+        Specify additional columns to include in the tooltip.
+    transformer_flow : float/dict/pandas.Series/None
+        Series of transformer flows indexed by transformer names, defaults to None. If None, no arrows will be created.
+        If a float is provided, it will be used as a constant flow for all transformers.
+    transformer_colors : str/dict/pandas.Series
+        Colors for the transformers, defaults to 'orange'.
+    transformer_alpha : float/dict/pandas.Series
+        Add alpha channel to transformers, defaults to 0.7.
+    transformer_widths : float/dict/pandas.Series
+        Widths of transformers in meters, defaults to 1500.
+    transformer_columns : list, default None
+        List of transformer columns to include. If None, only the bus0 and bus1 columns are used.
+        Specify additional columns to include in the tooltip.
     arrow_size_factor : float, default 2.5
-        Factor to scale the arrow size in relation to line_flows. A value of 1 denotes a multiplier of 1xline_width.
-    arrow_colors : str/dict/pandas.Series
-        Colors for the arrows, defaults to 'rosybrown'.
+        Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1xline_width.
+    arrow_colors : str/dict/pandas.Series | None, default None
+        Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
+    arrow_alpha : float/dict/pandas.Series, default 1.0
+        Add alpha channel to arrows, defaults to 1.0.
     map_style : str
         Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
     tooltip : bool, default True
@@ -784,27 +890,61 @@ def explore(
         The interactive map as a Pydeck Deck object.
 
     """
+    BRANCH_ARGS = {
+        "Line": {
+            "branch_flow": line_flow,
+            "branch_colors": line_colors,
+            "branch_alpha": line_alpha,
+            "branch_widths": line_widths,
+            "branch_columns": line_columns,
+        },
+        "Link": {
+            "branch_flow": link_flow,
+            "branch_colors": link_colors,
+            "branch_alpha": link_alpha,
+            "branch_widths": link_widths,
+            "branch_columns": link_columns,
+        },
+        "Transformer": {
+            "branch_flow": transformer_flow,
+            "branch_colors": transformer_colors,
+            "branch_alpha": transformer_alpha,
+            "branch_widths": transformer_widths,
+            "branch_columns": transformer_columns,
+        },
+    }
+
     plotter = PydeckPlotter(n, map_style=map_style)
 
-    plotter.add_bus_layer(
-        bus_columns=bus_columns,
-        bus_sizes=bus_sizes,
-        bus_colors=bus_colors,
-        bus_alpha=bus_alpha,
-    )
+    if not plotter._n.buses.empty:
+        plotter.add_bus_layer(
+            bus_sizes=bus_sizes,
+            bus_colors=bus_colors,
+            bus_alpha=bus_alpha,
+            bus_columns=bus_columns,
+        )
 
-    plotter.add_arrow_layer(
-        line_flows=line_flows,
-        arrow_size_factor=arrow_size_factor,
-        arrow_colors=arrow_colors,
-    )
+    # Loop over all branch components and add them if they exist
+    for c_name, kwargs in BRANCH_ARGS.items():
+        if not plotter._n.static(c_name).empty:
+            plotter.add_branch_layer(
+                c_name=c_name,
+                branch_colors=kwargs["branch_colors"],
+                branch_alpha=kwargs["branch_alpha"],
+                branch_widths=kwargs["branch_widths"],
+                branch_columns=kwargs["branch_columns"],
+            )
 
-    plotter.add_line_layer(
-        line_columns=line_columns,
-        line_widths=line_widths,
-        line_colors=line_colors,
-        line_alpha=line_alpha,
-    )
+            arrow_colors = (
+                kwargs["branch_colors"] if arrow_colors is None else arrow_colors
+            )
+            plotter.add_arrow_layer(
+                c_name=c_name,
+                branch_flow=kwargs["branch_flow"],
+                arrow_size_factor=arrow_size_factor,
+                arrow_colors=arrow_colors,
+                arrow_alpha=arrow_alpha,
+            )
 
     if tooltip:
         plotter.add_tooltip()
