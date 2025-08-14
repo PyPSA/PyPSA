@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 import xarray as xr
-from linopy import LinearExpression, QuadraticExpression, merge
 
 from pypsa.descriptors import nominal_attrs
+from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -107,7 +107,7 @@ def discretized_capacity(
     return block_capacity
 
 
-class OptimizationAbstractMixin:
+class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
     """Mixin class for additional optimization methods.
 
     Class only inherits to [pypsa.optimize.OptimizationAccessor][] and should not be
@@ -518,151 +518,6 @@ class OptimizationAbstractMixin:
                     condition,
                 )
         return n
-
-    def optimize_mga(
-        self,
-        snapshots: Sequence | None = None,
-        multi_investment_periods: bool = False,
-        weights: dict | None = None,
-        sense: str | int = "min",
-        slack: float = 0.05,
-        model_kwargs: dict | None = None,
-        **kwargs: Any,
-    ) -> tuple[str, str]:
-        """Run modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
-
-        Parameters
-        ----------
-        snapshots : list-like
-            Set of snapshots to consider in the optimization. The default is None.
-        multi_investment_periods : bool, default False
-            Whether to optimise as a single investment period or to optimize in
-            multiple investment periods. Then, snapshots should be a
-            ``pd.MultiIndex``.
-        weights : dict-like
-            Weights for alternate objective function. The default is None, which
-            minimizes generation capacity. The weights dictionary should be keyed
-            with the component and variable (see ``pypsa/data/variables.csv``), followed
-            by a float, dict, pd.Series or pd.DataFrame for the coefficients of the
-            objective function.
-        sense : str|int
-            Optimization sense of alternate objective function. Defaults to 'min'.
-            Can also be 'max'.
-        slack : float
-            Cost slack for budget constraint. Defaults to 0.05.
-        model_kwargs: dict
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or
-            `chunk`.
-        **kwargs:
-            Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
-
-        Returns
-        -------
-        status : str
-            The status of the optimization, either "ok" or one of the codes listed
-            in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
-        condition : str
-            The termination condition of the optimization, either
-            "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
-
-        """
-        if model_kwargs is None:
-            model_kwargs = {}
-        n = self._n
-
-        if snapshots is None:
-            snapshots = n.snapshots
-
-        if weights is None:
-            weights = {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
-
-        # check that network has been solved
-        if not self._n.is_solved:
-            msg = "Network needs to be solved with `n.optimize()` before running MGA."
-            raise ValueError(msg)
-
-        # create basic model
-        m = n.optimize.create_model(
-            snapshots=snapshots,
-            multi_investment_periods=multi_investment_periods,
-            **model_kwargs,
-        )
-
-        # build budget constraint
-        if not multi_investment_periods:
-            optimal_cost = n.statistics.capex().sum() + n.statistics.opex().sum()
-            fixed_cost = n.statistics.installed_capex().sum()
-        else:
-            w = n.investment_period_weightings.objective
-            optimal_cost = (
-                n.statistics.capex().sum() * w + n.statistics.opex().sum() * w
-            ).sum()
-            fixed_cost = (n.statistics.installed_capex().sum() * w).sum()
-
-        objective = m.objective
-        if not isinstance(objective, (LinearExpression | QuadraticExpression)):
-            objective = objective.expression
-
-        m.add_constraints(
-            objective + fixed_cost <= (1 + slack) * optimal_cost, name="budget"
-        )
-
-        # parse optimization sense
-        if (
-            isinstance(sense, str)
-            and sense.startswith("min")
-            or isinstance(sense, int)
-            and sense > 0
-        ):
-            sense = 1
-        elif (
-            isinstance(sense, str)
-            and sense.startswith("max")
-            or isinstance(sense, int)
-            and sense < 0
-        ):
-            sense = -1
-        else:
-            msg = f"Could not parse optimization sense {sense}"
-            raise ValueError(msg)
-
-        # build alternate objective
-        objective = []
-        for c, attrs in weights.items():
-            for attr, coeffs in attrs.items():
-                if isinstance(coeffs, dict):
-                    coeffs = pd.Series(coeffs)
-                if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(n.components[c].extendables)
-                    coeffs.index.name = ""
-                elif isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(columns=n.static(c).index)
-                elif isinstance(coeffs, pd.DataFrame):
-                    coeffs = coeffs.reindex(columns=n.static(c).index, index=snapshots)
-                objective.append(m[f"{c}-{attr}"] * coeffs * sense)
-
-        m.objective = merge(objective)
-
-        status, condition = n.optimize.solve_model(**kwargs)
-
-        # write MGA coefficients into metadata
-        n.meta["slack"] = slack
-        n.meta["sense"] = sense
-
-        def convert_to_dict(obj: Any) -> Any:
-            if isinstance(obj, pd.DataFrame):
-                return obj.to_dict(orient="list")
-            elif isinstance(obj, pd.Series):
-                return obj.to_dict()
-            elif isinstance(obj, dict):
-                return {k: convert_to_dict(v) for k, v in obj.items()}
-            else:
-                return obj
-
-        n.meta["weights"] = convert_to_dict(weights)
-
-        return status, condition
 
     def optimize_and_run_non_linear_powerflow(
         self,
