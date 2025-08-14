@@ -123,7 +123,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     for c_name, attr in nom_attr:
         c = as_components(n, c_name)
-        ext_i = c.extendables
+        ext_i = c.extendables.difference(c.inactive_assets)
 
         if ext_i.empty:
             continue
@@ -186,7 +186,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             if var_name not in m.variables and cost_type == "spill_cost":
                 continue
 
-            cost = c.da[cost_type].sel(snapshot=sns)
+            cost = c.da[cost_type].sel(snapshot=sns, name=c.active_assets)
             if cost.size == 0 or (cost == 0).all():
                 continue
 
@@ -217,7 +217,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # stand-by cost
     for c_name in ["Generator", "Link"]:
         c = as_components(n, c_name)
-        com_i = c.committables
+        com_i = c.committables.difference(c.inactive_assets)
 
         if com_i.empty:
             continue
@@ -236,7 +236,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # investment
     for c_name, attr in nominal_attrs.items():
         c = as_components(n, c_name)
-        ext_i = c.extendables
+        ext_i = c.extendables.difference(c.inactive_assets)
 
         if ext_i.empty:
             continue
@@ -264,7 +264,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     keys = ["start_up", "shut_down"]  # noqa: F841
     for c_name, attr in lookup.query("variable in @keys").index:
         c = as_components(n, c_name)
-        com_i = c.committables
+        com_i = c.committables.difference(c.inactive_assets)
 
         if com_i.empty:
             continue
@@ -853,12 +853,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         already performed and a operational optimization should be done
         afterwards.
         """
+        n = self._n
         for c, attr in nominal_attrs.items():
-            ext_i = self._n.components[c].extendables
-            self._n.static(c).loc[ext_i, attr] = self._n.static(c).loc[
-                ext_i, attr + "_opt"
-            ]
-            self._n.static(c)[attr + "_extendable"] = False
+            ext_i = n.c[c].extendables.difference(n.c[c].inactive_assets)
+            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
+            n.static(c)[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """Fix dispatch of all assets to optimized values.

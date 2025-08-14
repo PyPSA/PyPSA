@@ -11,6 +11,7 @@ Release Notes
 ..    To use the features already you have to install the ``master`` branch, e.g. 
 ..    ``pip install git+https://github.com/pypsa/pypsa``.
 
+
 Features
 --------
 
@@ -24,6 +25,11 @@ Features
       \frac{r}{1 - (1 + r)^{-n}}
 
   where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
+
+* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
+  the optimization model entirely. This has no effect on the results, but it can
+  reduce the memory footprint when solving the model.
+
 
 * The option to set bus-level capacity expansion limits per carrier via `Bus`
   attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
