@@ -11,6 +11,17 @@ Release Notes
 ..    To use the features already you have to install the ``master`` branch, e.g. 
 ..    ``pip install git+https://github.com/pypsa/pypsa``.
 
+
+`v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
+=======================================================================================
+
+Bug Fixes
+---------
+
+* Make compatible with xarray v2025.07
+  (https://github.com/PyPSA/PyPSA/pull/1304)
+
+
 `v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
 =======================================================================================
 
