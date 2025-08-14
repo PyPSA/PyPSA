@@ -395,8 +395,8 @@ class PydeckPlotter:
             latitude=center_lat,
             longitude=center_lon,
             zoom=zoom,
-            pitch=45,  # Default pitch
-            bearing=-15,  # Default bearing
+            pitch=0,  # Default pitch
+            bearing=0,  # Default bearing
         )
 
     @property
