@@ -30,7 +30,7 @@ dependencies = [
     "scipy>=1.14.1,!=1.15.0; python_version >= '3.13'",
     "scipy; python_version < '3.13'",
     "pandas>=0.24",
-    "xarray<2025.07.0",
+    "xarray",
     "netcdf4",
     "linopy>=0.5.5",
     "matplotlib",
