@@ -1714,11 +1714,11 @@ class NetworkIOMixin(_NetworkABC):
         """
         attrs = self.components[cls_name]["attrs"]
 
-        static_attrs = attrs[attrs.static].drop("name")
-        non_static_attrs = attrs[~attrs.static]
-
         if cls_name == "Link":
             _update_linkports_component_attrs(self, where=df)
+
+        static_attrs = attrs[attrs.static].drop("name")
+        non_static_attrs = attrs[~attrs.static]
 
         # Clean dataframe and ensure correct types
         df = pd.DataFrame(df)
