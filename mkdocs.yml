@@ -39,15 +39,15 @@ nav:
       - Load: user-guide/components/loads.md
       - Link: user-guide/components/links.md
       - Store: user-guide/components/stores.md
-      - Storage Unit: user-guide/components/storage_units.md
+      - Storage Unit: user-guide/components/storage-units.md
       - Line: user-guide/components/lines.md
-      - Line Types: user-guide/components/line_types.md
+      - Line Types: user-guide/components/line-types.md
       - Transformer: user-guide/components/transformers.md
-      - Transformer Types: user-guide/components/transformer_types.md
-      - Shunt Impedance: user-guide/components/shunt_impedances.md
-      - Global Constraints: user-guide/components/global_constraints.md
+      - Transformer Types: user-guide/components/transformer-types.md
+      - Shunt Impedance: user-guide/components/shunt-impedances.md
+      - Global Constraints: user-guide/components/global-constraints.md
       - Shapes: user-guide/components/shapes.md
-      - Sub-Network: user-guide/components/sub_networks.md
+      - Sub-Network: user-guide/components/sub-networks.md
   - Optimization:
     - Overview: user-guide/optimization/overview.md
     - Formulations:
@@ -87,8 +87,8 @@ nav:
     - examples/ac-dc-lopf.ipynb
     - examples/scigrid-lopf-then-pf.ipynb
     - examples/scigrid-sclopf.ipynb
-    - examples/minimal_example_pf.ipynb
-    - examples/negative_prices_kvl_baker.ipynb
+    - examples/minimal-example-pf.ipynb
+    - examples/negative-prices-kvl-baker.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb
@@ -111,7 +111,7 @@ nav:
     - examples/demand-elasticity.ipynb
     - examples/generation-investment-screening-curve.ipynb
     - examples/chained-hydro-reservoirs.ipynb
-    - examples/transformer_example.ipynb
+    - examples/transformer-example.ipynb
     - examples/reserve-power.ipynb
   - Complexity Management & Troubleshooting:
     - examples/time-series-aggregation.ipynb
@@ -136,18 +136,18 @@ nav:
     - Network Collection: api/networks/collection.md
     - Utilities: api/common.md
   - Components:
-    - ComponentsData: api/components/components_data.md
+    - ComponentsData: api/components/components-data.md
     - Components: api/components/components.md
     - Component Types:
-      - Sub-Network: api/components/types/sub_networks.md
+      - Sub-Network: api/components/types/sub-networks.md
       - Bus: api/components/types/buses.md
       - Carrier: api/components/types/carriers.md
-      - Global Constraints: api/components/types/global_constraints.md
+      - Global Constraints: api/components/types/global-constraints.md
       - Generator: api/components/types/generators.md
       - Store: api/components/types/stores.md
-      - StorageUnit: api/components/types/storage_units.md
+      - StorageUnit: api/components/types/storage-units.md
       - Load: api/components/types/loads.md
-      - Shunt Impedance: api/components/types/shunt_impedances.md
+      - Shunt Impedance: api/components/types/shunt-impedances.md
       - Line: api/components/types/lines.md
       - Transformer: api/components/types/transformers.md
       - Link: api/components/types/links.md
@@ -337,6 +337,7 @@ plugins:
       'home/release-notes.md': 'release-notes.md'
       'changelog.md': 'release-notes.md'
       'whats-new.md': 'release-notes.md'
+      'code-of-conduct.md': 'CODE_OF_CONDUCT.md'
 
 hooks:
 - docs/assets/overrides/hooks/shortcodes.py
