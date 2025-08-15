@@ -594,7 +594,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 status,
                 condition,
             )
-            return {"status": status, "terminantion_condition": condition}
+            return {"status": status, "termination_condition": condition}
 
         for c in n.one_port_components:
             n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
