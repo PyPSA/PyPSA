@@ -440,7 +440,7 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
 
 
     """
-    if component.name in {"Generator", "Link"}:
+    if component.name in {"Generator", "Link", "Process"}:
         committables = component.committables
         extendables = component.extendables
         intersection = committables.intersection(extendables)

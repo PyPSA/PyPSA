@@ -12,6 +12,7 @@ COMPONENT_ALIAS_DICT = {
     "Link": "links",
     "Load": "loads",
     "Generator": "generators",
+    "Process": "processes",
     "StorageUnit": "storage_units",
     "Store": "stores",
     "ShuntImpedance": "shunt_impedances",
