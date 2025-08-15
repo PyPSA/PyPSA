@@ -542,7 +542,7 @@ def explore(
 
     if not n.c.loads.static.empty and "Load" in components:
         loads = n.c.loads.static.copy()
-        loads["p_set_sum"] = n.c.c.loads.dynamic.p_set.sum(axis=0).round(1)
+        loads["p_set_sum"] = n.c.loads.dynamic.p_set.sum(axis=0).round(1)
         gdf_loads = gpd.GeoDataFrame(
             loads,
             geometry=gpd.points_from_xy(
