@@ -1,5 +1,5 @@
 Two components are available for modelling storage: [`Store`](/api/components/types/stores) and [`StorageUnit`](/api/components/types/storage_units). See
-the [Store Component](../components/stores.md) and [Storage Unit Component](../components/storage_units.md) descriptions for an overview of
+the [Store Component](../components/stores.md) and [Storage Unit Component](../components/storage-units.md) descriptions for an overview of
 the conceptual differences.
 
 

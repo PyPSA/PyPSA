@@ -55,7 +55,7 @@ Yes, see [Storage User Guide](../user-guide/optimization/storage.md).
 
 ## Does PyPSA offer stochastic optimisation?
 
-Yes, a two-stage stochastic programming framework is available since Version 1.0
+Yes, a two-stage stochastic programming framework is available since Version `v1.0`
 (see [Stochastic Optimisation](../user-guide/optimization/stochastic.md)).
 
 ## How does PyPSA model grid load flow physics?

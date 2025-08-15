@@ -146,6 +146,7 @@ Here, we followed the recommended way to create and solve models with custom alt
 It is also possible to pass modifications as an `extra_functionality` argument to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]:
 
 ```python
+import pandas as pd
 def remove_kvl(n: pypsa.Network, sns: pd.Index) -> None:
     n.model.constraints.remove("Kirchhoff-Voltage-Law")
 

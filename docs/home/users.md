@@ -4,9 +4,11 @@
 The following universities, research institutes, companies, governmental and non-governmental organisations are known to have either used PyPSA in the past, or to continue to use PyPSA. This list is necessarily incomplete, since we cannot track who uses PyPSA and we only find out who our users are when they contact the main developers of PyPSA.
 
 !!! note "Research Publications"
+
     Research publications that cite the [PyPSA research paper](https://doi.org/10.5334/jors.188) can be found on [:fontawesome-brands-google-scholar: Google Scholar](https://scholar.google.com/scholar?oi=bibs&hl=en&cites=11241966939032736670&as_sdt=5).
 
 !!! note "User Meetings on YouTube"
+
     The PyPSA user meeting recordings on [:material-youtube: YouTube](https://www.youtube.com/@pypsa-official) give further insight into applications in the energy sector.
 
 ## Universities
