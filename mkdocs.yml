@@ -325,11 +325,11 @@ plugins:
               - pypsa.components._types.transformers.Transformers.add
 # This will rebuild and execute the notebooks during any modifications when running ``mkdocs serve``
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
-# - mkdocs-jupyter:
-#     # execute: true
-#     include: ["examples/*.ipynb"]
-#     allow_errors: false
-#     include_source: true
+- mkdocs-jupyter:
+    # execute: true
+    include: ["examples/*.ipynb"]
+    allow_errors: false
+    include_source: true
 # Global redirects
 - redirects:
     redirect_maps:
