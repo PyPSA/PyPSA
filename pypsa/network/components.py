@@ -61,13 +61,14 @@ class NetworkComponentsMixin(_NetworkABC):
 
     Class only inherits to [pypsa.Network][] and should not be used directly.
     All attributes and methods can be used within any Network instance.
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Import-Export](../user-guide/import-export)
     """
 
     def __init__(self) -> None:
-        """Initialize the NetworkComponentsMixin.
-
-        The class should not be used directly and initialzed outside of PyPSA.
-        """
+        """Initialize the NetworkComponentsMixin."""
         self._components: ComponentsStore | None = None
 
     def _read_in_default_standard_types(self) -> None:

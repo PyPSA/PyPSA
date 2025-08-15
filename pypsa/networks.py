@@ -101,6 +101,10 @@ class Network(
     ) -> None:
         """Initialize a new PyPSA Network.
 
+        User Guide
+        ----------
+        Check out the corresponding user guide: [:material-bookshelf: Network](../user-guide/networks.md)
+
         Parameters
         ----------
         import_name : string, Path

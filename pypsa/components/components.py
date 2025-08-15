@@ -61,7 +61,7 @@ class ComponentsData:
 
     User Guide
     ----------
-    Check out the corresponding user guide: [:material-bookshelf: Components](/user-guide/components)
+    Check out the corresponding user guide: [:material-bookshelf: Components](../user-guide/components.md)
 
     Attributes
     ----------

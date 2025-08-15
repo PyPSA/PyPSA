@@ -299,7 +299,12 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
-    """Optimization accessor for building and solving models using linopy."""
+    """Optimization accessor for building and solving models using linopy.
+
+    User Guide
+    ----------
+    Check out the corresponding user guide: [:material-bookshelf: Optimization](../user-guide/network-optimization.md)
+    """
 
     def __init__(self, n: Network) -> None:
         """Initialize the optimization accessor."""
