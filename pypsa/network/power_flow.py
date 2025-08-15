@@ -463,7 +463,7 @@ def apply_transformer_types(n: Network) -> None:
 
     missing_types = pd.Index(
         n.c.transformers.static.loc[trafos_with_types_b, "type"].unique()
-    ).difference(n.transformer_types.index)
+    ).difference(n.c.transformer_types.static.index)
     if not missing_types.empty:
         msg = (
             f"The type(s) {', '.join(missing_types)} do(es) not exist in "
@@ -475,7 +475,7 @@ def apply_transformer_types(n: Network) -> None:
     # (joining pulls in "phase_shift", "s_nom", "tap_side" from TransformerType)
     t = n.c.transformers.static.loc[
         trafos_with_types_b, ["type", "tap_position", "num_parallel"]
-    ].join(n.transformer_types, on="type")
+    ].join(n.c.transformer_types.static, on="type")
 
     t["r"] = t["vscr"] / 100.0
     t["x"] = np.sqrt((t["vsc"] / 100.0) ** 2 - t["r"] ** 2)
