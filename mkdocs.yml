@@ -89,6 +89,7 @@ nav:
     - examples/scigrid-sclopf.ipynb
     - examples/minimal_example_pf.ipynb
     - examples/negative_prices_kvl_baker.ipynb
+    - examples/rolling-horizon.ipynb
   - Planning Problems:
     - examples/capacity-expansion-planning-single-node.ipynb
     - examples/3-node-cem.ipynb
