@@ -108,6 +108,6 @@ def apply_layouter(
     coordinates = pd.DataFrame(layouter(G)).T.rename({0: "x", 1: "y"}, axis=1)
 
     if inplace:
-        n.buses[["x", "y"]] = coordinates
+        n.c.buses.static[["x", "y"]] = coordinates
         return None
     return coordinates.x, coordinates.y

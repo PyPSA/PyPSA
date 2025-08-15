@@ -44,5 +44,5 @@ def test_modular_components():
     expected_p_nom_opt_gen = np.array([5000], dtype=float).T
     expected_e_nom_opt_store = np.array([1000], dtype=float).T
 
-    equal(n.generators.p_nom_opt, expected_p_nom_opt_gen)
-    equal(n.stores.e_nom_opt, expected_e_nom_opt_store)
+    equal(n.c.generators.static.p_nom_opt, expected_p_nom_opt_gen)
+    equal(n.c.stores.static.e_nom_opt, expected_e_nom_opt_store)

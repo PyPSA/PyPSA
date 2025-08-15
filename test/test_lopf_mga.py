@@ -35,14 +35,14 @@ def test_mga():
 
     n.optimize()
 
-    opt_capacity = n.generators.p_nom_opt
+    opt_capacity = n.c.generators.static.p_nom_opt
     opt_cost = (n.statistics.capex() + n.statistics.opex()).sum()
 
     weights = {"Generator": {"p_nom": {"coal": 1}}}
     slack = 0.05
     n.optimize.optimize_mga(slack=0.05, weights=weights)
 
-    mga_capacity = n.generators.p_nom_opt
+    mga_capacity = n.c.generators.static.p_nom_opt
     mga_cost = (n.statistics.capex() + n.statistics.opex()).sum()
 
     assert mga_capacity["coal"] <= opt_capacity["coal"]
@@ -95,7 +95,10 @@ def test_mga_in_direction():
     }
 
     # Assert that the capacity of gen1 is less than gen2
-    assert n.generators.p_nom_opt["gen1"] < n.generators.p_nom_opt["gen2"]
+    assert (
+        n.c.generators.static.p_nom_opt["gen1"]
+        < n.c.generators.static.p_nom_opt["gen2"]
+    )
 
     # Test error before solving network
     n_unsolved = pypsa.Network()

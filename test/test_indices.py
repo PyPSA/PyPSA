@@ -53,10 +53,10 @@ def test_existing_value_casting(request, network_fixture):
     assert not isinstance(base_network.snapshots, pd.MultiIndex)
     snapshots = base_network.snapshots
     if isinstance(n.snapshots, pd.MultiIndex):
-        vals = n.generators_t.p_max_pu.xs(2015).loc[snapshots, :]
+        vals = n.c.generators.dynamic.p_max_pu.xs(2015).loc[snapshots, :]
     else:
-        vals = n.generators_t.p_max_pu.loc[snapshots, :]
-    assert vals.equals(base_network.generators_t.p_max_pu)
+        vals = n.c.generators.dynamic.p_max_pu.loc[snapshots, :]
+    assert vals.equals(base_network.c.generators.dynamic.p_max_pu)
 
 
 # @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])
