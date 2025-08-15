@@ -23,9 +23,9 @@ nav:
     - License: home/license.md
   - Support:
     - FAQ: user-guide/faq.md
+    - Troubleshooting: user-guide/troubleshooting.md
     - Support: user-guide/support.md
     - Resources: user-guide/resources.md
-    - Troubleshooting: user-guide/troubleshooting.md
 
 - User Guide:
   - Overview: user-guide/user-guide.md
@@ -161,7 +161,7 @@ nav:
 
 - Contributing:
   - Instructions: contributing/contributing.md
-  - Code of Conduct: contributing/code-of-conduct.md
+  - Code of Conduct: CODE_OF_CONDUCT.md
   - Contributors: contributing/contributors.md
 
 # Theme settings
@@ -256,22 +256,21 @@ plugins:
 - autolinks
 - table-reader
 - mkdocs-video
-# - git-authors
 - git-revision-date-localized:
     type: timeago
     timezone: Europe/Berlin
     enable_creation_date: true
-# - git-committers:
-#     repository: PyPSA/PyPSA
-#     branch: v1-docs # TODO: Change to master before merging
-#     token: !!python/object/apply:os.getenv ["MKDOCS_GIT_COMMITTERS_APIKEY"]
+- git-committers:
+    repository: PyPSA/PyPSA
+    branch: v1-docs # TODO: Change to master before merging
+    token: !!python/object/apply:os.getenv ["MKDOCS_GIT_COMMITTERS_APIKEY"]
 - argref:
     autolinks:
     - reference_prefix: ":octicons-git-pull-request-16:"
       target_url: https://github.com/PyPSA/PyPSA/pull/<num>
 - social:
     cards_layout_options:
-      font_family: Ubuntu
+      font_family: Overpass
       background_color: "#292F36"
 
 # Docstring generation
@@ -326,11 +325,11 @@ plugins:
               - pypsa.components._types.transformers.Transformers.add
 # This will rebuild and execute the notebooks during any modifications when running ``mkdocs serve``
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
-- mkdocs-jupyter:
-    execute: true
-    include: ["examples/*.ipynb"]
-    # allow_errors: false # TODO
-    include_source: true
+# - mkdocs-jupyter:
+#     # execute: true
+#     include: ["examples/*.ipynb"]
+#     allow_errors: false
+#     include_source: true
 # Global redirects
 - redirects:
     redirect_maps:
@@ -350,8 +349,9 @@ extra:
     link: https://github.com/PyPSA
 
   extra:
-  homepage: https://pypsa.org
+    homepage: https://pypsa.org
 
+# TODO: Enable
 # validation:
 #   omitted_files: warn
 #   absolute_links: warn

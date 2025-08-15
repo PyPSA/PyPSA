@@ -141,7 +141,7 @@ tangents are sufficient for a reasonably accurate approximation.
 
     Explores how Kirchhoff's Voltage Law can lead to negative locational marginal prices when lines are congested.
 
-    [:octicons-arrow-right-24: Go to example](../../examples/negative_prices_kvl_baker.ipynb)
+    [:octicons-arrow-right-24: Go to example](../../examples/negative-prices-kvl-baker.ipynb)
 
 </div>
 

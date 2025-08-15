@@ -36,6 +36,7 @@ Create a folder with CSVs for each component type (e.g. `generators.csv`), then 
 [`n.import_from_csv_folder()`][pypsa.network.io.NetworkIOMixin.import_from_csv_folder] to **import** the network or simply provide the path in the [`pypsa.Network`][] constructor.
 
 !!! note
+
     It is not necessary to add every single column, only those where values differ from the defaults listed in [Components](../user-guide/components.md). All empty values/columns are filled with the defaults.
 
 A network can be **exported** as a folder of csv files with [`n.export_to_csv_folder()`][pypsa.network.io.NetworkIOMixin.export_to_csv_folder].
@@ -65,6 +66,7 @@ To **export** network and components to a netCDF file run [`n.export_to_netcdf()
 To **import** network data from netCDF file run [`n.import_from_netcdf()`][pypsa.network.io.NetworkIOMixin.import_from_netcdf]  or simply provide the path in the [`pypsa.Network`][] constructor.
 
 !!! note
+
     netCDF is preferred over HDF5 because netCDF is structured more
     cleanly, is easier to use from other programming languages, can limit
     float precision to save space and supports lazy loading.
@@ -105,6 +107,7 @@ To **import** a network from [pandapower](http://www.pandapower.org/), run the f
 **Exporting** to [pandapower](http://www.pandapower.org/) is not currently supported.
 
 !!! warning 
+
     Not all pandapower data fields are supported. For instance,
     three-winding transformers, switches, `in_service` status and tap positions
     of transformers.

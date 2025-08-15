@@ -1,6 +1,3 @@
-todo: Add uv, pip, conda
-
-
 # Instructions for Contributing
 
 First of all, thank you for thinking about contributing to PyPSA! 
@@ -33,7 +30,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 7. Run tests: `pytest` (see [Testing](#testing))
 8. Push your changes to your fork and create a pull request on GitHub
 
-What to work on, TODO, which issues, labeling etc.  #TODO: 
+TODO: What to work on, TODO, which issues, labeling etc.
 
 ### Style
 
@@ -50,7 +47,7 @@ manually via `pip install pre-commit` or `conda install -c conda-forge pre-commi
 To use it automatically before every commit (recommended), just run once:
 
 ```bash
-pre-commit install
+$ pre-commit install
 ```
 
 This will automatically check the changes which are staged before you commit them.
@@ -58,7 +55,7 @@ This will automatically check the changes which are staged before you commit the
 To manually run it, use:
 
 ```bash
-pre-commit run --all
+$ pre-commit run --all
 ```
 
 This will check all files in the repository.
@@ -77,7 +74,7 @@ manually using `pip install ruff`.
 To use the linter in your CLI, run:
 
 ```bash
-ruff check . --fix
+$ ruff check . --fix
 ```
 
 This will check all files in the repository and gives you hints on what to improve. The 
@@ -87,7 +84,7 @@ issues need to be fixed manually.
 And to run the formatter, use:
 
 ```bash
-ruff format .
+$ ruff format .
 ```
 
 This will format all the files in the repository and immediately apply the changes to 
@@ -104,13 +101,13 @@ Unit testing is performed with pytest which is installed with the development de
 The tests can be found in the `test/` folder and can be run with:
 
 ```bash
-pytest
+$ pytest
 ```
 
 Or to run individual tests:
 
 ```bash
-pytest test_lpf_against_pypower.py
+$ pytest test_lpf_against_pypower.py
 ```
 
 Power flow is tested against PYPOWER (the Python implementation of MATPOWER)
@@ -129,7 +126,7 @@ very much welcome your contribution.
 
 !!! note
 
-   If you are not familiar with Markdown, consult the following [quick guide](https://www.markdownguide.org/basic-syntax/).
+    If you are not familiar with Markdown, consult the following [quick guide](https://www.markdownguide.org/basic-syntax/).
 
 For bigger changes, we recommend to draft them locally. Just follow the steps in 
 [Code Contributions](#code) to set up your local environment. In addition you can:
@@ -138,7 +135,11 @@ For bigger changes, we recommend to draft them locally. Just follow the steps in
 2. Make your changes in the corresponding `.md` file in the `docs` directory.
 3. Compile your changes by running the following command in your terminal in the `doc` folder: `mkdocs serve`
    
-   * You may encounter some warnings, but end up with a link to a local server (e.g. `http://127.0.0.1:8000`).
+!!! info
+
+    If you are not editing example notebooks (`.ipynb` files), you may wanna comment out 
+    the `mkdocs-jupyter` plugin in the `mkdocs.yml` file, to make the build faster. 
+    In any case, you will end up with a link to a local server (e.g. `http://127.0.0.1:8000`).
 
 For simple changes, you can also edit the documentation directly on GitHub:
 
@@ -151,13 +152,13 @@ For simple changes, you can also edit the documentation directly on GitHub:
 Nice examples are always welcome.
 
 You can even submit your Jupyter notebook (`.ipynb`) directly
-as an example. Please run the linter (see [Code Style](#code-style)) to ensure
+as an example. Please run the linter (see [Code Style](#style)) to ensure
 that the notebook is clean and metadata is removed.
 
 Then for every notebook:
 
 1. Write the notebook (let's call it `foo.ipynb`) and place it
-   in `examples/foo.ipynb`.
+   in `docs/examples/foo.ipynb`.
 
 2. Reference it in the configuration file `docs/mkdocs.yml` where the other examples are listed.
 

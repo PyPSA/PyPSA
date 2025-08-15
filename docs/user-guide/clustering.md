@@ -1,5 +1,6 @@
 # Network Clustering 
 
+TODO: Needs to be updated
 In this example, we show how pypsa can deal with spatial clustering of networks. 
 
 ```python
