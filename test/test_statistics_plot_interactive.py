@@ -111,9 +111,9 @@ def test_iplot_stacked_parameter(ac_dc_network_r, stacked):
 def test_iplot_category_orders(ac_dc_network_r):
     """Test creating a plot with specified category orders."""
     # Create plot with specified orders if applicable columns exist
-    carriers = ac_dc_network_r.carriers.index.unique().tolist()
-    buses = ac_dc_network_r.buses.index.unique().tolist()
-    countries = ac_dc_network_r.buses.country.unique().tolist()
+    carriers = ac_dc_network_r.c.carriers.static.index.unique().tolist()
+    buses = ac_dc_network_r.c.buses.static.index.unique().tolist()
+    countries = ac_dc_network_r.c.buses.static.country.unique().tolist()
 
     # Create plot with the available orders
     fig = ac_dc_network_r.statistics.installed_capacity.iplot.bar(

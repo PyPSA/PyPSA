@@ -189,7 +189,7 @@ def test_consistency_checks(ac_dc_network_r):
     plotter = ChartGenerator(ac_dc_network_r)
     n = ac_dc_network_r.copy()
     plotter = ChartGenerator(n)
-    n.carriers.color = pd.Series()
+    n.c.carriers.static.color = pd.Series()
     # Test with missing carrier colors
     with pytest.raises(ConsistencyError):
         plotter.plot(data=pd.DataFrame(), kind="area", x="carrier", y="value")

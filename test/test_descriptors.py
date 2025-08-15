@@ -56,10 +56,10 @@ def test_allocate_series_dataframes(network):
 
     allocate_series_dataframes(n, {"Generator": ["p"], "Load": ["p"]})
 
-    assert "p" in n.generators_t
-    assert "p" in n.loads_t
-    assert n.generators_t.p.shape == (len(n.snapshots), 1)
-    assert n.loads_t.p.shape == (len(n.snapshots), 1)
+    assert "p" in n.c.generators.dynamic
+    assert "p" in n.c.loads.dynamic
+    assert n.c.generators.dynamic.p.shape == (len(n.snapshots), 1)
+    assert n.c.loads.dynamic.p.shape == (len(n.snapshots), 1)
 
 
 def test_get_extendable_i(network):
@@ -107,7 +107,7 @@ def test_additional_linkports():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        ports = _additional_linkports(n, n.links.columns)
+        ports = _additional_linkports(n, n.c.links.static.columns)
     assert ports == ["2"]
     assert ports == n.c.links.additional_ports
 

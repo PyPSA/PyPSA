@@ -327,7 +327,9 @@ class OptimizationAbstractMGAMixin:
             snapshots = n.snapshots
 
         if weights is None:
-            weights = {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
+            weights = {
+                "Generator": {"p_nom": pd.Series(1, index=n.c.generators.static.index)}
+            }
 
         # check that network has been solved
         if not self._n.is_solved:

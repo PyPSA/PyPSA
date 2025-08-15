@@ -100,8 +100,8 @@ class TestCSVDir:
         ac_dc_periods.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
 
     def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -109,20 +109,20 @@ class TestCSVDir:
         ac_dc_shapes.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_csv_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "csv_export"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -194,8 +194,8 @@ class TestNetcdf:
         ac_dc_periods.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
@@ -209,20 +209,20 @@ class TestNetcdf:
         ac_dc_shapes.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_netcdf_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "netcdf_export.nc"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -235,7 +235,10 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=False, compression=None)
         scipy_network_compressed = pypsa.Network(fn)
         assert (
-            (scipy_network.loads_t.p_set == scipy_network_compressed.loads_t.p_set)
+            (
+                scipy_network.c.loads.dynamic.p_set
+                == scipy_network_compressed.c.loads.dynamic.p_set
+            )
             .all()
             .all()
         )
@@ -249,7 +252,8 @@ class TestNetcdf:
         assert (
             (
                 (
-                    scipy_network.loads_t.p_set - scipy_network_compressed.loads_t.p_set
+                    scipy_network.c.loads.dynamic.p_set
+                    - scipy_network_compressed.c.loads.dynamic.p_set
                 ).abs()
                 < 1 / 10**digits
             )
@@ -320,8 +324,8 @@ class TestHDF5:
         ac_dc_periods.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
 
     def test_hdf5_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -329,20 +333,20 @@ class TestHDF5:
         ac_dc_shapes.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_hdf5_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -414,8 +418,8 @@ class TestExcelIO:
         ac_dc_periods.export_to_excel(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
@@ -428,20 +432,20 @@ class TestExcelIO:
         ac_dc_shapes.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_excel_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "excel_export.xlsx"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -494,17 +498,24 @@ class TestExcelIO:
         fn = tmpdir / "network-time-eff.xlsx"
         n.export_to_excel(fn)
         m = pypsa.Network(fn)
-        assert not m.stores_t.standing_loss.empty
-        assert not m.storage_units_t.standing_loss.empty
-        assert not m.generators_t.efficiency.empty
-        assert not m.storage_units_t.efficiency_store.empty
-        assert not m.storage_units_t.efficiency_dispatch.empty
-        equal(m.stores_t.standing_loss, n.stores_t.standing_loss)
-        equal(m.storage_units_t.standing_loss, n.storage_units_t.standing_loss)
-        equal(m.generators_t.efficiency, n.generators_t.efficiency)
-        equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
+        assert not m.c.stores.dynamic.standing_loss.empty
+        assert not m.c.storage_units.dynamic.standing_loss.empty
+        assert not m.c.generators.dynamic.efficiency.empty
+        assert not m.c.storage_units.dynamic.efficiency_store.empty
+        assert not m.c.storage_units.dynamic.efficiency_dispatch.empty
+        equal(m.c.stores.dynamic.standing_loss, n.c.stores.dynamic.standing_loss)
         equal(
-            m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch
+            m.c.storage_units.dynamic.standing_loss,
+            n.c.storage_units.dynamic.standing_loss,
+        )
+        equal(m.c.generators.dynamic.efficiency, n.c.generators.dynamic.efficiency)
+        equal(
+            m.c.storage_units.dynamic.efficiency_store,
+            n.c.storage_units.dynamic.efficiency_store,
+        )
+        equal(
+            m.c.storage_units.dynamic.efficiency_dispatch,
+            n.c.storage_units.dynamic.efficiency_dispatch,
         )
 
 
@@ -610,11 +621,13 @@ def test_import_from_pandapower_network(
             use_pandapower_index=use_pandapower_index,
             extra_line_data=extra_line_data,
         )
-        assert len(n.buses) == len(net.bus)
-        assert len(n.generators) == (len(net.gen) + len(net.sgen) + len(net.ext_grid))
+        assert len(n.c.buses.static) == len(net.bus)
+        assert len(n.c.generators.static) == (
+            len(net.gen) + len(net.sgen) + len(net.ext_grid)
+        )
         assert len(n.loads) == len(net.load)
-        assert len(n.transformers) == len(net.trafo)
-        assert len(n.shunt_impedances) == len(net.shunt)
+        assert len(n.c.transformers.static) == len(net.trafo)
+        assert len(n.c.shunt_impedances.static) == len(net.shunt)
 
 
 def test_io_time_dependent_efficiencies(tmpdir):
@@ -637,17 +650,25 @@ def test_io_time_dependent_efficiencies(tmpdir):
     n.export_to_netcdf(fn)
     m = pypsa.Network(fn)
 
-    assert not m.stores_t.standing_loss.empty
-    assert not m.storage_units_t.standing_loss.empty
-    assert not m.generators_t.efficiency.empty
-    assert not m.storage_units_t.efficiency_store.empty
-    assert not m.storage_units_t.efficiency_dispatch.empty
+    assert not m.c.stores.dynamic.standing_loss.empty
+    assert not m.c.storage_units.dynamic.standing_loss.empty
+    assert not m.c.generators.dynamic.efficiency.empty
+    assert not m.c.storage_units.dynamic.efficiency_store.empty
+    assert not m.c.storage_units.dynamic.efficiency_dispatch.empty
 
-    equal(m.stores_t.standing_loss, n.stores_t.standing_loss)
-    equal(m.storage_units_t.standing_loss, n.storage_units_t.standing_loss)
-    equal(m.generators_t.efficiency, n.generators_t.efficiency)
-    equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
-    equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
+    equal(m.c.stores.dynamic.standing_loss, n.c.stores.dynamic.standing_loss)
+    equal(
+        m.c.storage_units.dynamic.standing_loss, n.c.storage_units.dynamic.standing_loss
+    )
+    equal(m.c.generators.dynamic.efficiency, n.c.generators.dynamic.efficiency)
+    equal(
+        m.c.storage_units.dynamic.efficiency_store,
+        n.c.storage_units.dynamic.efficiency_store,
+    )
+    equal(
+        m.c.storage_units.dynamic.efficiency_dispatch,
+        n.c.storage_units.dynamic.efficiency_dispatch,
+    )
 
 
 def test_sort_attrs():

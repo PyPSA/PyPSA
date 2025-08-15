@@ -71,7 +71,7 @@ class NetworkGraphMixin:
                 branch_components = n.branch_components
             else:
                 branch_components = set(branch_components)
-            buses_i = n.buses.index
+            buses_i = n.c.buses.static.index
         elif isinstance(n, SubNetwork):
             if branch_components is None:
                 branch_components = n.n.passive_branch_components
@@ -155,7 +155,7 @@ class NetworkGraphMixin:
             if branch_components is None:
                 branch_components = n.branch_components
             if busorder is None:
-                busorder = n.buses.index
+                busorder = n.c.buses.static.index
         elif isinstance(n, SubNetwork):
             if branch_components is None:
                 branch_components = n.n.passive_branch_components
@@ -247,7 +247,7 @@ class NetworkGraphMixin:
             if branch_components is None:
                 branch_components = self.branch_components
             if busorder is None:
-                busorder = self.buses.index
+                busorder = self.c.buses.static.index
         elif isinstance(self, SubNetwork):
             if branch_components is None:
                 branch_components = self.n.passive_branch_components

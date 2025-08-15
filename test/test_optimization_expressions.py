@@ -29,8 +29,10 @@ AGGREGRATE_TIME_PARAMETERS = ["sum", "mean", None]
 def prepared_network(ac_dc_network):
     n = ac_dc_network.copy()
     n.optimize.create_model()
-    n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
-    n.generators.loc[n.generators.index[0], "p_nom_extendable"] = False
+    n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(n.c.buses.static.carrier)
+    n.c.generators.static.loc[n.c.generators.static.index[0], "p_nom_extendable"] = (
+        False
+    )
     return n
 
 
@@ -38,8 +40,10 @@ def prepared_network(ac_dc_network):
 def prepared_network_with_snapshot_subset(ac_dc_network):
     n = ac_dc_network.copy()
     n.optimize.create_model(snapshots=n.snapshots[:2])
-    n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
-    n.generators.loc[n.generators.index[0], "p_nom_extendable"] = False
+    n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(n.c.buses.static.carrier)
+    n.c.generators.static.loc[n.c.generators.static.index[0], "p_nom_extendable"] = (
+        False
+    )
     return n
 
 

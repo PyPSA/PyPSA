@@ -44,7 +44,7 @@ class PlotsGenerator(ABC):
 
     def get_unique_carriers(self) -> pd.DataFrame:
         """Get unique carriers from the network."""
-        carriers = self._n.carriers
+        carriers = self._n.c.carriers.static
         if isinstance(carriers.index, pd.MultiIndex):
             for level in carriers.index.names:
                 if level != "name":

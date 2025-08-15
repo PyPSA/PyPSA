@@ -55,8 +55,12 @@ def test_network_properties():
 
 def test_example_consistency(ac_dc_stochastic):
     n = ac_dc_stochastic
-    n.lines.x = n.lines.x.where(n.lines.x > 0, 0.0001)  # Avoid zero reactance
-    n.lines.r = n.lines.r.where(n.lines.r > 0, 0.0001)  # Avoid zero reactance
+    n.c.lines.static.x = n.c.lines.static.x.where(
+        n.c.lines.static.x > 0, 0.0001
+    )  # Avoid zero reactance
+    n.c.lines.static.r = n.c.lines.static.r.where(
+        n.c.lines.static.r > 0, 0.0001
+    )  # Avoid zero reactance
     n.consistency_check(strict="all")
 
 
@@ -74,7 +78,7 @@ def test_calculate_dependent_values(ac_dc_stochastic: pypsa.Network):
     """
     n = ac_dc_stochastic
     n.calculate_dependent_values()
-    assert n.lines.x_pu_eff.notnull().all()
+    assert n.c.lines.static.x_pu_eff.notnull().all()
 
 
 def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
@@ -86,20 +90,20 @@ def test_determine_network_topology(ac_dc_stochastic: pypsa.Network):
     n = ac_dc_stochastic
     n.determine_network_topology()
 
-    assert not n.sub_networks.empty
-    assert "AC" in n.sub_networks.carrier.values
+    assert not n.c.sub_networks.static.empty
+    assert "AC" in n.c.sub_networks.static.carrier.values
 
-    sub = n.sub_networks.obj.loc["0"]
+    sub = n.c.sub_networks.static.obj.loc["0"]
     assert not sub.components.generators.static.empty
     assert not sub.components.loads.static.empty
 
     # check slack bus and slack generator assignment via subnetworks and network components
-    assert set(n.generators.query("control == 'Slack'").index.unique("name")) == set(
-        n.sub_networks.obj.map(lambda sub: sub.slack_generator).dropna()
-    )
-    assert set(n.buses.query("control == 'Slack'").index.unique("name")) == set(
-        n.sub_networks.obj.map(lambda sub: sub.slack_bus).dropna()
-    )
+    assert set(
+        n.c.generators.static.query("control == 'Slack'").index.unique("name")
+    ) == set(n.c.sub_networks.static.obj.map(lambda sub: sub.slack_generator).dropna())
+    assert set(
+        n.c.buses.static.query("control == 'Slack'").index.unique("name")
+    ) == set(n.c.sub_networks.static.obj.map(lambda sub: sub.slack_bus).dropna())
 
 
 def test_cycles(ac_dc_stochastic: pypsa.Network):
@@ -247,11 +251,11 @@ def test_solved_network_simple(stochastic_benchmark_network):
     n = stochastic_benchmark_network
 
     # GAS_PRICES = {"low": 40, "med": 70, "high": 100}
-    n.generators.loc[("medium", "gas"), "marginal_cost"] = (
-        70 / n.generators.loc[("medium", "gas"), "efficiency"]
+    n.c.generators.static.loc[("medium", "gas"), "marginal_cost"] = (
+        70 / n.c.generators.static.loc[("medium", "gas"), "efficiency"]
     )
-    n.generators.loc[("high", "gas"), "marginal_cost"] = (
-        100 / n.generators.loc[("high", "gas"), "efficiency"]
+    n.c.generators.static.loc[("high", "gas"), "marginal_cost"] = (
+        100 / n.c.generators.static.loc[("high", "gas"), "efficiency"]
     )
 
     status, _ = n.optimize(solver_name="highs")
@@ -259,8 +263,8 @@ def test_solved_network_simple(stochastic_benchmark_network):
 
     # Compare generator capacities (these are the main result of stochastic planning)
     equal(
-        n.generators.p_nom_opt.loc["low", :],
-        n_r.generators.p_nom_opt,
+        n.c.generators.static.p_nom_opt.loc["low", :],
+        n_r.c.generators.static.p_nom_opt,
         decimal=2,
     )
 
@@ -319,7 +323,7 @@ def test_solved_network_multiperiod():
         n.set_scenarios({"high": 0.5, "low": 0.5})
 
         # Set scenario-specific loads for multiperiod (6 snapshots total: 2 periods × 3 timesteps)
-        n.loads_t.p_set = pd.DataFrame(
+        n.c.loads.dynamic.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["load1"]], names=["scenario", "name"]
@@ -329,31 +333,33 @@ def test_solved_network_multiperiod():
         load_high = [120, 144, 132] * len(n.investment_periods)
         load_low = [80, 96, 88] * len(n.investment_periods)
 
-        n.loads_t.p_set.loc[:, ("high", "load1")] = load_high
-        n.loads_t.p_set.loc[:, ("low", "load1")] = load_low
+        n.c.loads.dynamic.p_set.loc[:, ("high", "load1")] = load_high
+        n.c.loads.dynamic.p_set.loc[:, ("low", "load1")] = load_low
 
         # This should now work with both multiperiod and stochastic features!
         status, condition = n.optimize(multi_investment_periods=True)
         assert status == "ok"
 
         # Verify we have results for both scenarios and investment periods
-        assert "high" in n.generators_t.p.columns.get_level_values("scenario")
-        assert "low" in n.generators_t.p.columns.get_level_values("scenario")
+        assert "high" in n.c.generators.dynamic.p.columns.get_level_values("scenario")
+        assert "low" in n.c.generators.dynamic.p.columns.get_level_values("scenario")
 
         # Check basic energy balance for each scenario
         for scenario in ["high", "low"]:
-            gen_output = n.generators_t.p.loc[:, (scenario, slice(None))].sum().sum()
-            load_demand = n.loads_t.p_set.loc[:, (scenario, "load1")].sum()
+            gen_output = (
+                n.c.generators.dynamic.p.loc[:, (scenario, slice(None))].sum().sum()
+            )
+            load_demand = n.c.loads.dynamic.p_set.loc[:, (scenario, "load1")].sum()
             # Generation should equal load
             assert abs(gen_output - load_demand) < 1e-1
 
         # Verify that high scenario has higher generation than low scenario
-        gen_high = n.generators_t.p.loc[:, ("high", slice(None))].sum().sum()
-        gen_low = n.generators_t.p.loc[:, ("low", slice(None))].sum().sum()
+        gen_high = n.c.generators.dynamic.p.loc[:, ("high", slice(None))].sum().sum()
+        gen_low = n.c.generators.dynamic.p.loc[:, ("low", slice(None))].sum().sum()
         assert gen_high > gen_low
 
         # Test multiperiod-specific functionality
-        p_nom_opt = n.generators.p_nom_opt
+        p_nom_opt = n.c.generators.static.p_nom_opt
         assert (
             len(p_nom_opt) == 4
         )  # Should have optimal capacities for both generators × both scenarios
@@ -406,20 +412,20 @@ def test_single_scenario():
         status_det, _ = n.optimize()
         assert status_det == "ok"
         obj_det = n.objective
-        capacity_det = n.generators.p_nom_opt.loc["gen1"]
-        dispatch_det = n.generators_t.p.loc[:, "gen1"].sum()
+        capacity_det = n.c.generators.static.p_nom_opt.loc["gen1"]
+        dispatch_det = n.c.generators.dynamic.p.loc[:, "gen1"].sum()
 
         # Convert to single-scenario stochastic
         n.set_scenarios(["scenario"])
 
         # Set scenario-specific load data (same as deterministic)
-        n.loads_t.p_set = pd.DataFrame(
+        n.c.loads.dynamic.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["load1"]], names=["scenario", "name"]
             ),
         )
-        n.loads_t.p_set.loc[:, ("scenario", "load1")] = pd.Series(
+        n.c.loads.dynamic.p_set.loc[:, ("scenario", "load1")] = pd.Series(
             [100.0, 120.0, 110.0], dtype=float
         )
 
@@ -430,20 +436,24 @@ def test_single_scenario():
         # Verify structure
         assert len(n.scenarios) == 1
         assert "scenario" in n.scenarios
-        assert "scenario" in n.generators_t.p.columns.get_level_values("scenario")
+        assert "scenario" in n.c.generators.dynamic.p.columns.get_level_values(
+            "scenario"
+        )
 
         # Compare solutions (should be identical)
         assert abs(n.objective - obj_det) < 1e-6
 
-        stoch_capacity = n.generators.p_nom_opt.loc[("scenario", "gen1")]
+        stoch_capacity = n.c.generators.static.p_nom_opt.loc[("scenario", "gen1")]
         assert abs(stoch_capacity - capacity_det) < 1e-6
 
-        stoch_dispatch = n.generators_t.p.loc[:, ("scenario", "gen1")].sum()
+        stoch_dispatch = n.c.generators.dynamic.p.loc[:, ("scenario", "gen1")].sum()
         assert abs(stoch_dispatch - dispatch_det) < 1e-6
 
         # Energy balance check
-        gen_output = n.generators_t.p.loc[:, ("scenario", slice(None))].sum().sum()
-        load_demand = n.loads_t.p_set.loc[:, ("scenario", "load1")].sum()
+        gen_output = (
+            n.c.generators.dynamic.p.loc[:, ("scenario", slice(None))].sum().sum()
+        )
+        load_demand = n.c.loads.dynamic.p_set.loc[:, ("scenario", "load1")].sum()
         assert abs(gen_output - load_demand) < 1e-1
 
 
@@ -491,11 +501,11 @@ def test_slack_bus_consistency_check():
         # Manually set different slack buses across scenarios to trigger the check
         # This simulates what would happen if different slack buses were chosen
         # during topology determination
-        if n.buses.index.nlevels > 1:
-            n.buses.loc[("scenario1", "bus1"), "control"] = "Slack"
-            n.buses.loc[("scenario1", "bus2"), "control"] = "PQ"
-            n.buses.loc[("scenario2", "bus1"), "control"] = "PQ"
-            n.buses.loc[("scenario2", "bus2"), "control"] = (
+        if n.c.buses.static.index.nlevels > 1:
+            n.c.buses.static.loc[("scenario1", "bus1"), "control"] = "Slack"
+            n.c.buses.static.loc[("scenario1", "bus2"), "control"] = "PQ"
+            n.c.buses.static.loc[("scenario2", "bus1"), "control"] = "PQ"
+            n.c.buses.static.loc[("scenario2", "bus2"), "control"] = (
                 "Slack"  # Different slack bus!
             )
 
@@ -554,11 +564,13 @@ def test_slack_bus_consistency_check_passes():
         n.set_scenarios(["scenario1", "scenario2"])
 
         # Set the same slack bus across scenarios (should pass)
-        if n.buses.index.nlevels > 1:
-            n.buses.loc[("scenario1", "bus1"), "control"] = "Slack"
-            n.buses.loc[("scenario1", "bus2"), "control"] = "PQ"
-            n.buses.loc[("scenario2", "bus1"), "control"] = "Slack"  # Same slack bus
-            n.buses.loc[("scenario2", "bus2"), "control"] = "PQ"
+        if n.c.buses.static.index.nlevels > 1:
+            n.c.buses.static.loc[("scenario1", "bus1"), "control"] = "Slack"
+            n.c.buses.static.loc[("scenario1", "bus2"), "control"] = "PQ"
+            n.c.buses.static.loc[("scenario2", "bus1"), "control"] = (
+                "Slack"  # Same slack bus
+            )
+            n.c.buses.static.loc[("scenario2", "bus2"), "control"] = "PQ"
 
             # Now run the slack bus consistency check - should pass without error
             from pypsa.consistency import check_stochastic_slack_bus_consistency
@@ -588,13 +600,13 @@ def test_store_stochastic_optimization_bug():
     n.set_snapshots(n.snapshots[:8])
 
     # Ensure the network has stores (it should)
-    assert not n.stores.empty, "Test network should have stores"
+    assert not n.c.stores.static.empty, "Test network should have stores"
 
     # The bug occured in operation (1 - standing_loss)**eh due to dimension mismatch
-    n.stores.at["hydrogen storage", "e_nom"] = 1000
-    n.stores.at["hydrogen storage", "e_cyclic"] = False
-    n.stores.at["hydrogen storage", "e_initial"] = 800
-    n.stores.at["hydrogen storage", "standing_loss"] = 0.01
+    n.c.stores.static.at["hydrogen storage", "e_nom"] = 1000
+    n.c.stores.static.at["hydrogen storage", "e_cyclic"] = False
+    n.c.stores.static.at["hydrogen storage", "e_initial"] = 800
+    n.c.stores.static.at["hydrogen storage", "standing_loss"] = 0.01
 
     # Test without scenarios first (should work)
     n_regular = n.copy()
@@ -616,16 +628,16 @@ def test_store_stochastic_optimization_bug():
     assert len(n_stochastic.scenarios) == 2
 
     # Verify stores have MultiIndex
-    assert isinstance(n_stochastic.stores.index, pd.MultiIndex)
-    assert n_stochastic.stores.index.names == ["scenario", "name"]
+    assert isinstance(n_stochastic.c.stores.static.index, pd.MultiIndex)
+    assert n_stochastic.c.stores.static.index.names == ["scenario", "name"]
 
     # Verify optimization results exist
-    assert not n_stochastic.stores_t.e.empty
-    assert not n_stochastic.stores_t.p.empty
+    assert not n_stochastic.c.stores.dynamic.e.empty
+    assert not n_stochastic.c.stores.dynamic.p.empty
 
     # Verify specific energy level at second snapshot
     # it is 800 × (1 - 0.01)³ due to 3h temporal clustering
-    second_hour_energy = n_stochastic.stores_t.e.loc[
+    second_hour_energy = n_stochastic.c.stores.dynamic.e.loc[
         n_stochastic.snapshots[1], ("scenario_a", "hydrogen storage")
     ]
     assert abs(second_hour_energy - 776.2392) < 0.01, (
@@ -687,14 +699,14 @@ def test_scenario_ordering_bug():
     n.set_scenarios({"wind_lulls": 0.5, "windy": 0.5})
     wind_gens = ["Manchester Wind", "Frankfurt Wind", "Norway Wind"]
     for gen_name in wind_gens:
-        n.generators_t.p_max_pu.loc[:, ("wind_lulls", gen_name)] *= 0.3
+        n.c.generators.dynamic.p_max_pu.loc[:, ("wind_lulls", gen_name)] *= 0.3
 
     # Check 1: Wind lulls should have lower wind potential in model input
     expected_lulls_input = (
-        n.generators_t.p_max_pu.loc[:, ("wind_lulls", wind_gens)].sum().sum()
+        n.c.generators.dynamic.p_max_pu.loc[:, ("wind_lulls", wind_gens)].sum().sum()
     )
     expected_windy_input = (
-        n.generators_t.p_max_pu.loc[:, ("windy", wind_gens)].sum().sum()
+        n.c.generators.dynamic.p_max_pu.loc[:, ("windy", wind_gens)].sum().sum()
     )
 
     assert expected_lulls_input < expected_windy_input
@@ -702,8 +714,12 @@ def test_scenario_ordering_bug():
     # Check 2: Wind lulls scenario should have lower wind generation
     n.optimize()
 
-    actual_lulls_result = n.generators_t.p.loc[:, ("wind_lulls", wind_gens)].sum().sum()
-    actual_windy_result = n.generators_t.p.loc[:, ("windy", wind_gens)].sum().sum()
+    actual_lulls_result = (
+        n.c.generators.dynamic.p.loc[:, ("wind_lulls", wind_gens)].sum().sum()
+    )
+    actual_windy_result = (
+        n.c.generators.dynamic.p.loc[:, ("windy", wind_gens)].sum().sum()
+    )
 
     assert actual_lulls_result < actual_windy_result, (
         f"Scenario misalignment detected: wind lulls generation ({actual_lulls_result:.2f}) "
@@ -781,7 +797,7 @@ def n_multiperiod_stochastic(n_multiperiod):
     n.set_scenarios({"high": 0.5, "low": 0.5})
 
     # Set scenario-specific loads
-    n.loads_t.p_set = pd.DataFrame(
+    n.c.loads.dynamic.p_set = pd.DataFrame(
         index=n.snapshots,
         columns=pd.MultiIndex.from_product(
             [n.scenarios, ["load1", "load2"]], names=["scenario", "name"]
@@ -791,8 +807,12 @@ def n_multiperiod_stochastic(n_multiperiod):
     # High scenario: 20% higher load
     base_load = range(100, 100 + len(n.snapshots))
     for load_name in ["load1", "load2"]:
-        n.loads_t.p_set.loc[:, ("high", load_name)] = [l * 1.2 for l in base_load]
-        n.loads_t.p_set.loc[:, ("low", load_name)] = [l * 0.8 for l in base_load]
+        n.c.loads.dynamic.p_set.loc[:, ("high", load_name)] = [
+            l * 1.2 for l in base_load
+        ]
+        n.c.loads.dynamic.p_set.loc[:, ("low", load_name)] = [
+            l * 0.8 for l in base_load
+        ]
 
     return n
 
@@ -802,8 +822,8 @@ def n_multiperiod_sus(n_multiperiod):
     """Multiperiod network with storage units"""
     n = n_multiperiod
     # Remove some generators to activate storage
-    n.remove("Generator", n.generators.query('bus == "1"').index)
-    n.generators.capital_cost *= 5
+    n.remove("Generator", n.c.generators.static.query('bus == "1"').index)
+    n.c.generators.static.capital_cost *= 5
 
     for i, period in enumerate(n.investment_periods):
         factor = (10 + i) / 10
@@ -827,7 +847,7 @@ def n_multiperiod_sus_stochastic(n_multiperiod_sus):
     n.set_scenarios({"high": 0.6, "low": 0.4})
 
     # Set scenario-specific loads
-    n.loads_t.p_set = pd.DataFrame(
+    n.c.loads.dynamic.p_set = pd.DataFrame(
         index=n.snapshots,
         columns=pd.MultiIndex.from_product(
             [n.scenarios, ["load1", "load2"]], names=["scenario", "name"]
@@ -837,8 +857,12 @@ def n_multiperiod_sus_stochastic(n_multiperiod_sus):
     # Different load patterns for scenarios
     base_load = range(100, 100 + len(n.snapshots))
     for load_name in ["load1", "load2"]:
-        n.loads_t.p_set.loc[:, ("high", load_name)] = [l * 1.3 for l in base_load]
-        n.loads_t.p_set.loc[:, ("low", load_name)] = [l * 0.7 for l in base_load]
+        n.c.loads.dynamic.p_set.loc[:, ("high", load_name)] = [
+            l * 1.3 for l in base_load
+        ]
+        n.c.loads.dynamic.p_set.loc[:, ("low", load_name)] = [
+            l * 0.7 for l in base_load
+        ]
 
     return n
 
@@ -865,30 +889,34 @@ def test_multiperiod_stochastic_tiny_default():
         n.add("Load", 1, bus=1, p_set=100)
 
         n.set_scenarios({"high": 0.5, "low": 0.5})
-        n.loads_t.p_set = pd.DataFrame(
+        n.c.loads.dynamic.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["1"]], names=["scenario", "name"]
             ),
         )
-        n.loads_t.p_set.loc[:, ("high", "1")] = [
+        n.c.loads.dynamic.p_set.loc[:, ("high", "1")] = [
             120,
             120,
             120,
             120,
         ]
-        n.loads_t.p_set.loc[:, ("low", "1")] = [80, 80, 80, 80]
+        n.c.loads.dynamic.p_set.loc[:, ("low", "1")] = [80, 80, 80, 80]
 
         status, _ = n.optimize(multi_investment_periods=True)
         assert status == "ok"
 
         # Check that we have results for both scenarios
-        assert "high" in n.generators.p_nom_opt.index.get_level_values("scenario")
-        assert "low" in n.generators.p_nom_opt.index.get_level_values("scenario")
+        assert "high" in n.c.generators.static.p_nom_opt.index.get_level_values(
+            "scenario"
+        )
+        assert "low" in n.c.generators.static.p_nom_opt.index.get_level_values(
+            "scenario"
+        )
 
         # Capacities should be identical across scenarios in stochastic optimization
-        high_cap = n.generators.p_nom_opt.loc[("high", "1")]
-        low_cap = n.generators.p_nom_opt.loc[("low", "1")]
+        high_cap = n.c.generators.static.p_nom_opt.loc[("high", "1")]
+        low_cap = n.c.generators.static.p_nom_opt.loc[("low", "1")]
         assert high_cap == low_cap
 
 
@@ -914,17 +942,17 @@ def test_multiperiod_stochastic_tiny_build_year():
         n.add("Load", 1, bus=1, p_set=100)
 
         n.set_scenarios({"scenario": 1.0})  # Single scenario
-        n.loads_t.p_set = pd.DataFrame(
+        n.c.loads.dynamic.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["1"]], names=["scenario", "name"]
             ),
         )
-        n.loads_t.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
+        n.c.loads.dynamic.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
 
         status, _ = n.optimize(multi_investment_periods=True)
         assert status == "ok"
-        assert n.generators.p_nom_opt.loc[("scenario", "1")] == 100
+        assert n.c.generators.static.p_nom_opt.loc[("scenario", "1")] == 100
 
 
 def test_multiperiod_stochastic_tiny_infeasible():
@@ -949,13 +977,13 @@ def test_multiperiod_stochastic_tiny_infeasible():
         n.add("Load", 1, bus=1, p_set=100)
 
         n.set_scenarios({"scenario": 1.0})
-        n.loads_t.p_set = pd.DataFrame(
+        n.c.loads.dynamic.p_set = pd.DataFrame(
             index=n.snapshots,
             columns=pd.MultiIndex.from_product(
                 [n.scenarios, ["1"]], names=["scenario", "name"]
             ),
         )
-        n.loads_t.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
+        n.c.loads.dynamic.p_set.loc[:, ("scenario", "1")] = [100, 100, 100, 100]
 
         # This should fail because generator only available in 2030 but load exists in 2020
         with pytest.raises(ValueError):
@@ -977,29 +1005,44 @@ def test_multiperiod_stochastic_simple_network(n_multiperiod_stochastic):
         for scenario in n.scenarios:
             # gen1-2050 should not be active in early periods
             assert (
-                n.generators_t.p.loc[(2020, slice(None)), (scenario, "gen1-2050")] == 0
+                n.c.generators.dynamic.p.loc[
+                    (2020, slice(None)), (scenario, "gen1-2050")
+                ]
+                == 0
             ).all()
             assert (
-                n.generators_t.p.loc[(2030, slice(None)), (scenario, "gen1-2050")] == 0
+                n.c.generators.dynamic.p.loc[
+                    (2030, slice(None)), (scenario, "gen1-2050")
+                ]
+                == 0
             ).all()
             assert (
-                n.generators_t.p.loc[(2040, slice(None)), (scenario, "gen1-2050")] == 0
+                n.c.generators.dynamic.p.loc[
+                    (2040, slice(None)), (scenario, "gen1-2050")
+                ]
+                == 0
             ).all()
 
             # gen1-2020 should not be active in 2050 (lifetime = 30)
             assert (
-                n.generators_t.p.loc[(2050, slice(None)), (scenario, "gen1-2020")] == 0
+                n.c.generators.dynamic.p.loc[
+                    (2050, slice(None)), (scenario, "gen1-2020")
+                ]
+                == 0
             ).all()
 
             # line-2050 should not be active in early periods
             assert (
-                n.lines_t.p0.loc[(2020, slice(None)), (scenario, "line-2050")] == 0
+                n.c.lines.dynamic.p0.loc[(2020, slice(None)), (scenario, "line-2050")]
+                == 0
             ).all()
             assert (
-                n.lines_t.p0.loc[(2030, slice(None)), (scenario, "line-2050")] == 0
+                n.c.lines.dynamic.p0.loc[(2030, slice(None)), (scenario, "line-2050")]
+                == 0
             ).all()
             assert (
-                n.lines_t.p0.loc[(2040, slice(None)), (scenario, "line-2050")] == 0
+                n.c.lines.dynamic.p0.loc[(2040, slice(None)), (scenario, "line-2050")]
+                == 0
             ).all()
 
 
@@ -1017,13 +1060,22 @@ def test_multiperiod_stochastic_snapshot_subset(n_multiperiod_stochastic):
         # Same checks as above but with subset of snapshots
         for scenario in n.scenarios:
             assert (
-                n.generators_t.p.loc[(2020, slice(None)), (scenario, "gen1-2050")] == 0
+                n.c.generators.dynamic.p.loc[
+                    (2020, slice(None)), (scenario, "gen1-2050")
+                ]
+                == 0
             ).all()
             assert (
-                n.generators_t.p.loc[(2030, slice(None)), (scenario, "gen1-2050")] == 0
+                n.c.generators.dynamic.p.loc[
+                    (2030, slice(None)), (scenario, "gen1-2050")
+                ]
+                == 0
             ).all()
             assert (
-                n.generators_t.p.loc[(2040, slice(None)), (scenario, "gen1-2050")] == 0
+                n.c.generators.dynamic.p.loc[
+                    (2040, slice(None)), (scenario, "gen1-2050")
+                ]
+                == 0
             ).all()
 
 
@@ -1050,7 +1102,9 @@ def test_multiperiod_stochastic_storage_units_bug(n_multiperiod_sus_stochastic):
 
         # Check that storage units have been built
         for scenario in n.scenarios:
-            total_storage_cap = n.storage_units.p_nom_opt.loc[scenario, :].sum()
+            total_storage_cap = n.c.storage_units.static.p_nom_opt.loc[
+                scenario, :
+            ].sum()
             assert total_storage_cap > 0
 
             # Check that storage is only active in appropriate periods
@@ -1060,20 +1114,20 @@ def test_multiperiod_stochastic_storage_units_bug(n_multiperiod_sus_stochastic):
                 ]
 
                 # Storage units should respect their build years
-                for storage_name in n.storage_units.loc[scenario, :].index:
-                    storage = n.storage_units.loc[(scenario, storage_name)]
+                for storage_name in n.c.storage_units.static.loc[scenario, :].index:
+                    storage = n.c.storage_units.static.loc[(scenario, storage_name)]
                     build_year = storage.build_year
                     lifetime = storage.lifetime
 
                     if build_year <= period <= build_year + lifetime:
                         # Storage should be available in this period
-                        storage_dispatch = n.storage_units_t.p.loc[
+                        storage_dispatch = n.c.storage_units.dynamic.p.loc[
                             period_snapshots, (scenario, storage_name)
                         ]
                         # At least some periods should have non-zero dispatch (charging or discharging)
                         assert storage_dispatch.abs().sum() >= 0
                     else:
-                        storage_dispatch = n.storage_units_t.p.loc[
+                        storage_dispatch = n.c.storage_units.dynamic.p.loc[
                             period_snapshots, (scenario, storage_name)
                         ]
                         assert (storage_dispatch == 0).all()
@@ -1091,18 +1145,22 @@ def test_multiperiod_stochastic_scenario_differences(n_multiperiod_stochastic):
         assert condition == "optimal"
 
         # Check that high and low scenarios have different generation patterns
-        high_total_gen = n.generators_t.p.loc[:, ("high", slice(None))].sum().sum()
-        low_total_gen = n.generators_t.p.loc[:, ("low", slice(None))].sum().sum()
+        high_total_gen = (
+            n.c.generators.dynamic.p.loc[:, ("high", slice(None))].sum().sum()
+        )
+        low_total_gen = (
+            n.c.generators.dynamic.p.loc[:, ("low", slice(None))].sum().sum()
+        )
 
         # High load scenario should have higher generation
         assert high_total_gen > low_total_gen
 
         # But capacities should be the same (stochastic optimization)
-        for gen_name in n.generators.loc[
+        for gen_name in n.c.generators.static.loc[
             ("high", slice(None)), :
         ].index.get_level_values("name"):
-            high_cap = n.generators.p_nom_opt.loc[("high", gen_name)]
-            low_cap = n.generators.p_nom_opt.loc[("low", gen_name)]
+            high_cap = n.c.generators.static.p_nom_opt.loc[("high", gen_name)]
+            low_cap = n.c.generators.static.p_nom_opt.loc[("low", gen_name)]
             assert high_cap == low_cap
 
 
@@ -1328,8 +1386,8 @@ def n():
 def test_primary_energy_constraint_stochastic(ac_dc_stochastic):
     """Test primary energy constraint works correctly with stochastic networks."""
     n = ac_dc_stochastic
-    assert ("low", "co2_limit") in n.global_constraints.index
-    assert ("high", "co2_limit") in n.global_constraints.index
+    assert ("low", "co2_limit") in n.c.global_constraints.static.index
+    assert ("high", "co2_limit") in n.c.global_constraints.static.index
     n.optimize.create_model()
     assert "GlobalConstraint-co2_limit" in n.model.constraints
     assert "scenario" in n.model.constraints["GlobalConstraint-co2_limit"].dims
@@ -1368,8 +1426,8 @@ def test_operational_limit_constraint_stochastic():
     n.set_scenarios(["scenario1", "scenario2"])
 
     # Verify constraints exist in both scenarios
-    assert ("scenario1", "solar_limit") in n.global_constraints.index
-    assert ("scenario2", "solar_limit") in n.global_constraints.index
+    assert ("scenario1", "solar_limit") in n.c.global_constraints.static.index
+    assert ("scenario2", "solar_limit") in n.c.global_constraints.static.index
 
     # Create model to verify constraints are properly added
     n.optimize.create_model()
@@ -1379,18 +1437,18 @@ def test_operational_limit_constraint_stochastic():
 
 def test_max_growth_constraint_stochastic(n):
     """Test growth limit constraints work correctly with stochastic networks."""
-    gen_carrier = n.generators.carrier.unique()[0]
-    n.carriers.at[gen_carrier, "max_growth"] = 300
+    gen_carrier = n.c.generators.static.carrier.unique()[0]
+    n.c.carriers.static.at[gen_carrier, "max_growth"] = 300
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
-    n.carriers.xs("scenario_1").at[gen_carrier, "max_growth"] = 218
+    n.c.carriers.static.xs("scenario_1").at[gen_carrier, "max_growth"] = 218
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
 
     # In stochastic optimization, capacity decisions are shared across scenarios
     # The growth limit is constrained with the strictest bound
     capacity_per_period = (
-        n.generators.xs("scenario_1")
-        .p_nom_opt.groupby(n.generators.xs("scenario_1").build_year)
+        n.c.generators.static.xs("scenario_1")
+        .p_nom_opt.groupby(n.c.generators.static.xs("scenario_1").build_year)
         .sum()
     )
     assert all(capacity_per_period <= 218), (
@@ -1401,16 +1459,16 @@ def test_max_growth_constraint_stochastic(n):
 
 def test_max_relative_growth_constraint(n):
     """Test growth relative limit constraints work correctly with stochastic networks."""
-    gen_carrier = n.generators.carrier.unique()[0]
-    n.carriers.at[gen_carrier, "max_growth"] = 218
-    n.carriers.at[gen_carrier, "max_relative_growth"] = 3
+    gen_carrier = n.c.generators.static.carrier.unique()[0]
+    n.c.carriers.static.at[gen_carrier, "max_growth"] = 218
+    n.c.carriers.static.at[gen_carrier, "max_relative_growth"] = 3
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
-    n.carriers.xs("scenario_1").at[gen_carrier, "max_relative_growth"] = 1.5
+    n.c.carriers.static.xs("scenario_1").at[gen_carrier, "max_relative_growth"] = 1.5
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
     built_per_period = (
-        n.generators.xs("scenario_1")
-        .p_nom_opt.groupby(n.generators.xs("scenario_1").build_year)
+        n.c.generators.static.xs("scenario_1")
+        .p_nom_opt.groupby(n.c.generators.static.xs("scenario_1").build_year)
         .sum()
     )
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
@@ -1443,33 +1501,33 @@ def test_assign_all_duals_stochastic(ac_dc_network, assign):
             # This should raise because we are not assigning duals yet
             n.optimize.solve_model(assign_all_duals=assign)
 
-        # assert ("generation_limit" in n.global_constraints.index) == assign
-        # assert ("mu_generation_limit_dynamic" in n.global_constraints_t) == assign
-        # if "mu_upper" in n.generators_t:
-        #     assert not n.generators_t.mu_upper.empty, (
+        # assert ("generation_limit" in n.c.global_constraints.static.index) == assign
+        # assert ("mu_generation_limit_dynamic" in n.c.global_constraints.dynamic) == assign
+        # if "mu_upper" in n.c.generators.dynamic:
+        #     assert not n.c.generators.dynamic.mu_upper.empty, (
         #         "Generator mu_upper should be assigned when assign_all_duals=True"
         #     )
-        # if "mu_lower" in n.generators_t:
-        #     assert not n.generators_t.mu_lower.empty, (
+        # if "mu_lower" in n.c.generators.dynamic:
+        #     assert not n.c.generators.dynamic.mu_lower.empty, (
         #         "Generator mu_lower should be assigned when assign_all_duals=True"
         #     )
 
-        # if "mu_upper" in n.links_t:
-        #     assert not n.links_t.mu_upper.empty, (
+        # if "mu_upper" in n.c.links.dynamic:
+        #     assert not n.c.links.dynamic.mu_upper.empty, (
         #         "Link mu_upper should be assigned when assign_all_duals=True"
         #     )
-        # if "mu_lower" in n.links_t:
-        #     assert not n.links_t.mu_lower.empty, (
+        # if "mu_lower" in n.c.links.dynamic:
+        #     assert not n.c.links.dynamic.mu_lower.empty, (
         #         "Link mu_lower should be assigned when assign_all_duals=True"
         #     )
 
         # # Verify that stochastic dimensions are preserved in dual variables
-        # if not n.buses_t.marginal_price.empty:
-        #     assert isinstance(n.buses_t.marginal_price.columns, pd.MultiIndex), (
+        # if not n.c.buses.dynamic.marginal_price.empty:
+        #     assert isinstance(n.c.buses.dynamic.marginal_price.columns, pd.MultiIndex), (
         #         "Marginal prices should have MultiIndex columns with scenarios"
         #     )
         #     scenarios_in_marginal_price = (
-        #         n.buses_t.marginal_price.columns.get_level_values("scenario").unique()
+        #         n.c.buses.dynamic.marginal_price.columns.get_level_values("scenario").unique()
         #     )
         #     assert all(s in scenarios_in_marginal_price for s in n.scenarios), (
         #         "All scenarios should be present in marginal prices"
@@ -1477,7 +1535,7 @@ def test_assign_all_duals_stochastic(ac_dc_network, assign):
 
     else:
         n.optimize.solve_model(assign_all_duals=assign)
-        assert not n.buses_t.marginal_price.empty, (
+        assert not n.c.buses.dynamic.marginal_price.empty, (
             "Marginal prices should always be assigned"
         )
 
@@ -1517,8 +1575,8 @@ def test_transmission_volume_expansion_limit_constraint_stochastic():
     n.set_scenarios(["scenario1", "scenario2"])
 
     # Verify constraint exists in both scenarios in the input table
-    assert ("scenario1", "tx_vol") in n.global_constraints.index
-    assert ("scenario2", "tx_vol") in n.global_constraints.index
+    assert ("scenario1", "tx_vol") in n.c.global_constraints.static.index
+    assert ("scenario2", "tx_vol") in n.c.global_constraints.static.index
 
     # Build model and verify a single constraint with scenario dimension
     n.optimize.create_model()
