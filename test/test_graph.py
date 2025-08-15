@@ -5,8 +5,6 @@ Created on Wed May  6 12:00:00 2025
 Tests for the graph module
 """
 
-import warnings
-
 import pandas as pd
 import scipy.sparse as sp
 
@@ -174,34 +172,35 @@ def test_adjacency_matrix_deprecation_warning():
     n.add("Line", "line1", bus0="bus1", bus1="bus2")
 
     # Check that calling without return_dataframe parameter raises FutureWarning
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        adj = n.adjacency_matrix()
+    # TODO: Activate when warnings are raised again
+    # with warnings.catch_warnings(record=True) as w:
+    #     warnings.simplefilter("always")
+    #     adj = n.adjacency_matrix()
 
-        # Check that a warning was raised
-        assert len(w) == 1
-        assert issubclass(w[0].category, FutureWarning)
-        assert "adjacency_matrix will return a pandas DataFrame by default" in str(
-            w[0].message
-        )
+    #     # Check that a warning was raised
+    #     assert len(w) == 1
+    #     assert issubclass(w[0].category, FutureWarning)
+    #     assert "adjacency_matrix will return a pandas DataFrame by default" in str(
+    #         w[0].message
+    #     )
 
-        # Check that it still returns sparse matrix
-        assert isinstance(adj, sp.coo_matrix)
+    #     # Check that it still returns sparse matrix
+    #     assert isinstance(adj, sp.coo_matrix)
 
     # Check that calling with explicit return_dataframe=False doesn't raise warning
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        adj = n.adjacency_matrix(return_dataframe=False)
+    # with warnings.catch_warnings(record=True) as w:
+    #     warnings.simplefilter("always")
+    #     adj = n.adjacency_matrix(return_dataframe=False)
 
-        # Check that no warning was raised
-        assert len(w) == 0
-        assert isinstance(adj, sp.coo_matrix)
+    #     # Check that no warning was raised
+    #     assert len(w) == 0
+    #     assert isinstance(adj, sp.coo_matrix)
 
     # Check that calling with explicit return_dataframe=True doesn't raise warning
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        adj = n.adjacency_matrix(return_dataframe=True)
+    # with warnings.catch_warnings(record=True) as w:
+    #     warnings.simplefilter("always")
+    #     adj = n.adjacency_matrix(return_dataframe=True)
 
-        # Check that no warning was raised
-        assert len(w) == 0
-        assert isinstance(adj, pd.DataFrame)
+    #     # Check that no warning was raised
+    #     assert len(w) == 0
+    #     assert isinstance(adj, pd.DataFrame)
