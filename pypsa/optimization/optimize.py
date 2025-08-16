@@ -16,7 +16,6 @@ from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -630,7 +629,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                     for i in ["1"] + n.c.links.additional_ports:
                         i_eff = "" if i == "1" else i
-                        eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
+                        eff = n.c.links._as_dynamic(f"efficiency{i_eff}", sns)
                         _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
@@ -783,7 +782,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # load
         if len(n.loads):
-            _set_dynamic_data(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
+            _set_dynamic_data(n, "Load", "p", n.c.loads._as_dynamic("p_set", sns))
 
         # line losses
         if "Line-loss" in n.model.variables:
