@@ -11,6 +11,7 @@ from pypsa.components._types import (
     LineTypes,
     Links,
     Loads,
+    Processes,
     Shapes,
     ShuntImpedances,
     StorageUnits,
@@ -49,6 +50,7 @@ __all__ = [
     "ShuntImpedances",
     "StorageUnits",
     "Stores",
+    "Processes",
     "TransformerTypes",
     "Transformers",
 ]
