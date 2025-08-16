@@ -219,7 +219,7 @@ class Network(
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
-            for c in self.iterate_components()
+            for c in self.components
             if "Type" not in c.name and len(c.static)
         }
         content = "\nComponents:"
@@ -740,7 +740,7 @@ class Network(
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
         # Needs to copy buses and carriers first, since there are dependencies on them
-        for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
+        for component in self.components[["Bus", "Carrier"] + other_comps]:
             # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
@@ -839,32 +839,36 @@ class Network(
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n.add(c, pd.DataFrame(self.static(c)).index, **pd.DataFrame(self.static(c)))
+            n.add(c, self.components[c].static.index, **self.components[c].static)
 
         for c in self.standard_type_components:
             static = pd.DataFrame(
-                self.static(c).drop(self.components[c]["standard_types"].index)
+                self.components[c].static.drop(
+                    self.components[c]["standard_types"].index
+                )
             )
             n.add(c, static.index, **static)
 
         for c in self.one_port_components:
-            static = pd.DataFrame(self.static(c).loc[lambda df: df.bus.isin(buses_i)])
+            static = pd.DataFrame(
+                self.components[c].static.loc[lambda df: df.bus.isin(buses_i)]
+            )
             n.add(c, static.index, **static)
 
         for c in self.branch_components:
             static = pd.DataFrame(
-                self.static(c).loc[
+                self.components[c].static.loc[
                     lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
                 ]
             )
             n.add(c, static.index, **static)
 
         n.set_snapshots(self.snapshots[time_i])
-        for c in self.all_components:
-            i = n.static(c).index
+        for c in self.components:
+            i = n.components[c.name].index
             try:
-                ndynamic = n.dynamic(c)
-                dynamic = self.dynamic(c)
+                ndynamic = n.components[c.name].dynamic
+                dynamic = c.dynamic
 
                 for k in dynamic:
                     ndynamic[k] = dynamic[k].loc[
@@ -892,7 +896,7 @@ class Network(
             List of empty components.
 
         """
-        return [c.name for c in self.iterate_components() if c.empty]
+        return [c.name for c in self.components if c.empty]
 
     def branches(self) -> pd.DataFrame:
         """Get branches.
@@ -936,7 +940,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -976,7 +980,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -1021,7 +1025,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -1110,7 +1114,9 @@ class Network(
             sub_network_map, "name"
         )[self.c.buses.static.columns]
 
-        for c in self.iterate_components(self.passive_branch_components):
+        for c in self.components[self.passive_branch_components]:
+            if c.empty:
+                continue
             c.static["sub_network"] = c.static.bus0.map(sub_network_map)
 
             if investment_period is not None:
@@ -1244,9 +1250,9 @@ class Network(
             components = self.all_components
 
         return (
-            self.component(c_name)
+            self.components[c_name]
             for c_name in components
-            if not (skip_empty and self.static(c_name).empty)
+            if not (skip_empty and self.components[c_name].empty)
         )
 
 
@@ -1349,8 +1355,8 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 raise ValueError(msg)
             if key == "dynamic":
                 dynamic = Dict()
-                index = self.static(c.name).index
-                for k, v in self.n.dynamic(c.name).items():
+                index = self.components[c.name].static.index
+                for k, v in c.dynamic.items():
                     dynamic[k] = v[index.intersection(v.columns)]
                 return dynamic
             return value
@@ -1467,7 +1473,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         types = []
         names = []
-        for c in self.iterate_components(self.n.passive_branch_components):
+        for c in self.components[self.n.passive_branch_components]:
             static = c.static
             idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
@@ -1816,5 +1822,5 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         return (
             self.components[c_name]
             for c_name in components
-            if not (skip_empty and self.static(c_name).empty)
+            if not (skip_empty and self.components[c_name].empty)
         )

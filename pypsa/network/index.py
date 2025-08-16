@@ -115,7 +115,7 @@ class NetworkIndexMixin(_NetworkABC):
             )
 
         for component in self.all_components:
-            dynamic = self.dynamic(component)
+            dynamic = self.components[component].dynamic
             attrs = self.components[component]["attrs"]
 
             for k in dynamic:
@@ -331,7 +331,7 @@ class NetworkIndexMixin(_NetworkABC):
             )
             names = ["period", "timestep"]
             for component in self.all_components:
-                dynamic = self.dynamic(component)
+                dynamic = self.components[component].dynamic
 
                 for k in dynamic:
                     dynamic[k] = pd.concat(

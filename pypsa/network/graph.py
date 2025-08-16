@@ -90,7 +90,9 @@ class NetworkGraphMixin:
 
         # Multigraph uses the branch type and name as key
         def gen_edges() -> Iterable[tuple[str, str, tuple[str, int], dict]]:
-            for c in n.iterate_components(branch_components):
+            for c in n.components[branch_components]:
+                if c.empty:
+                    continue
                 static = c.static
                 if n.has_scenarios:
                     static = c.static.loc[n.scenarios[0]]
@@ -173,7 +175,9 @@ class NetworkGraphMixin:
         adjacency_df = pd.DataFrame(0, index=busorder, columns=busorder, dtype=dtype)
 
         # Build adjacency matrix component by component
-        for c in n.iterate_components(branch_components):
+        for c in n.components[branch_components]:
+            if c.empty:
+                continue
             active = c.get_active_assets(investment_period)
             sel = c.static[active].index.unique("name")
             static = c.static.reindex(sel, level="name")
@@ -261,7 +265,9 @@ class NetworkGraphMixin:
         no_branches = 0
         bus0_inds = []
         bus1_inds = []
-        for c in self.iterate_components(branch_components):
+        for c in self.components[branch_components]:
+            if c.empty:
+                continue
             sel = c.static.query("active").index
             no_branches += len(c.static.loc[sel])
             bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
