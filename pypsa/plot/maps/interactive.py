@@ -742,7 +742,7 @@ class PydeckPlotter:
     def add_arrow_layer(
         self,
         c_name: str,
-        branch_flow: float | dict | pd.Series | None = None,
+        branch_flow: float | dict | pd.Series = 0,
         arrow_size_factor: float = 2.5,
         arrow_colors: str | dict | pd.Series = "black",
         arrow_alpha: float | dict | pd.Series = 1.0,
@@ -753,11 +753,11 @@ class PydeckPlotter:
         ----------
         c_name : str
             Name of the branch component type, e.g. "Line", "Link", "Transformer".
-        branch_flow : float/dict/pandas.Series/None
-            Series of branch flows indexed by line names, defaults to None. If None, no arrows will be created.
+        branch_flow : float/dict/pandas.Series, default 0
+            Series of branch flows indexed by line names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all branch components.
         arrow_size_factor : float, default 2.5
-            Factor to scale the arrow size.
+            Factor to scale the arrow size. If 0, no arrows will be created.
         arrow_colors : str/dict/pandas.Series
             Colors for the arrows, defaults to 'black'.
         arrow_alpha : float/dict/pandas.Series
@@ -766,7 +766,7 @@ class PydeckPlotter:
         """
         if (
             self._n.static(c_name).empty
-            or (branch_flow is None)
+            or (branch_flow == 0)
             or (arrow_size_factor == 0)
         ):
             return
