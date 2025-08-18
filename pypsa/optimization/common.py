@@ -40,14 +40,21 @@ def reindex(ds: xr.DataArray, dim: str, index: pd.Index) -> xr.DataArray:
     return ds.sel({dim: index}).rename({dim: index.name})
 
 
-def _set_dynamic_data(n: Network, c: str, attr: str, df: pd.DataFrame) -> None:
+def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -> None:
     """Update values in time-dependent attribute from new dataframe."""
-    dynamic = n.dynamic(c)
-    if (attr not in dynamic) or (dynamic[attr].empty):
-        dynamic[attr] = df.reindex(n.snapshots).fillna(0.0)
+    c = n.components[component]
+    if (attr not in c.dynamic) or (c.dynamic[attr].empty):
+        c.dynamic[attr] = df.reindex(n.snapshots)
+
     else:
-        dynamic[attr].loc[df.index, df.columns] = df
-        dynamic[attr] = dynamic[attr].fillna(0.0)
+        c.dynamic[attr].loc[df.index, df.columns] = df
+
+    c.dynamic[attr] = (
+        c.dynamic[attr]
+        .reindex(n.snapshots, level="snapshot", axis=0)
+        .reindex(c.component_names, level="name", axis=1)
+        .fillna(0.0)
+    )
 
 
 def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
@@ -75,6 +82,6 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
     )
     all_buses = all_buses[all_buses != ""]
     counts = all_buses.value_counts()
-    results = counts.index[counts > threshold].rename("Bus-meshed")
+    results = counts.index[counts > threshold].rename("Bus")
     results = results.sort_values()
     return results

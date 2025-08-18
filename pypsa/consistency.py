@@ -583,7 +583,9 @@ def check_investment_periods(n: NetworkType, strict: bool = False) -> None:
 
 
     """
-    constraint_periods = set(n.global_constraints.investment_period.dropna().unique())
+    constraint_periods = set(
+        n.c.global_constraints.static.investment_period.dropna().unique()
+    )
     if isinstance(n.snapshots, pd.MultiIndex):
         if not constraint_periods.issubset(n.snapshots.unique("period")):
             msg = (
@@ -623,9 +625,9 @@ def check_shapes(n: NetworkType, strict: bool = False) -> None:
 
 
     """
-    shape_components = n.shapes.component.unique()
+    shape_components = n.c.shapes.static.component.unique()
     for c in set(shape_components) & set(n.all_components):
-        geos = n.shapes.query("component == @c")
+        geos = n.c.shapes.static.query("component == @c")
         not_included = geos.index[~geos.idx.isin(n.static(c).index)]
 
         if not not_included.empty:
@@ -717,7 +719,9 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
         If True, raise an error instead of logging a warning.
 
     """
-    missing_colors = n.carriers[n.carriers.color.isna() | n.carriers.color.eq("")]
+    missing_colors = n.c.carriers.static[
+        n.c.carriers.static.color.isna() | n.c.carriers.static.color.eq("")
+    ]
     if not missing_colors.empty:
         _log_or_raise(
             strict,
@@ -1048,14 +1052,16 @@ def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
         return
 
     # Check line_types consistency across scenarios
-    if not n.line_types.empty and len(n.scenarios) > 1:
+    if not n.c.line_types.static.empty and len(n.scenarios) > 1:
         # Get reference line_types from first scenario
         reference_scenario = n.scenarios[0]
-        reference_line_types = n.line_types.xs(reference_scenario, level="scenario")
+        reference_line_types = n.c.line_types.static.xs(
+            reference_scenario, level="scenario"
+        )
 
         # Check each other scenario
         for scenario in n.scenarios[1:]:
-            scenario_line_types = n.line_types.xs(scenario, level="scenario")
+            scenario_line_types = n.c.line_types.static.xs(scenario, level="scenario")
 
             # Check if DataFrames are equal
             if not reference_line_types.equals(scenario_line_types):
@@ -1095,19 +1101,19 @@ def check_stochastic_slack_bus_consistency(
         return
 
     # Check that each sub-network has the same slack bus across all scenarios
-    if n.has_scenarios and "control" in n.buses.columns:
+    if n.has_scenarios and "control" in n.c.buses.static.columns:
         # Extract slack buses for each scenario
         slack_buses_by_scenario = {}
 
         for scenario in n.scenarios:
-            if n.buses.index.nlevels > 1:
+            if n.c.buses.static.index.nlevels > 1:
                 # MultiIndex case (stochastic network)
-                scenario_buses = n.buses.xs(scenario, level="scenario")
+                scenario_buses = n.c.buses.static.xs(scenario, level="scenario")
                 slack_buses = scenario_buses[scenario_buses.control == "Slack"]
                 slack_buses_by_scenario[scenario] = set(slack_buses.index)
             else:
                 # Single scenario case, shouldn't reach here for stochastic networks
-                slack_buses = n.buses[n.buses.control == "Slack"]
+                slack_buses = n.c.buses.static[n.c.buses.static.control == "Slack"]
                 slack_buses_by_scenario[scenario] = set(slack_buses.index)
 
         # Compare slack buses across scenarios

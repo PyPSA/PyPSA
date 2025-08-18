@@ -87,7 +87,7 @@ def iplot(
     bus_colors : dict/pandas.Series
         Colors for the buses, defaults to "cadetblue". If bus_sizes is a
         pandas.Series with a Multiindex, bus_colors defaults to the
-        n.carriers['color'] column.
+        n.c.carriers.static['color'] column.
     bus_alpha : float
         Add alpha channel to buses, defaults to 1.
     bus_sizes : float/pandas.Series
@@ -163,7 +163,7 @@ def iplot(
         fig = {"data": [], "layout": {}}
 
     if bus_text is None:
-        bus_text = "Bus " + n.buses.index
+        bus_text = "Bus " + n.c.buses.static.index
     if mapbox_parameters is None:
         mapbox_parameters = {}
     x, y = apply_layouter(n, layouter=layouter, inplace=False)
@@ -301,8 +301,8 @@ def iplot(
             raise ValueError(msg)
 
         if "center" not in mapbox_parameters:
-            lon = (n.buses.x.min() + n.buses.x.max()) / 2
-            lat = (n.buses.y.min() + n.buses.y.max()) / 2
+            lon = (n.c.buses.static.x.min() + n.c.buses.static.x.max()) / 2
+            lat = (n.c.buses.static.y.min() + n.c.buses.static.y.max()) / 2
             mapbox_parameters["center"] = {"lat": lat, "lon": lon}
 
         if "zoom" not in mapbox_parameters:

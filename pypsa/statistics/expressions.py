@@ -56,14 +56,14 @@ def get_transmission_branches(
 ) -> pd.MultiIndex:
     """Get list of assets which transport between buses of the carrier `bus_carrier`."""
     # Check if this is a NetworkCollection (has MultiIndex buses)
-    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+    is_network_collection = isinstance(n.c.buses.static.carrier.index, pd.MultiIndex)
 
     if is_network_collection:
         # For NetworkCollection, process each network separately and combine results
         network_results: list[tuple[str, pd.Index]] = []
 
         # Get the bus carrier mapping - drop network levels for mapping
-        bus_carrier_series = n.buses.carrier
+        bus_carrier_series = n.c.buses.static.carrier
         bus_carrier_map = bus_carrier_series.droplevel(
             list(range(bus_carrier_series.index.nlevels - 1))
         )
@@ -91,7 +91,7 @@ def get_transmission_branches(
         if network_results:
             # Get network index names
             network_names = list(
-                n.buses.carrier.index.names[:-1]
+                n.c.buses.static.carrier.index.names[:-1]
             )  # All except last level
             result_names = network_names + ["component", "name"]
 
@@ -111,14 +111,14 @@ def get_transmission_branches(
             return pd.MultiIndex.from_tuples(flattened_results, names=result_names)
         else:
             # Empty result - create empty MultiIndex with correct structure
-            network_names = list(n.buses.carrier.index.names[:-1])
+            network_names = list(n.c.buses.static.carrier.index.names[:-1])
             result_names = network_names + ["component", "name"]
             return pd.MultiIndex.from_tuples([], names=result_names)
 
     else:
         # Original logic for regular Network
         index = {}
-        bus_carrier_map = n.buses.carrier
+        bus_carrier_map = n.c.buses.static.carrier
 
         for c in n.branch_components:
             bus_map = (
@@ -148,7 +148,7 @@ def get_transmission_carriers(
     branches = get_transmission_branches(n, bus_carrier)
 
     # Check if this is a NetworkCollection
-    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+    is_network_collection = isinstance(n.c.buses.static.carrier.index, pd.MultiIndex)
 
     if is_network_collection and len(branches) > 0:
         # For NetworkCollection, branches has structure: (network_levels..., component, name)
@@ -174,13 +174,13 @@ def get_transmission_carriers(
         if network_results:
             # Get network index names
             network_names = list(
-                n.buses.carrier.index.names[:-1]
+                n.c.buses.static.carrier.index.names[:-1]
             )  # All except last level
             result_names = network_names + ["component", "carrier"]
             return pd.MultiIndex.from_tuples(network_results, names=result_names)
         else:
             # Empty result
-            network_names = list(n.buses.carrier.index.names[:-1])
+            network_names = list(n.c.buses.static.carrier.index.names[:-1])
             result_names = network_names + ["component", "carrier"]
             return pd.MultiIndex.from_tuples([], names=result_names)
 
@@ -198,7 +198,7 @@ def get_transmission_carriers(
     else:
         # Empty branches - return empty MultiIndex with correct structure
         if is_network_collection:
-            network_names = list(n.buses.carrier.index.names[:-1])
+            network_names = list(n.c.buses.static.carrier.index.names[:-1])
             result_names = network_names + ["component", "carrier"]
         else:
             result_names = ["component", "carrier"]
@@ -1887,7 +1887,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         n = self._n
 
         if (
-            n.buses.carrier.unique().size > 1
+            n.c.buses.static.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
         ):
@@ -2239,7 +2239,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 .droplevel("name")
                 .index
             )
-            prices = n.buses_t.marginal_price.reindex(
+            prices = n.c.buses.dynamic.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values
             if direction is not None:

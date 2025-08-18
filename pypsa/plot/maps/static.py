@@ -162,7 +162,9 @@ class MapPlotter:
     def boundaries(self) -> tuple[float, float, float, float] | None:
         """Get the plot boundaries."""
         if self._boundaries is None:
-            self.set_boundaries(self._boundaries, self.margin, self._n.buses.index)
+            self.set_boundaries(
+                self._boundaries, self.margin, self._n.c.buses.static.index
+            )
         return self._boundaries
 
     @boundaries.setter
@@ -231,14 +233,17 @@ class MapPlotter:
         """
         # Check if networkx layouter is given or needed to get bus positions
         is_empty = (
-            (self.n.buses[["x", "y"]].isnull() | (self.n.buses[["x", "y"]] == 0))
+            (
+                self.n.c.buses.static[["x", "y"]].isnull()
+                | (self.n.c.buses.static[["x", "y"]] == 0)
+            )
             .all()
             .all()
         )
         if layouter or self._layout or is_empty:
             self.x, self.y = apply_layouter(self.n, layouter, inplace=False)
         else:
-            self.x, self.y = self.n.buses["x"], self.n.buses["y"]
+            self.x, self.y = self.n.c.buses.static["x"], self.n.c.buses.static["y"]
         self.crs = self.n.crs
 
     def set_boundaries(
@@ -273,7 +278,7 @@ class MapPlotter:
         # Set boundaries, if not given
 
         if buses is None:
-            buses = self.n.buses.index
+            buses = self.n.c.buses.static.index
 
         if boundaries is None:
             (x1, y1), (x2, y2) = compute_bbox(self.x[buses], self.y[buses], margin)
@@ -1117,28 +1122,31 @@ class MapPlotter:
         # Apply default values
         if bus_colors is None:
             if multindex_buses:
-                bus_colors = n.carriers.color
+                bus_colors = n.c.carriers.static.color
             else:
                 bus_colors = "cadetblue"
 
         # Format different input types
-        bus_colors = _convert_to_series(bus_colors, n.buses.index)
-        bus_sizes = _convert_to_series(bus_sizes, n.buses.index)
+        bus_colors = _convert_to_series(bus_colors, n.c.buses.static.index)
+        bus_sizes = _convert_to_series(bus_sizes, n.c.buses.static.index)
 
         # Add missing colors
         # TODO: This is not consistent, since for multiindex a ValueError is raised
         if not multindex_buses:
-            bus_colors = bus_colors.reindex(n.buses.index)
+            bus_colors = bus_colors.reindex(n.c.buses.static.index)
 
         # Raise additional ValueErrors after formatting
         if multindex_buses:
-            if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
+            if (
+                len(bus_sizes.index.unique(level=0).difference(n.c.buses.static.index))
+                != 0
+            ):
                 msg = "The first MultiIndex level of sizes must contain buses"
                 raise ValueError(msg)
             if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
                 msg = "Colors not defined for all elements in the second MultiIndex "
                 "level of sizes, please make sure that all the elements are "
-                "included in colors or in n.carriers.color"
+                "included in colors or in n.c.carriers.static.color"
                 raise ValueError(msg)
 
         # Apply all cmaps
@@ -1275,7 +1283,7 @@ def plot(  # noqa: D103
             bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
         )
     else:
-        buses = n.buses.index
+        buses = n.c.buses.static.index
 
     if isinstance(geomap, str):
         logger.warning(

@@ -8,22 +8,22 @@ from pypsa import Network, SubNetwork
 def scipy_subnetwork(scipy_network: Network) -> SubNetwork:
     n = scipy_network
     n.determine_network_topology()
-    return n.sub_networks.obj.iloc[0]
+    return n.c.sub_networks.static.obj.iloc[0]
 
 
 @pytest.fixture
 def ac_dc_subnetwork(ac_dc_network: Network) -> SubNetwork:
     n = ac_dc_network
     n.determine_network_topology()
-    return n.sub_networks.obj.iloc[1]
+    return n.c.sub_networks.static.obj.iloc[1]
 
 
 @pytest.fixture
 def ac_dc_subnetwork_inactive(ac_dc_network: Network) -> SubNetwork:
     n = ac_dc_network
-    n.lines.loc["2", "active"] = False
+    n.c.lines.static.loc["2", "active"] = False
     n.determine_network_topology()
-    return n.sub_networks.obj.iloc[1]
+    return n.c.sub_networks.static.obj.iloc[1]
 
 
 def test_network(scipy_subnetwork: SubNetwork) -> None:
@@ -59,7 +59,7 @@ def test_investment_period_weightings(scipy_subnetwork: SubNetwork) -> None:
 def test_df(scipy_subnetwork: SubNetwork) -> None:
     buses = scipy_subnetwork.static("Bus")
     assert not buses.empty
-    assert buses.index.isin(scipy_subnetwork.n.buses.index).all()
+    assert buses.index.isin(scipy_subnetwork.n.c.buses.static.index).all()
 
     component_names = ["Line", "Transformer", "Generator", "Load"]
     for c_name in component_names:

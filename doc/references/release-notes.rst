@@ -2,14 +2,15 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..    The features listed below are not released yet, but will be part of the next release! 
-..    To use the features already you have to install the ``master`` branch, e.g. 
-..    ``pip install git+https://github.com/pypsa/pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
+
 
 Features
 --------
@@ -25,6 +26,11 @@ Features
 
   where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
 
+* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
+  the optimization model entirely. This has no effect on the results, but it can
+  reduce the memory footprint when solving the model.
+
+
 * The option to set bus-level capacity expansion limits per carrier via `Bus`
   attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
   constraint type `"tech_capacity_expansion_limit"` offers identical functionality.
@@ -34,13 +40,21 @@ Bug Fixes
 
 * Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
   (https://github.com/PyPSA/PyPSA/issues/1325)
-
+  
 * Correct use of snapshot weighting columns in statistics module. The
   doscstring for ``n.snapshot_weightings`` was clarified.
 
 * Resolved an issue where the network version was not correctly identified during I/O, 
   resulting in false update information being logged.
   (https://github.com/PyPSA/PyPSA/pull/1300)
+
+`v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
+=======================================================================================
+Bug Fixes
+---------
+
+* Make compatible with xarray v2025.07 
+  (https://github.com/PyPSA/PyPSA/pull/1304)
 
 `v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
 =======================================================================================
