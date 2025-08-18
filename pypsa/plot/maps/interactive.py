@@ -502,8 +502,9 @@ class PydeckPlotter:
             return [PydeckPlotter.PROJ_INV.transform(*p) for p in tri]
 
         branch_data = self._n.static(c_name).copy()
-        branch_flow = _convert_to_series(branch_flow, self._n.static(c_name).index)
-
+        branch_flow = _convert_to_series(
+            branch_flow, self._n.static(c_name).index
+        ).reindex(branch_data.index)
         if arrow_size_factor < 0:
             msg = "arrow_size_factor must be greater than 0."
             raise ValueError(msg)
