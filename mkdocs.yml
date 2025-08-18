@@ -72,7 +72,7 @@ nav:
     - Components: user-guide/components.md
     - Optimization: user-guide/network-optimization.md
     - Import and Export: user-guide/import-export.md
-    - Clustering: user-guide/clustering.md
+    - Clustering: user-guide/clustering.ipynb
     - Statistics: user-guide/statistics.md
     - Plotting: user-guide/plotting.md
     - Comparing networks: user-guide/collection.md
