@@ -630,6 +630,165 @@ class PydeckPlotter:
         # Append the bus layer to the layers property
         self._layers["Bus"] = layer
 
+    # Pie chart related functions
+    @staticmethod
+    def _meters_to_lnglat_offsets(
+        lon: float,
+        lat: float,
+        dx: float,
+        dy: float,
+    ) -> list[float]:
+        """Convert meter offsets to lon/lat relative to a center."""
+        x0, y0 = PydeckPlotter.PROJ.transform(lon, lat)
+        lon_new, lat_new = PydeckPlotter.PROJ_INV.transform(x0 + dx, y0 + dy)
+        return [lon_new, lat_new]
+
+    @staticmethod
+    def _pie_slice_vertices(
+        center_lon: float,
+        center_lat: float,
+        radius: float,
+        start_angle: float,
+        end_angle: float,
+        points_per_radian: int = 10,
+    ) -> list[list[float]]:
+        """Generate vertices of a pie slice as a closed polygon using numpy."""
+        angle_span = end_angle - start_angle
+        steps = max(1, int(np.ceil(points_per_radian * abs(angle_span))))
+        angles = np.linspace(start_angle, end_angle, steps + 1)
+
+        coords = [[center_lon, center_lat]]
+        for a in angles:
+            dx = radius * np.cos(a)
+            dy = radius * np.sin(a)
+            coords.append(
+                PydeckPlotter._meters_to_lnglat_offsets(center_lon, center_lat, dx, dy)
+            )
+        coords.append([center_lon, center_lat])
+        return coords
+
+    @staticmethod
+    def _make_pie(
+        center_lat: float,
+        center_lon: float,
+        radius_m: float,
+        values: np.ndarray,
+        colors: list[str],
+        labels: list[str],
+        points_per_radian: int = 10,
+        flip_y: bool = False,
+        semi_circle: bool = False,
+    ) -> list[dict]:
+        """Create pie chart polygons with metadata using numpy."""
+        flip_y_factor = -1 if flip_y else 1
+        circ = np.pi if semi_circle else 2 * np.pi
+
+        total = np.sum(values)
+        angles = flip_y_factor * np.array(values) / total * circ
+        start_angles = np.concatenate(([0], np.cumsum(angles)[:-1]))
+
+        polygons = [
+            {
+                "polygon": PydeckPlotter._pie_slice_vertices(
+                    center_lon,
+                    center_lat,
+                    radius_m,
+                    start,
+                    start + delta,
+                    points_per_radian,
+                ),
+                "color": color,
+                "name": label,
+                "value": val,
+            }
+            for val, color, label, start, delta in zip(
+                values, colors, labels, start_angles, angles, strict=False
+            )
+        ]
+        return polygons
+
+    def add_pie_chart_layer(
+        self,
+        bus_sizes: pd.Series,
+        bus_alpha: float | dict | pd.Series = 0.7,
+        points_per_radian: int = 10,
+    ) -> None:
+        """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
+
+        Parameters
+        ----------
+        bus_sizes : float/dict/pandas.Series
+            Sizes of bus points in meters, defaults to 5000.
+        bus_alpha : float/dict/pandas.Series
+            Add alpha channel to buses, defaults to 0.7.
+        points_per_radian : int, default 10
+            Number of points per radian for pie chart resolution.
+
+        """
+        EPS = 1e-6  # Small epsilon to avoid numerical issues
+
+        # Check if columns exist and only keep the ones that also exist in the network
+        bus_data = self.prepare_component_data(
+            "Bus",
+            default_columns=["x", "y"],
+        )
+
+        # Compute radius per bus (sum of values)
+        # Drop values that are smaller than EPS in absolute value
+        bus_sizes = bus_sizes.drop(bus_sizes[abs(bus_sizes) < EPS].index)
+        bus_sizes = bus_sizes.unstack(level=1, fill_value=0)
+
+        bus_radius = bus_sizes.sum(axis=1)
+
+        alphas = _convert_to_series(bus_alpha, bus_sizes.index)
+        alpha = alphas.mean()
+        carrier_colors = self._n.c.carriers.static["color"]
+        valid_colors = pd.DataFrame(
+            carrier_colors[carrier_colors.isin(mcolors.CSS4_COLORS)]
+        )
+        valid_colors["rgba"] = valid_colors["color"].apply(
+            lambda c: to_rgba255(c, alpha)
+        )
+
+        # Create dict
+        carrier_rgba = valid_colors["rgba"].to_dict()
+
+        polygons = []
+        for idx, row in bus_sizes.iterrows():
+            x = bus_data.loc[idx, "x"]
+            y = bus_data.loc[idx, "y"]
+            valid_carriers = row[row > 0].index
+            colors = [carrier_rgba[c] for c in valid_carriers]
+
+            # Concatenate idx and valid_carriers for labels
+            labels = [f"{idx} - {c}" for c in valid_carriers]
+
+            # Create pie slices for each bus
+            poly = PydeckPlotter._make_pie(
+                center_lat=y,
+                center_lon=x,
+                radius_m=bus_radius[idx],
+                values=row[valid_carriers].values.round(3),
+                colors=colors,
+                labels=labels,
+                points_per_radian=points_per_radian,
+            )
+            polygons.extend(poly)
+
+        layer = pdk.Layer(
+            "PolygonLayer",
+            data=polygons,
+            get_polygon="polygon",
+            get_fill_color="color",
+            pickable=True,
+            auto_highlight=True,
+            parameters={
+                "depthTest": False  # To prevent z-fighting issues/flickering in 3D space
+            },
+        )
+
+        self._layers["PieChart"] = layer
+
     # Add branch layer
     def add_branch_layer(
         self,
@@ -922,7 +1081,13 @@ def explore(
     plotter = PydeckPlotter(n, map_style=map_style)
 
     # Bus layer
-    if not plotter._n.buses.empty:
+    if hasattr(bus_sizes, "index") and isinstance(bus_sizes.index, pd.MultiIndex):
+        plotter.add_pie_chart_layer(
+            bus_sizes=bus_sizes,
+            bus_alpha=bus_alpha,
+            points_per_radian=10,  # Default resolution for pie chart
+        )
+    else:
         plotter.add_bus_layer(
             bus_sizes=bus_sizes,
             bus_colors=bus_colors,
