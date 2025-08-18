@@ -764,11 +764,13 @@ class PydeckPlotter:
             Add alpha channel to arrows, defaults to 1.0.
 
         """
-        if (
-            self._n.static(c_name).empty
-            or (branch_flow == 0)
-            or (arrow_size_factor == 0)
-        ):
+        flows_are_zero = (
+            branch_flow == 0
+            if isinstance(branch_flow, int | float)
+            else (branch_flow == 0).all()
+        )
+
+        if self._n.static(c_name).empty or flows_are_zero or arrow_size_factor == 0:
             return
 
         branch_flow = self.create_projected_arrows(
@@ -919,32 +921,9 @@ def explore(
         The interactive map as a Pydeck Deck object.
 
     """
-    BRANCH_ARGS = {
-        "Line": {
-            "branch_flow": line_flow,
-            "branch_colors": line_colors,
-            "branch_alpha": line_alpha,
-            "branch_widths": line_widths,
-            "branch_columns": line_columns,
-        },
-        "Link": {
-            "branch_flow": link_flow,
-            "branch_colors": link_colors,
-            "branch_alpha": link_alpha,
-            "branch_widths": link_widths,
-            "branch_columns": link_columns,
-        },
-        "Transformer": {
-            "branch_flow": transformer_flow,
-            "branch_colors": transformer_colors,
-            "branch_alpha": transformer_alpha,
-            "branch_widths": transformer_widths,
-            "branch_columns": transformer_columns,
-        },
-    }
-
     plotter = PydeckPlotter(n, map_style=map_style)
 
+    # Bus layer
     if not plotter._n.buses.empty:
         plotter.add_bus_layer(
             bus_sizes=bus_sizes,
@@ -953,25 +932,54 @@ def explore(
             bus_columns=bus_columns,
         )
 
-    # Loop over all branch components and add them if they exist
-    for c_name, kwargs in BRANCH_ARGS.items():
-        if not plotter._n.static(c_name).empty:
-            plotter.add_branch_layer(
-                c_name=c_name,
-                branch_colors=kwargs["branch_colors"],
-                branch_alpha=kwargs["branch_alpha"],
-                branch_widths=kwargs["branch_widths"],
-                branch_columns=kwargs["branch_columns"],
-            )
+    # Branch layers
+    if not plotter._n.static("Line").empty:
+        plotter.add_branch_layer(
+            c_name="Line",
+            branch_colors=line_colors,
+            branch_alpha=line_alpha,
+            branch_widths=line_widths,
+            branch_columns=line_columns,
+        )
+        plotter.add_arrow_layer(
+            c_name="Line",
+            branch_flow=line_flow,
+            arrow_size_factor=arrow_size_factor,
+            arrow_colors=line_colors if arrow_colors is None else arrow_colors,
+            arrow_alpha=arrow_alpha,
+        )
 
-            ac = kwargs["branch_colors"] if arrow_colors is None else arrow_colors
-            plotter.add_arrow_layer(
-                c_name=c_name,
-                branch_flow=kwargs["branch_flow"],
-                arrow_size_factor=arrow_size_factor,
-                arrow_colors=ac,
-                arrow_alpha=arrow_alpha,
-            )
+    if not plotter._n.static("Link").empty:
+        plotter.add_branch_layer(
+            c_name="Link",
+            branch_colors=link_colors,
+            branch_alpha=link_alpha,
+            branch_widths=link_widths,
+            branch_columns=link_columns,
+        )
+        plotter.add_arrow_layer(
+            c_name="Link",
+            branch_flow=link_flow,
+            arrow_size_factor=arrow_size_factor,
+            arrow_colors=link_colors if arrow_colors is None else arrow_colors,
+            arrow_alpha=arrow_alpha,
+        )
+
+    if not plotter._n.static("Transformer").empty:
+        plotter.add_branch_layer(
+            c_name="Transformer",
+            branch_colors=transformer_colors,
+            branch_alpha=transformer_alpha,
+            branch_widths=transformer_widths,
+            branch_columns=transformer_columns,
+        )
+        plotter.add_arrow_layer(
+            c_name="Transformer",
+            branch_flow=transformer_flow,
+            arrow_size_factor=arrow_size_factor,
+            arrow_colors=transformer_colors if arrow_colors is None else arrow_colors,
+            arrow_alpha=arrow_alpha,
+        )
 
     if tooltip:
         plotter.add_tooltip()
