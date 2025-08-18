@@ -406,7 +406,7 @@ class PydeckPlotter:
 
     # Geometric functions
     @staticmethod
-    def rotate_triangle(
+    def _rotate_triangle(
         triangle: np.ndarray,
         angle_rad: float,
     ) -> np.ndarray:
@@ -417,7 +417,7 @@ class PydeckPlotter:
 
     # TODO: Scaling is not a 100 % correct, as it does not account for projection distortion. To be improved in the future
     @staticmethod
-    def scale_triangle_by_width(
+    def _scale_triangle_by_width(
         triangle: np.ndarray,
         base_width_m: float,
     ) -> np.ndarray:
@@ -428,7 +428,7 @@ class PydeckPlotter:
         return triangle * np.array([x_scale, y_scale])
 
     @staticmethod
-    def translate_triangle(
+    def _translate_triangle(
         triangle: np.ndarray,
         offset: tuple[float, float],
     ) -> np.ndarray:
@@ -493,11 +493,11 @@ class PydeckPlotter:
             angle = np.arctan2(dy, dx) * np.sign(f)
 
             base_width_m = abs(f) * 5 / 3 * arrow_size_factor
-            tri = PydeckPlotter.scale_triangle_by_width(
+            tri = PydeckPlotter._scale_triangle_by_width(
                 PydeckPlotter.UNIT_TRIANGLE, base_width_m
             )
-            tri = PydeckPlotter.rotate_triangle(tri, angle)
-            tri = PydeckPlotter.translate_triangle(tri, (mx, my))
+            tri = PydeckPlotter._rotate_triangle(tri, angle)
+            tri = PydeckPlotter._translate_triangle(tri, (mx, my))
 
             return [PydeckPlotter.PROJ_INV.transform(*p) for p in tri]
 
