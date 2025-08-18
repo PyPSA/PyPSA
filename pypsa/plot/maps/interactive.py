@@ -764,11 +764,8 @@ class PydeckPlotter:
             Add alpha channel to arrows, defaults to 1.0.
 
         """
-        flows_are_zero = (
-            branch_flow == 0
-            if isinstance(branch_flow, int | float)
-            else (branch_flow == 0).all()
-        )
+        branch_flow = _convert_to_series(branch_flow, self._n.static(c_name).index)
+        flows_are_zero = (branch_flow == 0).all()
 
         if self._n.static(c_name).empty or flows_are_zero or arrow_size_factor == 0:
             return
@@ -939,7 +936,7 @@ def explore(
             branch_colors=line_colors,
             branch_alpha=line_alpha,
             branch_widths=line_widths,
-            branch_columns=line_columns,  # type: ignore[arg-type]
+            branch_columns=line_columns,
         )
         plotter.add_arrow_layer(
             c_name="Line",
@@ -955,7 +952,7 @@ def explore(
             branch_colors=link_colors,
             branch_alpha=link_alpha,
             branch_widths=link_widths,
-            branch_columns=link_columns,  # type: ignore[arg-type]
+            branch_columns=link_columns,
         )
         plotter.add_arrow_layer(
             c_name="Link",
@@ -971,7 +968,7 @@ def explore(
             branch_colors=transformer_colors,
             branch_alpha=transformer_alpha,
             branch_widths=transformer_widths,
-            branch_columns=transformer_columns,  # type: ignore[arg-type]
+            branch_columns=transformer_columns,
         )
         plotter.add_arrow_layer(
             c_name="Transformer",
