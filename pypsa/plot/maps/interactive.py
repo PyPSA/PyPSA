@@ -438,7 +438,7 @@ class PydeckPlotter:
     def create_projected_arrows(
         self,
         c_name: str,
-        branch_flow: float | dict | pd.Series | None = None,
+        branch_flow: float | dict | pd.Series = 0,
         arrow_size_factor: float = 2.5,
     ) -> pd.DataFrame:
         """Create polygons for arrows based on line data and flows.
@@ -447,8 +447,8 @@ class PydeckPlotter:
         ----------
         c_name : str
             Name of the branch component type, e.g. "Line", "Link", "Transformer".
-        branch_flow : float/dict/pandas.Series/None
-            Series of line flows indexed by line names, defaults to None. If None, no arrows will be created.
+        branch_flow : float/dict/pandas.Series, default 0
+            Series of line flows indexed by line names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all lines.
         arrow_size_factor : float, default 2.5
             Factor to scale the arrow size.
@@ -830,17 +830,17 @@ def explore(
     bus_colors: str | dict | pd.Series = "cadetblue",
     bus_alpha: float | dict | pd.Series = 0.7,
     bus_columns: list | None = None,
-    line_flow: float | dict | pd.Series | None = None,
+    line_flow: float | dict | pd.Series = 0,
     line_colors: str | dict | pd.Series = "rosybrown",
     line_alpha: float | dict | pd.Series = 0.7,
     line_widths: float | dict | pd.Series = 1500,
     line_columns: list | None = None,
-    link_flow: float | dict | pd.Series | None = None,
+    link_flow: float | dict | pd.Series = 0,
     link_colors: str | dict | pd.Series = "darkseagreen",
     link_alpha: float | dict | pd.Series = 0.7,
     link_widths: float | dict | pd.Series = 1500,
     link_columns: list | None = None,
-    transformer_flow: float | dict | pd.Series | None = None,
+    transformer_flow: float | dict | pd.Series = 0,
     transformer_colors: str | dict | pd.Series = "orange",
     transformer_alpha: float | dict | pd.Series = 0.7,
     transformer_widths: float | dict | pd.Series = 1500,
@@ -866,8 +866,8 @@ def explore(
     bus_columns : list, default None
         List of bus columns to include. If None, only the bus index and x, y coordinates are used.
         Specify additional columns to include in the tooltip.
-    line_flow : float/dict/pandas.Series/None
-        Series of line flows indexed by line names, defaults to None. If None, no arrows will be created.
+    line_flow : float/dict/pandas.Series, default 0
+        Series of line flows indexed by line names, defaults to 0. If 0, no arrows will be created.
         If a float is provided, it will be used as a constant flow for all lines.
     line_colors : str/dict/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
@@ -878,8 +878,8 @@ def explore(
     line_columns : list, default None
         List of line columns to include. If None, only the bus0 and bus1 columns are used.
         Specify additional columns to include in the tooltip.
-    link_flow : float/dict/pandas.Series/None
-        Series of link flows indexed by link names, defaults to None. If None, no arrows will be created.
+    link_flow : float/dict/pandas.Series, default 0
+        Series of link flows indexed by link names, defaults to 0. If 0, no arrows will be created.
         If a float is provided, it will be used as a constant flow for all links.
     link_colors : str/dict/pandas.Series
         Colors for the links, defaults to 'darkseagreen'.
@@ -890,8 +890,8 @@ def explore(
     link_columns : list, default None
         List of link columns to include. If None, only the bus0 and bus1 columns are used.
         Specify additional columns to include in the tooltip.
-    transformer_flow : float/dict/pandas.Series/None
-        Series of transformer flows indexed by transformer names, defaults to None. If None, no arrows will be created.
+    transformer_flow : float/dict/pandas.Series, default 0
+        Series of transformer flows indexed by transformer names, defaults to 0. If 0, no arrows will be created.
         If a float is provided, it will be used as a constant flow for all transformers.
     transformer_colors : str/dict/pandas.Series
         Colors for the transformers, defaults to 'orange'.
@@ -903,7 +903,7 @@ def explore(
         List of transformer columns to include. If None, only the bus0 and bus1 columns are used.
         Specify additional columns to include in the tooltip.
     arrow_size_factor : float, default 2.5
-        Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1xline_width.
+        Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1 times line_width. If 0, no arrows will be created.
     arrow_colors : str/dict/pandas.Series | None, default None
         Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
     arrow_alpha : float/dict/pandas.Series, default 1.0
