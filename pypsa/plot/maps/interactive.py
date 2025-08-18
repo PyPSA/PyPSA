@@ -939,7 +939,7 @@ def explore(
             branch_colors=line_colors,
             branch_alpha=line_alpha,
             branch_widths=line_widths,
-            branch_columns=line_columns,
+            branch_columns=line_columns,  # type: ignore[arg-type]
         )
         plotter.add_arrow_layer(
             c_name="Line",
@@ -955,7 +955,7 @@ def explore(
             branch_colors=link_colors,
             branch_alpha=link_alpha,
             branch_widths=link_widths,
-            branch_columns=link_columns,
+            branch_columns=link_columns,  # type: ignore[arg-type]
         )
         plotter.add_arrow_layer(
             c_name="Link",
@@ -971,7 +971,7 @@ def explore(
             branch_colors=transformer_colors,
             branch_alpha=transformer_alpha,
             branch_widths=transformer_widths,
-            branch_columns=transformer_columns,
+            branch_columns=transformer_columns,  # type: ignore[arg-type]
         )
         plotter.add_arrow_layer(
             c_name="Transformer",
