@@ -49,6 +49,12 @@ The examples below demonstrate PyPSA's capabilities for energy system modeling. 
 
     [:octicons-arrow-right-24: Go to example](negative-prices-kvl-baker.ipynb)
 
+-   :material-notebook:{ .lg .middle } **Rolling-Horizon Optimization**
+
+    Explores how rolling-horizon optimization can be used to account for imperfect forecast horizons in reality.
+
+    [:octicons-arrow-right-24: Go to example](rolling-horizon.ipynb)
+
 </div>
 
 ## Planning Problems
