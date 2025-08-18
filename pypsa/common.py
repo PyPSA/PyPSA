@@ -735,12 +735,14 @@ def check_optional_dependency(module_name: str, install_message: str) -> None:
         raise ImportError(install_message) from e
 
 
-def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd.Series:
+def _convert_to_series(
+    variable: dict | Sequence | float | str | pd.Series, index: pd.Index
+) -> pd.Series:
     """Convert a variable to a pandas Series with the given index.
 
     Parameters
     ----------
-    variable : dict | Sequence | float | int
+    variable : dict | Sequence | float | int | str | pd.Series
         The variable to convert.
     index : pd.Index
         The index to use for the Series.
@@ -764,6 +766,8 @@ def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd
     dtype: float64
 
     """
+    if isinstance(variable, pd.Series):
+        return variable.reindex(index)
     # TODO: Check if this change (adding .reindex) is fine for all use cases and necessary at all
     if isinstance(variable, dict):
         return pd.Series(variable).reindex(
