@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+import os
 import signal
 import tempfile
 from multiprocessing import get_context
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-import os
-import json
-import hashlib
 
 import linopy
 import numpy as np
@@ -154,6 +154,7 @@ def generate_directions_halton(
     # Return as dataframe with keys as columns
     return pd.DataFrame(directions, columns=keys)
 
+
 def hash_mga(  # noqa: ANN201
     n: Network,
     directions: pd.DataFrame,
@@ -182,10 +183,11 @@ def hash_mga(  # noqa: ANN201
         "slack": slack,
     }
 
-    hash_str = json.dumps(hash_input, sort_keys=True).encode('utf-8')
+    hash_str = json.dumps(hash_input, sort_keys=True).encode("utf-8")
     hash_value = hashlib.sha256(hash_str).hexdigest()[:8]
     print(f"Hash value for MGA optimization: {hash_value}")  # noqa: T201
     return hash_value
+
 
 def reuse_results(
     cache_dir: str,
@@ -630,8 +632,12 @@ class OptimizationAbstractMGAMixin:
             if cache_dir is not None and cache_key is not None:
                 # saves results to cache
                 os.makedirs(cache_dir, exist_ok=True)
-                cache_directions_path = os.path.join(cache_dir, f"directions_{cache_key}.csv")
-                cache_coordinates_path = os.path.join(cache_dir, f"coords_{cache_key}.csv")
+                cache_directions_path = os.path.join(
+                    cache_dir, f"directions_{cache_key}.csv"
+                )
+                cache_coordinates_path = os.path.join(
+                    cache_dir, f"coords_{cache_key}.csv"
+                )
                 if os.path.exists(cache_directions_path):
                     cache_directions = pd.read_csv(cache_directions_path)
                 else:
@@ -641,11 +647,19 @@ class OptimizationAbstractMGAMixin:
                 else:
                     cache_coordinates = pd.DataFrame()
                 # Append new results
-                cache_directions = pd.concat([cache_directions, pd.DataFrame([direction])], axis="index", ignore_index=True)
-                cache_coordinates = pd.concat([cache_coordinates, pd.DataFrame([coordinates])], axis="index", ignore_index=True)
+                cache_directions = pd.concat(
+                    [cache_directions, pd.DataFrame([direction])],
+                    axis="index",
+                    ignore_index=True,
+                )
+                cache_coordinates = pd.concat(
+                    [cache_coordinates, pd.DataFrame([coordinates])],
+                    axis="index",
+                    ignore_index=True,
+                )
                 # Save back to CSV while preventing concurrent write issues
                 cache_directions.to_csv(cache_directions_path, index=False)
-                cache_coordinates.to_csv(cache_coordinates_path, index=False) 
+                cache_coordinates.to_csv(cache_coordinates_path, index=False)
             return (direction, coordinates)
 
     def optimize_mga_in_multiple_directions(
@@ -807,19 +821,19 @@ class OptimizationAbstractMGAMixin:
             # Clean up temporary file
             if Path(fn).exists():
                 Path(fn).unlink()
-    
+
     def optimize_mga_in_multiple_directions_cache(
-            self,
-            directions: list[dict] | pd.DataFrame,
-            dimensions: dict,
-            snapshots: Sequence | None = None,
-            cache_dir: str | None = None,
-            multi_investment_periods: bool = False,
-            slack: float = 0.05,
-            model_kwargs: dict | None = None,
-            max_parallel: int = 4,
-            **kwargs: Any,
-        ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        self,
+        directions: list[dict] | pd.DataFrame,
+        dimensions: dict,
+        snapshots: Sequence | None = None,
+        cache_dir: str | None = None,
+        multi_investment_periods: bool = False,
+        slack: float = 0.05,
+        model_kwargs: dict | None = None,
+        max_parallel: int = 4,
+        **kwargs: Any,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Run MGA optimization in multiple directions in parallel, reusing existing results if available.
 
         This method performs modelling-to-generate-alternatives (MGA) optimization
@@ -908,7 +922,7 @@ class OptimizationAbstractMGAMixin:
                 slack=slack,
                 model_kwargs=model_kwargs,
                 max_parallel=max_parallel,
-                **kwargs
+                **kwargs,
             )
         else:
             # Ensure cache directory exists
@@ -916,9 +930,12 @@ class OptimizationAbstractMGAMixin:
             # Check if cached results already exist for these parameters.
             cache_key = hash_mga(self._n, directions, dimensions, slack)
             cached_directions, cached_coordinates, last_iter = reuse_results(
-                cache_dir=cache_dir, cache_key=cache_key)
-            if last_iter <0:
-                print("No previous iterations found. Starting optimizations from scratch.")
+                cache_dir=cache_dir, cache_key=cache_key
+            )
+            if last_iter < 0:
+                print(
+                    "No previous iterations found. Starting optimizations from scratch."
+                )
                 cached_directions = pd.DataFrame()
                 cached_coordinates = pd.DataFrame()
                 if isinstance(directions, pd.DataFrame):
@@ -929,36 +946,46 @@ class OptimizationAbstractMGAMixin:
                 directions_rounded = directions.round(decimals=3)
                 cached_directions_rounded = cached_directions.round(decimals=3)
                 # Remove rows from directions that are present in cached_directions
-                filtered_directions = directions[~directions_rounded.apply(tuple, 1).isin(cached_directions_rounded.apply(tuple, 1))]
+                filtered_directions = directions[
+                    ~directions_rounded.apply(tuple, 1).isin(
+                        cached_directions_rounded.apply(tuple, 1)
+                    )
+                ]
                 cached_results = (cached_directions, cached_coordinates)
                 if filtered_directions.empty:
                     print("All directions already cached. Returning cached results.")
                     return cached_results
                 else:
-                    print(f"Continuing optimization from iteration {last_iter + 1} with {len(filtered_directions)} remaining directions.")
+                    print(
+                        f"Continuing optimization from iteration {last_iter + 1} with {len(filtered_directions)} remaining directions."
+                    )
                     if isinstance(filtered_directions, pd.DataFrame):
                         directions = list(filtered_directions.T.to_dict().values())
-            successful_directions, successful_coordinates = self.optimize_mga_with_cache(
-                directions=directions,
-                dimensions=dimensions,
-                cache_key=cache_key,
-                cache_dir=cache_dir,
-                snapshots=snapshots,
-                multi_investment_periods=multi_investment_periods,
-                slack=slack,
-                model_kwargs=model_kwargs,
-                max_parallel=max_parallel,
-                **kwargs,
+            successful_directions, successful_coordinates = (
+                self.optimize_mga_with_cache(
+                    directions=directions,
+                    dimensions=dimensions,
+                    cache_key=cache_key,
+                    cache_dir=cache_dir,
+                    snapshots=snapshots,
+                    multi_investment_periods=multi_investment_periods,
+                    slack=slack,
+                    model_kwargs=model_kwargs,
+                    max_parallel=max_parallel,
+                    **kwargs,
+                )
             )
             # Combine cached results with new results
             combined_directions = pd.concat(
-                [cached_directions, successful_directions], ignore_index=True)
+                [cached_directions, successful_directions], ignore_index=True
+            )
             combined_coordinates = pd.concat(
-                [cached_coordinates, successful_coordinates], ignore_index=True)
+                [cached_coordinates, successful_coordinates], ignore_index=True
+            )
             return combined_directions, combined_coordinates
 
     def optimize_mga_with_cache(
-       self,
+        self,
         directions: pd.DataFrame,
         dimensions: dict,
         cache_key: str | None = None,
@@ -968,7 +995,7 @@ class OptimizationAbstractMGAMixin:
         slack: float = 0.05,
         model_kwargs: dict | None = None,
         max_parallel: int = 4,
-        **kwargs  # noqa: ANN003
+        **kwargs,  # noqa: ANN003
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Optimize MGA with caching."""
         if isinstance(directions, pd.DataFrame):
@@ -977,8 +1004,8 @@ class OptimizationAbstractMGAMixin:
         # the network as an argument directly since it is not picklable.
         with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
             fn = f.name
-        # Wrap in try-finally to ensure the temporary file is deleted
-        # even if an error occurs
+            # Wrap in try-finally to ensure the temporary file is deleted
+            # even if an error occurs
             try:
                 self._n.export_to_netcdf(fn)
                 # Use a process pool to solve in parallel
@@ -1003,10 +1030,10 @@ class OptimizationAbstractMGAMixin:
                                     multi_investment_periods,
                                     slack,
                                     model_kwargs,
-                                    kwargs
+                                    kwargs,
                                 )
                                 for direction in directions
-                            ]
+                            ],
                         )
                     except Exception:
                         # Terminate all workers if something goes wrong.
@@ -1016,16 +1043,19 @@ class OptimizationAbstractMGAMixin:
                 # Separate successful and failed results
                 sucessful = [
                     (direction, coords)
-                    for direction, coords in results if coords is not None
+                    for direction, coords in results
+                    if coords is not None
                 ]
                 failed_count = len(results) - len(sucessful)
                 if failed_count > 0:
                     logger.warning(
-                    "%s out of %s optimizations failed", failed_count, len(results)
-                )
+                        "%s out of %s optimizations failed", failed_count, len(results)
+                    )
                 if not sucessful:
                     return pd.DataFrame(), pd.DataFrame()
-                successful_directions, successful_coordinates = zip(*sucessful, strict=True)
+                successful_directions, successful_coordinates = zip(
+                    *sucessful, strict=True
+                )
                 return (
                     pd.DataFrame(successful_directions),
                     pd.DataFrame(successful_coordinates),
@@ -1033,4 +1063,4 @@ class OptimizationAbstractMGAMixin:
             finally:
                 # Clean up temporary file
                 if Path(fn).exists():
-                    Path(fn).unlink()     
+                    Path(fn).unlink()
