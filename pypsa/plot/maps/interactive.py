@@ -334,9 +334,9 @@ class PydeckPlotter:
         "dark_no_labels": pdk.map_styles.DARK_NO_LABELS,
         "light_no_labels": pdk.map_styles.LIGHT_NO_LABELS,
     }
-    UNIT_TRIANGLE = np.array(
+    ARROW = np.array(
         [
-            [0.866, 0],  # np.sqrt(3)/2
+            [1.2, 0],  # unit triangle would be [0.866, 0] (np.sqrt(3)/2)
             [0, 0.5],  # base right
             [0, -0.5],  # base left
         ]
@@ -435,21 +435,17 @@ class PydeckPlotter:
         """Translate triangle by offset (dx, dy)."""
         return triangle + np.array(offset)
 
+    @staticmethod
     def create_projected_arrows(
-        self,
-        c_name: str,
-        branch_flow: float | dict | pd.Series = 0,
-        arrow_size_factor: float = 2.5,
+        df: pd.DataFrame,
+        arrow_size_factor: float = 1.8,
     ) -> pd.DataFrame:
         """Create polygons for arrows based on line data and flows.
 
         Parameters
         ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer".
-        branch_flow : float/dict/pandas.Series, default 0
-            Series of line flows indexed by line names, defaults to 0. If 0, no arrows will be created.
-            If a float is provided, it will be used as a constant flow for all lines.
+        df : pd.DataFrame
+            DataFrame containing line data with columns 'flow', 'path',
         arrow_size_factor : float, default 2.5
             Factor to scale the arrow size.
 
@@ -461,25 +457,10 @@ class PydeckPlotter:
         """
 
         def make_polygon(
-            branch_flow: pd.Series,
             row: pd.Series,
         ) -> list[tuple[float, float]]:
             """Create a polygon for an arrow based on a row of line data."""
-            EPS = 1e-6  # Small epsilon to avoid numerical issues
-            f = branch_flow.loc[row.name]
-            if np.isnan(f) or (abs(f) < EPS):
-                return []  # No flow, no arrow
-
-            # Check if bus coordinates exist
-            if (
-                pd.isna(row["bus0_x"])
-                or pd.isna(row["bus0_y"])
-                or pd.isna(row["bus1_x"])
-                or pd.isna(row["bus1_y"])
-            ):
-                msg = f"Skipping arrow for {row.name} due to missing bus coordinates."
-                logger.warning(msg)
-                return []
+            f = row["flow"]
 
             x0, y0 = PydeckPlotter.PROJ.transform(row["bus0_x"], row["bus0_y"])
             if np.isnan(x0) or np.isnan(y0):
@@ -490,41 +471,34 @@ class PydeckPlotter:
             dx, dy = x1 - x0, y1 - y0
 
             mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-            angle = np.arctan2(dy, dx) * np.sign(f)
+            angle = np.arctan2(dy, dx)
 
             base_width_m = abs(f) * 5 / 3 * arrow_size_factor
             tri = PydeckPlotter._scale_triangle_by_width(
-                PydeckPlotter.UNIT_TRIANGLE, base_width_m
+                PydeckPlotter.ARROW, base_width_m
             )
+            if f < 0:
+                tri[:, 0] *= -1  # Flip triangle if flow is negative
+
             tri = PydeckPlotter._rotate_triangle(tri, angle)
             tri = PydeckPlotter._translate_triangle(tri, (mx, my))
 
             return [PydeckPlotter.PROJ_INV.transform(*p) for p in tri]
 
-        branch_data = self._n.static(c_name).copy()
-        branch_flow = _convert_to_series(
-            branch_flow, self._n.static(c_name).index
-        ).reindex(branch_data.index)
         if arrow_size_factor < 0:
             msg = "arrow_size_factor must be greater than 0."
             raise ValueError(msg)
-        if arrow_size_factor == 0:
-            return [[] for _ in range(len(branch_data))]  # Return empty polygons
 
-        branch_data = branch_data.join(
-            self._n.buses[["x", "y"]].rename(columns={"x": "bus0_x", "y": "bus0_y"}),
-            on="bus0",
-        )
-        branch_data = branch_data.join(
-            self._n.buses[["x", "y"]].rename(columns={"x": "bus1_x", "y": "bus1_y"}),
-            on="bus1",
-        )
-        branch_data["arrow"] = branch_data.apply(
-            lambda row: make_polygon(branch_flow, row),
+        df["bus0_x"] = df["path"].apply(lambda p: p[0][0])
+        df["bus0_y"] = df["path"].apply(lambda p: p[0][1])
+        df["bus1_x"] = df["path"].apply(lambda p: p[-1][0])
+        df["bus1_y"] = df["path"].apply(lambda p: p[-1][1])
+        df["arrow"] = df.apply(
+            lambda row: make_polygon(row),
             axis=1,
         )
 
-        return branch_data[["arrow"]]
+        return df["arrow"]
 
     # Data wrangling
     def prepare_component_data(
@@ -683,9 +657,13 @@ class PydeckPlotter:
         flip_y_factor = -1 if flip_y else 1
         circ = np.pi if semi_circle else 2 * np.pi
 
+        rotate_by_quarter = np.pi / 2
+        if semi_circle:
+            rotate_by_quarter = 0
+
         total = np.sum(values)
         angles = flip_y_factor * np.array(values) / total * circ
-        start_angles = np.concatenate(([0], np.cumsum(angles)[:-1]))
+        start_angles = np.concatenate(([0], np.cumsum(angles)[:-1])) + rotate_by_quarter
 
         polygons = [
             {
@@ -707,6 +685,7 @@ class PydeckPlotter:
         ]
         return polygons
 
+    # TODO: Scale pie chart size by area or radius**2 similar to static plots
     def add_pie_chart_layer(
         self,
         bus_sizes: pd.Series,
@@ -793,10 +772,14 @@ class PydeckPlotter:
     def add_branch_layer(
         self,
         c_name: str,
+        branch_flow: float | dict | pd.Series = 0,
         branch_colors: str | dict | pd.Series = "rosybrown",
         branch_alpha: float | dict | pd.Series = 0.7,
         branch_widths: float | dict | pd.Series = 1500,
         branch_columns: list | None = None,
+        arrow_size_factor: float = 2.5,
+        arrow_colors: str | dict | pd.Series = "black",
+        arrow_alpha: float | dict | pd.Series = 1.0,
     ) -> None:
         """Add a line layer of Pydeck type PathLayer to the interactive map.
 
@@ -804,6 +787,9 @@ class PydeckPlotter:
         ----------
         c_name : str
             Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        branch_flow : float/dict/pandas.Series
+            Flow values for the branch component, defaults to 0.
+            If not 0, arrows will be drawn on the lines.
         branch_colors : str/dict/pandas.Series
             Colors for the branch component, defaults to 'rosybrown'.
         branch_alpha : float/dict/pandas.Series
@@ -813,6 +799,12 @@ class PydeckPlotter:
         branch_columns : list, default None
             List of branch columns to include. If None, only the bus0 and bus1 columns are used.
             Specify additional columns to include in the tooltip.
+        arrow_size_factor : float, default 2.5
+            Factor to scale the arrow size. If 0, no arrows will be drawn.
+        arrow_colors : str/dict/pandas.Series
+            Colors for the arrows, defaults to 'black'.
+        arrow_alpha : float/dict/pandas.Series
+            Add alpha channel to arrows, defaults to 1.0.
 
         """
         if self._n.static(c_name).empty:
@@ -899,59 +891,44 @@ class PydeckPlotter:
 
         self._layers[c_name] = layer
 
-    def add_arrow_layer(
-        self,
-        c_name: str,
-        branch_flow: float | dict | pd.Series = 0,
-        arrow_size_factor: float = 2.5,
-        arrow_colors: str | dict | pd.Series = "black",
-        arrow_alpha: float | dict | pd.Series = 1.0,
-    ) -> None:
-        """Add an arrow layer to the interactive map based on line flows.
-
-        Parameters
-        ----------
-        c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer".
-        branch_flow : float/dict/pandas.Series, default 0
-            Series of branch flows indexed by line names, defaults to 0. If 0, no arrows will be created.
-            If a float is provided, it will be used as a constant flow for all branch components.
-        arrow_size_factor : float, default 2.5
-            Factor to scale the arrow size. If 0, no arrows will be created.
-        arrow_colors : str/dict/pandas.Series
-            Colors for the arrows, defaults to 'black'.
-        arrow_alpha : float/dict/pandas.Series
-            Add alpha channel to arrows, defaults to 1.0.
-
-        """
-        branch_flow = _convert_to_series(branch_flow, self._n.static(c_name).index)
+        # Arrow layer
+        branch_flow = _convert_to_series(branch_flow, c_data.index)
         flows_are_zero = (branch_flow == 0).all()
 
-        if self._n.static(c_name).empty or flows_are_zero or arrow_size_factor == 0:
-            return
+        if (
+            not self._n.static(c_name).empty
+            and not flows_are_zero
+            and arrow_size_factor != 0
+        ):
+            if arrow_colors is None:
+                arrow_colors = branch_colors
 
-        branch_flow = self.create_projected_arrows(
-            c_name, branch_flow, arrow_size_factor
-        )
+            # Map branch_flows to c_data
+            c_data["flow"] = c_data.index.map(branch_flow)
+            c_data["arrow"] = PydeckPlotter.create_projected_arrows(
+                c_data,
+                arrow_size_factor=arrow_size_factor,
+            )
 
-        colors = _convert_to_series(arrow_colors, branch_flow.index)
-        alphas = _convert_to_series(arrow_alpha, branch_flow.index)
-        branch_flow["rgba"] = [
-            to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
-        ]
+            colors = _convert_to_series(arrow_colors, c_data.index)
+            alphas = _convert_to_series(arrow_alpha, c_data.index)
 
-        layer = pdk.Layer(
-            "PolygonLayer",
-            data=branch_flow,
-            get_polygon="arrow",
-            get_fill_color="rgba",
-            pickable=False,  # Disable tooltips for arrow heads
-            auto_highlight=True,
-            parameters={
-                "depthTest": False
-            },  # To prevent z-fighting issues/flickering in 3D space
-        )
-        self._layers[f"{c_name}_arrows"] = layer
+            c_data["rgba"] = [
+                to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
+            ]
+
+            layer = pdk.Layer(
+                "PolygonLayer",
+                data=c_data.reset_index(),
+                get_polygon="arrow",
+                get_fill_color="rgba",
+                pickable=True,  # Disable tooltips for arrow heads
+                auto_highlight=True,
+                parameters={
+                    "depthTest": False
+                },  # To prevent z-fighting issues/flickering in 3D space
+            )
+            self._layers[f"{c_name}_arrows"] = layer
 
     # TODO: Find a way to hide empty tooltip columns. Note, tooltips per layer are not supported by Pydeck.
     def add_tooltip(self) -> None:
@@ -1080,6 +1057,46 @@ def explore(
     """
     plotter = PydeckPlotter(n, map_style=map_style)
 
+    # Branch layers
+    if not plotter._n.static("Line").empty:
+        plotter.add_branch_layer(
+            c_name="Line",
+            branch_colors=line_colors,
+            branch_alpha=line_alpha,
+            branch_widths=line_widths,
+            branch_columns=line_columns,
+            branch_flow=line_flow,
+            arrow_size_factor=arrow_size_factor,
+            arrow_colors=arrow_colors,
+            arrow_alpha=arrow_alpha,
+        )
+
+    if not plotter._n.static("Link").empty:
+        plotter.add_branch_layer(
+            c_name="Link",
+            branch_colors=link_colors,
+            branch_alpha=link_alpha,
+            branch_widths=link_widths,
+            branch_columns=link_columns,
+            branch_flow=link_flow,
+            arrow_size_factor=arrow_size_factor,
+            arrow_colors=arrow_colors,
+            arrow_alpha=arrow_alpha,
+        )
+
+    if not plotter._n.static("Transformer").empty:
+        plotter.add_branch_layer(
+            c_name="Transformer",
+            branch_colors=transformer_colors,
+            branch_alpha=transformer_alpha,
+            branch_widths=transformer_widths,
+            branch_columns=transformer_columns,
+            branch_flow=transformer_flow,
+            arrow_size_factor=arrow_size_factor,
+            arrow_colors=arrow_colors,
+            arrow_alpha=arrow_alpha,
+        )
+
     # Bus layer
     if hasattr(bus_sizes, "index") and isinstance(bus_sizes.index, pd.MultiIndex):
         plotter.add_pie_chart_layer(
@@ -1093,55 +1110,6 @@ def explore(
             bus_colors=bus_colors,
             bus_alpha=bus_alpha,
             bus_columns=bus_columns,
-        )
-
-    # Branch layers
-    if not plotter._n.static("Line").empty:
-        plotter.add_branch_layer(
-            c_name="Line",
-            branch_colors=line_colors,
-            branch_alpha=line_alpha,
-            branch_widths=line_widths,
-            branch_columns=line_columns,
-        )
-        plotter.add_arrow_layer(
-            c_name="Line",
-            branch_flow=line_flow,
-            arrow_size_factor=arrow_size_factor,
-            arrow_colors=line_colors if arrow_colors is None else arrow_colors,
-            arrow_alpha=arrow_alpha,
-        )
-
-    if not plotter._n.static("Link").empty:
-        plotter.add_branch_layer(
-            c_name="Link",
-            branch_colors=link_colors,
-            branch_alpha=link_alpha,
-            branch_widths=link_widths,
-            branch_columns=link_columns,
-        )
-        plotter.add_arrow_layer(
-            c_name="Link",
-            branch_flow=link_flow,
-            arrow_size_factor=arrow_size_factor,
-            arrow_colors=link_colors if arrow_colors is None else arrow_colors,
-            arrow_alpha=arrow_alpha,
-        )
-
-    if not plotter._n.static("Transformer").empty:
-        plotter.add_branch_layer(
-            c_name="Transformer",
-            branch_colors=transformer_colors,
-            branch_alpha=transformer_alpha,
-            branch_widths=transformer_widths,
-            branch_columns=transformer_columns,
-        )
-        plotter.add_arrow_layer(
-            c_name="Transformer",
-            branch_flow=transformer_flow,
-            arrow_size_factor=arrow_size_factor,
-            arrow_colors=transformer_colors if arrow_colors is None else arrow_colors,
-            arrow_alpha=arrow_alpha,
         )
 
     if tooltip:
