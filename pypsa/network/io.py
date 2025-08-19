@@ -1280,7 +1280,7 @@ class NetworkIOMixin(_NetworkABC):
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
         if pypsa_version < parse_version(__version_semver__):
-            pypsa_version_str = ".".join(map(str, pypsa_version))
+            pypsa_version_str = str(pypsa_version)
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
