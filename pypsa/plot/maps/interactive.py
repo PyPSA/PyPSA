@@ -438,7 +438,7 @@ class PydeckPlotter:
     @staticmethod
     def create_projected_arrows(
         df: pd.DataFrame,
-        arrow_size_factor: float = 1.8,
+        arrow_size_factor: float = 1.5,
     ) -> pd.DataFrame:
         """Create polygons for arrows based on line data and flows.
 
@@ -446,7 +446,7 @@ class PydeckPlotter:
         ----------
         df : pd.DataFrame
             DataFrame containing line data with columns 'flow', 'path',
-        arrow_size_factor : float, default 2.5
+        arrow_size_factor : float, default 1.5
             Factor to scale the arrow size.
 
         Returns
@@ -777,7 +777,7 @@ class PydeckPlotter:
         branch_alpha: float | dict | pd.Series = 0.7,
         branch_widths: float | dict | pd.Series = 1500,
         branch_columns: list | None = None,
-        arrow_size_factor: float = 2.5,
+        arrow_size_factor: float = 1.5,
         arrow_colors: str | dict | pd.Series = "black",
         arrow_alpha: float | dict | pd.Series = 1.0,
     ) -> None:
@@ -799,7 +799,7 @@ class PydeckPlotter:
         branch_columns : list, default None
             List of branch columns to include. If None, only the bus0 and bus1 columns are used.
             Specify additional columns to include in the tooltip.
-        arrow_size_factor : float, default 2.5
+        arrow_size_factor : float, default 1.5
             Factor to scale the arrow size. If 0, no arrows will be drawn.
         arrow_colors : str/dict/pandas.Series
             Colors for the arrows, defaults to 'black'.
@@ -977,7 +977,7 @@ def explore(
     transformer_colors: str | dict | pd.Series = "orange",
     transformer_alpha: float | dict | pd.Series = 0.7,
     transformer_widths: float | dict | pd.Series = 1500,
-    arrow_size_factor: float = 2.5,
+    arrow_size_factor: float = 1.5,
     arrow_colors: str | dict | pd.Series | None = None,
     arrow_alpha: float | dict | pd.Series = 1.0,
     map_style: str = "light",
@@ -1038,7 +1038,7 @@ def explore(
     transformer_columns : list, default None
         List of transformer columns to include. If None, only the bus0 and bus1 columns are used.
         Specify additional columns to include in the tooltip.
-    arrow_size_factor : float, default 2.5
+    arrow_size_factor : float, default 1.5
         Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1 times line_width. If 0, no arrows will be created.
     arrow_colors : str/dict/pandas.Series | None, default None
         Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
@@ -1058,44 +1058,38 @@ def explore(
     plotter = PydeckPlotter(n, map_style=map_style)
 
     # Branch layers
-    if not plotter._n.static("Line").empty:
-        plotter.add_branch_layer(
-            c_name="Line",
-            branch_colors=line_colors,
-            branch_alpha=line_alpha,
-            branch_widths=line_widths,
-            branch_columns=line_columns,
-            branch_flow=line_flow,
-            arrow_size_factor=arrow_size_factor,
-            arrow_colors=arrow_colors,
-            arrow_alpha=arrow_alpha,
-        )
+    for c in n.iterate_components(n.branch_components):
+        if c.name == "Line":
+            branch_colors = line_colors
+            branch_alpha = line_alpha
+            branch_widths = line_widths
+            branch_columns = line_columns
+            branch_flow = line_flow
+        elif c.name == "Link":
+            branch_colors = link_colors
+            branch_alpha = link_alpha
+            branch_widths = link_widths
+            branch_columns = link_columns
+            branch_flow = link_flow
+        elif c.name == "Transformer":
+            branch_colors = transformer_colors
+            branch_alpha = transformer_alpha
+            branch_widths = transformer_widths
+            branch_columns = transformer_columns
+            branch_flow = transformer_flow
 
-    if not plotter._n.static("Link").empty:
-        plotter.add_branch_layer(
-            c_name="Link",
-            branch_colors=link_colors,
-            branch_alpha=link_alpha,
-            branch_widths=link_widths,
-            branch_columns=link_columns,
-            branch_flow=link_flow,
-            arrow_size_factor=arrow_size_factor,
-            arrow_colors=arrow_colors,
-            arrow_alpha=arrow_alpha,
-        )
-
-    if not plotter._n.static("Transformer").empty:
-        plotter.add_branch_layer(
-            c_name="Transformer",
-            branch_colors=transformer_colors,
-            branch_alpha=transformer_alpha,
-            branch_widths=transformer_widths,
-            branch_columns=transformer_columns,
-            branch_flow=transformer_flow,
-            arrow_size_factor=arrow_size_factor,
-            arrow_colors=arrow_colors,
-            arrow_alpha=arrow_alpha,
-        )
+        if not plotter._n.static(c.name).empty:
+            plotter.add_branch_layer(
+                c_name=c.name,
+                branch_colors=branch_colors,
+                branch_alpha=branch_alpha,
+                branch_widths=branch_widths,
+                branch_columns=branch_columns,
+                branch_flow=branch_flow,
+                arrow_size_factor=arrow_size_factor,
+                arrow_colors=arrow_colors,
+                arrow_alpha=arrow_alpha,
+            )
 
     # Bus layer
     if hasattr(bus_sizes, "index") and isinstance(bus_sizes.index, pd.MultiIndex):
