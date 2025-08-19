@@ -705,39 +705,32 @@ class PydeckPlotter:
 
         """
         EPS = 1e-6  # Small epsilon to avoid numerical issues
-
-        # Check if columns exist and only keep the ones that also exist in the network
         bus_data = self.prepare_component_data(
             "Bus",
             default_columns=["x", "y"],
         )
-
-        # Compute radius per bus (sum of values)
-        # Drop values that are smaller than EPS in absolute value
         bus_sizes = bus_sizes.drop(bus_sizes[abs(bus_sizes) < EPS].index)
         bus_sizes = bus_sizes.unstack(level=1, fill_value=0)
 
         bus_radius = bus_sizes.sum(axis=1)
 
         alphas = _convert_to_series(bus_alpha, bus_sizes.index)
-        alpha = alphas.mean()
         carrier_colors = self._n.c.carriers.static["color"]
-        valid_colors = pd.DataFrame(
-            carrier_colors[carrier_colors.isin(mcolors.CSS4_COLORS)]
-        )
-        valid_colors["rgba"] = valid_colors["color"].apply(
-            lambda c: to_rgba255(c, alpha)
-        )
-
-        # Create dict
-        carrier_rgba = valid_colors["rgba"].to_dict()
+        carrier_rgba = {
+            bus: {
+                c: to_rgba255(col, alphas[bus])
+                for c, col in carrier_colors.items()
+                if col in mcolors.CSS4_COLORS
+            }
+            for bus in bus_sizes.index
+        }
 
         polygons = []
         for idx, row in bus_sizes.iterrows():
             x = bus_data.loc[idx, "x"]
             y = bus_data.loc[idx, "y"]
             valid_carriers = row[row > 0].index
-            colors = [carrier_rgba[c] for c in valid_carriers]
+            colors = [carrier_rgba[idx][c] for c in valid_carriers]
 
             # Concatenate idx and valid_carriers for labels
             labels = [f"{idx} - {c}" for c in valid_carriers]
