@@ -647,7 +647,7 @@ class PydeckPlotter:
         center_lon: float,
         radius_m: float,
         values: np.ndarray,
-        colors: list[str],
+        colors: list[list[int]],
         labels: list[str],
         points_per_radian: int = 10,
         flip_y: bool = False,
