@@ -712,8 +712,6 @@ class PydeckPlotter:
         bus_sizes = bus_sizes.drop(bus_sizes[abs(bus_sizes) < EPS].index)
         bus_sizes = bus_sizes.unstack(level=1, fill_value=0)
 
-        bus_radius = bus_sizes.sum(axis=1)
-
         alphas = _convert_to_series(bus_alpha, bus_sizes.index)
         carrier_colors = self._n.c.carriers.static["color"]
         carrier_rgba = {
@@ -726,21 +724,34 @@ class PydeckPlotter:
         }
 
         polygons = []
-        for idx, row in bus_sizes.iterrows():
-            x = bus_data.loc[idx, "x"]
-            y = bus_data.loc[idx, "y"]
-            valid_carriers = row[row > 0].index
-            colors = [carrier_rgba[idx][c] for c in valid_carriers]
+        # Convert to NumPy arrays for speed-up
+        bus_indices = bus_sizes.index.to_numpy()
+        bus_cols = bus_sizes.columns.to_numpy()
 
-            # Concatenate idx and valid_carriers for labels
-            labels = [f"{idx} - {c}" for c in valid_carriers]
+        # Convert to NumPy arrays
+        bus_values = bus_sizes.to_numpy()
+        bus_radius = bus_values.sum(axis=1)
+        bus_coords = bus_data.loc[bus_indices, ["x", "y"]].to_numpy()
 
-            # Create pie slices for each bus
+        for i, bus in enumerate(bus_indices):
+            values = bus_values[i]
+            x, y = bus_coords[i]
+            radius = bus_radius[i]
+
+            # Boolean mask of carriers with positive values
+            mask = values > 0
+            valid_carriers = bus_cols[mask]
+
+            # Collect colors + labels
+            colors = [carrier_rgba[bus][c] for c in valid_carriers]
+            labels = [f"{bus} - {c}" for c in valid_carriers]
+
+            # Build pie chart polygons
             poly = PydeckPlotter._make_pie(
                 center_lat=y,
                 center_lon=x,
-                radius_m=bus_radius[idx],
-                values=row[valid_carriers].values.round(3),
+                radius_m=radius,
+                values=values[mask].round(3),  # select only the positive values
                 colors=colors,
                 labels=labels,
                 points_per_radian=points_per_radian,
