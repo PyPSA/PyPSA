@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import validators
 import xarray as xr
+from packaging.version import parse as parse_version
 from pandas.errors import ParserError
 from pyproj import CRS
 
@@ -1267,11 +1268,9 @@ class NetworkIOMixin(_NetworkABC):
                 self.name = name
 
         if "pypsa_version" in attrs:
-            pypsa_version_tuple = tuple(
-                int(v) for v in attrs.pop("pypsa_version", "0.0.0").split(".")
-            )
+            pypsa_version = parse_version(attrs.pop("pypsa_version", "0.0.0"))
         else:
-            pypsa_version_tuple = (0, 0, 0)
+            pypsa_version = parse_version("0.0.0")
 
         for attr, val in attrs.items():
             if attr in ["model", "objective", "objective_constant"]:
@@ -1280,8 +1279,8 @@ class NetworkIOMixin(_NetworkABC):
                 setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version_tuple < __version_semver_tuple__:
-            pypsa_version_str = ".".join(map(str, pypsa_version_tuple))
+        if pypsa_version < parse_version(__version_semver__):
+            pypsa_version_str = ".".join(map(str, pypsa_version))
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
@@ -1295,7 +1294,7 @@ class NetworkIOMixin(_NetworkABC):
         if update_msg:
             logger.info(update_msg)
 
-        if pypsa_version_tuple < (0, 18, 0):
+        if pypsa_version < parse_version("0.18.0"):
             self._multi_invest = 0
 
         # if there is snapshots.csv, read in snapshot data
