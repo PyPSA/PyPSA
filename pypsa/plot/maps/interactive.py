@@ -651,14 +651,14 @@ class PydeckPlotter:
         labels: list[str],
         points_per_radian: int = 10,
         flip_y: bool = False,
-        semi_circle: bool = False,
+        bus_split_circles: bool = False,
     ) -> list[dict]:
         """Create pie chart polygons with metadata using numpy."""
         flip_y_factor = -1 if flip_y else 1
-        circ = np.pi if semi_circle else 2 * np.pi
+        circ = np.pi if bus_split_circles else 2 * np.pi
 
         rotate_by_quarter = np.pi / 2
-        if semi_circle:
+        if bus_split_circles:
             rotate_by_quarter = 0
 
         total = np.sum(values)
@@ -689,8 +689,10 @@ class PydeckPlotter:
     def add_pie_chart_layer(
         self,
         bus_sizes: pd.Series,
+        bus_split_circles: bool = False,
         bus_alpha: float | dict | pd.Series = 0.7,
         points_per_radian: int = 10,
+        positive_half: bool = True,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
 
@@ -698,10 +700,16 @@ class PydeckPlotter:
         ----------
         bus_sizes : float/dict/pandas.Series
             Sizes of bus points in meters, defaults to 5000.
+        bus_split_circles : bool, default False
+            Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+            If set to true, the upper half circle per bus then includes all positive values
+            of the series, the lower half circle all negative values. Defaults to False.
         bus_alpha : float/dict/pandas.Series
             Add alpha channel to buses, defaults to 0.7.
         points_per_radian : int, default 10
             Number of points per radian for pie chart resolution.
+        positive_half : bool, default True
+            Denote whether the this pie chart layer is the upper or lower half of the bus pie chart if bus_split_circles is True.
 
         """
         EPS = 1e-6  # Small epsilon to avoid numerical issues
@@ -730,16 +738,24 @@ class PydeckPlotter:
 
         # Convert to NumPy arrays
         bus_values = bus_sizes.to_numpy()
-        bus_radius = bus_values.sum(axis=1)
+        bus_radius_pos = np.where(bus_values > 0, bus_values, 0).sum(axis=1)
+        bus_radius_neg = np.where(bus_values < 0, -bus_values, 0).sum(axis=1)
         bus_coords = bus_data.loc[bus_indices, ["x", "y"]].to_numpy()
 
         for i, bus in enumerate(bus_indices):
             values = bus_values[i]
             x, y = bus_coords[i]
-            radius = bus_radius[i]
+
+            if positive_half:
+                radius = bus_radius_pos[i]
+                mask = values > 0
+                flip_y = False
+            else:
+                radius = bus_radius_neg[i]
+                mask = values < 0
+                flip_y = True
 
             # Boolean mask of carriers with positive values
-            mask = values > 0
             valid_carriers = bus_cols[mask]
 
             # Collect colors + labels
@@ -755,6 +771,8 @@ class PydeckPlotter:
                 colors=colors,
                 labels=labels,
                 points_per_radian=points_per_radian,
+                flip_y=flip_y,
+                bus_split_circles=bus_split_circles,
             )
             polygons.extend(poly)
 
@@ -770,7 +788,13 @@ class PydeckPlotter:
             },
         )
 
-        self._layers["PieChart"] = layer
+        layer_label = "PieChart"
+        if positive_half and bus_split_circles:
+            layer_label += "Upper"
+        if not positive_half and bus_split_circles:
+            layer_label += "Lower"
+
+        self._layers[layer_label] = layer
 
     # Add branch layer
     def add_branch_layer(
@@ -967,6 +991,7 @@ class PydeckPlotter:
 def explore(
     n: "Network",
     bus_sizes: float | dict | pd.Series = 5000,
+    bus_split_circles: bool = False,
     bus_colors: str | dict | pd.Series = "cadetblue",
     bus_alpha: float | dict | pd.Series = 0.7,
     line_flow: float | dict | pd.Series = 0,
@@ -999,6 +1024,10 @@ def explore(
         The PyPSA network to plot.
     bus_sizes : float/dict/pandas.Series
         Sizes of bus points in meters, defaults to 5000.
+    bus_split_circles : bool, default False
+        Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
+        If set to true, the upper half circle per bus then includes all positive values
+        of the series, the lower half circle all negative values. Defaults to False.
     bus_colors : str/dict/pandas.Series
         Colors for the buses, defaults to "cadetblue".
     bus_alpha : float/dict/pandas.Series
@@ -1099,9 +1128,19 @@ def explore(
     if hasattr(bus_sizes, "index") and isinstance(bus_sizes.index, pd.MultiIndex):
         plotter.add_pie_chart_layer(
             bus_sizes=bus_sizes,
+            bus_split_circles=bus_split_circles,
             bus_alpha=bus_alpha,
-            points_per_radian=10,  # Default resolution for pie chart
+            points_per_radian=10,
+            positive_half=True,
         )
+        if bus_split_circles:
+            plotter.add_pie_chart_layer(
+                bus_sizes=bus_sizes,
+                bus_split_circles=bus_split_circles,
+                bus_alpha=bus_alpha,
+                points_per_radian=10,
+                positive_half=False,
+            )
     else:
         plotter.add_bus_layer(
             bus_sizes=bus_sizes,
