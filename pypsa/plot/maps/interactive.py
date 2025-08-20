@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.colors as mcolors
 import numpy as np
@@ -348,6 +348,7 @@ class PydeckPlotter:
         self,
         n: "Network",
         map_style: str,
+        **kwargs: Any,
     ) -> None:
         """Initialize the PydeckPlotter.
 
@@ -357,11 +358,15 @@ class PydeckPlotter:
             The PyPSA network to plot.
         map_style : str
             Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
+        kwargs : dict, optional
+            Additional keyword arguments to configure the map, such as `view_state` for initial view settings.
 
         """
-        self._n = n
+        self._n: Network = n
         self._map_style: str = self._init_map_style(map_style)
-        self._view_state: pdk.ViewState = self._init_view_state()
+        self._view_state: pdk.ViewState = self._init_view_state(
+            view_state=kwargs.get("view_state"),
+        )
         self._layers: dict[str, pdk.Layer] = {}
         self._tooltip_columns: list[str] = ["value", "coords"]
         self._tooltip: dict | bool = False
@@ -386,18 +391,36 @@ class PydeckPlotter:
         """Get the layers of the interactive map."""
         return self._layers
 
-    def _init_view_state(self) -> pdk.ViewState:
-        """Compute the initial view state based on network bus coordinates."""
-        center_lon = self._n.buses.x.mean()
-        center_lat = self._n.buses.y.mean()
-        zoom = 4  # Default zoom level
-        return pdk.ViewState(
-            latitude=center_lat,
-            longitude=center_lon,
-            zoom=zoom,
-            pitch=0,  # Default pitch
-            bearing=0,  # Default bearing
-        )
+    def _init_view_state(
+        self,
+        view_state: dict | pdk.ViewState | None = None,
+    ) -> pdk.ViewState:
+        """Compute the initial view state based on network bus coordinates.
+
+        Parameters
+        ----------
+        view_state : dict/pdk.ViewState/None, optional
+            Initial view state for the map. If None, a default view state is created.
+            If a dict is provided, it should contain keys like 'longitude', 'latitude', 'zoom', 'pitch', and 'bearing'.
+
+        """
+        if isinstance(view_state, pdk.ViewState):
+            return view_state
+
+        vs = {
+            "longitude": self._n.buses.x.mean(),
+            "latitude": self._n.buses.y.mean(),
+            "zoom": 4,  # Default zoom level
+            "min_zoom": None,
+            "max_zoom": None,
+            "pitch": 0,  # Default pitch
+            "bearing": 0,  # Default bearing
+        }
+
+        if isinstance(view_state, dict):
+            vs.update(view_state)
+
+        return pdk.ViewState(**vs)
 
     @property
     def view_state(self) -> pdk.ViewState:
@@ -978,6 +1001,7 @@ class PydeckPlotter:
     def deck(self) -> pdk.Deck:
         """Display the interactive map."""
         layers = list(self._layers.values())
+
         deck = pdk.Deck(
             layers=layers,
             map_style=self._map_style,
@@ -1015,6 +1039,7 @@ def explore(
     line_columns: list | None = None,
     link_columns: list | None = None,
     transformer_columns: list | None = None,
+    **kwargs: Any,
 ) -> pdk.Deck:
     """Create an interactive map of the PyPSA network using Pydeck.
 
@@ -1032,9 +1057,6 @@ def explore(
         Colors for the buses, defaults to "cadetblue".
     bus_alpha : float/dict/pandas.Series
         Add alpha channel to buses, defaults to 0.7.
-    bus_columns : list, default None
-        List of bus columns to include. If None, only the bus index and x, y coordinates are used.
-        Specify additional columns to include in the tooltip.
     line_flow : float/dict/pandas.Series, default 0
         Series of line flows indexed by line names, defaults to 0. If 0, no arrows will be created.
         If a float is provided, it will be used as a constant flow for all lines.
@@ -1044,9 +1066,6 @@ def explore(
         Add alpha channel to lines, defaults to 0.7.
     line_widths : float/dict/pandas.Series
         Widths of lines in meters, defaults to 1500.
-    line_columns : list, default None
-        List of line columns to include. If None, only the bus0 and bus1 columns are used.
-        Specify additional columns to include in the tooltip.
     link_flow : float/dict/pandas.Series, default 0
         Series of link flows indexed by link names, defaults to 0. If 0, no arrows will be created.
         If a float is provided, it will be used as a constant flow for all links.
@@ -1056,9 +1075,6 @@ def explore(
         Add alpha channel to links, defaults to 0.7.
     link_widths : float/dict/pandas.Series
         Widths of links in meters, defaults to 1500.
-    link_columns : list, default None
-        List of link columns to include. If None, only the bus0 and bus1 columns are used.
-        Specify additional columns to include in the tooltip.
     transformer_flow : float/dict/pandas.Series, default 0
         Series of transformer flows indexed by transformer names, defaults to 0. If 0, no arrows will be created.
         If a float is provided, it will be used as a constant flow for all transformers.
@@ -1068,9 +1084,6 @@ def explore(
         Add alpha channel to transformers, defaults to 0.7.
     transformer_widths : float/dict/pandas.Series
         Widths of transformers in meters, defaults to 1500.
-    transformer_columns : list, default None
-        List of transformer columns to include. If None, only the bus0 and bus1 columns are used.
-        Specify additional columns to include in the tooltip.
     arrow_size_factor : float, default 1.5
         Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1 times line_width. If 0, no arrows will be created.
     arrow_colors : str/dict/pandas.Series | None, default None
@@ -1081,6 +1094,21 @@ def explore(
         Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
     tooltip : bool, default True
         Whether to add a tooltip to the bus layer.
+    bus_columns : list, default None
+        List of bus columns to include. If None, only the bus index and x, y coordinates are used.
+        Specify additional columns to include in the tooltip.
+    line_columns : list, default None
+        List of line columns to include. If None, only the bus0 and bus1 columns are used.
+        Specify additional columns to include in the tooltip.
+    link_columns : list, default None
+        List of link columns to include. If None, only the bus0 and bus1 columns are used.
+        Specify additional columns to include in the tooltip.
+    transformer_columns : list, default None
+        List of transformer columns to include. If None, only the bus0 and bus1 columns are used.
+        Specify additional columns to include in the tooltip.
+    **kwargs : dict, optional
+        Additional keyword arguments to pass to the PydeckPlotter. For example
+        `view_state` to set the initial view state of the map, see pdk.ViewState for details.
 
     Returns
     -------
@@ -1088,7 +1116,7 @@ def explore(
         The interactive map as a Pydeck Deck object.
 
     """
-    plotter = PydeckPlotter(n, map_style=map_style)
+    plotter = PydeckPlotter(n, map_style=map_style, **kwargs)
 
     # Branch layers
     for c in n.iterate_components(n.branch_components):
