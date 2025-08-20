@@ -715,7 +715,6 @@ class PydeckPlotter:
         bus_split_circles: bool = False,
         bus_alpha: float | dict | pd.Series = 0.7,
         points_per_radian: int = 10,
-        positive_half: bool = True,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
 
@@ -731,8 +730,6 @@ class PydeckPlotter:
             Add alpha channel to buses, defaults to 0.7.
         points_per_radian : int, default 10
             Number of points per radian for pie chart resolution.
-        positive_half : bool, default True
-            Denote whether the this pie chart layer is the upper or lower half of the bus pie chart if bus_split_circles is True.
 
         """
         EPS = 1e-6  # Small epsilon to avoid numerical issues
@@ -761,43 +758,58 @@ class PydeckPlotter:
 
         # Convert to NumPy arrays
         bus_values = bus_sizes.to_numpy()
-        bus_radius_pos = np.where(bus_values > 0, bus_values, 0).sum(axis=1)
-        bus_radius_neg = np.where(bus_values < 0, -bus_values, 0).sum(axis=1)
         bus_coords = bus_data.loc[bus_indices, ["x", "y"]].to_numpy()
 
         for i, bus in enumerate(bus_indices):
             values = bus_values[i]
             x, y = bus_coords[i]
 
-            if positive_half:
-                radius = bus_radius_pos[i]
-                mask = values > 0
-                flip_y = False
+            if bus_split_circles and np.any(values < 0):
+                pos_mask = values > 0
+                if np.any(pos_mask):
+                    poly_pos = PydeckPlotter._make_pie(
+                        center_lat=y,
+                        center_lon=x,
+                        radius_m=values[pos_mask].sum(),
+                        values=values[pos_mask].round(3),
+                        colors=[carrier_rgba[bus][c] for c in bus_cols[pos_mask]],
+                        labels=[f"{bus} - {c}" for c in bus_cols[pos_mask]],
+                        points_per_radian=points_per_radian,
+                        flip_y=False,
+                        bus_split_circles=True,
+                    )
+                    polygons.extend(poly_pos)
+
+                neg_mask = values < 0
+                if np.any(neg_mask):
+                    poly_neg = PydeckPlotter._make_pie(
+                        center_lat=y,
+                        center_lon=x,
+                        radius_m=-values[neg_mask].sum(),
+                        values=-values[neg_mask].round(3),
+                        colors=[carrier_rgba[bus][c] for c in bus_cols[neg_mask]],
+                        labels=[f"{bus} - {c}" for c in bus_cols[neg_mask]],
+                        points_per_radian=points_per_radian,
+                        flip_y=True,
+                        bus_split_circles=True,
+                    )
+                    polygons.extend(poly_neg)
             else:
-                radius = bus_radius_neg[i]
-                mask = values < 0
-                flip_y = True
-
-            # Boolean mask of carriers with positive values
-            valid_carriers = bus_cols[mask]
-
-            # Collect colors + labels
-            colors = [carrier_rgba[bus][c] for c in valid_carriers]
-            labels = [f"{bus} - {c}" for c in valid_carriers]
-
-            # Build pie chart polygons
-            poly = PydeckPlotter._make_pie(
-                center_lat=y,
-                center_lon=x,
-                radius_m=radius,
-                values=values[mask].round(3),  # select only the positive values
-                colors=colors,
-                labels=labels,
-                points_per_radian=points_per_radian,
-                flip_y=flip_y,
-                bus_split_circles=bus_split_circles,
-            )
-            polygons.extend(poly)
+                mask = values > 0
+                if not np.any(mask):
+                    continue
+                poly_pos = PydeckPlotter._make_pie(
+                    center_lat=y,
+                    center_lon=x,
+                    radius_m=values[mask].sum(),
+                    values=values[mask].round(3),
+                    colors=[carrier_rgba[bus][c] for c in bus_cols[mask]],
+                    labels=[f"{bus} - {c}" for c in bus_cols[mask]],
+                    points_per_radian=points_per_radian,
+                    flip_y=False,
+                    bus_split_circles=False,
+                )
+                polygons.extend(poly_pos)
 
         layer = pdk.Layer(
             "PolygonLayer",
@@ -811,13 +823,7 @@ class PydeckPlotter:
             },
         )
 
-        layer_label = "PieChart"
-        if positive_half and bus_split_circles:
-            layer_label += "Upper"
-        if not positive_half and bus_split_circles:
-            layer_label += "Lower"
-
-        self._layers[layer_label] = layer
+        self._layers["PieChart"] = layer
 
     # Add branch layer
     def add_branch_layer(
@@ -1159,16 +1165,7 @@ def explore(
             bus_split_circles=bus_split_circles,
             bus_alpha=bus_alpha,
             points_per_radian=10,
-            positive_half=True,
         )
-        if bus_split_circles:
-            plotter.add_pie_chart_layer(
-                bus_sizes=bus_sizes,
-                bus_split_circles=bus_split_circles,
-                bus_alpha=bus_alpha,
-                points_per_radian=10,
-                positive_half=False,
-            )
     else:
         plotter.add_bus_layer(
             bus_sizes=bus_sizes,
@@ -1177,6 +1174,7 @@ def explore(
             bus_columns=bus_columns,
         )
 
+    # Tooltip
     if tooltip:
         plotter.add_tooltip()
 
