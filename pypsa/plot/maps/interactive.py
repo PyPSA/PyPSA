@@ -8,7 +8,6 @@ import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
 import pydeck as pdk
-import pyproj
 
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
@@ -336,13 +335,11 @@ class PydeckPlotter:
     }
     ARROW = np.array(
         [
-            [1.2, 0],  # unit triangle would be [0.866, 0] (np.sqrt(3)/2)
+            [0.8660254, 0],  # unit triangle
             [0, 0.5],  # base right
             [0, -0.5],  # base left
         ]
     )
-    PROJ = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-    PROJ_INV = pyproj.Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
     def __init__(
         self,
@@ -451,14 +448,6 @@ class PydeckPlotter:
         return triangle * np.array([x_scale, y_scale])
 
     @staticmethod
-    def _translate_triangle(
-        triangle: np.ndarray,
-        offset: tuple[float, float],
-    ) -> np.ndarray:
-        """Translate triangle by offset (dx, dy)."""
-        return triangle + np.array(offset)
-
-    @staticmethod
     def create_projected_arrows(
         df: pd.DataFrame,
         arrow_size_factor: float = 1.5,
@@ -484,29 +473,40 @@ class PydeckPlotter:
         ) -> list[tuple[float, float]]:
             """Create a polygon for an arrow based on a row of line data."""
             f = row["flow"]
+            lon0, lat0 = row["bus0_x"], row["bus0_y"]
+            lon1, lat1 = row["bus1_x"], row["bus1_y"]
 
-            x0, y0 = PydeckPlotter.PROJ.transform(row["bus0_x"], row["bus0_y"])
-            if np.isnan(x0) or np.isnan(y0):
+            if any(np.isnan([lon0, lat0, lon1, lat1])):
                 return []
-            x1, y1 = PydeckPlotter.PROJ.transform(row["bus1_x"], row["bus1_y"])
-            if np.isnan(x1) or np.isnan(y1):
-                return []
-            dx, dy = x1 - x0, y1 - y0
 
-            mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-            angle = np.arctan2(dy, dx)
-
-            base_width_m = abs(f) * 5 / 3 * arrow_size_factor
-            tri = PydeckPlotter._scale_triangle_by_width(
-                PydeckPlotter.ARROW, base_width_m
+            # Compute vector in meters
+            dx_line, dy_line = PydeckPlotter._lonlat_to_meters_offset(
+                lon0, lat0, lon1, lat1
             )
+            angle = np.arctan2(dy_line, dx_line)
+
+            # Midpoint in meters relative to the start bus
+            mx_m, my_m = dx_line / 2, dy_line / 2
+
+            # Convert meter midpoint back to lon/lat
+            mx, my = PydeckPlotter._meters_to_lonlat_offset(lon0, lat0, mx_m, my_m)
+
+            # Scale triangle to arrow width
+            arrow_centered = PydeckPlotter.ARROW - PydeckPlotter.ARROW.mean(
+                axis=0
+            )  # Center triangle at origin
+            base_width_m = abs(f) * arrow_size_factor
+            tri = PydeckPlotter._scale_triangle_by_width(arrow_centered, base_width_m)
             if f < 0:
                 tri[:, 0] *= -1  # Flip triangle if flow is negative
 
+            # Rotate triangle to match line angle
             tri = PydeckPlotter._rotate_triangle(tri, angle)
-            tri = PydeckPlotter._translate_triangle(tri, (mx, my))
 
-            return [PydeckPlotter.PROJ_INV.transform(*p) for p in tri]
+            # Convert each vertex from meter offsets to lon/lat
+            return [
+                PydeckPlotter._meters_to_lonlat_offset(mx, my, p[0], p[1]) for p in tri
+            ]
 
         if arrow_size_factor < 0:
             msg = "arrow_size_factor must be greater than 0."
@@ -594,14 +594,14 @@ class PydeckPlotter:
             extra_columns=bus_columns,
         )
 
-        # Map bus sizes
-        bus_data["radius"] = _convert_to_series(bus_sizes, bus_data.index)
-
         # For default tooltip
-        bus_data["value"] = bus_data["radius"].round(3)
+        bus_data["value"] = _convert_to_series(bus_sizes, bus_data.index).round(3)
         bus_data["coords"] = bus_data[["x", "y"]].apply(
             lambda row: f"({row['x']:.3f}, {row['y']:.3f})", axis=1
         )
+
+        # Map bus sizes
+        bus_data["radius"] = bus_data["value"] ** 0.5
 
         # Convert colors to RGBA list
         colors = _convert_to_series(bus_colors, bus_data.index)
@@ -629,16 +629,30 @@ class PydeckPlotter:
 
     # Pie chart related functions
     @staticmethod
-    def _meters_to_lnglat_offsets(
-        lon: float,
-        lat: float,
-        dx: float,
-        dy: float,
-    ) -> list[float]:
-        """Convert meter offsets to lon/lat relative to a center."""
-        x0, y0 = PydeckPlotter.PROJ.transform(lon, lat)
-        lon_new, lat_new = PydeckPlotter.PROJ_INV.transform(x0 + dx, y0 + dy)
-        return [lon_new, lat_new]
+    def _meters_to_lonlat_offset(
+        lon: float, lat: float, dx: float, dy: float
+    ) -> tuple[float, float]:
+        """Convert meter offset to lon/lat relative to a center point (true meters on WGS84)."""
+        # This approach yields the same scaling as deck.gl/pydeck's sizing in ScatterplotLayer.
+        R = 6378137.0  # WGS84 mean Earth radius in meters
+
+        dlat = (dy / R) * (180.0 / np.pi)
+        dlon = (dx / (R * np.cos(np.radians(lat)))) * (180.0 / np.pi)
+
+        lon1 = lon + dlon
+        lat1 = lat + dlat
+
+        return lon1, lat1
+
+    @staticmethod
+    def _lonlat_to_meters_offset(
+        lon0: float, lat0: float, lon1: float, lat1: float
+    ) -> tuple[float, float]:
+        """Convert lon/lat differences to meter offsets (dx, dy) using WGS84 spherical approximation."""
+        R = 6378137.0
+        dy = (lat1 - lat0) * np.pi / 180 * R
+        dx = (lon1 - lon0) * np.pi / 180 * R * np.cos(np.radians((lat0 + lat1) / 2))
+        return dx, dy
 
     @staticmethod
     def _pie_slice_vertices(
@@ -659,7 +673,7 @@ class PydeckPlotter:
             dx = radius * np.cos(a)
             dy = radius * np.sin(a)
             coords.append(
-                PydeckPlotter._meters_to_lnglat_offsets(center_lon, center_lat, dx, dy)
+                PydeckPlotter._meters_to_lonlat_offset(center_lon, center_lat, dx, dy)
             )
         coords.append([center_lon, center_lat])
         return coords
@@ -770,7 +784,7 @@ class PydeckPlotter:
                     poly_pos = PydeckPlotter._make_pie(
                         center_lat=y,
                         center_lon=x,
-                        radius_m=values[pos_mask].sum(),
+                        radius_m=(values[pos_mask].sum()) ** 0.5,
                         values=values[pos_mask].round(3),
                         colors=[carrier_rgba[bus][c] for c in bus_cols[pos_mask]],
                         labels=[f"{bus} - {c}" for c in bus_cols[pos_mask]],
@@ -785,7 +799,7 @@ class PydeckPlotter:
                     poly_neg = PydeckPlotter._make_pie(
                         center_lat=y,
                         center_lon=x,
-                        radius_m=-values[neg_mask].sum(),
+                        radius_m=(-values[neg_mask].sum()) ** 0.5,
                         values=-values[neg_mask].round(3),
                         colors=[carrier_rgba[bus][c] for c in bus_cols[neg_mask]],
                         labels=[f"{bus} - {c}" for c in bus_cols[neg_mask]],
@@ -801,7 +815,7 @@ class PydeckPlotter:
                 poly_pos = PydeckPlotter._make_pie(
                     center_lat=y,
                     center_lon=x,
-                    radius_m=values[mask].sum(),
+                    radius_m=(values[mask].sum()) ** 0.5,
                     values=values[mask].round(3),
                     colors=[carrier_rgba[bus][c] for c in bus_cols[mask]],
                     labels=[f"{bus} - {c}" for c in bus_cols[mask]],
