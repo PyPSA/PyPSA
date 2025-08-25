@@ -567,7 +567,7 @@ class PydeckPlotter:
     # Layer functions
     def add_bus_layer(
         self,
-        bus_sizes: float | dict | pd.Series = 5000,
+        bus_sizes: float | dict | pd.Series = 25000000,
         bus_colors: str | dict | pd.Series = "cadetblue",
         bus_alpha: float | dict | pd.Series = 0.7,
         bus_columns: list | None = None,
@@ -577,7 +577,7 @@ class PydeckPlotter:
         Parameters
         ----------
         bus_sizes : float/dict/pandas.Series
-            Sizes of bus points in meters, defaults to 5000.
+            Sizes of bus points in radius² (meters²), defaults to 25000000.
         bus_colors : str/dict/pandas.Series
             Colors for the buses, defaults to 'cadetblue'.
         bus_alpha : float/dict/pandas.Series
@@ -735,7 +735,7 @@ class PydeckPlotter:
         Parameters
         ----------
         bus_sizes : float/dict/pandas.Series
-            Sizes of bus points in meters, defaults to 5000.
+            Sizes of bus points in radius² (meters²), defaults to 25000000.
         bus_split_circles : bool, default False
             Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
             If set to true, the upper half circle per bus then includes all positive values
@@ -757,11 +757,7 @@ class PydeckPlotter:
         alphas = _convert_to_series(bus_alpha, bus_sizes.index)
         carrier_colors = self._n.c.carriers.static["color"]
         carrier_rgba = {
-            bus: {
-                c: to_rgba255(col, alphas[bus])
-                for c, col in carrier_colors.items()
-                if col in mcolors.CSS4_COLORS
-            }
+            bus: {c: to_rgba255(col, alphas[bus]) for c, col in carrier_colors.items()}
             for bus in bus_sizes.index
         }
 
@@ -777,6 +773,9 @@ class PydeckPlotter:
         for i, bus in enumerate(bus_indices):
             values = bus_values[i]
             x, y = bus_coords[i]
+
+            if values.sum() <= EPS:
+                continue
 
             if bus_split_circles and np.any(values < 0):
                 pos_mask = values > 0
@@ -1034,7 +1033,7 @@ class PydeckPlotter:
 
 def explore(
     n: "Network",
-    bus_sizes: float | dict | pd.Series = 5000,
+    bus_sizes: float | dict | pd.Series = 25000000,
     bus_split_circles: bool = False,
     bus_colors: str | dict | pd.Series = "cadetblue",
     bus_alpha: float | dict | pd.Series = 0.7,
@@ -1068,7 +1067,7 @@ def explore(
     n : Network
         The PyPSA network to plot.
     bus_sizes : float/dict/pandas.Series
-        Sizes of bus points in meters, defaults to 5000.
+        Sizes of bus points in radius² (meters²), defaults to 25000000.
     bus_split_circles : bool, default False
         Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
         If set to true, the upper half circle per bus then includes all positive values
