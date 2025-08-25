@@ -36,7 +36,7 @@ Check out the [:octicons-gear-16: Features](features.md) for more information on
 
 !!! note
 
-    PyPSA is maintained by the [Department of Digital Transformation in
+    PyPSA has many contributors, with the maintenance led by the [Department of Digital Transformation in
     Energy Systems](https://tu.berlin/en/ensys) at the [Technical University of
     Berlin](https://www.tu.berlin). Previous versions were developed at the [Karlsruhe
     Institute of Technology](http://www.kit.edu/english/index.php) funded by the

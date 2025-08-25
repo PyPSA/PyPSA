@@ -1,6 +1,14 @@
 
 # Linearised Power Flow
 
+## Kirchhoff's Current Law (KCL)
+
+The Kirchhoff's Current Law (KCL) mandates that the sum of power flows into a
+bus must equal the sum of power flows out of the bus at each time step. It is
+covered by the more general [Energy Balance](energy-balance.md) constraints
+which is also applied to non-electric buses. For electric buses, KCL is the
+specific form of the energy balance constraint.
+
 ## Kirchhoff's Voltage Law (KVL)
 
 For lines and transformers, whose power flows according the impedances, the

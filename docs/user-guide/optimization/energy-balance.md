@@ -1,6 +1,6 @@
 # Energy Balances
 
-The energy balance equations are the most important constraints, which enforces that incoming and outgoing energy flows balance out at each bus $n$ for each time $t$ (like Kirchhoff's current law for electrical buses). Considering all components, the balance constraint is given by
+The energy balance equations are the most important constraints, which enforces that incoming and outgoing energy flows balance out at each bus $n$ for each time $t$ (like Kirchhoff's current law for electrical buses, see [Linearised Power Flow](power-flow.md)). Considering all components, the balance constraint is given by
 
 $$\begin{gather*}\sum_{s} g_{n,s,t} + \sum_{s} \left(h_{n,s,t}^- - h_{n,s,t}^+ \right) + \sum_{s} h_{n,s,t}\\
 + \sum_{l} L_{n,l,t} f_{l,t} + \sum_{l} K_{n,l} p_{l,t} = \sum_{s} d_{n,s,t} \quad \leftrightarrow  \quad w_t^o\lambda_{n,t}\end{gather*}$$
