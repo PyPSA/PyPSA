@@ -8,6 +8,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
 import pydeck as pdk
+import pyproj
 
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
@@ -335,11 +336,15 @@ class PydeckPlotter:
     }
     ARROW = np.array(
         [
-            [0.8660254, 0],  # unit triangle
+            [1, 0],  # reference triangle as arrow head
             [0, 0.5],  # base right
             [0, -0.5],  # base left
         ]
     )
+    ARROW = ARROW - ARROW.mean(axis=0)  # center at geometric center
+
+    PROJ = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+    PROJ_INV = pyproj.Transformer.from_crs("EPSG:3857", "EPSG:4326", always_xy=True)
 
     def __init__(
         self,
@@ -441,11 +446,20 @@ class PydeckPlotter:
         triangle: np.ndarray,
         base_width_m: float,
     ) -> np.ndarray:
-        """Scale a unit triangle so that base width = base_width_m and length is proportional (equilateral ratio)."""
-        length_m = (np.sqrt(3) / 2) * base_width_m
-        x_scale = length_m / (np.sqrt(3) / 2)
-        y_scale = base_width_m / 1.0
-        return triangle * np.array([x_scale, y_scale])
+        """Scale a triangle so that its base width = base_width_m. Proportions are preserved."""
+        triangle = np.asarray(triangle, dtype=float)
+        base_width_current = triangle[:, 1].max() - triangle[:, 1].min()
+
+        scale = base_width_m / base_width_current
+        return triangle * scale
+
+    @staticmethod
+    def _translate_triangle(
+        triangle: np.ndarray,
+        offset: tuple[float, float],
+    ) -> np.ndarray:
+        """Translate triangle by offset (dx, dy)."""
+        return triangle + np.array(offset)
 
     @staticmethod
     def create_projected_arrows(
@@ -457,58 +471,51 @@ class PydeckPlotter:
         Parameters
         ----------
         df : pd.DataFrame
-            DataFrame containing line data with columns 'flow', 'path',
+            DataFrame containing line data with columns 'flow', 'path'.
         arrow_size_factor : float, default 1.5
             Factor to scale the arrow size.
 
         Returns
         -------
         pd.DataFrame
-            DataFrame containing polygons (lists of tuples) for each line's arrow.
+            DataFrame containing polygons (lists of (lon, lat) tuples) for each line's arrow.
 
         """
 
-        def make_polygon(
-            row: pd.Series,
-        ) -> list[tuple[float, float]]:
-            """Create a polygon for an arrow based on a row of line data."""
+        def make_polygon(row: pd.Series) -> list[tuple[float, float]]:
             f = row["flow"]
-            lon0, lat0 = row["bus0_x"], row["bus0_y"]
-            lon1, lat1 = row["bus1_x"], row["bus1_y"]
 
-            if any(np.isnan([lon0, lat0, lon1, lat1])):
+            # --- project endpoints into meters ---
+            x0, y0 = PydeckPlotter.PROJ.transform(row["bus0_x"], row["bus0_y"])
+            x1, y1 = PydeckPlotter.PROJ.transform(row["bus1_x"], row["bus1_y"])
+            if np.isnan(x0) or np.isnan(x1):
                 return []
 
-            # Compute vector in meters
-            dx_line, dy_line = PydeckPlotter._lonlat_to_meters_offset(
-                lon0, lat0, lon1, lat1
-            )
-            angle = np.arctan2(dy_line, dx_line)
+            # --- midpoint in projected CRS (for perfect position) ---
+            mx_proj, my_proj = (x0 + x1) / 2, (y0 + y1) / 2
+            lon_mid, lat_mid = PydeckPlotter.PROJ_INV.transform(mx_proj, my_proj)
 
-            # Midpoint in meters relative to the start bus
-            mx_m, my_m = dx_line / 2, dy_line / 2
+            # --- angle from projected CRS vector ---
+            dx, dy = x1 - x0, y1 - y0
+            angle = np.arctan2(dy, dx)
 
-            # Convert meter midpoint back to lon/lat
-            mx, my = PydeckPlotter._meters_to_lonlat_offset(lon0, lat0, mx_m, my_m)
-
-            # Scale triangle to arrow width
-            arrow_centered = PydeckPlotter.ARROW - PydeckPlotter.ARROW.mean(
-                axis=0
-            )  # Center triangle at origin
+            # --- arrow shape in local tangent plane (east/north meters) ---
+            arrow_centered = PydeckPlotter.ARROW
             base_width_m = abs(f) * arrow_size_factor
             tri = PydeckPlotter._scale_triangle_by_width(arrow_centered, base_width_m)
-            if f < 0:
-                tri[:, 0] *= -1  # Flip triangle if flow is negative
 
-            # Rotate triangle to match line angle
+            if f < 0:
+                tri[:, 0] *= -1  # flip arrow if flow is negative
+
             tri = PydeckPlotter._rotate_triangle(tri, angle)
 
-            # Convert each vertex from meter offsets to lon/lat
+            # --- convert vertices from local meters → lon/lat ---
             return [
-                PydeckPlotter._meters_to_lonlat_offset(mx, my, p[0], p[1]) for p in tri
+                PydeckPlotter._meters_to_lonlat_offset(lon_mid, lat_mid, p[0], p[1])
+                for p in tri
             ]
 
-        if arrow_size_factor < 0:
+        if arrow_size_factor <= 0:
             msg = "arrow_size_factor must be greater than 0."
             raise ValueError(msg)
 
@@ -516,10 +523,8 @@ class PydeckPlotter:
         df["bus0_y"] = df["path"].apply(lambda p: p[0][1])
         df["bus1_x"] = df["path"].apply(lambda p: p[-1][0])
         df["bus1_y"] = df["path"].apply(lambda p: p[-1][1])
-        df["arrow"] = df.apply(
-            lambda row: make_polygon(row),
-            axis=1,
-        )
+
+        df["arrow"] = df.apply(make_polygon, axis=1)
 
         return df["arrow"]
 
