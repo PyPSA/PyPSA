@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal, overload
 
 import matplotlib.colors as mcolors
 import networkx as nx
+import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
@@ -122,3 +123,73 @@ def apply_layouter(
         n.c.buses.static[["x", "y"]] = coordinates
         return None
     return coordinates.x, coordinates.y
+
+
+# Geometric functions
+def rotate_polygon(
+    poly: np.ndarray,
+    angle_rad: float,
+) -> np.ndarray:
+    """Rotate polygon around origin by angle in radians."""
+    c, s = np.cos(angle_rad), np.sin(angle_rad)
+    R = np.array([[c, -s], [s, c]])
+    return poly @ R.T
+
+
+def flip_polygon(
+    poly: np.ndarray,
+    axis: str = "x",
+) -> np.ndarray:
+    """Flip polygon around specified axis ('x' or 'y')."""
+    if axis == "x":
+        return poly * np.array([1, -1])
+    elif axis == "y":
+        return poly * np.array([-1, 1])
+    else:
+        msg = "Axis must be 'x' or 'y'."
+        raise ValueError(msg)
+
+
+def scale_polygon_by_width(
+    poly: np.ndarray,
+    target_width: float,
+) -> np.ndarray:
+    """Scale a polygon so that its base width = base_width_m. Proportions are preserved."""
+    width = poly[:, 1].max() - poly[:, 1].min()
+    return poly * (target_width / width)
+
+
+def translate_polygon(
+    poly: np.ndarray,
+    offset: tuple[float, float],
+) -> np.ndarray:
+    """Translate polygon by offset (dx, dy)."""
+    return poly + np.array(offset)
+
+
+def calculate_midpoint(
+    p0: tuple[float, float],
+    p1: tuple[float, float],
+) -> tuple[float, float]:
+    """Calculate the midpoint between two points p0 and p1."""
+    return ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)
+
+
+def calculate_angle(
+    p0: tuple[float, float],
+    p1: tuple[float, float],
+) -> float:
+    """Calculate the angle in radians between two points p0 and p1."""
+    dx = p1[0] - p0[0]
+    dy = p1[1] - p0[1]
+    return np.arctan2(dy, dx)
+
+
+def meters_to_lonlat(poly: np.ndarray, p0: tuple[float, float]) -> np.ndarray:
+    """Convert polygon vertices from local meters to lon/lat relative to a reference point p0."""
+    R = 6378137.0  # equitorial radius in meters
+    lon0, lat0 = p0
+    x, y = poly[:, 0], poly[:, 1]
+    dlon = (x / (R * np.cos(np.radians(lat0)))) * (180.0 / np.pi)
+    dlat = (y / R) * (180.0 / np.pi)
+    return np.column_stack((lon0 + dlon, lat0 + dlat))

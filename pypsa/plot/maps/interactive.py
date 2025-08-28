@@ -11,7 +11,17 @@ import pydeck as pdk
 import pyproj
 
 from pypsa.common import _convert_to_series
-from pypsa.plot.maps.common import apply_layouter, as_branch_series, to_rgba255
+from pypsa.plot.maps.common import (
+    apply_layouter,
+    as_branch_series,
+    calculate_angle,
+    calculate_midpoint,
+    flip_polygon,
+    meters_to_lonlat,
+    rotate_polygon,
+    scale_polygon_by_width,
+    to_rgba255,
+)
 
 if TYPE_CHECKING:
     from pypsa import Network
@@ -429,104 +439,38 @@ class PydeckPlotter:
         """Get the current view state of the map."""
         return self._view_state
 
-    # Geometric functions
     @staticmethod
-    def _rotate_triangle(
-        triangle: np.ndarray,
-        angle_rad: float,
-    ) -> np.ndarray:
-        """Rotate triangle around origin by angle in radians."""
-        c, s = np.cos(angle_rad), np.sin(angle_rad)
-        R = np.array([[c, -s], [s, c]])
-        return triangle @ R.T
+    def _make_arrows(
+        flow: float,
+        p0_geo: float,
+        p1_geo: float,
+        arrow_size_factor: float,
+    ) -> list[tuple[float, float]]:
+        """Create arrows scaled and projected for a given flow and p0, p1 geographical coordinates. Additional scaling by arrow_size_factor."""
+        # project end points from lon/lat into meters
+        p0_m = PydeckPlotter.PROJ.transform(*p0_geo)
+        p1_m = PydeckPlotter.PROJ.transform(*p1_geo)
 
-    # TODO: Scaling is not a 100 % correct, as it does not account for projection distortion. To be improved in the future
-    @staticmethod
-    def _scale_triangle_by_width(
-        triangle: np.ndarray,
-        base_width_m: float,
-    ) -> np.ndarray:
-        """Scale a triangle so that its base width = base_width_m. Proportions are preserved."""
-        triangle = np.asarray(triangle, dtype=float)
-        base_width_current = triangle[:, 1].max() - triangle[:, 1].min()
+        # return empty list if any bus coordinates are nan
+        if np.any(np.isnan(p0_m)) or np.any(np.isnan(p1_m)):
+            return []
 
-        scale = base_width_m / base_width_current
-        return triangle * scale
+        # center point (tuple) between p0 and p1 and angle
+        p_center = calculate_midpoint(p0_m, p1_m)
+        angle = calculate_angle(p0_m, p1_m)
 
-    @staticmethod
-    def _translate_triangle(
-        triangle: np.ndarray,
-        offset: tuple[float, float],
-    ) -> np.ndarray:
-        """Translate triangle by offset (dx, dy)."""
-        return triangle + np.array(offset)
+        # geometric operations on arrow
+        base_width_m = abs(flow) * arrow_size_factor
+        arrow = scale_polygon_by_width(PydeckPlotter.ARROW, base_width_m)
+        if flow < 0:
+            arrow = flip_polygon(arrow, "y")
+        arrow = rotate_polygon(arrow, angle)
 
-    @staticmethod
-    def create_projected_arrows(
-        df: pd.DataFrame,
-        arrow_size_factor: float = 1.5,
-    ) -> pd.DataFrame:
-        """Create polygons for arrows based on line data and flows.
+        # transform back to lon/lat relative to center point
+        coords_center = PydeckPlotter.PROJ_INV.transform(*p_center)
+        arrow = meters_to_lonlat(arrow, coords_center)
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame containing line data with columns 'flow', 'path'.
-        arrow_size_factor : float, default 1.5
-            Factor to scale the arrow size.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame containing polygons (lists of (lon, lat) tuples) for each line's arrow.
-
-        """
-
-        def make_polygon(row: pd.Series) -> list[tuple[float, float]]:
-            f = row["flow"]
-
-            # --- project endpoints into meters ---
-            x0, y0 = PydeckPlotter.PROJ.transform(row["bus0_x"], row["bus0_y"])
-            x1, y1 = PydeckPlotter.PROJ.transform(row["bus1_x"], row["bus1_y"])
-            if np.isnan(x0) or np.isnan(x1):
-                return []
-
-            # --- midpoint in projected CRS (for perfect position) ---
-            mx_proj, my_proj = (x0 + x1) / 2, (y0 + y1) / 2
-            lon_mid, lat_mid = PydeckPlotter.PROJ_INV.transform(mx_proj, my_proj)
-
-            # --- angle from projected CRS vector ---
-            dx, dy = x1 - x0, y1 - y0
-            angle = np.arctan2(dy, dx)
-
-            # --- arrow shape in local tangent plane (east/north meters) ---
-            arrow_centered = PydeckPlotter.ARROW
-            base_width_m = abs(f) * arrow_size_factor
-            tri = PydeckPlotter._scale_triangle_by_width(arrow_centered, base_width_m)
-
-            if f < 0:
-                tri[:, 0] *= -1  # flip arrow if flow is negative
-
-            tri = PydeckPlotter._rotate_triangle(tri, angle)
-
-            # --- convert vertices from local meters → lon/lat ---
-            return [
-                PydeckPlotter._meters_to_lonlat_offset(lon_mid, lat_mid, p[0], p[1])
-                for p in tri
-            ]
-
-        if arrow_size_factor <= 0:
-            msg = "arrow_size_factor must be greater than 0."
-            raise ValueError(msg)
-
-        df["bus0_x"] = df["path"].apply(lambda p: p[0][0])
-        df["bus0_y"] = df["path"].apply(lambda p: p[0][1])
-        df["bus1_x"] = df["path"].apply(lambda p: p[-1][0])
-        df["bus1_y"] = df["path"].apply(lambda p: p[-1][1])
-
-        df["arrow"] = df.apply(make_polygon, axis=1)
-
-        return df["arrow"]
+        return arrow.tolist()
 
     # Data wrangling
     def prepare_component_data(
@@ -632,33 +576,6 @@ class PydeckPlotter:
         # Append the bus layer to the layers property
         self._layers["Bus"] = layer
 
-    # Pie chart related functions
-    @staticmethod
-    def _meters_to_lonlat_offset(
-        lon: float, lat: float, dx: float, dy: float
-    ) -> tuple[float, float]:
-        """Convert meter offset to lon/lat relative to a center point (true meters on WGS84)."""
-        # This approach yields the same scaling as deck.gl/pydeck's sizing in ScatterplotLayer.
-        R = 6378137.0  # WGS84 mean Earth radius in meters
-
-        dlat = (dy / R) * (180.0 / np.pi)
-        dlon = (dx / (R * np.cos(np.radians(lat)))) * (180.0 / np.pi)
-
-        lon1 = lon + dlon
-        lat1 = lat + dlat
-
-        return lon1, lat1
-
-    @staticmethod
-    def _lonlat_to_meters_offset(
-        lon0: float, lat0: float, lon1: float, lat1: float
-    ) -> tuple[float, float]:
-        """Convert lon/lat differences to meter offsets (dx, dy) using WGS84 spherical approximation."""
-        R = 6378137.0
-        dy = (lat1 - lat0) * np.pi / 180 * R
-        dx = (lon1 - lon0) * np.pi / 180 * R * np.cos(np.radians((lat0 + lat1) / 2))
-        return dx, dy
-
     @staticmethod
     def _pie_slice_vertices(
         center_lon: float,
@@ -673,15 +590,25 @@ class PydeckPlotter:
         steps = max(1, int(np.ceil(points_per_radian * abs(angle_span))))
         angles = np.linspace(start_angle, end_angle, steps + 1)
 
-        coords = [[center_lon, center_lat]]
-        for a in angles:
-            dx = radius * np.cos(a)
-            dy = radius * np.sin(a)
-            coords.append(
-                PydeckPlotter._meters_to_lonlat_offset(center_lon, center_lat, dx, dy)
+        # arc vertices in meters
+        x = radius * np.cos(angles)
+        y = radius * np.sin(angles)
+        arc = np.column_stack((x, y))  # create 2D arc polygon
+        arc = meters_to_lonlat(
+            arc, (center_lon, center_lat)
+        )  # convert arc vertices into lon/lat relative to center point
+
+        # full slice polygon (closed polygon center -> arc -> back to center)
+        coords = np.vstack(
+            (
+                [center_lon, center_lat],
+                arc,
+                [center_lon, center_lat],
             )
-        coords.append([center_lon, center_lat])
-        return coords
+        )
+        return (
+            coords.tolist()
+        )  # object needs to be list for pydeck's json serialisation to work
 
     @staticmethod
     def _make_pie(
@@ -980,9 +907,14 @@ class PydeckPlotter:
 
             # Map branch_flows to c_data
             c_data["flow"] = c_data.index.map(branch_flow)
-            c_data["arrow"] = PydeckPlotter.create_projected_arrows(
-                c_data,
-                arrow_size_factor=arrow_size_factor,
+            c_data["arrow"] = c_data.apply(
+                lambda row: PydeckPlotter._make_arrows(
+                    flow=row["flow"],
+                    p0_geo=row["path"][0],
+                    p1_geo=row["path"][-1],
+                    arrow_size_factor=arrow_size_factor,
+                ),
+                axis=1,
             )
 
             colors = _convert_to_series(arrow_colors, c_data.index)
