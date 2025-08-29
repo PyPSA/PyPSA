@@ -12,16 +12,6 @@ if TYPE_CHECKING:
     from pypsa import Network
 
 
-def to_rgba255(
-    color: str,
-    alpha: float = 1.0,
-) -> list[int]:
-    """Convert a Matplotlib color name/hex to an RGBA list with 0-255 integer values."""
-    rgb = [round(c * 255) for c in mcolors.to_rgb(color)]
-    a = round(alpha * 255)
-    return rgb + [a]
-
-
 def as_branch_series(  # noqa
     ser: pd.Series | dict | list, arg: str, c_name: str, n: "Network"
 ) -> pd.Series:
@@ -125,12 +115,51 @@ def apply_layouter(
     return coordinates.x, coordinates.y
 
 
+def to_rgba255(
+    color: str,
+    alpha: float = 1.0,
+) -> list[int]:
+    """Convert a Matplotlib color name/hex to an RGBA list with 0-255 integer values.
+
+    Parameters
+    ----------
+    color : str
+        Matplotlib color name or hex string.
+
+    alpha : float, default 1.0
+        Alpha transparency value between 0 (transparent) and 1 (opaque).
+
+    Returns
+    -------
+    list of int
+        List of RGBA values as integers in the range 0-255.
+
+    """
+    rgb = [round(c * 255) for c in mcolors.to_rgb(color)]
+    a = round(alpha * 255)
+    return rgb + [a]
+
+
 # Geometric functions
 def rotate_polygon(
     poly: np.ndarray,
     angle_rad: float,
 ) -> np.ndarray:
-    """Rotate polygon around origin by angle in radians."""
+    """Rotate polygon around origin by angle in radians.
+
+    Parameters
+    ----------
+    poly : np.ndarray
+        Nx2 array of polygon vertices.
+    angle_rad : float
+        Rotation angle in radians.
+
+    Returns
+    -------
+    np.ndarray
+        Rotated polygon as Nx2 array.
+
+    """
     c, s = np.cos(angle_rad), np.sin(angle_rad)
     R = np.array([[c, -s], [s, c]])
     return poly @ R.T
@@ -140,7 +169,21 @@ def flip_polygon(
     poly: np.ndarray,
     axis: str = "x",
 ) -> np.ndarray:
-    """Flip polygon around specified axis ('x' or 'y')."""
+    """Flip polygon around specified axis ('x' or 'y').
+
+    Parameters
+    ----------
+    poly : np.ndarray
+        Nx2 array of polygon vertices.
+    axis : str, default 'x'
+        Axis to flip around, either 'x' or 'y'.
+
+    Returns
+    -------
+    np.ndarray
+        Flipped polygon as Nx2 array.
+
+    """
     if axis == "x":
         return poly * np.array([1, -1])
     elif axis == "y":
@@ -154,7 +197,21 @@ def scale_polygon_by_width(
     poly: np.ndarray,
     target_width: float,
 ) -> np.ndarray:
-    """Scale a polygon so that its base width = base_width_m. Proportions are preserved."""
+    """Scale a polygon so that its base width = base_width_m. Proportions are preserved.
+
+    Parameters
+    ----------
+    poly : np.ndarray
+        Nx2 array of polygon vertices.
+    target_width : float
+        Desired width of the polygon base.
+
+    Returns
+    -------
+    np.ndarray
+        Scaled polygon as Nx2 array.
+
+    """
     width = poly[:, 1].max() - poly[:, 1].min()
     return poly * (target_width / width)
 
@@ -163,7 +220,21 @@ def translate_polygon(
     poly: np.ndarray,
     offset: tuple[float, float],
 ) -> np.ndarray:
-    """Translate polygon by offset (dx, dy)."""
+    """Translate polygon by offset (dx, dy).
+
+    Parameters
+    ----------
+    poly : np.ndarray
+        Nx2 array of polygon vertices.
+    offset : tuple of float
+        (dx, dy) translation offsets.
+
+    Returns
+    -------
+    np.ndarray
+        Translated polygon as Nx2 array.
+
+    """
     return poly + np.array(offset)
 
 
@@ -171,7 +242,21 @@ def calculate_midpoint(
     p0: tuple[float, float],
     p1: tuple[float, float],
 ) -> tuple[float, float]:
-    """Calculate the midpoint between two points p0 and p1."""
+    """Calculate the midpoint between two points p0 and p1.
+
+    Parameters
+    ----------
+    p0 : tuple of float
+        (x0, y0) coordinates of the first point.
+    p1 : tuple of float
+        (x1, y1) coordinates of the second point.
+
+    Returns
+    -------
+    tuple of float
+        (x, y) coordinates of the midpoint.
+
+    """
     return ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)
 
 
@@ -179,14 +264,42 @@ def calculate_angle(
     p0: tuple[float, float],
     p1: tuple[float, float],
 ) -> float:
-    """Calculate the angle in radians between two points p0 and p1."""
+    """Calculate the angle in radians between two points p0 and p1.
+
+    Parameters
+    ----------
+    p0 : tuple of float
+        (x0, y0) coordinates of the first point.
+    p1 : tuple of float
+        (x1, y1) coordinates of the second point.
+
+    Returns
+    -------
+    float
+        Angle in radians from p0 to p1.
+
+    """
     dx = p1[0] - p0[0]
     dy = p1[1] - p0[1]
     return np.arctan2(dy, dx)
 
 
 def meters_to_lonlat(poly: np.ndarray, p0: tuple[float, float]) -> np.ndarray:
-    """Convert polygon vertices from local meters to lon/lat relative to a reference point p0."""
+    """Convert polygon vertices from local meters to lon/lat relative to a reference point p0.
+
+    Parameters
+    ----------
+    poly : np.ndarray
+        Nx2 array of polygon vertices in meters.
+    p0 : tuple of float
+        (lon0, lat0) reference point in degrees.
+
+    Returns
+    -------
+    np.ndarray
+        Nx2 array of polygon vertices in (lon, lat) degrees.
+
+    """
     R = 6378137.0  # equitorial radius in meters
     lon0, lat0 = p0
     x, y = poly[:, 0], poly[:, 1]

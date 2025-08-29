@@ -415,6 +415,11 @@ class PydeckPlotter:
             Initial view state for the map. If None, a default view state is created.
             If a dict is provided, it should contain keys like 'longitude', 'latitude', 'zoom', 'pitch', and 'bearing'.
 
+        Returns
+        -------
+        pdk.ViewState
+            The initialized view state for the map.
+
         """
         if isinstance(view_state, pdk.ViewState):
             return view_state
@@ -436,7 +441,14 @@ class PydeckPlotter:
 
     @property
     def view_state(self) -> pdk.ViewState:
-        """Get the current view state of the map."""
+        """Get the current view state of the map.
+
+        Returns
+        -------
+        pdk.ViewState
+            The current view state of the map.
+
+        """
         return self._view_state
 
     @staticmethod
@@ -446,7 +458,25 @@ class PydeckPlotter:
         p1_geo: float,
         arrow_size_factor: float,
     ) -> list[tuple[float, float]]:
-        """Create arrows scaled and projected for a given flow and p0, p1 geographical coordinates. Additional scaling by arrow_size_factor."""
+        """Create arrows scaled and projected for a given flow and p0, p1 geographical coordinates. Additional scaling by arrow_size_factor.
+
+        Parameters
+        ----------
+        flow : float
+            Flow value to determine arrow direction and size.
+        p0_geo : tuple
+            Geographical coordinates (lon, lat) of the start point.
+        p1_geo : tuple
+            Geographical coordinates (lon, lat) of the end point.
+        arrow_size_factor : float
+            Factor to scale the arrow size.
+
+        Returns
+        -------
+        list of tuple
+            List of (lon, lat) tuples representing the arrow polygon coordinates.
+
+        """
         # project end points from lon/lat into meters
         p0_m = PydeckPlotter.PROJ.transform(*p0_geo)
         p1_m = PydeckPlotter.PROJ.transform(*p1_geo)
@@ -479,7 +509,23 @@ class PydeckPlotter:
         default_columns: list[str],
         extra_columns: list[str] | None = None,
     ) -> pd.DataFrame:
-        """Prepare data for a specific component type."""
+        """Prepare data for a specific component type.
+
+        Parameters
+        ----------
+        component : str
+            Name of the component type, e.g. "Bus", "Line", "Link", "Transformer".
+        default_columns : list of str
+            List of default columns to include for the component.
+        extra_columns : list of str, optional
+            Additional columns to include for the component.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the prepared data for the component.
+
+        """
         df = self._n.static(component)
         layer_columns = default_columns
 
@@ -535,6 +581,10 @@ class PydeckPlotter:
             List of bus columns to include. If None, only the bus index and x, y coordinates are used.
             Specify additional columns to include in the tooltip.
 
+        Returns
+        -------
+        None
+
         """
         # Check if columns exist and only keep the ones that also exist in the network
         bus_data = self.prepare_component_data(
@@ -585,7 +635,29 @@ class PydeckPlotter:
         end_angle: float,
         points_per_radian: int = 10,
     ) -> list[list[float]]:
-        """Generate vertices of a pie slice as a closed polygon using numpy."""
+        """Generate vertices of a pie slice as a closed polygon using numpy.
+
+        Parameters
+        ----------
+        center_lon : float
+            Longitude of the center point of the pie chart.
+        center_lat : float
+            Latitude of the center point of the pie chart.
+        radius : float
+            Radius of the pie chart in meters.
+        start_angle : float
+            Starting angle of the pie slice in radians.
+        end_angle : float
+            Ending angle of the pie slice in radians.
+        points_per_radian : int, default 10
+            Number of points per radian for pie chart resolution.
+
+        Returns
+        -------
+        list of list of float
+            List of [lon, lat] coordinates representing the pie slice polygon.
+
+        """
         angle_span = end_angle - start_angle
         steps = max(1, int(np.ceil(points_per_radian * abs(angle_span))))
         angles = np.linspace(start_angle, end_angle, steps + 1)
@@ -622,7 +694,36 @@ class PydeckPlotter:
         flip_y: bool = False,
         bus_split_circles: bool = False,
     ) -> list[dict]:
-        """Create pie chart polygons with metadata using numpy."""
+        """Create pie chart polygons with metadata using numpy.
+
+        Parameters
+        ----------
+        center_lat : float
+            Latitude of the center point of the pie chart.
+        center_lon : float
+            Longitude of the center point of the pie chart.
+        radius_m : float
+            Radius of the pie chart in meters.
+        values : np.ndarray
+            Values for each pie slice.
+        colors : list of list of int
+            List of RGBA colors for each pie slice.
+        labels : list of str
+            Labels for each pie slice.
+        points_per_radian : int, default 10
+            Number of points per radian for pie chart resolution.
+        flip_y : bool, default False
+            Flip the pie chart vertically. Useful for negative values in bus_split_circles mode.
+        bus_split_circles : bool, default False
+            Draw half circles if True. The upper half circle includes all positive values,
+            the lower half circle all negative values.
+
+        Returns
+        -------
+        list of dict
+            List of dictionaries containing pie slice polygons and metadata.
+
+        """
         flip_y_factor = -1 if flip_y else 1
         circ = np.pi if bus_split_circles else 2 * np.pi
 
@@ -676,6 +777,10 @@ class PydeckPlotter:
             Add alpha channel to buses, defaults to 0.7.
         points_per_radian : int, default 10
             Number of points per radian for pie chart resolution.
+
+        Returns
+        -------
+        None
 
         """
         EPS = 1e-6  # Small epsilon to avoid numerical issues
@@ -807,6 +912,10 @@ class PydeckPlotter:
             Colors for the arrows, defaults to 'black'.
         arrow_alpha : float/dict/pandas.Series
             Add alpha channel to arrows, defaults to 1.0.
+
+        Returns
+        -------
+        None
 
         """
         if self._n.static(c_name).empty:
@@ -955,7 +1064,14 @@ class PydeckPlotter:
         }
 
     def deck(self) -> pdk.Deck:
-        """Display the interactive map."""
+        """Display the interactive map.
+
+        Returns
+        -------
+        pdk.Deck
+            The Pydeck Deck object representing the interactive map.
+
+        """
         layers = list(self._layers.values())
 
         deck = pdk.Deck(
