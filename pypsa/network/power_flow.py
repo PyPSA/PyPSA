@@ -1054,7 +1054,8 @@ class SubNetworkPowerFlowMixin:
         z = np.concatenate(
             [
                 (c.static.loc[c.static.query("active").index, attribute]).values
-                for c in self.iterate_components(n.passive_branch_components)
+                for c in self.components[n.passive_branch_components]
+                if not c.empty
             ]
         )
         # susceptances
@@ -1083,7 +1084,8 @@ class SubNetworkPowerFlowMixin:
                     if c.name == "Transformer"
                     else np.zeros((len(c.static.query("active").index),))
                 )
-                for c in self.iterate_components(n.passive_branch_components)
+                for c in self.components[n.passive_branch_components]
+                if not c.empty
             ]
         )
         self.p_branch_shift = np.multiply(-b, phase_shift, where=b != np.inf)
@@ -1188,12 +1190,12 @@ class SubNetworkPowerFlowMixin:
 
     def find_slack_bus(self) -> None:
         """Find the slack bus in a connected sub-network."""
-        gens = self.generators()
+        gens = self.c.generators.static
         gen_names = gens.index.get_level_values("name")
 
         if len(gens) == 0:
             self.slack_generator = None
-            self.slack_bus = self.buses_i().get_level_values("name")[0]
+            self.slack_bus = self.c.buses.static.index.get_level_values("name")[0]
 
         else:
             slacks = gens[gens.control == "Slack"].index.unique("name")
@@ -1249,8 +1251,8 @@ class SubNetworkPowerFlowMixin:
 
         self.find_slack_bus()
 
-        gens = self.generators()
-        buses_i = self.buses_i()
+        gens = self.c.generators.static
+        buses_i = self.c.buses.static.index
 
         # default bus control is PQ
         n.c.buses.static.loc[buses_i, "control"] = "PQ"

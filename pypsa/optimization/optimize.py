@@ -804,14 +804,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         )
 
         def sign(c: str) -> int:
-            return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
+            return n.c[c].static.get("sign", -1)  # -1 is the sign for 'Link'
 
         n.c.buses.dynamic.p = (
             pd.concat(
                 [
-                    n.dynamic(c)[attr]
+                    n.c[c]
+                    .dynamic[attr]
                     .mul(sign(c))
-                    .rename(columns=n.static(c)[group], level="name")
+                    .rename(columns=n.c[c].static[group], level="name")
                     for c, attr, group in ca
                 ],
                 axis=1,

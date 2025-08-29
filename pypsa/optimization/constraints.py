@@ -1076,11 +1076,12 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     values in their '{attr}_set' attribute.
 
     """
-    if attr + "_set" not in n.static(component):
+    c = as_components(n, component)
+    if attr + "_set" not in c.static:
         return
 
     dim = f"{component}-{attr}_set_i"
-    fix = n.static(component)[attr + "_set"].dropna().rename_axis(dim)
+    fix = c.static[attr + "_set"].dropna().rename_axis(dim)
 
     if fix.empty:
         return

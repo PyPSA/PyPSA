@@ -1090,7 +1090,7 @@ class NetworkIOMixin(_NetworkABC):
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore",
-                message=".*the API for how to access components data has.*",
+                message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
                 category=DeprecationWarning,
             )
 
@@ -1108,7 +1108,7 @@ class NetworkIOMixin(_NetworkABC):
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore",
-                        message=".*the API for how to access components data has.*",
+                        message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
                         category=DeprecationWarning,
                     )
                     value = getattr(self, attr)

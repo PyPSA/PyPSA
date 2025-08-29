@@ -1349,7 +1349,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 if c.name in {"Bus"} | self.n.passive_branch_components:
                     return value[value.sub_network == self.name]
                 if c.name in self.n.one_port_components:
-                    buses = self.buses_i().unique("name")
+                    buses = self.c.buses.static.index.unique("name")
                     return value[value.bus.isin(buses)]
                 msg = f"Component {c.name} not supported for sub-networks"
                 raise ValueError(msg)

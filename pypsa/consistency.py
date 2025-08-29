@@ -98,7 +98,10 @@ def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
 
     """
     connected_buses = set()
-    for component in n.iterate_components():
+    for component in n.components:
+        if component.empty:
+            continue
+
         for attr in _bus_columns(component.static):
             connected_buses.update(component.static[attr])
 
@@ -667,10 +670,8 @@ def check_nans_for_component_default_attrs(
 
     """
     # Get non-NA and not-empty default attributes for the current component
-    default = n.component_attrs[component.name]["default"]
-    not_null_component_attrs = n.component_attrs[component.name][
-        default.notna() & default.ne("")
-    ].index
+    default = component.attrs["default"]
+    not_null_component_attrs = component.attrs[default.notna() & default.ne("")].index
 
     # Remove attributes that are not in the component's static data
     relevant_static_df = component.static[
@@ -831,7 +832,10 @@ class NetworkConsistencyMixin(_NetworkABC):
         # TODO: Warn if any ramp limits are 0.
 
         # Per component checks
-        for c in self.iterate_components():
+        for c in self.components:
+            if c.empty:
+                continue
+
             # Checks all components
             check_for_unknown_buses(self, c, "unknown_buses" in strict)
             check_for_unknown_carriers(self, c, "unkown_carriers" in strict)
@@ -905,7 +909,9 @@ class NetworkConsistencyMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
-        for c in self.iterate_components():
+        for c in self.components:
+            if c.empty:
+                continue
             check_for_unknown_carriers(self, c, strict="unknown_carriers" in strict)
         check_for_missing_carrier_colors(
             self,  # type: ignore

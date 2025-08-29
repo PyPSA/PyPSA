@@ -76,7 +76,8 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
         hstack(
             [
                 ravel(c.static.filter(regex=RE_PORTS.pattern))
-                for c in n.iterate_components()
+                for c in n.components
+                if not c.empty
             ]
         )
     )
