@@ -66,7 +66,7 @@ def test_grouping_by_keys_with_specific_column_solved(ac_dc_network_r):
 
 def test_grouping_by_new_registered_key(ac_dc_network_r):
     def new_grouper(n, c):
-        return n.df(c).index.to_series()
+        return n.components[c].static.index.to_series()
 
     n = ac_dc_network_r
     pypsa.statistics.groupers.add_grouper("new_grouper", new_grouper)

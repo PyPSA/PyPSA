@@ -171,8 +171,8 @@ class NetworkDescriptorsMixin(_NetworkABC):
         dtype: float64
 
         """
-        static = self.static(component)
-        dynamic = self.dynamic(component)
+        static = self.components[component].static
+        dynamic = self.components[component].dynamic
 
         index = static.index
         varying_i = dynamic[attr].columns

@@ -57,32 +57,32 @@ def test_investment_period_weightings(scipy_subnetwork: SubNetwork) -> None:
 
 
 def test_df(scipy_subnetwork: SubNetwork) -> None:
-    buses = scipy_subnetwork.static("Bus")
+    buses = scipy_subnetwork.components["Bus"].static
     assert not buses.empty
     assert buses.index.isin(scipy_subnetwork.n.c.buses.static.index).all()
 
     component_names = ["Line", "Transformer", "Generator", "Load"]
     for c_name in component_names:
-        df = scipy_subnetwork.static(c_name)
+        df = scipy_subnetwork.components[c_name].static
         assert not df.empty
-        assert df.index.isin(scipy_subnetwork.n.static(c_name).index).all()
+        assert df.index.isin(scipy_subnetwork.n.components[c_name].static.index).all()
 
     with pytest.raises(ValueError):
-        scipy_subnetwork.static("Link")
+        scipy_subnetwork.components["Link"].static
 
     with pytest.raises(ValueError):
-        scipy_subnetwork.static("GlobalConstraint")
+        scipy_subnetwork.components["GlobalConstraint"].static
 
 
 def test_incidence_matrix(ac_dc_subnetwork: SubNetwork) -> None:
-    lines = ac_dc_subnetwork.static("Line")
-    buses = ac_dc_subnetwork.static("Bus")
+    lines = ac_dc_subnetwork.components["Line"].static
+    buses = ac_dc_subnetwork.components["Bus"].static
     A = ac_dc_subnetwork.incidence_matrix()
     assert A.shape == (len(buses), len(lines))
 
 
 def test_incidence_matrix_inactive(ac_dc_subnetwork_inactive: SubNetwork) -> None:
-    lines = ac_dc_subnetwork_inactive.static("Line")
-    buses = ac_dc_subnetwork_inactive.static("Bus")
+    lines = ac_dc_subnetwork_inactive.components["Line"].static
+    buses = ac_dc_subnetwork_inactive.components["Bus"].static
     A = ac_dc_subnetwork_inactive.incidence_matrix()
     assert A.shape == (len(buses), len(lines[lines["active"]]))

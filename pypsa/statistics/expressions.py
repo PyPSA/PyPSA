@@ -25,29 +25,29 @@ logger = logging.getLogger(__name__)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
-    """Get the operation time series of a component."""
+    """Get the operation data for a network component."""
     if c in n.branch_components:
-        return n.dynamic(c).p0
+        return n.components[c].dynamic.p0
     if c == "Store":
-        return n.dynamic(c).e
-    return n.dynamic(c).p
+        return n.components[c].dynamic.e
+    return n.components[c].dynamic.p
 
 
 def port_efficiency(
     n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
-    ones = pd.Series(1, index=n.static(c_name).index)
+    ones = pd.Series(1, index=n.components[c_name].static.index)
     if port == "":
         efficiency = ones
     elif port == "0":
         efficiency = -ones
     else:
         key = "efficiency" if port == "1" else f"efficiency{port}"
-        if dynamic and key in n.static(c_name):
+        if dynamic and key in n.components[c_name].static:
             efficiency = n.get_switchable_as_dense(c_name, key)
         else:
-            efficiency = n.static(c_name).get(key, ones)
+            efficiency = n.components[c_name].static.get(key, ones)
     return efficiency
 
 
@@ -71,7 +71,9 @@ def get_transmission_branches(
 
         for c in n.branch_components:
             bus_map = (
-                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
+                n.components[c]
+                .static.filter(like="bus")
+                .apply(lambda ds: ds.map(bus_carrier_map))
             )
             if isinstance(bus_carrier, str):
                 bus_carrier_list = [bus_carrier]
@@ -122,7 +124,9 @@ def get_transmission_branches(
 
         for c in n.branch_components:
             bus_map = (
-                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
+                n.components[c]
+                .static.filter(like="bus")
+                .apply(lambda ds: ds.map(bus_carrier_map))
             )
             if isinstance(bus_carrier, str):
                 bus_carrier = [bus_carrier]
@@ -165,7 +169,7 @@ def get_transmission_carriers(
             try:
                 # Build the full index for this component
                 full_component_idx = network_part + (component_name,)
-                carrier = n.static(component).carrier.loc[full_component_idx]
+                carrier = n.components[component].static.carrier.loc[full_component_idx]
                 network_results.append(network_part + (component, carrier))
             except KeyError:
                 # Component not found, skip
@@ -189,7 +193,7 @@ def get_transmission_carriers(
         carriers = {}
         for c in branches.unique(0):
             idx = branches[branches.get_loc(c)].get_level_values(1)
-            carriers[c] = n.static(c).carrier[idx].unique()
+            carriers[c] = n.components[c].static.carrier[idx].unique()
         return pd.MultiIndex.from_tuples(
             [(c, i) for c, idx in carriers.items() for i in idx],
             names=["component", "carrier"],
@@ -643,7 +647,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.static(c).eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
+            col = n.components[c].static.eval(
+                f"{nominal_attrs[c]}_opt * {cost_attribute}"
+            )
             return col
 
         df = self._aggregate_components(
@@ -746,7 +752,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.static(c).eval(f"{nominal_attrs[c]} * {cost_attribute}")
+            col = n.components[c].static.eval(f"{nominal_attrs[c]} * {cost_attribute}")
             return col
 
         df = self._aggregate_components(
@@ -969,9 +975,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
-            col = n.static(c)[f"{nominal_attrs[c]}_opt"] * efficiency
+            col = n.components[c].static[f"{nominal_attrs[c]}_opt"] * efficiency
             if storage and (c == "StorageUnit"):
-                col = col * n.static(c).max_hours
+                col = col * n.components[c].static.max_hours
             return col
 
         df = self._aggregate_components(
@@ -1084,9 +1090,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
-            col = n.static(c)[f"{nominal_attrs[c]}"] * efficiency
+            col = n.components[c].static[f"{nominal_attrs[c]}"] * efficiency
             if storage and (c == "StorageUnit"):
-                col = col * n.static(c).max_hours
+                col = col * n.components[c].static.max_hours
             return col
 
         df = self._aggregate_components(
@@ -1324,10 +1330,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "marginal_cost_quadratic",
                 "spill_cost",
             ]:
-                if cost_type in cost_types_ and cost_type in n.static(c):
+                if cost_type in cost_types_ and cost_type in n.components[c].static:
                     attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
-                    p = n.dynamic(c)[attr]
+                    p = n.components[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * cost
                     term = self._aggregate_timeseries(opex, weights, agg=aggregate_time)
@@ -1341,11 +1347,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             for cost_type, attr in mapping.items():
                 if (
                     cost_type in cost_types_
-                    and cost_type in n.static(c)
+                    and cost_type in n.components[c].static
                     and not com_i.empty
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
-                    var = n.dynamic(c)[attr].loc[:, com_i]
+                    var = n.components[c].dynamic[attr].loc[:, com_i]
                     opex = var * cost
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=aggregate_time)
@@ -1773,7 +1779,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             idx = transmission_branches.get_loc_level(c, level="component")[1]
-            p = n.dynamic(c)[f"p{port}"][idx]
+            p = n.components[c].dynamic[f"p{port}"][idx]
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -1898,9 +1904,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
+            sign = (
+                -1.0
+                if c in n.branch_components
+                else n.components[c].static.get("sign", 1.0)
+            )
             weights = n.snapshot_weightings.generators
-            p = sign * n.dynamic(c)[f"p{port}"]
+            p = sign * n.components[c].dynamic[f"p{port}"]
             if direction == "supply":
                 p = p.clip(lower=0)
             elif direction == "withdrawal":
@@ -2014,8 +2024,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = (
-                n.get_switchable_as_dense(c, "p_max_pu") * n.static(c).p_nom_opt
-                - n.dynamic(c).p
+                n.get_switchable_as_dense(c, "p_max_pu")
+                * n.components[c].static.p_nom_opt
+                - n.components[c].dynamic.p
             ).clip(lower=0)
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -2229,9 +2240,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
-            df = sign * n.dynamic(c)[f"p{port}"]
-            buses = n.static(c)[f"bus{port}"][df.columns]
+            sign = (
+                -1.0
+                if c in n.branch_components
+                else n.components[c].static.get("sign", 1.0)
+            )
+            df = sign * n.components[c].dynamic[f"p{port}"]
+            buses = n.components[c].static[f"bus{port}"][df.columns]
             # catch multiindex case
             buses = (
                 buses.to_frame("bus")

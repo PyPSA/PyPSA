@@ -865,7 +865,7 @@ class Network(
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.components:
-            i = n.components[c.name].index
+            i = c.index
             try:
                 ndynamic = n.components[c.name].dynamic
                 dynamic = c.dynamic
@@ -1120,7 +1120,7 @@ class Network(
             c.static["sub_network"] = c.static.bus0.map(sub_network_map)
 
             if investment_period is not None:
-                active = self.get_active_assets(c.name, investment_period)
+                active = c.get_active_assets(investment_period=investment_period)
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 
@@ -1355,7 +1355,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 raise ValueError(msg)
             if key == "dynamic":
                 dynamic = Dict()
-                index = self.components[c.name].static.index
+                index = c.static.index
                 for k, v in c.dynamic.items():
                     dynamic[k] = v[index.intersection(v.columns)]
                 return dynamic

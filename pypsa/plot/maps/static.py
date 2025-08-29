@@ -594,13 +594,13 @@ class MapPlotter:
             return flow
 
         if flow in self.n.snapshots:
-            return self.n.dynamic(c_name).p0.loc[flow]
+            return self.n.components[c_name].dynamic.p0.loc[flow]
 
         if isinstance(flow, str) or callable(flow):
-            return self.n.dynamic(c_name).p0.agg(flow, axis=0)
+            return self.n.components[c_name].dynamic.p0.agg(flow, axis=0)
 
         if isinstance(flow, int | float):
-            return pd.Series(flow, index=self.n.static(c_name).index)
+            return pd.Series(flow, index=self.n.components[c_name].static.index)
 
         if flow is not None:
             msg = f"The 'flow' argument must be a pandas.Series, a string, a float or a callable, got {type(flow)}."
@@ -1173,7 +1173,9 @@ class MapPlotter:
         branch_collections = {}
         flow_collections = {}
 
-        for c in n.iterate_components(branch_components):
+        for c in n.components[branch_components]:
+            if c.empty:
+                continue
             # Get branch collection
             if c.name == "Line":
                 widths = line_widths
@@ -1216,7 +1218,8 @@ class MapPlotter:
             if flow is not None:
                 if auto_scale_branches:
                     rough_scale = (
-                        sum([len(n.static(c)) for c in branch_components]) + 100
+                        sum([len(n.components[c].static) for c in branch_components])
+                        + 100
                     )
                     data["flow"] = (
                         data.flow.mul(abs(data.widths), fill_value=0) / rough_scale

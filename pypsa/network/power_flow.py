@@ -188,7 +188,7 @@ def _network_prepare_and_run_pf(
         if linear:
             sub_network_pf_fun(sub_network, snapshots=sns, skip_pre=True, **kwargs)
 
-        elif len(sub_network.buses()) <= 1:
+        elif len(sub_network.components.buses.static) <= 1:
             (
                 itdf[sub_network.name],
                 difdf[sub_network.name],
@@ -1356,8 +1356,8 @@ class SubNetworkPowerFlowMixin:
         # get indices for the components on this sub-network
         branches_i = self.branches_i(active_only=True)
         buses_o = self.buses_o
-        sn_buses = self.buses().index
-        sn_generators = self.generators().index
+        sn_buses = self.components.buses.static.index
+        sn_generators = self.components.generators.static.index
 
         generator_slack_weights_b = False
         bus_slack_weights_b = False
@@ -1584,7 +1584,9 @@ class SubNetworkPowerFlowMixin:
         buses_indexer = buses_o.get_indexer
         branch_bus0 = []
         branch_bus1 = []
-        for c in self.iterate_components(n.passive_branch_components):
+        for c in self.components[n.passive_branch_components]:
+            if c.empty:
+                continue
             branch_bus0 += list(c.static.query("active").bus0)
             branch_bus1 += list(c.static.query("active").bus1)
         v0 = V[:, buses_indexer(branch_bus0)]
@@ -1622,7 +1624,7 @@ class SubNetworkPowerFlowMixin:
         n.c.buses.dynamic.q.loc[sns, self.pvs] = s_calc[:, buses_indexer(self.pvs)].imag
 
         # set shunt impedance powers
-        shunt_impedances_i = self.shunt_impedances_i()
+        shunt_impedances_i = self.components.shunt_impedances.static.index
         if len(shunt_impedances_i):
             # add voltages
             shunt_impedances_v_mag_pu = v_mag_pu[
@@ -1644,7 +1646,7 @@ class SubNetworkPowerFlowMixin:
                 n.c.buses.dynamic.p.loc[sns, sn_buses]
                 - ss[:, buses_indexer(sn_buses)].real
             )
-            for bus, group in self.generators().groupby("bus"):
+            for bus, group in self.components.generators.static.groupby("bus"):
                 if isinstance(slack_weights, str) and slack_weights == "p_set":
                     generators_t_p_choice = n.c.generators._as_dynamic(
                         slack_weights, sns
@@ -1734,7 +1736,7 @@ class SubNetworkPowerFlowMixin:
         branches_i = self.branches_i(active_only=True)
 
         # allow all shunt impedances to dispatch as set
-        shunt_impedances_i = self.shunt_impedances_i()
+        shunt_impedances_i = self.components.shunt_impedances.static.index
         n.c.shunt_impedances.dynamic.p.loc[sns, shunt_impedances_i] = (
             n.c.shunt_impedances.static.g_pu.loc[shunt_impedances_i].values
         )

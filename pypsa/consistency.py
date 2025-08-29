@@ -631,7 +631,7 @@ def check_shapes(n: NetworkType, strict: bool = False) -> None:
     shape_components = n.c.shapes.static.component.unique()
     for c in set(shape_components) & set(n.all_components):
         geos = n.c.shapes.static.query("component == @c")
-        not_included = geos.index[~geos.idx.isin(n.static(c).index)]
+        not_included = geos.index[~geos.idx.isin(n.components[c].static.index)]
 
         if not not_included.empty:
             _log_or_raise(
@@ -996,7 +996,9 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         "active",  # theoretically can be different, but problematic with "Line"
     }
 
-    for component in n.iterate_components():
+    for component in n.components:
+        if component.empty:
+            continue
         if component.static.index.nlevels < 2:
             continue  # No scenario dimension
 

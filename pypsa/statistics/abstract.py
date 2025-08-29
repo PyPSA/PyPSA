@@ -148,12 +148,12 @@ class AbstractStatisticsAccessor(ABC):
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
         for c in comps:
-            if n.static(c).empty:
+            if n.components[c].static.empty:
                 continue
 
             ports = [
                 match.group(1)
-                for col in n.static(c)
+                for col in n.components[c].static
                 if (match := RE_PORTS.search(str(col)))
             ]
             if not at_port:
@@ -248,7 +248,7 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        ports = n.static(c).loc[idx, f"bus{port}"]
+        ports = n.components[c].static.loc[idx, f"bus{port}"]
         port_carriers = ports.map(n.c.buses.static.carrier)
         if isinstance(bus_carrier, str):
             if bus_carrier in n.c.buses.static.carrier.unique():
@@ -272,11 +272,11 @@ class AbstractStatisticsAccessor(ABC):
         obj: Any,
     ) -> Any:
         """Filter the DataFrame for components which have the specified carrier."""
-        if carrier is None or "carrier" not in n.static(c):
+        if carrier is None or "carrier" not in n.components[c].static:
             return obj
 
         idx = self._get_component_index(obj, c)
-        carriers = n.static(c).loc[idx, "carrier"]
+        carriers = n.components[c].static.loc[idx, "carrier"]
 
         if isinstance(carrier, str):
             if carrier in carriers.unique():
