@@ -284,14 +284,14 @@ def calculate_angle(
     return np.arctan2(dy, dx)
 
 
-def meters_to_lonlat(poly: np.ndarray, p0: tuple[float, float]) -> np.ndarray:
+def meters_to_lonlat(poly: np.ndarray, p0_m: tuple[float, float]) -> np.ndarray:
     """Convert polygon vertices from local meters to lon/lat relative to a reference point p0.
 
     Parameters
     ----------
     poly : np.ndarray
         Nx2 array of polygon vertices in meters.
-    p0 : tuple of float
+    p0_m : tuple of float
         (lon0, lat0) reference point in degrees.
 
     Returns
@@ -301,7 +301,7 @@ def meters_to_lonlat(poly: np.ndarray, p0: tuple[float, float]) -> np.ndarray:
 
     """
     R = 6378137.0  # equitorial radius in meters
-    lon0, lat0 = p0
+    lon0, lat0 = p0_m
     x, y = poly[:, 0], poly[:, 1]
     dlon = (x / (R * np.cos(np.radians(lat0)))) * (180.0 / np.pi)
     dlat = (y / R) * (180.0 / np.pi)

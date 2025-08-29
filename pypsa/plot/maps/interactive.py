@@ -563,7 +563,7 @@ class PydeckPlotter:
         self,
         bus_sizes: float | dict | pd.Series = 25000000,
         bus_colors: str | dict | pd.Series = "cadetblue",
-        bus_alpha: float | dict | pd.Series = 0.7,
+        bus_alpha: float | dict | pd.Series = 0.9,
         bus_columns: list | None = None,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
@@ -575,7 +575,7 @@ class PydeckPlotter:
         bus_colors : str/dict/pandas.Series
             Colors for the buses, defaults to 'cadetblue'.
         bus_alpha : float/dict/pandas.Series
-            Add alpha channel to buses, defaults to 0.7.
+            Add alpha channel to buses, defaults to 0.9.
         bus_columns : list, default None
             List of bus columns to include. If None, only the bus index and x, y coordinates are used.
             Specify additional columns to include in the tooltip.
@@ -627,8 +627,7 @@ class PydeckPlotter:
 
     @staticmethod
     def _pie_slice_vertices(
-        center_lon: float,
-        center_lat: float,
+        p_center: tuple[float, float],
         radius: float,
         start_angle: float,
         end_angle: float,
@@ -638,10 +637,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        center_lon : float
-            Longitude of the center point of the pie chart.
-        center_lat : float
-            Latitude of the center point of the pie chart.
+        p_center : tuple of float
+            Center point of the pie chart as (lon, lat).
         radius : float
             Radius of the pie chart in meters.
         start_angle : float
@@ -666,15 +663,16 @@ class PydeckPlotter:
         y = radius * np.sin(angles)
         arc = np.column_stack((x, y))  # create 2D arc polygon
         arc = meters_to_lonlat(
-            arc, (center_lon, center_lat)
+            arc,
+            p_center,
         )  # convert arc vertices into lon/lat relative to center point
 
         # full slice polygon (closed polygon center -> arc -> back to center)
         coords = np.vstack(
             (
-                [center_lon, center_lat],
+                p_center,
                 arc,
-                [center_lon, center_lat],
+                p_center,
             )
         )
         return (
@@ -683,8 +681,7 @@ class PydeckPlotter:
 
     @staticmethod
     def _make_pie(
-        center_lat: float,
-        center_lon: float,
+        p_center: tuple[float, float],
         radius_m: float,
         values: np.ndarray,
         colors: list[list[int]],
@@ -697,10 +694,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        center_lat : float
-            Latitude of the center point of the pie chart.
-        center_lon : float
-            Longitude of the center point of the pie chart.
+        p_center : tuple of float
+            Center point of the pie chart as (lon, lat).
         radius_m : float
             Radius of the pie chart in meters.
         values : np.ndarray
@@ -723,22 +718,23 @@ class PydeckPlotter:
             List of dictionaries containing pie slice polygons and metadata.
 
         """
-        flip_y_factor = -1 if flip_y else 1
+        EPS = 1e-6
+        if len(values) == 0 or (
+            np.sum(values[values > 0]) < EPS and np.sum(values[values < 0]) > -EPS
+        ):
+            return []
+
         circ = np.pi if bus_split_circles else 2 * np.pi
+        flip_y_factor = -1 if flip_y else 1
+        rotate_by_quarter = 0 if bus_split_circles else np.pi / 2
 
-        rotate_by_quarter = np.pi / 2
-        if bus_split_circles:
-            rotate_by_quarter = 0
-
-        total = np.sum(values)
-        angles = flip_y_factor * np.array(values) / total * circ
+        angles = flip_y_factor * np.array(values) / np.sum(values) * circ
         start_angles = np.concatenate(([0], np.cumsum(angles)[:-1])) + rotate_by_quarter
 
         polygons = [
             {
                 "polygon": PydeckPlotter._pie_slice_vertices(
-                    center_lon,
-                    center_lat,
+                    p_center,
                     radius_m,
                     start,
                     start + delta,
@@ -754,12 +750,11 @@ class PydeckPlotter:
         ]
         return polygons
 
-    # TODO: Scale pie chart size by area or radius**2 similar to static plots
     def add_pie_chart_layer(
         self,
         bus_sizes: pd.Series,
         bus_split_circles: bool = False,
-        bus_alpha: float | dict | pd.Series = 0.7,
+        bus_alpha: float | dict | pd.Series = 0.9,
         points_per_radian: int = 10,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
@@ -773,7 +768,7 @@ class PydeckPlotter:
             If set to true, the upper half circle per bus then includes all positive values
             of the series, the lower half circle all negative values. Defaults to False.
         bus_alpha : float/dict/pandas.Series
-            Add alpha channel to buses, defaults to 0.7.
+            Add alpha channel to buses, defaults to 0.9.
         points_per_radian : int, default 10
             Number of points per radian for pie chart resolution.
 
@@ -801,8 +796,6 @@ class PydeckPlotter:
         # Convert to NumPy arrays for speed-up
         bus_indices = bus_sizes.index.to_numpy()
         bus_cols = bus_sizes.columns.to_numpy()
-
-        # Convert to NumPy arrays
         bus_values = bus_sizes.to_numpy()
         bus_coords = bus_data.loc[bus_indices, ["x", "y"]].to_numpy()
 
@@ -817,8 +810,7 @@ class PydeckPlotter:
                 pos_mask = values > 0
                 if np.any(pos_mask):
                     poly_pos = PydeckPlotter._make_pie(
-                        center_lat=y,
-                        center_lon=x,
+                        p_center=(x, y),
                         radius_m=(values[pos_mask].sum()) ** 0.5,
                         values=values[pos_mask].round(3),
                         colors=[carrier_rgba[bus][c] for c in bus_cols[pos_mask]],
@@ -832,8 +824,7 @@ class PydeckPlotter:
                 neg_mask = values < 0
                 if np.any(neg_mask):
                     poly_neg = PydeckPlotter._make_pie(
-                        center_lat=y,
-                        center_lon=x,
+                        p_center=(x, y),
                         radius_m=(-values[neg_mask].sum()) ** 0.5,
                         values=-values[neg_mask].round(3),
                         colors=[carrier_rgba[bus][c] for c in bus_cols[neg_mask]],
@@ -848,8 +839,7 @@ class PydeckPlotter:
                 if not np.any(mask):
                     continue
                 poly_pos = PydeckPlotter._make_pie(
-                    center_lat=y,
-                    center_lon=x,
+                    p_center=(x, y),
                     radius_m=(values[mask].sum()) ** 0.5,
                     values=values[mask].round(3),
                     colors=[carrier_rgba[bus][c] for c in bus_cols[mask]],
@@ -880,12 +870,12 @@ class PydeckPlotter:
         c_name: str,
         branch_flow: float | dict | pd.Series = 0,
         branch_colors: str | dict | pd.Series = "rosybrown",
-        branch_alpha: float | dict | pd.Series = 0.7,
+        branch_alpha: float | dict | pd.Series = 0.9,
         branch_widths: float | dict | pd.Series = 1500,
         branch_columns: list | None = None,
         arrow_size_factor: float = 1.5,
         arrow_colors: str | dict | pd.Series = "black",
-        arrow_alpha: float | dict | pd.Series = 1.0,
+        arrow_alpha: float | dict | pd.Series = 0.9,
     ) -> None:
         """Add a line layer of Pydeck type PathLayer to the interactive map.
 
@@ -899,7 +889,7 @@ class PydeckPlotter:
         branch_colors : str/dict/pandas.Series
             Colors for the branch component, defaults to 'rosybrown'.
         branch_alpha : float/dict/pandas.Series
-            Add alpha channel to branch components, defaults to 0.7.
+            Add alpha channel to branch components, defaults to 0.9.
         branch_widths : float/dict/pandas.Series
             Widths of branch component in meters, defaults to 1500.
         branch_columns : list, default None
@@ -910,7 +900,7 @@ class PydeckPlotter:
         arrow_colors : str/dict/pandas.Series
             Colors for the arrows, defaults to 'black'.
         arrow_alpha : float/dict/pandas.Series
-            Add alpha channel to arrows, defaults to 1.0.
+            Add alpha channel to arrows, defaults to 0.9.
 
         Returns
         -------
@@ -1088,23 +1078,23 @@ def explore(
     bus_sizes: float | dict | pd.Series = 25000000,
     bus_split_circles: bool = False,
     bus_colors: str | dict | pd.Series = "cadetblue",
-    bus_alpha: float | dict | pd.Series = 0.7,
+    bus_alpha: float | dict | pd.Series = 0.9,
     line_flow: float | dict | pd.Series = 0,
     line_colors: str | dict | pd.Series = "rosybrown",
-    line_alpha: float | dict | pd.Series = 0.7,
+    line_alpha: float | dict | pd.Series = 0.9,
     line_widths: float | dict | pd.Series = 1500,
     link_flow: float | dict | pd.Series = 0,
     link_colors: str | dict | pd.Series = "darkseagreen",
-    link_alpha: float | dict | pd.Series = 0.7,
+    link_alpha: float | dict | pd.Series = 0.9,
     link_widths: float | dict | pd.Series = 1500,
     transformer_flow: float | dict | pd.Series = 0,
     transformer_colors: str | dict | pd.Series = "orange",
-    transformer_alpha: float | dict | pd.Series = 0.7,
+    transformer_alpha: float | dict | pd.Series = 0.9,
     transformer_widths: float | dict | pd.Series = 1500,
     arrow_size_factor: float = 1.5,
     arrow_colors: str | dict | pd.Series | None = None,
-    arrow_alpha: float | dict | pd.Series = 1.0,
-    map_style: str = "light",
+    arrow_alpha: float | dict | pd.Series = 0.9,
+    map_style: str = "road",
     tooltip: bool = True,
     bus_columns: list | None = None,
     line_columns: list | None = None,
@@ -1127,14 +1117,14 @@ def explore(
     bus_colors : str/dict/pandas.Series
         Colors for the buses, defaults to "cadetblue".
     bus_alpha : float/dict/pandas.Series
-        Add alpha channel to buses, defaults to 0.7.
+        Add alpha channel to buses, defaults to 0.9.
     line_flow : float/dict/pandas.Series, default 0
         Series of line flows indexed by line names, defaults to 0. If 0, no arrows will be created.
         If a float is provided, it will be used as a constant flow for all lines.
     line_colors : str/dict/pandas.Series
         Colors for the lines, defaults to 'rosybrown'.
     line_alpha : float/dict/pandas.Series
-        Add alpha channel to lines, defaults to 0.7.
+        Add alpha channel to lines, defaults to 0.9.
     line_widths : float/dict/pandas.Series
         Widths of lines in meters, defaults to 1500.
     link_flow : float/dict/pandas.Series, default 0
@@ -1143,7 +1133,7 @@ def explore(
     link_colors : str/dict/pandas.Series
         Colors for the links, defaults to 'darkseagreen'.
     link_alpha : float/dict/pandas.Series
-        Add alpha channel to links, defaults to 0.7.
+        Add alpha channel to links, defaults to 0.9.
     link_widths : float/dict/pandas.Series
         Widths of links in meters, defaults to 1500.
     transformer_flow : float/dict/pandas.Series, default 0
@@ -1152,16 +1142,16 @@ def explore(
     transformer_colors : str/dict/pandas.Series
         Colors for the transformers, defaults to 'orange'.
     transformer_alpha : float/dict/pandas.Series
-        Add alpha channel to transformers, defaults to 0.7.
+        Add alpha channel to transformers, defaults to 0.9.
     transformer_widths : float/dict/pandas.Series
         Widths of transformers in meters, defaults to 1500.
     arrow_size_factor : float, default 1.5
         Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1 times line_width. If 0, no arrows will be created.
     arrow_colors : str/dict/pandas.Series | None, default None
         Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
-    arrow_alpha : float/dict/pandas.Series, default 1.0
-        Add alpha channel to arrows, defaults to 1.0.
-    map_style : str
+    arrow_alpha : float/dict/pandas.Series, default 0.9
+        Add alpha channel to arrows, defaults to 0.9.
+    map_style : str, default 'road'
         Map style to use for the plot. One of 'light', 'dark', 'road', 'dark_no_labels', and 'light_no_labels'.
     tooltip : bool, default True
         Whether to add a tooltip to the bus layer.
