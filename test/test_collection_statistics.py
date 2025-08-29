@@ -304,7 +304,17 @@ def test_network_collection_custom_grouper(ac_dc_network_r):
 
     # Define custom grouper that groups by first letter of generator name
     def first_letter_grouper(n, c, **kwargs):
-        idx = n.static(c).index
+        # For NetworkCollection, fall back to deprecated method with warning suppression
+        import warnings
+
+        from pypsa import NetworkCollection
+
+        if isinstance(n, NetworkCollection):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                idx = n.static(c).index
+        else:
+            idx = n.components[c].static.index
         # Handle MultiIndex case (NetworkCollection)
         if isinstance(idx, pd.MultiIndex):
             # Get the last level (component names)

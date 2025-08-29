@@ -225,13 +225,28 @@ class AbstractStatisticsAccessor(ABC):
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
         idx = self._get_component_index(obj, c)
+
+        from pypsa import NetworkCollection  # noqa: PLC0415
+
         if not self.is_multi_indexed:
-            mask = n.get_active_assets(c)
+            # For NetworkCollection, use deprecated method as fallback with warning suppression
+            if isinstance(n, NetworkCollection):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    mask = n.get_active_assets(c)
+            else:
+                mask = n.components[c].get_active_assets()
             return obj.loc[mask.index[mask].intersection(idx)]
 
         per_period = {}
         for p in n.investment_periods:
-            mask = n.get_active_assets(c, p)
+            # For NetworkCollection, use deprecated method as fallback with warning suppression
+            if isinstance(n, NetworkCollection):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    mask = n.get_active_assets(c, p)
+            else:
+                mask = n.components[c].get_active_assets(investment_period=p)
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
         return self._concat_periods(per_period, c)
 
