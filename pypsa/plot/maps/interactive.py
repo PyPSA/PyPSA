@@ -340,7 +340,6 @@ class PydeckPlotter:
         "light": pdk.map_styles.LIGHT,
         "dark": pdk.map_styles.DARK,
         "road": pdk.map_styles.ROAD,
-        "satellite": pdk.map_styles.SATELLITE,
         "dark_no_labels": pdk.map_styles.DARK_NO_LABELS,
         "light_no_labels": pdk.map_styles.LIGHT_NO_LABELS,
     }
@@ -369,7 +368,7 @@ class PydeckPlotter:
         n : Network
             The PyPSA network to plot.
         map_style : str
-            Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
+            Map style to use for the plot. One of 'light', 'dark', 'road', 'dark_no_labels', and 'light_no_labels'.
         kwargs : dict, optional
             Additional keyword arguments to configure the map, such as `view_state` for initial view settings.
 
@@ -1163,7 +1162,7 @@ def explore(
     arrow_alpha : float/dict/pandas.Series, default 1.0
         Add alpha channel to arrows, defaults to 1.0.
     map_style : str
-        Map style to use for the plot. One of 'light', 'dark', 'road', 'satellite', 'dark_no_labels', and 'light_no_labels'.
+        Map style to use for the plot. One of 'light', 'dark', 'road', 'dark_no_labels', and 'light_no_labels'.
     tooltip : bool, default True
         Whether to add a tooltip to the bus layer.
     bus_columns : list, default None
