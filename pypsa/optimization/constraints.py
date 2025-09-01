@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
@@ -27,6 +28,13 @@ if TYPE_CHECKING:
     ArgItem = list[str | int | float | DataArray]
 
 logger = logging.getLogger(__name__)
+
+# Local copy of the optimization variable lookup to avoid importing optimize (creates a cycle)
+# TODO make it nicer
+lookup = pd.read_csv(
+    Path(__file__).parent / ".." / "data" / "variables.csv",
+    index_col=["component", "variable"],
+)
 
 
 def define_operational_constraints_for_non_extendables(
@@ -1659,3 +1667,153 @@ def define_total_supply_constraints(
         eh_selected = eh.sel(name=names)
         energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
+
+
+def define_cvar_constraints(n: Network, sns: pd.Index) -> None:
+    """Define auxiliary CVaR constraints for stochastic risk-averse optimization.
+
+    Adds the standard linear CVaR constraints following Rockafellar & Uryasev (2000):
+
+    - For each scenario s: a(s) >= OPEX(s) - theta
+    - Theta + 1/(1-alpha) * sum_s p_s * a(s) <= CVaR
+
+    Requirements
+    ------------
+    - n.has_scenarios is True and n.scenarios defined
+    - n.has_risk_preference is True with keys 'alpha' and 'omega'
+
+    Notes
+    -----
+    Uses the same OPEX construction as in the objective (incl. marginal costs, spill costs,
+    storage marginal costs, quadratic marginal costs, stand-by costs, and unit-commitment
+    costs) all weighted by snapshot durations (and investment period weights if relevant).
+
+    """
+    # Only apply when stochastic and a risk preference is configured
+    if not getattr(n, "has_scenarios", False):
+        return
+    if not getattr(n, "has_risk_preference", False):
+        return
+
+    m = n.model
+
+    alpha = n.risk_preference.get("alpha")  # type: ignore[assignment]
+    if not (isinstance(alpha, int | float) and 0 < float(alpha) < 1):
+        _msg_alpha = f"alpha must be a number between 0 and 1, got {alpha}"
+        raise ValueError(_msg_alpha)
+
+    # Prepare time/investment weights consistent with the objective
+    if getattr(n, "_multi_invest", 0):
+        periods = sns.unique("period")
+        period_weighting = n.investment_period_weightings.objective[periods]
+        weighting = n.snapshot_weightings.objective.mul(period_weighting, level=0).loc[
+            sns
+        ]
+    else:
+        weighting = n.snapshot_weightings.objective.loc[sns]
+
+    # Convert to xarray for reliable alignment with DataArrays below
+    weight = DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
+
+    # Assemble OPEX terms as in objective
+    opex_terms = []
+    is_quadratic = False
+
+    # marginal costs, storage marginal cost, and spill cost
+
+    for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
+        for c_name, attr in lookup.query(cost_type).index:
+            c = as_components(n, c_name)
+            if c.static.empty:
+                continue
+            var_name = f"{c.name}-{attr}"
+            if var_name not in m.variables and cost_type == "spill_cost":
+                continue
+            cost = c.da[cost_type].sel(snapshot=sns, name=c.active_assets)
+            if cost.size == 0 or (cost == 0).all():
+                continue
+            cost = cost * weight
+            operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
+            opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
+
+    # quadratic marginal costs
+    for c_name, attr in lookup.query("marginal_cost_quadratic").index:
+        c = as_components(n, c_name)
+        if c.static.empty or "marginal_cost_quadratic" not in c.static.columns:
+            continue
+        cost = c.da.marginal_cost_quadratic.sel(snapshot=sns)
+        if cost.size == 0 or (cost == 0).all():
+            continue
+        cost = cost * weight
+        operation = m[f"{c.name}-{attr}"].sel(
+            snapshot=sns, name=cost.coords["name"].values
+        )
+        opex_terms.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
+        is_quadratic = True
+
+    # stand-by costs
+    for c_name in ["Generator", "Link"]:
+        c = as_components(n, c_name)
+        com_i = c.committables.difference(c.inactive_assets)
+        if com_i.empty:
+            continue
+        stand_by_cost = c.da.stand_by_cost.sel(name=com_i, snapshot=sns)
+        if stand_by_cost.size == 0 or (stand_by_cost == 0).all():
+            continue
+        stand_by_cost = stand_by_cost * weight
+        status = m[f"{c.name}-status"].sel(
+            snapshot=sns, name=stand_by_cost.coords["name"].values
+        )
+        opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
+
+    # unit commitment costs
+    # start-up and shut-down costs
+    for c_name, attr in lookup.query("variable == 'start_up'").index:
+        c = as_components(n, c_name)
+        com_i = c.committables.difference(c.inactive_assets)
+        if com_i.empty:
+            continue
+        cost = c.da[attr + "_cost"].sel(name=com_i)
+        if cost.size == 0 or cost.sum().item() == 0:
+            continue
+        var = m[f"{c.name}-{attr}"].sel(name=com_i)
+        opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
+
+    for c_name, attr in lookup.query("variable == 'shut_down'").index:
+        c = as_components(n, c_name)
+        com_i = c.committables.difference(c.inactive_assets)
+        if com_i.empty:
+            continue
+        cost = c.da[attr + "_cost"].sel(name=com_i)
+        if cost.size == 0 or cost.sum().item() == 0:
+            continue
+        var = m[f"{c.name}-{attr}"].sel(name=com_i)
+        opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
+
+    # If there are no opex terms, there's nothing to constrain
+    if not opex_terms:
+        return
+
+    # Build per-scenario OPEX expressions
+    scen_opex_exprs: dict[Any, Any] = {}
+    for s in n.scenarios:
+        selected = [e.sel(scenario=s) for e in opex_terms]
+        scen_opex_exprs[s] = sum(selected) if is_quadratic else merge(selected)
+
+    # Retrieve CVaR variables
+    a = m["CVaR-a"]
+    theta = m["CVaR-theta"]
+    cvar = m["CVaR"]
+
+    # Define excess costs per scenario: a(s) - OPEX(s) + theta >= 0
+    for s in n.scenarios:
+        lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
+        m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+
+    # Define CVaR: theta + 1/(1-alpha) * sum_s p_s a(s) <= cvar
+    inv_tail = 1.0 / (1.0 - float(alpha))
+    weighted_a = None
+    for s, p in n.scenario_weightings["weight"].items():
+        term = a.sel(scenario=s) * float(p)
+        weighted_a = term if weighted_a is None else weighted_a + term
+    m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")

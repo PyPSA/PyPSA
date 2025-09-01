@@ -22,6 +22,7 @@ from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
+    define_cvar_constraints,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -306,44 +307,12 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # CVaR augmentation if enabled
     if getattr(n, "has_scenarios", False) and getattr(n, "has_risk_preference", False):
-        alpha = n.risk_preference.get("alpha")  # type: ignore[assignment]
         omega = n.risk_preference.get("omega")  # type: ignore[assignment]
-
-        # Validate risk preference parameters
-        if not (isinstance(alpha, int | float) and 0 < alpha < 1):
-            _msg_alpha = f"alpha must be a number between 0 and 1, got {alpha}"
-            raise ValueError(_msg_alpha)
         if not (isinstance(omega, int | float) and 0 <= omega <= 1):
             _msg_omega = f"omega must be a number between 0 and 1, got {omega}"
             raise ValueError(_msg_omega)
-
-        # Create per-scenario OPEX expressions to use in constraints
-        scen_opex_exprs = {}
-        for s in n.scenarios:
-            scen_selected = [e.sel(scenario=s) for e in opex_terms]
-            scen_opex_exprs[s] = (
-                sum(scen_selected) if is_quadratic else merge(scen_selected)
-            )
-
-        # Retrieve CVaR auxiliary variables
-        a = m["CVaR-a"]
-        theta = m["CVaR-theta"]
         cvar = m["CVaR"]
-
-        # a(s) >= OPEX(s) - theta  ->  a(s) - OPEX(s) + theta >= 0
-        for s in n.scenarios:
-            lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
-            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
-
-        # theta + 1/(1-alpha)*sum_s p_s * a(s) <= cvar
-        inv_tail = 1.0 / (1.0 - float(alpha))
-        weighted_a = None
-        for s, p in n.scenario_weightings["weight"].items():
-            term = a.sel(scenario=s) * float(p)
-            weighted_a = term if weighted_a is None else weighted_a + term
-        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
-        # Final objective per spec:
-        # CAPEX + (1-omega) * E[OPEX] + omega * CVaR
+        # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
         obj_expr = (
             expected_capex + (1 - float(omega)) * expected_opex + float(omega) * cvar
         )
@@ -599,6 +568,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+
+        define_cvar_constraints(n, sns)
 
         define_objective(n, sns)
 
