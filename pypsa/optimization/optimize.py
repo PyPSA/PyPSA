@@ -48,6 +48,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.variables import (
+    define_cvar_variables,
     define_loss_variables,
     define_modular_variables,
     define_nominal_variables,
@@ -109,7 +110,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     """
     weighted_cost: xr.DataArray | int
     m = n.model
-    objective = []
+    # Separate lists to distinguish CAPEX and OPEX terms
+    capex_terms = []
+    opex_terms = []
     is_quadratic = False
 
     if n._multi_invest:
@@ -164,7 +167,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         has_const = constant != 0
     if has_const:
         object_const = m.add_variables(constant, constant, name="objective_constant")
-        objective.append(-1 * object_const)
+        # Treat constant as part of CAPEX block
+        capex_terms.append(-1 * object_const)
 
     # Weightings
     weighting = n.snapshot_weightings.objective
@@ -193,7 +197,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             cost = cost * weight
 
             operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
-            objective.append((operation * cost).sum(dim=["name", "snapshot"]))
+            opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -211,7 +215,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         operation = m[f"{c.name}-{attr}"].sel(
             snapshot=sns, name=cost.coords["name"].values
         )
-        objective.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
+        opex_terms.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
         is_quadratic = True
 
     # stand-by cost
@@ -231,7 +235,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         status = m[f"{c.name}-status"].sel(
             snapshot=sns, name=stand_by_cost.coords["name"].values
         )
-        objective.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
+        opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -258,7 +262,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
-        objective.append((caps * weighted_cost).sum(dim=["name"]))
+        capex_terms.append((caps * weighted_cost).sum(dim=["name"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -275,27 +279,80 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         var = m[f"{c.name}-{attr}"].sel(name=com_i)
-        objective.append((var * cost).sum(dim=["name", "snapshot"]))
+        opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
 
-    if not objective:
+    if not (capex_terms or opex_terms):
         msg = (
             "Objective function could not be created. "
             "Please make sure the components have assigned costs."
         )
         raise ValueError(msg)
 
-    terms = []
-    if n.has_scenarios:
-        # Apply scenario probabilities as weights to the objective
-        for s, p in n.scenario_weightings["weight"].items():
-            selected = [e.sel(scenario=s) for e in objective]
-            merged = merge(selected)
-            terms.append(merged * p)
-    else:
-        terms = objective
+    # Build expected CAPEX and expected OPEX (scenario-weighted if stochastic)
+    def _expected(exprs: list) -> Any:
+        if not exprs:
+            return 0
+        if n.has_scenarios:
+            terms = []
+            for s, p in n.scenario_weightings["weight"].items():
+                selected = [e.sel(scenario=s) for e in exprs]
+                merged = merge(selected)
+                terms.append(merged * p)
+            return sum(terms) if is_quadratic else merge(terms)
+        return sum(exprs) if is_quadratic else merge(exprs)
 
-    # Ensure we're returning the correct expression type (MGA compatibility)
-    m.objective = sum(terms) if is_quadratic else merge(terms)
+    expected_capex = _expected(capex_terms)
+    expected_opex = _expected(opex_terms)
+
+    # CVaR augmentation if enabled
+    if getattr(n, "has_scenarios", False) and getattr(n, "has_risk_preference", False):
+        alpha = n.risk_preference.get("alpha")  # type: ignore[assignment]
+        omega = n.risk_preference.get("omega")  # type: ignore[assignment]
+
+        # Validate risk preference parameters
+        if not (isinstance(alpha, int | float) and 0 < alpha < 1):
+            _msg_alpha = f"alpha must be a number between 0 and 1, got {alpha}"
+            raise ValueError(_msg_alpha)
+        if not (isinstance(omega, int | float) and 0 <= omega <= 1):
+            _msg_omega = f"omega must be a number between 0 and 1, got {omega}"
+            raise ValueError(_msg_omega)
+
+        # Create per-scenario OPEX expressions to use in constraints
+        scen_opex_exprs = {}
+        for s in n.scenarios:
+            scen_selected = [e.sel(scenario=s) for e in opex_terms]
+            scen_opex_exprs[s] = (
+                sum(scen_selected) if is_quadratic else merge(scen_selected)
+            )
+
+        # Retrieve CVaR auxiliary variables
+        a = m["CVaR-a"]
+        theta = m["CVaR-theta"]
+        cvar = m["CVaR"]
+
+        # a(s) >= OPEX(s) - theta  ->  a(s) - OPEX(s) + theta >= 0
+        for s in n.scenarios:
+            lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
+            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+
+        # theta + 1/(1-alpha)*sum_s p_s * a(s) <= cvar
+        inv_tail = 1.0 / (1.0 - float(alpha))
+        weighted_a = None
+        for s, p in n.scenario_weightings["weight"].items():
+            term = a.sel(scenario=s) * float(p)
+            weighted_a = term if weighted_a is None else weighted_a + term
+        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
+        # Final objective per spec:
+        # CAPEX + (1-omega) * E[OPEX] + omega * CVaR
+        obj_expr = (
+            expected_capex + (1 - float(omega)) * expected_opex + float(omega) * cvar
+        )
+    else:
+        # Deterministic or no risk: CAPEX + OPEX
+        obj_expr = expected_capex + expected_opex
+
+    # Set objective
+    m.objective = obj_expr
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
@@ -469,6 +526,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
 
+        # CVaR auxiliary variables (only when stochastic + risk preference is set)
+        define_cvar_variables(n)
+
         if transmission_losses:
             for c in n.passive_branch_components:
                 define_loss_variables(n, sns, c)
@@ -614,6 +674,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         for name, variable in m.variables.items():
             sol = variable.solution
             if name == "objective_constant":
+                continue
+
+            # Skip auxiliary CVaR variables
+            if name.startswith("CVaR"):
+                continue
+
+            # Skip variables without component-attribute naming
+            if "-" not in name:
                 continue
 
             _c_name, attr = name.split("-", 1)
