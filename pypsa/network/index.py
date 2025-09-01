@@ -757,3 +757,87 @@ class NetworkIndexMixin(_NetworkABC):
     def has_scenarios(self) -> bool:
         """Boolean indicating if the network has scenarios defined."""
         return len(self._scenarios_data) > 0
+
+    # -----------
+    # Risk Preferences (CVaR)
+    # -----------
+
+    def set_risk_preference(self, alpha: float, omega: float) -> None:
+        """Set risk aversion preferences for stochastic optimization using CVaR formulation.
+
+        Parameters
+        ----------
+        alpha : float
+            Risk tail parameter (confidence level). Must be between 0 and 1.
+            Common values are 0.05 (5% worst outcomes) or 0.1 (10% worst outcomes).
+            Lower values focus on more extreme (worse) outcomes.
+        omega : float
+            Risk preference parameter (risk aversion weight). Must be between 0 and 1.
+            - omega = 0: Risk-neutral optimization (traditional expected value)
+            - omega > 0: Risk-averse optimization (penalizes variance/tail risk)
+            - omega = 1: Maximum risk aversion (pure CVaR optimization)
+            Higher values indicate more risk aversion.
+
+        Raises
+        ------
+        ValueError
+            If alpha is not between 0 and 1, or if omega is not between 0 and 1.
+        RuntimeError
+            If the network does not have scenarios defined.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_scenarios({"low": 0.3, "medium": 0.4, "high": 0.3})
+        >>> n.set_risk_preference(alpha=0.05, omega=0.1)  # 5% CVaR with moderate risk aversion
+
+        Notes
+        -----
+        This method must be called after `set_scenarios()` as CVaR formulation
+        requires stochastic scenarios to be defined. The CVaR formulation will
+        add auxiliary variables and constraints to the optimization model during
+        the model building phase.
+
+        References
+        ----------
+        Uryasev, S. (2000). Conditional value-at-risk: optimization algorithms
+        and applications. Financial Engineering News, 14(2), 1-5.
+
+        """
+        # Validate that scenarios are defined
+        if not self.has_scenarios:
+            msg = (
+                "Risk preferences can only be set for stochastic networks. "
+                "Please call set_scenarios() first to define scenarios."
+            )
+            raise RuntimeError(msg)
+
+        # Validate parameters
+        if not (0 < alpha < 1):
+            msg = f"Alpha must be between 0 and 1, got {alpha}"
+            raise ValueError(msg)
+
+        if not (0 <= omega <= 1):
+            msg = f"Omega must be between 0 and 1, got {omega}"
+            raise ValueError(msg)
+
+        # Store risk preferences
+        self._risk_preference = {"alpha": alpha, "omega": omega}
+
+    @property
+    def risk_preference(self) -> dict[str, float] | None:
+        """Get the risk preference parameters for the network.
+
+        Returns
+        -------
+        dict[str, float] | None
+            Dictionary containing 'alpha' and 'omega' parameters if risk preferences
+            are set, None otherwise.
+
+        """
+        return self._risk_preference
+
+    @property
+    def has_risk_preference(self) -> bool:
+        """Boolean indicating if the network has risk preferences defined."""
+        return self._risk_preference is not None
