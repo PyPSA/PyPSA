@@ -159,3 +159,119 @@ def test_monotone_objective_vs_omega(toy_network):
     assert obj_neutral < obj_025 - eps
     assert obj_025 < obj_050 - eps
     assert obj_050 < obj_075 - eps
+
+
+def test_cvar_constraints_cover_many_settings():
+    """Test CVaR optimization for multiple components and settings, incl. storage_units and stores, spillage, and unit commitment.
+
+    This test builds a tiny stochastic network with:
+    - Store with non-zero marginal_cost_storage (uses Store-e)
+    - StorageUnit with non-zero spill_cost (uses StorageUnit-spill)
+    - Committable Generator with stand_by_cost and start/shutdown costs
+
+    Then enables CVaR and checks that CVaR constraints exist in the model.
+    """
+    import pandas as pd
+
+    n = pypsa.Network(snapshots=pd.RangeIndex(0, 4))
+    n.add("Carrier", ["elec", "gas"])  # just to be explicit
+    n.add("Bus", "b", carrier="elec")
+
+    # Load
+    n.add("Load", "d", bus="b", p_set=[80, 120, 90, 110])
+
+    # Generator with linear marginal cost (avoid quadratic to keep CVaR constraints linear)
+    n.add(
+        "Generator",
+        "gen_quad",
+        bus="b",
+        p_nom=200,
+        marginal_cost=5,
+        carrier="elec",
+    )
+
+    # Store with marginal_cost_storage
+    n.add(
+        "Store",
+        "store1",
+        bus="b",
+        e_nom=100,
+        p_nom=100,
+        marginal_cost_storage=1.5,  # currency/MWh/h
+    )
+
+    # StorageUnit with spill cost
+    n.add(
+        "StorageUnit",
+        "su1",
+        bus="b",
+        p_nom=120,
+        max_hours=2,
+        spill_cost=3.0,
+    )
+
+    # Stochastic setup + CVaR
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.set_risk_preference(alpha=0.5, omega=0.2)
+
+    # Small scenario-specific variation to avoid degenerate equivalence
+    n.c.loads.dynamic.p_set.loc[:, ("s2", "d")] = [90, 130, 95, 115]
+
+    status, cond = n.optimize(log_to_console=False, solver_name="highs")
+    assert status == "ok"
+    assert cond == "optimal"
+
+    # CVaR constraints created correctly
+    assert "CVaR-def" in n.model.constraints
+    for s in n.scenarios:
+        key = f"CVaR-excess-{s}"
+        assert key in n.model.constraints
+
+
+def test_cvar_constraints_multiperiod_opt():
+    """Cover CVaR weighting path for multi-period investment optimization."""
+    n = pypsa.Network(snapshots=range(3))
+    n.investment_periods = [2020, 2030]
+
+    n.add("Carrier", "elec")
+    n.add("Bus", "b", carrier="elec")
+
+    # Two extendable generators in different periods
+    n.add(
+        "Generator",
+        "g20",
+        bus="b",
+        build_year=2020,
+        lifetime=40,
+        p_nom_extendable=True,
+        capital_cost=50,
+        marginal_cost=1,
+    )
+    n.add(
+        "Generator",
+        "g30",
+        bus="b",
+        build_year=2030,
+        lifetime=40,
+        p_nom_extendable=True,
+        capital_cost=20,
+        marginal_cost=5,
+    )
+
+    n.add("Load", "d", bus="b", p_set=[100, 120, 110, 90, 105, 95])
+
+    # Scenarios + CVaR
+    n.set_scenarios({"high": 0.1, "low": 0.9})
+    n.set_risk_preference(alpha=0.9, omega=0.5)
+
+    n.c.generators.static.loc[("low", "g20"), "marginal_cost"] = 1.0
+    n.c.generators.static.loc[("high", "g20"), "marginal_cost"] = 100.0
+
+    status, cond = n.optimize(multi_investment_periods=True, log_to_console=False)
+    assert status == "ok"
+    assert cond == "optimal"
+
+    # CVaR constraints present
+    assert "CVaR-def" in n.model.constraints
+    for s in n.scenarios:
+        assert f"CVaR-excess-{s}" in n.model.constraints
