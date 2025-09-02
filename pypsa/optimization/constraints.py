@@ -1697,7 +1697,12 @@ def define_cvar_constraints(n: Network, sns: pd.Index) -> None:
 
     m = n.model
 
-    alpha = n.risk_preference.get("alpha")  # type: ignore[assignment]
+    # With has_risk_preference guard above, risk_preference must be set
+    rp = n.risk_preference
+    if rp is None:
+        _msg_rp = "Risk preference must be set when has_risk_preference is True"
+        raise RuntimeError(_msg_rp)
+    alpha = rp["alpha"]
     if not (isinstance(alpha, int | float) and 0 < float(alpha) < 1):
         _msg_alpha = f"alpha must be a number between 0 and 1, got {alpha}"
         raise ValueError(_msg_alpha)
@@ -1812,8 +1817,9 @@ def define_cvar_constraints(n: Network, sns: pd.Index) -> None:
 
     # Define CVaR: theta + 1/(1-alpha) * sum_s p_s a(s) <= cvar
     inv_tail = 1.0 / (1.0 - float(alpha))
-    weighted_a = None
+    # Start with a broad type to satisfy mypy and allow linopy/xarray sums
+    weighted_a: Any = 0
     for s, p in n.scenario_weightings["weight"].items():
         term = a.sel(scenario=s) * float(p)
-        weighted_a = term if weighted_a is None else weighted_a + term
+        weighted_a = weighted_a + term
     m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")

@@ -307,8 +307,12 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
     # CVaR augmentation if enabled
     if getattr(n, "has_scenarios", False) and getattr(n, "has_risk_preference", False):
-        omega = n.risk_preference.get("omega")  # type: ignore[assignment]
-        if not (isinstance(omega, int | float) and 0 <= omega <= 1):
+        rp = n.risk_preference
+        if rp is None:
+            _msg_rp = "Risk preference must be set when has_risk_preference is True"
+            raise RuntimeError(_msg_rp)
+        omega = rp.get("omega")
+        if not (isinstance(omega, int | float) and 0 <= float(omega) <= 1):
             _msg_omega = f"omega must be a number between 0 and 1, got {omega}"
             raise ValueError(_msg_omega)
         cvar = m["CVaR"]

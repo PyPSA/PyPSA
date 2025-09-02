@@ -27,6 +27,8 @@ class NetworkIndexMixin(_NetworkABC):
     All attributes and methods can be used within any Network instance.
     """
 
+    _risk_preference: dict[str, float] | None
+
     # ----------------
     # Snapshots
     # ----------------

@@ -79,6 +79,7 @@ def _capacities_mw(n: pypsa.Network):
 
 
 def _objective_bil(n: pypsa.Network) -> float:
+    assert n.objective is not None
     return n.objective / 1e9
 
 
