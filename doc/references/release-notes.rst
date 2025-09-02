@@ -15,6 +15,25 @@ Upcoming Release
 Features
 --------
 
+* New optimization mode: Stochastic optimization problems
+
+  * PyPSA now supports a two-stage scenario-based stochastic problems.
+    First-stage (investment) decisions are shared across scenarios, while second-stage (operations) variables/constraints are scenario-specific. The objective minimizes the expected costs.
+    Backward compatible: deterministic problems are unchanged.
+
+  * New API: ``Network.set_scenarios({name: weight, ...})`` to enable scenarios and probabilities (defaults to uniform if weights are not given). Component tables and time series gain a new ``scenario`` level (MultiIndex) for scenario-specific data. Inspect via methods ``Network.has_scenarios``, ``Network.scenarios`` and ``Network.scenario_weightings``. 
+
+  * For more information: PR: https://github.com/PyPSA/PyPSA/pull/1154 | Docs user guide: https://pypsa--1250.org.readthedocs.build/en/1250/user-guide/optimization/stochastic/ | Docs example: https://pypsa--1250.org.readthedocs.build/en/1250/examples/stochastic-optimization/
+
+* New feature for stochastic optimization: CVaR-based risk-averse optimization
+
+  * New API to enable risk preference for stochastic optimization:
+    use ``Network.set_risk_preference(alpha=..., omega=...)`` to enable CVaR. You can query ``n.has_risk_preference`` and ``n.risk_preference`` to inspect the current setting.
+
+  * What it does: augments expected operational costs with a Conditional Value at Risk (CVaR) penalty, controlled by ``omega`` (trade-off between expectation and risk) and ``alpha`` (tail level).
+
+  * For more information: https://github.com/PyPSA/PyPSA/pull/1345
+
 * Added utility function ``pypsa.common.annuity`` to calculate the annuity
   factor for a given discount rate and lifetime. Also known as capital recovery
   factor, it is used to convert a capital cost into an annualized cost. The
