@@ -180,7 +180,7 @@ def test_cvar_constraints_cover_many_settings():
     # Load
     n.add("Load", "d", bus="b", p_set=[80, 120, 90, 110])
 
-    # Generator with linear marginal cost (avoid quadratic to keep CVaR constraints linear)
+    # Generator with marginal and stand_by costs
     n.add(
         "Generator",
         "gen_quad",
@@ -188,6 +188,7 @@ def test_cvar_constraints_cover_many_settings():
         p_nom=200,
         marginal_cost=5,
         carrier="elec",
+        stand_by_cost=1.0,
     )
 
     # Store with marginal_cost_storage
@@ -304,4 +305,109 @@ def test_cvar_with_quadratic_opex_raises():
     n.set_risk_preference(alpha=0.5, omega=0.3)
 
     with pytest.raises(RuntimeError, match=r"CVaR with quadratic operational costs"):
+        n.optimize(log_to_console=False)
+
+
+def test_objective_without_any_costs_raises():
+    """Cover optimize.py guard when neither CAPEX nor OPEX terms exist."""
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Carrier", "elec")
+    n.add("Bus", "b", carrier="elec")
+    n.add("Load", "d", bus="b", p_set=[1.0, 1.0])
+    n.add("Generator", "g", bus="b", p_nom=5.0)
+
+    # No capex/opex terms — objective cannot be formed
+    with pytest.raises(ValueError, match=r"Objective function could not be created"):
+        n.optimize(log_to_console=False)
+
+
+def test_objective_includes_standby_cost_for_committable():
+    """Trigger more OPEX terms in aux constraints"""
+
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Bus", "b", carrier="elec")
+    # Remember that at t=0, we do not charge a start_up by default
+    n.add("Load", "d", bus="b", p_set=[0, 50])
+
+    # Committable generator with non-zero stand-by cost and start-up cost
+    n.add(
+        "Generator",
+        "gc",
+        bus="b",
+        p_nom=200,
+        marginal_cost=10.0,
+        committable=True,
+        p_min_pu=0.1,
+        stand_by_cost=1.0,
+        start_up_cost=5.0,
+    )
+
+    status, cond = n.optimize(log_to_console=False, solver_name="highs")
+    assert status == "ok"
+    assert cond == "optimal"
+    assert n.objective == 506.0  # 10*50 + 5 + 1
+
+
+def test_cvar_objective_missing_risk_pref_raises(monkeypatch):
+    """Cover optimize.py CVaR augmentation rp None branch (_msg_rp)."""
+
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Carrier", "elec")
+    n.add("Bus", "b", carrier="elec")
+    n.add("Load", "d", bus="b", p_set=[10, 10])
+    n.add("Generator", "g", bus="b", p_nom=50, marginal_cost=5.0)
+
+    # Enable scenarios normally
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Force has_risk_preference True while risk_preference is None
+    monkeypatch.setattr(pypsa.Network, "has_risk_preference", True, raising=False)
+    monkeypatch.setattr(pypsa.Network, "risk_preference", None, raising=False)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"Risk preference must be set when has_risk_preference is True",
+    ):
+        n.optimize(log_to_console=False)
+
+
+def test_cvar_objective_invalid_omega_raises(monkeypatch):
+    """Cover optimize.py CVaR augmentation omega check (_msg_omega)."""
+
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Carrier", "elec")
+    n.add("Bus", "b", carrier="elec")
+    n.add("Load", "d", bus="b", p_set=[10, 10])
+    n.add("Generator", "g", bus="b", p_nom=50, marginal_cost=5.0)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Force has_risk_preference True with invalid omega
+    monkeypatch.setattr(pypsa.Network, "has_risk_preference", True, raising=False)
+    monkeypatch.setattr(
+        pypsa.Network, "risk_preference", {"alpha": 0.5, "omega": 2}, raising=False
+    )
+
+    with pytest.raises(ValueError, match=r"omega must be a number between 0 and 1"):
+        n.optimize(log_to_console=False)
+
+
+def test_cvar_constraints_invalid_alpha_raises(monkeypatch):
+    """Cover constraints.py CVaR alpha validation (_msg_alpha)."""
+
+    n = pypsa.Network(snapshots=range(2))
+    n.add("Carrier", "elec")
+    n.add("Bus", "b", carrier="elec")
+    n.add("Load", "d", bus="b", p_set=[10, 12])
+    n.add("Generator", "g", bus="b", p_nom=50, marginal_cost=5.0)
+
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+
+    # Force has_risk_preference True with invalid alpha but valid omega
+    monkeypatch.setattr(pypsa.Network, "has_risk_preference", True, raising=False)
+    monkeypatch.setattr(
+        pypsa.Network, "risk_preference", {"alpha": 1.0, "omega": 0.5}, raising=False
+    )
+
+    with pytest.raises(ValueError, match=r"alpha must be a number between 0 and 1"):
         n.optimize(log_to_console=False)
