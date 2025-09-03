@@ -1799,6 +1799,16 @@ def define_cvar_constraints(n: Network, sns: pd.Index) -> None:
     if not opex_terms:
         return
 
+    # Guard: quadratic OPEX makes CVaR constraints quadratic
+    if is_quadratic:
+        _msg_q = (
+            "CVaR with quadratic operational costs yields quadratic constraints."
+            "So a(s) ≥ OPEX(s) - θ becomes a quadratic inequality. "
+            "Remove/approximate quadratic costs (e.g. set 'marginal_cost_quadratic=0'"
+            "or use a piecewise-linear approximation)."
+        )
+        raise RuntimeError(_msg_q)
+
     # Build per-scenario OPEX expressions
     scen_opex_exprs: dict[Any, Any] = {}
     for s in n.scenarios:

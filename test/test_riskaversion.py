@@ -275,3 +275,33 @@ def test_cvar_constraints_multiperiod_opt():
     assert "CVaR-def" in n.model.constraints
     for s in n.scenarios:
         assert f"CVaR-excess-{s}" in n.model.constraints
+
+
+def test_cvar_with_quadratic_opex_raises():
+    """Ensure we fail fast when CVaR is enabled together with quadratic marginal costs.
+
+    The guard in define_cvar_constraints should raise a RuntimeError with a message explaining the problem before model solve when marginal_cost_quadratic terms are present.
+    """
+    import pandas as pd
+
+    n = pypsa.Network(snapshots=pd.RangeIndex(0, 3))
+    n.add("Carrier", "elec")
+    n.add("Bus", "b", carrier="elec")
+    n.add("Load", "d", bus="b", p_set=[50, 60, 55])
+
+    # Generator with quadratic marginal cost
+    n.add(
+        "Generator",
+        "gq",
+        bus="b",
+        p_nom=200,
+        marginal_cost=0.0,
+        marginal_cost_quadratic=0.01,  # triggers quadratic OPEX calc
+    )
+
+    # Stochastic setup + CVaR
+    n.set_scenarios({"s1": 0.5, "s2": 0.5})
+    n.set_risk_preference(alpha=0.5, omega=0.3)
+
+    with pytest.raises(RuntimeError, match=r"CVaR with quadratic operational costs"):
+        n.optimize(log_to_console=False)
