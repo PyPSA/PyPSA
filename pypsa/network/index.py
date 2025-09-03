@@ -770,14 +770,16 @@ class NetworkIndexMixin(_NetworkABC):
         Parameters
         ----------
         alpha : float
-            Risk tail parameter (confidence level). Must be between 0 and 1.
-            Common values are 0.05 (5% worst outcomes) or 0.1 (10% worst outcomes).
-            Lower values focus on more extreme (worse) outcomes.
+            Confidence level in (0, 1). CVaR averages losses over the worst
+            (1 - alpha) probability mass (the "tail"). For "worst 10%",
+            set alpha = 0.9 so that 1 - alpha = 0.1. Typical choices
+            are alpha in {0.90, 0.95, 0.99}. Higher alpha focuses on
+            rarer, more extreme tails; lower alpha considers a broader tail.
         omega : float
             Risk preference parameter (risk aversion weight). Must be between 0 and 1.
-            - omega = 0: Risk-neutral optimization (traditional expected value)
-            - omega > 0: Risk-averse optimization (penalizes variance/tail risk)
-            - omega = 1: Maximum risk aversion (pure CVaR optimization)
+            - omega = 0: Risk-neutral optimization
+            - omega > 0: Risk-averse optimization (more focus on the tail risk)
+            - omega = 1: Maximum risk aversion (optimize for the tail risk only)
             Higher values indicate more risk aversion.
 
         Raises
@@ -791,7 +793,7 @@ class NetworkIndexMixin(_NetworkABC):
         --------
         >>> n = pypsa.Network()
         >>> n.set_scenarios({"low": 0.3, "medium": 0.4, "high": 0.3})
-        >>> n.set_risk_preference(alpha=0.05, omega=0.1)  # 5% CVaR with moderate risk aversion
+        >>> n.set_risk_preference(alpha=0.95, omega=0.1)  # 5% tail CVaR (1 - 0.05)
 
         Notes
         -----
@@ -799,11 +801,6 @@ class NetworkIndexMixin(_NetworkABC):
         requires stochastic scenarios to be defined. The CVaR formulation will
         add auxiliary variables and constraints to the optimization model during
         the model building phase.
-
-        References
-        ----------
-        Uryasev, S. (2000). Conditional value-at-risk: optimization algorithms
-        and applications. Financial Engineering News, 14(2), 1-5.
 
         """
         # Validate that scenarios are defined
