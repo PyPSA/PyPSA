@@ -21,7 +21,7 @@ jobs:
     name: Build and verify package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0   # Needed for setuptools_scm
     - uses: hynek/build-and-inspect-python-package@v2
@@ -53,7 +53,7 @@ jobs:
     env:
       MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0 # Needed for setuptools_scm
 
@@ -72,7 +72,7 @@ jobs:
         brew install hdf5
 
     - name: Download package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: Packages
         path: dist
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0 # Needed for setuptools_scm
 
@@ -115,7 +115,7 @@ jobs:
         python-version: 3.12
 
     - name: Download package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: Packages
         path: dist

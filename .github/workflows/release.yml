@@ -15,7 +15,7 @@ jobs:
     outputs:
       prepared: ${{ steps.validate.outputs.prepared }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Validate commit message
       id: validate
@@ -45,7 +45,7 @@ jobs:
         app-id: ${{ vars.PYPSA_BOT_ID }}
         private-key: ${{ secrets.PYPSA_BOT_PRIVATE_KEY }}
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -55,7 +55,7 @@ jobs:
         echo "Branch found: $branch"
         echo "BRANCH_NAME=$branch" >> $GITHUB_ENV
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
         ref: ${{ env.BRANCH_NAME }}
@@ -133,7 +133,7 @@ jobs:
     if: ${{ needs.check-preparation.outputs.prepared == 'true' }}
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: hynek/build-and-inspect-python-package@v2
 
   release:
@@ -141,7 +141,7 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: softprops/action-gh-release@v2
       with:
         body: |
@@ -159,7 +159,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-    - uses: actions/download-artifact@v4
+    - uses: actions/download-artifact@v5
       with:
         name: Packages
         path: dist
