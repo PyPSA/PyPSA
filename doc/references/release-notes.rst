@@ -37,6 +37,9 @@ Features
 
 * Add additional standard line types from pandapower.
 
+* The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
+  to get the previous behavior of returning component names which have been added.
+
 Bug Fixes
 ---------
 
