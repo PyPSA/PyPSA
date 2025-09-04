@@ -785,7 +785,7 @@ class NetworkIndexMixin(_NetworkABC):
         Raises
         ------
         ValueError
-            If alpha is not between 0 and 1, or if omega is not between 0 and 1.
+            If alpha is not in (0,1), or if omega is not in [0,1].
         RuntimeError
             If the network does not have scenarios defined.
 
