@@ -582,16 +582,15 @@ def test_api_components_legacy(new_components_api):
             assert n.generators is n.components.generators.static
             assert n.c.generators.dynamic is n.components.generators.dynamic
         else:
-            # TODO: Activate when warnings are raised again
             assert n.buses is n.components.buses
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.buses_t is n.components.buses.dynamic
+            with pytest.raises(DeprecationWarning):
+                assert n.buses_t is n.components.buses.dynamic
             assert n.lines is n.components.lines
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.lines_t is n.components.lines.dynamic
+            with pytest.raises(DeprecationWarning):
+                assert n.lines_t is n.components.lines.dynamic
             assert n.generators is n.components.generators
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.generators_t is n.components.generators.dynamic
+            with pytest.raises(DeprecationWarning):
+                assert n.generators_t is n.components.generators.dynamic
 
 
 @pytest.mark.parametrize("new_components_api", [True, False])
@@ -615,6 +614,5 @@ def test_api_new_components_api(component_name, new_components_api):
             assert n.dynamic(component_name) is n.c[component_name].dynamic
             with pytest.raises(AttributeError):
                 setattr(n, component_name, "test")
-            # TODO: Activate when warnings are raised again
-            # with pytest.raises(DeprecationWarning):
-            #     setattr(n, f"{component_name}_t", "test")
+            with pytest.raises(DeprecationWarning):
+                setattr(n, f"{component_name}_t", "test")

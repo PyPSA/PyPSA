@@ -98,8 +98,7 @@ include = ["pypsa"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    # Activate again with final 1.0 release
-    # "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
+    "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
     # "error::FutureWarning",      # Raise all FutureWarnings as errors # TODO Add again
     # "error:RuntimeWarning",
     # "error:UserWarning",
