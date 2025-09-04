@@ -672,30 +672,6 @@ def find_cycles(sub_network: SubNetwork, weight: str = "x_pu") -> None:
                 c += 1
 
 
-def find_system_splitting_contingencies(sub_network: sn) -> pd.Index:
-    """Find system splitting contingencies in a sub-network."""
-    bridges = list(nx.bridges(sn.graph()))
-    # convert back to lines/transformers
-    bus0_bus1 = (
-        pd.concat(
-            [
-                pd.DataFrame(data=bridges, columns=["bus0", "bus1"]),
-                pd.DataFrame(data=bridges, columns=["bus1", "bus0"]),
-            ]
-        )
-        .set_index(["bus0", "bus1"])
-        .index
-    )
-    sn_branches = sn.branches().reset_index().set_index(["bus0", "bus1"])
-    return (
-        sn_branches.loc[
-            bus0_bus1.intersection(sn_branches.index), ["component", "name"]
-        ]
-        .set_index(["component", "name"])
-        .index
-    )
-
-
 @deprecated_common_kwargs
 def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
     """Batched linear power flow with numpy.dot for several snapshots."""
@@ -950,6 +926,32 @@ class SubNetworkPowerFlowMixin:
     buses_i: pd.Index
     shunt_impedances_i: pd.Index
 
+    
+    def find_system_splitting_contingencies(self) -> pd.Index:
+        """Find system splitting contingencies in a sub-network."""
+        bridges = list(nx.bridges(self.graph()))
+
+        # output bridges is in terms of bus tuples, convert back to lines/transformers
+        bus0_bus1 = pd.concat(
+                [
+                    pd.DataFrame(data=bridges, columns=["bus0", "bus1"]),
+                    pd.DataFrame(data=bridges, columns=["bus1", "bus0"]),
+                ]
+            )\
+            .set_index(["bus0", "bus1"])\
+            .index
+        sn_branches = self.branches()[['bus0', 'bus1']]
+        branches_index_names = sn_branches.index.names # usually ['component', 'name']
+        sn_branches = sn_branches.reset_index().set_index(["bus0", "bus1"])
+
+        return (
+            sn_branches.loc[
+                bus0_bus1.intersection(sn_branches.index), branches_index_names
+            ]\
+            .set_index(branches_index_names)\
+            .index
+        )
+
     def calculate_BODF(self, skip_pre: bool = False) -> None:
         """Calculate the Branch Outage Distribution Factor (BODF) for sub_network.
 
@@ -991,6 +993,19 @@ class SubNetworkPowerFlowMixin:
         # make sure the flow on the branch itself is zero
         np.fill_diagonal(self.BODF, -1)
 
+        # format as pd DataFrame
+        self.BODF_df = pd.DataFrame(
+            self.BODF,
+            index=self.branches_i(),
+            columns=self.branches_i(),
+        )
+
+        # the behavior for network splitting contingencies is undefined and numerically unstable
+        system_splitting_contingencies = self.find_system_splitting_contingencies()
+        self.BODF_df.loc[:, system_splitting_contingencies] = np.inf
+        self.BODF = self.BODF_df.values
+
+
     def calculate_PTDF(self, skip_pre: bool = False) -> None:
         """Calculate the Power Transfer Distribution Factor (PTDF) for sub_network.
 
@@ -1028,6 +1043,12 @@ class SubNetworkPowerFlowMixin:
         B_inverse = np.vstack((np.zeros(n_pvpq + 1), B_inverse))
 
         self.PTDF = self.H * B_inverse
+
+        self.PTDF_df = pd.DataFrame(
+            self.PTDF,
+            index=self.branches_i(),
+            columns=self.buses_o,
+        )
 
     def calculate_B_H(self, skip_pre: bool = False) -> None:
         """Calculate B and H matrices for AC or DC sub-networks."""
