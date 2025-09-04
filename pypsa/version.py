@@ -31,7 +31,7 @@ def check_pypsa_version(version_string: str) -> None:
 __version__ = version("pypsa")
 
 # e.g. "0.17.0"
-match = re.match(r"(\d+\.\d+(?:\.\d+)?(?:[a-z]+\d*)?)", __version__)
+match = re.match(r"(\d+\.\d+(\.\d+)?)", __version__)
 if not match:
     msg = f"Could not determine release_version of pypsa: {__version__}"
     raise ValueError(msg)
