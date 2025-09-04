@@ -31,7 +31,7 @@ class LineTypes(Components):
     'LineType' Components
     ---------------------
     Attached to PyPSA Network 'AC-DC-Meshed'
-    Components: 36
+    Components: 59
 
     """
 
