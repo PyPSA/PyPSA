@@ -4,14 +4,10 @@ Examples
 --------
 >>> pypsa.__version__ # doctest: +SKIP
 '0.34.0.post1.dev44+gf5e415b6'
->>> pypsa.__version_semver__ # doctest: +SKIP
+>>> pypsa.__version_base__ # doctest: +SKIP
 '0.34.0'
->>> pypsa.__version_short__ # doctest: +SKIP
+>>> pypsa.__version_major_minor__ # doctest: +SKIP
 '0.34'
->>> pypsa.__version_semver_tuple__ # doctest: +SKIP
-(0, 34, 0)
->>> pypsa.__version_short_tuple__ # doctest: +SKIP
-(0, 34)
 
 """
 
@@ -40,17 +36,15 @@ if not match:
     msg = f"Could not determine release_version of pypsa: {__version__}"
     raise ValueError(msg)
 
-__version_semver__ = match.group(0)
-__version_semver_tuple__ = tuple(map(int, __version_semver__.split(".")))
+__version_base__ = match.group(0)
 # e.g. "0.17"
 match = re.match(r"(\d+\.\d+)", __version__)
 
 if not match:
-    msg = f"Could not determine release_version_short of pypsa: {__version__}"
+    msg = f"Could not determine major_minor version of pypsa: {__version__}"
     raise ValueError(msg)
 
-__version_short__ = match.group(1)
-__version_short_tuple__ = tuple(map(int, __version_short__.split(".")))
+__version_major_minor__ = match.group(1)
 
 # Check pypsa version
 check_pypsa_version(__version__)

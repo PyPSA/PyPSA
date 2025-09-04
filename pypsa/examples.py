@@ -7,8 +7,10 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
+from packaging.version import parse as parse_version
+
 from pypsa.networks import Network
-from pypsa.version import __version_semver__, __version_semver_tuple__
+from pypsa.version import __version_base__
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +18,11 @@ logger = logging.getLogger(__name__)
 def _repo_url(
     master: bool = False, url: str = "https://github.com/PyPSA/PyPSA/raw/"
 ) -> str:
-    if master or __version_semver_tuple__ < (0, 35):  # Feature was added in 0.35.0
+    if master or parse_version(__version_base__) < parse_version(
+        "0.35.0"
+    ):  # Feature was added in 0.35.0
         return f"{url}master/"
-    return f"{url}v{__version_semver__}/"
+    return f"{url}v{__version_base__}/"
 
 
 def _check_url_availability(url: str) -> bool:
