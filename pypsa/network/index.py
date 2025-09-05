@@ -771,7 +771,7 @@ class NetworkIndexMixin(_NetworkABC):
         ----------
         alpha : float
             Confidence level in (0, 1). CVaR averages losses over the worst
-            (1 - alpha) probability mass (the "tail"). For "worst 10%",
+            (1 - alpha) probability mass (the tail). For worst 10% tail,
             set alpha = 0.9 so that 1 - alpha = 0.1. Typical choices
             are alpha in {0.90, 0.95, 0.99}. Higher alpha focuses on
             rarer, more extreme tails; lower alpha considers a broader tail.
@@ -786,8 +786,6 @@ class NetworkIndexMixin(_NetworkABC):
         ------
         ValueError
             If alpha is not in (0,1), or if omega is not in [0,1].
-        RuntimeError
-            If the network does not have scenarios defined.
 
         Examples
         --------
@@ -795,22 +793,7 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.set_scenarios({"low": 0.3, "medium": 0.4, "high": 0.3})
         >>> n.set_risk_preference(alpha=0.95, omega=0.1)  # 5% tail CVaR (1 - 0.05)
 
-        Notes
-        -----
-        This method must be called after `set_scenarios()` as CVaR formulation
-        requires stochastic scenarios to be defined. The CVaR formulation will
-        add auxiliary variables and constraints to the optimization model during
-        the model building phase.
-
         """
-        # Validate that scenarios are defined
-        if not self.has_scenarios:
-            msg = (
-                "Risk preferences can only be set for stochastic networks. "
-                "Please call set_scenarios() first to define scenarios."
-            )
-            raise RuntimeError(msg)
-
         # Validate parameters
         if not (0 < alpha < 1):
             msg = f"Alpha must be between 0 and 1, got {alpha}"

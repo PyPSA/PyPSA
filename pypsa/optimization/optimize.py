@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -321,6 +322,15 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             expected_capex + (1 - float(omega)) * expected_opex + float(omega) * cvar
         )
     else:
+        # Warn if risk preference was set but there are no scenarios
+        if getattr(n, "has_risk_preference", False) and not getattr(
+            n, "has_scenarios", False
+        ):
+            warnings.warn(
+                "Risk preference is set but no scenarios are defined; ignoring risk preferences.",
+                UserWarning,
+                stacklevel=2,
+            )
         # Deterministic or no risk: CAPEX + OPEX
         obj_expr = expected_capex + expected_opex
 
