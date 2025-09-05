@@ -234,3 +234,33 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)
     coords = active.coords
     n.model.add_variables(0, coords=coords, name=f"{c.name}-loss", mask=active)
+
+
+def define_cvar_variables(n: Network) -> None:
+    """Define auxiliary variables for CVaR risk formulation.
+
+    Adds the following variables when stochastic optimization with CVaR is enabled:
+    - CVaR-a(scenario): auxiliary variable per scenario
+    - CVaR-theta: VaR level (scalar)
+    - CVaR: Conditional Value at Risk (scalar)
+
+    Requirements
+    ------------
+    - n.has_scenarios must be True
+    - n.has_risk_preference must be True
+    """
+    if not getattr(n, "has_scenarios", False):
+        return
+    if not getattr(n, "has_risk_preference", False):
+        return
+
+    # Per-scenario auxiliary variables a[s]
+    scenarios = n.scenarios
+    if scenarios is None or len(scenarios) == 0:
+        return
+
+    # Non-negative excess loss variables per scenario
+    n.model.add_variables(lower=0, coords=[scenarios], name="CVaR-a")
+    # Scalar theta (VaR) and CVaR
+    n.model.add_variables(name="CVaR-theta")
+    n.model.add_variables(name="CVaR")
