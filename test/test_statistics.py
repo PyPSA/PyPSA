@@ -312,3 +312,21 @@ def test_system_cost(ac_dc_network_r):
     opex = n.statistics.opex().sum()
     system_cost = n.statistics.system_cost().sum()
     assert system_cost == capex + opex
+
+
+def test_prices(ac_dc_network_r):
+    n = ac_dc_network_r
+    prices = n.statistics.prices()
+    assert not prices.empty
+    assert isinstance(prices, pd.Series)
+
+    time_weighted = n.statistics.prices(weighting="time")
+    load_weighted = n.statistics.prices(weighting="load")
+    assert not time_weighted.equals(load_weighted)
+
+    ac_prices = n.statistics.prices(bus_carrier="AC")
+    assert len(ac_prices) == 6
+
+    aggregate_buses = n.statistics.prices(aggregate_buses=True)
+    answer = pd.Index(["AC", "DC"])
+    assert aggregate_buses.index.equals(answer)
