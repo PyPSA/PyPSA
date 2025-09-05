@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import warnings
 from functools import wraps
@@ -15,6 +16,8 @@ from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
+from shapely.geometry import LineString
+from shapely.wkt import loads
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
 from pypsa.constants import DEFAULT_EPSG
@@ -24,24 +27,22 @@ from pypsa.geo import (
 )
 from pypsa.plot.maps.common import apply_layouter
 
-cartopy_present = True
-try:
-    import cartopy
-    import cartopy.mpl.geoaxes
-    from cartopy.mpl.geoaxes import GeoAxesSubplot
-except (ImportError, AssertionError):
-    cartopy_present = False
-    GeoAxesSubplot = Any
+
+def _is_cartopy_available() -> bool:
+    """Check if cartopy is available at runtime."""
+    return importlib.util.find_spec("cartopy") is not None
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     import networkx as nx
+    from cartopy.mpl.geoaxes import GeoAxesSubplot
     from matplotlib.legend import Legend
 
     from pypsa.components.components import Components
     from pypsa.networks import Network
+
 
 logger = logging.getLogger(__name__)
 
@@ -191,13 +192,16 @@ class MapPlotter:
         value: Axes | GeoAxesSubplot | None,
     ) -> None:
         """Set the axis for plotting."""
-        if not cartopy_present:
-            axis_type = (Axes,)
-        else:
-            axis_type = (Axes, GeoAxesSubplot)  # type: ignore
-        if value is not None and not isinstance(value, axis_type):
-            msg = "ax must be either matplotlib Axes or GeoAxesSubplot"
-            raise ValueError(msg)
+        if value is not None:
+            if _is_cartopy_available():
+                from cartopy.mpl.geoaxes import GeoAxesSubplot  # noqa: PLC0415
+
+                axis_type: tuple[type, ...] = (Axes, GeoAxesSubplot)
+            else:
+                axis_type = (Axes,)
+            if not isinstance(value, axis_type):
+                msg = "ax must be either matplotlib Axes or GeoAxesSubplot"
+                raise ValueError(msg)
         self._ax = value
 
     @property
@@ -321,7 +325,7 @@ class MapPlotter:
             boundaries = self.boundaries
 
         # Check if geomap is requested but cartopy not available
-        if geomap and not cartopy_present:
+        if geomap and not _is_cartopy_available():
             logger.warning(
                 "Cartopy is not available. Falling back to non-geographic plotting."
             )
@@ -329,6 +333,9 @@ class MapPlotter:
 
         # Set up plot (either cartopy or matplotlib)
         if geomap:
+            import cartopy.crs  # noqa: PLC0415
+            from cartopy.mpl.geoaxes import GeoAxesSubplot  # noqa: PLC0415
+
             network_projection = cartopy.crs.Projection(self.n.crs)
             if projection is None:
                 projection = network_projection
@@ -398,9 +405,12 @@ class MapPlotter:
 
         """
         """Add geographic features to the map using cartopy."""
-        if not cartopy_present:
+        if not _is_cartopy_available():
             logger.warning("Cartopy is not available. Cannot add geographic features.")
             return
+
+        import cartopy.feature  # noqa: PLC0415
+        from cartopy.mpl.geoaxes import GeoAxesSubplot  # noqa: PLC0415
 
         if not isinstance(self.ax, GeoAxesSubplot):
             msg = "The axis must be a GeoAxesSubplot to add geographic features."
@@ -667,9 +677,6 @@ class MapPlotter:
                 )
             ).transpose(2, 0, 1)
         else:
-            from shapely.geometry import LineString  # noqa: PLC0415
-            from shapely.wkt import loads  # noqa: PLC0415
-
             linestrings = geometry[lambda ds: ds != ""].map(loads)
             if not all(isinstance(ls, LineString) for ls in linestrings):
                 msg = "The WKT-encoded geometry in the 'geometry' column must be "
@@ -1110,7 +1117,7 @@ class MapPlotter:
             raise ValueError(msg)
 
         # Check for ValueErrors
-        if geomap and not cartopy_present:
+        if geomap and not _is_cartopy_available():
             logger.warning("Cartopy needs to be installed to use `geomap=True`.")
             geomap = False
 
