@@ -103,3 +103,13 @@ def test_assign_duals_noname(ac_dc_network):
     dual_model_co2 = float(n.model.constraints["GlobalConstraint-co2_limit"].dual)
     dual_network_co2 = float(n.c.global_constraints.static.mu.loc["co2_limit"])
     assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
+
+
+def test_assign_custom_variable(ac_dc_network):
+    """Test that adding custom variables does not raise an error when optimizing."""
+    n = ac_dc_network
+    m = n.optimize.create_model()
+
+    m.add_variables(name="custom_var")
+
+    n.optimize.solve_model()

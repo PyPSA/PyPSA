@@ -59,6 +59,9 @@ Bug Fixes
   resulting in false update information being logged.
   (https://github.com/PyPSA/PyPSA/pull/1300)
 
+* Fix bug when using ``solver_model`` after adding custom variable to linopy model.
+  (https://github.com/PyPSA/PyPSA/issues/1351)
+
 `v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
 =======================================================================================
 Bug Fixes
