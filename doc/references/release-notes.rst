@@ -37,8 +37,14 @@ Features
 
 * Add additional standard line types from pandapower.
 
+
 * The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
   to get the previous behavior of returning component names which have been added.
+
+* Refactored version attributes: ``__version_semver__`` → ``__version_base__``, 
+  ``__version_short__`` → ``__version_major_minor__``. Removed tuple versions.
+  Old names raise ``DeprecationWarning``.
+
 
 Bug Fixes
 ---------
