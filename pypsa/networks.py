@@ -863,7 +863,8 @@ class Network(
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:
-            i = n.c[c].static.index
+            c = n.c[c]
+            i = c.static.index
             try:
                 ndynamic = n.c[c.name].dynamic
                 dynamic = c.dynamic

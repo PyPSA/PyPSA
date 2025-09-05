@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from collections.abc import Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
@@ -963,13 +964,20 @@ class SubNetworkPowerFlowMixin:
     incidence_matrix: Callable
     branches: Callable
 
-    components: ComponentsStore
-    c: ComponentsStore
-
     generators: pd.DataFrame
     buses: pd.DataFrame
     buses_i: pd.Index
     shunt_impedances_i: pd.Index
+
+    @property
+    @abstractmethod
+    def components(self) -> ComponentsStore:
+        """Read only placeholder."""
+
+    @property
+    @abstractmethod
+    def c(self) -> ComponentsStore:
+        """Read only placeholder."""
 
     def calculate_BODF(self, skip_pre: bool = False) -> None:
         """Calculate the Branch Outage Distribution Factor (BODF) for sub_network.

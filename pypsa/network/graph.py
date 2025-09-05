@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from collections import OrderedDict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
@@ -12,7 +12,7 @@ import pandas as pd
 import scipy as sp
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable
+    from collections.abc import Collection, Iterable
 
 
 class OrderedGraph(nx.MultiGraph):
@@ -30,9 +30,12 @@ class NetworkGraphMixin:
     All attributes and methods can be used within any Network/SubNetwork instance.
     """
 
-    # Type Hints
-    iterate_components: Callable
-    has_scenarios: bool
+    c: Any
+    components: Any
+    iterate_components: Any
+    passive_branches: pd.DataFrame
+    has_scenarios: Any
+    scenarios: pd.DatFrame
 
     def graph(
         self,
