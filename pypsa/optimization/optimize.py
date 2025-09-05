@@ -23,7 +23,6 @@ from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
-    define_cvar_constraints,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -298,7 +297,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             terms = []
             for s, p in n.scenario_weightings["weight"].items():
                 selected = [e.sel(scenario=s) for e in exprs]
-                merged = merge(selected)
+                # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
+                merged = sum(selected) if is_quadratic else merge(selected)
                 terms.append(merged * p)
             return sum(terms) if is_quadratic else merge(terms)
         return sum(exprs) if is_quadratic else merge(exprs)
@@ -306,17 +306,62 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     expected_capex = _expected(capex_terms)
     expected_opex = _expected(opex_terms)
 
-    # CVaR augmentation if enabled
+    """
+    CVaR augmentation if enabled
+    Define auxiliary CVaR constraints for stochastic risk-averse optimization
+       - For each scenario s: a(s) >= OPEX(s) - theta
+       - Theta + 1/(1-alpha) * sum_s p_s * a(s) <= CVaR
+    """
     if getattr(n, "has_scenarios", False) and getattr(n, "has_risk_preference", False):
         rp = n.risk_preference
         if rp is None:
             _msg_rp = "Risk preference must be set when has_risk_preference is True"
             raise RuntimeError(_msg_rp)
+
+        alpha = rp.get("alpha")
         omega = rp.get("omega")
+
+        if not (isinstance(alpha, int | float) and 0 < float(alpha) < 1):
+            _msg_alpha = f"alpha must be a number between 0 and 1, got {alpha}"
+            raise ValueError(_msg_alpha)
         if not (isinstance(omega, int | float) and 0 <= float(omega) <= 1):
             _msg_omega = f"omega must be a number between 0 and 1, got {omega}"
             raise ValueError(_msg_omega)
+
+        # Guard: quadratic OPEX would make CVaR constraints quadratic
+        if is_quadratic:
+            msg_q = (
+                "CVaR with quadratic operational costs yields quadratic constraints. "
+                "So a(s) >= OPEX(s) - theta becomes a quadratic inequality. "
+                "Remove/approximate quadratic costs (e.g. set 'marginal_cost_quadratic=0' "
+                "or use a piecewise-linear approximation)."
+            )
+            raise RuntimeError(msg_q)
+
+        # Create per-scenario OPEX expressions to use in constraints
+        scen_opex_exprs: dict[Any, Any] = {}
+        for s in n.scenarios:
+            scen_selected = [e.sel(scenario=s) for e in opex_terms]
+            scen_opex_exprs[s] = (
+                sum(scen_selected) if is_quadratic else merge(scen_selected)
+            )
+
+        # Retrieve CVaR auxiliary variables
+        a = m["CVaR-a"]
+        theta = m["CVaR-theta"]
         cvar = m["CVaR"]
+
+        for s in n.scenarios:
+            lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
+            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+
+        inv_tail = 1.0 / (1.0 - float(alpha))
+        weighted_a = None
+        for s, p in n.scenario_weightings["weight"].items():
+            term = a.sel(scenario=s) * float(p)
+            weighted_a = term if weighted_a is None else weighted_a + term
+        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
+
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
         obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
     else:
@@ -580,8 +625,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
-
-        define_cvar_constraints(n, sns)
 
         define_objective(n, sns)
 
