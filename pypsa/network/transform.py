@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa._options import options
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
@@ -41,7 +42,7 @@ class NetworkTransformMixin(_NetworkABC):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
-        return_names: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
     ) -> pd.Index | None:
         """Add components to the network.
@@ -76,8 +77,10 @@ class NetworkTransformMixin(_NetworkABC):
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
             ignored.
-        return_names : bool, default False
-            If True, return the names of the components added. If False, return None.
+        return_names : bool | None, default=None
+            Whether to return the names of the components added. Defaults to module wide
+            option (default: False). See `pypsa.options.params.add.describe()` for more
+            information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             or pandas.DataFrame for time-varying
@@ -131,6 +134,10 @@ class NetworkTransformMixin(_NetworkABC):
 
 
         """
+        # Use option default if return_names is None
+        if return_names is None:
+            return_names = options.params.add.return_names
+
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)

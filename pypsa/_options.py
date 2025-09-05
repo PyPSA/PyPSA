@@ -466,3 +466,10 @@ options._add_option(
     5,
     "Default value for the 'round' parameter in statistics module.",
 )
+options._add_option(
+    "params.add.return_names",
+    False,
+    "Default value for the 'return_names' parameter in Network.add method. "
+    "If True, the add method returns the names of added components. "
+    "If False, it returns None.",
+)

@@ -40,7 +40,7 @@ class ComponentsTransformMixin:
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
-        return_names: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
     ) -> pd.Index | None:
         """Add new components.
@@ -72,8 +72,10 @@ class ComponentsTransformMixin:
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
             ignored.
-        return_names : bool, default False
-            If True, return the names of the new components. If False, return None.
+        return_names : bool | None, default=None
+            Whether to return the names of the new components. Defaults to module wide
+            option (default: False). See `pypsa.options.params.add.describe()` for more
+            information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying

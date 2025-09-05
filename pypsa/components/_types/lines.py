@@ -80,7 +80,7 @@ class Lines(Components):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
-        return_names: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
     ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
