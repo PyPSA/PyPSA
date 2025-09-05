@@ -339,11 +339,11 @@ class NetworkTransformMixin(_NetworkABC):
         names = names.astype(str) + suffix
 
         # Drop from static components
-        cls_static = self.static(c.name)
+        cls_static = self.c[c.name].static
         cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
-        dynamic = self.dynamic(c.name)
+        dynamic = self.c[c.name].dynamic
         for df in dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
@@ -388,8 +388,11 @@ class NetworkTransformMixin(_NetworkABC):
         to_iterate = other.all_components - to_skip
         # ensure buses are merged first
         to_iterate_list = ["Bus"] + sorted(to_iterate - {"Bus"})
-        for c in other.iterate_components(to_iterate_list):
-            if not c.static.index.intersection(self.static(c.name).index).empty:
+        for c in other.components:
+            if c.name not in to_iterate_list:
+                continue
+            # for c in other.iterate_components(to_iterate_list):
+            if not c.static.index.intersection(self.c[c.name].static.index).empty:
                 msg = f"Component {c.name} has overlapping indices, cannot merge networks."
                 raise ValueError(msg)
         if with_time:
@@ -423,7 +426,9 @@ class NetworkTransformMixin(_NetworkABC):
                 other.srid,
                 new.srid,
             )
-        for c in other.iterate_components(to_iterate_list):
+        for c in other.components:
+            if c.name not in to_iterate_list:
+                continue
             new.add(c.name, c.static.index, **c.static)
             if with_time:
                 for k, v in c.dynamic.items():

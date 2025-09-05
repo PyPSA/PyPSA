@@ -1,5 +1,6 @@
 import copy
 import sys
+import warnings
 
 import linopy
 import numpy as np
@@ -598,7 +599,11 @@ def test_api_new_components_api(component_name, new_components_api):
     """
     Test the API of the components module.
     """
-
+    warnings.filterwarnings(
+        "ignore",
+        message=".*is deprecated as of 1.0 and will be .*",
+        category=DeprecationWarning,
+    )
     with pypsa.option_context("api.new_components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
         if not new_components_api:

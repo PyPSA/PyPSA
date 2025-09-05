@@ -65,7 +65,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
         elif isinstance(by, pd.Series):
             grouper = by.to_frame()
         elif groupby is False:
-            grouper = pd.DataFrame(index=n.df(c).index)
+            grouper = pd.DataFrame(index=n.c[c].static.index)
         else:
             grouper = by
 
@@ -190,8 +190,8 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             if include_non_extendable:
                 query = f"~{nominal_attrs[c]}_extendable"
-                capacity = capacity + n.df(c).query(query)["p_nom"]
-            costs = n.df(c)[cost_attribute][capacity.indexes["name"]]
+                capacity = capacity + n.c[c].static.query(query)["p_nom"]
+            costs = n.c[c].static[cost_attribute][capacity.indexes["name"]]
             return capacity * costs
 
         return self._aggregate_components(
@@ -242,7 +242,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             capacity = m.variables[f"{c}-{nominal_attrs[c]}"]
             if include_non_extendable:
                 query = f"~{attr}_extendable"
-                capacity = capacity + n.df(c).query(query)[attr]
+                capacity = capacity + n.c[c].static.query(query)[attr]
             efficiency = port_efficiency(n, c, port=port)[capacity.indexes["name"]]
             if not at_port:
                 efficiency = abs(efficiency)
@@ -425,7 +425,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, c, port=port, dynamic=True)
             if isinstance(efficiency, pd.DataFrame):
                 efficiency = efficiency.loc[sns]
-            sign = n.df(c).get("sign", 1.0)
+            sign = n.c[c].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators.loc[sns]
             coeffs = DataArray(efficiency * sign)
             if kind == "supply":
@@ -564,7 +564,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
             attr = nominal_attrs[c]
             capacity = (
                 n.model.variables[f"{c}-{attr}"]
-                + n.df(c).query(f"~{attr}_extendable")[attr]
+                + n.c[c].static.query(f"~{attr}_extendable")[attr]
             )
             idx = capacity.indexes["name"]
             operation = self._get_operational_variable(c).loc[:, idx]

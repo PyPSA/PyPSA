@@ -98,12 +98,16 @@ include = ["pypsa"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
-    # "error::FutureWarning",      # Raise all FutureWarnings as errors # TODO Add again
+    # Raise warnings as errors
+    "error::DeprecationWarning", 
+    # "error::FutureWarning", 
     # "error:RuntimeWarning",
     # "error:UserWarning",
+    
     "ignore::matplotlib._api.deprecation.MatplotlibDeprecationWarning:pydev",
     # See https://github.com/microsoft/debugpy/issues/1623
+    # "ignore:Using merge without specifying the class is deprecated:DeprecationWarning:linopy.*",
+    "ignore::DeprecationWarning:linopy.*",
 ]
 markers = [
     "mpl_image_compare",

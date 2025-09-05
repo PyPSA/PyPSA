@@ -1099,12 +1099,28 @@ class NetworkIOMixin(_NetworkABC):
                 for attr in dir(self)
                 if (
                     not attr.startswith("__")
+                    and attr
+                    not in {
+                        "component_attrs",
+                        "df",
+                        "pnl",
+                        "static",
+                        "dynamic",
+                        "iterate_components",
+                    }  # Skip deprecated methods
                     and isinstance(getattr(self, attr), allowed_types)
                 )
             }
         _attrs = {}
         for attr in dir(self):
-            if not attr.startswith("__"):
+            if not attr.startswith("__") and attr not in {
+                "component_attrs",
+                "df",
+                "pnl",
+                "static",
+                "dynamic",
+                "iterate_components",
+            }:
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore",
@@ -1153,8 +1169,8 @@ class NetworkIOMixin(_NetworkABC):
             list_name = self.components[component]["list_name"]
             attrs = self.components[component]["attrs"]
 
-            static = self.static(component)
-            dynamic = self.dynamic(component)
+            static = self.c[component].static
+            dynamic = self.c[component].dynamic
 
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
@@ -1770,7 +1786,7 @@ class NetworkIOMixin(_NetworkABC):
                 )
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-        old_static = self.static(cls_name)
+        old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
 
         # Handle duplicates
@@ -1806,7 +1822,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # Now deal with time-dependent properties
 
-        dynamic = self.dynamic(cls_name)
+        dynamic = self.c[cls_name].dynamic
 
         for k in non_static_attrs_in_df:
             # If reading in outputs, fill the outputs
@@ -1843,8 +1859,8 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing time series.
 
         """
-        static = self.static(cls_name)
-        dynamic = self.dynamic(cls_name)
+        static = self.c[cls_name].static
+        dynamic = self.c[cls_name].dynamic
         list_name = self.components[cls_name]["list_name"]
 
         if not overwrite:

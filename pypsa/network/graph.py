@@ -75,7 +75,7 @@ class NetworkGraphMixin:
         elif isinstance(n, SubNetwork):
             if branch_components is None:
                 branch_components = n.n.passive_branch_components
-            buses_i = n.buses_i()
+            buses_i = n.c.buses.static.index
         else:
             msg = "graph must be called with a Network or a SubNetwork"
             raise TypeError(msg)
@@ -108,7 +108,14 @@ class NetworkGraphMixin:
                             data["weight"] = inf_weight
                     yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
 
-        graph.add_edges_from(gen_edges())
+        with warnings.catch_warnings():
+            # TODO Resolve
+            warnings.filterwarnings(
+                "default",
+                message=".*iterate_components is deprecated.*",
+                category=DeprecationWarning,
+            )
+            graph.add_edges_from(gen_edges())
 
         return graph
 
@@ -160,7 +167,7 @@ class NetworkGraphMixin:
             if branch_components is None:
                 branch_components = n.n.passive_branch_components
             if busorder is None:
-                busorder = n.buses_i()
+                busorder = n.c.buses.static.index
         else:
             msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
@@ -173,7 +180,9 @@ class NetworkGraphMixin:
         adjacency_df = pd.DataFrame(0, index=busorder, columns=busorder, dtype=dtype)
 
         # Build adjacency matrix component by component
-        for c in n.iterate_components(branch_components):
+        for c in n.components:
+            if c.name not in branch_components:
+                continue
             active = c.get_active_assets(investment_period)
             sel = c.static[active].index.unique("name")
             static = c.static.reindex(sel, level="name")
@@ -252,7 +261,7 @@ class NetworkGraphMixin:
             if branch_components is None:
                 branch_components = self.n.passive_branch_components
             if busorder is None:
-                busorder = self.buses_i()
+                busorder = self.c.buses.static.index
         else:
             msg = "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
             raise TypeError(msg)
@@ -261,7 +270,9 @@ class NetworkGraphMixin:
         no_branches = 0
         bus0_inds = []
         bus1_inds = []
-        for c in self.iterate_components(branch_components):
+        for c in self.components:
+            if c.name not in branch_components:
+                continue
             sel = c.static.query("active").index
             no_branches += len(c.static.loc[sel])
             bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))
