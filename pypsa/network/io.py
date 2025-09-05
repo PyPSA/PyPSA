@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import validators
 import xarray as xr
+from packaging.version import parse as parse_version
 from pandas.errors import ParserError
 from pyproj import CRS
 
@@ -25,7 +26,7 @@ from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.version import __version_semver__, __version_semver_tuple__
+from pypsa.version import __version_base__
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -1280,11 +1281,9 @@ class NetworkIOMixin(_NetworkABC):
                 self.name = name
 
         if "pypsa_version" in attrs:
-            pypsa_version_tuple = tuple(
-                int(v) for v in attrs.pop("pypsa_version", "0.0.0").split(".")
-            )
+            pypsa_version = parse_version(attrs.pop("pypsa_version", "0.0.0"))
         else:
-            pypsa_version_tuple = (0, 0, 0)
+            pypsa_version = parse_version("0.0.0")
 
         for attr, val in attrs.items():
             if attr in ["model", "objective", "objective_constant"]:
@@ -1293,22 +1292,22 @@ class NetworkIOMixin(_NetworkABC):
                 setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version_tuple < __version_semver_tuple__:
-            pypsa_version_str = ".".join(map(str, pypsa_version_tuple))
+        if pypsa_version < parse_version(__version_base__):
+            pypsa_version_str = str(pypsa_version)
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
                 "to prepare your network for import.",
                 pypsa_version_str,
-                __version_semver__,
+                __version_base__,
             )
 
         # Check for newer PyPSA version available
-        update_msg = _check_for_update(__version_semver_tuple__, "PyPSA", "pypsa")
+        update_msg = _check_for_update(__version_base__, "PyPSA", "pypsa")
         if update_msg:
             logger.info(update_msg)
 
-        if pypsa_version_tuple < (0, 18, 0):
+        if pypsa_version < parse_version("0.18.0"):
             self._multi_invest = 0
 
         # if there is snapshots.csv, read in snapshot data
