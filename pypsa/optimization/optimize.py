@@ -318,15 +318,22 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             _msg_rp = "Risk preference must be set when has_risk_preference is True"
             raise RuntimeError(_msg_rp)
 
-        alpha = rp.get("alpha")
-        omega = rp.get("omega")
+        try:
+            alpha = float(rp.get("alpha"))
+            omega = float(rp.get("omega"))
+        except Exception:
+            _msg = (
+                f"alpha and omega must be numbers between 0 and 1, "
+                f"got alpha={rp.get('alpha')}, omega={rp.get('omega')}"
+            )
+            raise ValueError(_msg) from None
 
-        if not (isinstance(alpha, int | float) and 0 < float(alpha) < 1):
-            _msg_alpha = f"alpha must be a number between 0 and 1, got {alpha}"
-            raise ValueError(_msg_alpha)
-        if not (isinstance(omega, int | float) and 0 <= float(omega) <= 1):
-            _msg_omega = f"omega must be a number between 0 and 1, got {omega}"
-            raise ValueError(_msg_omega)
+        if not (0.0 < alpha < 1.0):
+            _msg = f"alpha must be a number between 0 and 1, got {alpha}"
+            raise ValueError(_msg)
+        if not (0.0 <= omega <= 1.0):
+            _msg = f"omega must be a number between 0 and 1, got {omega}"
+            raise ValueError(_msg)
 
         # Guard: quadratic OPEX would make CVaR constraints quadratic
         if is_quadratic:
@@ -355,7 +362,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
             m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
 
-        inv_tail = 1.0 / (1.0 - float(alpha))
+        inv_tail = 1.0 / (1.0 - alpha)
         weighted_a = None
         for s, p in n.scenario_weightings["weight"].items():
             term = a.sel(scenario=s) * float(p)
