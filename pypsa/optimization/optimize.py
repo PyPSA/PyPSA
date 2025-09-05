@@ -806,9 +806,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         ca.extend([("Link", f"p{i}", f"bus{i}") for i in n.c.links.additional_ports])
 
         def sign(c: str) -> int:
-            return (
-                n.c[c].static.sign if "sign" in n.c[c].static else -1
-            )  # sign for 'Link'
+            return n.c[c].static.get("sign", -1)  # -1 is the sign for 'Link'
 
         n.c.buses.dynamic.p = (
             pd.concat(
@@ -859,9 +857,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """
         n = self._n
         for c, attr in nominal_attrs.items():
-            ext_i = n.c[c].extendables.difference(n.c[c].inactive_assets)
-            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
-            n.static(c)[attr + "_extendable"] = False
+            c = n.components[c]
+            ext_i = c.extendables.difference(c.inactive_assets)
+            c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
+            c.static[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """Fix dispatch of all assets to optimized values.
@@ -870,9 +869,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         starting point for power flow calculation (`Network.pf`).
         """
         for c in self._n.one_port_components:
-            self._n.dynamic(c).p_set = self._n.dynamic(c).p
+            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p
         for c in self._n.controllable_branch_components:
-            self._n.dynamic(c).p_set = self._n.dynamic(c).p0
+            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p0
 
     def add_load_shedding(
         self,

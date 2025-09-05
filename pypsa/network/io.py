@@ -1090,7 +1090,7 @@ class NetworkIOMixin(_NetworkABC):
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore",
-                message=".*the API for how to access components data has.*",
+                message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
                 category=DeprecationWarning,
             )
 
@@ -1124,7 +1124,7 @@ class NetworkIOMixin(_NetworkABC):
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore",
-                        message=".*the API for how to access components data has.*",
+                        message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
                         category=DeprecationWarning,
                     )
                     value = getattr(self, attr)
@@ -1166,11 +1166,12 @@ class NetworkIOMixin(_NetworkABC):
 
         exported_components = []
         for component in self.all_components:
-            list_name = self.components[component]["list_name"]
-            attrs = self.components[component]["attrs"]
+            c = self.components[component]
+            list_name = c["list_name"]
+            attrs = c["attrs"]
 
-            static = self.c[component].static
-            dynamic = self.c[component].dynamic
+            static = c.static
+            dynamic = c.dynamic
 
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
@@ -1179,13 +1180,9 @@ class NetworkIOMixin(_NetworkABC):
 
             if not export_standard_types and component in self.standard_type_components:
                 if isinstance(static.index, pd.MultiIndex):
-                    static = static.drop(
-                        self.components[component]["standard_types"].index, level="name"
-                    )
+                    static = static.drop(c["standard_types"].index, level="name")
                 else:
-                    static = static.drop(
-                        self.components[component]["standard_types"].index
-                    )
+                    static = static.drop(c["standard_types"].index)
 
             col_export = []
             for col in static.columns:
@@ -2405,11 +2402,13 @@ class NetworkIOMixin(_NetworkABC):
         for i in to_replace.index:
             self.remove("Bus", i)
 
-        for component in self.iterate_components(
-            {"Load", "Generator", "ShuntImpedance"}
-        ):
+        for component in self.components[{"Load", "Generator", "ShuntImpedance"}]:
+            if component.empty:
+                continue
             component.static.replace({"bus": to_replace}, inplace=True)
 
-        for component in self.iterate_components({"Line", "Transformer"}):
+        for component in self.components[{"Line", "Transformer"}]:
+            if component.empty:
+                continue
             component.static.replace({"bus0": to_replace}, inplace=True)
             component.static.replace({"bus1": to_replace}, inplace=True)

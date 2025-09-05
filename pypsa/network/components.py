@@ -829,7 +829,7 @@ class NetworkComponentsMixin(_NetworkABC):
             Static data of the component.
 
         """
-        return self.static(component_name)
+        return self.components[component_name].static
 
     @deprecated_in_next_major(
         details="Use `self.components.<component>.static` instead."
@@ -889,7 +889,7 @@ class NetworkComponentsMixin(_NetworkABC):
             Dynamic data of the component.
 
         """
-        return self.dynamic(component_name)
+        return self.components[component_name].dynamic
 
     @deprecated_in_next_major(
         details="Use `self.components.<component>.dynamic` instead.",

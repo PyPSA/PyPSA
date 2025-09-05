@@ -607,17 +607,41 @@ def test_api_new_components_api(component_name, new_components_api):
     with pypsa.option_context("api.new_components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
         if not new_components_api:
-            assert n.static(component_name) is n.c[component_name].static
-            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
 
             setattr(n, component_name, "test")
-            assert n.static(component_name) == "test"
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) == "test"
             setattr(n, f"{component_name}_t", "test")
-            assert n.dynamic(component_name) == "test"
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) == "test"
         else:
-            assert n.static(component_name) is n.c[component_name].static
-            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
             with pytest.raises(AttributeError):
                 setattr(n, component_name, "test")
-            with pytest.raises(DeprecationWarning):
+            with pytest.warns(DeprecationWarning, match="cannot be set"):
                 setattr(n, f"{component_name}_t", "test")

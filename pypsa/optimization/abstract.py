@@ -218,7 +218,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
             for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.static(c)[f"{attr}_opt_{iteration}"] = n.static(c)[f"{attr}_opt"]
+                n.c[c].static[f"{attr}_opt_{iteration}"] = n.c[c].static[f"{attr}_opt"]
             setattr(n, f"status_{iteration}", status)
             setattr(n, f"objective_{iteration}", n.objective)
             n.iteration = iteration
@@ -274,7 +274,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         if track_iterations:
             for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.static(c)[f"{attr}_opt_0"] = n.static(c)[f"{attr}"]
+                n.c[c].static[f"{attr}_opt_0"] = n.c[c].static[f"{attr}"]
 
         iteration = 1
         diff = msq_threshold

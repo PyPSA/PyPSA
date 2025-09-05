@@ -32,6 +32,7 @@ class NetworkGraphMixin:
 
     # Type Hints
     iterate_components: Callable
+    has_scenarios: bool
 
     def graph(
         self,
@@ -66,19 +67,17 @@ class NetworkGraphMixin:
         n = self
         from pypsa import Network, SubNetwork  # noqa: PLC0415
 
-        if isinstance(n, Network):
-            if branch_components is None:
-                branch_components = n.branch_components
-            else:
-                branch_components = set(branch_components)
-            buses_i = n.c.buses.static.index
+        if branch_components is not None:
+            branch_components = set(branch_components)
+        elif isinstance(n, Network):
+            branch_components = n.branch_components
         elif isinstance(n, SubNetwork):
-            if branch_components is None:
-                branch_components = n.n.passive_branch_components
-            buses_i = n.c.buses.static.index
+            branch_components = n.n.passive_branch_components
         else:
             msg = "graph must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+
+        buses_i = n.c.buses.static.index
 
         if n.has_scenarios:
             buses_i = buses_i.unique("name")
@@ -158,19 +157,22 @@ class NetworkGraphMixin:
         from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
         n = self
-        if isinstance(n, Network):
-            if branch_components is None:
-                branch_components = n.branch_components
-            if busorder is None:
-                busorder = n.c.buses.static.index
+        if not isinstance(n, Network | SubNetwork):
+            msg = "graph must be called with a Network or a SubNetwork"
+            raise TypeError(msg)
+
+        if branch_components is not None:
+            branch_components = set(branch_components)
+        elif isinstance(n, Network):
+            branch_components = n.branch_components
         elif isinstance(n, SubNetwork):
-            if branch_components is None:
-                branch_components = n.n.passive_branch_components
-            if busorder is None:
-                busorder = n.c.buses.static.index
+            branch_components = n.n.passive_branch_components
         else:
             msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+
+        if busorder is None:
+            busorder = n.c.buses.static.index
 
         # Initialize empty DataFrame with buses as both rows and columns
         if n.has_scenarios:
@@ -250,21 +252,20 @@ class NetworkGraphMixin:
                 with 22 stored elements and shape (9, 11)>
 
         """
-        from pypsa import Network, SubNetwork  # noqa: PLC0415
+        from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
-        if isinstance(self, Network):
-            if branch_components is None:
-                branch_components = self.branch_components
-            if busorder is None:
-                busorder = self.c.buses.static.index
+        if branch_components is not None:
+            branch_components = set(branch_components)
+        elif isinstance(self, Network):
+            branch_components = self.branch_components
         elif isinstance(self, SubNetwork):
-            if branch_components is None:
-                branch_components = self.n.passive_branch_components
-            if busorder is None:
-                busorder = self.c.buses.static.index
+            branch_components = self.n.passive_branch_components
         else:
-            msg = "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
+            msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+
+        if busorder is None:
+            busorder = self.c.buses.static.index
 
         no_buses = len(busorder)
         no_branches = 0

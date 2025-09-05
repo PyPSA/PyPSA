@@ -739,9 +739,8 @@ class Network(
 
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
-        for component in self.components:
-            if component.name not in ["Bus", "Carrier"] + other_comps:
-                continue
+        # Needs to copy buses and carriers first, since there are dependencies on them
+        for component in self.components[["Bus", "Carrier"] + other_comps]:
             # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
@@ -840,15 +839,13 @@ class Network(
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n.add(
-                c,
-                pd.DataFrame(self.c[c].static).index,
-                **pd.DataFrame(self.c[c].static),
-            )
+            n.add(c, self.components[c].static.index, **self.components[c].static)
 
         for c in self.standard_type_components:
             static = pd.DataFrame(
-                self.c[c].static.drop(self.components[c]["standard_types"].index)
+                self.components[c].static.drop(
+                    self.components[c]["standard_types"].index
+                )
             )
             n.add(c, static.index, **static)
 
@@ -868,8 +865,8 @@ class Network(
         for c in self.all_components:
             i = n.c[c].static.index
             try:
-                ndynamic = n.c[c].dynamic
-                dynamic = self.c[c].dynamic
+                ndynamic = n.c[c.name].dynamic
+                dynamic = c.dynamic
 
                 for k in dynamic:
                     ndynamic[k] = dynamic[k].loc[
@@ -1466,9 +1463,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         types = []
         names = []
-        for c in self.components:
-            if c.name not in self.n.passive_branch_components:
-                continue
+        for c in self.components[self.n.passive_branch_components]:
             static = c.static
             idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]

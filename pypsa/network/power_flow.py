@@ -118,11 +118,8 @@ def _calculate_controllable_nodal_power_balance(
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0.0)
             )
-            for c in [
-                x
-                for x in sub_network.components
-                if x.name in network.controllable_one_port_components
-            ]
+            for c in sub_network.components[network.controllable_one_port_components]
+            if not c.empty
         )
 
         if power == "p":
@@ -132,10 +129,9 @@ def _calculate_controllable_nodal_power_balance(
                 .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0)
-                for c in [
-                    network.c[name] for name in network.controllable_branch_components
-                ]
+                for c in network.components[network.controllable_branch_components]
                 for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
+                if not c.empty
             )
 
 
@@ -1788,12 +1784,9 @@ class SubNetworkPowerFlowMixin:
                 .T.groupby(c.static[f"bus{str(i)}"])
                 .sum()
                 .T.reindex(columns=buses_o, fill_value=0)
-                for c in [
-                    x
-                    for x in n.components
-                    if x.name in n.controllable_branch_components
-                ]
+                for c in n.components[n.controllable_branch_components]
                 for i in [int(col[3:]) for col in c.static.columns if col[:3] == "bus"]
+                if not c.empty
             ]
         )
 

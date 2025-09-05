@@ -551,26 +551,24 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
             # fmt: on
             period = glc.investment_period
 
-            for c in ["Line", "Link"]:
-                attr = nominal_attrs[c]
+            for c in n.components[["Line", "Link"]]:
+                attr = nominal_attrs[c.name]
 
                 # Start from extendable components by name
-                ext_all = n.c[c].extendables.difference(n.c[c].inactive_assets)
+                ext_all = c.extendables.difference(c.inactive_assets)
                 if ext_all.empty:
                     continue
 
-                static = n.c[c].static
-
                 # Filter by carrier, handling scenarios (MultiIndex) if present
-                if n.has_scenarios and isinstance(static.index, pd.MultiIndex):
+                if n.has_scenarios and isinstance(c.static.index, pd.MultiIndex):
                     eligible_by_carrier = (
-                        static.query("carrier in @car")
+                        c.static.query("carrier in @car")
                         .groupby(level="name")
                         .first()
                         .index
                     )
                 else:
-                    eligible_by_carrier = static.query("carrier in @car").index
+                    eligible_by_carrier = c.static.query("carrier in @car").index
 
                 ext_i = ext_all.intersection(eligible_by_carrier).rename(ext_all.name)
                 if ext_i.empty:
@@ -578,13 +576,16 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
 
                 # Filter by investment period activity
                 if not isnan(period):
-                    active = n.components[c].get_active_assets(int(period))
+                    active = c.get_active_assets(investment_period=int(period))
                     ext_i = ext_i[active.loc[ext_i]].rename(ext_i.name)
                 elif isinstance(sns, pd.MultiIndex):
                     # Active in any of the periods present in sns
                     periods = sns.unique("period")
                     active_df = pd.concat(
-                        {p: n.components[c].get_active_assets(int(p)) for p in periods},
+                        {
+                            p: c.get_active_assets(investment_period=int(p))
+                            for p in periods
+                        },
                         axis=1,
                     )
                     active_any = active_df.any(axis=1)
@@ -594,12 +595,14 @@ def define_transmission_volume_expansion_limit(n: Network, sns: Sequence) -> Non
                     continue
 
                 # Length per name (collapse scenario level if present)
-                if n.has_scenarios and isinstance(static.index, pd.MultiIndex):
-                    length = static.length.groupby(level="name").first().reindex(ext_i)
+                if n.has_scenarios and isinstance(c.static.index, pd.MultiIndex):
+                    length = (
+                        c.static.length.groupby(level="name").first().reindex(ext_i)
+                    )
                 else:
-                    length = static.length.reindex(ext_i)
+                    length = c.static.length.reindex(ext_i)
 
-                vars = m[f"{c}-{attr}"].loc[ext_i]
+                vars = m[f"{c.name}-{attr}"].loc[ext_i]
                 lhs.append(m.linexpr((length, vars)).sum())
 
             if not lhs:
@@ -657,30 +660,30 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         # fmt: on
         period = glc.investment_period
 
-        for c in ["Line", "Link"]:
-            attr = nominal_attrs[c]
+        for c in n.components[["Line", "Link"]]:
+            attr = nominal_attrs[c.name]
 
-            ext_i = n.components[c].extendables.difference(n.c[c].inactive_assets)
+            ext_i = c.extendables.difference(c.inactive_assets)
             if ext_i.empty:
                 continue
 
-            ext_i = ext_i.intersection(
-                n.c[c].static.query("carrier in @car").index
-            ).rename(ext_i.name)
+            ext_i = ext_i.intersection(c.static.query("carrier in @car").index).rename(
+                ext_i.name
+            )
 
             if not isnan(period):
-                ext_i = ext_i[n.components[c].get_active_assets(period)[ext_i]].rename(
-                    ext_i.name
-                )
+                ext_i = ext_i[
+                    c.get_active_assets(investment_period=period)[ext_i]
+                ].rename(ext_i.name)
                 weights = 1
 
             elif isinstance(sns, pd.MultiIndex):
                 ext_i = ext_i[
-                    n.c[c].get_active_assets(sns.unique("period"))[ext_i]
+                    c.get_active_assets(investment_period=sns.unique("period"))[ext_i]
                 ].rename(ext_i.name)
                 active = pd.concat(
                     {
-                        period: n.components[c].get_active_assets(period)[ext_i]
+                        period: c.get_active_assets(investment_period=period)[ext_i]
                         for period in sns.unique("period")
                     },
                     axis=1,
@@ -689,8 +692,8 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
             else:
                 weights = 1
 
-            cost = n.c[c].static.capital_cost.reindex(ext_i) * weights
-            vars = m[f"{c}-{attr}"].loc[ext_i]
+            cost = c.static.capital_cost.reindex(ext_i) * weights
+            vars = m[f"{c.name}-{attr}"].loc[ext_i]
             lhs.append(m.linexpr((cost, vars)).sum())
 
         if not lhs:

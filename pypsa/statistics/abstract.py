@@ -225,6 +225,7 @@ class AbstractStatisticsAccessor(ABC):
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
         idx = self._get_component_index(obj, c)
+
         if not self.is_multi_indexed:
             mask = n.c[c].get_active_assets()
             return obj.loc[mask.index[mask].intersection(idx)]

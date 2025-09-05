@@ -248,7 +248,7 @@ class StatisticExpressionsAccessor(AbstractStatisticsAccessor):
                 efficiency = abs(efficiency)
             res = capacity * efficiency
             if storage and (c == "StorageUnit"):
-                res = res * n.df(c).max_hours
+                res = res * n.components[c].static.max_hours
             return res
 
         return self._aggregate_components(

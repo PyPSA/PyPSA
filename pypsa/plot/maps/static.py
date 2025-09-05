@@ -600,7 +600,7 @@ class MapPlotter:
             return self.n.c[c_name].dynamic.p0.agg(flow, axis=0)
 
         if isinstance(flow, int | float):
-            return pd.Series(flow, index=self.n.static(c_name).index)
+            return pd.Series(flow, index=self.n.components[c_name].static.index)
 
         if flow is not None:
             msg = f"The 'flow' argument must be a pandas.Series, a string, a float or a callable, got {type(flow)}."

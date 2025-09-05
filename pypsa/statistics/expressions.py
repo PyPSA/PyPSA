@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
-    """Get the operation time series of a component."""
+    """Get the operation data for a network component."""
     if c in n.branch_components:
         return n.c[c].dynamic.p0
     if c == "Store":

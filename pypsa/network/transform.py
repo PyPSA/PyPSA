@@ -339,12 +339,11 @@ class NetworkTransformMixin(_NetworkABC):
         names = names.astype(str) + suffix
 
         # Drop from static components
-        cls_static = self.c[c.name].static
+        cls_static = c.static
         cls_static.drop(names, inplace=True)
 
         # Drop from time-varying components
-        dynamic = self.c[c.name].dynamic
-        for df in dynamic.values():
+        for df in c.dynamic.values():
             df.drop(df.columns.intersection(names), axis=1, inplace=True)
 
     def merge(
