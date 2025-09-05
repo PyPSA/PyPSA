@@ -318,9 +318,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             raise ValueError(_msg_omega)
         cvar = m["CVaR"]
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
-        obj_expr = (
-            expected_capex + (1 - float(omega)) * expected_opex + float(omega) * cvar
-        )
+        obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
     else:
         # Warn if risk preference was set but there are no scenarios
         if getattr(n, "has_risk_preference", False) and not getattr(

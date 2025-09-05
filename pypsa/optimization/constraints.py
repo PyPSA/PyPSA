@@ -1679,8 +1679,8 @@ def define_cvar_constraints(n: Network, sns: pd.Index) -> None:
 
     Requirements
     ------------
-    - n.has_scenarios is True and n.scenarios defined
-    - n.has_risk_preference is True with keys 'alpha' and 'omega'
+    - n.has_scenarios is True (scenarios are defined)
+    - n.has_risk_preference is True (risk preference is set)
 
     Notes
     -----
