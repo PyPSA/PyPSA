@@ -42,10 +42,8 @@ class ComponentsIndexMixin(_ComponentsABC):
         Examples
         --------
         >>> n = pypsa.Network()
-        >>> n.add("Generator", "g1")  # doctest: +ELLIPSIS
-        Index(['g1'], dtype='object')
-        >>> n.add("Generator", "g2")  # doctest: +ELLIPSIS
-        Index(['g2'], dtype='object')
+        >>> n.add("Generator", "g1")
+        >>> n.add("Generator", "g2")
         >>> n.generators.index
         Index(['g1', 'g2'], dtype='object', name='name')
 

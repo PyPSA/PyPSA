@@ -70,12 +70,14 @@ class Transformers(Components):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )

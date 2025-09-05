@@ -323,6 +323,9 @@ class OptionsNode:
         general.allow_network_requests:
             Default: True
             Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
+        params.add.return_names:
+            Default: False
+            Description: Default value for the 'return_names' parameter in Network.add method. If True, the add method returns the names of added components. If False, it returns None.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -364,6 +367,9 @@ class OptionsNode:
         general.allow_network_requests:
             Default: True
             Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
+        params.add.return_names:
+            Default: False
+            Description: Default value for the 'return_names' parameter in Network.add method. If True, the add method returns the names of added components. If False, it returns None.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -465,4 +471,11 @@ options._add_option(
     "params.statistics.round",
     5,
     "Default value for the 'round' parameter in statistics module.",
+)
+options._add_option(
+    "params.add.return_names",
+    False,
+    "Default value for the 'return_names' parameter in Network.add method. "
+    "If True, the add method returns the names of added components. "
+    "If False, it returns None.",
 )
