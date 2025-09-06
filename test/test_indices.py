@@ -38,7 +38,7 @@ def network_add_snapshots_multiindex(network):
 def test_snapshot_index_consistency(request, network_fixture):
     n = request.getfixturevalue(network_fixture)
     for component in n.all_components:
-        dynamic = n.dynamic(component)
+        dynamic = n.c[component].dynamic
         for k in dynamic.keys():
             assert dynamic[k].index.equals(n.snapshots)
 

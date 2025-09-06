@@ -728,7 +728,7 @@ def test_scenario_ordering_bug():
 
     # Check 3: verify that the results match the expected scenario ordering
     # by checking that the DataArray scenario coordinate order is preserved
-    da_p_max_pu = n.components.generators.da.p_max_pu.sel(name="Manchester Wind")
+    da_p_max_pu = n.c.generators.da.p_max_pu.sel(name="Manchester Wind")
     da_scenarios = list(da_p_max_pu.coords["scenario"].values)
     network_scenarios = list(n.scenarios)
 

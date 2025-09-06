@@ -209,7 +209,9 @@ def iplot(
     shapes = []
     shape_traces = []
 
-    for c in n.iterate_components(branch_components):
+    for c in n.components:
+        if c.name not in branch_components:
+            continue
         b_widths = as_branch_series(branch_widths[c.name], "width", c.name, n)
         b_colors = as_branch_series(branch_colors[c.name], "color", c.name, n)
         b_text = branch_text[c.name]

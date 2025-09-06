@@ -214,13 +214,13 @@ class OptimizationAbstractMGAMixin:
                 if isinstance(coeffs, dict):
                     coeffs = pd.Series(coeffs)
                 if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(self._n.get_extendable_i(c))
+                    coeffs = coeffs.reindex(self._n.c[c].extendables)
                     coeffs.index.name = ""
                 elif isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(columns=self._n.static(c).index)
+                    coeffs = coeffs.reindex(columns=self._n.c[c].static.index)
                 elif isinstance(coeffs, pd.DataFrame):
                     coeffs = coeffs.reindex(
-                        columns=self._n.static(c).index, index=self._n.snapshots
+                        columns=self._n.c[c].static.index, index=self._n.snapshots
                     )
                 expr.append(m[f"{c}-{attr}"] * coeffs)
         return merge(expr)
