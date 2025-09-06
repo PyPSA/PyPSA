@@ -103,9 +103,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         >>> n = pypsa.Network()
         >>> n.add("Generator", "g1", active=False)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=True)
-        Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
         name
         g1    False
@@ -116,9 +114,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
         >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=False)
-        Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
         name
         g1     True
@@ -183,9 +179,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
         >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=False)
-        Index(['g2'], dtype='object')
 
         List all components
         >>> n.generators.index
@@ -231,10 +225,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         --------
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
-        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)  # doctest: +ELLIPSIS
-        Index(['g1'], dtype='object')
-        >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
-        Index(['g2'], dtype='object')
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
+        >>> n.add("Generator", "g2", active=False)
         >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
         name                g1     g2
         period timestep
