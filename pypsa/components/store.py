@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from pypsa.components._types.lines import Lines
     from pypsa.components._types.links import Links
     from pypsa.components._types.loads import Loads
+    from pypsa.components._types.processes import Processes
     from pypsa.components._types.shapes import Shapes
     from pypsa.components._types.shunt_impedances import ShuntImpedances
     from pypsa.components._types.storage_units import StorageUnits
@@ -42,6 +43,7 @@ class ComponentsStore(dict):
     lines: Lines
     links: Links
     loads: Loads
+    processes: Processes
     shapes: Shapes
     shunt_impedances: ShuntImpedances
     storage_units: StorageUnits

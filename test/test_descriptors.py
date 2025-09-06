@@ -6,7 +6,7 @@ import pytest
 import pypsa
 from pypsa.common import expand_series
 from pypsa.descriptors import (
-    _additional_linkports,
+    _additional_ports,
     get_bounds_pu,
     get_extendable_i,
     get_non_extendable_i,
@@ -97,7 +97,7 @@ def test_expand_series():
     assert (df["b"] == df["c"]).all()
 
 
-def test_additional_linkports():
+def test_additional_ports():
     n = pypsa.Network()
     n.add("Bus", "bus0")
     n.add("Bus", "bus1")
@@ -107,7 +107,7 @@ def test_additional_linkports():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        ports = _additional_linkports(n, n.c.links.static.columns)
+        ports = _additional_ports(n, n.c.links.static.columns)
     assert ports == ["2"]
     assert ports == n.c.links.additional_ports
 

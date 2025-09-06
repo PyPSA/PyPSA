@@ -24,7 +24,7 @@ from pyproj import CRS
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
-from pypsa.descriptors import _update_linkports_component_attrs
+from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
 
@@ -1344,8 +1344,8 @@ class NetworkIOMixin(_NetworkABC):
                     return
                 continue
 
-            if component == "Link":
-                _update_linkports_component_attrs(self, where=df)
+            if component in ("Link", "Process"):
+                _update_ports_component_attrs(self, where=df, c=component)
 
             self._import_components_from_df(df, component)
 
@@ -1713,11 +1713,11 @@ class NetworkIOMixin(_NetworkABC):
         """
         attrs = self.components[cls_name]["attrs"]
 
+        if cls_name in ("Link", "Process"):
+            _update_ports_component_attrs(self, where=df, c=cls_name)
+
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
-
-        if cls_name == "Link":
-            _update_linkports_component_attrs(self, where=df)
 
         # Clean dataframe and ensure correct types
         df = pd.DataFrame(df)

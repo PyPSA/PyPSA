@@ -311,7 +311,7 @@ class NetworkCollection:
 
 _all_components = (
     r"sub_networks|buses|carriers|global_constraints|lines|line_types|"
-    r"transformers|transformer_types|links|loads|generators|storage_units|"
+    r"transformers|transformer_types|links|processes|loads|generators|storage_units|"
     r"stores|shunt_impedances|shapes"
 )
 

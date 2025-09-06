@@ -19,7 +19,7 @@ from scipy.sparse.linalg import spsolve
 
 from pypsa.common import as_index, deprecated_common_kwargs
 from pypsa.definitions.structures import Dict
-from pypsa.descriptors import _update_linkports_component_attrs
+from pypsa.descriptors import _update_ports_component_attrs
 from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.network.abstract import _NetworkABC
 
@@ -70,16 +70,14 @@ def _allocate_pf_outputs(n: Network, linear: bool = False) -> None:
         "Store": ["p"],
         "ShuntImpedance": ["p"],
         "Bus": ["p", "v_ang", "v_mag_pu"],
-        "Line": ["p0", "p1"],
-        "Transformer": ["p0", "p1"],
-        "Link": ["p" + col[3:] for col in n.c.links.static.columns if col[:3] == "bus"],
+        **{c: ["p" + port for port in n.c[c].ports] for c in n.branch_components},
     }
 
     if not linear:
         for component, attrs in to_allocate.items():
             if "p" in attrs:
                 attrs.append("q")
-            if "p0" in attrs and component != "Link":
+            if "p0" in attrs and component in n.passive_branch_components:
                 attrs.extend(["q0", "q1"])
 
     allocate_series_dataframes(n, to_allocate)
@@ -171,6 +169,18 @@ def _network_prepare_and_run_pf(
             links = n.c.links.static.index[n.c.links.static[f"bus{i}"] != ""]
             n.c.links.dynamic[f"p{i}"].loc[sns, links] = (
                 -n.c.links.dynamic.p0.loc[sns, links] * efficiency.loc[sns, links]
+            )
+
+    # deal with processes
+    if not n.c.processes.static.empty:
+        p_set = get_as_dense(n, "Process", "p_set", sns)
+        for i in n.c.processes.ports:
+            rate = get_as_dense(n, "Process", f"rate{i}", sns)
+            processes = n.c.processes.static.index[
+                n.c.processes.static[f"bus{i}"] != ""
+            ]
+            n.c.processes.dynamic[f"p{i}"].loc[sns, processes] = (
+                p_set.loc[sns, processes] * rate.loc[sns, processes]
             )
 
     itdf = pd.DataFrame(index=sns, columns=n.c.sub_networks.static.index, dtype=int)
@@ -777,7 +787,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
             self.c.stores.static.bus.map(buses.carrier)
         )
 
-        _update_linkports_component_attrs(self)
+        for c in self.controllable_branch_components:
+            _update_ports_component_attrs(self, c=c)
 
     def lpf(
         n: Network, snapshots: Sequence | None = None, skip_pre: bool = False

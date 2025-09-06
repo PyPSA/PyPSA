@@ -63,6 +63,7 @@ nominal_attrs = {
     "Line": "s_nom",
     "Transformer": "s_nom",
     "Link": "p_nom",
+    "Process": "p_nom",
     "Store": "e_nom",
     "StorageUnit": "p_nom",
 }
@@ -194,7 +195,7 @@ def get_bounds_pu(
     )
 
 
-def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
+def _update_ports_doc_changes(s: Any, i: int, j: str) -> Any:
     """Update components documentation for link ports.
 
     Multi-linkports require the following changes:
@@ -215,36 +216,41 @@ def _update_linkports_doc_changes(s: Any, i: int, j: str) -> Any:
     Any : Updated string or original value if not a string.
 
     """
+    # TODO do we need to make any changes here for Process?
     if not isinstance(s, str) or len(s) == 1:
         return s
     return s.replace(j, str(i)).replace("required", "optional")
 
 
-def _additional_linkports(
-    n: NetworkType, where: Iterable[str] | None = None
+def _additional_ports(
+    n: NetworkType, where: Iterable[str] | None = None, c: str = "Link"
 ) -> list[str]:
-    """Identify additional link ports (bus connections) beyond predefined ones.
+    """Identify additional ports (bus connections) beyond predefined ones.
 
     Parameters
     ----------
     n : pypsa.Network
         Network instance.
     where : iterable of strings, default None
-        Subset of columns to consider. Takes link columns by default.
+        Subset of columns to consider. Takes columns from `c` by default.
+    c : str
+        Component name to take columns from
 
     Returns
     -------
     list of strings
-        List of additional link ports. E.g. ["2", "3"] for bus2, bus3.
+        List of additional ports. E.g. ["2", "3"] for bus2, bus3.
 
     """
     if where is None:
-        where = n.c.links.static.columns
+        where = n.c[c].static.columns
     return [match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))]
 
 
-def _update_linkports_component_attrs(
-    n: NetworkType, where: Iterable[str] | None = None
+def _update_ports_component_attrs(
+    n: NetworkType,
+    where: Iterable[str] | None = None,
+    c: str = "Link",
 ) -> None:
     """Update the Link components attributes to add the additional ports.
 
@@ -256,32 +262,50 @@ def _update_linkports_component_attrs(
         Filters for specific subsets of data by providing an iterable of tags
         or identifiers. If None, no filtering is applied and additional link
         ports are considered for all connectors.
+    c : str
+        Component name to apply to
 
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        ports = _additional_linkports(n, where)
+        ports = _additional_ports(n, where, c)
     ports.sort(reverse=True)
-    c = "Link"
 
-    for i, attr in product(ports, ["bus", "efficiency", "p"]):
+    if c == "Link":
+        varying_attrs = ["efficiency", "p"]
+    elif c == "Process":
+        varying_attrs = ["rate", "p"]
+    else:
+        msg = f"Only implemented for Link and Process, not: {c}"
+        raise NotImplementedError(msg)
+
+    attrs_index = n.components[c]["attrs"].index
+    for i, attr in product(ports, ["bus", *varying_attrs]):
         target = f"{attr}{i}"
         if target in n.components[c]["attrs"].index:
             continue
         j = "1" if attr != "efficiency" else ""
         base_attr = attr + j
-        base_attr_index = n.components[c]["attrs"].index.get_loc(base_attr)
-        n.components[c]["attrs"].index.insert(base_attr_index + 1, target)
+        base_attr_index = attrs_index.get_loc(base_attr)
+        attrs_index = attrs_index.insert(
+            base_attr_index + 1, target
+        )  # insert is NOT inplace
         n.components[c]["attrs"].loc[target] = (
             n.components[c]["attrs"]
             .loc[attr + j]
-            .apply(_update_linkports_doc_changes, args=("1", i))
+            .apply(_update_ports_doc_changes, args=("1", i))
         )
         # Also update container for varying attributes
-        if attr in ["efficiency", "p"] and target not in n.dynamic(c):
+        if attr in varying_attrs and target not in n.dynamic(c):
             df = pd.DataFrame(
-                index=n.snapshots, columns=n.c.links.static.index[:0], dtype=float
+                index=n.snapshots, columns=n.c[c].static.index[:0], dtype=float
             )
             n.dynamic(c)[target] = df
         elif attr == "bus" and target not in n.static(c).columns:
             n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
+
+    # re-order correctly
+    # TODO: there is no in-place reordering or in-place inserting at the right row (as far as i am aware),
+    # so we would have to update the attrs for that to work, but there i am hitting some special components
+    # setters, @lkstrp
+    # n.components[c]["attrs"] = n.components[c]["attrs"].loc[attrs_index]
