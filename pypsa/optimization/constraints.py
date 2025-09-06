@@ -1659,3 +1659,67 @@ def define_total_supply_constraints(
         eh_selected = eh.sel(name=names)
         energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
+
+def define_absolute_auxilaries(m, var, key: str):
+    """Define auxiliary variables and constraints to represent |var|.
+
+    Creates a non-negative auxiliary variable ``aux`` with the same coordinates
+    as the input variable ``var`` and enforces the standard absolute-value
+    linearisation:
+
+        aux >=  var
+        aux >= -var
+        aux >=  0
+
+    With non-negative coefficients on ``aux`` in a linear objective, the
+    optimal solution satisfies ``aux = |var|``.
+
+    Applies to Components
+    ---------------------
+    Any component exposing a signed operational variable, e.g.:
+
+    - Line (s)
+    - Transformer (s)
+
+    Parameters
+    ----------
+    m : linopy.Model
+        The Linopy model associated with the network.
+    var : linopy.Variable (xarray-like)
+        Signed decision variable whose absolute value should be priced
+        or constrained. Must have ``snapshot`` and ``name`` coordinates.
+    key : str
+        Unique, stable identifier for this absolute-value construction.
+        Example: ``"Line-s"`` or ``"Transformer-s"``.
+
+    Returns
+    -------
+    linopy.Variable
+        Non-negative auxiliary variable with the same coordinates as ``var``,
+        representing |var|.
+
+    Notes
+    -----
+    - **Idempotency**: To avoid creating duplicates, the function caches each
+      auxiliary in ``m._abs_cache``. If called again with the same ``key``
+      and variable coordinates, the cached auxiliary is returned.
+    - **Use case**: Add costs for branch or link flows irrespective of their
+      direction. Prevents negative objective contributions when flow and
+      marginal cost signs differ.
+
+    Examples
+    --------
+    >>> op = m["Line-s"].sel(snapshot=sns, name=line_names)
+    >>> abs_flow = define_absolute_value_basis(m, op, key="Line-s")
+    >>> cost_term = (abs_flow * line_cost).sum(dim=["snapshot", "name"])
+    >>> objective_terms.append(cost_term)
+    """
+    
+    aux = m.add_variables(lower=0, coords=var.coords, name=f"{key}__abs")
+
+    # linearise absolute value
+    m.add_constraints(aux >=  var, name=f"{key}__abs_pos")
+    m.add_constraints(aux >= -var, name=f"{key}__abs_neg")
+
+    return aux
+

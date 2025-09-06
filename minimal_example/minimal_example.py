@@ -36,7 +36,7 @@ n.add("Transformer", "Trafo_A_A1", bus0="A", bus1="A1",
 n.add("Transformer", "Trafo_B_B1", bus0="B", bus1="B1",
       r=0.1, x=0.2, s_nom=150, carrier="ac", marginal_cost=trafo_b_cost)
 
-n.add("Line", "A1_C", bus0="A1", bus1="C",
+n.add("Line", "A1_C", bus0="C", bus1="A1",
       r=0.1, x=0.1, s_nom=150, carrier="ac", marginal_cost=line_a_cost)
 n.add("Line", "B1_C", bus0="B1", bus1="C",
       r=0.1, x=0.1, s_nom=150, carrier="ac")
