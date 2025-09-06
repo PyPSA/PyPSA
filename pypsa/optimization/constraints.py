@@ -1660,6 +1660,7 @@ def define_total_supply_constraints(
         energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
 
+
 def define_absolute_auxilaries(m, var, key: str):
     """Define auxiliary variables and constraints to represent |var|.
 
@@ -1713,13 +1714,12 @@ def define_absolute_auxilaries(m, var, key: str):
     >>> abs_flow = define_absolute_value_basis(m, op, key="Line-s")
     >>> cost_term = (abs_flow * line_cost).sum(dim=["snapshot", "name"])
     >>> objective_terms.append(cost_term)
+
     """
-    
     aux = m.add_variables(lower=0, coords=var.coords, name=f"{key}__abs")
 
     # linearise absolute value
-    m.add_constraints(aux >=  var, name=f"{key}__abs_pos")
+    m.add_constraints(aux >= var, name=f"{key}__abs_pos")
     m.add_constraints(aux >= -var, name=f"{key}__abs_neg")
 
     return aux
-

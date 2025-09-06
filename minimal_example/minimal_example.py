@@ -54,10 +54,18 @@ n.add(
     marginal_cost=trafo_b_cost,
 )
 
-n.add("Line", "A1_C", bus0="C", bus1="A1",
-      r=0.1, x=0.1, s_nom=150, carrier="ac", marginal_cost=line_a_cost)
-n.add("Line", "B1_C", bus0="B1", bus1="C",
-      r=0.1, x=0.1, s_nom=150, carrier="ac")
+n.add(
+    "Line",
+    "A1_C",
+    bus0="C",
+    bus1="A1",
+    r=0.1,
+    x=0.1,
+    s_nom=150,
+    carrier="ac",
+    marginal_cost=line_a_cost,
+)
+n.add("Line", "B1_C", bus0="B1", bus1="C", r=0.1, x=0.1, s_nom=150, carrier="ac")
 
 # --- Carriers (decorative only) ----------------------------------------------
 n.add("Carrier", "gas", co2_emissions=10, color="orange")
