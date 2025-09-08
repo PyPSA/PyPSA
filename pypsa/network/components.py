@@ -266,6 +266,20 @@ class NetworkComponentsMixin(_NetworkABC):
         self.c.links.static = value
 
     @property
+    def processes(self) -> any:
+        return (
+            self.c.processes.static
+            if options.api.legacy_components
+            else self.c.processes
+        )
+
+    @processes.setter
+    def processes(self, value: pd.DataFrame) -> None:
+        if not options.api.legacy_components:
+            raise AttributeError(_STATIC_SETTER_WARNING)
+        self.c.processes.static = value
+
+    @property
     def loads(self) -> Any:
         return (
             self.c.loads.static if not options.api.new_components_api else self.c.loads
@@ -657,7 +671,7 @@ class NetworkComponentsMixin(_NetworkABC):
         ['Link']
 
         """
-        return {"Link"}
+        return {"Link", "Process"}
 
     @property
     def controllable_one_port_components(self) -> set[str]:
@@ -726,7 +740,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.branch_components)
-        ['Line', 'Link', 'Transformer']
+        ['Line', 'Link', 'Transformer', 'Process']
 
         """
         return self.passive_branch_components | self.controllable_branch_components
@@ -738,7 +752,7 @@ class NetworkComponentsMixin(_NetworkABC):
         Examples
         --------
         >>> sorted(n.all_components)
-        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
+        ['Bus', 'Carrier', 'Generator', 'GlobalConstraint', 'Line', 'LineType', 'Link', 'Load', 'Process', 'Shape', 'ShuntImpedance', 'StorageUnit', 'Store', 'SubNetwork', 'Transformer', 'TransformerType']
 
         """
         return {
@@ -757,6 +771,7 @@ class NetworkComponentsMixin(_NetworkABC):
             "LineType",
             "Bus",
             "Load",
+            "Process",
         }
 
     @property

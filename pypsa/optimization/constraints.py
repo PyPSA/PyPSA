@@ -45,7 +45,8 @@ def define_operational_constraints_for_non_extendables(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Generator (p), Line (s), Transformer (s), Link (p), Process(p), Store (e),
+    StorageUnit (p_dispatch, p_store, state_of_charge)
 
     Parameters
     ----------
@@ -128,7 +129,8 @@ def define_operational_constraints_for_extendables(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Generator (p), Line (s), Transformer (s), Link (p), Process (p), Store (e),
+    StorageUnit (p_dispatch, p_store, state_of_charge)
 
     Parameters
     ----------
@@ -200,7 +202,7 @@ def define_operational_constraints_for_committables(
 
     Applies to Components
     ---------------------
-    Generator, Link (when they have unit commitment capabilities)
+    Generator, Link, Process (when they have unit commitment capabilities)
 
     Parameters
     ----------
@@ -490,7 +492,7 @@ def define_nominal_constraints_for_extendables(
 
     Applies to Components
     ---------------------
-    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom),
+    Generator (p_nom), Line (s_nom), Transformer (s_nom), Link (p_nom), Process (p_nom),
     Store (e_nom), StorageUnit (p_nom)
 
     Parameters
@@ -544,7 +546,8 @@ def define_ramp_limit_constraints(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Generator (p), Line (s), Transformer (s), Link (p), Process (p), Store (e),
+    StorageUnit (p_dispatch, p_store, state_of_charge)
 
     Parameters
     ----------
@@ -829,7 +832,8 @@ def define_nodal_balance_constraints(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (p), Load (p), StorageUnit (p_dispatch, p_store)*
+    Generator (p), Line (s), Transformer (s), Link (p), Process (p), Store (p),
+    Load (p), StorageUnit (p_dispatch, p_store)*
 
     Notes
     -----
@@ -859,6 +863,8 @@ def define_nodal_balance_constraints(
     Link components with multiple buses are handled with their respective
     efficiency factors for conversion between energy carriers.
 
+    Process components are handled with their respective rate factors.
+
     The function raises an error if there's a bus with non-zero load but no
     connected components to provide power.
 
@@ -868,6 +874,7 @@ def define_nodal_balance_constraints(
         buses = n.c.buses.static.index.unique("name")
 
     links = as_components(n, "Link")
+    processes = as_components(n, "Process")
 
     args: list[Any] = [
         ["Generator", "p", "bus", 1],
@@ -882,8 +889,16 @@ def define_nodal_balance_constraints(
         ["Link", "p", "bus1", links.da.efficiency.sel(snapshot=sns)],
     ]
 
+    if not processes.empty:
+        args.extend(
+            [
+                ["Process", "p", f"bus{i}", processes.da[f"rate{i}"].sel(snapshot=sns)]
+                for i in processes.ports
+            ]
+        )
+
     if not links.empty:
-        for i in n.components.links.additional_ports:
+        for i in links.additional_ports:
             eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
             eff = links.da[eff_attr].sel(snapshot=sns)
             args.append(["Link", "p", f"bus{i}", eff])
@@ -921,7 +936,9 @@ def define_nodal_balance_constraints(
             continue
 
         #  drop non-existent multiport buses which are ''
-        if column in ["bus" + i for i in n.c.links.additional_ports]:
+        if c.name in n.controllable_branch_components and column in [
+            "bus" + i for i in c.additional_ports
+        ]:
             cbuses = cbuses[cbuses != ""]
 
         expr = expr.sel(name=cbuses.coords["name"].values)

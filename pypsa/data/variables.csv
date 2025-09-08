@@ -17,6 +17,12 @@ Link,start_up,False,False,False,False,False,True
 Link,shut_down,False,False,False,False,False,True
 Link,p_nom,False,False,False,False,True,False
 Link,n_mod,False,False,False,False,False,True
+Process,p,True,True,False,False,False,False
+Process,status,False,False,False,False,False,True
+Process,start_up,False,False,False,False,False,True
+Process,shut_down,False,False,False,False,False,True
+Process,p_nom,False,False,False,False,True,False
+Process,n_mod,False,False,False,False,False,True
 Store,e,False,False,False,True,False,False
 Store,p,True,True,False,False,False,True
 Store,e_nom,False,False,False,False,True,False

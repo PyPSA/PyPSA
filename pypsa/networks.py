@@ -893,7 +893,7 @@ class Network(
     def branches(self) -> pd.DataFrame:
         """Get branches.
 
-        Branches are Lines, Links and Transformers.
+        Branches are Links, Processes, Lines and Transformers.
 
         !!! note
             This method will return a merged copy of all branches of the network.
@@ -981,7 +981,7 @@ class Network(
     def controllable_branches(self) -> pd.DataFrame:
         """Get controllable branches.
 
-        Controllable branches are Links.
+        Controllable branches are Links and Processes.
 
         !!! note
             This method will return a merged copy of all controllable branches of the network.

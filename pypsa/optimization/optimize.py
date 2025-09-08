@@ -215,7 +215,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         is_quadratic = True
 
     # stand-by cost
-    for c_name in ["Generator", "Link"]:
+    for c_name in ["Generator", "Link", "Process"]:
         c = as_components(n, c_name)
         com_i = c.committables.difference(c.inactive_assets)
 
@@ -640,12 +640,26 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                     _set_dynamic_data(n, c.name, "p1", -df)
 
                 elif c.name == "Link" and attr == "p":
-                    _set_dynamic_data(n, c.name, "p0", df)
+                    _set_dynamic_data(n, c.name, "p", df)
+                    # TODO: Check that this is not too intrusive
+                    c.dynamic["p0"] = c.dynamic["p"]
+                    # _set_dynamic_data(n, c.name, "p0", df)
 
-                    for i in ["1"] + n.c.links.additional_ports:
+                    for i in ["1"] + c.additional_ports:
                         i_eff = "" if i == "1" else i
                         eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
                         _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
+                        c.dynamic[f"p{i}"].loc[
+                            sns, c.static.index[c.static[f"bus{i}"] == ""]
+                        ] = float(c.attrs.loc[f"p{i}", "default"])
+
+                elif c.name == "Process" and attr == "p":
+                    _set_dynamic_data(n, c.name, "p", df)
+
+                    for i in c.ports:
+                        rate = get_as_dense(n, c.name, f"rate{i}", sns)
+                        # TODO: The negative sign strikes me as strange here (but that's how other branch components do it)
+                        _set_dynamic_data(n, c.name, f"p{i}", -df * rate)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
                         ] = float(c.attrs.loc[f"p{i}", "default"])
@@ -811,12 +825,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Store", "p", "bus"),
             ("Load", "p", "bus"),
             ("StorageUnit", "p", "bus"),
-            ("Link", "p0", "bus0"),
-            ("Link", "p1", "bus1"),
         ]
-        ca.extend(
-            [("Link", f"p{i}", f"bus{i}") for i in n.components.links.additional_ports]
-        )
+        for c in n.controllable_branch_components:
+            ca.extend([(c, f"p{i}", f"bus{i}") for i in n.c[c].ports])
 
         def sign(c: str) -> int:
             return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'

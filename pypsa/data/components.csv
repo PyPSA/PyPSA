@@ -8,6 +8,7 @@ Store,stores,"Stores provide fundamental inter-temporal storage functionality no
 StorageUnit,storage_units,"Storage units enable inter-temporal energy shifting with fixed nominal-energy-to-nominal-power ratio.",controllable_one_port
 Line,lines,"Lines include distribution and transmission lines, overhead lines and cables.",passive_branch
 LineType,line_types,"Standard line types with per length values for impedances.",standard_type
+Process,processes,"Processes are used for controllable conversion processes involving two or more buses with arbitrary energy carriers (e.g. conversions between carriers).",controllable_branch
 Transformer,transformers,"2-winding transformer.",passive_branch
 TransformerType,transformer_types,"Standard 2-winding transformer types.",standard_type
 ShuntImpedance,shunt_impedances,"Shunt with voltage-dependent admittance.",passive_one_port

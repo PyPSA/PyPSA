@@ -594,12 +594,10 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 status,
                 condition,
             )
-            return {"status": status, "terminantion_condition": condition}
+            return {"status": status, "termination_condition": condition}
 
-        for c in n.one_port_components:
+        for c in n.one_port_components | {"Process", "Link"}:
             n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
-        for c in ("Link",):
-            n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
 
         n.c.generators.static.control = "PV"
         for sub_network in n.c.sub_networks.static.obj:

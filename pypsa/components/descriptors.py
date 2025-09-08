@@ -56,6 +56,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
             "Line": "s",
             "Link": "p",
             "Load": "p",
+            "Process": "p",
             "StorageUnit": "p",
             "Store": "e",
             "Transformer": "s",
