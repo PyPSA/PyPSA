@@ -22,6 +22,7 @@ from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
+    define_absolute_auxilaries,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,

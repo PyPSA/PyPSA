@@ -1717,4 +1717,3 @@ def define_absolute_auxiliaries(m: linopy.Model, var: linopy.Variable, key: str)
     m.add_constraints(aux >= -var, name=f"{key}_abs_neg")
 
     return aux
-
