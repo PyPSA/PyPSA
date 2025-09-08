@@ -22,6 +22,7 @@ from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
+    define_absolute_auxiliaries,
     define_fixed_nominal_constraints,
     define_fixed_operation_constraints,
     define_kirchhoff_voltage_constraints,
@@ -193,6 +194,11 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             cost = cost * weight
 
             operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
+            if c.name in ["Line", "Transformer"] and attr == "s":
+                operation = define_absolute_auxiliaries(
+                    m, operation, key=f"{c.name}-{attr}"
+                )
+
             objective.append((operation * cost).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
