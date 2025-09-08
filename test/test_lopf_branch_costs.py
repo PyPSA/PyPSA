@@ -1,10 +1,13 @@
 # test_branch_costs_objective.py
 import pandas as pd
-import pypsa
 import pytest
 
+import pypsa
 
-def _build_network(snaps, component, cost_A, cost_B, branch_linear=None, branch_quad=None):
+
+def _build_network(
+    snaps, component, cost_A, cost_B, branch_linear=None, branch_quad=None
+):
     """
     2-bus setup with load on BOTH buses (1 MW each), so one side must export.
     Orientation: bus0="A", bus1="B" -> p0 > 0 means A->B.
@@ -60,7 +63,11 @@ def _solve_and_reconstruct_objective(n, component, branch_has_linear, branch_has
     for g in n.generators.index:
         p = n.generators_t.p[g].reindex(snaps)
         mc = n.generators.at[g, "marginal_cost"]
-        mc_series = mc if isinstance(mc, pd.Series) else pd.Series([mc] * len(snaps), index=snaps)
+        mc_series = (
+            mc
+            if isinstance(mc, pd.Series)
+            else pd.Series([mc] * len(snaps), index=snaps)
+        )
         gen_cost += (p * mc_series).sum()
 
     # Branch flow (signed, at bus0)
@@ -75,12 +82,16 @@ def _solve_and_reconstruct_objective(n, component, branch_has_linear, branch_has
 
     if branch_has_linear:
         c = attrs.at["A_B", "marginal_cost"]
-        c_series = c if isinstance(c, pd.Series) else pd.Series([c] * len(snaps), index=snaps)
-        branch_cost += (c_series * flow).sum()   # linear (signed)
+        c_series = (
+            c if isinstance(c, pd.Series) else pd.Series([c] * len(snaps), index=snaps)
+        )
+        branch_cost += (c_series * flow).sum()  # linear (signed)
 
     if branch_has_quad:
         q = attrs.at["A_B", "marginal_cost_quadratic"]
-        q_series = q if isinstance(q, pd.Series) else pd.Series([q] * len(snaps), index=snaps)
+        q_series = (
+            q if isinstance(q, pd.Series) else pd.Series([q] * len(snaps), index=snaps)
+        )
         branch_cost += (q_series * (flow**2)).sum()  # quadratic (unsigned)
 
     reconstructed = gen_cost + branch_cost
@@ -125,8 +136,14 @@ def test_objective_with_linear_branch_cost(component, scenario):
     branch_linear = 1.0
     branch_quad = None
 
-    n = _build_network(snaps, component, cost_A, cost_B,
-                       branch_linear=branch_linear, branch_quad=branch_quad)
+    n = _build_network(
+        snaps,
+        component,
+        cost_A,
+        cost_B,
+        branch_linear=branch_linear,
+        branch_quad=branch_quad,
+    )
 
     reconstructed = _solve_and_reconstruct_objective(
         n, component, branch_has_linear=True, branch_has_quad=False
@@ -149,8 +166,14 @@ def test_objective_with_quadratic_branch_cost(component, scenario):
     # Quadratic coefficient (>0). Independent of flow direction.
     branch_quad = 2.0
 
-    n = _build_network(snaps, component, cost_A, cost_B,
-                       branch_linear=branch_linear, branch_quad=branch_quad)
+    n = _build_network(
+        snaps,
+        component,
+        cost_A,
+        cost_B,
+        branch_linear=branch_linear,
+        branch_quad=branch_quad,
+    )
 
     reconstructed = _solve_and_reconstruct_objective(
         n, component, branch_has_linear=False, branch_has_quad=True
@@ -171,8 +194,14 @@ def test_objective_with_linear_and_quadratic_branch_cost(component, scenario):
     branch_linear = 1.0
     branch_quad = 2.0
 
-    n = _build_network(snaps, component, cost_A, cost_B,
-                       branch_linear=branch_linear, branch_quad=branch_quad)
+    n = _build_network(
+        snaps,
+        component,
+        cost_A,
+        cost_B,
+        branch_linear=branch_linear,
+        branch_quad=branch_quad,
+    )
 
     reconstructed = _solve_and_reconstruct_objective(
         n, component, branch_has_linear=True, branch_has_quad=True

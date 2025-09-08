@@ -1660,7 +1660,10 @@ def define_total_supply_constraints(
         energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
 
-def define_absolute_auxiliaries(m: linopy.Model, var: linopy.Variable, key: str) -> linopy.Variable:
+
+def define_absolute_auxiliaries(
+    m: linopy.Model, var: linopy.Variable, key: str
+) -> linopy.Variable:
     """Define auxiliary variables and constraints to represent |var|.
 
     Creates a non-negative auxiliary variable ``aux`` with the same coordinates
@@ -1708,12 +1711,12 @@ def define_absolute_auxiliaries(m: linopy.Model, var: linopy.Variable, key: str)
     >>> abs_flow = define_absolute_auxiliaries(m, operation, key="Line-s")
     >>> cost_term = (abs_flow * line_cost).sum(dim=["snapshot", "name"])
     >>> objective_terms.append(cost_term)
+
     """
-    
     aux = m.add_variables(lower=0, coords=var.coords, name=f"{key}_abs")
 
     # linearise absolute value
-    m.add_constraints(aux >=  var, name=f"{key}_abs_pos")
+    m.add_constraints(aux >= var, name=f"{key}_abs_pos")
     m.add_constraints(aux >= -var, name=f"{key}_abs_neg")
 
     return aux
