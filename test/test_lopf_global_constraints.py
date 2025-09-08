@@ -103,3 +103,34 @@ def test_assign_duals_noname(ac_dc_network):
     dual_model_co2 = float(n.model.constraints["GlobalConstraint-co2_limit"].dual)
     dual_network_co2 = float(n.c.global_constraints.static.mu.loc["co2_limit"])
     assert dual_model_co2 == pytest.approx(dual_network_co2, rel=1e-8, abs=1e-10)
+
+
+def test_assign_custom_variable(ac_dc_network):
+    """Test that adding custom variables does not raise an error when optimizing."""
+    n = ac_dc_network
+    m = n.optimize.create_model()
+
+    m.add_variables(name="custom_var")
+
+    n.optimize.solve_model()
+
+
+def test_custom_variable_warnings(ac_dc_network, caplog):
+    """Test that appropriate warnings are logged for custom variables."""
+    import logging
+
+    caplog.set_level(logging.INFO)
+
+    m = ac_dc_network.optimize.create_model()
+    m.add_variables(name="custom_var_no_dash")
+    m.add_variables(name="NonExistentComponent-attr")
+    ac_dc_network.optimize.solve_model()
+
+    assert all(
+        text in caplog.text
+        for text in [
+            "could not be mapped to the network component because it does not include the symbol '-'",
+            "custom_var_no_dash",
+            "could not be mapped to the network component because the component 'NonExistentComponent' does not exist",
+        ]
+    )
