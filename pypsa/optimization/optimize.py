@@ -36,7 +36,7 @@ from pypsa.optimization.constraints import (
     define_storage_unit_constraints,
     define_store_constraints,
     define_total_supply_constraints,
-    define_absolute_auxilaries
+    define_absolute_auxiliaries
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.global_constraints import (
@@ -195,7 +195,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
             operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
             if c.name in ["Line", "Transformer"] and attr == "s":
-                operation = define_absolute_auxilaries(m, operation, key=f"{c.name}-{attr}")
+                operation = define_absolute_auxiliaries(m, operation, key=f"{c.name}-{attr}")
 
             objective.append((operation * cost).sum(dim=["name", "snapshot"]))
 
