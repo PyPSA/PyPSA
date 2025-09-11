@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any
 import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.offline as pltly
 import pydeck as pdk
 import pyproj
 
@@ -26,12 +28,6 @@ from pypsa.plot.maps.common import (
 if TYPE_CHECKING:
     from pypsa import Network
 
-pltly_present = True
-try:
-    import plotly.graph_objects as go
-    import plotly.offline as pltly
-except ImportError:
-    pltly_present = False
 
 logger = logging.getLogger(__name__)
 
@@ -323,10 +319,7 @@ def iplot(
         fig["layout"]["shapes"] = shapes
 
     if iplot:
-        if not pltly_present:
-            logger.warning("Plotly is not present, so interactive plotting won't work.")
-        else:
-            pltly.iplot(fig)
+        pltly.iplot(fig)
 
     return fig
 

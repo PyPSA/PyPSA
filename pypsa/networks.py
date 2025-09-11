@@ -50,7 +50,7 @@ from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore
 from pypsa.statistics.expressions import StatisticsAccessor
-from pypsa.version import __version_semver__
+from pypsa.version import __version_base__
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterator, Sequence
@@ -127,7 +127,7 @@ class Network(
         logging.basicConfig(level=logging.INFO)
 
         # Store PyPSA version
-        self._pypsa_version: str = __version_semver__
+        self._pypsa_version: str = __version_base__
 
         # Set attributes
         self._name = name
@@ -255,9 +255,7 @@ class Network(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus2")
-        Index(['bus2'], dtype='object')
         >>> new_network = n1 + n2
         >>> len(new_network.buses)
         2
@@ -313,9 +311,7 @@ class Network(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus2")
-        Index(['bus2'], dtype='object')
         >>> n1.equals(n2)
         False
 

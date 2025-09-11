@@ -40,8 +40,9 @@ class ComponentsTransformMixin:
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Add new components.
 
         Handles addition of single and multiple components along with their attributes.
@@ -71,14 +72,19 @@ class ComponentsTransformMixin:
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
             ignored.
+        return_names : bool | None, default=None
+            Whether to return the names of the new components. Defaults to module wide
+            option (default: False). See `pypsa.options.params.add.describe()` for more
+            information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
         Returns
         -------
-        new_names : pandas.index
-            Names of new components (including suffix)
+        new_names : pandas.index or None
+            Names of new components (including suffix) if return_names is True,
+            otherwise None
 
         Examples
         --------
@@ -143,11 +149,12 @@ class ComponentsTransformMixin:
             )
             raise NotImplementedError(msg)
 
-        self.n_save.add(
+        return self.n_save.add(
             self.name,
             name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )
 
@@ -168,9 +175,7 @@ class ComponentsTransformMixin:
         >>> import pypsa
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
-        Index(['bus1'], dtype='object')
         >>> n.add("Generator", ["gen1"], bus="bus1")
-        Index(['gen1'], dtype='object')
         >>> c = n.c.buses
 
         Now rename the bus

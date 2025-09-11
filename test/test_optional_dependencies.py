@@ -1,6 +1,10 @@
 import builtins
+import importlib.util
+from unittest.mock import patch
 
 import pytest
+
+from pypsa.plot.maps.static import _is_cartopy_available
 
 
 @pytest.fixture
@@ -24,3 +28,34 @@ def test_message(ac_dc_network, hide_pytables):
         match=r"Missing optional dependencies to use HDF5 files\.",
     ):
         n.export_to_hdf5("test.h5")
+
+
+class TestDynamicDependencyChecking:
+    """Test dynamic dependency checking (fixes for GitHub issue #1341)."""
+
+    def test_cartopy_availability_is_dynamic(self):
+        """Test that cartopy availability is checked dynamically."""
+        actual_availability = importlib.util.find_spec("cartopy") is not None
+        assert _is_cartopy_available() == actual_availability
+
+    def test_cartopy_checking_not_cached(self):
+        """Test that cartopy checking responds to changes."""
+        with patch(
+            "pypsa.plot.maps.static.importlib.util.find_spec", return_value=None
+        ):
+            assert _is_cartopy_available() is False
+
+        with patch(
+            "pypsa.plot.maps.static.importlib.util.find_spec", return_value="mock"
+        ):
+            assert _is_cartopy_available() is True
+
+    def test_cartopy_graceful_fallback(self):
+        """Test that cartopy falls back gracefully when not available."""
+        import pypsa
+
+        n = pypsa.Network()
+        n.add("Bus", "bus1", x=0, y=0)
+
+        with patch("pypsa.plot.maps.static._is_cartopy_available", return_value=False):
+            n.plot(geomap=True)  # Should work despite geomap=True
