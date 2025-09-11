@@ -584,13 +584,19 @@ def test_api_components_legacy(new_components_api):
             assert n.c.generators.dynamic is n.components.generators.dynamic
         else:
             assert n.buses is n.components.buses
-            with pytest.raises(DeprecationWarning):
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.buses\.dynamic` as a drop-in"
+            ):
                 assert n.buses_t is n.components.buses.dynamic
             assert n.lines is n.components.lines
-            with pytest.raises(DeprecationWarning):
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.lines\.dynamic` as a drop-in"
+            ):
                 assert n.lines_t is n.components.lines.dynamic
             assert n.generators is n.components.generators
-            with pytest.raises(DeprecationWarning):
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.generators\.dynamic` as a drop-in"
+            ):
                 assert n.generators_t is n.components.generators.dynamic
 
 
