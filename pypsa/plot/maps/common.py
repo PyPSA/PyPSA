@@ -140,6 +140,26 @@ def to_rgba255(
     return rgb + [a]
 
 
+def to_rgba_css(color: str, alpha: float = 1.0) -> str:
+    """Convert Matplotlib color to CSS rgba() string.
+
+    Parameters
+    ----------
+    color : str
+        Matplotlib color name or hex string.
+    alpha : float, default 1.0
+        Alpha transparency value between 0 (transparent) and 1 (opaque).
+
+    Returns
+    -------
+    str
+        CSS rgba() string.
+
+    """
+    rgb = [round(c * 255) for c in mcolors.to_rgb(color)]
+    return f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha:.2f})"
+
+
 # Geometric functions
 def rotate_polygon(
     poly: np.ndarray,
