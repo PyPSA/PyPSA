@@ -309,19 +309,18 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     expected_opex = _expected(opex_terms)
 
     # CVaR augmentation if enabled
-    if getattr(n, "has_scenarios", False) and getattr(n, "has_risk_preference", False):
-        rp = n.risk_preference
-        if rp is None:
+    if n.has_scenarios and n.has_risk_preference:
+        if n.risk_preference is None:
             _msg_rp = "Risk preference must be set when has_risk_preference is True"
             raise RuntimeError(_msg_rp)
 
         try:
-            alpha = float(rp.get("alpha"))
-            omega = float(rp.get("omega"))
+            alpha = float(n.risk_preference.get("alpha"))
+            omega = float(n.risk_preference.get("omega"))
         except Exception:
             _msg = (
                 f"alpha and omega must be numbers between 0 and 1, "
-                f"got alpha={rp.get('alpha')}, omega={rp.get('omega')}"
+                f"got alpha={n.risk_preference.get('alpha')}, omega={n.risk_preference.get('omega')}"
             )
             raise ValueError(_msg) from None
 
