@@ -376,7 +376,7 @@ class PydeckPlotter:
             view_state=view_state,
         )
         self._layers: dict[str, pdk.Layer] = {}
-        self._tooltip_style: dict = set_tooltip_style()
+        self._tooltip_style: dict[str, str] = set_tooltip_style()
 
     def _init_map_style(self, map_style: str) -> str:
         """Set the initial map style for the interactive map."""
