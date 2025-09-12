@@ -37,9 +37,14 @@ Features
 
 * Add additional standard line types from pandapower.
 
+
+* The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
+  to get the previous behavior of returning component names which have been added.
+
 * Refactored version attributes: ``__version_semver__`` → ``__version_base__``, 
   ``__version_short__`` → ``__version_major_minor__``. Removed tuple versions.
   Old names raise ``DeprecationWarning``.
+
 
 Bug Fixes
 ---------
@@ -53,6 +58,9 @@ Bug Fixes
 * Resolved an issue where the network version was not correctly identified during I/O, 
   resulting in false update information being logged.
   (https://github.com/PyPSA/PyPSA/pull/1300)
+
+* Fix bug when using ``solver_model`` after adding custom variable to linopy model.
+  (https://github.com/PyPSA/PyPSA/issues/1351)
 
 `v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
 =======================================================================================

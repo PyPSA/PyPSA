@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa._options import options
 from pypsa.components.common import as_components
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
@@ -41,8 +42,9 @@ class NetworkTransformMixin(_NetworkABC):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Add components to the network.
 
         Handles addition of single and multiple components along with their attributes.
@@ -75,14 +77,19 @@ class NetworkTransformMixin(_NetworkABC):
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
             ignored.
+        return_names : bool | None, default=None
+            Whether to return the names of the components added. Defaults to module wide
+            option (default: False). See `pypsa.options.params.add.describe()` for more
+            information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             or pandas.DataFrame for time-varying
 
         Returns
         -------
-        new_names : pandas.index
-            Names of new components (including suffix)
+        new_names : pandas.index or None
+            Names of new components (including suffix) if return_names is True,
+            otherwise None
 
         Examples
         --------
@@ -90,18 +97,14 @@ class NetworkTransformMixin(_NetworkABC):
 
         >>> n = pypsa.Network()
         >>> n.add("Bus", "my_bus_0")
-        Index(['my_bus_0'], dtype='object')
         >>> n.add("Bus", "my_bus_1", v_nom=380)
-        Index(['my_bus_1'], dtype='object')
         >>> n.add("Line", "my_line_name", bus0="my_bus_0", bus1="my_bus_1", length=34, r=2, x=4)
-        Index(['my_line_name'], dtype='object')
 
         Add multiple components with static attributes:
 
         >>> n.add("Load", ["load 1", "load 2"],
         ...       bus=["1", "2"],
         ...       p_set=np.random.rand(len(n.snapshots), 2))
-        Index(['load 1', 'load 2'], dtype='object')
 
         Add multiple components with time-varying attributes:
 
@@ -111,15 +114,11 @@ class NetworkTransformMixin(_NetworkABC):
         >>> n = pypsa.Network()
         >>> n.set_snapshots(snapshots)
         >>> n.add("Bus", buses)
-        Index(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], dtype='object')
         >>> # add load as numpy array
         >>> n.add("Load",
         ...       n.buses.index + " load",
         ...       bus=buses,
         ...       p_set=np.random.rand(len(snapshots), len(buses)))
-        Index(['0 load', '1 load', '2 load', '3 load', '4 load', '5 load', '6 load',
-               '7 load', '8 load', '9 load', '10 load', '11 load', '12 load'],
-              dtype='object', name='name')
         >>> # add wind availability as pandas DataFrame
         >>> wind = pd.DataFrame(np.random.rand(len(snapshots), len(buses)),
         ...        index=n.snapshots,
@@ -132,12 +131,13 @@ class NetworkTransformMixin(_NetworkABC):
         ...       p_nom_extendable=True,
         ...       capital_cost=1e5,
         ...       p_max_pu=wind)
-        Index(['0 wind', '1 wind', '2 wind', '3 wind', '4 wind', '5 wind', '6 wind',
-               '7 wind', '8 wind', '9 wind', '10 wind', '11 wind', '12 wind'],
-              dtype='object')
 
 
         """
+        # Use option default if return_names is None
+        if return_names is None:
+            return_names = options.params.add.return_names
+
         c = as_components(self, class_name)
         # Process name/names to pandas.Index of strings and add suffix
         single_component = np.isscalar(name)
@@ -268,7 +268,9 @@ class NetworkTransformMixin(_NetworkABC):
         for k, v in series.items():
             self._import_series_from_df(v, c.name, k, overwrite=overwrite)
 
-        return names
+        if return_names:
+            return names
+        return None
 
     def remove(
         self,
@@ -294,9 +296,7 @@ class NetworkTransformMixin(_NetworkABC):
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.date_range("2015-01-01", freq="h", periods=2)
         >>> n.add("Bus", ["bus0", "bus1"])
-        Index(['bus0', 'bus1'], dtype='object')
         >>> n.add("Bus", "bus2", p_min_pu=[1, 1])
-        Index(['bus2'], dtype='object', name='name')
         >>> n.components.buses.static
                v_nom type    x    y  ... v_mag_pu_max control generator  sub_network
         name                             ...
@@ -457,9 +457,7 @@ class NetworkTransformMixin(_NetworkABC):
 
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
-        Index(['bus1'], dtype='object')
         >>> n.add("Generator", ["gen1"], bus="bus1")
-        Index(['gen1'], dtype='object')
 
         Now rename the bus component
 

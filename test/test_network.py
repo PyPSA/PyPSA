@@ -361,6 +361,31 @@ def test_multiple_add_defaults(n_5bus):
     )
 
 
+def test_add_return_names():
+    """Test that return_names parameter controls return behavior."""
+    n = pypsa.Network()
+
+    # Default behavior - should return None
+    assert n.add("Bus", "bus1") is None
+    assert n.add("Bus", "bus2", return_names=False) is None
+
+    # With return_names=True - should return Index
+    result = n.add("Bus", "bus3", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus3"
+
+    # Multiple components
+    result = n.add("Bus", ["bus4", "bus5"], return_names=True)
+    assert len(result) == 2
+    assert all(name in result for name in ["bus4", "bus5"])
+
+    # Component method
+    assert n.components.buses.add("bus6") is None
+    result = n.components.buses.add("bus7", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus7"
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",

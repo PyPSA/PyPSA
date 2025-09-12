@@ -9,6 +9,8 @@ import geopandas as gpd
 import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.offline as pltly
 from shapely import linestrings
 
 from pypsa.constants import DEFAULT_EPSG
@@ -16,13 +18,6 @@ from pypsa.plot.maps.common import apply_layouter, as_branch_series
 
 if TYPE_CHECKING:
     from pypsa import Network
-
-pltly_present = True
-try:
-    import plotly.graph_objects as go
-    import plotly.offline as pltly
-except ImportError:
-    pltly_present = False
 
 
 logger = logging.getLogger(__name__)
@@ -317,10 +312,7 @@ def iplot(
         fig["layout"]["shapes"] = shapes
 
     if iplot:
-        if not pltly_present:
-            logger.warning("Plotly is not present, so interactive plotting won't work.")
-        else:
-            pltly.iplot(fig)
+        pltly.iplot(fig)
 
     return fig
 
