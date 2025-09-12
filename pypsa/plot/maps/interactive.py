@@ -376,7 +376,7 @@ class PydeckPlotter:
             view_state=view_state,
         )
         self._layers: dict[str, pdk.Layer] = {}
-        self._tooltip_style: dict = self._set_tooltip_style()
+        self._tooltip_style: dict = set_tooltip_style()
 
     def _init_map_style(self, map_style: str) -> str:
         """Set the initial map style for the interactive map."""
@@ -392,27 +392,6 @@ class PydeckPlotter:
     def map_style(self) -> str:
         """Get the current map style."""
         return self._map_style
-
-    def _set_tooltip_style(
-        self,
-        background_alpha: float = 0.5,
-        background_color: str = "black",
-        font_color: str = "white",
-        font_family: str = "Arial",
-        font_size: int = 12,
-        max_width: int = 200,
-        padding: int = 10,
-    ) -> None:
-        """Set default CSS styles for the tooltip."""
-        return set_tooltip_style(
-            background_alpha=background_alpha,
-            background_color=background_color,
-            font_color=font_color,
-            font_family=font_family,
-            font_size=font_size,
-            max_width=max_width,
-            padding=padding,
-        )
 
     @property
     def tooltip_style(self) -> dict:
@@ -1286,7 +1265,7 @@ class PydeckPlotter:
 # TODO: fix typing differences between PydeckPlotter.build_layers and explore function
 @wraps(
     PydeckPlotter.build_layers,
-    assigned=("__doc__", "__annotations__", "__type_params__"),
+    assigned=("__doc__"),
 )
 def explore(  # noqa: D103
     n: "Network",
@@ -1294,11 +1273,19 @@ def explore(  # noqa: D103
     view_state: dict | pdk.ViewState | None = None,
     **kwargs: Any,
 ) -> pdk.Deck:
+    """Create an interactive map of the PyPSA network using Pydeck.
+
+    Returns
+    -------
+    pdk.Deck
+        The Pydeck object representing the interactive map.
+
+    """
     plotter = PydeckPlotter(n, map_style=map_style, view_state=view_state)
 
     # Optional tooltip_kwargs
     tooltip_kwargs = kwargs.pop("tooltip_kwargs", {})
-    plotter._tooltip_style = plotter._set_tooltip_style(**tooltip_kwargs)
+    plotter._tooltip_style = set_tooltip_style(**tooltip_kwargs)
 
     plotter.build_layers(**kwargs)
 
