@@ -160,7 +160,7 @@ def to_rgba255_css(color: str, alpha: float = 1.0) -> str:
     return f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha:.2f})"
 
 
-def set_tooltip_css(
+def set_tooltip_style(
     background_alpha: float = 0.7,
     background_color: str = "black",
     font_color: str = "white",

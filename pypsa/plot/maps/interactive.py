@@ -24,7 +24,7 @@ from pypsa.plot.maps.common import (
     meters_to_lonlat,
     rotate_polygon,
     scale_polygon_by_width,
-    set_tooltip_css,
+    set_tooltip_style,
     to_rgba255,
 )
 
@@ -376,8 +376,7 @@ class PydeckPlotter:
             view_state=view_state,
         )
         self._layers: dict[str, pdk.Layer] = {}
-        self._tooltip: dict | bool = False
-        self._tooltip_css: dict = self._init_tooltip_css()
+        self._tooltip_style: dict = self._set_tooltip_style()
 
     def _init_map_style(self, map_style: str) -> str:
         """Set the initial map style for the interactive map."""
@@ -394,22 +393,31 @@ class PydeckPlotter:
         """Get the current map style."""
         return self._map_style
 
-    def _init_tooltip_css(self) -> None:
+    def _set_tooltip_style(
+        self,
+        background_alpha: float = 0.5,
+        background_color: str = "black",
+        font_color: str = "white",
+        font_family: str = "Arial",
+        font_size: int = 12,
+        max_width: int = 200,
+        padding: int = 10,
+    ) -> None:
         """Set default CSS styles for the tooltip."""
-        return set_tooltip_css(
-            background_alpha=0.5,
-            background_color="black",
-            font_color="white",
-            font_family="Arial",
-            font_size=12,
-            max_width=200,
-            padding=10,
+        return set_tooltip_style(
+            background_alpha=background_alpha,
+            background_color=background_color,
+            font_color=font_color,
+            font_family=font_family,
+            font_size=font_size,
+            max_width=max_width,
+            padding=padding,
         )
 
     @property
-    def tooltip_css(self) -> dict:
+    def tooltip_style(self) -> dict:
         """Get the current tooltip CSS styles."""
-        return self._tooltip_css
+        return self._tooltip_style
 
     @property
     def layers(self) -> dict[str, pdk.Layer]:
@@ -614,7 +622,7 @@ class PydeckPlotter:
 
         # Tooltip
         if tooltip:
-            bus_data["tooltip"] = df_to_html_table(
+            bus_data["tooltip_html"] = df_to_html_table(
                 bus_data,
                 columns=bus_columns,
                 rounding=2,
@@ -889,7 +897,7 @@ class PydeckPlotter:
 
         # Tooltip
         if tooltip:
-            p_data["tooltip"] = df_to_html_table(
+            p_data["tooltip_html"] = df_to_html_table(
                 p_data,
                 columns=["label", "value"],
                 rounding=2,
@@ -1016,7 +1024,7 @@ class PydeckPlotter:
 
         # Tooltip
         if tooltip:
-            c_data["tooltip"] = df_to_html_table(
+            c_data["tooltip_html"] = df_to_html_table(
                 c_data,
                 columns=branch_columns,
                 rounding=2,
@@ -1084,8 +1092,16 @@ class PydeckPlotter:
             )
             self._layers[f"{c_name}_arrows"] = layer
 
-    def deck(self) -> pdk.Deck:
+    def deck(
+        self,
+        tooltip: bool = True,
+    ) -> pdk.Deck:
         """Display the interactive map.
+
+        Parameters
+        ----------
+        tooltip : bool, default True
+            Whether to show a tooltip on hover.
 
         Returns
         -------
@@ -1095,19 +1111,21 @@ class PydeckPlotter:
         """
         layers = list(self._layers.values())
 
+        if not tooltip:
+            tooltip_content = False
+        else:
+            tooltip_content = {"html": "{tooltip_html}", "style": self._tooltip_style}
+
         deck = pdk.Deck(
             layers=layers,
             map_style=self._map_style,
-            tooltip={
-                "html": "{tooltip}",
-                "style": self._tooltip_css,
-            },
+            tooltip=tooltip_content,
             initial_view_state=self.view_state,
             # set 3d view
         )
         return deck
 
-    def build_interactive_map(
+    def build_layers(
         self,
         bus_sizes: float | dict | pd.Series = 25000000,
         bus_split_circles: bool = False,
@@ -1128,13 +1146,11 @@ class PydeckPlotter:
         arrow_size_factor: float = 1.5,
         arrow_colors: str | dict | pd.Series | None = None,
         arrow_alpha: float | dict | pd.Series = 0.9,
-        map_style: str = "road",
         tooltip: bool = True,
         bus_columns: list | None = None,
         line_columns: list | None = None,
         link_columns: list | None = None,
         transformer_columns: list | None = None,
-        view_state: dict | pdk.ViewState | None = None,
     ) -> pdk.Deck:
         """Create an interactive map of the PyPSA network using Pydeck.
 
@@ -1264,11 +1280,11 @@ class PydeckPlotter:
                 tooltip=tooltip,
             )
 
-        return self.deck()
+        return self
 
 
 @wraps(
-    PydeckPlotter.build_interactive_map,
+    PydeckPlotter.build_layers,
     assigned=("__doc__", "__annotations__", "__type_params__"),
 )
 def explore(  # noqa: D103
@@ -1279,6 +1295,12 @@ def explore(  # noqa: D103
 ) -> dict:
     plotter = PydeckPlotter(n, map_style=map_style, view_state=view_state)
 
-    return plotter.build_interactive_map(
-        **kwargs,
-    )
+    # Optional tooltip_kwargs
+    tooltip_kwargs = kwargs.pop("tooltip_kwargs", {})
+    plotter._tooltip_style = plotter._set_tooltip_style(**tooltip_kwargs)
+
+    tooltip = kwargs.get("tooltip", True)
+
+    plotter.build_layers(**kwargs)
+
+    return plotter.deck(tooltip=tooltip)
