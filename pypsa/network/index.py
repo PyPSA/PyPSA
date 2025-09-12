@@ -792,6 +792,8 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n = pypsa.Network()
         >>> n.set_scenarios({"low": 0.3, "medium": 0.4, "high": 0.3})
         >>> n.set_risk_preference(alpha=0.95, omega=0.1)  # 5% tail CVaR (1 - 0.05)
+        >>> n.risk_preference
+        {"alpha": 0.95, "omega": 0.1}
 
         """
         # Validate parameters
