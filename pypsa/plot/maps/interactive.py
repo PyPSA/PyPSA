@@ -18,10 +18,12 @@ from pypsa.plot.maps.common import (
     as_branch_series,
     calculate_angle,
     calculate_midpoint,
+    df_to_html_table,
     flip_polygon,
     meters_to_lonlat,
     rotate_polygon,
     scale_polygon_by_width,
+    set_tooltip_css,
     to_rgba255,
 )
 
@@ -372,8 +374,8 @@ class PydeckPlotter:
             view_state=kwargs.get("view_state"),
         )
         self._layers: dict[str, pdk.Layer] = {}
-        self._tooltip_columns: list[str] = ["value", "coords"]
         self._tooltip: dict | bool = False
+        self._tooltip_css: dict = self._init_tooltip_css()
 
     def _init_map_style(self, map_style: str) -> str:
         """Set the initial map style for the interactive map."""
@@ -389,6 +391,23 @@ class PydeckPlotter:
     def map_style(self) -> str:
         """Get the current map style."""
         return self._map_style
+
+    def _init_tooltip_css(self) -> None:
+        """Set default CSS styles for the tooltip."""
+        return set_tooltip_css(
+            background_alpha=0.5,
+            background_color="black",
+            font_color="white",
+            font_family="Arial",
+            font_size=12,
+            max_width=200,
+            padding=10,
+        )
+
+    @property
+    def tooltip_css(self) -> dict:
+        """Get the current tooltip CSS styles."""
+        return self._tooltip_css
 
     @property
     def layers(self) -> dict[str, pdk.Layer]:
@@ -536,7 +555,6 @@ class PydeckPlotter:
                 logger.warning(msg)
 
             layer_columns.extend(valid_columns)
-            self._tooltip_columns = list(set(self._tooltip_columns + valid_columns))
 
         df = df[layer_columns].copy()
         df.index.name = "name"
@@ -558,6 +576,7 @@ class PydeckPlotter:
         bus_colors: str | dict | pd.Series = "cadetblue",
         bus_alpha: float | dict | pd.Series = 0.9,
         bus_columns: list | None = None,
+        tooltip: bool = True,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
 
@@ -572,6 +591,8 @@ class PydeckPlotter:
         bus_columns : list, default None
             List of bus columns to include. If None, only the bus index and x, y coordinates are used.
             Specify additional columns to include in the tooltip.
+        tooltip : bool, default True
+            Whether to show a tooltip on hover.
 
         Returns
         -------
@@ -585,14 +606,19 @@ class PydeckPlotter:
             extra_columns=bus_columns,
         )
 
-        # For default tooltip
-        bus_data["value"] = _convert_to_series(bus_sizes, bus_data.index).round(3)
-        bus_data["coords"] = bus_data[["x", "y"]].apply(
-            lambda row: f"({row['x']:.3f}, {row['y']:.3f})", axis=1
-        )
-
         # Map bus sizes
-        bus_data["radius"] = bus_data["value"] ** 0.5
+        bus_sizes = _convert_to_series(bus_sizes, bus_data.index)
+        bus_data["radius"] = bus_sizes**0.5
+
+        # Tooltip
+        if tooltip:
+            bus_data["tooltip"] = df_to_html_table(
+                bus_data,
+                columns=bus_columns,
+                rounding=2,
+                value_align="left",
+                max_header_length=np.inf,
+            )
 
         # Convert colors to RGBA list
         colors = _convert_to_series(bus_colors, bus_data.index)
@@ -674,6 +700,7 @@ class PydeckPlotter:
 
     @staticmethod
     def _make_pie(
+        bus: str,
         p_center: tuple[float, float],
         radius_m: float,
         values: np.ndarray,
@@ -687,6 +714,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
+        bus : str
+            Name of the bus for which the pie chart is created.
         p_center : tuple of float
             Center point of the pie chart as (lon, lat).
         radius_m : float
@@ -734,7 +763,8 @@ class PydeckPlotter:
                     points_per_radian,
                 ),
                 "color": color,
-                "name": label,
+                "bus": bus,
+                "label": label,
                 "value": val,
             }
             for val, color, label, start, delta in zip(
@@ -748,7 +778,9 @@ class PydeckPlotter:
         bus_sizes: pd.Series,
         bus_split_circles: bool = False,
         bus_alpha: float | dict | pd.Series = 0.9,
+        bus_columns: list | None = None,
         points_per_radian: int = 10,
+        tooltip: bool = True,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
 
@@ -762,8 +794,12 @@ class PydeckPlotter:
             of the series, the lower half circle all negative values. Defaults to False.
         bus_alpha : float/dict/pandas.Series
             Add alpha channel to buses, defaults to 0.9.
+        bus_columns : list, default None
+            List of bus columns to include.
         points_per_radian : int, default 10
             Number of points per radian for pie chart resolution.
+        tooltip : bool, default True
+            Whether to show a tooltip on hover.
 
         Returns
         -------
@@ -803,11 +839,12 @@ class PydeckPlotter:
                 pos_mask = values > 0
                 if np.any(pos_mask):
                     poly_pos = PydeckPlotter._make_pie(
+                        bus=bus,
                         p_center=(x, y),
                         radius_m=(values[pos_mask].sum()) ** 0.5,
                         values=values[pos_mask].round(3),
                         colors=[carrier_rgba[bus][c] for c in bus_cols[pos_mask]],
-                        labels=[f"{bus} - {c}" for c in bus_cols[pos_mask]],
+                        labels=list(bus_cols[pos_mask]),
                         points_per_radian=points_per_radian,
                         flip_y=False,
                         bus_split_circles=True,
@@ -817,11 +854,12 @@ class PydeckPlotter:
                 neg_mask = values < 0
                 if np.any(neg_mask):
                     poly_neg = PydeckPlotter._make_pie(
+                        bus=bus,
                         p_center=(x, y),
                         radius_m=(-values[neg_mask].sum()) ** 0.5,
                         values=-values[neg_mask].round(3),
                         colors=[carrier_rgba[bus][c] for c in bus_cols[neg_mask]],
-                        labels=[f"{bus} - {c}" for c in bus_cols[neg_mask]],
+                        labels=list(bus_cols[pos_mask]),
                         points_per_radian=points_per_radian,
                         flip_y=True,
                         bus_split_circles=True,
@@ -832,20 +870,34 @@ class PydeckPlotter:
                 if not np.any(mask):
                     continue
                 poly_pos = PydeckPlotter._make_pie(
+                    bus=bus,
                     p_center=(x, y),
                     radius_m=(values[mask].sum()) ** 0.5,
                     values=values[mask].round(3),
                     colors=[carrier_rgba[bus][c] for c in bus_cols[mask]],
-                    labels=[f"{bus} - {c}" for c in bus_cols[mask]],
+                    labels=list(bus_cols[pos_mask]),
                     points_per_radian=points_per_radian,
                     flip_y=False,
                     bus_split_circles=False,
                 )
                 polygons.extend(poly_pos)
 
+        p_data = pd.DataFrame(polygons)
+        p_data.set_index("bus", inplace=True)
+
+        # Tooltip
+        if tooltip:
+            p_data["tooltip"] = df_to_html_table(
+                p_data,
+                columns=["label", "value"],
+                rounding=2,
+                value_align="left",
+                max_header_length=np.inf,
+            )
+
         layer = pdk.Layer(
             "PolygonLayer",
-            data=polygons,
+            data=p_data,
             get_polygon="polygon",
             get_fill_color="color",
             pickable=True,
@@ -869,6 +921,7 @@ class PydeckPlotter:
         arrow_size_factor: float = 1.5,
         arrow_colors: str | dict | pd.Series = "black",
         arrow_alpha: float | dict | pd.Series = 0.9,
+        tooltip: bool = True,
     ) -> None:
         """Add a line layer of Pydeck type PathLayer to the interactive map.
 
@@ -886,7 +939,7 @@ class PydeckPlotter:
         branch_widths : float/dict/pandas.Series
             Widths of branch component in meters, defaults to 1500.
         branch_columns : list, default None
-            List of branch columns to include. If None, only the bus0 and bus1 columns are used.
+            List of branch columns to include.
             Specify additional columns to include in the tooltip.
         arrow_size_factor : float, default 1.5
             Factor to scale the arrow size. If 0, no arrows will be drawn.
@@ -894,6 +947,8 @@ class PydeckPlotter:
             Colors for the arrows, defaults to 'black'.
         arrow_alpha : float/dict/pandas.Series
             Add alpha channel to arrows, defaults to 0.9.
+        tooltip : bool, default True
+            Enable or disable tooltips for the branch layer.
 
         Returns
         -------
@@ -957,16 +1012,15 @@ class PydeckPlotter:
         c_data["width"] = _convert_to_series(branch_widths, c_data.index)
         c_data["width"] = c_data["width"].abs()
 
-        # For default tooltip
-        arrow_sym = "&#x2B95;"
-        c_data["value"] = c_data["width"].round(3)
-        c_data["coords"] = c_data.apply(
-            lambda row: (
-                f"({row['path'][0][0]:.3f}, {row['path'][0][1]:.3f}) {arrow_sym} "
-                f"({row['path'][1][0]:.3f}, {row['path'][1][1]:.3f})"
-            ),
-            axis=1,
-        )
+        # Tooltip
+        if tooltip:
+            c_data["tooltip"] = df_to_html_table(
+                c_data,
+                columns=branch_columns,
+                rounding=2,
+                value_align="left",
+                max_header_length=np.inf,
+            )
 
         # Create PathLayer, use "path" column for get_path
         layer = pdk.Layer(
@@ -1020,30 +1074,13 @@ class PydeckPlotter:
                 data=c_data.reset_index(),
                 get_polygon="arrow",
                 get_fill_color="rgba",
-                pickable=True,  # Disable tooltips for arrow heads
+                pickable=True,
                 auto_highlight=True,
                 parameters={
                     "depthTest": False
                 },  # To prevent z-fighting issues/flickering in 3D space
             )
             self._layers[f"{c_name}_arrows"] = layer
-
-    # TODO: Find a way to hide empty tooltip columns. Note, tooltips per layer are not supported by Pydeck.
-    def add_tooltip(self) -> None:
-        """Add a tooltip to the interactive map."""
-        tooltip_html = "<b>{name}</b><br/>"
-        for col in self._tooltip_columns:
-            tooltip_html += f"<b>{col}:</b> {{{col}}}<br/>"
-
-        self._tooltip = {
-            "html": tooltip_html,
-            "style": {
-                "backgroundColor": "black",
-                "color": "white",
-                "fontFamily": "Arial",
-                "fontSize": "12px",
-            },
-        }
 
     def deck(self) -> pdk.Deck:
         """Display the interactive map.
@@ -1059,7 +1096,10 @@ class PydeckPlotter:
         deck = pdk.Deck(
             layers=layers,
             map_style=self._map_style,
-            tooltip=self._tooltip,
+            tooltip={
+                "html": "{tooltip}",
+                "style": self._tooltip_css,
+            },
             initial_view_state=self.view_state,
             # set 3d view
         )
@@ -1149,7 +1189,7 @@ def explore(
     tooltip : bool, default True
         Whether to add a tooltip to the bus layer.
     bus_columns : list, default None
-        List of bus columns to include. If None, only the bus index and x, y coordinates are used.
+        List of bus columns to include.
         Specify additional columns to include in the tooltip.
     line_columns : list, default None
         List of line columns to include. If None, only the bus0 and bus1 columns are used.
@@ -1204,6 +1244,7 @@ def explore(
                 arrow_size_factor=arrow_size_factor,
                 arrow_colors=arrow_colors,
                 arrow_alpha=arrow_alpha,
+                tooltip=tooltip,
             )
 
     # Bus layer
@@ -1212,7 +1253,9 @@ def explore(
             bus_sizes=bus_sizes,
             bus_split_circles=bus_split_circles,
             bus_alpha=bus_alpha,
+            bus_columns=bus_columns,
             points_per_radian=10,
+            tooltip=tooltip,
         )
     else:
         plotter.add_bus_layer(
@@ -1220,10 +1263,7 @@ def explore(
             bus_colors=bus_colors,
             bus_alpha=bus_alpha,
             bus_columns=bus_columns,
+            tooltip=tooltip,
         )
 
-    # Tooltip
-    if tooltip:
-        plotter.add_tooltip()
-
-    return plotter.deck()
+    return plotter

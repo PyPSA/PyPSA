@@ -140,7 +140,7 @@ def to_rgba255(
     return rgb + [a]
 
 
-def to_rgba_css(color: str, alpha: float = 1.0) -> str:
+def to_rgba255_css(color: str, alpha: float = 1.0) -> str:
     """Convert Matplotlib color to CSS rgba() string.
 
     Parameters
@@ -158,6 +158,54 @@ def to_rgba_css(color: str, alpha: float = 1.0) -> str:
     """
     rgb = [round(c * 255) for c in mcolors.to_rgb(color)]
     return f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, {alpha:.2f})"
+
+
+def set_tooltip_css(
+    background_alpha: float = 0.7,
+    background_color: str = "black",
+    font_color: str = "white",
+    font_family: str = "Arial",
+    font_size: int = 12,
+    max_width: int = 300,
+    padding: int = 5,
+) -> dict[str, str]:
+    """Set CSS style for pydeck tooltips.
+
+    Parameters
+    ----------
+    background_alpha : float
+        Alpha transparency for background color (0 to 1).
+    background_color : str
+        Matplotlib color name or hex string for background.
+    font_color : str
+        Font color name or hex string.
+    font_family : str
+        Font family name.
+    font_size : int
+        Font size in pixels.
+    max_width : int
+        Maximum width of tooltip in pixels.
+    padding : int
+        Padding inside tooltip in pixels.
+
+    Returns
+    -------
+    dict
+        Dictionary of CSS styles for pydeck tooltip.
+
+    """
+    return {
+        "backgroundColor": to_rgba255_css(background_color, background_alpha),
+        "color": font_color,
+        "fontFamily": font_family,
+        "fontSize": f"{font_size}px",
+        "borderCollapse": "collapse",
+        "border": "1px solid white",
+        "padding": f"{padding}px",
+        "maxWidth": f"{max_width}px",
+        "overflowWrap": "break-word",
+        "overflow": "hidden",
+    }
 
 
 # Geometric functions
@@ -326,3 +374,160 @@ def meters_to_lonlat(poly: np.ndarray, p0_m: tuple[float, float]) -> np.ndarray:
     dlon = (x / (R * np.cos(np.radians(lat0)))) * (180.0 / np.pi)
     dlat = (y / R) * (180.0 / np.pi)
     return np.column_stack((lon0 + dlon, lat0 + dlat))
+
+
+def series_to_html_str(
+    df_row: pd.Series,
+    columns: list[str] | None = None,
+    bold_header: bool = True,
+    headline: str | None = None,
+    rounding: int | dict | None = None,
+    value_align: str = "left",
+    max_header_length: int | None = None,
+    max_value_length: int | None = None,
+) -> str:
+    """Convert a pd.Series to a vertical HTML table (columns become rows) with optional headline, bold left column, right-aligned values, and rounding.
+
+    Parameters
+    ----------
+    df_row : pd.Series
+        A row from the DataFrame.
+    columns : list of str, optional
+        Columns to include. Defaults to empty (no rows).
+    bold_header : bool
+        Whether to make the left column (headers) bold.
+    headline : str, optional
+        Text displayed above the table.
+    fontsize : int
+        Font size in pixels for headline.
+    rounding : int or dict, optional
+        Number of decimals to round numeric values. If dict, keys are column names.
+    value_align : str
+        Alignment for value column: "right", "left", or "center".
+    max_header_length : int, optional
+        Maximum length of headline. Longer headlines are truncated with "...".
+    max_value_length : int, optional
+        Maximum length of each value string. Longer values are truncated with "...".
+
+    Returns
+    -------
+    str
+        HTML string of the vertical table with optional headline.
+
+    """
+    # Early exit if nothing to show
+    if not columns and not headline:
+        return ""
+
+    # Build headline first
+    table_html = ""
+    if headline:
+        if max_header_length and len(headline) > max_header_length:
+            headline = headline[:max_header_length] + "..."
+
+        table_html += f"<b>{headline}</b>\n"
+
+    # If no columns, return only headline
+    if not columns:
+        return table_html
+
+    # Extract values as object array to handle mixed types
+    values = df_row[columns].to_numpy(dtype=object)
+
+    # Helper function for rounding
+    def _round_value(v: Any, col: str | None = None) -> Any:
+        if isinstance(v, (int | float)):
+            if isinstance(rounding, int):
+                return int(v) if v.is_integer() else round(v, rounding)
+            elif isinstance(rounding, dict) and col in rounding:
+                r = rounding[col]
+                return int(round(v, r)) if round(v, r).is_integer() else round(v, r)
+        return v
+
+    # Apply rounding using a simple list comprehension
+    if rounding is not None:
+        values = np.array(
+            [_round_value(v, col) for v, col in zip(values, columns, strict=False)],
+            dtype=object,
+        )
+
+    # Convert all values to strings (vectorized)
+    values = values.astype(str)
+
+    if max_value_length is not None:
+        values = np.array(
+            [
+                v if len(v) <= max_value_length else v[:max_value_length] + "..."
+                for v in values
+            ],
+            dtype=object,
+        )
+
+    # Prepare left (header) column
+    left_style = "font-weight:bold" if bold_header else ""
+    left_arr = [
+        f"<td style='{left_style}'>{col}:</td>" if left_style else f"<td>{col}:</td>"
+        for col in columns
+    ]
+
+    # Prepare right (value) column
+    right_arr = [f"<td style='text-align:{value_align}'>{v}</td>" for v in values]
+
+    # Combine rows
+    row_html_arr = [
+        f"<tr>{l}{r}</tr>" for l, r in zip(left_arr, right_arr, strict=False)
+    ]
+    table_html += "<table>\n" + "\n".join(row_html_arr) + "\n</table>"
+
+    return table_html
+
+
+def df_to_html_table(
+    df: pd.DataFrame,
+    columns: list[str] | None = None,
+    bold_header: bool = True,
+    rounding: int | dict | None = None,
+    value_align: str = "left",
+    max_header_length: int | None = None,
+    max_value_length: int | None = None,
+) -> pd.Series:
+    """Convert a DataFrame row to a vertical HTML table (columns become rows) with optional headline, bold left column, right-aligned values, and rounding.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A DataFrame with one or more rows.
+    columns : list of str, optional
+        Columns to include. Defaults to empty (no rows).
+    bold_header : bool
+        Whether to make the left column (headers) bold.
+    fontsize : int
+        Font size in pixels for headline.
+    rounding : int or dict, optional
+        Number of decimals to round numeric values. If dict, keys are column names.
+    value_align : str
+        Alignment for value column: "right", "left", or "center".
+    max_header_length : int, optional
+        Maximum length of headline. Longer headlines are truncated with "...".
+    max_value_length : int, optional
+        Maximum length of each value string. Longer values are truncated with "...".
+
+    Returns
+    -------
+    pd.Series
+        Series of HTML strings for each row in the DataFrame.
+
+    """
+    return df.apply(
+        lambda row: series_to_html_str(
+            row,
+            columns=columns,
+            bold_header=bold_header,
+            headline=row.name,
+            rounding=rounding,
+            value_align=value_align,
+            max_header_length=max_header_length,
+            max_value_length=max_value_length,
+        ),
+        axis=1,
+    )
