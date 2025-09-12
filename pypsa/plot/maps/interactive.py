@@ -1094,7 +1094,7 @@ class PydeckPlotter:
         """
         layers = list(self._layers.values())
 
-        tooltip_content: bool | dict[str, str]  # explicitly allowed by pdk.Deck()
+        tooltip_content: bool | dict[str, str | dict[str, str]]
         if not tooltip:
             tooltip_content = False
         else:
