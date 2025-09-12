@@ -27,8 +27,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "numpy",
-    "scipy>=1.14.1,!=1.15.0; python_version >= '3.13'",
-    "scipy; python_version < '3.13'",
+    "scipy",
     "pandas>=0.24",
     "xarray",
     "netcdf4",
@@ -62,7 +61,7 @@ dev = [
     "pytest-mpl", 
     "coverage",
     "pypower",
-    "pandapower>=2.14.11; python_version < '3.13'",
+    "pandapower>=2.14.11",
     "scikit-learn",
     "pre-commit", 
     "ruff",
