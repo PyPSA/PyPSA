@@ -713,7 +713,23 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if "-" not in name:
                 continue
 
+            if "-" not in name:
+                # Custom variables might not contain a dash
+                logger.info(
+                    "The variable '%s' could not be mapped to the network component because it does not include the symbol '-'.",
+                    name,
+                )
+                continue
+
             _c_name, attr = name.split("-", 1)
+            if not hasattr(n.c, _c_name):
+                # Custom variables might correspond to a designated component
+                logger.info(
+                    "The variable '%s' could not be mapped to the network component because the component '%s' does not exist.",
+                    name,
+                    _c_name,
+                )
+                continue
             c = n.c[_c_name]
             df = _from_xarray(sol, c)
 

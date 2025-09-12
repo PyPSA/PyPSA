@@ -258,9 +258,7 @@ class Network(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus2")
-        Index(['bus2'], dtype='object')
         >>> new_network = n1 + n2
         >>> len(new_network.buses)
         2
@@ -316,9 +314,7 @@ class Network(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus2")
-        Index(['bus2'], dtype='object')
         >>> n1.equals(n2)
         False
 
