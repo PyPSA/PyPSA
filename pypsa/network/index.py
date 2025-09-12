@@ -782,11 +782,6 @@ class NetworkIndexMixin(_NetworkABC):
             - omega = 1: Maximum risk aversion (optimize for the tail risk only)
             Higher values indicate more risk aversion.
 
-        Raises
-        ------
-        ValueError
-            If alpha is not in (0,1), or if omega is not in [0,1].
-
         Examples
         --------
         >>> n = pypsa.Network()
