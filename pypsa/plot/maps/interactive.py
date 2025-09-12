@@ -454,8 +454,8 @@ class PydeckPlotter:
     @staticmethod
     def _make_arrows(
         flow: float,
-        p0_geo: float,
-        p1_geo: float,
+        p0_geo: tuple[float, float],
+        p1_geo: tuple[float, float],
         arrow_size_factor: float,
     ) -> list[tuple[float, float]]:
         """Create arrows scaled and projected for a given flow and p0, p1 geographical coordinates. Additional scaling by arrow_size_factor.
@@ -1094,6 +1094,7 @@ class PydeckPlotter:
         """
         layers = list(self._layers.values())
 
+        tooltip_content: bool | dict[str, str]  # explicitly allowed by pdk.Deck()
         if not tooltip:
             tooltip_content = False
         else:
