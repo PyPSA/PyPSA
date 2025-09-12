@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
@@ -27,6 +28,12 @@ if TYPE_CHECKING:
     ArgItem = list[str | int | float | DataArray]
 
 logger = logging.getLogger(__name__)
+
+# TODO move to constants.py
+lookup = pd.read_csv(
+    Path(__file__).parent / ".." / "data" / "variables.csv",
+    index_col=["component", "variable"],
+)
 
 
 def define_operational_constraints_for_non_extendables(
