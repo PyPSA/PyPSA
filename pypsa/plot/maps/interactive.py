@@ -529,7 +529,7 @@ class PydeckPlotter:
         component: str,
         default_columns: list[str],
         extra_columns: list[str] | None = None,
-    ) -> pd.DataFrame:
+    ) -> tuple[pd.DataFrame, list[str]]:
         """Prepare data for a specific component type.
 
         Parameters
@@ -543,8 +543,8 @@ class PydeckPlotter:
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing the prepared data for the component.
+        tuple of (pd.DataFrame, list of str)
+            A tuple containing the prepared DataFrame and a list of layer columns.
 
         """
         df = self._n.static(component)
@@ -577,7 +577,7 @@ class PydeckPlotter:
             for col in numeric_cols:
                 df[col] = df[col].round(3)
 
-        return df
+        return df, layer_columns
 
     # Layer functions
     def add_bus_layer(
@@ -610,7 +610,7 @@ class PydeckPlotter:
 
         """
         # Check if columns exist and only keep the ones that also exist in the network
-        bus_data = self.prepare_component_data(
+        bus_data, valid_columns = self.prepare_component_data(
             "Bus",
             default_columns=["x", "y"],
             extra_columns=bus_columns,
@@ -624,7 +624,7 @@ class PydeckPlotter:
         if tooltip:
             bus_data["tooltip_html"] = df_to_html_table(
                 bus_data,
-                columns=bus_columns,
+                columns=valid_columns,
                 rounding=2,
                 value_align="left",
                 max_header_length=30,
@@ -817,9 +817,10 @@ class PydeckPlotter:
 
         """
         EPS = 1e-6  # Small epsilon to avoid numerical issues
-        bus_data = self.prepare_component_data(
+        bus_data, valid_columns = self.prepare_component_data(
             "Bus",
             default_columns=["x", "y"],
+            extra_columns=bus_columns,
         )
         bus_sizes = bus_sizes.drop(bus_sizes[abs(bus_sizes) < EPS].index)
         bus_sizes = bus_sizes.unstack(level=1, fill_value=0)
@@ -897,9 +898,12 @@ class PydeckPlotter:
 
         # Tooltip
         if tooltip:
+            columns = ["label", "value"] + valid_columns
+            p_data[valid_columns] = bus_data.reindex(p_data.index)[valid_columns]
+
             p_data["tooltip_html"] = df_to_html_table(
                 p_data,
-                columns=["label", "value"],
+                columns=columns,
                 rounding=2,
                 value_align="left",
                 max_header_length=30,
@@ -971,7 +975,7 @@ class PydeckPlotter:
             return
 
         # Prepare data for lines
-        c_data = self.prepare_component_data(
+        c_data, valid_columns = self.prepare_component_data(
             c_name,
             default_columns=["bus0", "bus1"],
             extra_columns=branch_columns,
@@ -1026,7 +1030,7 @@ class PydeckPlotter:
         if tooltip:
             c_data["tooltip_html"] = df_to_html_table(
                 c_data,
-                columns=branch_columns,
+                columns=valid_columns,
                 rounding=2,
                 value_align="left",
                 max_header_length=30,
@@ -1279,6 +1283,7 @@ class PydeckPlotter:
         return self
 
 
+# TODO: fix typing differences between PydeckPlotter.build_layers and explore function
 @wraps(
     PydeckPlotter.build_layers,
     assigned=("__doc__", "__annotations__", "__type_params__"),
@@ -1288,7 +1293,7 @@ def explore(  # noqa: D103
     map_style: str = "road",
     view_state: dict | pdk.ViewState | None = None,
     **kwargs: Any,
-) -> dict:
+) -> pdk.Deck:
     plotter = PydeckPlotter(n, map_style=map_style, view_state=view_state)
 
     # Optional tooltip_kwargs
