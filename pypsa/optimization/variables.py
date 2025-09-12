@@ -244,7 +244,9 @@ def define_cvar_variables(n: Network) -> None:
     - CVaR-theta: VaR level (scalar)
     - CVaR: Conditional Value at Risk (scalar)
 
-    Requirements
+    Requirements:
+    - n.has_scenarios must be True
+    - n.has_risk_preference must be True
     ------------
     - n.has_scenarios must be True
     - n.has_risk_preference must be True
