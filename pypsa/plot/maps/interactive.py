@@ -1151,7 +1151,7 @@ class PydeckPlotter:
         line_columns: list | None = None,
         link_columns: list | None = None,
         transformer_columns: list | None = None,
-    ) -> pdk.Deck:
+    ) -> "PydeckPlotter":
         """Create an interactive map of the PyPSA network using Pydeck.
 
         Parameters
@@ -1199,8 +1199,6 @@ class PydeckPlotter:
             Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
         arrow_alpha : float/dict/pandas.Series, default 0.9
             Add alpha channel to arrows, defaults to 0.9.
-        map_style : str, default 'road'
-            Map style to use for the plot. One of 'light', 'dark', 'road', 'dark_no_labels', and 'light_no_labels'.
         tooltip : bool, default True
             Whether to add a tooltip to the bus layer.
         bus_columns : list, default None
@@ -1215,13 +1213,11 @@ class PydeckPlotter:
         transformer_columns : list, default None
             List of transformer columns to include. If None, only the bus0 and bus1 columns are used.
             Specify additional columns to include in the tooltip.
-        view_state : dict/pdk.ViewState, optional
-            Initial view state for the map. If None, a default view state is created.
 
         Returns
         -------
-        pdk.Deck
-            The interactive map as a Pydeck Deck object.
+        PydeckPlotter
+            The PydeckPlotter instance with the created layers.
 
         """
         n = self._n
@@ -1299,8 +1295,8 @@ def explore(  # noqa: D103
     tooltip_kwargs = kwargs.pop("tooltip_kwargs", {})
     plotter._tooltip_style = plotter._set_tooltip_style(**tooltip_kwargs)
 
-    tooltip = kwargs.get("tooltip", True)
-
     plotter.build_layers(**kwargs)
+
+    tooltip = kwargs.get("tooltip", True)
 
     return plotter.deck(tooltip=tooltip)
