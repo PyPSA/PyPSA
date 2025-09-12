@@ -90,6 +90,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
        Capex for new capacity, weighted by investment periods if `n._multi_invest` is True.
     6. **Unit-commitment costs**
        Start-up and shut-down costs for committable components.
+    7. **Conditional CVaR terms**
+        Define auxiliary CVaR constraints for stochastic risk-averse optimization.
 
     Parameters
     ----------
@@ -306,12 +308,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     expected_capex = _expected(capex_terms)
     expected_opex = _expected(opex_terms)
 
-    """
-    CVaR augmentation if enabled
-    Define auxiliary CVaR constraints for stochastic risk-averse optimization
-       - For each scenario s: a(s) >= OPEX(s) - theta
-       - Theta + 1/(1-alpha) * sum_s p_s * a(s) <= CVaR
-    """
+    # CVaR augmentation if enabled
     if getattr(n, "has_scenarios", False) and getattr(n, "has_risk_preference", False):
         rp = n.risk_preference
         if rp is None:
