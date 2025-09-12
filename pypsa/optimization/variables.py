@@ -237,23 +237,26 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
 
 
 def define_cvar_variables(n: Network) -> None:
-    """Define auxiliary variables for CVaR risk formulation.
+    """Define auxiliary variables used in the CVaR (Conditional Value-at-Risk) formulation.
 
-    Adds the following variables when stochastic optimization with CVaR is enabled:
-    - CVaR-a(scenario): auxiliary variable per scenario
-    - CVaR-theta: VaR level (scalar)
-    - CVaR: Conditional Value at Risk (scalar)
+    This helper adds three auxiliary variables to the model when
+    stochastic optimisation with risk preference is enabled.
 
-    Requirements:
-    - n.has_scenarios must be True
-    - n.has_risk_preference must be True
-    ------------
-    - n.has_scenarios must be True
-    - n.has_risk_preference must be True
+    * ``CVaR-a`` (per-scenario, non-negative): auxiliary excess loss variables ``a_s``.
+      They linearise the tail expectation: ``a_s >= OPEX_s - theta``.
+    * ``CVaR-theta`` (scalar): the Value-at-Risk (VaR) level ``theta`` at confidence ``alpha``.
+    * ``CVaR`` (scalar): the Conditional Value-at-Risk (Expected Shortfall) objective term.
+
+    These variables are linked by constraints (added in the objective construction)
+    to implement the linear CVaR formulation.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+
     """
-    if not getattr(n, "has_scenarios", False):
-        return
-    if not getattr(n, "has_risk_preference", False):
+    if n.has_scenarios and n.has_risk_preference is False:
         return
 
     # Per-scenario auxiliary variables a[s]
