@@ -339,7 +339,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
                 "Remove/approximate quadratic costs (e.g. set 'marginal_cost_quadratic=0' "
                 "or use a piecewise-linear approximation)."
             )
-            raise RuntimeError(msg_q)
+            raise ValueError(msg_q)
 
         # Create per-scenario OPEX expressions to use in constraints
         scen_opex_exprs: dict[Any, Any] = {}
