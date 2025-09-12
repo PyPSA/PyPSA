@@ -237,7 +237,7 @@ def aggregateoneport(
     if custom_strategies is None:
         custom_strategies = {}
     c = component
-    static = n.static(c)
+    static = n.c[c].static
     attrs = n.components[c]["attrs"]
     if "carrier" in static.columns:
         if carriers is None:
@@ -283,7 +283,7 @@ def aggregateoneport(
     aggregated = static.groupby(grouper).agg(static_strategies)
     aggregated.index = flatten_multiindex(aggregated.index).rename(c)
 
-    non_aggregated = n.static(c)[~to_aggregate]
+    non_aggregated = n.c[c].static[~to_aggregate]
     non_aggregated = non_aggregated.assign(bus=non_aggregated.bus.map(busmap))
 
     static = pd.concat([aggregated, non_aggregated], sort=False)
@@ -291,8 +291,8 @@ def aggregateoneport(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.dynamic(c), c)
-        for attr, data in n.dynamic(c).items():
+        dynamic_strategies = align_strategies(strategies, n.c[c].dynamic, c)
+        for attr, data in n.c[c].dynamic.items():
             if data.empty:
                 dynamic[attr] = data
                 continue
@@ -403,7 +403,7 @@ def aggregatelines(
     if bus_strategies is None:
         bus_strategies = {}
     attrs = n.components["Line"]["attrs"]
-    static = n.static("Line")
+    static = n.c["Line"].static
     idx = static.index[static.bus0.map(busmap) != static.bus1.map(busmap)]
     static = static.loc[idx]
 
@@ -463,7 +463,7 @@ def aggregatelines(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.dynamic("Line"), "Line")
+        dynamic_strategies = align_strategies(strategies, n.c["Line"].dynamic, "Line")
 
         for attr, data in n.c.lines.dynamic.items():
             if data.empty:
@@ -594,14 +594,18 @@ def get_clustering_from_busmap(
 
     # Collect remaining one ports
 
-    for c in n.iterate_components(one_port_components):
+    for c in n.components:
+        if c.name not in one_port_components:
+            continue
         remaining_one_port_data = c.static.assign(bus=c.static.bus.map(busmap)).dropna(
             subset=["bus"]
         )
         clustered.add(c.name, remaining_one_port_data.index, **remaining_one_port_data)
 
     if with_time:
-        for c in n.iterate_components(one_port_components):
+        for c in n.components:
+            if c.name not in one_port_components:
+                continue
             for attr, df in c.dynamic.items():
                 if not df.empty:
                     clustered._import_series_from_df(df, c.name, attr)

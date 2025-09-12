@@ -148,12 +148,12 @@ class AbstractStatisticsAccessor(ABC):
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
         for c in comps:
-            if n.static(c).empty:
+            if n.c[c].static.empty:
                 continue
 
             ports = [
                 match.group(1)
-                for col in n.static(c)
+                for col in n.c[c].static
                 if (match := RE_PORTS.search(str(col)))
             ]
             if not at_port:
@@ -225,13 +225,14 @@ class AbstractStatisticsAccessor(ABC):
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
         idx = self._get_component_index(obj, c)
+
         if not self.is_multi_indexed:
-            mask = n.get_active_assets(c)
+            mask = n.c[c].get_active_assets()
             return obj.loc[mask.index[mask].intersection(idx)]
 
         per_period = {}
         for p in n.investment_periods:
-            mask = n.get_active_assets(c, p)
+            mask = n.c[c].get_active_assets(p)
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
         return self._concat_periods(per_period, c)
 
@@ -248,7 +249,7 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        ports = n.static(c).loc[idx, f"bus{port}"]
+        ports = n.c[c].static.loc[idx, f"bus{port}"]
         port_carriers = ports.map(n.c.buses.static.carrier)
         if isinstance(bus_carrier, str):
             if bus_carrier in n.c.buses.static.carrier.unique():
@@ -272,11 +273,11 @@ class AbstractStatisticsAccessor(ABC):
         obj: Any,
     ) -> Any:
         """Filter the DataFrame for components which have the specified carrier."""
-        if carrier is None or "carrier" not in n.static(c):
+        if carrier is None or "carrier" not in n.c[c].static:
             return obj
 
         idx = self._get_component_index(obj, c)
-        carriers = n.static(c).loc[idx, "carrier"]
+        carriers = n.c[c].static.loc[idx, "carrier"]
 
         if isinstance(carrier, str):
             if carrier in carriers.unique():

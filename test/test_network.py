@@ -1,5 +1,6 @@
 import copy
 import sys
+import warnings
 
 import linopy
 import numpy as np
@@ -607,16 +608,21 @@ def test_api_components_legacy(new_components_api):
             assert n.generators is n.components.generators.static
             assert n.c.generators.dynamic is n.components.generators.dynamic
         else:
-            # TODO: Activate when warnings are raised again
             assert n.buses is n.components.buses
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.buses_t is n.components.buses.dynamic
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.buses\.dynamic` as a drop-in"
+            ):
+                assert n.buses_t is n.components.buses.dynamic
             assert n.lines is n.components.lines
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.lines_t is n.components.lines.dynamic
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.lines\.dynamic` as a drop-in"
+            ):
+                assert n.lines_t is n.components.lines.dynamic
             assert n.generators is n.components.generators
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.generators_t is n.components.generators.dynamic
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.generators\.dynamic` as a drop-in"
+            ):
+                assert n.generators_t is n.components.generators.dynamic
 
 
 @pytest.mark.parametrize("new_components_api", [True, False])
@@ -624,22 +630,49 @@ def test_api_new_components_api(component_name, new_components_api):
     """
     Test the API of the components module.
     """
-
+    warnings.filterwarnings(
+        "ignore",
+        message=".*is deprecated as of 1.0 and will be .*",
+        category=DeprecationWarning,
+    )
     with pypsa.option_context("api.new_components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
         if not new_components_api:
-            assert n.static(component_name) is n.c[component_name].static
-            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
 
             setattr(n, component_name, "test")
-            assert n.static(component_name) == "test"
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) == "test"
             setattr(n, f"{component_name}_t", "test")
-            assert n.dynamic(component_name) == "test"
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) == "test"
         else:
-            assert n.static(component_name) is n.c[component_name].static
-            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
             with pytest.raises(AttributeError):
                 setattr(n, component_name, "test")
-            # TODO: Activate when warnings are raised again
-            # with pytest.raises(DeprecationWarning):
-            #     setattr(n, f"{component_name}_t", "test")
+            with pytest.warns(DeprecationWarning, match="cannot be set"):
+                setattr(n, f"{component_name}_t", "test")

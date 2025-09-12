@@ -10,8 +10,6 @@ from pypsa.descriptors import (
     get_bounds_pu,
     get_extendable_i,
     get_non_extendable_i,
-    get_switchable_as_dense,
-    get_switchable_as_iter,
 )
 from pypsa.network.power_flow import allocate_series_dataframes
 
@@ -29,7 +27,7 @@ def test_get_switchable_as_dense(network):
     n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
     for attr, val in [("p_max_pu", 1.0), ("p_nom", 100)]:
-        df = get_switchable_as_dense(n, "Generator", attr)
+        df = n.get_switchable_as_dense("Generator", attr)
         assert isinstance(df, pd.DataFrame)
         assert df.index.equals(n.snapshots)
         assert df.columns.equals(pd.Index(["gen0"]))
@@ -41,7 +39,7 @@ def test_get_switchable_as_iter(network):
     n.add("Bus", "bus0")
     n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
-    iter_df = get_switchable_as_iter(n, "Generator", "p_max_pu", n.snapshots)
+    iter_df = n.get_switchable_as_iter("Generator", "p_max_pu", n.snapshots)
     df = pd.concat(iter_df, axis=1).T
     assert isinstance(df, pd.DataFrame)
     assert len(df) == len(n.snapshots)
