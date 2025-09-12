@@ -617,7 +617,7 @@ class PydeckPlotter:
                 columns=bus_columns,
                 rounding=2,
                 value_align="left",
-                max_header_length=np.inf,
+                max_header_length=2,
             )
 
         # Convert colors to RGBA list
@@ -892,7 +892,7 @@ class PydeckPlotter:
                 columns=["label", "value"],
                 rounding=2,
                 value_align="left",
-                max_header_length=np.inf,
+                max_header_length=2,
             )
 
         layer = pdk.Layer(
@@ -1019,7 +1019,8 @@ class PydeckPlotter:
                 columns=branch_columns,
                 rounding=2,
                 value_align="left",
-                max_header_length=np.inf,
+                max_header_length=1,  # np.inf,
+                max_value_length=5,
             )
 
         # Create PathLayer, use "path" column for get_path

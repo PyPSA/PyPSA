@@ -376,6 +376,62 @@ def meters_to_lonlat(poly: np.ndarray, p0_m: tuple[float, float]) -> np.ndarray:
     return np.column_stack((lon0 + dlon, lat0 + dlat))
 
 
+def shorten_string(s: Any, max_length: int | None = None) -> str:
+    """Convert any object to a string and shorten it with an ellipsis ("...") if it exceeds the specified maximum length.
+
+    Parameters
+    ----------
+    s : Any
+        The object to convert to a string.
+    max_length : int, optional
+        Maximum allowed string length. If None, no shortening is applied.
+
+    Returns
+    -------
+    str
+        The string representation of the input, shortened if necessary.
+
+    """
+    s_str = str(s)
+    if max_length is not None and len(s_str) > max_length:
+        return s_str[:max_length] + "..."
+    return s_str
+
+
+def round_value(
+    v: Any, rounding: int | dict[str, int] | None = None, key: str | None = None
+) -> Any:
+    """Round a numeric value based on the rounding specification.
+
+    Parameters
+    ----------
+    v : Any
+        The value to round.
+    rounding : int or dict of str to int, optional
+        - If int, rounds all numbers to this precision.
+        - If dict, looks up precision using `key`.
+        - If None, no rounding is applied.
+    key : str, optional
+        Identifier used for dict-based rounding.
+
+    Returns
+    -------
+    Any
+        Rounded numeric value if applicable, otherwise the original value.
+
+    """
+    if isinstance(v, (int | float)):
+        if isinstance(rounding, int):
+            if isinstance(v, int) or (isinstance(v, float) and v.is_integer()):
+                return int(v)
+            return round(v, rounding)
+        elif isinstance(rounding, dict) and key in rounding:
+            r = rounding[key]
+            rounded = round(v, r)
+            return int(rounded) if rounded.is_integer() else rounded
+    return v
+
+
 def series_to_html_str(
     df_row: pd.Series,
     columns: list[str] | None = None,
@@ -386,20 +442,18 @@ def series_to_html_str(
     max_header_length: int | None = None,
     max_value_length: int | None = None,
 ) -> str:
-    """Convert a pd.Series to a vertical HTML table (columns become rows) with optional headline, bold left column, right-aligned values, and rounding.
+    """Convert a pd.Series to html string representation of a vertical table (columns become rows) with optional headline, bold left column, right-aligned values, and rounding.
 
     Parameters
     ----------
     df_row : pd.Series
-        A row from the DataFrame.
+        A Series representing a single row of a DataFrame.
     columns : list of str, optional
         Columns to include. Defaults to empty (no rows).
     bold_header : bool
         Whether to make the left column (headers) bold.
     headline : str, optional
-        Text displayed above the table.
-    fontsize : int
-        Font size in pixels for headline.
+        Optional headline to display above the table.
     rounding : int or dict, optional
         Number of decimals to round numeric values. If dict, keys are column names.
     value_align : str
@@ -412,65 +466,44 @@ def series_to_html_str(
     Returns
     -------
     str
-        HTML string of the vertical table with optional headline.
+        HTML string representation of the table.
 
     """
-    # Early exit if nothing to show
     if not columns and not headline:
         return ""
 
-    # Build headline first
+    # Headline
     table_html = ""
     if headline:
-        if max_header_length and len(headline) > max_header_length:
-            headline = headline[:max_header_length] + "..."
+        table_html += f"<b>{shorten_string(headline, max_header_length)}</b>\n"
 
-        table_html += f"<b>{headline}</b>\n"
-
-    # If no columns, return only headline
     if not columns:
         return table_html
 
-    # Extract values as object array to handle mixed types
+    # Extract and process values
     values = df_row[columns].to_numpy(dtype=object)
-
-    # Helper function for rounding
-    def _round_value(v: Any, col: str | None = None) -> Any:
-        if isinstance(v, (int | float)):
-            if isinstance(rounding, int):
-                return int(v) if v.is_integer() else round(v, rounding)
-            elif isinstance(rounding, dict) and col in rounding:
-                r = rounding[col]
-                return int(round(v, r)) if round(v, r).is_integer() else round(v, r)
-        return v
-
-    # Apply rounding using a simple list comprehension
     if rounding is not None:
         values = np.array(
-            [_round_value(v, col) for v, col in zip(values, columns, strict=False)],
-            dtype=object,
-        )
-
-    # Convert all values to strings (vectorized)
-    values = values.astype(str)
-
-    if max_value_length is not None:
-        values = np.array(
             [
-                v if len(v) <= max_value_length else v[:max_value_length] + "..."
-                for v in values
+                round_value(v, rounding, col)
+                for v, col in zip(values, columns, strict=False)
             ],
             dtype=object,
         )
 
-    # Prepare left (header) column
+    values = np.array(
+        [shorten_string(v, max_value_length) for v in values],
+        dtype=object,
+    )
+
+    # Header column
     left_style = "font-weight:bold" if bold_header else ""
     left_arr = [
         f"<td style='{left_style}'>{col}:</td>" if left_style else f"<td>{col}:</td>"
         for col in columns
     ]
 
-    # Prepare right (value) column
+    # Value column
     right_arr = [f"<td style='text-align:{value_align}'>{v}</td>" for v in values]
 
     # Combine rows
@@ -486,10 +519,10 @@ def df_to_html_table(
     df: pd.DataFrame,
     columns: list[str] | None = None,
     bold_header: bool = True,
-    rounding: int | dict | None = None,
-    value_align: str = "left",
     max_header_length: int | None = None,
     max_value_length: int | None = None,
+    rounding: int | dict | None = None,
+    value_align: str = "left",
 ) -> pd.Series:
     """Convert a DataFrame row to a vertical HTML table (columns become rows) with optional headline, bold left column, right-aligned values, and rounding.
 
@@ -501,16 +534,14 @@ def df_to_html_table(
         Columns to include. Defaults to empty (no rows).
     bold_header : bool
         Whether to make the left column (headers) bold.
-    fontsize : int
-        Font size in pixels for headline.
-    rounding : int or dict, optional
-        Number of decimals to round numeric values. If dict, keys are column names.
-    value_align : str
-        Alignment for value column: "right", "left", or "center".
     max_header_length : int, optional
         Maximum length of headline. Longer headlines are truncated with "...".
     max_value_length : int, optional
         Maximum length of each value string. Longer values are truncated with "...".
+    rounding : int or dict, optional
+        Number of decimals to round numeric values. If dict, keys are column names.
+    value_align : str
+        Alignment for value column: "right", "left", or "center".
 
     Returns
     -------
