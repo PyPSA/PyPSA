@@ -356,6 +356,7 @@ class PydeckPlotter:
         n: "Network",
         map_style: str,
         view_state: dict | pdk.ViewState | None = None,
+        layouter: Callable | None = None,
     ) -> None:
         """Initialize the PydeckPlotter.
 
@@ -368,9 +369,16 @@ class PydeckPlotter:
         view_state : dict/pdk.ViewState/None, optional
             Initial view state for the map. If None, a default view state is created.
             If a dict is provided, it should contain keys like 'longitude', 'latitude', 'zoom', 'pitch', and 'bearing'.
+        layouter : Callable | None, optional
+            Layouting function from `networkx <https://networkx.github.io/>`_ which
+            overrules coordinates given in ``n.buses[['x', 'y']]``. See
+            `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+            of available options.
 
         """
         self._n: Network = n
+        self._x: pd.Series | None = None
+        self._y: pd.Series | None = None
         self._map_style: str = self._init_map_style(map_style)
         self._view_state: pdk.ViewState = self._init_view_state(
             view_state=view_state,
@@ -378,15 +386,7 @@ class PydeckPlotter:
         self._layers: dict[str, pdk.Layer] = {}
         self._tooltip_style: dict[str, str] = set_tooltip_style()
 
-    def _init_map_style(self, map_style: str) -> str:
-        """Set the initial map style for the interactive map."""
-        if map_style not in self.VALID_MAP_STYLES:
-            msg = (
-                f"Invalid map style '{map_style}'.\n"
-                f"Must be one of: {', '.join(self.VALID_MAP_STYLES)}."
-            )
-            raise ValueError(msg)
-        return map_style
+        self._init_xy(layouter=layouter)
 
     @property
     def map_style(self) -> str:
@@ -402,6 +402,35 @@ class PydeckPlotter:
     def layers(self) -> dict[str, pdk.Layer]:
         """Get the layers of the interactive map."""
         return self._layers
+
+    def _init_xy(
+        self,
+        layouter: Callable | None = None,
+    ) -> None:
+        """Initialize x and y coordinates from the network buses."""
+        is_empty = (
+            (
+                self._n.c.buses.static[["x", "y"]].isnull()
+                | (self._n.c.buses.static[["x", "y"]] == 0)
+            )
+            .all()
+            .all()
+        )
+
+        if layouter or is_empty:
+            self._x, self._y = apply_layouter(self._n, layouter, inplace=False)
+        else:
+            self._x, self._y = self._n.c.buses.static["x"], self._n.c.buses.static["y"]
+
+    def _init_map_style(self, map_style: str) -> str:
+        """Set the initial map style for the interactive map."""
+        if map_style not in self.VALID_MAP_STYLES:
+            msg = (
+                f"Invalid map style '{map_style}'.\n"
+                f"Must be one of: {', '.join(self.VALID_MAP_STYLES)}."
+            )
+            raise ValueError(msg)
+        return map_style
 
     def _init_view_state(
         self,
@@ -1272,6 +1301,7 @@ def explore(  # noqa: D103
     n: "Network",
     map_style: str = "road",
     view_state: dict | pdk.ViewState | None = None,
+    layouter: Callable | None = None,
     **kwargs: Any,
 ) -> pdk.Deck:
     """Create an interactive map of the PyPSA network using Pydeck.
@@ -1282,7 +1312,9 @@ def explore(  # noqa: D103
         The Pydeck object representing the interactive map.
 
     """
-    plotter = PydeckPlotter(n, map_style=map_style, view_state=view_state)
+    plotter = PydeckPlotter(
+        n, map_style=map_style, view_state=view_state, layouter=layouter
+    )
 
     # Optional tooltip_kwargs
     tooltip_kwargs = kwargs.pop("tooltip_kwargs", {})
