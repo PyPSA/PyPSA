@@ -5,10 +5,10 @@ Generator,start_up,False,False,False,False,False,True
 Generator,shut_down,False,False,False,False,False,True
 Generator,p_nom,False,False,False,False,True,False
 Generator,n_mod,False,False,False,False,False,True
-Line,s,False,False,False,False,False,False
+Line,s,True,True,False,False,False,False
 Line,s_nom,False,False,False,False,True,False
 Line,n_mod,False,False,False,False,False,True
-Transformer,s,False,False,False,False,False,False
+Transformer,s,True,True,False,False,False,False
 Transformer,s_nom,False,False,False,False,True,False
 Transformer,n_mod,False,False,False,False,False,True
 Link,p,True,True,False,False,False,False

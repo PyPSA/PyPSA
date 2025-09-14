@@ -14,6 +14,8 @@ s_nom_min,float,MVA,0,"If `s_nom_extendable=True`, set the minimum value of `s_n
 s_nom_max,float,MVA,inf,"If `s_nom_extendable=True`, set the maximum value of `s_nom_opt`.",Input (optional)
 s_max_pu,static or series,per unit,1,"The maximum allowed absolute apparent power flow per unit of `s_nom` for the optimisation (e.g. can set `s_max_pu<1` to approximate $N-1$ contingency factor, or can be time-varying to represent weather-dependent dynamic line rating for overhead lines).",Input (optional)
 capital_cost,float,currency/MVA,0,"Fixed period costs of extending `s_nom` by 1 MVA, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs). Any `length` factor must already be included here.",Input (optional)
+marginal_cost,static or series,currency/MWh,0.,Marginal cost for absolute flows of 1 MWh irrespective of direction.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost for absolute flows of 1 MWh irrespective of direction.,Input (optional)
 active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
 build_year,int,year,0,Build year of line.,Input (optional)
 lifetime,float,years,inf,Lifetime of line.,Input (optional)

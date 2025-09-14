@@ -14,6 +14,10 @@ Upcoming Release
 
 Features
 --------
+* Added marginal and quadratic marginal costs to Lines and Transformers. 
+  Marginal costs are not direction dependent and therefore based on the absolute flow 
+  over each branch using an additional auxiliary variable and constraints.
+  See the component attribute documentation for more information.
 
 * Added utility function ``pypsa.common.annuity`` to calculate the annuity
   factor for a given discount rate and lifetime. Also known as capital recovery
