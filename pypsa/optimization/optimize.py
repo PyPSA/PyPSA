@@ -681,10 +681,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if name.startswith("CVaR"):
                 continue
 
-            # Skip variables without component-attribute naming
-            if "-" not in name:
-                continue
-
+            # Log variables without component-attribute naming
             if "-" not in name:
                 # Custom variables might not contain a dash
                 logger.info(
