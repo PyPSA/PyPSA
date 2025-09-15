@@ -1,5 +1,6 @@
 """Define common functions for plotting maps in PyPSA."""
 
+import importlib
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, overload
 
@@ -8,11 +9,17 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+from shapely.geometry import Point, mapping
 
 from pypsa.constants import EARTH_RADIUS
 
 if TYPE_CHECKING:
     from pypsa import Network
+
+
+def _is_cartopy_available() -> bool:  # noqa
+    """Check if cartopy is available at runtime."""
+    return importlib.util.find_spec("cartopy") is not None
 
 
 def apply_cmap(  # noqa
@@ -424,6 +431,49 @@ def meters_to_lonlat(
     dlon = (x / (r * np.cos(np.radians(lat0)))) * (180.0 / np.pi)
     dlat = (y / r) * (180.0 / np.pi)
     return np.column_stack((lon0 + dlon, lat0 + dlat))
+
+
+def get_countries_for_points(
+    points: list[tuple[float, float]],
+    resolution: str = "50m",
+) -> list:
+    """Return a list of country GeoJSON features that contain any of the given points.
+
+    Parameters
+    ----------
+    points : list of tuple
+        List of (lon, lat) points.
+    resolution : str, default "50m"
+        Natural Earth resolution to use, one of "10m", "50m", or "110m".
+
+    Returns
+    -------
+    list of dict
+        List of GeoJSON-like country features containing any of the points.
+
+    """
+    from cartopy.io import shapereader  # noqa: PLC0415
+
+    shp = shapereader.natural_earth(
+        resolution=resolution, category="cultural", name="admin_0_countries"
+    )
+    reader = shapereader.Reader(shp)
+
+    points = [Point(lon, lat) for lon, lat in points]
+    features = []
+
+    for record in reader.records():
+        geom = record.geometry
+        if any(geom.contains(p) for p in points):
+            features.append(
+                {
+                    "geometry": mapping(geom),
+                    "country": record.attributes["NAME_LONG"],
+                    "country_code": record.attributes["ISO_A2_EH"],
+                }
+            )
+
+    return features
 
 
 def shorten_string(s: Any, max_length: int | None = None) -> str:

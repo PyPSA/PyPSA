@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pypsa.plot.maps.static import _is_cartopy_available
+from pypsa.plot.maps.common import _is_cartopy_available
 
 
 @pytest.fixture

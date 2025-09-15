@@ -15,6 +15,7 @@ import pyproj
 
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import (
+    _is_cartopy_available,
     add_jitter,
     apply_cmap,
     apply_layouter,
@@ -23,6 +24,7 @@ from pypsa.plot.maps.common import (
     calculate_midpoint,
     df_to_html_table,
     flip_polygon,
+    get_countries_for_points,
     meters_to_lonlat,
     rotate_polygon,
     scale_polygon_by_width,
@@ -1157,6 +1159,40 @@ class PydeckPlotter:
             )
             self._layers[f"{c_name}_arrows"] = layer
 
+    def add_geomap_layer(
+        self,
+    ) -> None:
+        """Add a geomap layer of Pydeck type GeoJsonLayer to the interactive map.
+
+        Returns
+        -------
+        None
+
+        """
+        coords = list(zip(self._x.values, self._y.values, strict=False))
+        features = get_countries_for_points(coords)
+
+        if not features:
+            logger.warning("No country features found for the given bus coordinates.")
+            return
+
+        layer = pdk.Layer(
+            "GeoJsonLayer",
+            data={
+                "type": "FeatureCollection",
+                "features": features,
+            },
+            filled=True,
+            stroked=True,
+            get_fill_color=[200, 200, 200, 50],
+            get_line_color=[100, 100, 100, 255],
+            line_width_min_pixels=1,
+            auto_highlight=False,
+            pickable=False,
+        )
+
+        self._layers["Geomap"] = layer
+
     def deck(
         self,
         tooltip: bool = True,
@@ -1221,6 +1257,7 @@ class PydeckPlotter:
         arrow_size_factor: float = 1.5,
         arrow_colors: str | dict | pd.Series | None = None,
         arrow_alpha: float | dict | pd.Series = 0.9,
+        geomap: bool = False,
         tooltip: bool = True,
         bus_columns: list | None = None,
         line_columns: list | None = None,
@@ -1292,6 +1329,8 @@ class PydeckPlotter:
             Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
         arrow_alpha : float/dict/pandas.Series, default 0.9
             Add alpha channel to arrows, defaults to 0.9.
+        geomap : bool, default False
+            Whether to add a geomap layer to the plot.
         tooltip : bool, default True
             Whether to add a tooltip to the bus layer.
         bus_columns : list, default None
@@ -1314,6 +1353,15 @@ class PydeckPlotter:
 
         """
         n = self._n
+
+        if geomap and not _is_cartopy_available():
+            logger.warning(
+                "Cartopy is not available. Falling back to non-geographic plotting."
+            )
+            geomap = False
+
+        if geomap:
+            self.add_geomap_layer()
 
         # Branch layers
         if branch_components is None:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 import warnings
 from functools import wraps
@@ -25,13 +24,12 @@ from pypsa.geo import (
     compute_bbox,
     get_projected_area_factor,
 )
-from pypsa.plot.maps.common import add_jitter, apply_cmap, apply_layouter
-
-
-def _is_cartopy_available() -> bool:
-    """Check if cartopy is available at runtime."""
-    return importlib.util.find_spec("cartopy") is not None
-
+from pypsa.plot.maps.common import (
+    _is_cartopy_available,
+    add_jitter,
+    apply_cmap,
+    apply_layouter,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
