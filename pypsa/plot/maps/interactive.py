@@ -1169,6 +1169,7 @@ class PydeckPlotter:
 
     def build_layers(
         self,
+        branch_components: list | set | None = None,
         bus_sizes: float | dict | pd.Series = 25000000,
         bus_split_circles: bool = False,
         bus_colors: str | dict | pd.Series = "cadetblue",
@@ -1198,6 +1199,8 @@ class PydeckPlotter:
 
         Parameters
         ----------
+        branch_components : list, default n.branch_components
+            Branch components to be plotted
         bus_sizes : float/dict/pandas.Series
             Sizes of bus points in radius² (meters²), defaults to 25000000.
         bus_split_circles : bool, default False
@@ -1265,7 +1268,10 @@ class PydeckPlotter:
         n = self._n
 
         # Branch layers
-        for c in n.iterate_components(n.branch_components):
+        if branch_components is None:
+            branch_components = n.branch_components
+
+        for c in n.iterate_components(branch_components):
             if c.name == "Line":
                 branch_colors = line_colors
                 branch_alpha = line_alpha
