@@ -344,7 +344,7 @@ class PydeckPlotter:
         "road": pdk.map_styles.ROAD,
         "dark_no_labels": pdk.map_styles.DARK_NO_LABELS,
         "light_no_labels": pdk.map_styles.LIGHT_NO_LABELS,
-        "none": None,
+        "none": "",
     }
     ARROW = np.array(
         [
@@ -387,8 +387,8 @@ class PydeckPlotter:
 
         """
         self._n: Network = n
-        self._x: pd.Series | None = None
-        self._y: pd.Series | None = None
+        self._x: pd.Series
+        self._y: pd.Series
         self._init_xy(layouter=layouter)
         if jitter:
             self._x, self._y = add_jitter(x=self._x, y=self._y, jitter=jitter)
@@ -1440,7 +1440,7 @@ class PydeckPlotter:
 )
 def explore(  # noqa: D103
     n: "Network",
-    map_style: str | None = "road",
+    map_style: str = "road",
     view_state: dict | pdk.ViewState | None = None,
     layouter: Callable | None = None,
     jitter: float | None = None,
