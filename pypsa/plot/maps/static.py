@@ -25,7 +25,7 @@ from pypsa.geo import (
     compute_bbox,
     get_projected_area_factor,
 )
-from pypsa.plot.maps.common import apply_layouter
+from pypsa.plot.maps.common import add_jitter, apply_layouter
 
 
 def _is_cartopy_available() -> bool:
@@ -118,7 +118,7 @@ class MapPlotter:
         self._area_factor = 1.0
 
         if jitter:
-            self.add_jitter(jitter)
+            self.x, self.y = add_jitter(x=self.x, y=self.y, jitter=jitter)
 
     @property
     def n(self) -> Network:
@@ -451,29 +451,6 @@ class MapPlotter:
             linewidth=0.3,
             edgecolor=geomap_colors.get("coastline", "black"),
         )
-
-    def add_jitter(self, jitter: float) -> tuple[pd.Series, pd.Series]:
-        """Add random jitter to data.
-
-        Parameters
-        ----------
-        jitter : float
-            The amount of jitter to add. Function adds a random number between -jitter and
-            jitter to each element in the data arrays.
-
-        Returns
-        -------
-        x_jittered : numpy.ndarray
-            X data with added jitter.
-        y_jittered : numpy.ndarray
-            Y data with added jitter.
-
-        """
-        rng = np.random.default_rng()  # Create a random number generator
-        self.x = self.x + rng.uniform(low=-jitter, high=jitter, size=len(self.x))
-        self.y = self.y + rng.uniform(low=-jitter, high=jitter, size=len(self.y))
-
-        return self.x, self.y
 
     def get_multiindex_buses(
         self,
@@ -1308,11 +1285,8 @@ def plot(  # noqa: D103
         boundaries=boundaries,
         margin=margin,
         buses=buses,
+        jitter=jitter,
     )
-
-    # Add jitter if given
-    if jitter is not None:
-        plotter.add_jitter(jitter)
 
     return plotter.draw_map(
         ax,

@@ -115,6 +115,36 @@ def apply_layouter(
     return coordinates.x, coordinates.y
 
 
+def add_jitter(
+    x: pd.Series, y: pd.Series, jitter: float
+) -> tuple[pd.Series, pd.Series]:
+    """Add random jitter to Series data, preserving index and name.
+
+    Parameters
+    ----------
+    x : pd.Series
+        X data.
+    y : pd.Series
+        Y data.
+    jitter : float
+        The amount of jitter to add. Function adds a random number between -jitter and
+        jitter to each element in the data arrays.
+
+    Returns
+    -------
+    x_jittered : pd.Series
+        X data with added jitter.
+    y_jittered : pd.Series
+        Y data with added jitter.
+
+    """
+    rng = np.random.default_rng()  # Create a random number generator
+    x_jittered = x + rng.uniform(low=-jitter, high=jitter, size=len(x))
+    y_jittered = y + rng.uniform(low=-jitter, high=jitter, size=len(y))
+
+    return x_jittered, y_jittered
+
+
 def to_rgba255(
     color: str,
     alpha: float = 1.0,
