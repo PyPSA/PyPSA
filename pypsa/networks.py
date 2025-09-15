@@ -219,7 +219,7 @@ class Network(
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
-            for c in self.iterate_components()
+            for c in self.components
             if "Type" not in c.name and len(c.static)
         }
         content = "\nComponents:"
@@ -590,8 +590,8 @@ class Network(
         [pypsa.Network.shapes][] : Geometries of the network
 
         """
-        self.components.shapes.static.set_crs(new)
-        self._crs = self.components.shapes.static.crs
+        self.c.shapes.static.set_crs(new)
+        self._crs = self.c.shapes.static.crs
 
     def to_crs(self, new: int | str | pyproj.CRS) -> None:
         """Convert the network's geometries and bus coordinates to a new crs.
@@ -736,7 +736,7 @@ class Network(
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
         # Needs to copy buses and carriers first, since there are dependencies on them
-        for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
+        for component in self.components[["Bus", "Carrier"] + other_comps]:
             # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
@@ -835,21 +835,23 @@ class Network(
             - self.branch_components
         )
         for c in rest_components - {"Bus", "SubNetwork"}:
-            n.add(c, pd.DataFrame(self.static(c)).index, **pd.DataFrame(self.static(c)))
+            n.add(c, self.components[c].static.index, **self.components[c].static)
 
         for c in self.standard_type_components:
             static = pd.DataFrame(
-                self.static(c).drop(self.components[c]["standard_types"].index)
+                self.components[c].static.drop(
+                    self.components[c]["standard_types"].index
+                )
             )
             n.add(c, static.index, **static)
 
         for c in self.one_port_components:
-            static = pd.DataFrame(self.static(c).loc[lambda df: df.bus.isin(buses_i)])
+            static = pd.DataFrame(self.c[c].static.loc[lambda df: df.bus.isin(buses_i)])
             n.add(c, static.index, **static)
 
         for c in self.branch_components:
             static = pd.DataFrame(
-                self.static(c).loc[
+                self.c[c].static.loc[
                     lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
                 ]
             )
@@ -857,10 +859,11 @@ class Network(
 
         n.set_snapshots(self.snapshots[time_i])
         for c in self.all_components:
-            i = n.static(c).index
+            c = n.c[c]
+            i = c.static.index
             try:
-                ndynamic = n.dynamic(c)
-                dynamic = self.dynamic(c)
+                ndynamic = n.c[c.name].dynamic
+                dynamic = c.dynamic
 
                 for k in dynamic:
                     ndynamic[k] = dynamic[k].loc[
@@ -888,7 +891,7 @@ class Network(
             List of empty components.
 
         """
-        return [c.name for c in self.iterate_components() if c.empty]
+        return [c.name for c in self.components if c.empty]
 
     def branches(self) -> pd.DataFrame:
         """Get branches.
@@ -932,7 +935,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -963,7 +966,7 @@ class Network(
         [7 rows x 37 columns]
 
         """
-        comps = list(
+        comps = sorted(
             set(self.passive_branch_components) - set(self._empty_components())
         )
         names = (
@@ -972,7 +975,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -1017,7 +1020,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -1106,11 +1109,13 @@ class Network(
             sub_network_map, "name"
         )[self.c.buses.static.columns]
 
-        for c in self.iterate_components(self.passive_branch_components):
+        for c in self.components:
+            if c.name not in self.passive_branch_components:
+                continue
             c.static["sub_network"] = c.static.bus0.map(sub_network_map)
 
             if investment_period is not None:
-                active = self.get_active_assets(c.name, investment_period)
+                active = c.get_active_assets(investment_period)
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 
@@ -1208,14 +1213,6 @@ class Network(
         !!! warning "Deprecated in v1.0"
             Use `n.components.<component>` or `n.components[component_name]` instead.
 
-        Examples
-        --------
-        >>> n.component("Bus")
-        'Bus' Components
-        ----------------
-        Attached to PyPSA Network 'AC-DC-Meshed'
-        Components: 9
-
         """
         return self.components[c_name]
 
@@ -1240,9 +1237,9 @@ class Network(
             components = self.all_components
 
         return (
-            self.component(c_name)
+            self.c[c_name]
             for c_name in components
-            if not (skip_empty and self.static(c_name).empty)
+            if not (skip_empty and self.c[c_name].static.empty)
         )
 
 
@@ -1339,14 +1336,14 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 if c.name in {"Bus"} | self.n.passive_branch_components:
                     return value[value.sub_network == self.name]
                 if c.name in self.n.one_port_components:
-                    buses = self.buses_i().unique("name")
+                    buses = self.c.buses.static.index.unique("name")
                     return value[value.bus.isin(buses)]
                 msg = f"Component {c.name} not supported for sub-networks"
                 raise ValueError(msg)
             if key == "dynamic":
                 dynamic = Dict()
-                index = self.static(c.name).index
-                for k, v in self.n.dynamic(c.name).items():
+                index = c.static.index
+                for k, v in c.dynamic.items():
                     dynamic[k] = v[index.intersection(v.columns)]
                 return dynamic
             return value
@@ -1463,7 +1460,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         types = []
         names = []
-        for c in self.iterate_components(self.n.passive_branch_components):
+        for c in self.components[sorted(self.n.passive_branch_components)]:
             static = c.static
             idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
@@ -1511,7 +1508,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.static][]
 
         """
-        return self.static(c_name)
+        return self.c[c_name].static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.<c_name>.static` instead.",
@@ -1543,7 +1540,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.dynamic][]
 
         """
-        return self.dynamic(c_name)
+        return self.c[c_name].dynamic
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.<c_name>.dynamic` instead.",
@@ -1575,7 +1572,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.buses][]
 
         """
-        return self.components.buses.static.index
+        return self.c.buses.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.lines.static.index` instead.",
@@ -1591,7 +1588,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.lines][]
 
         """
-        return self.components.lines.static.index
+        return self.c.lines.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.transformers.static.index` instead.",
@@ -1607,7 +1604,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.transformers][]
 
         """
-        return self.components.transformers.static.index
+        return self.c.transformers.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.generators.static.index` instead.",
@@ -1623,7 +1620,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.generators][]
 
         """
-        return self.components.generators.static.index
+        return self.c.generators.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.loads.static.index` instead.",
@@ -1639,7 +1636,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.loads][]
 
         """
-        return self.components.loads.static.index
+        return self.c.loads.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.shunt_impedances.static.index` instead.",
@@ -1655,7 +1652,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.shunt_impedances][]
 
         """
-        return self.components.shunt_impedances.static.index
+        return self.c.shunt_impedances.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.storage_units.static.index` instead.",
@@ -1671,7 +1668,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.storage_units][]
 
         """
-        return self.components.storage_units.static.index
+        return self.c.storage_units.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.stores.index.static` instead.",
@@ -1687,7 +1684,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.stores][]
 
         """
-        return self.components.stores.static.index
+        return self.c.stores.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.buses.static` instead.",
@@ -1703,7 +1700,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.buses][]
 
         """
-        return self.components.buses.static
+        return self.c.buses.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.generators.static` instead.",
@@ -1719,7 +1716,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.generators][]
 
         """
-        return self.components.generators.static
+        return self.c.generators.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.loads.static` instead.",
@@ -1735,7 +1732,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.loads][]
 
         """
-        return self.components.loads.static
+        return self.c.loads.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.shunt_impedances.static` instead.",
@@ -1751,7 +1748,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.shunt_impedances][]
 
         """
-        return self.components.shunt_impedances.static
+        return self.c.shunt_impedances.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.storage_units.static` instead.",
@@ -1767,7 +1764,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.storage_units][]
 
         """
-        return self.components.storage_units.static
+        return self.c.storage_units.static
 
     @deprecated_in_next_major(
         details="Use `!!! deprecated.components.stores.static` instead.",
@@ -1778,7 +1775,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.stores.static` instead.
         """
-        return self.components.stores.static
+        return self.c.stores.static
 
     @deprecated_in_next_major(details="Use `self.components` instead.")
     # Deprecate: Use `self.iterate_components` instead
@@ -1812,5 +1809,5 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         return (
             self.components[c_name]
             for c_name in components
-            if not (skip_empty and self.static(c_name).empty)
+            if not (skip_empty and self.c[c_name].static.empty)
         )

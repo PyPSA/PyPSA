@@ -3,7 +3,6 @@ import pytest
 
 import pypsa
 from pypsa.common import expand_series
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 
 TOLERANCE = 1e-2
@@ -26,13 +25,13 @@ def describe_storage_unit_contraints(n):
         return None
     sns = n.snapshots
     c = "StorageUnit"
-    dynamic = n.dynamic(c)
+    dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
-    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
-    dispatch_eff = get_as_dense(n, c, "efficiency_dispatch", sns)
-    store_eff = get_as_dense(n, c, "efficiency_store", sns)
-    inflow = get_as_dense(n, c, "inflow") * eh
+    stand_eff = (1 - n.get_switchable_as_dense(c, "standing_loss", sns)).pow(eh)
+    dispatch_eff = n.get_switchable_as_dense(c, "efficiency_dispatch", sns)
+    store_eff = n.get_switchable_as_dense(c, "efficiency_store", sns)
+    inflow = n.get_switchable_as_dense(c, "inflow") * eh
     spill = eh[dynamic.spill.columns] * dynamic.spill
 
     description = {
@@ -69,7 +68,7 @@ def describe_nodal_balance_constraint(n):
     network_injection = (
         pd.concat(
             [
-                n.dynamic(c)[f"p{inout}"].rename(columns=n.static(c)[f"bus{inout}"])
+                n.c[c].dynamic[f"p{inout}"].rename(columns=n.c[c].static[f"bus{inout}"])
                 for inout in (0, 1)
                 for c in ("Line", "Transformer")
             ],
@@ -99,8 +98,9 @@ def describe_upper_dispatch_constraints(n):
         description[c + key] = pd.Series(
             {
                 "min": (
-                    n.static(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
-                    - n.dynamic(c)[dispatch_attr]
+                    n.c[c].static[attr + "_opt"]
+                    * n.get_switchable_as_dense(c, attr[0] + "_max_pu")
+                    - n.c[c].dynamic[dispatch_attr]
                 )
                 .min()
                 .min()
@@ -118,9 +118,9 @@ def describe_lower_dispatch_constraints(n):
             description[c] = pd.Series(
                 {
                     "min": (
-                        n.static(c)[attr + "_opt"]
-                        * get_as_dense(n, c, attr[0] + "_max_pu")
-                        + n.dynamic(c)[dispatch_attr]
+                        n.c[c].static[attr + "_opt"]
+                        * n.get_switchable_as_dense(c, attr[0] + "_max_pu")
+                        + n.c[c].dynamic[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -131,9 +131,9 @@ def describe_lower_dispatch_constraints(n):
             description[c + key] = pd.Series(
                 {
                     "min": (
-                        -n.static(c)[attr + "_opt"]
-                        * get_as_dense(n, c, attr[0] + "_min_pu")
-                        + n.dynamic(c)[dispatch_attr]
+                        -n.c[c].static[attr + "_opt"]
+                        * n.get_switchable_as_dense(c, attr[0] + "_min_pu")
+                        + n.c[c].dynamic[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -152,10 +152,10 @@ def describe_store_contraints(n):
         return None
     sns = n.snapshots
     c = "Store"
-    dynamic = n.dynamic(c)
+    dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)
-    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    stand_eff = (1 - n.get_switchable_as_dense(c, "standing_loss", sns)).pow(eh)
 
     start = dynamic.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
     previous_e = stand_eff * dynamic.e.shift().fillna(start)
@@ -174,10 +174,10 @@ def describe_cycle_constraints(n):
     )
 
     def cycle_flow(sub):
-        C = pd.DataFrame(sub.C.todense(), index=sub.lines_i())
+        C = pd.DataFrame(sub.C.todense(), index=sub.components.lines.static.index)
         if C.empty:
             return None
-        C_weighted = 1e5 * C.mul(weightings[sub.lines_i()], axis=0)
+        C_weighted = 1e5 * C.mul(weightings[sub.components.lines.static.index], axis=0)
         return C_weighted.apply(lambda ds: ds @ n.c.lines.dynamic.p0[ds.index].T)
 
     return (
