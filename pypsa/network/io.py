@@ -2401,7 +2401,7 @@ class NetworkIOMixin(_NetworkABC):
         for i in to_replace.index:
             self.remove("Bus", i)
 
-        for component in self.components[["Load", "Generator", "ShuntImpedance"]]:
+        for component in self.components[["Generator", "Load", "ShuntImpedance"]]:
             if component.empty:
                 continue
             component.static.replace({"bus": to_replace}, inplace=True)

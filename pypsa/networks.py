@@ -1460,7 +1460,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         types = []
         names = []
-        for c in self.components[self.n.passive_branch_components]:
+        for c in self.components[sorted(self.n.passive_branch_components)]:
             static = c.static
             idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
