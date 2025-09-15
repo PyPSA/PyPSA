@@ -4,12 +4,27 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, overload
 
 import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
     from pypsa import Network
+
+
+def apply_cmap(  # noqa
+    colors: pd.Series,
+    cmap: str | mcolors.Colormap | None,
+    cmap_norm: mcolors.Normalize | None = None,
+) -> pd.Series:
+    if np.issubdtype(colors.dtype, np.number):
+        if not isinstance(cmap, mcolors.Colormap):
+            cmap = plt.get_cmap(cmap)
+        if not cmap_norm:
+            cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
+        colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
+    return colors
 
 
 def as_branch_series(  # noqa

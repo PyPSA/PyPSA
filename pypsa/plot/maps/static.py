@@ -25,7 +25,7 @@ from pypsa.geo import (
     compute_bbox,
     get_projected_area_factor,
 )
-from pypsa.plot.maps.common import add_jitter, apply_layouter
+from pypsa.plot.maps.common import add_jitter, apply_cmap, apply_layouter
 
 
 def _is_cartopy_available() -> bool:
@@ -45,20 +45,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
-
-def _apply_cmap(
-    colors: pd.Series,
-    cmap: str | mcolors.Colormap | None,
-    cmap_norm: mcolors.Normalize | None = None,
-) -> pd.Series:
-    if np.issubdtype(colors.dtype, np.number):
-        if not isinstance(cmap, mcolors.Colormap):
-            cmap = plt.get_cmap(cmap)
-        if not cmap_norm:
-            cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
-        colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
-    return colors
 
 
 class MapPlotter:
@@ -1134,7 +1120,7 @@ class MapPlotter:
                 raise ValueError(msg)
 
         # Apply all cmaps
-        bus_colors = _apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
+        bus_colors = apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
 
         # Plot buses
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
@@ -1189,7 +1175,7 @@ class MapPlotter:
             if data.empty:
                 continue
 
-            data["colors"] = _apply_cmap(data.colors, cmap, cmap_norm)
+            data["colors"] = apply_cmap(data.colors, cmap, cmap_norm)
 
             branch_coll = self.get_branch_collection(
                 c, data.widths, data.colors, data.alpha, geometry, auto_scale_branches
