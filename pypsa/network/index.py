@@ -790,7 +790,22 @@ class NetworkIndexMixin(_NetworkABC):
         >>> n.risk_preference
         {"alpha": 0.95, "omega": 0.1}
 
+        Notes
+        -----
+        This method must be called after `set_scenarios()` as CVaR formulation
+        requires stochastic scenarios to be defined. The CVaR formulation will
+        add auxiliary variables and constraints to the optimization model during
+        the model building phase.
+
         """
+        # Validate that scenarios are defined
+        if not self.has_scenarios:
+            msg = (
+                "Risk preferences can only be set for stochastic networks. "
+                "Please call set_scenarios() first to define scenarios."
+            )
+            raise RuntimeError(msg)
+
         # Validate parameters
         if not (0 < alpha < 1):
             msg = f"Alpha must be between 0 and 1, got {alpha}"

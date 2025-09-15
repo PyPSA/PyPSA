@@ -4,28 +4,11 @@ from numpy.testing import assert_array_almost_equal as almost_equal
 import pypsa
 
 
-def test_set_risk_preference_without_scenarios_warns_on_optimize():
-    n = pypsa.Network(snapshots=range(2))
-    n.add("Carrier", "elec")
-    n.add("Bus", "b", carrier="elec")
-    n.add("Load", "d", bus="b", p_set=[10, 10])
-    n.add("Generator", "g", bus="b", p_nom=100, marginal_cost=5.0)
-
-    # Set risk preference before scenarios are defined (this is allowed)
-    n.set_risk_preference(alpha=0.1, omega=0.5)
-    assert n.has_risk_preference is True
-    rp = n.risk_preference
-    assert isinstance(rp, dict)
-    assert pytest.approx(rp["alpha"]) == 0.1
-    assert pytest.approx(rp["omega"]) == 0.5
-
-    # Calling optimize() without scenarios should warn and ignore risk prefs
-    with pytest.warns(
-        UserWarning, match=r"Risk preference is set but no scenarios are defined"
-    ):
-        status, cond = n.optimize(log_to_console=False, solver_name="highs")
-    assert status == "ok"
-    assert cond == "optimal"
+def test_set_risk_preference_requires_scenarios():
+    n = pypsa.Network()
+    # No scenarios defined: should raise RuntimeError
+    with pytest.raises(RuntimeError, match=r"set_scenarios\(\)"):
+        n.set_risk_preference(alpha=0.1, omega=0.5)
 
 
 def test_set_and_get_risk_preference_dict_and_flags():
