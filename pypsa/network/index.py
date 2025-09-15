@@ -804,7 +804,7 @@ class NetworkIndexMixin(_NetworkABC):
                 "Risk preferences can only be set for stochastic networks. "
                 "Please call set_scenarios() first to define scenarios."
             )
-            raise RuntimeError(msg)
+            raise ValueError(msg)
 
         # Validate parameters
         if not (0 < alpha < 1):

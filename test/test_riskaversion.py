@@ -7,7 +7,7 @@ import pypsa
 def test_set_risk_preference_requires_scenarios():
     n = pypsa.Network()
     # No scenarios defined: should raise RuntimeError
-    with pytest.raises(RuntimeError, match=r"set_scenarios\(\)"):
+    with pytest.raises(ValueError, match=r"set_scenarios\(\)"):
         n.set_risk_preference(alpha=0.1, omega=0.5)
 
 
