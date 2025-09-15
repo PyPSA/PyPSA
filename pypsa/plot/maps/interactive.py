@@ -15,6 +15,7 @@ import pyproj
 
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import (
+    add_jitter,
     apply_layouter,
     as_branch_series,
     calculate_angle,
@@ -357,6 +358,7 @@ class PydeckPlotter:
         map_style: str,
         view_state: dict | pdk.ViewState | None = None,
         layouter: Callable | None = None,
+        jitter: float | None = None,
     ) -> None:
         """Initialize the PydeckPlotter.
 
@@ -372,14 +374,18 @@ class PydeckPlotter:
         layouter : Callable | None, optional
             Layouting function from `networkx <https://networkx.github.io/>`_ which
             overrules coordinates given in ``n.buses[['x', 'y']]``. See
-            `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+            `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`
             of available options.
+        jitter : float, optional
+            Amount of random noise to add to node positions
 
         """
         self._n: Network = n
         self._x: pd.Series | None = None
         self._y: pd.Series | None = None
         self._init_xy(layouter=layouter)
+        if jitter:
+            self._x, self._y = add_jitter(x=self._x, y=self._y, jitter=jitter)
 
         self._map_style: str = self._init_map_style(map_style)
         self._view_state: pdk.ViewState = self._init_view_state(
@@ -1323,6 +1329,7 @@ def explore(  # noqa: D103
     map_style: str = "road",
     view_state: dict | pdk.ViewState | None = None,
     layouter: Callable | None = None,
+    jitter: float | None = None,
     **kwargs: Any,
 ) -> pdk.Deck:
     """Create an interactive map of the PyPSA network using Pydeck.
@@ -1334,7 +1341,11 @@ def explore(  # noqa: D103
 
     """
     plotter = PydeckPlotter(
-        n, map_style=map_style, view_state=view_state, layouter=layouter
+        n,
+        map_style=map_style,
+        view_state=view_state,
+        layouter=layouter,
+        jitter=jitter,
     )
 
     # Optional tooltip_kwargs
