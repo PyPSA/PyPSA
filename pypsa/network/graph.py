@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import warnings
 from collections import OrderedDict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 import numpy as np
@@ -12,7 +12,7 @@ import pandas as pd
 import scipy as sp
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable
+    from collections.abc import Collection, Iterable
 
 
 class OrderedGraph(nx.MultiGraph):
@@ -30,8 +30,12 @@ class NetworkGraphMixin:
     All attributes and methods can be used within any Network/SubNetwork instance.
     """
 
-    # Type Hints
-    iterate_components: Callable
+    c: Any
+    components: Any
+    iterate_components: Any
+    passive_branches: pd.DataFrame
+    has_scenarios: Any
+    scenarios: pd.DatFrame
 
     def graph(
         self,
@@ -66,19 +70,17 @@ class NetworkGraphMixin:
         n = self
         from pypsa import Network, SubNetwork  # noqa: PLC0415
 
-        if isinstance(n, Network):
-            if branch_components is None:
-                branch_components = n.branch_components
-            else:
-                branch_components = set(branch_components)
-            buses_i = n.c.buses.static.index
+        if branch_components is not None:
+            branch_components = set(branch_components)
+        elif isinstance(n, Network):
+            branch_components = n.branch_components
         elif isinstance(n, SubNetwork):
-            if branch_components is None:
-                branch_components = n.n.passive_branch_components
-            buses_i = n.buses_i()
+            branch_components = n.n.passive_branch_components
         else:
             msg = "graph must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+
+        buses_i = n.c.buses.static.index
 
         if n.has_scenarios:
             buses_i = buses_i.unique("name")
@@ -108,7 +110,14 @@ class NetworkGraphMixin:
                             data["weight"] = inf_weight
                     yield (branch.bus0, branch.bus1, (c.name, branch.Index), data)
 
-        graph.add_edges_from(gen_edges())
+        with warnings.catch_warnings():
+            # TODO Resolve
+            warnings.filterwarnings(
+                "default",
+                message=".*iterate_components is deprecated.*",
+                category=DeprecationWarning,
+            )
+            graph.add_edges_from(gen_edges())
 
         return graph
 
@@ -151,19 +160,22 @@ class NetworkGraphMixin:
         from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
         n = self
-        if isinstance(n, Network):
-            if branch_components is None:
-                branch_components = n.branch_components
-            if busorder is None:
-                busorder = n.c.buses.static.index
+        if not isinstance(n, Network | SubNetwork):
+            msg = "graph must be called with a Network or a SubNetwork"
+            raise TypeError(msg)
+
+        if branch_components is not None:
+            branch_components = set(branch_components)
+        elif isinstance(n, Network):
+            branch_components = n.branch_components
         elif isinstance(n, SubNetwork):
-            if branch_components is None:
-                branch_components = n.n.passive_branch_components
-            if busorder is None:
-                busorder = n.buses_i()
+            branch_components = n.n.passive_branch_components
         else:
             msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+
+        if busorder is None:
+            busorder = n.c.buses.static.index
 
         # Initialize empty DataFrame with buses as both rows and columns
         if n.has_scenarios:
@@ -173,7 +185,9 @@ class NetworkGraphMixin:
         adjacency_df = pd.DataFrame(0, index=busorder, columns=busorder, dtype=dtype)
 
         # Build adjacency matrix component by component
-        for c in n.iterate_components(branch_components):
+        for c in n.components:
+            if c.name not in branch_components:
+                continue
             active = c.get_active_assets(investment_period)
             sel = c.static[active].index.unique("name")
             static = c.static.reindex(sel, level="name")
@@ -241,27 +255,28 @@ class NetworkGraphMixin:
                 with 22 stored elements and shape (9, 11)>
 
         """
-        from pypsa import Network, SubNetwork  # noqa: PLC0415
+        from pypsa.networks import Network, SubNetwork  # noqa: PLC0415
 
-        if isinstance(self, Network):
-            if branch_components is None:
-                branch_components = self.branch_components
-            if busorder is None:
-                busorder = self.c.buses.static.index
+        if branch_components is not None:
+            branch_components = set(branch_components)
+        elif isinstance(self, Network):
+            branch_components = self.branch_components
         elif isinstance(self, SubNetwork):
-            if branch_components is None:
-                branch_components = self.n.passive_branch_components
-            if busorder is None:
-                busorder = self.buses_i()
+            branch_components = self.n.passive_branch_components
         else:
-            msg = "The 'n' parameter must be an instance of 'Network' or 'SubNetwork'."
+            msg = " must be called with a Network or a SubNetwork"
             raise TypeError(msg)
+
+        if busorder is None:
+            busorder = self.c.buses.static.index
 
         no_buses = len(busorder)
         no_branches = 0
         bus0_inds = []
         bus1_inds = []
-        for c in self.iterate_components(branch_components):
+        for c in self.components:
+            if c.name not in branch_components:
+                continue
             sel = c.static.query("active").index
             no_branches += len(c.static.loc[sel])
             bus0_inds.append(busorder.get_indexer(c.static.loc[sel, "bus0"]))

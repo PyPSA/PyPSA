@@ -98,7 +98,7 @@ def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
 
     """
     connected_buses = set()
-    for component in n.iterate_components():
+    for component in n.components:
         for attr in _bus_columns(component.static):
             connected_buses.update(component.static[attr])
 
@@ -628,7 +628,7 @@ def check_shapes(n: NetworkType, strict: bool = False) -> None:
     shape_components = n.c.shapes.static.component.unique()
     for c in set(shape_components) & set(n.all_components):
         geos = n.c.shapes.static.query("component == @c")
-        not_included = geos.index[~geos.idx.isin(n.static(c).index)]
+        not_included = geos.index[~geos.idx.isin(n.c[c].static.index)]
 
         if not not_included.empty:
             _log_or_raise(
@@ -667,10 +667,8 @@ def check_nans_for_component_default_attrs(
 
     """
     # Get non-NA and not-empty default attributes for the current component
-    default = n.component_attrs[component.name]["default"]
-    not_null_component_attrs = n.component_attrs[component.name][
-        default.notna() & default.ne("")
-    ].index
+    default = component.attrs["default"]
+    not_null_component_attrs = component.attrs[default.notna() & default.ne("")].index
 
     # Remove attributes that are not in the component's static data
     relevant_static_df = component.static[
@@ -831,7 +829,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         # TODO: Warn if any ramp limits are 0.
 
         # Per component checks
-        for c in self.iterate_components():
+        for c in self.components:
             # Checks all components
             check_for_unknown_buses(self, c, "unknown_buses" in strict)
             check_for_unknown_carriers(self, c, "unkown_carriers" in strict)
@@ -905,7 +903,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
-        for c in self.iterate_components():
+        for c in self.components:
             check_for_unknown_carriers(self, c, strict="unknown_carriers" in strict)
         check_for_missing_carrier_colors(
             self,  # type: ignore
@@ -990,7 +988,7 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         "active",  # theoretically can be different, but problematic with "Line"
     }
 
-    for component in n.iterate_components():
+    for component in n.components:
         if component.static.index.nlevels < 2:
             continue  # No scenario dimension
 
