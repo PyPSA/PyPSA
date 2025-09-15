@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 def as_branch_series(  # noqa
     ser: pd.Series | dict | list, arg: str, c_name: str, n: "Network"
 ) -> pd.Series:
-    ser = pd.Series(ser, index=n.static(c_name).index)
+    ser = pd.Series(ser, index=n.components[c_name].static.index)
     if ser.isnull().any():
         msg = f"{c_name}_{arg}s does not specify all "
         f"entries. Missing values for {c_name}: {list(ser[ser.isnull()].index)}"

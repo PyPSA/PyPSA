@@ -1091,7 +1091,7 @@ class NetworkIOMixin(_NetworkABC):
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore",
-                message=".*the API for how to access components data has.*",
+                message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
                 category=DeprecationWarning,
             )
 
@@ -1100,16 +1100,32 @@ class NetworkIOMixin(_NetworkABC):
                 for attr in dir(self)
                 if (
                     not attr.startswith("__")
+                    and attr
+                    not in {
+                        "component_attrs",
+                        "df",
+                        "pnl",
+                        "static",
+                        "dynamic",
+                        "iterate_components",
+                    }  # Skip deprecated methods
                     and isinstance(getattr(self, attr), allowed_types)
                 )
             }
         _attrs = {}
         for attr in dir(self):
-            if not attr.startswith("__"):
+            if not attr.startswith("__") and attr not in {
+                "component_attrs",
+                "df",
+                "pnl",
+                "static",
+                "dynamic",
+                "iterate_components",
+            }:
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore",
-                        message=".*the API for how to access components data has.*",
+                        message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
                         category=DeprecationWarning,
                     )
                     value = getattr(self, attr)
@@ -1151,11 +1167,12 @@ class NetworkIOMixin(_NetworkABC):
 
         exported_components = []
         for component in self.all_components:
-            list_name = self.components[component]["list_name"]
-            attrs = self.components[component]["attrs"]
+            c = self.components[component]
+            list_name = c["list_name"]
+            attrs = c["attrs"]
 
-            static = self.static(component)
-            dynamic = self.dynamic(component)
+            static = c.static
+            dynamic = c.dynamic
 
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
@@ -1164,13 +1181,9 @@ class NetworkIOMixin(_NetworkABC):
 
             if not export_standard_types and component in self.standard_type_components:
                 if isinstance(static.index, pd.MultiIndex):
-                    static = static.drop(
-                        self.components[component]["standard_types"].index, level="name"
-                    )
+                    static = static.drop(c["standard_types"].index, level="name")
                 else:
-                    static = static.drop(
-                        self.components[component]["standard_types"].index
-                    )
+                    static = static.drop(c["standard_types"].index)
 
             col_export = []
             for col in static.columns:
@@ -1769,7 +1782,7 @@ class NetworkIOMixin(_NetworkABC):
                 )
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-        old_static = self.static(cls_name)
+        old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
 
         # Handle duplicates
@@ -1805,7 +1818,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # Now deal with time-dependent properties
 
-        dynamic = self.dynamic(cls_name)
+        dynamic = self.c[cls_name].dynamic
 
         for k in non_static_attrs_in_df:
             # If reading in outputs, fill the outputs
@@ -1842,8 +1855,8 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing time series.
 
         """
-        static = self.static(cls_name)
-        dynamic = self.dynamic(cls_name)
+        static = self.c[cls_name].static
+        dynamic = self.c[cls_name].dynamic
         list_name = self.components[cls_name]["list_name"]
 
         if not overwrite:
@@ -2388,11 +2401,13 @@ class NetworkIOMixin(_NetworkABC):
         for i in to_replace.index:
             self.remove("Bus", i)
 
-        for component in self.iterate_components(
-            {"Load", "Generator", "ShuntImpedance"}
-        ):
+        for component in self.components[["Generator", "Load", "ShuntImpedance"]]:
+            if component.empty:
+                continue
             component.static.replace({"bus": to_replace}, inplace=True)
 
-        for component in self.iterate_components({"Line", "Transformer"}):
+        for component in self.components[["Line", "Transformer"]]:
+            if component.empty:
+                continue
             component.static.replace({"bus0": to_replace}, inplace=True)
             component.static.replace({"bus1": to_replace}, inplace=True)

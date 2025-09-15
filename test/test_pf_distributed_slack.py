@@ -48,7 +48,7 @@ def test_pf_distributed_slack(scipy_network):
     custom_weights = {}
     for sub_network in n.c.sub_networks.static.obj:
         buses_o = sub_network.buses_o
-        generators = sub_network.generators()
+        generators = sub_network.c.generators.static
         custom_weights[sub_network.name] = (
             generators.p_nom.groupby(generators.bus)
             .sum()
@@ -65,7 +65,7 @@ def test_pf_distributed_slack(scipy_network):
     )
 
     custom_weights = {
-        sub_network.name: sub_network.generators().p_nom
+        sub_network.name: sub_network.c.generators.static.p_nom
         for sub_network in n.c.sub_networks.static.obj
     }
     n.pf(distribute_slack=True, slack_weights=custom_weights)
