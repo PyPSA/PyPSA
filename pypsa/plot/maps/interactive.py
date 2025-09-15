@@ -851,6 +851,11 @@ class PydeckPlotter:
         bus_data = bus_data.loc[self._x.index[self._x.index.isin(bus_data.index)]]
 
         bus_sizes = bus_sizes.drop(bus_sizes[abs(bus_sizes) < EPS].index)
+        # Reindex first level of MultiIndex to only valid buses
+        bus_sizes = bus_sizes.reindex(
+            bus_data.index.intersection(bus_sizes.index.get_level_values(0)),
+            level=0,
+        )
         bus_sizes = bus_sizes.unstack(level=1, fill_value=0)
 
         alphas = _convert_to_series(bus_alpha, bus_sizes.index)
@@ -872,9 +877,6 @@ class PydeckPlotter:
         for i, bus in enumerate(bus_indices):
             values = bus_values[i]
             x, y = bus_coords[i]
-
-            if values.sum() <= EPS:
-                continue
 
             if bus_split_circles and np.any(values < 0):
                 pos_mask = values > 0
@@ -916,7 +918,7 @@ class PydeckPlotter:
                     radius_m=(values[mask].sum()) ** 0.5,
                     values=values[mask].round(3),
                     colors=[carrier_rgba[bus][c] for c in bus_cols[mask]],
-                    labels=list(bus_cols[pos_mask]),
+                    labels=list(bus_cols[mask]),
                     points_per_radian=points_per_radian,
                     flip_y=False,
                     bus_split_circles=False,
