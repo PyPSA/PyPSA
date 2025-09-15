@@ -342,6 +342,7 @@ class PydeckPlotter:
         "road": pdk.map_styles.ROAD,
         "dark_no_labels": pdk.map_styles.DARK_NO_LABELS,
         "light_no_labels": pdk.map_styles.LIGHT_NO_LABELS,
+        "none": None,
     }
     ARROW = np.array(
         [
@@ -370,7 +371,7 @@ class PydeckPlotter:
         n : Network
             The PyPSA network to plot.
         map_style : str
-            Map style to use for the plot. One of 'light', 'dark', 'road', 'dark_no_labels', and 'light_no_labels'.
+            Map style to use for the plot. One of 'light', 'dark', 'road', 'dark_no_labels', 'light_no_labels', and 'none'.
         view_state : dict/pdk.ViewState/None, optional
             Initial view state for the map. If None, a default view state is created.
             If a dict is provided, it should contain keys like 'longitude', 'latitude', 'zoom', 'pitch', and 'bearing'.
@@ -1391,7 +1392,7 @@ class PydeckPlotter:
 )
 def explore(  # noqa: D103
     n: "Network",
-    map_style: str = "road",
+    map_style: str | None = "road",
     view_state: dict | pdk.ViewState | None = None,
     layouter: Callable | None = None,
     jitter: float | None = None,

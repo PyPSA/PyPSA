@@ -9,6 +9,8 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+from pypsa.constants import EARTH_RADIUS
+
 if TYPE_CHECKING:
     from pypsa import Network
 
@@ -397,7 +399,9 @@ def calculate_angle(
     return np.arctan2(dy, dx)
 
 
-def meters_to_lonlat(poly: np.ndarray, p0_m: tuple[float, float]) -> np.ndarray:
+def meters_to_lonlat(
+    poly: np.ndarray, p0_m: tuple[float, float], r: float = EARTH_RADIUS
+) -> np.ndarray:
     """Convert polygon vertices from local meters to lon/lat relative to a reference point p0.
 
     Parameters
@@ -406,6 +410,8 @@ def meters_to_lonlat(poly: np.ndarray, p0_m: tuple[float, float]) -> np.ndarray:
         Nx2 array of polygon vertices in meters.
     p0_m : tuple of float
         (lon0, lat0) reference point in degrees.
+    r : float, default EARTH_RADIUS
+        Earth radius in meters.
 
     Returns
     -------
@@ -413,11 +419,10 @@ def meters_to_lonlat(poly: np.ndarray, p0_m: tuple[float, float]) -> np.ndarray:
         Nx2 array of polygon vertices in (lon, lat) degrees.
 
     """
-    R = 6378137.0  # equitorial radius in meters
     lon0, lat0 = p0_m
     x, y = poly[:, 0], poly[:, 1]
-    dlon = (x / (R * np.cos(np.radians(lat0)))) * (180.0 / np.pi)
-    dlat = (y / R) * (180.0 / np.pi)
+    dlon = (x / (r * np.cos(np.radians(lat0)))) * (180.0 / np.pi)
+    dlat = (y / r) * (180.0 / np.pi)
     return np.column_stack((lon0 + dlon, lat0 + dlat))
 
 
