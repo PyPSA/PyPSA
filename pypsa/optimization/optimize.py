@@ -307,27 +307,10 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     expected_opex = _expected(opex_terms)
 
     # CVaR augmentation if enabled
-    if n.has_scenarios and n.has_risk_preference:
-        if n.risk_preference is None:
-            _msg_rp = "Risk preference must be set when has_risk_preference is True"
-            raise RuntimeError(_msg_rp)
-
-        try:
-            alpha = float(n.risk_preference.get("alpha"))
-            omega = float(n.risk_preference.get("omega"))
-        except Exception:
-            _msg = (
-                f"alpha and omega must be numbers between 0 and 1, "
-                f"got alpha={n.risk_preference.get('alpha')}, omega={n.risk_preference.get('omega')}"
-            )
-            raise ValueError(_msg) from None
-
-        if not (0.0 < alpha < 1.0):
-            _msg = f"alpha must be a number between 0 and 1, got {alpha}"
-            raise ValueError(_msg)
-        if not (0.0 <= omega <= 1.0):
-            _msg = f"omega must be a number between 0 and 1, got {omega}"
-            raise ValueError(_msg)
+    if n.has_risk_preference:
+        rp = n.risk_preference
+        alpha = rp["alpha"]
+        omega = rp["omega"]
 
         # Guard: quadratic OPEX would make CVaR constraints quadratic
         if is_quadratic:
