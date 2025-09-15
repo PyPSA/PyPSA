@@ -16,6 +16,7 @@ import pyproj
 from pypsa.common import _convert_to_series
 from pypsa.plot.maps.common import (
     add_jitter,
+    apply_cmap,
     apply_layouter,
     as_branch_series,
     calculate_angle,
@@ -615,6 +616,8 @@ class PydeckPlotter:
         self,
         bus_sizes: float | dict | pd.Series = 25000000,
         bus_colors: str | dict | pd.Series = "cadetblue",
+        bus_cmap: str | mcolors.Colormap | None = None,
+        bus_cmap_norm: mcolors.Normalize | None = None,
         bus_alpha: float | dict | pd.Series = 0.9,
         bus_columns: list | None = None,
         tooltip: bool = True,
@@ -627,6 +630,10 @@ class PydeckPlotter:
             Sizes of bus points in radius² (meters²), defaults to 25000000.
         bus_colors : str/dict/pandas.Series
             Colors for the buses, defaults to 'cadetblue'.
+        bus_cmap : mcolors.Colormap/str
+            If bus_colors are floats, this color map will assign the colors
+        bus_cmap_norm : mcolors.Normalize
+            The norm applied to the bus_cmap
         bus_alpha : float/dict/pandas.Series
             Add alpha channel to buses, defaults to 0.9.
         bus_columns : list, default None
@@ -664,8 +671,11 @@ class PydeckPlotter:
             )
 
         # Convert colors to RGBA list
-        colors = _convert_to_series(bus_colors, bus_data.index)
-        alphas = _convert_to_series(bus_alpha, bus_data.index)
+        colors = _convert_to_series(bus_colors, bus_data.index).reindex(bus_data.index)
+        alphas = _convert_to_series(bus_alpha, bus_data.index).reindex(bus_data.index)
+
+        # Apply colormap only if numeric
+        colors = apply_cmap(colors, bus_cmap, bus_cmap_norm)
 
         bus_data["rgba"] = [
             to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
@@ -969,6 +979,8 @@ class PydeckPlotter:
         c_name: str,
         branch_flow: float | dict | pd.Series = 0,
         branch_colors: str | dict | pd.Series = "rosybrown",
+        branch_cmap: str | mcolors.Colormap = "viridis",
+        branch_cmap_norm: mcolors.Normalize | None = None,
         branch_alpha: float | dict | pd.Series = 0.9,
         branch_widths: float | dict | pd.Series = 1500,
         branch_columns: list | None = None,
@@ -988,6 +1000,10 @@ class PydeckPlotter:
             If not 0, arrows will be drawn on the lines.
         branch_colors : str/dict/pandas.Series
             Colors for the branch component, defaults to 'rosybrown'.
+        branch_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if branch_colors is a numeric pandas.Series.
+        branch_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if branch_colors is a numeric pandas.Series.
         branch_alpha : float/dict/pandas.Series
             Add alpha channel to branch components, defaults to 0.9.
         branch_widths : float/dict/pandas.Series
@@ -1055,6 +1071,10 @@ class PydeckPlotter:
         colors = _convert_to_series(branch_colors, c_data.index)
         alphas = _convert_to_series(branch_alpha, c_data.index)
 
+        # Apply colormap only if numeric
+        colors = apply_cmap(colors, branch_cmap, branch_cmap_norm)
+
+        # # Convert everything to RGBA 0-255 for Pydeck
         c_data["rgba"] = [
             to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
         ]
@@ -1116,6 +1136,9 @@ class PydeckPlotter:
             colors = _convert_to_series(arrow_colors, c_data.index)
             alphas = _convert_to_series(arrow_alpha, c_data.index)
 
+            # Apply colormap only if numeric
+            colors = apply_cmap(colors, branch_cmap, branch_cmap_norm)
+
             c_data["rgba"] = [
                 to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
             ]
@@ -1173,17 +1196,25 @@ class PydeckPlotter:
         bus_sizes: float | dict | pd.Series = 25000000,
         bus_split_circles: bool = False,
         bus_colors: str | dict | pd.Series = "cadetblue",
+        bus_cmap: str | mcolors.Colormap | None = None,
+        bus_cmap_norm: mcolors.Normalize | None = None,
         bus_alpha: float | dict | pd.Series = 0.9,
         line_flow: float | dict | pd.Series = 0,
         line_colors: str | dict | pd.Series = "rosybrown",
+        line_cmap: str | mcolors.Colormap = "viridis",
+        line_cmap_norm: mcolors.Normalize | None = None,
         line_alpha: float | dict | pd.Series = 0.9,
         line_widths: float | dict | pd.Series = 1500,
         link_flow: float | dict | pd.Series = 0,
         link_colors: str | dict | pd.Series = "darkseagreen",
+        link_cmap: str | mcolors.Colormap = "viridis",
+        link_cmap_norm: mcolors.Normalize | None = None,
         link_alpha: float | dict | pd.Series = 0.9,
         link_widths: float | dict | pd.Series = 1500,
         transformer_flow: float | dict | pd.Series = 0,
         transformer_colors: str | dict | pd.Series = "orange",
+        transformer_cmap: str | mcolors.Colormap = "viridis",
+        transformer_cmap_norm: mcolors.Normalize | None = None,
         transformer_alpha: float | dict | pd.Series = 0.9,
         transformer_widths: float | dict | pd.Series = 1500,
         arrow_size_factor: float = 1.5,
@@ -1209,6 +1240,10 @@ class PydeckPlotter:
             of the series, the lower half circle all negative values. Defaults to False.
         bus_colors : str/dict/pandas.Series
             Colors for the buses, defaults to "cadetblue".
+        bus_cmap : mcolors.Colormap/str
+            If bus_colors are floats, this color map will assign the colors
+        bus_cmap_norm : mcolors.Normalize
+            The norm applied to the bus_cmap
         bus_alpha : float/dict/pandas.Series
             Add alpha channel to buses, defaults to 0.9.
         line_flow : float/dict/pandas.Series, default 0
@@ -1216,6 +1251,10 @@ class PydeckPlotter:
             If a float is provided, it will be used as a constant flow for all lines.
         line_colors : str/dict/pandas.Series
             Colors for the lines, defaults to 'rosybrown'.
+        line_cmap : mcolors.Colormap/str|dict
+            If line_colors are floats, this color map will assign the colors.
+        line_cmap_norm : mcolors.Normalize
+            The norm applied to the line_cmap.
         line_alpha : float/dict/pandas.Series
             Add alpha channel to lines, defaults to 0.9.
         line_widths : float/dict/pandas.Series
@@ -1225,6 +1264,10 @@ class PydeckPlotter:
             If a float is provided, it will be used as a constant flow for all links.
         link_colors : str/dict/pandas.Series
             Colors for the links, defaults to 'darkseagreen'.
+        link_cmap : mcolors.Colormap/str|dict
+            If link_colors are floats, this color map will assign the colors.
+        link_cmap_norm : mcolors.Normalize|matplotlib.colors.*Norm
+            The norm applied to the link_cmap.
         link_alpha : float/dict/pandas.Series
             Add alpha channel to links, defaults to 0.9.
         link_widths : float/dict/pandas.Series
@@ -1234,6 +1277,10 @@ class PydeckPlotter:
             If a float is provided, it will be used as a constant flow for all transformers.
         transformer_colors : str/dict/pandas.Series
             Colors for the transformers, defaults to 'orange'.
+        transformer_cmap : mcolors.Colormap/str|dict
+            If transformer_colors are floats, this color map will assign the colors.
+        transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+            The norm applied to the transformer_cmap.
         transformer_alpha : float/dict/pandas.Series
             Add alpha channel to transformers, defaults to 0.9.
         transformer_widths : float/dict/pandas.Series
@@ -1278,18 +1325,24 @@ class PydeckPlotter:
                 branch_widths = line_widths
                 branch_columns = line_columns
                 branch_flow = line_flow
+                branch_cmap = line_cmap
+                branch_cmap_norm = line_cmap_norm
             elif c.name == "Link":
                 branch_colors = link_colors
                 branch_alpha = link_alpha
                 branch_widths = link_widths
                 branch_columns = link_columns
                 branch_flow = link_flow
+                branch_cmap = link_cmap
+                branch_cmap_norm = link_cmap_norm
             elif c.name == "Transformer":
                 branch_colors = transformer_colors
                 branch_alpha = transformer_alpha
                 branch_widths = transformer_widths
                 branch_columns = transformer_columns
                 branch_flow = transformer_flow
+                branch_cmap = transformer_cmap
+                branch_cmap_norm = transformer_cmap_norm
 
             if not n.static(c.name).empty:
                 self.add_branch_layer(
@@ -1301,6 +1354,8 @@ class PydeckPlotter:
                     branch_flow=branch_flow,
                     arrow_size_factor=arrow_size_factor,
                     arrow_colors=arrow_colors,
+                    branch_cmap=branch_cmap,
+                    branch_cmap_norm=branch_cmap_norm,
                     arrow_alpha=arrow_alpha,
                     tooltip=tooltip,
                 )
@@ -1319,6 +1374,8 @@ class PydeckPlotter:
             self.add_bus_layer(
                 bus_sizes=bus_sizes,
                 bus_colors=bus_colors,
+                bus_cmap=bus_cmap,
+                bus_cmap_norm=bus_cmap_norm,
                 bus_alpha=bus_alpha,
                 bus_columns=bus_columns,
                 tooltip=tooltip,

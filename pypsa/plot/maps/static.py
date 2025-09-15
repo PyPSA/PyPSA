@@ -978,7 +978,7 @@ class MapPlotter:
             n.carriers['color'] column.
         bus_cmap : mcolors.Colormap/str
             If bus_colors are floats, this color map will assign the colors
-        bus_cmap_norm : plt.Normalize
+        bus_cmap_norm : mcolors.Normalize
             The norm applied to the bus_cmap
         bus_alpha : float/dict/pandas.Series
             Adds alpha channel to buses, defaults to 1
@@ -1008,7 +1008,7 @@ class MapPlotter:
             Colors for the lines, defaults to 'rosybrown'.
         line_cmap : mcolors.Colormap/str|dict
             If line_colors are floats, this color map will assign the colors.
-        line_cmap_norm : plt.Normalize
+        line_cmap_norm : mcolors.Normalize
             The norm applied to the line_cmap.
         line_alpha : str/pandas.Series
             Alpha for the lines, defaults to 1.
@@ -1020,7 +1020,7 @@ class MapPlotter:
             Colors for the links, defaults to 'darkseagreen'.
         link_cmap : mcolors.Colormap/str|dict
             If link_colors are floats, this color map will assign the colors.
-        link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
+        link_cmap_norm : mcolors.Normalize|matplotlib.colors.*Norm
             The norm applied to the link_cmap.
         link_alpha : str/pandas.Series
             Alpha for the links, defaults to 1.
