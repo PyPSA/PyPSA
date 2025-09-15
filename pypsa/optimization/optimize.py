@@ -13,7 +13,7 @@ from linopy import Model, merge
 from linopy.solvers import available_solvers
 
 from pypsa._options import options
-from pypsa.common import as_index
+from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
@@ -309,6 +309,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     # CVaR augmentation if enabled
     if n.has_risk_preference:
         rp = n.risk_preference
+        if rp is None:  # mypy type guard
+            msg = "risk_preference is None when has_risk_preference is True"
+            raise UnexpectedError(msg)
         alpha = rp["alpha"]
         omega = rp["omega"]
 
@@ -344,6 +347,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         for s, p in n.scenario_weightings["weight"].items():
             term = a.sel(scenario=s) * float(p)
             weighted_a = term if weighted_a is None else weighted_a + term
+        if weighted_a is None:  # mypy type guard
+            msg = "No scenarios found in scenario_weightings"
+            raise UnexpectedError(msg)
         m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
 
         # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
