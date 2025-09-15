@@ -379,14 +379,14 @@ class PydeckPlotter:
         self._n: Network = n
         self._x: pd.Series | None = None
         self._y: pd.Series | None = None
+        self._init_xy(layouter=layouter)
+
         self._map_style: str = self._init_map_style(map_style)
         self._view_state: pdk.ViewState = self._init_view_state(
             view_state=view_state,
         )
         self._layers: dict[str, pdk.Layer] = {}
         self._tooltip_style: dict[str, str] = set_tooltip_style()
-
-        self._init_xy(layouter=layouter)
 
     @property
     def map_style(self) -> str:
@@ -408,19 +408,31 @@ class PydeckPlotter:
         layouter: Callable | None = None,
     ) -> None:
         """Initialize x and y coordinates from the network buses."""
-        is_empty = (
-            (
-                self._n.c.buses.static[["x", "y"]].isnull()
-                | (self._n.c.buses.static[["x", "y"]] == 0)
-            )
-            .all()
-            .all()
-        )
+        buses = self._n.c.buses.static
+
+        # Check if all x and y are missing/zero → then fallback to layouter
+        is_empty = (buses[["x", "y"]].isnull() | (buses[["x", "y"]] == 0)).all().all()
 
         if layouter or is_empty:
             self._x, self._y = apply_layouter(self._n, layouter, inplace=False)
         else:
-            self._x, self._y = self._n.c.buses.static["x"], self._n.c.buses.static["y"]
+            self._x, self._y = buses["x"], buses["y"]
+
+        # ✅ Validation mask for good coordinates (WGS84 + finite)
+        valid = (
+            self._x.notnull()
+            & self._y.notnull()
+            & (self._x >= -180)
+            & (self._x <= 180)  # longitude
+            & (self._y >= -90)
+            & (self._y <= 90)  # latitude
+        )
+
+        # Keep only valid buses
+        dropped = (~valid).sum()
+        if dropped:
+            logger.warning("Dropping %d buses with invalid WGS84 coordinates", dropped)
+            self._x, self._y = self._x[valid], self._y[valid]
 
     def _init_map_style(self, map_style: str) -> str:
         """Set the initial map style for the interactive map."""
@@ -454,8 +466,8 @@ class PydeckPlotter:
             return view_state
 
         vs = {
-            "longitude": self._n.buses.x.mean(),
-            "latitude": self._n.buses.y.mean(),
+            "longitude": self._x.mean(),
+            "latitude": self._y.mean(),
             "zoom": 4,  # Default zoom level
             "min_zoom": None,
             "max_zoom": None,
@@ -535,7 +547,7 @@ class PydeckPlotter:
     def prepare_component_data(
         self,
         component: str,
-        default_columns: list[str],
+        default_columns: list[str] | None = None,
         extra_columns: list[str] | None = None,
     ) -> tuple[pd.DataFrame, list[str]]:
         """Prepare data for a specific component type.
@@ -544,7 +556,7 @@ class PydeckPlotter:
         ----------
         component : str
             Name of the component type, e.g. "Bus", "Line", "Link", "Transformer".
-        default_columns : list of str
+        default_columns : list of str, optional
             List of default columns to include for the component.
         extra_columns : list of str, optional
             Additional columns to include for the component.
@@ -556,6 +568,9 @@ class PydeckPlotter:
 
         """
         df = self._n.static(component)
+        if default_columns is None:
+            default_columns = []
+
         layer_columns = default_columns
 
         if extra_columns:
@@ -620,9 +635,11 @@ class PydeckPlotter:
         # Check if columns exist and only keep the ones that also exist in the network
         bus_data, valid_columns = self.prepare_component_data(
             "Bus",
-            default_columns=["x", "y"],
             extra_columns=bus_columns,
         )
+
+        # Only keep buses with valid coordinates, same index order as self._x and self._y
+        bus_data = bus_data.loc[self._x.index[self._x.index.isin(bus_data.index)]]
 
         # Map bus sizes
         bus_sizes = _convert_to_series(bus_sizes, bus_data.index)
@@ -648,7 +665,7 @@ class PydeckPlotter:
 
         layer = pdk.Layer(
             "ScatterplotLayer",
-            data=bus_data.reset_index(),
+            data=bus_data.assign(x=self._x, y=self._y),
             get_position=["x", "y"],
             get_color="rgba",
             get_radius="radius",
@@ -827,9 +844,12 @@ class PydeckPlotter:
         EPS = 1e-6  # Small epsilon to avoid numerical issues
         bus_data, valid_columns = self.prepare_component_data(
             "Bus",
-            default_columns=["x", "y"],
             extra_columns=bus_columns,
         )
+
+        # Only keep buses with valid coordinates, same index order as self._x and self._y
+        bus_data = bus_data.loc[self._x.index[self._x.index.isin(bus_data.index)]]
+
         bus_sizes = bus_sizes.drop(bus_sizes[abs(bus_sizes) < EPS].index)
         bus_sizes = bus_sizes.unstack(level=1, fill_value=0)
 
@@ -845,7 +865,9 @@ class PydeckPlotter:
         bus_indices = bus_sizes.index.to_numpy()
         bus_cols = bus_sizes.columns.to_numpy()
         bus_values = bus_sizes.to_numpy()
-        bus_coords = bus_data.loc[bus_indices, ["x", "y"]].to_numpy()
+        bus_coords = np.column_stack(
+            (self._x, self._y)
+        )  # assumes that bus_data is aligned with self._x and self._y, done above
 
         for i, bus in enumerate(bus_indices):
             values = bus_values[i]
@@ -990,36 +1012,33 @@ class PydeckPlotter:
         )
 
         # Only keep rows where both bus0 and bus1 are present
-        missing_buses = c_data.loc[
-            ~c_data["bus0"].isin(self._n.buses.index)
-            | ~c_data["bus1"].isin(self._n.buses.index)
-        ]
-        if not missing_buses.empty:
-            # TODO: Store missing buses and branches with missing buses in property if needed later
-            msg = (
-                f"Found {len(missing_buses)} row(s) in '{c_name}' with missing buses. "
-                "These rows will be dropped."
+        valid = c_data["bus0"].isin(self._x.index) & c_data["bus1"].isin(self._x.index)
+        if not valid.all():
+            dropped = (~valid).sum()
+            logger.warning(
+                "Dropping %d row(s) in '%s' with missing buses", dropped, c_name
             )
-            logger.warning(msg)
-            c_data = c_data.drop(missing_buses.index)
+            c_data = c_data[valid]
 
-            # If no data remains after dropping missing buses, return early
             if c_data.empty:
                 return
 
         # Build path column as list of [lon, lat] pairs for each line
-        c_data["path"] = c_data.apply(
-            lambda row: [
-                [
-                    self._n.buses.loc[row["bus0"], "x"],
-                    self._n.buses.loc[row["bus0"], "y"],
-                ],
-                [
-                    self._n.buses.loc[row["bus1"], "x"],
-                    self._n.buses.loc[row["bus1"], "y"],
-                ],
-            ],
-            axis=1,
+        # Assuming x, y are aligned, done above
+        c_data["path"] = list(
+            zip(
+                zip(
+                    self._x.loc[c_data["bus0"]],
+                    self._y.loc[c_data["bus0"]],
+                    strict=False,
+                ),
+                zip(
+                    self._x.loc[c_data["bus1"]],
+                    self._y.loc[c_data["bus1"]],
+                    strict=False,
+                ),
+                strict=False,
+            )
         )
 
         # Convert colors to RGBA list

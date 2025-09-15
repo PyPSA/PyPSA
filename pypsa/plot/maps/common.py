@@ -167,7 +167,7 @@ def set_tooltip_style(
     font_family: str = "Arial",
     font_size: int = 12,
     max_width: int = 300,
-    padding: int = 5,
+    padding: int = 10,
 ) -> dict[str, str]:
     """Set CSS style for pydeck tooltips.
 
