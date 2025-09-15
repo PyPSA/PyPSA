@@ -966,7 +966,7 @@ class Network(
         [7 rows x 37 columns]
 
         """
-        comps = list(
+        comps = sorted(
             set(self.passive_branch_components) - set(self._empty_components())
         )
         names = (
