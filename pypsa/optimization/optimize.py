@@ -17,7 +17,6 @@ from pypsa._options import options
 from pypsa.common import as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -743,7 +742,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                     for i in ["1"] + n.c.links.additional_ports:
                         i_eff = "" if i == "1" else i
-                        eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
+                        eff = n.get_switchable_as_dense(
+                            "Link", f"efficiency{i_eff}", sns
+                        )
                         _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
@@ -896,7 +897,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # load
         if len(n.loads):
-            _set_dynamic_data(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
+            _set_dynamic_data(
+                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
+            )
 
         # line losses
         if "Line-loss" in n.model.variables:
@@ -913,19 +916,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Link", "p0", "bus0"),
             ("Link", "p1", "bus1"),
         ]
-        ca.extend(
-            [("Link", f"p{i}", f"bus{i}") for i in n.components.links.additional_ports]
-        )
+        ca.extend([("Link", f"p{i}", f"bus{i}") for i in n.c.links.additional_ports])
 
         def sign(c: str) -> int:
-            return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
+            return n.c[c].static.get("sign", -1)  # -1 is the sign for 'Link'
 
         n.c.buses.dynamic.p = (
             pd.concat(
                 [
-                    n.dynamic(c)[attr]
+                    n.c[c]
+                    .dynamic[attr]
                     .mul(sign(c))
-                    .rename(columns=n.static(c)[group], level="name")
+                    .rename(columns=n.c[c].static[group], level="name")
                     for c, attr, group in ca
                 ],
                 axis=1,
@@ -968,9 +970,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """
         n = self._n
         for c, attr in nominal_attrs.items():
-            ext_i = n.c[c].extendables.difference(n.c[c].inactive_assets)
-            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
-            n.static(c)[attr + "_extendable"] = False
+            c = n.components[c]
+            ext_i = c.extendables.difference(c.inactive_assets)
+            c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
+            c.static[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """Fix dispatch of all assets to optimized values.
@@ -979,9 +982,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         starting point for power flow calculation (`Network.pf`).
         """
         for c in self._n.one_port_components:
-            self._n.dynamic(c).p_set = self._n.dynamic(c).p
+            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p
         for c in self._n.controllable_branch_components:
-            self._n.dynamic(c).p_set = self._n.dynamic(c).p0
+            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p0
 
     def add_load_shedding(
         self,

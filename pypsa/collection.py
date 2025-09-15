@@ -340,6 +340,7 @@ def _get_method_patterns() -> dict[str, str]:
         "vertical_concat": rf"^("
         rf"({_all_components if not new_api else ''})|"
         rf"({_component_classes}.static)|"
+        rf"({_component_classes}.get_active_assets)|"
         rf"static|"
         rf"get_active_assets"
         rf")$",

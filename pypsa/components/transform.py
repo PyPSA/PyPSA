@@ -206,7 +206,7 @@ class ComponentsTransformMixin:
 
         # Rename cross references in network (if attached to one)
         if self.attached:
-            for component in self.n_save.components.values():
+            for component in self.n_save.components:
                 col_name = self.name.lower()  # TODO: Generalize
                 cols = [f"{col_name}{port}" for port in component.ports]
                 if cols and not component.static.empty:

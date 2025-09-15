@@ -218,7 +218,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
             for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.static(c)[f"{attr}_opt_{iteration}"] = n.static(c)[f"{attr}_opt"]
+                n.c[c].static[f"{attr}_opt_{iteration}"] = n.c[c].static[f"{attr}_opt"]
             setattr(n, f"status_{iteration}", status)
             setattr(n, f"objective_{iteration}", n.objective)
             n.iteration = iteration
@@ -274,7 +274,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         if track_iterations:
             for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.static(c)[f"{attr}_opt_0"] = n.static(c)[f"{attr}"]
+                n.c[c].static[f"{attr}_opt_0"] = n.c[c].static[f"{attr}"]
 
         iteration = 1
         diff = msq_threshold
@@ -597,16 +597,16 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             return {"status": status, "terminantion_condition": condition}
 
         for c in n.one_port_components:
-            n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
+            n.c[c].dynamic["p_set"] = n.c[c].dynamic["p"]
         for c in ("Link",):
-            n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
+            n.c[c].dynamic["p_set"] = n.c[c].dynamic["p0"]
 
         n.c.generators.static.control = "PV"
         for sub_network in n.c.sub_networks.static.obj:
             n.c.generators.static.loc[sub_network.slack_generator, "control"] = "Slack"
         # Need some PQ buses so that Jacobian doesn't break
         for sub_network in n.c.sub_networks.static.obj:
-            generators = sub_network.generators_i()
+            generators = sub_network.c.generators.static.index
             other_generators = generators.difference([sub_network.slack_generator])
             if not other_generators.empty:
                 n.c.generators.static.loc[other_generators[0], "control"] = "PQ"

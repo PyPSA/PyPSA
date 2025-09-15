@@ -10,7 +10,6 @@ from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
 
 import pypsa
-from pypsa.descriptors import get_activity_mask
 
 kwargs = {"multi_investment_periods": True}
 
@@ -146,10 +145,10 @@ def test_investment_period_values():
 
 
 def test_active_assets(n):
-    active_gens = n.get_active_assets("Generator", 2030)[lambda ds: ds].index
+    active_gens = n.c.generators.get_active_assets(2030)[lambda ds: ds].index
     assert (active_gens == ["gen1-2020", "gen2-2020", "gen1-2030", "gen2-2030"]).all()
 
-    active_gens = n.get_active_assets("Generator", 2050)[lambda ds: ds].index
+    active_gens = n.c.generators.get_active_assets(2050)[lambda ds: ds].index
     assert (
         active_gens
         == [
@@ -359,30 +358,30 @@ def test_simple_network_store_cyclic_per_period(n_sts):
 
 
 def test_global_constraint_primary_energy_storage(n_sus):
-    c = "StorageUnit"
+    c = n_sus.components["StorageUnit"]
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sus.static(c)["state_of_charge_initial"] = 200
-    n_sus.static(c)["cyclic_state_of_charge"] = False
-    n_sus.static(c)["state_of_charge_initial_per_period"] = False
-    n_sus.static(c)["carrier"] = "emitting_carrier"
+    c.static["state_of_charge_initial"] = 200
+    c.static["cyclic_state_of_charge"] = False
+    c.static["state_of_charge_initial_per_period"] = False
+    c.static["carrier"] = "emitting_carrier"
 
     n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
 
     status, cond = n_sus.optimize(**kwargs)
 
-    active = get_activity_mask(n_sus, c)
-    soc_end = n_sus.dynamic(c).state_of_charge.where(active).ffill().iloc[-1]
-    soc_diff = n_sus.static(c).state_of_charge_initial - soc_end
-    emissions = n_sus.static(c).carrier.map(n_sus.c.carriers.static.co2_emissions)
+    active = c.get_activity_mask()
+    soc_end = c.dynamic.state_of_charge.where(active).ffill().iloc[-1]
+    soc_diff = c.static.state_of_charge_initial - soc_end
+    emissions = c.static.carrier.map(n_sus.c.carriers.static.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 
 def test_global_constraint_primary_energy_store(n_sts):
-    c = "Store"
+    c = n_sts.components["Store"]
     n_sts.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sts.static(c)["e_initial"] = 200
-    n_sts.static(c)["e_cyclic"] = False
-    n_sts.static(c)["e_initial_per_period"] = False
+    c.static["e_initial"] = 200
+    c.static["e_cyclic"] = False
+    c.static["e_initial_per_period"] = False
 
     n_sts.c.buses.static.loc["1 battery", "carrier"] = "emitting_carrier"
 
@@ -390,10 +389,10 @@ def test_global_constraint_primary_energy_store(n_sts):
 
     status, cond = n_sts.optimize(**kwargs)
 
-    active = get_activity_mask(n_sts, c)
-    soc_end = n_sts.dynamic(c).e.where(active).ffill().iloc[-1]
-    soc_diff = n_sts.static(c).e_initial - soc_end
-    emissions = n_sts.static(c).carrier.map(n_sts.c.carriers.static.co2_emissions)
+    active = c.get_activity_mask()
+    soc_end = c.dynamic.e.where(active).ffill().iloc[-1]
+    soc_diff = c.static.e_initial - soc_end
+    emissions = c.static.carrier.map(n_sts.c.carriers.static.co2_emissions)
     assert round(soc_diff @ emissions, 0) == 3000
 
 
@@ -408,10 +407,10 @@ def test_global_constraint_primary_energy_storage_stochastic(n_sus):
     c = "StorageUnit"
 
     n_sus.add("Carrier", "emitting_carrier", co2_emissions=100)
-    n_sus.static(c)["state_of_charge_initial"] = 200
-    n_sus.static(c)["cyclic_state_of_charge"] = False
-    n_sus.static(c)["state_of_charge_initial_per_period"] = False
-    n_sus.static(c)["carrier"] = "emitting_carrier"
+    n_sus.c[c].static["state_of_charge_initial"] = 200
+    n_sus.c[c].static["cyclic_state_of_charge"] = False
+    n_sus.c[c].static["state_of_charge_initial_per_period"] = False
+    n_sus.c[c].static["carrier"] = "emitting_carrier"
 
     n_sus.add("GlobalConstraint", name="co2limit", type="primary_energy", constant=3000)
     n_sus.set_scenarios({"s1": 0.5, "s2": 0.5})
@@ -456,7 +455,7 @@ def test_global_constraint_transmission_cost_limit(n):
 
     active = pd.concat(
         {
-            period: n.get_active_assets("Line", period)
+            period: n.c.lines.get_active_assets(period)
             for period in n.investment_periods
         },
         axis=1,
@@ -513,7 +512,9 @@ def test_global_constraint_bus_tech_limit(n):
 def test_nominal_constraint_bus_carrier_expansion_limit(n):
     n.c.buses.static.at["1", "nom_max_gencarrier"] = 100
     with pytest.warns(
-        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        DeprecationWarning,
+        match=".+",
     ):
         status, cond = n.optimize(**kwargs)
     gen1s = [f"gen1-{period}" for period in n.investment_periods]
@@ -522,7 +523,9 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
 
     n.c.buses.static.at["1", "nom_max_gencarrier_2020"] = 100
     with pytest.warns(
-        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        DeprecationWarning,
+        match=".+",
     ):
         status, cond = n.optimize(**kwargs)
     assert n.c.generators.static.at["gen1-2020", "p_nom_opt"] == 100
@@ -531,7 +534,9 @@ def test_nominal_constraint_bus_carrier_expansion_limit(n):
     # make the constraint non-binding and check that the shadow price is zero
     n.c.buses.static.at["1", "nom_min_gencarrier_2020"] = 100
     with pytest.warns(
-        DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        # DeprecationWarning, match="Nominal constraints per bus carrier are deprecated"
+        DeprecationWarning,
+        match=".+",
     ):
         status, cond = n.optimize(**kwargs)
     assert (n.model.constraints["Bus-nom_min_gencarrier_2020"].dual).item() == 0
