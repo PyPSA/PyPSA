@@ -1,5 +1,7 @@
 import pytest
 
+import pypsa
+
 
 @pytest.fixture
 def mocked_pypsa():
@@ -238,3 +240,22 @@ def test_add_return_names_option():
         assert isinstance(result, pd.Index)
         assert result[0] == "bus5"
     assert n.add("Bus", "bus6") is None  # Back to False
+
+
+def test_params_optimize():
+    n = pypsa.examples.ac_dc_meshed()
+
+    n.optimize()
+    assert n.model.solver_name == "highs"
+
+    n.optimize.create_model()
+    n.optimize.solve_model()
+    assert n.model.solver_name == "highs"
+
+    with pypsa.option_context("params.optimize.solver_name", "gurobi"):
+        n.optimize()
+        assert n.model.solver_name == "gurobi"
+
+        n.optimize.create_model()
+        n.optimize.solve_model()
+        assert n.model.solver_name == "gurobi"

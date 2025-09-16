@@ -457,6 +457,7 @@ options._add_option(
 )
 
 # Parameters category
+
 options._add_option(
     "params.statistics.nice_names",
     True,
@@ -472,10 +473,27 @@ options._add_option(
     5,
     "Default value for the 'round' parameter in statistics module.",
 )
+
 options._add_option(
     "params.add.return_names",
     False,
     "Default value for the 'return_names' parameter in Network.add method. "
     "If True, the add method returns the names of added components. "
     "If False, it returns None.",
+)
+
+options._add_option(
+    "params.optimize.model_kwargs",
+    {},
+    "Default value for the 'model_kwargs' parameter in optimization module.",
+)
+options._add_option(
+    "params.optimize.solver_name",
+    "highs",
+    "Default value for the 'solver_name' parameter in optimization module.",
+)
+options._add_option(
+    "params.optimize.solver_options",
+    {},
+    "Default value for the 'solver_options' parameter in optimization module.",
 )
