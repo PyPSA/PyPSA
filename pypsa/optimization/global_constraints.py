@@ -287,15 +287,10 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
         period_weighting = n.investment_period_weightings.years[sns.unique("period")]
         weightings = weightings.mul(period_weighting, level=0, axis=0)
         period_last_sns = pd.MultiIndex.from_frame(
-            sns.to_frame(index=False)
-            .groupby("period")
-            .timestep.last()
-            .reset_index()
+            sns.to_frame(index=False).groupby("period").timestep.last().reset_index()
         )
         storage_weightings = (
-            pd.Series(1, n.snapshots)
-            .mul(period_weighting)
-            .loc[period_last_sns]
+            pd.Series(1, n.snapshots).mul(period_weighting).loc[period_last_sns]
         )
 
     unique_names = glcs.index.unique("name")
@@ -399,7 +394,9 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
                     soc_final = soc.ffill("snapshot").isel(snapshot=-1)
                     if n.has_scenarios:
                         soc_final = soc_final.sel(scenario=scenario, drop=True)
-                    lhs.append((soc_final * -em_pu).sum() + em_pu @ sus.state_of_charge_initial)
+                    lhs.append(
+                        (soc_final * -em_pu).sum() + em_pu @ sus.state_of_charge_initial
+                    )
 
             # stores
             stores = n.c.stores.static.query(
@@ -493,15 +490,10 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
         period_weighting = n.investment_period_weightings.years[sns.unique("period")]
         weightings = weightings.mul(period_weighting, level=0, axis=0)
         period_last_sns = pd.MultiIndex.from_frame(
-            sns.to_frame(index=False)
-            .groupby("period")
-            .timestep.last()
-            .reset_index()
+            sns.to_frame(index=False).groupby("period").timestep.last().reset_index()
         )
         storage_weightings = (
-            pd.Series(1, n.snapshots)
-            .mul(period_weighting)
-            .loc[period_last_sns]
+            pd.Series(1, n.snapshots).mul(period_weighting).loc[period_last_sns]
         )
 
     unique_names = glcs.index.unique("name")
@@ -620,10 +612,7 @@ def define_operational_limit(n: Network, sns: pd.Index) -> None:
                         )
                         if n.has_scenarios:
                             e_final = e_final.sel(scenario=scenario, drop=True)
-                        lhs.append(
-                            (-e_final).sum()
-                            + stores_continuous.e_initial.sum()
-                        )
+                        lhs.append((-e_final).sum() + stores_continuous.e_initial.sum())
 
                     stores_per_period = stores.query("e_initial_per_period")
                     if not stores_per_period.empty:
