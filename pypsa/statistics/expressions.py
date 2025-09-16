@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
@@ -10,6 +11,7 @@ import pandas as pd
 from pypsa._options import options
 from pypsa.common import (
     MethodHandlerWrapper,
+    deprecated_kwargs,
     pass_empty_series_if_keyerror,
 )
 from pypsa.descriptors import nominal_attrs
@@ -449,6 +451,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     def _aggregate_across_components(
         self, df: pd.Series | pd.DataFrame, agg: Callable | str
     ) -> pd.Series | pd.DataFrame:
+        warnings.warn(
+            "Passing `aggregate_across_components` was deprecated in v1.0.0 and "
+            "will be removed with v2.0.0. Use e.g. "
+            "`n.statistics.installed_capacity.groupby(<col_name>).sum() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         levels = [l for l in df.index.names if l != "component"]
         return df.groupby(level=levels).agg(agg)
 
@@ -457,10 +466,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
     ) -> bool:
         return vals.empty
 
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def __call__(
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -478,11 +494,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -550,8 +566,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         res = {}
         for func in funcs:
             df = func(
-                comps=comps,
-                aggregate_groups=aggregate_groups,
+                components=components,
+                groupby_method=groupby_method,
                 aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
@@ -567,10 +583,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return pd.concat(res, axis=1).sort_index(axis=0)
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def capex(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -588,11 +611,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -652,8 +675,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -668,10 +691,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def installed_capex(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -686,11 +716,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -755,8 +785,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -771,10 +801,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def expanded_capex(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -789,11 +826,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -849,8 +886,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         df = self.capex(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -862,8 +899,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             cost_attribute=cost_attribute,
         ).sub(
             self.installed_capex(
-                comps=comps,
-                aggregate_groups=aggregate_groups,
+                components=components,
+                groupby_method=groupby_method,
                 aggregate_across_components=aggregate_across_components,
                 groupby=groupby,
                 at_port=at_port,
@@ -881,10 +918,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def optimal_capacity(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
@@ -902,11 +946,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -964,7 +1008,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         if storage:
-            comps = ("Store", "StorageUnit")
+            components = ("Store", "StorageUnit")
         if bus_carrier and at_port is None:
             at_port = True
 
@@ -980,8 +1024,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -996,10 +1040,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def installed_capacity(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
@@ -1017,11 +1068,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1079,7 +1130,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         if storage:
-            comps = ("Store", "StorageUnit")
+            components = ("Store", "StorageUnit")
         if bus_carrier and at_port is None:
             at_port = True
 
@@ -1095,8 +1146,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1111,10 +1162,17 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def expanded_capacity(
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: str | Sequence[str] | bool | None = None,
@@ -1131,11 +1189,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1182,8 +1240,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         optimal = self.optimal_capacity(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1194,8 +1252,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         installed = self.installed_capacity(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1212,11 +1270,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def opex(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -1234,11 +1299,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1274,7 +1339,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -1289,7 +1354,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Ongoing operational costs with components as rows and
-            either time steps as columns (if aggregate_time=False) or a single column
+            either time steps as columns (if groupby_time=False) or a single column
             of aggregated values.
 
         Examples
@@ -1334,7 +1399,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     p = n.c[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * cost
-                    term = self._aggregate_timeseries(opex, weights, agg=aggregate_time)
+                    term = self._aggregate_timeseries(opex, weights, agg=groupby_time)
                     result.append(term)
 
             mapping = {
@@ -1352,7 +1417,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     var = n.c[c].dynamic[attr].loc[:, com_i]
                     opex = var * cost
                     w = weights if attr == "status" else weights_one
-                    term = self._aggregate_timeseries(opex, w, agg=aggregate_time)
+                    term = self._aggregate_timeseries(opex, w, agg=groupby_time)
                     result.append(term)
             if not result:
                 return pd.Series()
@@ -1361,8 +1426,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1377,11 +1442,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def system_cost(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -1397,11 +1469,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1437,7 +1509,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -1456,8 +1528,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         capex = self.capex(
-            comps=comps,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1468,9 +1540,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             round=round,
         )
         opex = self.opex(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_time=groupby_time,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1492,11 +1564,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def supply(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
@@ -1512,11 +1591,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1552,7 +1631,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -1562,7 +1641,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Supply of components in the network with components as rows and
-            either time steps as columns (if aggregate_time=False) or a single column
+            either time steps as columns (if groupby_time=False) or a single column
             of aggregated values.
 
         Examples
@@ -1572,9 +1651,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         df = self.energy_balance(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_time=groupby_time,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1590,11 +1669,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def withdrawal(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
@@ -1610,11 +1696,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1650,7 +1736,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -1660,7 +1746,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Withdrawal of components in the network with components as rows and
-            either time steps as columns (if aggregate_time=False) or a single column
+            either time steps as columns (if groupby_time=False) or a single column
             of aggregated values.
 
         Examples
@@ -1670,9 +1756,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         df = self.energy_balance(
-            comps=comps,
-            aggregate_time=aggregate_time,
-            aggregate_groups=aggregate_groups,
+            components=components,
+            groupby_time=groupby_time,
+            groupby_method=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1688,11 +1774,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def transmission(  # noqa: D417
         self,
-        comps: Collection[str] | str | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: Collection[str] | str | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -1708,11 +1801,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1748,7 +1841,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -1758,7 +1851,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Transmission of branch components in the network with components as rows and
-            either time steps as columns (if aggregate_time=False) or a single column
+            either time steps as columns (if groupby_time=False) or a single column
             of aggregated values.
 
         Examples
@@ -1769,8 +1862,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         """
         n = self._n
 
-        if comps is None:
-            comps = n.branch_components
+        if components is None:
+            components = n.branch_components
 
         transmission_branches = get_transmission_branches(n, bus_carrier)
 
@@ -1779,12 +1872,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             idx = transmission_branches.get_loc_level(c, level="component")[1]
             p = n.c[c].dynamic[f"p{port}"][idx]
             weights = n.snapshot_weightings.generators
-            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1799,11 +1892,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def energy_balance(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable | None = None,
         at_port: bool | str | Sequence[str] = True,
@@ -1822,11 +1922,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1862,7 +1962,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -1877,7 +1977,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Energy balance with components as rows and either time steps as columns
-            (if aggregate_time=False) or a single column of aggregated values.
+            (if groupby_time=False) or a single column of aggregated values.
             Units depend on the bus carrier and aggregation method.
 
         Examples
@@ -1913,12 +2013,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 logger.warning(
                     "Argument 'direction' is not recognized. Falling back to energy balance."
                 )
-            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -1934,11 +2034,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def curtailment(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = False,
@@ -1955,11 +2062,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -1995,7 +2102,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -2022,12 +2129,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 - n.c[c].dynamic.p
             ).clip(lower=0)
             weights = n.snapshot_weightings.generators
-            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -2042,11 +2149,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def capacity_factor(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "mean",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "mean",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         at_port: bool | str | Sequence[str] = False,
         groupby: str | Sequence[str] | Callable = "carrier",
@@ -2060,11 +2174,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -2100,7 +2214,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -2110,7 +2224,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Capacity factor of components in the network with components as rows and
-            either time steps as columns (if aggregate_time=False) or a single column
+            either time steps as columns (if groupby_time=False) or a single column
             of aggregated values.
 
         Examples
@@ -2125,10 +2239,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = get_operation(n, c).abs()
             weights = n.snapshot_weightings.generators
-            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(p, weights, agg=groupby_time)
 
         kwargs = {
-            "comps": comps,
+            "components": components,
             "groupby": groupby,
             "aggregate_across_components": aggregate_across_components,
             "at_port": at_port,
@@ -2138,19 +2252,26 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             "drop_zero": drop_zero,
             "round": round,
         }
-        df = self._aggregate_components(func, agg=aggregate_groups, **kwargs)  # type: ignore
-        capacity = self.optimal_capacity(aggregate_groups=aggregate_groups, **kwargs)
+        df = self._aggregate_components(func, agg=groupby_method, **kwargs)  # type: ignore
+        capacity = self.optimal_capacity(groupby_method=groupby_method, **kwargs)
         df = df.div(capacity.reindex(df.index), axis=0)
         df.attrs["name"] = "Capacity Factor"
         df.attrs["unit"] = "p.u."
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def revenue(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "sum",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "sum",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
@@ -2168,11 +2289,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -2208,7 +2329,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -2221,7 +2342,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Revenue of components in the network with components as rows and
-            either time steps as columns (if aggregate_time=False) or a single column
+            either time steps as columns (if groupby_time=False) or a single column
             of aggregated values.
 
         Examples
@@ -2256,12 +2377,12 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                     raise ValueError(msg)
             revenue = df * prices
             weights = n.snapshot_weightings.objective
-            return self._aggregate_timeseries(revenue, weights, agg=aggregate_time)
+            return self._aggregate_timeseries(revenue, weights, agg=groupby_time)
 
         df = self._aggregate_components(
             func,
-            comps=comps,
-            agg=aggregate_groups,
+            components=components,
+            agg=groupby_method,
             aggregate_across_components=aggregate_across_components,
             groupby=groupby,
             at_port=at_port,
@@ -2276,11 +2397,18 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         return df
 
     @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    @deprecated_kwargs(
+        deprecated_in="1.0",
+        removed_in="2.0",
+        comps="components",
+        aggregate_groups="groupby_method",
+        aggregate_time="groupby_time",
+    )
     def market_value(  # noqa: D417
         self,
-        comps: str | Sequence[str] | None = None,
-        aggregate_time: str | bool = "mean",
-        aggregate_groups: Callable | str = "sum",
+        components: str | Sequence[str] | None = None,
+        groupby_time: str | bool = "mean",
+        groupby_method: Callable | str = "sum",
         aggregate_across_components: bool = False,
         groupby: str | Sequence[str] | Callable = "carrier",
         at_port: bool | str | Sequence[str] = True,
@@ -2297,11 +2425,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Parameters
         ----------
-        comps : str | Sequence[str] | None, default=None
+        components : str | Sequence[str] | None, default=None
             Components to include in the calculation. If None, includes all one-port
             and branch components. Available components are 'Generator', 'StorageUnit',
             'Store', 'Load', 'Line', 'Transformer' and'Link'.
-        aggregate_groups : Callable | str, default="sum"
+        groupby_method : Callable | str, default="sum"
             Function to aggregate groups when using the groupby parameter.
             Any pandas aggregation function can be used.
         aggregate_across_components : bool, default=False
@@ -2337,7 +2465,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         Other Parameters
         ----------------
-        aggregate_time : str | bool, default="sum"
+        groupby_time : str | bool, default="sum"
             Type of aggregation when aggregating time series. Deactivate by setting to
             False. Any pandas aggregation function can be used. Note that when
             aggregating the time series are aggregated to MWh using snapshot weightings.
@@ -2347,7 +2475,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         -------
         pd.DataFrame
             Market value of components in the network with components as rows and
-            either time steps as columns (if aggregate_time=False) or a single column
+            either time steps as columns (if groupby_time=False) or a single column
             of aggregated values.
 
         Examples
@@ -2357,9 +2485,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         """
         kwargs = {
-            "comps": comps,
-            "aggregate_time": aggregate_time,
-            "aggregate_groups": aggregate_groups,
+            "components": components,
+            "groupby_time": groupby_time,
+            "groupby_method": groupby_method,
             "aggregate_across_components": aggregate_across_components,
             "groupby": groupby,
             "at_port": at_port,

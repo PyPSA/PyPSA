@@ -321,7 +321,7 @@ def test_network_collection_custom_grouper(ac_dc_network_r):
 
     # Test with custom grouper using installed_capacity (no optimization needed)
     result = nc.statistics.installed_capacity(
-        comps=["Generator"], groupby=["carrier", "bus_carrier", "first_letter"]
+        components=["Generator"], groupby=["carrier", "bus_carrier", "first_letter"]
     )
     assert not result.empty
     assert "first_letter" in result.index.names
