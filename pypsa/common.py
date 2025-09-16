@@ -914,6 +914,7 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     0    0.080243
     1    0.05
     dtype: float64
+
     """
     if isinstance(r, pd.Series):
         return pd.Series(1 / n, index=r.index).where(
