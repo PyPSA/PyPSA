@@ -1046,13 +1046,25 @@ def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFr
         Sorted DataFrame
 
     """
-    df_cols_set = set(df.columns if axis == 1 else df.index)
+    axis_labels = df.columns if axis == 1 else df.index
+    if len(axis_labels) == 0 or len(attrs_list) == 0:
+        return df
 
-    existing_cols = [col for col in attrs_list if col in df_cols_set]
-    remaining_cols = [
-        col for col in (df.columns if axis == 1 else df.index) if col not in attrs_list
-    ]
-    return df.reindex(existing_cols + remaining_cols, axis=axis)
+    labels_set = set(axis_labels)
+    existing_cols = [col for col in attrs_list if col in labels_set]
+    if not existing_cols:
+        return df
+
+    axis_list = list(axis_labels)
+    remaining_cols = [col for col in axis_list if col not in attrs_list]
+    target = existing_cols + remaining_cols
+
+    if axis_list == target:
+        return df
+
+    if axis == 1:
+        return df.loc[:, target]
+    return df.loc[target]
 
 
 class NetworkIOMixin(_NetworkABC):
