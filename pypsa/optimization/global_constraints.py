@@ -75,11 +75,11 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
         lhs_per_bus = merge(lhs_per_bus_list)
 
         for name, glc in glcs_group.iterrows():
-            bus = glc.get("bus") or None
-            if bus is None:
+            bus_glc = glc.get("bus") or None
+            if bus_glc is None:
                 lhs = lhs_per_bus.sum(busdim)
             else:
-                lhs = lhs_per_bus.sel(**{busdim: str(bus)}, drop=True)
+                lhs = lhs_per_bus.sel(**{busdim: str(bus_glc)}, drop=True)
 
             n.model.add_constraints(
                 lhs, sign, glc.constant, name=f"GlobalConstraint-{name}"
