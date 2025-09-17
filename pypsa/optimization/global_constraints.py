@@ -75,7 +75,7 @@ def define_tech_capacity_expansion_limit(n: Network, sns: Sequence) -> None:
         lhs_per_bus = merge(lhs_per_bus_list)
 
         for name, glc in glcs_group.iterrows():
-            bus = glc.get("bus")
+            bus = glc.get("bus") or None
             if bus is None:
                 lhs = lhs_per_bus.sum(busdim)
             else:
