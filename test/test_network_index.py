@@ -111,7 +111,7 @@ class TestNetworkScenarioIndex:
 def test_get_scenario():
     n = pypsa.examples.ac_dc_meshed()
     n.set_scenarios(high=0.1, low=0.9)
-    n.generators.p_nom.loc[("high", "Manchester Wind")] = 200
+    n.c.generators.static.p_nom.loc[("high", "Manchester Wind")] = 200
 
     n_high = n.get_scenario("high")
     n_low = n.get_scenario("low")
@@ -125,7 +125,7 @@ def test_get_scenario():
     assert n_low.equals(ac_dc_meshed, log_mode="strict")
     assert n_low is not ac_dc_meshed
 
-    ac_dc_meshed.generators.p_nom.loc[("Manchester Wind")] = 200
+    ac_dc_meshed.c.generators.static.p_nom.loc[("Manchester Wind")] = 200
     assert n_high.equals(ac_dc_meshed, log_mode="strict")
     assert n_high is not ac_dc_meshed
 
@@ -148,7 +148,7 @@ def test_get_network_from_collection():
     n = pypsa.examples.ac_dc_meshed()
     n2 = n.copy()
     n2.name = "AC-DC-Meshed Copy"
-    n2.generators.p_nom.loc[("Manchester Wind")] = 200
+    n2.c.generators.static.p_nom.loc[("Manchester Wind")] = 200
 
     nc = pypsa.NetworkCollection([n, n2])
 
@@ -167,7 +167,7 @@ def test_get_network_from_collection():
 
     # Stochastic network in collection
     n2.set_scenarios(high=0.1, low=0.9)
-    n2.generators.p_nom.loc[("high", "Manchester Wind")] = 300
+    n2.c.generators.static.p_nom.loc[("high", "Manchester Wind")] = 300
     nc = pypsa.NetworkCollection([n, n2])
 
     nc2 = nc.get_network("AC-DC-Meshed Copy")
@@ -194,19 +194,21 @@ def test_slice_network():
     # Test slicing by buses - single bus
     n_single = n.slice_network(buses="Manchester")
     assert len(n_single.buses) == 1
-    assert "Manchester" in n_single.buses.index
+    assert "Manchester" in n_single.c.buses.static.index
     # Check connected components are included
-    assert len(n_single.generators) > 0
-    assert all(n_single.generators.bus == "Manchester")
+    assert len(n_single.c.generators) > 0
+    assert all(n_single.c.generators.static.bus == "Manchester")
 
     # Test slicing by buses - list of buses
     bus_list = ["Manchester", "Frankfurt"]
     n_subset = n.slice_network(buses=bus_list)
     assert len(n_subset.buses) == 2
-    assert set(n_subset.buses.index) == set(bus_list)
+    assert set(n_subset.c.buses.static.index) == set(bus_list)
     # Check lines between selected buses
-    lines_between = n.lines[n.lines.bus0.isin(bus_list) & n.lines.bus1.isin(bus_list)]
-    assert len(n_subset.lines) == len(lines_between)
+    lines_between = n.c.lines.static[
+        n.c.lines.static.bus0.isin(bus_list) & n.c.lines.static.bus1.isin(bus_list)
+    ]
+    assert len(n_subset.c.lines.static) == len(lines_between)
 
     # Test slicing by snapshots using slice object
     n_snap = n.slice_network(snapshots=slice(None, 2))
@@ -221,9 +223,9 @@ def test_slice_network():
     assert n_both.snapshots[0] == n.snapshots[0]
 
     # Test with boolean mask for buses
-    bus_mask = n.buses.v_nom > 300
+    bus_mask = n.c.buses.static.v_nom > 300
     n_hv = n.slice_network(buses=bus_mask)
-    assert all(n_hv.buses.v_nom > 300)
+    assert all(n_hv.c.buses.static.v_nom > 300)
 
     # Test error when neither buses nor snapshots provided
     with pytest.raises(
@@ -278,7 +280,7 @@ def test_getitem_index_methods():
     # Test stochastic network __getitem__ (mirrors get_scenario)
     n_stoch = pypsa.examples.ac_dc_meshed()
     n_stoch.set_scenarios(high=0.3, low=0.7)
-    n_stoch.generators.p_nom.loc[("high", "Manchester Wind")] = 200
+    n_stoch.c.generators.static.p_nom.loc[("high", "Manchester Wind")] = 200
 
     n_high_getitem = n_stoch["high"]
     n_high_get = n_stoch.get_scenario("high")
