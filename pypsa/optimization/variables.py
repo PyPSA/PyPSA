@@ -234,3 +234,38 @@ def define_loss_variables(n: Network, sns: Sequence, c_name: str) -> None:
     active = c.da.active.sel(name=c.active_assets, snapshot=sns)
     coords = active.coords
     n.model.add_variables(0, coords=coords, name=f"{c.name}-loss", mask=active)
+
+
+def define_cvar_variables(n: Network) -> None:
+    """Define auxiliary variables used in the CVaR (Conditional Value-at-Risk) formulation.
+
+    This helper adds three auxiliary variables to the model when
+    stochastic optimisation with risk preference is enabled.
+
+    * ``CVaR-a`` (per-scenario, non-negative): auxiliary excess loss variables ``a_s``.
+      They linearise the tail expectation: ``a_s >= OPEX_s - theta``.
+    * ``CVaR-theta`` (scalar): the Value-at-Risk (VaR) level ``theta`` at confidence ``alpha``.
+    * ``CVaR`` (scalar): the Conditional Value-at-Risk (Expected Shortfall) objective term.
+
+    These variables are linked by constraints (added in the objective construction)
+    to implement the linear CVaR formulation.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance
+
+    """
+    if n.has_scenarios and n.has_risk_preference is False:
+        return
+
+    # Per-scenario auxiliary variables a[s]
+    scenarios = n.scenarios
+    if scenarios is None or len(scenarios) == 0:
+        return
+
+    # Non-negative excess loss variables per scenario
+    n.model.add_variables(lower=0, coords=[scenarios], name="CVaR-a")
+    # Scalar theta (VaR) and CVaR
+    n.model.add_variables(name="CVaR-theta")
+    n.model.add_variables(name="CVaR")
