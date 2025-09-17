@@ -74,7 +74,7 @@ class ComponentsTransformMixin:
             ignored.
         return_names : bool | None, default=None
             Whether to return the names of the new components. Defaults to module wide
-            option (default: False). See `pypsa.options.params.add.describe()` for more
+            option (default: False). See https://go.pypsa.org/options-params for more
             information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series

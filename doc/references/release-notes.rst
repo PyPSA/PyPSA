@@ -56,6 +56,8 @@ Features
   ``__version_short__`` → ``__version_major_minor__``. Removed tuple versions.
   Old names raise ``DeprecationWarning``.
 
+* Added new options to set default optimization parameters, like `solver_name` and
+  `solver_options`. See https://go.pypsa.org/options-params for more information.
 
 Bug Fixes
 ---------
