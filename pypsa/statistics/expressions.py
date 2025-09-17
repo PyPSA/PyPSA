@@ -522,15 +522,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Returns
         -------
@@ -639,15 +637,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -744,15 +740,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -854,15 +848,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -974,15 +966,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1096,15 +1086,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1217,15 +1205,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Returns
         -------
@@ -1327,15 +1313,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1497,15 +1481,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1619,15 +1601,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1724,15 +1704,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1829,15 +1807,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1950,15 +1926,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -2090,15 +2064,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -2202,15 +2174,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -2317,15 +2287,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -2453,15 +2421,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------

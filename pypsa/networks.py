@@ -149,6 +149,9 @@ class Network(
         index = pd.Index([], name="scenario")
         self._scenarios_data: pd.DataFrame = pd.DataFrame([], index=index, columns=cols)
 
+        # Risk preference
+        self._risk_preference: dict[str, float] | None = None
+
         self._model: linopy.Model | None = None
         self._objective: float | None = None
         self._objective_constant: float | None = None

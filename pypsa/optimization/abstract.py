@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._options import options
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
@@ -391,15 +392,18 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a ``pd.MultiIndex``.
-        model_kwargs: dict
+        model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Defaults to module wide option (default: {}). See
+            https://go.pypsa.org/options-params for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
 
         """
+        # Handle default parameters from options
         if model_kwargs is None:
-            model_kwargs = {}
+            model_kwargs = options.params.optimize.model_kwargs.copy()
 
         n = self._n
 
