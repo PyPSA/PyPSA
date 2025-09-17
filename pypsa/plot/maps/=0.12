@@ -1,4472 +1,0 @@
-[1;32m2[0m[1;32m channel Terms of Service accepted[0m
-Retrieving notices: - \ | / - done
-Channels:
- - conda-forge
- - defaults
-Platform: linux-64
-Collecting package metadata (repodata.json): | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | done
-Solving environment: - \ | done
-
-## Package Plan ##
-
-  environment location: /home/bobby/Software/miniconda3/envs/explore
-
-  added / updated specs:
-    - folium
-    - mapclassify
-    - matplotlib
-
-
-The following packages will be downloaded:
-
-    package                    |            build
-    ---------------------------|-----------------
-    dbus-1.16.2                |       h5bd4931_0         1.2 MB
-    h2-4.3.0                   |     pyhcf101f3_0          94 KB  conda-forge
-    krb5-1.21.3                |       h723845a_4         286 KB
-    libclang13-20.1.8          |default_h746c552_1        11.8 MB  conda-forge
-    libcups-2.4.2              |       h252cb56_2         4.5 MB
-    libdrm-2.4.125             |       hb03c661_1         304 KB  conda-forge
-    libegl-1.7.0               |       ha4b6fd6_2          44 KB  conda-forge
-    libkrb5-1.21.3             |       h520c7b4_4         874 KB
-    libllvm15-15.0.7           |       he89c38a_4        35.4 MB
-    libllvm20-20.1.8           |       h465586c_0        45.3 MB
-    libopus-1.5.2              |       hd0c01bc_0         305 KB  conda-forge
-    libpq-17.4                 |       h02b6914_2         3.0 MB
-    libre2-11-2024.07.02       |       h7064273_4         205 KB  conda-forge
-    libvpx-1.13.1              |       h6a678d5_0         1.0 MB
-    libxkbcommon-1.11.0        |       he8b52b9_0         773 KB  conda-forge
-    libxkbfile-1.1.0           |       h166bdaf_1         111 KB  conda-forge
-    matplotlib-3.10.1          |  py313h78bf25f_0          17 KB  conda-forge
-    mesalib-25.1.5             |       h31e3550_0         8.9 MB
-    mysql-common-9.3.0         |       h0021b1a_3         850 KB
-    mysql-libs-9.3.0           |       h797a5cd_3         1.5 MB
-    nspr-4.37                  |       h29cc59b_0         226 KB  conda-forge
-    nss-3.89.1                 |       h6a678d5_0         2.1 MB
-    pandas-2.3.2               |  py313h08cd8bf_0        14.4 MB  conda-forge
-    pyside6-6.9.2              |  py313h2ddcaae_0        12.0 MB
-    qtbase-6.9.2               |       h46e0f57_0        11.1 MB
-    qtdeclarative-6.9.2        |       h55666de_0        16.2 MB
-    qtshadertools-6.9.2        |       hbdd6827_0         1.7 MB
-    qtsvg-6.9.2                |       h75a08ff_0         304 KB
-    qttools-6.9.2              |       hc856bc8_0         6.1 MB
-    qtwebchannel-6.9.1         |       h82d4f2e_0         156 KB
-    qtwebengine-6.9.1          |       hfb9d843_0       114.5 MB
-    qtwebsockets-6.9.2         |       hbdd6827_0         126 KB
-    re2-2024.07.02             |       h9925aae_4          27 KB  conda-forge
-    requests-2.32.5            |     pyhd8ed1ab_0          58 KB  conda-forge
-    spirv-tools-2025.1         |       h84d6215_0         2.0 MB  conda-forge
-    xorg-libsm-1.2.6           |       h9b100fa_0          26 KB
-    xorg-libxshmfence-1.3.3    |       hb9d3cd8_0          12 KB  conda-forge
-    zstandard-0.23.0           |  py313h07c4f96_3         481 KB  conda-forge
-    ------------------------------------------------------------
-                                           Total:       297.7 MB
-
-The following NEW packages will be INSTALLED:
-
-  alsa-lib           conda-forge/linux-64::alsa-lib-1.2.14-hb9d3cd8_0 
-  branca             conda-forge/noarch::branca-0.8.1-pyhd8ed1ab_0 
-  brotli-python      conda-forge/linux-64::brotli-python-1.1.0-py313h46c70d0_3 
-  charset-normalizer conda-forge/noarch::charset-normalizer-3.4.3-pyhd8ed1ab_0 
-  cyrus-sasl         conda-forge/linux-64::cyrus-sasl-2.1.28-hd9c7081_0 
-  dbus               pkgs/main/linux-64::dbus-1.16.2-h5bd4931_0 
-  folium             conda-forge/noarch::folium-0.20.0-pyhd8ed1ab_0 
-  h2                 conda-forge/noarch::h2-4.3.0-pyhcf101f3_0 
-  hpack              conda-forge/noarch::hpack-4.1.0-pyhd8ed1ab_0 
-  hyperframe         conda-forge/noarch::hyperframe-6.1.0-pyhd8ed1ab_0 
-  idna               conda-forge/noarch::idna-3.10-pyhd8ed1ab_1 
-  jinja2             conda-forge/noarch::jinja2-3.1.6-pyhd8ed1ab_0 
-  krb5               pkgs/main/linux-64::krb5-1.21.3-h723845a_4 
-  libabseil          conda-forge/linux-64::libabseil-20250512.1-cxx17_hba17884_0 
-  libclang13         conda-forge/linux-64::libclang13-20.1.8-default_h746c552_1 
-  libcups            pkgs/main/linux-64::libcups-2.4.2-h252cb56_2 
-  libdrm             conda-forge/linux-64::libdrm-2.4.125-hb03c661_1 
-  libedit            conda-forge/linux-64::libedit-3.1.20250104-pl5321h7949ede_0 
-  libegl             conda-forge/linux-64::libegl-1.7.0-ha4b6fd6_2 
-  libevent           conda-forge/linux-64::libevent-2.1.12-hf998b51_1 
-  libgl              conda-forge/linux-64::libgl-1.7.0-ha4b6fd6_2 
-  libglvnd           conda-forge/linux-64::libglvnd-1.7.0-ha4b6fd6_2 
-  libglx             conda-forge/linux-64::libglx-1.7.0-ha4b6fd6_2 
-  libkrb5            pkgs/main/linux-64::libkrb5-1.21.3-h520c7b4_4 
-  libllvm15          pkgs/main/linux-64::libllvm15-15.0.7-he89c38a_4 
-  libllvm20          pkgs/main/linux-64::libllvm20-20.1.8-h465586c_0 
-  libntlm            conda-forge/linux-64::libntlm-1.8-hb9d3cd8_0 
-  libopus            conda-forge/linux-64::libopus-1.5.2-hd0c01bc_0 
-  libpciaccess       conda-forge/linux-64::libpciaccess-0.18-hb9d3cd8_0 
-  libpq              pkgs/main/linux-64::libpq-17.4-h02b6914_2 
-  libre2-11          conda-forge/linux-64::libre2-11-2024.07.02-h7064273_4 
-  libvpx             pkgs/main/linux-64::libvpx-1.13.1-h6a678d5_0 
-  libxcrypt          conda-forge/linux-64::libxcrypt-4.4.36-hd590300_1 
-  libxkbcommon       conda-forge/linux-64::libxkbcommon-1.11.0-he8b52b9_0 
-  libxkbfile         conda-forge/linux-64::libxkbfile-1.1.0-h166bdaf_1 
-  libxslt            conda-forge/linux-64::libxslt-1.1.43-h7a3aeb2_0 
-  lmdb               conda-forge/linux-64::lmdb-0.9.31-hd590300_1 
-  mapclassify        conda-forge/noarch::mapclassify-2.10.0-pyhd8ed1ab_1 
-  markupsafe         conda-forge/linux-64::markupsafe-3.0.2-py313h8060acc_1 
-  matplotlib         conda-forge/linux-64::matplotlib-3.10.1-py313h78bf25f_0 
-  mesalib            pkgs/main/linux-64::mesalib-25.1.5-h31e3550_0 
-  mysql-common       pkgs/main/linux-64::mysql-common-9.3.0-h0021b1a_3 
-  mysql-libs         pkgs/main/linux-64::mysql-libs-9.3.0-h797a5cd_3 
-  networkx           conda-forge/noarch::networkx-3.5-pyhe01879c_0 
-  nspr               conda-forge/linux-64::nspr-4.37-h29cc59b_0 
-  nss                pkgs/main/linux-64::nss-3.89.1-h6a678d5_0 
-  openldap           conda-forge/linux-64::openldap-2.6.10-he970967_0 
-  pandas             conda-forge/linux-64::pandas-2.3.2-py313h08cd8bf_0 
-  pyside6            pkgs/main/linux-64::pyside6-6.9.2-py313h2ddcaae_0 
-  pysocks            conda-forge/noarch::pysocks-1.7.1-pyha55dd90_7 
-  python-tzdata      conda-forge/noarch::python-tzdata-2025.2-pyhd8ed1ab_0 
-  pytz               conda-forge/noarch::pytz-2025.2-pyhd8ed1ab_0 
-  qtbase             pkgs/main/linux-64::qtbase-6.9.2-h46e0f57_0 
-  qtdeclarative      pkgs/main/linux-64::qtdeclarative-6.9.2-h55666de_0 
-  qtshadertools      pkgs/main/linux-64::qtshadertools-6.9.2-hbdd6827_0 
-  qtsvg              pkgs/main/linux-64::qtsvg-6.9.2-h75a08ff_0 
-  qttools            pkgs/main/linux-64::qttools-6.9.2-hc856bc8_0 
-  qtwebchannel       pkgs/main/linux-64::qtwebchannel-6.9.1-h82d4f2e_0 
-  qtwebengine        pkgs/main/linux-64::qtwebengine-6.9.1-hfb9d843_0 
-  qtwebsockets       pkgs/main/linux-64::qtwebsockets-6.9.2-hbdd6827_0 
-  re2                conda-forge/linux-64::re2-2024.07.02-h9925aae_4 
-  requests           conda-forge/noarch::requests-2.32.5-pyhd8ed1ab_0 
-  snappy             conda-forge/linux-64::snappy-1.2.2-h03e3b7b_0 
-  spirv-tools        conda-forge/linux-64::spirv-tools-2025.1-h84d6215_0 
-  urllib3            conda-forge/noarch::urllib3-2.5.0-pyhd8ed1ab_0 
-  xcb-util           conda-forge/linux-64::xcb-util-0.4.1-h4f16b4b_2 
-  xcb-util-cursor    conda-forge/linux-64::xcb-util-cursor-0.1.5-hb9d3cd8_0 
-  xcb-util-image     conda-forge/linux-64::xcb-util-image-0.4.0-hb711507_2 
-  xcb-util-keysyms   conda-forge/linux-64::xcb-util-keysyms-0.4.1-hb711507_0 
-  xcb-util-renderut~ conda-forge/linux-64::xcb-util-renderutil-0.3.10-hb711507_0 
-  xcb-util-wm        conda-forge/linux-64::xcb-util-wm-0.4.2-hb711507_0 
-  xkeyboard-config   conda-forge/linux-64::xkeyboard-config-2.45-hb9d3cd8_0 
-  xorg-libice        conda-forge/linux-64::xorg-libice-1.1.2-hb9d3cd8_0 
-  xorg-libsm         pkgs/main/linux-64::xorg-libsm-1.2.6-h9b100fa_0 
-  xorg-libxcomposite conda-forge/linux-64::xorg-libxcomposite-0.4.6-hb9d3cd8_2 
-  xorg-libxdamage    conda-forge/linux-64::xorg-libxdamage-1.1.6-hb9d3cd8_0 
-  xorg-libxfixes     conda-forge/linux-64::xorg-libxfixes-6.0.1-hb9d3cd8_0 
-  xorg-libxi         conda-forge/linux-64::xorg-libxi-1.8.2-hb9d3cd8_0 
-  xorg-libxrandr     conda-forge/linux-64::xorg-libxrandr-1.5.4-hb9d3cd8_0 
-  xorg-libxshmfence  conda-forge/linux-64::xorg-libxshmfence-1.3.3-hb9d3cd8_0 
-  xorg-libxtst       conda-forge/linux-64::xorg-libxtst-1.2.5-hb9d3cd8_3 
-  xorg-libxxf86vm    conda-forge/linux-64::xorg-libxxf86vm-1.1.6-hb9d3cd8_0 
-  xyzservices        conda-forge/noarch::xyzservices-2025.4.0-pyhd8ed1ab_0 
-  zstandard          conda-forge/linux-64::zstandard-0.23.0-py313h07c4f96_3 
-
-
-
-Downloading and Extracting Packages: ...working...qtwebengine-6.9.1    | 114.5 MB  |                                      |   0% 
-libllvm20-20.1.8     | 45.3 MB   |                                      |   0% [A
-
-libllvm15-15.0.7     | 35.4 MB   |                                      |   0% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   |                                      |   0% [A[A[A
-
-
-
-pandas-2.3.2         | 14.4 MB   |                                      |   0% [A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   |                                      |   0% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   |                                      |   0% [A[A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   |                                      |   0% [A[A[A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    |                                      |   0% [A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-qtshadertools-6.9.2  | 1.7 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-libs-9.3.0     | 1.5 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libvpx-1.13.1        | 1.0 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libkrb5-1.21.3       | 874 KB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libxkbcommon-1.11.0  | 773 KB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-zstandard-0.23.0     | 481 KB    |                                      |   0% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-pandas-2.3.2         | 14.4 MB   |                                      |   0% [A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   |                                      |   0% [Aqtwebengine-6.9.1    | 114.5 MB  |                                      |   0% 
-
-libllvm15-15.0.7     | 35.4 MB   |                                      |   0% [A[A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #2                                   |   3% [A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | 1                                    |   1% [A[A
-libllvm20-20.1.8     | 45.3 MB   | 1                                    |   0% [Aqtwebengine-6.9.1    | 114.5 MB  |                                      |   0% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | ##1                                  |   6% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   |                                      |   0% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | 4                                    |   1% [A[A
-libllvm20-20.1.8     | 45.3 MB   | 4                                    |   1% [Aqtwebengine-6.9.1    | 114.5 MB  | 1                                    |   0% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | ###5                                 |  10% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | 2                                    |   1% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | 6                                    |   2% [A[Aqtwebengine-6.9.1    | 114.5 MB  | 1                                    |   1% 
-libllvm20-20.1.8     | 45.3 MB   | 5                                    |   2% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ####5                                |  13% [A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | 8                                    |   2% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | 3                                    |   1% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 3                                    |   1% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | ######1                              |  17% [A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | 8                                    |   2% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #                                    |   3% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | 7                                    |   2% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 3                                    |   1% 
-libllvm20-20.1.8     | 45.3 MB   | #2                                   |   3% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #######3                             |  20% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #1                                   |   3% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #2                                   |   4% [A[Aqtwebengine-6.9.1    | 114.5 MB  | 4                                    |   1% 
-libllvm20-20.1.8     | 45.3 MB   | #6                                   |   4% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ########4                            |  24% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #3                                   |   4% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #4                                   |   4% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #8                                   |   5% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #########5                           |  27% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 4                                    |   1% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #6                                   |   5% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #6                                   |   5% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ##1                                  |   6% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ##########6                          |  30% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #9                                   |   5% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 5                                    |   2% 
-libllvm20-20.1.8     | 45.3 MB   | ##4                                  |   7% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #8                                   |   5% [A[A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ###########6                         |  32% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##2                                  |   6% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 6                                    |   2% 
-libllvm20-20.1.8     | 45.3 MB   | ##7                                  |   8% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ############7                        |  35% [A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##                                   |   6% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##5                                  |   7% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 6                                    |   2% 
-libllvm20-20.1.8     | 45.3 MB   | ##9                                  |   8% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #############7                       |  38% [A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##1                                  |   6% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##7                                  |   8% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###2                                 |   9% [Aqtwebengine-6.9.1    | 114.5 MB  | 7                                    |   2% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | ##############8                      |  41% [A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##3                                  |   6% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##9                                  |   8% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###5                                 |  10% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ###############9                     |  44% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 7                                    |   2% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##4                                  |   7% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###2                                 |   9% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###8                                 |  11% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #################                    |  47% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 8                                    |   2% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##6                                  |   7% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###4                                 |  10% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ####                                 |  11% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ##################                   |  50% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 8                                    |   2% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##7                                  |   8% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###7                                 |  10% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ####3                                |  12% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ###################1                 |  53% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 8                                    |   2% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##8                                  |   8% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###9                                 |  11% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ####6                                |  13% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ####################2                |  56% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 9                                    |   3% 
-
-libllvm15-15.0.7     | 35.4 MB   | ###                                  |   8% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ####2                                |  12% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ####9                                |  14% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #####################3               |  59% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | 9                                    |   3% 
-
-libllvm15-15.0.7     | 35.4 MB   | ###1                                 |   9% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #####1                               |  14% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ####4                                |  12% [A[A[A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ######################4              |  62% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #                                    |   3% 
-libllvm20-20.1.8     | 45.3 MB   | #####4                               |  15% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #######################5             |  65% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ####6                                |  13% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###3                                 |   9% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #                                    |   3% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | ########################6            |  68% [A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #####7                               |  16% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ####9                                |  14% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###4                                 |  10% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #1                                   |   3% 
-libllvm20-20.1.8     | 45.3 MB   | ######                               |  17% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #########################7           |  71% [A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###5                                 |  10% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #####2                               |  14% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #1                                   |   3% 
-libllvm20-20.1.8     | 45.3 MB   | ######3                              |  18% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ##########################8          |  75% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #####4                               |  15% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###7                                 |  10% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #2                                   |   3% 
-libllvm20-20.1.8     | 45.3 MB   | ######5                              |  18% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ###########################8         |  77% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #####6                               |  16% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###8                                 |  11% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #2                                   |   3% 
-libllvm20-20.1.8     | 45.3 MB   | ######8                              |  19% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ############################9        |  80% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #####9                               |  17% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###9                                 |  11% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #######1                             |  20% [Aqtwebengine-6.9.1    | 114.5 MB  | #3                                   |   4% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | #############################9       |  83% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ######2                              |  17% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####                                 |  11% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #######4                             |  21% [Aqtwebengine-6.9.1    | 114.5 MB  | #3                                   |   4% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | ###############################      |  86% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ######5                              |  18% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####2                                |  12% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #######6                             |  21% [Aqtwebengine-6.9.1    | 114.5 MB  | #4                                   |   4% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | ################################1    |  89% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ######8                              |  19% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####3                                |  12% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #######9                             |  22% [Aqtwebengine-6.9.1    | 114.5 MB  | #4                                   |   4% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | #################################1   |  92% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #######1                             |  20% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####4                                |  12% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ########2                            |  23% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ##################################1  |  95% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #4                                   |   4% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #######4                             |  21% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####6                                |  13% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ########5                            |  24% [A
-
-
-
-pandas-2.3.2         | 14.4 MB   | ###################################1 |  98% [A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #5                                   |   4% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #######7                             |  22% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####7                                |  13% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ########7                            |  24% [Aqtwebengine-6.9.1    | 114.5 MB  | #5                                   |   4% 
-
-
-
-pandas-2.3.2         | 14.4 MB   | #################################### | 100% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ########1                            |  23% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####8                                |  14% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #########1                           |  25% [Aqtwebengine-6.9.1    | 114.5 MB  | #6                                   |   5% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ########6                            |  24% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #####1                               |  14% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #########4                           |  26% [Aqtwebengine-6.9.1    | 114.5 MB  | #7                                   |   5% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #########1                           |  25% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   |                                      |   0% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #####3                               |  15% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #########7                           |  27% [Aqtwebengine-6.9.1    | 114.5 MB  | #8                                   |   5% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | 5                                    |   1% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #########5                           |  27% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #####5                               |  16% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ##########                           |  28% [Aqtwebengine-6.9.1    | 114.5 MB  | #8                                   |   5% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #########9                           |  28% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #####7                               |  16% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ##########3                          |  29% [Aqtwebengine-6.9.1    | 114.5 MB  | #9                                   |   5% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #                                    |   3% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##########4                          |  29% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #####9                               |  17% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ##########7                          |  30% [Aqtwebengine-6.9.1    | 114.5 MB  | ##                                   |   6% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #5                                   |   4% [A[A[A[A[A
-
-
-
-pandas-2.3.2         | 14.4 MB   | #################################### | 100% [A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##########8                          |  30% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ######1                              |  17% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ###########2                         |  31% [Aqtwebengine-6.9.1    | 114.5 MB  | ##1                                  |   6% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##2                                  |   6% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###########2                         |  31% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###########6                         |  32% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ######3                              |  18% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##1                                  |   6% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###########6                         |  32% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###########9                         |  33% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ######5                              |  18% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##2                                  |   6% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##8                                  |   8% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ############1                        |  34% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ############3                        |  34% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ######6                              |  19% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##3                                  |   6% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###2                                 |   9% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ############6                        |  35% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ############7                        |  35% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ######8                              |  19% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##3                                  |   7% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###7                                 |  10% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #############1                       |  36% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #############                        |  36% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##4                                  |   7% 
-
-libllvm15-15.0.7     | 35.4 MB   | #######                              |  19% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ####1                                |  11% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #############5                       |  38% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #############4                       |  37% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##5                                  |   7% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ####5                                |  13% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #######1                             |  20% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #############9                       |  39% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #############8                       |  38% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##5                                  |   7% 
-libllvm20-20.1.8     | 45.3 MB   | ##############3                      |  40% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #######3                             |  20% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #####                                |  14% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##############2                      |  40% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##6                                  |   7% 
-libllvm20-20.1.8     | 45.3 MB   | ##############7                      |  41% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #######4                             |  21% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##############6                      |  41% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##7                                  |   8% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #####4                               |  15% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###############2                     |  42% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #######5                             |  21% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###############1                     |  42% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##7                                  |   8% 
-libllvm20-20.1.8     | 45.3 MB   | ###############6                     |  43% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #######7                             |  21% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###############5                     |  43% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##8                                  |   8% 
-libllvm20-20.1.8     | 45.3 MB   | ################1                    |  45% [A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #####8                               |  16% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #######8                             |  22% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ################                     |  44% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ################5                    |  46% [Aqtwebengine-6.9.1    | 114.5 MB  | ##8                                  |   8% 
-
-libllvm15-15.0.7     | 35.4 MB   | ########                             |  22% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ################4                    |  46% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ######1                              |  17% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #################                    |  47% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ########1                            |  23% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##9                                  |   8% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ################8                    |  47% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #################5                   |  49% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ########3                            |  23% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###                                  |   8% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #################2                   |  48% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ##################                   |  50% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ########4                            |  23% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###                                  |   9% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #################6                   |  49% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ######4                              |  18% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ##################5                  |  51% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ########5                            |  24% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###1                                 |   9% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ######7                              |  19% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##################                   |  50% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###################                  |  53% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ########7                            |  24% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###1                                 |   9% 
-libllvm20-20.1.8     | 45.3 MB   | ###################5                 |  54% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##################5                  |  51% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ######9                              |  19% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###2                                 |   9% 
-
-libllvm15-15.0.7     | 35.4 MB   | ########8                            |  25% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ####################                 |  56% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##################9                  |  53% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###2                                 |   9% 
-
-libllvm15-15.0.7     | 35.4 MB   | #########                            |  25% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ####################5                |  57% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###################3                 |  54% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #######2                             |  20% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###3                                 |   9% 
-libllvm20-20.1.8     | 45.3 MB   | #####################                |  58% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #########1                           |  25% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###################6                 |  55% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###4                                 |   9% 
-libllvm20-20.1.8     | 45.3 MB   | #####################5               |  60% [A
-
-libllvm15-15.0.7     | 35.4 MB   | #########2                           |  26% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ####################                 |  56% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #######5                             |  21% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###4                                 |  10% 
-libllvm20-20.1.8     | 45.3 MB   | ######################               |  61% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ####################4                |  57% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########3                           |  26% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###5                                 |  10% 
-libllvm20-20.1.8     | 45.3 MB   | ######################5              |  63% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ####################8                |  58% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########5                           |  26% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ########                             |  22% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #######################              |  64% [Aqtwebengine-6.9.1    | 114.5 MB  | ###5                                 |  10% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #####################2               |  59% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########6                           |  27% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #######################5             |  65% [A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ########4                            |  24% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###6                                 |  10% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #####################5               |  60% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########7                           |  27% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ########################             |  67% [A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ########7                            |  24% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###6                                 |  10% 
-
-libllvm15-15.0.7     | 35.4 MB   | #########8                           |  27% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #####################9               |  61% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ########################5            |  68% [A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #########1                           |  25% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###7                                 |  10% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##########                           |  28% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ######################4              |  62% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #########################            |  69% [Aqtwebengine-6.9.1    | 114.5 MB  | ###7                                 |  10% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ######################8              |  63% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########1                          |  28% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #########################7           |  71% [Aqtwebengine-6.9.1    | 114.5 MB  | ###8                                 |  11% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #######################2             |  65% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########2                          |  29% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #########5                           |  27% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ##########################2          |  73% [Aqtwebengine-6.9.1    | 114.5 MB  | ###8                                 |  11% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #######################6             |  66% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########4                          |  29% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##########                           |  28% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ##########################7          |  74% [Aqtwebengine-6.9.1    | 114.5 MB  | ###9                                 |  11% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ########################             |  67% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##########4                          |  29% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########5                          |  29% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ###########################2         |  76% [Aqtwebengine-6.9.1    | 114.5 MB  | ###9                                 |  11% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ########################4            |  68% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########6                          |  30% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##########7                          |  30% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###########################7         |  77% [Aqtwebengine-6.9.1    | 114.5 MB  | ####                                 |  11% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ########################7            |  69% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########7                          |  30% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ############################3        |  79% [Aqtwebengine-6.9.1    | 114.5 MB  | ####                                 |  11% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###########1                         |  31% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #########################1           |  70% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########9                          |  30% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ############################7        |  80% [Aqtwebengine-6.9.1    | 114.5 MB  | ####1                                |  11% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #########################4           |  71% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########                          |  31% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #############################3       |  81% [Aqtwebengine-6.9.1    | 114.5 MB  | ####1                                |  12% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###########5                         |  32% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #########################8           |  72% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########1                         |  31% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #############################8       |  83% [Aqtwebengine-6.9.1    | 114.5 MB  | ####2                                |  12% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ############                         |  34% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##########################2          |  73% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########3                         |  31% [A[A
-libllvm20-20.1.8     | 45.3 MB   | ##############################3      |  84% [Aqtwebengine-6.9.1    | 114.5 MB  | ####2                                |  12% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ############4                        |  34% [A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##########################6          |  74% [A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ##############################7      |  86% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########4                         |  32% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####3                                |  12% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ############7                        |  35% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###############################2     |  87% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########5                         |  32% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###########################          |  75% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ####3                                |  12% 
-libllvm20-20.1.8     | 45.3 MB   | ###############################7     |  88% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###########################3         |  76% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########7                         |  33% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####4                                |  12% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #############                        |  36% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ################################2    |  90% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########8                         |  33% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###########################7         |  77% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ####4                                |  12% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #############4                       |  37% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ################################7    |  91% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ############################         |  78% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########9                         |  33% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####5                                |  13% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #############8                       |  38% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | #################################2   |  92% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ############################4        |  79% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############1                        |  34% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####5                                |  13% 
-libllvm20-20.1.8     | 45.3 MB   | #################################7   |  94% [A
-
-libllvm15-15.0.7     | 35.4 MB   | ############2                        |  34% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ############################8        |  80% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ####6                                |  13% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##############1                      |  39% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ##################################2  |  95% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #############################2       |  81% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############3                        |  34% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####6                                |  13% 
-libllvm20-20.1.8     | 45.3 MB   | ##################################7  |  97% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #############################6       |  82% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############5                        |  35% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####7                                |  13% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##############4                      |  40% [A[A[A[A[A
-libllvm20-20.1.8     | 45.3 MB   | ###################################2 |  98% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##############################       |  83% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############6                        |  35% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##############6                      |  41% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ####7                                |  13% 
-libllvm20-20.1.8     | 45.3 MB   | ###################################7 |  99% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##############################3      |  84% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############8                        |  36% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####8                                |  13% 
-libllvm20-20.1.8     | 45.3 MB   | #################################### | 100% [A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##############################9      |  86% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #############                        |  36% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ####9                                |  14% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###############################7     |  88% [A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   |                                      |   0% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##############9                      |  41% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #############5                       |  38% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #####                                |  14% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | 8                                    |   2% [A[A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ################################2    |  90% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #############7                       |  38% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############                      |  42% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####                                |  14% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##3                                  |   6% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##############1                      |  39% [A[A
-libllvm20-20.1.8     | 45.3 MB   | #################################### | 100% [A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ####                                 |  11% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############2                     |  42% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##############6                      |  41% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ################################7    |  91% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####1                               |  14% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #####3                               |  15% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###############1                     |  42% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #################################4   |  93% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####2                               |  14% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############4                     |  43% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###############5                     |  43% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##################################1  |  95% [A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####3                               |  15% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ######5                              |  18% [A[A[A[A[A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ##################################9  |  97% [A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###############9                     |  44% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############6                     |  43% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####4                               |  15% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | ###################################8 | 100% [A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############7                     |  44% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####5                               |  15% 
-
-libllvm15-15.0.7     | 35.4 MB   | ################2                    |  45% [A[A
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #################################### | 100% [A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #######5                             |  21% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####6                               |  16% 
-
-libllvm15-15.0.7     | 35.4 MB   | ################6                    |  46% [A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   |                                      |   0% [A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ########4                            |  23% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #####8                               |  16% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############9                     |  44% [A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | 9                                    |   3% [A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ################9                    |  47% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #####9                               |  17% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################                     |  45% [A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ##6                                  |   7% [A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #################2                   |  48% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ######                               |  17% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #########2                           |  26% [A[A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ####1                                |  12% [A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ######1                              |  17% 
-
-libllvm15-15.0.7     | 35.4 MB   | #################5                   |  49% [A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #####7                               |  16% [A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################2                    |  45% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ######3                              |  18% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #########9                           |  28% [A[A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #######3                             |  20% [A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #################8                   |  50% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################3                    |  45% [A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #########1                           |  25% [A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ######4                              |  18% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##########5                          |  29% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################4                    |  46% [A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ###########                          |  31% [A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##################                   |  50% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ######5                              |  18% 
-
-
-qtdeclarative-6.9.2  | 16.2 MB   | #################################### | 100% [A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #############1                       |  37% [A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################4                    |  46% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###########                          |  31% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##################2                  |  51% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ######6                              |  18% 
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ###############2                     |  42% [A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################5                    |  46% [A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #################4                   |  49% [A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ######7                              |  19% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###########5                         |  32% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##################4                  |  51% [A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ###################8                 |  55% [A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################7                    |  46% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ######7                              |  19% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###########8                         |  33% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##################6                  |  52% [A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #####################9               |  61% [A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ######8                              |  19% 
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ########################3            |  68% [A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ############2                        |  34% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################                    |  47% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##################7                  |  52% [A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ##########################7          |  74% [A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ############6                        |  35% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################1                   |  48% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ######9                              |  19% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##################9                  |  53% [A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #############################2       |  81% [A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################3                   |  48% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ############9                        |  36% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######                              |  19% 
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ###############################6     |  88% [A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###################                  |  53% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################6                   |  49% [A[A[A[A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | ##################################1  |  95% [A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######                              |  20% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #############2                       |  37% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###################1                 |  53% [A[A
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #################################### | 100% [A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #############5                       |  38% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######1                             |  20% 
-
-libllvm15-15.0.7     | 35.4 MB   | ###################3                 |  54% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################                   |  50% [A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    |                                      |   0% [A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #############9                       |  39% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######1                             |  20% 
-
-
-
-
-
-
-qtbase-6.9.2         | 11.1 MB   | #################################### | 100% [A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###################5                 |  54% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################2                  |  51% [A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | #8                                   |   5% [A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######2                             |  20% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##############3                      |  40% [A[A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | ####8                                |  13% [A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###################7                 |  55% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##############7                      |  41% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######3                             |  20% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################4                  |  51% [A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | #######9                             |  22% [A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###################8                 |  55% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #######3                             |  20% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################8                  |  52% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###############                      |  42% [A[A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | ##########9                          |  30% [A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################                 |  56% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #######4                             |  21% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###################3                 |  54% [A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | ##############4                      |  40% [A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################1                |  56% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###############3                     |  43% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######4                             |  21% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###################7                 |  55% [A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | #################3                   |  48% [A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###############6                     |  44% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################3                |  56% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #######5                             |  21% 
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | ####################2                |  56% [A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ####################1                |  56% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###############9                     |  44% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################4                |  57% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #######6                             |  21% 
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | #######################1             |  64% [A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ####################5                |  57% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ################2                    |  45% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################5                |  57% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #######6                             |  21% 
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | #########################9           |  72% [A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ####################8                |  58% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################6                |  57% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ################5                    |  46% [A[A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | ############################8        |  80% [A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######7                             |  21% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #####################1               |  59% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################8                |  58% [A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | ###############################8     |  89% [A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ################8                    |  47% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######7                             |  22% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #####################5               |  60% [A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | ##################################8  |  97% [A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ####################9                |  58% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #################1                   |  48% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######8                             |  22% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #####################8               |  61% [A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | #################################### | 100% [A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #####################                |  59% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #################6                   |  49% [A[A[A[A[A[A
-
-
-
-
-
-
-
-mesalib-25.1.5       | 8.9 MB    | #################################### | 100% [A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #######8                             |  22% 
-
-libllvm15-15.0.7     | 35.4 MB   | #####################4               |  60% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##################1                  |  51% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ########                             |  22% 
-
-libllvm15-15.0.7     | 35.4 MB   | ######################               |  61% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##################6                  |  52% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ########1                            |  23% 
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    |                                      |   0% [A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ######################1              |  62% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ######################4              |  62% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###################2                 |  53% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ########2                            |  23% 
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | 5                                    |   2% [A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ######################9              |  64% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###################7                 |  55% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ######################4              |  62% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ########3                            |  23% 
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ##2                                  |   6% [A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #######################2             |  65% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ########4                            |  24% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #######################              |  64% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ####################1                |  56% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ###3                                 |   9% [A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #######################3             |  65% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #######################6             |  66% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ########5                            |  24% 
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ######1                              |  17% [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ####################6                |  57% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ########6                            |  24% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #######################7             |  66% [A[A[A[A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ##########2                          |  29% [A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #######################9             |  67% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ########8                            |  24% 
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | #############5                       |  38% [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #####################                |  58% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ########################             |  67% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ########################2            |  67% [A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ################7                    |  46% [A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ########9                            |  25% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ########################3            |  68% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #####################3               |  59% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ####################                 |  56% [A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ########################6            |  68% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########                            |  25% 
-
-libllvm15-15.0.7     | 35.4 MB   | ########################5            |  68% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #####################7               |  60% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | #######################4             |  65% [A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ########################9            |  69% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########                            |  25% 
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ###########################          |  75% [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ######################               |  61% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ########################7            |  69% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #########################2           |  70% [A[A[A[A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ##############################7      |  85% [A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########1                           |  25% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ######################3              |  62% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #########################5           |  71% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ########################9            |  69% [A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | ##################################6  |  96% [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ######################5              |  63% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########2                           |  26% 
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #########################9           |  72% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########################1           |  70% [A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | 1                                    |   0% [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #######################              |  64% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########3                           |  26% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##########################3          |  73% [A[A[A[A[A
-
-
-
-
-
-
-
-
-qttools-6.9.2        | 6.1 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########################3           |  70% [A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ###8                                 |  11% [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##########################7          |  74% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########4                           |  26% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #######################4             |  65% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########################5           |  71% [A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ########                             |  22% [A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########5                           |  26% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###########################1         |  75% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #######################7             |  66% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ############1                        |  34% [A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########################6           |  71% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #########6                           |  27% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###########################5         |  77% [A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ########################1            |  67% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ################2                    |  45% [A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #########################8           |  72% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #########6                           |  27% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###########################9         |  78% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ####################2                |  56% [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ########################4            |  68% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########################           |  72% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #########7                           |  27% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ############################3        |  79% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ########################3            |  68% [A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########################2          |  73% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ########################8            |  69% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ############################6        |  80% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########8                           |  27% 
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ############################3        |  79% [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #########################2           |  70% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########################3          |  73% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #############################        |  81% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #########9                           |  28% 
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | ################################4    |  90% [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #########################5           |  71% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########################5          |  74% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #############################4       |  82% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########                           |  28% 
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##########################1          |  73% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##########################7          |  74% [A[A
-
-
-
-
-
-
-
-
-
-libcups-2.4.2        | 4.5 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########1                          |  28% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #############################8       |  83% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | 1                                    |   1% [A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##########################8          |  75% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########################          |  75% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########2                          |  28% 
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | #####3                               |  15% [A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########################2         |  76% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###########################3         |  76% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########3                          |  29% 
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | ##########4                          |  29% [A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########################4         |  76% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###########################7         |  77% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########4                          |  29% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##############################2      |  84% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | ###############7                     |  44% [A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########################6         |  77% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########5                          |  29% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ############################2        |  78% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | #####################3               |  59% [A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###########################9         |  78% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##############################5      |  85% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########6                          |  29% 
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | ##########################8          |  74% [A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ############################6        |  80% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############################1        |  78% [A[A
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | ################################5    |  90% [A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########6                          |  30% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #############################        |  81% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############################3        |  79% [A[A
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##############################8      |  86% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########8                          |  30% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #############################6       |  82% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | 2                                    |   1% [A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############################6        |  80% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##########9                          |  30% 
-
-
-
-
-
-
-
-
-
-
-libpq-17.4           | 3.0 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##############################2      |  84% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | ######8                              |  19% [A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ############################9        |  80% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############################      |  86% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########                          |  31% 
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | #############4                       |  37% [A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##############################7      |  85% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #############################1       |  81% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########1                         |  31% 
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | ####################5                |  57% [A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############################3     |  87% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #############################3       |  82% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###############################1     |  87% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########2                         |  31% 
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | ###########################6         |  77% [A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #############################5       |  82% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########3                         |  32% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###############################6     |  88% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###############################6     |  88% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | ###################################  |  97% [A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #############################8       |  83% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########4                         |  32% 
-
-
-
-
-
-
-
-
-
-
-
-nss-3.89.1           | 2.1 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ################################1    |  89% [A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | 2                                    |   1% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##############################1      |  84% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########6                         |  32% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ################################9    |  91% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################################     |  89% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ####5                                |  13% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##############################3      |  84% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########7                         |  33% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #################################4   |  93% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################################4    |  90% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##############################6      |  85% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ###########9                         |  33% 
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ########8                            |  25% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #################################9   |  94% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################################6    |  91% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##############################9      |  86% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ############                         |  34% 
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ############5                        |  35% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##################################4  |  96% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ################################8    |  91% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ############2                        |  34% 
-
-libllvm15-15.0.7     | 35.4 MB   | ###############################1     |  87% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ################                     |  44% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ##################################9  |  97% [A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ############4                        |  35% 
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################################1   |  92% [A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###############################4     |  87% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ###################4                 |  54% [A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ############5                        |  35% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###################################4 |  98% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###############################6     |  88% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################################3   |  93% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ######################8              |  64% [A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ############7                        |  35% 
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | ###################################9 | 100% [A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###############################9     |  89% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #################################### | 100% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################################5   |  93% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ##########################           |  72% [A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ############9                        |  36% 
-
-libllvm15-15.0.7     | 35.4 MB   | ################################2    |  89% [A[A
-
-
-
-
-
-libclang13-20.1.8    | 11.8 MB   | #################################### | 100% [A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################################8   |  94% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | #############################1       |  81% [A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #############1                       |  37% 
-
-libllvm15-15.0.7     | 35.4 MB   | ################################4    |  90% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-qtshadertools-6.9.2  | 1.7 MB    | 3                                    |   1% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ################################3    |  90% [A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #############3                       |  37% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-qtshadertools-6.9.2  | 1.7 MB    | ######4                              |  18% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ################################7    |  91% [A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################################1  |  95% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-qtshadertools-6.9.2  | 1.7 MB    | ###################2                 |  54% [A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #############5                       |  38% 
-
-libllvm15-15.0.7     | 35.4 MB   | ################################9    |  91% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | ###################################4 |  99% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-qtshadertools-6.9.2  | 1.7 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################################3  |  95% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #############7                       |  38% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-qtshadertools-6.9.2  | 1.7 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-qtshadertools-6.9.2  | 1.7 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-spirv-tools-2025.1   | 2.0 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #################################2   |  92% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    | 4                                    |   1% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################################6  |  96% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-libs-9.3.0     | 1.5 MB    | 3                                    |   1% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | #############9                       |  39% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    | ######                               |  17% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-libs-9.3.0     | 1.5 MB    | ##2                                  |   6% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #################################4   |  93% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    | ###########7                         |  33% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-libs-9.3.0     | 1.5 MB    | #############7                       |  38% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ##################################9  |  97% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##############1                      |  39% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    | ##################2                  |  51% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-libs-9.3.0     | 1.5 MB    | ###################################8 | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-libs-9.3.0     | 1.5 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###################################1 |  98% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-libs-9.3.0     | 1.5 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##############3                      |  40% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    | ################################7    |  91% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #################################6   |  93% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-dbus-1.16.2          | 1.2 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libvpx-1.13.1        | 1.0 MB    | 5                                    |   1% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###################################4 |  99% [A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ##############5                      |  40% 
-
-libllvm15-15.0.7     | 35.4 MB   | #################################8   |  94% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libkrb5-1.21.3       | 874 KB    | 6                                    |   2% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libvpx-1.13.1        | 1.0 MB    | ##############5                      |  40% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | ###################################7 |  99% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libkrb5-1.21.3       | 874 KB    | ###########8                         |  33% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##################################   |  95% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##############6                      |  41% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libvpx-1.13.1        | 1.0 MB    | ############################5        |  79% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################################### | 100% [A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################################### | 100% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libvpx-1.13.1        | 1.0 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libkrb5-1.21.3       | 874 KB    | #############################6       |  82% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libvpx-1.13.1        | 1.0 MB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ##################################3  |  95% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ##############8                      |  41% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libkrb5-1.21.3       | 874 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libxkbcommon-1.11.0  | 773 KB    | 7                                    |   2% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libkrb5-1.21.3       | 874 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-zstandard-0.23.0     | 481 KB    | #1                                   |   3% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###############                      |  42% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##################################6  |  96% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libxkbcommon-1.11.0  | 773 KB    | ################3                    |  46% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-pyside6-6.9.2        | 12.0 MB   | #################################### | 100% [A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | 6                                    |   2% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-zstandard-0.23.0     | 481 KB    | #########5                           |  27% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###############1                     |  42% 
-
-libllvm15-15.0.7     | 35.4 MB   | ##################################8  |  97% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | ######1                              |  17% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###############3                     |  43% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-zstandard-0.23.0     | 481 KB    | ###################1                 |  53% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###################################  |  97% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libxkbcommon-1.11.0  | 773 KB    | ###############################3     |  87% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | ############8                        |  36% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libxkbcommon-1.11.0  | 773 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###############4                     |  43% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-zstandard-0.23.0     | 481 KB    | #############################9       |  83% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-libllvm15-15.0.7     | 35.4 MB   | ###################################2 |  98% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-libxkbcommon-1.11.0  | 773 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-zstandard-0.23.0     | 481 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | #####################                |  58% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-zstandard-0.23.0     | 481 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###############6                     |  43% 
-
-libllvm15-15.0.7     | 35.4 MB   | ###################################5 |  99% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | #############################1       |  81% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ###############8                     |  44% 
-
-libllvm15-15.0.7     | 35.4 MB   | ###################################7 |  99% [A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- ... (more hidden) ...[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mysql-common-9.3.0   | 850 KB    | #################################### | 100% [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[Aqtwebengine-6.9.1    | 114.5 MB  | ################                     |  44% 
-
-libllvm15-15.0.7     | 35.4 MB   | #################################### | 100% [A[A
-
-libllvm15-15.0.7     | 35.4 MB   | #################################### | 100% [A[Aqtwebengine-6.9.1    | 114.5 MB  | ################1                    |  45% qtwebengine-6.9.1    | 114.5 MB  | ################3                    |  46% qtwebengine-6.9.1    | 114.5 MB  | ################6                    |  46% 
-
-libllvm15-15.0.7     | 35.4 MB   | #################################### | 100% [A[Aqtwebengine-6.9.1    | 114.5 MB  | #################                    |  47% qtwebengine-6.9.1    | 114.5 MB  | #################3                   |  48% qtwebengine-6.9.1    | 114.5 MB  | #################6                   |  49% qtwebengine-6.9.1    | 114.5 MB  | ##################                   |  50% qtwebengine-6.9.1    | 114.5 MB  | ##################3                  |  51% qtwebengine-6.9.1    | 114.5 MB  | ##################6                  |  52% qtwebengine-6.9.1    | 114.5 MB  | ###################                  |  53% qtwebengine-6.9.1    | 114.5 MB  | ###################3                 |  54% qtwebengine-6.9.1    | 114.5 MB  | ###################7                 |  55% qtwebengine-6.9.1    | 114.5 MB  | ####################                 |  56% qtwebengine-6.9.1    | 114.5 MB  | ####################4                |  57% qtwebengine-6.9.1    | 114.5 MB  | ####################7                |  58% qtwebengine-6.9.1    | 114.5 MB  | #####################1               |  59% qtwebengine-6.9.1    | 114.5 MB  | #####################5               |  60% qtwebengine-6.9.1    | 114.5 MB  | #####################8               |  61% qtwebengine-6.9.1    | 114.5 MB  | ######################2              |  62% qtwebengine-6.9.1    | 114.5 MB  | ######################5              |  63% qtwebengine-6.9.1    | 114.5 MB  | ######################9              |  64% qtwebengine-6.9.1    | 114.5 MB  | #######################2             |  65% qtwebengine-6.9.1    | 114.5 MB  | #######################6             |  66% qtwebengine-6.9.1    | 114.5 MB  | #######################9             |  67% qtwebengine-6.9.1    | 114.5 MB  | ########################3            |  68% qtwebengine-6.9.1    | 114.5 MB  | ########################6            |  69% qtwebengine-6.9.1    | 114.5 MB  | #########################            |  70% qtwebengine-6.9.1    | 114.5 MB  | #########################3           |  71% qtwebengine-6.9.1    | 114.5 MB  | #########################7           |  72% qtwebengine-6.9.1    | 114.5 MB  | ##########################1          |  73% qtwebengine-6.9.1    | 114.5 MB  | ##########################4          |  74% qtwebengine-6.9.1    | 114.5 MB  | ##########################8          |  74% qtwebengine-6.9.1    | 114.5 MB  | ###########################1         |  75% qtwebengine-6.9.1    | 114.5 MB  | ###########################5         |  76% qtwebengine-6.9.1    | 114.5 MB  | ###########################8         |  77% qtwebengine-6.9.1    | 114.5 MB  | ############################2        |  78% qtwebengine-6.9.1    | 114.5 MB  | ############################5        |  79% qtwebengine-6.9.1    | 114.5 MB  | ############################9        |  80% qtwebengine-6.9.1    | 114.5 MB  | #############################2       |  81% qtwebengine-6.9.1    | 114.5 MB  | #############################6       |  82% qtwebengine-6.9.1    | 114.5 MB  | ##############################       |  83% qtwebengine-6.9.1    | 114.5 MB  | ##############################3      |  84% qtwebengine-6.9.1    | 114.5 MB  | ##############################7      |  85% qtwebengine-6.9.1    | 114.5 MB  | ###############################      |  86% qtwebengine-6.9.1    | 114.5 MB  | ###############################4     |  87% qtwebengine-6.9.1    | 114.5 MB  | ###############################7     |  88% qtwebengine-6.9.1    | 114.5 MB  | ################################1    |  89% qtwebengine-6.9.1    | 114.5 MB  | ################################4    |  90% qtwebengine-6.9.1    | 114.5 MB  | ################################8    |  91% qtwebengine-6.9.1    | 114.5 MB  | #################################1   |  92% qtwebengine-6.9.1    | 114.5 MB  | #################################5   |  93% qtwebengine-6.9.1    | 114.5 MB  | #################################8   |  94% qtwebengine-6.9.1    | 114.5 MB  | ##################################2  |  95% qtwebengine-6.9.1    | 114.5 MB  | ##################################6  |  96% qtwebengine-6.9.1    | 114.5 MB  | ##################################9  |  97% qtwebengine-6.9.1    | 114.5 MB  | ###################################3 |  98% qtwebengine-6.9.1    | 114.5 MB  | ###################################6 |  99% qtwebengine-6.9.1    | 114.5 MB  | #################################### | 100% qtwebengine-6.9.1    | 114.5 MB  | #################################### | 100% 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                      [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A                                                                               
-                                                                               [A
-
-                                                                               [A[A
-
-
-                                                                               [A[A[A
-
-
-
-                                                                               [A[A[A[A
-
-
-
-
-                                                                               [A[A[A[A[A
-
-
-
-
-
-                                                                               [A[A[A[A[A[A
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                               [A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-[A
-
-[A[A
-
-
-[A[A[A
-
-
-
-[A[A[A[A
-
-
-
-
-[A[A[A[A[A
-
-
-
-
-
-[A[A[A[A[A[A
-
-
-
-
-
-
-[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A[A[A[A[A[A[A
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[A[A[A[A[A[A[A[A[A[A[A[A[A[A[A done
-Preparing transaction: - \ | done
-Verifying transaction: - \ | / - \ | / - \ | / - \ | / - \ | / - done
-Executing transaction: | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / - \ | / done
