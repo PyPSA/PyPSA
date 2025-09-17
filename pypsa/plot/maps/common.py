@@ -1,6 +1,7 @@
 """Define common functions for plotting maps in PyPSA."""
 
 import importlib
+import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, overload
 
@@ -9,12 +10,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point, mapping
+from shapely.geometry import MultiPolygon, Polygon, mapping
 
 from pypsa.constants import EARTH_RADIUS
 
 if TYPE_CHECKING:
+    import cartopy.feature
+
     from pypsa import Network
+
+logger = logging.getLogger(__name__)
 
 
 def _is_cartopy_available() -> bool:  # noqa
@@ -433,44 +438,145 @@ def meters_to_lonlat(
     return np.column_stack((lon0 + dlon, lat0 + dlat))
 
 
-def get_countries_for_points(
-    points: list[tuple[float, float]],
-    resolution: str = "50m",
-) -> list:
-    """Return a list of country GeoJSON features that contain any of the given points.
+# GeoJSON functions
+def clip_lat(
+    coords: list[tuple[float, float]],
+    pole_buffer: float = 1e-6,
+) -> list[tuple[float, float]]:
+    """Clip latitudes in coordinates to be within [-90 + pole_buffer, 90 - pole_buffer].
 
     Parameters
     ----------
-    points : list of tuple
-        List of (lon, lat) points.
-    resolution : str, default "50m"
-        Natural Earth resolution to use, one of "10m", "50m", or "110m".
+    coords : list of tuple of float
+        List of (lon, lat) coordinates.
+    pole_buffer : float, default 1e-6
+        Small buffer to avoid exact pole values.
+
+    Returns
+    -------
+    list of tuple of float
+        List of (lon, lat) coordinates with latitudes clipped.
+
+    """
+    clipped_coords = [
+        (lon, max(min(lat, 90 - pole_buffer), -90 + pole_buffer)) for lon, lat in coords
+    ]
+
+    return clipped_coords
+
+
+def poly_to_geojson(
+    poly: Polygon,
+    pole_buffer: float = 1e-6,
+) -> dict[str, Any]:
+    """Convert a shapely Polygon to a GeoJSON Feature, clipping latitudes to avoid poles.
+
+    Parameters
+    ----------
+    poly : shapely.geometry.Polygon
+        Shapely Polygon object.
+    pole_buffer : float, default 1e-6
+        Small buffer to avoid exact pole values.
+
+    Returns
+    -------
+    dict
+        GeoJSON Feature dictionary.
+
+    """
+    exterior = clip_lat(list(poly.exterior.coords), pole_buffer)
+    interiors = [clip_lat(list(ring.coords), pole_buffer) for ring in poly.interiors]
+    new_poly = Polygon(exterior, interiors)
+
+    # Ensure closed polygon
+    if new_poly.exterior.coords[0] != new_poly.exterior.coords[-1]:
+        coords = list(new_poly.exterior.coords)
+        coords.append(coords[0])
+        new_poly = Polygon(coords, interiors)
+
+    return {"type": "Feature", "geometry": mapping(new_poly)}
+
+
+def feature_to_geojson(
+    feature: "cartopy.feature.NaturalEarthFeature", pole_buffer: float = 1e-6
+) -> list[dict[str, Any]]:
+    """Convert a Cartopy NaturalEarthFeature to a list of GeoJSON features.
+
+    Parameters
+    ----------
+    feature : cartopy.feature.NaturalEarthFeature
+        Cartopy NaturalEarthFeature object.
+    pole_buffer : float, default 1e-6
+        Small buffer to avoid exact pole values.
 
     Returns
     -------
     list of dict
-        List of GeoJSON-like country features containing any of the points.
+        List of GeoJSON Feature dictionaries.
 
     """
+    geojson_features: list[dict[str, Any]] = []
+
+    for geom in feature.geometries():
+        if isinstance(geom, Polygon):
+            geojson_features.append(poly_to_geojson(geom, pole_buffer))
+        elif isinstance(geom, MultiPolygon):
+            geojson_features.extend(
+                poly_to_geojson(poly, pole_buffer) for poly in geom.geoms
+            )
+    return geojson_features
+
+
+def shapefile_to_geojson(
+    resolution: str = "110m",
+    category: str = "cultural",
+    name: str = "admin_0_countries",
+    pole_buffer: float = 1e-6,
+) -> list[dict[str, Any]]:
+    """Convert a Natural Earth shapefile (e.g. countries) to GeoJSON Features.
+
+    Parameters
+    ----------
+    resolution : str, default "110m"
+        Natural Earth resolution ("10m", "50m", "110m").
+    category : str, default "cultural"
+        Natural Earth category ("cultural" or "physical").
+    name : str, default "admin_0_countries"
+        Natural Earth dataset name, e.g. "admin_0_countries".
+    pole_buffer : float, default 1e-6
+        Small buffer to avoid exact pole values.
+
+    Returns
+    -------
+    list of dict
+        List of GeoJSON features (each with geometry + properties).
+
+    """
+    if not _is_cartopy_available():
+        logger.warning(
+            "Cartopy is not available. Falling back to non-geographic plotting."
+        )
+
     from cartopy.io import shapereader  # noqa: PLC0415
 
-    shp = shapereader.natural_earth(
-        resolution=resolution, category="cultural", name="admin_0_countries"
+    shpfilename = shapereader.natural_earth(
+        resolution=resolution,
+        category=category,
+        name=name,
     )
-    reader = shapereader.Reader(shp)
+    reader = shapereader.Reader(shpfilename)
 
-    points = [Point(lon, lat) for lon, lat in points]
-    features = []
-
+    features: list[dict[str, Any]] = []
     for record in reader.records():
         geom = record.geometry
-        if any(geom.contains(p) for p in points):
-            features.append(
-                {
-                    "geometry": mapping(geom),
-                    "country": record.attributes["NAME_LONG"],
-                    "country_code": record.attributes["ISO_A2_EH"],
-                }
+        props = record.attributes
+
+        if isinstance(geom, Polygon):
+            features.append(poly_to_geojson(geom, pole_buffer) | {"properties": props})
+        elif isinstance(geom, MultiPolygon):
+            features.extend(
+                poly_to_geojson(poly, pole_buffer) | {"properties": props}
+                for poly in geom.geoms
             )
 
     return features

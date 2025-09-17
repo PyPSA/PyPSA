@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import matplotlib.colors as mcolors
 import numpy as np
@@ -23,12 +23,13 @@ from pypsa.plot.maps.common import (
     calculate_angle,
     calculate_midpoint,
     df_to_html_table,
+    feature_to_geojson,
     flip_polygon,
-    get_countries_for_points,
     meters_to_lonlat,
     rotate_polygon,
     scale_polygon_by_width,
     set_tooltip_style,
+    shapefile_to_geojson,
     to_rgba255,
 )
 
@@ -430,7 +431,7 @@ class PydeckPlotter:
         else:
             self._x, self._y = buses["x"], buses["y"]
 
-        # ✅ Validation mask for good coordinates (WGS84 + finite)
+        # Validation mask for WGS84 coordinates
         valid = (
             self._x.notnull()
             & self._y.notnull()
@@ -480,11 +481,11 @@ class PydeckPlotter:
         vs = {
             "longitude": self._x.mean(),
             "latitude": self._y.mean(),
-            "zoom": 4,  # Default zoom level
+            "zoom": 4,
             "min_zoom": None,
             "max_zoom": None,
-            "pitch": 0,  # Default pitch
-            "bearing": 0,  # Default bearing
+            "pitch": 0,
+            "bearing": 0,
         }
 
         if isinstance(view_state, dict):
@@ -1161,37 +1162,89 @@ class PydeckPlotter:
 
     def add_geomap_layer(
         self,
+        geomap_alpha: float = 0.9,
+        geomap_colors: dict | None = None,
+        geomap_resolution: Literal["110m", "50m", "10m"] = "50m",
     ) -> None:
         """Add a geomap layer of Pydeck type GeoJsonLayer to the interactive map.
+
+        Parameters
+        ----------
+        geomap_alpha : float, default 0.9
+            Alpha transparency for the geomap features.
+        geomap_colors : dict | None, default None
+            Dictionary specifying colors for different geomap features. If None, default colors will be used: `{'land': 'whitesmoke', 'ocean': 'lightblue'}
+        geomap_resolution : {'110m', '50m', '10m'}, default '50m'
+            Resolution of the geomap features. One of '110m', '50m', or '10m'.
 
         Returns
         -------
         None
 
         """
-        coords = list(zip(self._x.values, self._y.values, strict=False))
-        features = get_countries_for_points(coords)
-
-        if not features:
-            logger.warning("No country features found for the given bus coordinates.")
+        if not _is_cartopy_available():
+            logger.warning(
+                "Cartopy is not available. Falling back to non-geographic plotting."
+            )
             return
 
-        layer = pdk.Layer(
-            "GeoJsonLayer",
-            data={
-                "type": "FeatureCollection",
-                "features": features,
-            },
-            filled=True,
-            stroked=True,
-            get_fill_color=[200, 200, 200, 50],
-            get_line_color=[100, 100, 100, 255],
-            line_width_min_pixels=1,
-            auto_highlight=False,
-            pickable=False,
-        )
+        import cartopy.feature  # noqa: PLC0415
 
-        self._layers["Geomap"] = layer
+        if geomap_resolution not in ["110m", "50m", "10m"]:
+            msg = "Resolution has to be one of '110m', '50m', or '10m'."
+            raise ValueError(msg)
+
+        if geomap_colors is None:
+            geomap_colors = {
+                "ocean": "lightblue",
+                "land": "whitesmoke",
+            }
+
+        line_color = [100, 100, 100, 255]
+
+        # Always render ocean first
+        if "ocean" in geomap_colors:
+            features = feature_to_geojson(
+                cartopy.feature.OCEAN.with_scale(geomap_resolution)
+            )
+
+            fill_color = to_rgba255(geomap_colors["ocean"], geomap_alpha)
+            layer = pdk.Layer(
+                "PolygonLayer",
+                data=features,
+                get_polygon="geometry.coordinates",
+                filled=True,
+                stroked=True,
+                get_fill_color=fill_color,
+                get_line_color=line_color,
+                line_width_min_pixels=1,
+                auto_highlight=False,
+                pickable=False,
+            )
+            self._layers["Geomap_ocean"] = layer
+
+        # Then render land
+        if "land" in geomap_colors:
+            features = shapefile_to_geojson(
+                resolution=geomap_resolution,
+                category="cultural",
+                name="admin_0_countries",
+                pole_buffer=1e-6,
+            )
+            fill_color = to_rgba255(geomap_colors["land"], geomap_alpha)
+            layer = pdk.Layer(
+                "PolygonLayer",
+                data=features,
+                get_polygon="geometry.coordinates",
+                filled=True,
+                stroked=True,
+                get_fill_color=fill_color,
+                get_line_color=line_color,
+                line_width_min_pixels=1,
+                auto_highlight=False,
+                pickable=False,
+            )
+            self._layers["Geomap_land"] = layer
 
     def deck(
         self,
@@ -1258,6 +1311,9 @@ class PydeckPlotter:
         arrow_colors: str | dict | pd.Series | None = None,
         arrow_alpha: float | dict | pd.Series = 0.9,
         geomap: bool = False,
+        geomap_alpha: float = 0.9,
+        geomap_colors: dict | None = None,
+        geomap_resolution: Literal["110m", "50m", "10m"] = "50m",
         tooltip: bool = True,
         bus_columns: list | None = None,
         line_columns: list | None = None,
@@ -1331,6 +1387,12 @@ class PydeckPlotter:
             Add alpha channel to arrows, defaults to 0.9.
         geomap : bool, default False
             Whether to add a geomap layer to the plot.
+        geomap_alpha : float, default 0.9
+            Alpha transparency for the geomap features.
+        geomap_colors : dict | None, default None
+            Dictionary specifying colors for different geomap features. If None, default colors will be used: `{'land': 'whitesmoke', 'ocean': 'lightblue'}
+        geomap_resolution : {'110m', '50m', '10m'}, default '50m'
+            Resolution of the geomap layer if geomap is True.
         tooltip : bool, default True
             Whether to add a tooltip to the bus layer.
         bus_columns : list, default None
@@ -1354,14 +1416,12 @@ class PydeckPlotter:
         """
         n = self._n
 
-        if geomap and not _is_cartopy_available():
-            logger.warning(
-                "Cartopy is not available. Falling back to non-geographic plotting."
-            )
-            geomap = False
-
         if geomap:
-            self.add_geomap_layer()
+            self.add_geomap_layer(
+                geomap_alpha=geomap_alpha,
+                geomap_colors=geomap_colors,
+                geomap_resolution=geomap_resolution,
+            )
 
         # Branch layers
         if branch_components is None:
