@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import tempfile
+import warnings
 from abc import abstractmethod
 from functools import partial
 from typing import TYPE_CHECKING, Any, overload
@@ -17,6 +18,7 @@ import numpy as np
 import pandas as pd
 import validators
 import xarray as xr
+from packaging.version import parse as parse_version
 from pandas.errors import ParserError
 from pyproj import CRS
 
@@ -24,7 +26,7 @@ from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.version import __version_semver__, __version_semver_tuple__
+from pypsa.version import __version_base__
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -1086,19 +1088,47 @@ class NetworkIOMixin(_NetworkABC):
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
-        # first export network properties
-        _attrs = {
-            attr: getattr(self, attr)
-            for attr in dir(self)
-            if (
-                not attr.startswith("__")
-                and isinstance(getattr(self, attr), allowed_types)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
+                category=DeprecationWarning,
             )
-        }
+
+            _attrs = {
+                attr: getattr(self, attr)
+                for attr in dir(self)
+                if (
+                    not attr.startswith("__")
+                    and attr
+                    not in {
+                        "component_attrs",
+                        "df",
+                        "pnl",
+                        "static",
+                        "dynamic",
+                        "iterate_components",
+                    }  # Skip deprecated methods
+                    and isinstance(getattr(self, attr), allowed_types)
+                )
+            }
         _attrs = {}
         for attr in dir(self):
-            if not attr.startswith("__"):
-                value = getattr(self, attr)
+            if not attr.startswith("__") and attr not in {
+                "component_attrs",
+                "df",
+                "pnl",
+                "static",
+                "dynamic",
+                "iterate_components",
+            }:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
+                        category=DeprecationWarning,
+                    )
+                    value = getattr(self, attr)
                 if isinstance(value, allowed_types):
                     # TODO: This needs to be refactored with NetworkData class
                     # Skip properties without setter, but not 'pypsa_version'
@@ -1137,11 +1167,12 @@ class NetworkIOMixin(_NetworkABC):
 
         exported_components = []
         for component in self.all_components:
-            list_name = self.components[component]["list_name"]
-            attrs = self.components[component]["attrs"]
+            c = self.components[component]
+            list_name = c["list_name"]
+            attrs = c["attrs"]
 
-            static = self.static(component)
-            dynamic = self.dynamic(component)
+            static = c.static
+            dynamic = c.dynamic
 
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
@@ -1150,13 +1181,9 @@ class NetworkIOMixin(_NetworkABC):
 
             if not export_standard_types and component in self.standard_type_components:
                 if isinstance(static.index, pd.MultiIndex):
-                    static = static.drop(
-                        self.components[component]["standard_types"].index, level="name"
-                    )
+                    static = static.drop(c["standard_types"].index, level="name")
                 else:
-                    static = static.drop(
-                        self.components[component]["standard_types"].index
-                    )
+                    static = static.drop(c["standard_types"].index)
 
             col_export = []
             for col in static.columns:
@@ -1254,11 +1281,9 @@ class NetworkIOMixin(_NetworkABC):
                 self.name = name
 
         if "pypsa_version" in attrs:
-            pypsa_version_tuple = tuple(
-                int(v) for v in attrs.pop("pypsa_version", "0.0.0").split(".")
-            )
+            pypsa_version = parse_version(attrs.pop("pypsa_version", "0.0.0"))
         else:
-            pypsa_version_tuple = (0, 0, 0)
+            pypsa_version = parse_version("0.0.0")
 
         for attr, val in attrs.items():
             if attr in ["model", "objective", "objective_constant"]:
@@ -1267,22 +1292,22 @@ class NetworkIOMixin(_NetworkABC):
                 setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version_tuple < __version_semver_tuple__:
-            pypsa_version_str = ".".join(map(str, pypsa_version_tuple))
+        if pypsa_version < parse_version(__version_base__):
+            pypsa_version_str = str(pypsa_version)
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
                 "to prepare your network for import.",
                 pypsa_version_str,
-                __version_semver__,
+                __version_base__,
             )
 
         # Check for newer PyPSA version available
-        update_msg = _check_for_update(__version_semver_tuple__, "PyPSA", "pypsa")
+        update_msg = _check_for_update(__version_base__, "PyPSA", "pypsa")
         if update_msg:
             logger.info(update_msg)
 
-        if pypsa_version_tuple < (0, 18, 0):
+        if pypsa_version < parse_version("0.18.0"):
             self._multi_invest = 0
 
         # if there is snapshots.csv, read in snapshot data
@@ -1757,7 +1782,7 @@ class NetworkIOMixin(_NetworkABC):
                 )
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-        old_static = self.static(cls_name)
+        old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
 
         # Handle duplicates
@@ -1793,7 +1818,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # Now deal with time-dependent properties
 
-        dynamic = self.dynamic(cls_name)
+        dynamic = self.c[cls_name].dynamic
 
         for k in non_static_attrs_in_df:
             # If reading in outputs, fill the outputs
@@ -1830,8 +1855,8 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing time series.
 
         """
-        static = self.static(cls_name)
-        dynamic = self.dynamic(cls_name)
+        static = self.c[cls_name].static
+        dynamic = self.c[cls_name].dynamic
         list_name = self.components[cls_name]["list_name"]
 
         if not overwrite:
@@ -2147,11 +2172,13 @@ class NetworkIOMixin(_NetworkABC):
                 **pdf[self.components[component]["list_name"]],
             )
 
-        self.generators["control"] = self.generators.bus.map(self.buses["control"])
+        self.c.generators.static["control"] = self.c.generators.static.bus.map(
+            self.c.buses.static["control"]
+        )
 
         # for consistency with pypower, take the v_mag set point from the generators
-        self.buses.loc[self.generators.bus, "v_mag_pu_set"] = np.asarray(
-            self.generators["v_set_pu"]
+        self.c.buses.static.loc[self.c.generators.static.bus, "v_mag_pu_set"] = (
+            np.asarray(self.c.generators.static["v_set_pu"])
         )
 
     def import_from_pandapower_net(
@@ -2374,11 +2401,13 @@ class NetworkIOMixin(_NetworkABC):
         for i in to_replace.index:
             self.remove("Bus", i)
 
-        for component in self.iterate_components(
-            {"Load", "Generator", "ShuntImpedance"}
-        ):
+        for component in self.components[["Generator", "Load", "ShuntImpedance"]]:
+            if component.empty:
+                continue
             component.static.replace({"bus": to_replace}, inplace=True)
 
-        for component in self.iterate_components({"Line", "Transformer"}):
+        for component in self.components[["Line", "Transformer"]]:
+            if component.empty:
+                continue
             component.static.replace({"bus0": to_replace}, inplace=True)
             component.static.replace({"bus1": to_replace}, inplace=True)

@@ -11,6 +11,23 @@ from pypsa.constants import DEFAULT_EPSG
 
 pypsa.options.debug.runtime_verification = True
 
+
+def pytest_addoption(parser):
+    """Add custom pytest command line options."""
+    parser.addoption(
+        "--new-components-api",
+        action="store_true",
+        default=False,
+        help="Activate the new components API (options.api.new_components_api)",
+    )
+
+
+def pytest_configure(config):
+    """Configure pytest session with custom options."""
+    if config.getoption("--new-components-api"):
+        pypsa.options.api.new_components_api = True
+
+
 COMPONENT_NAMES = [
     "sub_networks",
     "buses",
@@ -79,9 +96,9 @@ def ac_dc_periods(ac_dc_network):
     n = ac_dc_network
     n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
     n.investment_periods = [2013]
-    gens_i = n.generators.index
+    gens_i = n.c.generators.static.index
     rng = np.random.default_rng()  # Create a random number generator
-    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
+    n.c.generators.dynamic.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
     return n
 
 
@@ -136,7 +153,7 @@ def ac_dc_shapes(ac_dc_network):
             ]
         )
 
-    bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
+    bboxes = n.c.buses.static.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
 
     # Convert to GeoSeries
     geo_series = gpd.GeoSeries(bboxes, crs=DEFAULT_EPSG)
@@ -158,9 +175,9 @@ def ac_dc_shapes(ac_dc_network):
 @pytest.fixture
 def scipy_network():
     n = pypsa.examples.scigrid_de()
-    n.generators.control = "PV"
-    g = n.generators[n.generators.bus == "492"]
-    n.generators.loc[g.index, "control"] = "PQ"
+    n.c.generators.static.control = "PV"
+    g = n.c.generators.static[n.c.generators.static.bus == "492"]
+    n.c.generators.static.loc[g.index, "control"] = "PQ"
     n.calculate_dependent_values()
     n.determine_network_topology()
     return n

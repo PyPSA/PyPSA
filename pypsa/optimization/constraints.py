@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
@@ -27,6 +28,12 @@ if TYPE_CHECKING:
     ArgItem = list[str | int | float | DataArray]
 
 logger = logging.getLogger(__name__)
+
+# TODO move to constants.py
+lookup = pd.read_csv(
+    Path(__file__).parent / ".." / "data" / "variables.csv",
+    index_col=["component", "variable"],
+)
 
 
 def define_operational_constraints_for_non_extendables(
@@ -78,8 +85,7 @@ def define_operational_constraints_for_non_extendables(
 
     """
     c = as_components(n, component)
-    fix_i = c.fixed
-    fix_i = fix_i.difference(c.committables)
+    fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
 
     if fix_i.empty:
         return
@@ -153,7 +159,7 @@ def define_operational_constraints_for_extendables(
     c = as_components(n, component)
     sns = as_index(n, sns, "snapshots")
 
-    ext_i = c.extendables
+    ext_i = c.extendables.difference(c.inactive_assets)
     if ext_i.empty:
         return
     if isinstance(ext_i, pd.MultiIndex):
@@ -236,7 +242,7 @@ def define_operational_constraints_for_committables(
 
     """
     c = as_components(n, component)
-    com_i = c.committables
+    com_i = c.committables.difference(c.inactive_assets)
 
     if com_i.empty:
         return
@@ -515,7 +521,7 @@ def define_nominal_constraints_for_extendables(
 
     """
     c = as_components(n, component)
-    ext_i = c.extendables
+    ext_i = c.extendables.difference(c.inactive_assets)
 
     if ext_i.empty:
         return
@@ -604,10 +610,10 @@ def define_ramp_limit_constraints(
     p = m[f"{c.name}-{attr}"]
 
     # Get different component groups for constraint application
-    com_i = c.committables
-    fix_i = c.fixed
+    com_i = c.committables.difference(c.inactive_assets)
+    fix_i = c.fixed.difference(c.inactive_assets)
     fix_i = fix_i.difference(com_i).rename(fix_i.name)
-    ext_i = c.extendables
+    ext_i = c.extendables.difference(c.inactive_assets)
 
     # Auxiliary variables for constraint application
     ext_dim = ext_i.name if ext_i.name else c.name
@@ -866,7 +872,7 @@ def define_nodal_balance_constraints(
     """
     m = n.model
     if buses is None:
-        buses = n.buses.index.unique("name")
+        buses = n.c.buses.static.index.unique("name")
 
     links = as_components(n, "Link")
 
@@ -884,7 +890,7 @@ def define_nodal_balance_constraints(
     ]
 
     if not links.empty:
-        for i in n.components.links.additional_ports:
+        for i in n.c.links.additional_ports:
             eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
             eff = links.da[eff_attr].sel(snapshot=sns)
             args.append(["Link", "p", f"bus{i}", eff])
@@ -912,6 +918,7 @@ def define_nodal_balance_constraints(
         expr = sign * m[f"{c.name}-{attr}"]
 
         cbuses = c._as_xarray(column)
+        cbuses = cbuses.sel(name=c.active_assets)
         # Only keep the first scenario if there are multiple
         if n.has_scenarios:
             cbuses = cbuses.isel(scenario=0, drop=True)
@@ -940,7 +947,9 @@ def define_nodal_balance_constraints(
             dims=["snapshot", "name"],
         )
     else:
-        loads_values = loads.da.p_set.where(loads.da.active.sel(snapshot=sns))
+        loads_values = loads.da.p_set.where(
+            loads.da.active.sel(name=loads.active_assets, snapshot=sns)
+        )
         loads_values = loads_values.reindex(name=loads.static.index.unique("name"))
         load_buses = loads._as_xarray("bus").rename("Bus")
         if n.has_scenarios:
@@ -1032,7 +1041,10 @@ def define_kirchhoff_voltage_constraints(n: Network, sns: pd.Index) -> None:
         exprs = []
         for c in C.index.unique("type"):
             C_branch = DataArray(C.loc[c])
-            flow = m[f"{c}-s"].sel(snapshot=snapshots, name=C_branch.indexes["name"])
+            flow = m[f"{c}-s"].sel(
+                snapshot=snapshots,
+                name=C_branch.indexes["name"].difference(n.c[c].inactive_assets),
+            )
             exprs.append(flow @ C_branch * 1e5)
         lhs.append(sum(exprs))
 
@@ -1071,11 +1083,12 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     values in their '{attr}_set' attribute.
 
     """
-    if attr + "_set" not in n.static(component):
+    c = as_components(n, component)
+    if attr + "_set" not in c.static:
         return
 
     dim = f"{component}-{attr}_set_i"
-    fix = n.static(component)[attr + "_set"].dropna().rename_axis(dim)
+    fix = c.static[attr + "_set"].dropna().rename_axis(dim)
 
     if fix.empty:
         return
@@ -1193,7 +1206,7 @@ def define_fixed_operation_constraints(
     if attr_set not in c.dynamic.keys() or c.dynamic[attr_set].empty:
         return
 
-    fix = c.da[attr_set].sel(snapshot=sns)
+    fix = c.da[attr_set].sel(snapshot=sns, name=c.active_assets)
 
     if fix.isnull().all():
         return
@@ -1251,7 +1264,7 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     component = "StorageUnit"
     dim = "snapshot"
     c = as_components(n, component)
-    active = c.da.active.sel(snapshot=sns)
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
         return
@@ -1395,21 +1408,21 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     component = "Store"
     dim = "snapshot"
     c = as_components(n, component)
-    active = c.da.active.sel(snapshot=sns)
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     if c.static.empty:
         return
 
     # elapsed hours
-    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.static.index)
+    elapsed_h = expand_series(n.snapshot_weightings.stores[sns], c.active_assets)
     eh = DataArray(elapsed_h)
 
     # Unstack in stochastic networks with MultiIndex snapshots
-    if n.has_scenarios:
+    if n.has_scenarios and "dim_1" in eh.dims:
         eh = eh.unstack("dim_1")
 
     # standing efficiency
-    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns)) ** eh
+    eff_stand = (1 - c.da.standing_loss.sel(snapshot=sns, name=c.active_assets)) ** eh
 
     e = m[f"{component}-e"]
     p = m[f"{component}-p"]
@@ -1419,7 +1432,7 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
 
     # We create a mask `include_previous_e` which excludes the first snapshot
     # for non-cyclic assets
-    noncyclic_b = ~c.da.e_cyclic
+    noncyclic_b = ~c.da.e_cyclic.sel(name=c.active_assets)
     include_previous_e = (active.cumsum(dim) != 1).where(noncyclic_b, True)
 
     # Calculate previous energy state with proper handling of boundaries
@@ -1428,14 +1441,16 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     )
 
     # We add initial e for non-cyclic assets to rhs
-    e_init = c.da.e_initial
+    e_init = c.da.e_initial.sel(name=c.active_assets)
     rhs = DataArray(0)
 
     if isinstance(sns, pd.MultiIndex):
         # If multi-horizon optimization, we update previous_e and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = e.coords["period"]
-        per_period = c.da.e_cyclic_per_period | c.da.e_initial_per_period
+        per_period = c.da.e_cyclic_per_period.sel(
+            name=c.active_assets
+        ) | c.da.e_initial_per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
         # Normally, we should use groupby, but it's broken for multi-index
@@ -1517,7 +1532,7 @@ def define_loss_constraints(
         return
 
     tangents = transmission_losses
-    active = c.da.active.sel(snapshot=sns)
+    active = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
     s_max_pu = c.da.s_max_pu.sel(snapshot=sns)
 

@@ -27,6 +27,8 @@ class NetworkIndexMixin(_NetworkABC):
     All attributes and methods can be used within any Network instance.
     """
 
+    _risk_preference: dict[str, float] | None
+
     # ----------------
     # Snapshots
     # ----------------
@@ -115,7 +117,7 @@ class NetworkIndexMixin(_NetworkABC):
             )
 
         for component in self.all_components:
-            dynamic = self.dynamic(component)
+            dynamic = self.c[component].dynamic
             attrs = self.components[component]["attrs"]
 
             for k in dynamic:
@@ -331,7 +333,7 @@ class NetworkIndexMixin(_NetworkABC):
             )
             names = ["period", "timestep"]
             for component in self.all_components:
-                dynamic = self.dynamic(component)
+                dynamic = self.c[component].dynamic
 
                 for k in dynamic:
                     dynamic[k] = pd.concat(
@@ -714,7 +716,7 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios_.index = scenarios_.index.astype(str)
         scenarios_.index.name = "scenario"
 
-        for c in self.components.values():
+        for c in self.components.values():  # Loop all components, not just empty ones
             c.static = pd.concat(
                 dict.fromkeys(scenarios_.index, c.static), names=["scenario"]
             )
@@ -757,3 +759,79 @@ class NetworkIndexMixin(_NetworkABC):
     def has_scenarios(self) -> bool:
         """Boolean indicating if the network has scenarios defined."""
         return len(self._scenarios_data) > 0
+
+    # -----------
+    # Risk Preferences (CVaR)
+    # -----------
+
+    def set_risk_preference(self, alpha: float, omega: float) -> None:
+        """Set risk aversion preferences for stochastic optimization using CVaR formulation.
+
+        Parameters
+        ----------
+        alpha : float
+            Confidence level in (0, 1). CVaR averages losses over the worst
+            (1 - alpha) probability mass (the tail). For worst 10% tail,
+            set alpha = 0.9 so that 1 - alpha = 0.1. Typical choices
+            are alpha in {0.90, 0.95, 0.99}. Higher alpha focuses on
+            rarer, more extreme tails; lower alpha considers a broader tail.
+        omega : float
+            Risk preference parameter (risk aversion weight). Must be between 0 and 1.
+            - omega = 0: Risk-neutral optimization
+            - omega > 0: Risk-averse optimization (more focus on the tail risk)
+            - omega = 1: Maximum risk aversion (optimize for the tail risk only)
+            Higher values indicate more risk aversion.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_scenarios({"low": 0.3, "medium": 0.4, "high": 0.3})
+        >>> n.set_risk_preference(alpha=0.95, omega=0.1)  # 5% tail CVaR (1 - 0.05)
+        >>> n.risk_preference
+        {'alpha': 0.95, 'omega': 0.1}
+
+        Notes
+        -----
+        This method must be called after `set_scenarios()` as CVaR formulation
+        requires stochastic scenarios to be defined. The CVaR formulation will
+        add auxiliary variables and constraints to the optimization model during
+        the model building phase.
+
+        """
+        # Validate that scenarios are defined
+        if not self.has_scenarios:
+            msg = (
+                "Risk preferences can only be set for stochastic networks. "
+                "Please call set_scenarios() first to define scenarios."
+            )
+            raise ValueError(msg)
+
+        # Validate parameters
+        if not (0 < alpha < 1):
+            msg = f"Alpha must be between 0 and 1, got {alpha}"
+            raise ValueError(msg)
+
+        if not (0 <= omega <= 1):
+            msg = f"Omega must be between 0 and 1, got {omega}"
+            raise ValueError(msg)
+
+        # Store risk preferences
+        self._risk_preference = {"alpha": alpha, "omega": omega}
+
+    @property
+    def risk_preference(self) -> dict[str, float] | None:
+        """Get the risk preference parameters for the network.
+
+        Returns
+        -------
+        dict[str, float] | None
+            Dictionary containing 'alpha' and 'omega' parameters if risk preferences
+            are set, None otherwise.
+
+        """
+        return self._risk_preference
+
+    @property
+    def has_risk_preference(self) -> bool:
+        """Boolean indicating if the network has risk preferences defined."""
+        return self._risk_preference is not None

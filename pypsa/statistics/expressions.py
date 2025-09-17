@@ -25,29 +25,29 @@ logger = logging.getLogger(__name__)
 
 
 def get_operation(n: Network, c: str) -> pd.DataFrame:
-    """Get the operation time series of a component."""
+    """Get the operation data for a network component."""
     if c in n.branch_components:
-        return n.dynamic(c).p0
+        return n.c[c].dynamic.p0
     if c == "Store":
-        return n.dynamic(c).e
-    return n.dynamic(c).p
+        return n.c[c].dynamic.e
+    return n.c[c].dynamic.p
 
 
 def port_efficiency(
     n: Network, c_name: str, port: str = "", dynamic: bool = False
 ) -> pd.Series | pd.DataFrame:
     """Get the efficiency of a component at a specific port."""
-    ones = pd.Series(1, index=n.static(c_name).index)
+    ones = pd.Series(1, index=n.c[c_name].static.index)
     if port == "":
         efficiency = ones
     elif port == "0":
         efficiency = -ones
     else:
         key = "efficiency" if port == "1" else f"efficiency{port}"
-        if dynamic and key in n.static(c_name):
+        if dynamic and key in n.c[c_name].static:
             efficiency = n.get_switchable_as_dense(c_name, key)
         else:
-            efficiency = n.static(c_name).get(key, ones)
+            efficiency = n.c[c_name].static.get(key, ones)
     return efficiency
 
 
@@ -56,14 +56,14 @@ def get_transmission_branches(
 ) -> pd.MultiIndex:
     """Get list of assets which transport between buses of the carrier `bus_carrier`."""
     # Check if this is a NetworkCollection (has MultiIndex buses)
-    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+    is_network_collection = isinstance(n.c.buses.static.carrier.index, pd.MultiIndex)
 
     if is_network_collection:
         # For NetworkCollection, process each network separately and combine results
         network_results: list[tuple[str, pd.Index]] = []
 
         # Get the bus carrier mapping - drop network levels for mapping
-        bus_carrier_series = n.buses.carrier
+        bus_carrier_series = n.c.buses.static.carrier
         bus_carrier_map = bus_carrier_series.droplevel(
             list(range(bus_carrier_series.index.nlevels - 1))
         )
@@ -71,7 +71,9 @@ def get_transmission_branches(
 
         for c in n.branch_components:
             bus_map = (
-                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
+                n.c[c]
+                .static.filter(like="bus")
+                .apply(lambda ds: ds.map(bus_carrier_map))
             )
             if isinstance(bus_carrier, str):
                 bus_carrier_list = [bus_carrier]
@@ -91,7 +93,7 @@ def get_transmission_branches(
         if network_results:
             # Get network index names
             network_names = list(
-                n.buses.carrier.index.names[:-1]
+                n.c.buses.static.carrier.index.names[:-1]
             )  # All except last level
             result_names = network_names + ["component", "name"]
 
@@ -111,18 +113,20 @@ def get_transmission_branches(
             return pd.MultiIndex.from_tuples(flattened_results, names=result_names)
         else:
             # Empty result - create empty MultiIndex with correct structure
-            network_names = list(n.buses.carrier.index.names[:-1])
+            network_names = list(n.c.buses.static.carrier.index.names[:-1])
             result_names = network_names + ["component", "name"]
             return pd.MultiIndex.from_tuples([], names=result_names)
 
     else:
         # Original logic for regular Network
         index = {}
-        bus_carrier_map = n.buses.carrier
+        bus_carrier_map = n.c.buses.static.carrier
 
         for c in n.branch_components:
             bus_map = (
-                n.static(c).filter(like="bus").apply(lambda ds: ds.map(bus_carrier_map))
+                n.c[c]
+                .static.filter(like="bus")
+                .apply(lambda ds: ds.map(bus_carrier_map))
             )
             if isinstance(bus_carrier, str):
                 bus_carrier = [bus_carrier]
@@ -148,7 +152,7 @@ def get_transmission_carriers(
     branches = get_transmission_branches(n, bus_carrier)
 
     # Check if this is a NetworkCollection
-    is_network_collection = isinstance(n.buses.carrier.index, pd.MultiIndex)
+    is_network_collection = isinstance(n.c.buses.static.carrier.index, pd.MultiIndex)
 
     if is_network_collection and len(branches) > 0:
         # For NetworkCollection, branches has structure: (network_levels..., component, name)
@@ -165,7 +169,7 @@ def get_transmission_carriers(
             try:
                 # Build the full index for this component
                 full_component_idx = network_part + (component_name,)
-                carrier = n.static(component).carrier.loc[full_component_idx]
+                carrier = n.c[component].static.carrier.loc[full_component_idx]
                 network_results.append(network_part + (component, carrier))
             except KeyError:
                 # Component not found, skip
@@ -174,13 +178,13 @@ def get_transmission_carriers(
         if network_results:
             # Get network index names
             network_names = list(
-                n.buses.carrier.index.names[:-1]
+                n.c.buses.static.carrier.index.names[:-1]
             )  # All except last level
             result_names = network_names + ["component", "carrier"]
             return pd.MultiIndex.from_tuples(network_results, names=result_names)
         else:
             # Empty result
-            network_names = list(n.buses.carrier.index.names[:-1])
+            network_names = list(n.c.buses.static.carrier.index.names[:-1])
             result_names = network_names + ["component", "carrier"]
             return pd.MultiIndex.from_tuples([], names=result_names)
 
@@ -189,7 +193,7 @@ def get_transmission_carriers(
         carriers = {}
         for c in branches.unique(0):
             idx = branches[branches.get_loc(c)].get_level_values(1)
-            carriers[c] = n.static(c).carrier[idx].unique()
+            carriers[c] = n.c[c].static.carrier[idx].unique()
         return pd.MultiIndex.from_tuples(
             [(c, i) for c, idx in carriers.items() for i in idx],
             names=["component", "carrier"],
@@ -198,7 +202,7 @@ def get_transmission_carriers(
     else:
         # Empty branches - return empty MultiIndex with correct structure
         if is_network_collection:
-            network_names = list(n.buses.carrier.index.names[:-1])
+            network_names = list(n.c.buses.static.carrier.index.names[:-1])
             result_names = network_names + ["component", "carrier"]
         else:
             result_names = ["component", "carrier"]
@@ -502,15 +506,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Returns
         -------
@@ -612,15 +614,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -643,7 +643,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.static(c).eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
+            col = n.c[c].static.eval(f"{nominal_attrs[c]}_opt * {cost_attribute}")
             return col
 
         df = self._aggregate_components(
@@ -710,15 +710,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -746,7 +744,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            col = n.static(c).eval(f"{nominal_attrs[c]} * {cost_attribute}")
+            col = n.c[c].static.eval(f"{nominal_attrs[c]} * {cost_attribute}")
             return col
 
         df = self._aggregate_components(
@@ -813,15 +811,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -926,15 +922,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -969,9 +963,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
-            col = n.static(c)[f"{nominal_attrs[c]}_opt"] * efficiency
+            col = n.c[c].static[f"{nominal_attrs[c]}_opt"] * efficiency
             if storage and (c == "StorageUnit"):
-                col = col * n.static(c).max_hours
+                col = col * n.c[c].static.max_hours
             return col
 
         df = self._aggregate_components(
@@ -1041,15 +1035,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1084,9 +1076,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             efficiency = port_efficiency(n, c, port=port)
             if not at_port:
                 efficiency = abs(efficiency)
-            col = n.static(c)[f"{nominal_attrs[c]}"] * efficiency
+            col = n.c[c].static[f"{nominal_attrs[c]}"] * efficiency
             if storage and (c == "StorageUnit"):
-                col = col * n.static(c).max_hours
+                col = col * n.c[c].static.max_hours
             return col
 
         df = self._aggregate_components(
@@ -1155,15 +1147,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Returns
         -------
@@ -1258,15 +1248,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1324,10 +1312,10 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 "marginal_cost_quadratic",
                 "spill_cost",
             ]:
-                if cost_type in cost_types_ and cost_type in n.static(c):
+                if cost_type in cost_types_ and cost_type in n.c[c].static:
                     attr = lookup.query(cost_type).loc[c].index.item() + port
                     cost = n.get_switchable_as_dense(c, cost_type)
-                    p = n.dynamic(c)[attr]
+                    p = n.c[c].dynamic[attr]
                     var = p * p if cost_type == "marginal_cost_quadratic" else p
                     opex = var * cost
                     term = self._aggregate_timeseries(opex, weights, agg=aggregate_time)
@@ -1341,11 +1329,11 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             for cost_type, attr in mapping.items():
                 if (
                     cost_type in cost_types_
-                    and cost_type in n.static(c)
+                    and cost_type in n.c[c].static
                     and not com_i.empty
                 ):
                     cost = n.get_switchable_as_dense(c, cost_type, inds=com_i)
-                    var = n.dynamic(c)[attr].loc[:, com_i]
+                    var = n.c[c].dynamic[attr].loc[:, com_i]
                     opex = var * cost
                     w = weights if attr == "status" else weights_one
                     term = self._aggregate_timeseries(opex, w, agg=aggregate_time)
@@ -1421,15 +1409,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1536,15 +1522,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1634,15 +1618,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1732,15 +1714,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1773,7 +1753,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             idx = transmission_branches.get_loc_level(c, level="component")[1]
-            p = n.dynamic(c)[f"p{port}"][idx]
+            p = n.c[c].dynamic[f"p{port}"][idx]
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
 
@@ -1846,15 +1826,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -1887,7 +1865,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         n = self._n
 
         if (
-            n.buses.carrier.unique().size > 1
+            n.c.buses.static.carrier.unique().size > 1
             and groupby is None
             and bus_carrier is None
         ):
@@ -1898,9 +1876,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
+            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
             weights = n.snapshot_weightings.generators
-            p = sign * n.dynamic(c)[f"p{port}"]
+            p = sign * n.c[c].dynamic[f"p{port}"]
             if direction == "supply":
                 p = p.clip(lower=0)
             elif direction == "withdrawal":
@@ -1979,15 +1957,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -2014,8 +1990,8 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
             p = (
-                n.get_switchable_as_dense(c, "p_max_pu") * n.static(c).p_nom_opt
-                - n.dynamic(c).p
+                n.get_switchable_as_dense(c, "p_max_pu") * n.c[c].static.p_nom_opt
+                - n.c[c].dynamic.p
             ).clip(lower=0)
             weights = n.snapshot_weightings.generators
             return self._aggregate_timeseries(p, weights, agg=aggregate_time)
@@ -2084,15 +2060,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -2192,15 +2166,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------
@@ -2229,9 +2201,9 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
 
         @pass_empty_series_if_keyerror
         def func(n: Network, c: str, port: str) -> pd.Series:
-            sign = -1.0 if c in n.branch_components else n.static(c).get("sign", 1.0)
-            df = sign * n.dynamic(c)[f"p{port}"]
-            buses = n.static(c)[f"bus{port}"][df.columns]
+            sign = -1.0 if c in n.branch_components else n.c[c].static.get("sign", 1.0)
+            df = sign * n.c[c].dynamic[f"p{port}"]
+            buses = n.c[c].static[f"bus{port}"][df.columns]
             # catch multiindex case
             buses = (
                 buses.to_frame("bus")
@@ -2239,7 +2211,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
                 .droplevel("name")
                 .index
             )
-            prices = n.buses_t.marginal_price.reindex(
+            prices = n.c.buses.dynamic.marginal_price.reindex(
                 columns=buses, fill_value=0
             ).values
             if direction is not None:
@@ -2321,15 +2293,13 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         nice_names : bool | None, default=None
             Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
             to module wide option (default: True).
-            See `pypsa.options.params.statistics.describe()` for more information.
+            See https://go.pypsa.org/options-params for more information.
         drop_zero : bool | None, default=None
             Whether to drop zero values from the result. Defaults to module wide option
-            (default: True). See `pypsa.options.params.statistics.describe()` for more
-            information.
+            (default: True). See https://go.pypsa.org/options-params for more information.
         round : int | None, default=None
             Number of decimal places to round the result to. Defaults to module wide
-            option (default: 2). See `pypsa.options.params.statistics.describe()` for
-            more information.
+            option (default: 2). See https://go.pypsa.org/options-params for more information.
 
         Other Parameters
         ----------------

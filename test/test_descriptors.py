@@ -10,8 +10,6 @@ from pypsa.descriptors import (
     get_bounds_pu,
     get_extendable_i,
     get_non_extendable_i,
-    get_switchable_as_dense,
-    get_switchable_as_iter,
 )
 from pypsa.network.power_flow import allocate_series_dataframes
 
@@ -29,7 +27,7 @@ def test_get_switchable_as_dense(network):
     n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
     for attr, val in [("p_max_pu", 1.0), ("p_nom", 100)]:
-        df = get_switchable_as_dense(n, "Generator", attr)
+        df = n.get_switchable_as_dense("Generator", attr)
         assert isinstance(df, pd.DataFrame)
         assert df.index.equals(n.snapshots)
         assert df.columns.equals(pd.Index(["gen0"]))
@@ -41,7 +39,7 @@ def test_get_switchable_as_iter(network):
     n.add("Bus", "bus0")
     n.add("Generator", "gen0", bus="bus0", p_nom=100)
 
-    iter_df = get_switchable_as_iter(n, "Generator", "p_max_pu", n.snapshots)
+    iter_df = n.get_switchable_as_iter("Generator", "p_max_pu", n.snapshots)
     df = pd.concat(iter_df, axis=1).T
     assert isinstance(df, pd.DataFrame)
     assert len(df) == len(n.snapshots)
@@ -56,10 +54,10 @@ def test_allocate_series_dataframes(network):
 
     allocate_series_dataframes(n, {"Generator": ["p"], "Load": ["p"]})
 
-    assert "p" in n.generators_t
-    assert "p" in n.loads_t
-    assert n.generators_t.p.shape == (len(n.snapshots), 1)
-    assert n.loads_t.p.shape == (len(n.snapshots), 1)
+    assert "p" in n.c.generators.dynamic
+    assert "p" in n.c.loads.dynamic
+    assert n.c.generators.dynamic.p.shape == (len(n.snapshots), 1)
+    assert n.c.loads.dynamic.p.shape == (len(n.snapshots), 1)
 
 
 def test_get_extendable_i(network):
@@ -107,7 +105,7 @@ def test_additional_linkports():
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        ports = _additional_linkports(n, n.links.columns)
+        ports = _additional_linkports(n, n.c.links.static.columns)
     assert ports == ["2"]
     assert ports == n.c.links.additional_ports
 

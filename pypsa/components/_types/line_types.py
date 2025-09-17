@@ -31,7 +31,7 @@ class LineTypes(Components):
     'LineType' Components
     ---------------------
     Attached to PyPSA Network 'AC-DC-Meshed'
-    Components: 36
+    Components: 59
 
     """
 
@@ -40,12 +40,14 @@ class LineTypes(Components):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )

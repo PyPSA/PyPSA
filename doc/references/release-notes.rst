@@ -2,17 +2,29 @@
 Release Notes
 #######################
 
-.. Upcoming Release
-.. ================
+Upcoming Release
+================
 
-.. .. warning:: 
+.. warning:: 
   
-..    The features listed below are not released yet, but will be part of the next release! 
-..    To use the features already you have to install the ``master`` branch, e.g. 
-..    ``pip install git+https://github.com/pypsa/pypsa``.
+   The features listed below are not released yet, but will be part of the next release! 
+   To use the features already you have to install the ``master`` branch, e.g. 
+   ``pip install git+https://github.com/pypsa/pypsa``.
+
 
 Features
 --------
+
+* New optimization mode: Stochastic optimization problems (https://github.com/PyPSA/PyPSA/pull/1154)
+
+  * Two-stage stochastic optimization: stage 1 investment "here-and-now"; stage 2 operations "wait-and-see". Uncertainty via user-defined scenarios. Supports uncertain model parameters in both static and time-series format.
+  * New API: ``Network.set_scenarios({name: weight, ...})`` to enable scenarios and probabilities (defaults to uniform if weights are not given). Component tables and time series gain a new ``scenario`` level (MultiIndex) for scenario-specific data. Inspect via methods ``Network.has_scenarios``, ``Network.scenarios`` and ``Network.scenario_weightings``. 
+
+* New feature for stochastic optimization: CVaR-based risk-averse optimization (https://github.com/PyPSA/PyPSA/pull/1345)
+
+  * Risk-averse optimization mode augments expected operational costs with a Conditional Value at Risk (CVaR) penalty, controlled by ``omega`` (trade-off between expectation and risk) and ``alpha`` (tail level).
+  * New API to enable risk preference: ``Network.set_risk_preference(alpha=..., omega=...)``. Inspect via ``n.has_risk_preference`` and ``n.risk_preference``.
+
 
 * Added utility function ``pypsa.common.annuity`` to calculate the annuity
   factor for a given discount rate and lifetime. Also known as capital recovery
@@ -25,18 +37,51 @@ Features
 
   where :math:`r` is the discount rate and :math:`n` is the lifetime in years.
 
+* Inactive components (see pypsa.Components.inactive_assets) are now excluded from the
+  the optimization model entirely. This has no effect on the results, but it can
+  reduce the memory footprint when solving the model.
+
+
+* The option to set bus-level capacity expansion limits per carrier via `Bus`
+  attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
+  constraint type `"tech_capacity_expansion_limit"` offers identical functionality.
+
+* Add additional standard line types from pandapower.
+
+
+* The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
+  to get the previous behavior of returning component names which have been added.
+
+* Refactored version attributes: ``__version_semver__`` → ``__version_base__``, 
+  ``__version_short__`` → ``__version_major_minor__``. Removed tuple versions.
+  Old names raise ``DeprecationWarning``.
+
+* Added new options to set default optimization parameters, like `solver_name` and
+  `solver_options`. See https://go.pypsa.org/options-params for more information.
+
 Bug Fixes
 ---------
 
 * Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
   (https://github.com/PyPSA/PyPSA/issues/1325)
-
+  
 * Correct use of snapshot weighting columns in statistics module. The
   doscstring for ``n.snapshot_weightings`` was clarified.
 
 * Resolved an issue where the network version was not correctly identified during I/O, 
   resulting in false update information being logged.
   (https://github.com/PyPSA/PyPSA/pull/1300)
+
+* Fix bug when using ``solver_model`` after adding custom variable to linopy model.
+  (https://github.com/PyPSA/PyPSA/issues/1351)
+
+`v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
+=======================================================================================
+Bug Fixes
+---------
+
+* Make compatible with xarray v2025.07 
+  (https://github.com/PyPSA/PyPSA/pull/1304)
 
 `v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
 =======================================================================================
