@@ -126,7 +126,7 @@ class AbstractStatisticsAccessor(ABC):
         self,
         func: Callable,
         agg: Callable | str = "sum",
-        comps: Collection[str] | str | None = None,
+        components: Collection[str] | str | None = None,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         aggregate_across_components: bool = False,
         at_port: str | Sequence[str] | bool | None = None,
@@ -140,14 +140,14 @@ class AbstractStatisticsAccessor(ABC):
         d = {}
         n = self._n
 
-        if is_one_component := isinstance(comps, str):
-            comps = [comps]
-        if comps is None:
-            comps = sorted(n.branch_components | n.one_port_components)
+        if is_one_component := isinstance(components, str):
+            components = [components]
+        if components is None:
+            components = sorted(n.branch_components | n.one_port_components)
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
-        for c in comps:
+        for c in components:
             if n.c[c].static.empty:
                 continue
 
