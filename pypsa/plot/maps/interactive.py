@@ -618,7 +618,7 @@ class PydeckPlotter:
     # Layer functions
     def add_bus_layer(
         self,
-        bus_sizes: float | dict | pd.Series = 25000000,
+        bus_sizes: float | dict | pd.Series = 25,
         bus_colors: str | dict | pd.Series = "cadetblue",
         bus_cmap: str | mcolors.Colormap | None = None,
         bus_cmap_norm: mcolors.Normalize | None = None,
@@ -631,7 +631,7 @@ class PydeckPlotter:
         Parameters
         ----------
         bus_sizes : float/dict/pandas.Series
-            Sizes of bus points in radius² (meters²), defaults to 25000000.
+            Sizes of bus points in radius² (km²), defaults to 25.
         bus_colors : str/dict/pandas.Series
             Colors for the buses, defaults to 'cadetblue'.
         bus_cmap : mcolors.Colormap/str
@@ -662,6 +662,7 @@ class PydeckPlotter:
 
         # Map bus sizes
         bus_sizes = _convert_to_series(bus_sizes, bus_data.index)
+        bus_sizes = bus_sizes * 1e6  # Convert sizes from km² to m²
         bus_data["radius"] = bus_sizes**0.5
 
         # Tooltip
@@ -707,7 +708,7 @@ class PydeckPlotter:
         radius: float,
         start_angle: float,
         end_angle: float,
-        points_per_radian: int = 10,
+        points_per_radian: int = 5,
     ) -> list[list[float]]:
         """Generate vertices of a pie slice as a closed polygon using numpy.
 
@@ -721,7 +722,7 @@ class PydeckPlotter:
             Starting angle of the pie slice in radians.
         end_angle : float
             Ending angle of the pie slice in radians.
-        points_per_radian : int, default 10
+        points_per_radian : int, default 5
             Number of points per radian for pie chart resolution.
 
         Returns
@@ -763,7 +764,7 @@ class PydeckPlotter:
         values: np.ndarray,
         colors: list[list[int]],
         labels: list[str],
-        points_per_radian: int = 10,
+        points_per_radian: int = 5,
         flip_y: bool = False,
         bus_split_circles: bool = False,
     ) -> list[dict]:
@@ -783,7 +784,7 @@ class PydeckPlotter:
             List of RGBA colors for each pie slice.
         labels : list of str
             Labels for each pie slice.
-        points_per_radian : int, default 10
+        points_per_radian : int, default 5
             Number of points per radian for pie chart resolution.
         flip_y : bool, default False
             Flip the pie chart vertically. Useful for negative values in bus_split_circles mode.
@@ -836,7 +837,7 @@ class PydeckPlotter:
         bus_split_circles: bool = False,
         bus_alpha: float | dict | pd.Series = 0.9,
         bus_columns: list | None = None,
-        points_per_radian: int = 10,
+        points_per_radian: int = 5,
         tooltip: bool = True,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
@@ -844,7 +845,7 @@ class PydeckPlotter:
         Parameters
         ----------
         bus_sizes : float/dict/pandas.Series
-            Sizes of bus points in radius² (meters²), defaults to 25000000.
+            Sizes of bus points in radius² (km²), defaults to 25.
         bus_split_circles : bool, default False
             Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
             If set to true, the upper half circle per bus then includes all positive values
@@ -853,7 +854,7 @@ class PydeckPlotter:
             Add alpha channel to buses, defaults to 0.9.
         bus_columns : list, default None
             List of bus columns to include.
-        points_per_radian : int, default 10
+        points_per_radian : int, default 5
             Number of points per radian for pie chart resolution.
         tooltip : bool, default True
             Whether to show a tooltip on hover.
@@ -872,6 +873,8 @@ class PydeckPlotter:
         # Only keep buses with valid coordinates, same index order as self._x and self._y
         bus_data = bus_data.loc[self._x.index[self._x.index.isin(bus_data.index)]]
 
+        # Convert bus_sizes from km² to m²
+        bus_sizes = 1e6 * bus_sizes
         bus_sizes = bus_sizes.drop(bus_sizes[abs(bus_sizes) < EPS].index)
         # Reindex first level of MultiIndex to only valid buses
         bus_sizes = bus_sizes.reindex(
@@ -924,7 +927,7 @@ class PydeckPlotter:
                         radius_m=(-values[neg_mask].sum()) ** 0.5,
                         values=-values[neg_mask].round(3),
                         colors=[carrier_rgba[bus][c] for c in bus_cols[neg_mask]],
-                        labels=list(bus_cols[pos_mask]),
+                        labels=list(bus_cols[neg_mask]),
                         points_per_radian=points_per_radian,
                         flip_y=True,
                         bus_split_circles=True,
@@ -986,7 +989,7 @@ class PydeckPlotter:
         branch_cmap: str | mcolors.Colormap = "viridis",
         branch_cmap_norm: mcolors.Normalize | None = None,
         branch_alpha: float | dict | pd.Series = 0.9,
-        branch_widths: float | dict | pd.Series = 1500,
+        branch_widths: float | dict | pd.Series = 1.5,
         branch_columns: list | None = None,
         arrow_size_factor: float = 1.5,
         arrow_colors: str | dict | pd.Series = "black",
@@ -1011,7 +1014,7 @@ class PydeckPlotter:
         branch_alpha : float/dict/pandas.Series
             Add alpha channel to branch components, defaults to 0.9.
         branch_widths : float/dict/pandas.Series
-            Widths of branch component in meters, defaults to 1500.
+            Widths of branch component in km, defaults to 1.5.
         branch_columns : list, default None
             List of branch columns to include.
             Specify additional columns to include in the tooltip.
@@ -1084,8 +1087,10 @@ class PydeckPlotter:
         ]
 
         # Map line widths
-        c_data["width"] = _convert_to_series(branch_widths, c_data.index)
-        c_data["width"] = c_data["width"].abs()
+        branch_widths = _convert_to_series(branch_widths, c_data.index)
+        # Convert widths from km to m
+        branch_widths = branch_widths * 1e3
+        c_data["width"] = branch_widths.abs()
 
         # Tooltip
         if tooltip:
@@ -1115,6 +1120,8 @@ class PydeckPlotter:
 
         # Arrow layer
         branch_flow = _convert_to_series(branch_flow, c_data.index)
+        # Convert flows from 1e3 to 1
+        branch_flow = branch_flow * 1e3
         flows_are_zero = (branch_flow == 0).all()
 
         if (
@@ -1283,7 +1290,7 @@ class PydeckPlotter:
     def build_layers(
         self,
         branch_components: list | set | None = None,
-        bus_sizes: float | dict | pd.Series = 25000000,
+        bus_sizes: float | dict | pd.Series = 25,
         bus_split_circles: bool = False,
         bus_colors: str | dict | pd.Series = "cadetblue",
         bus_cmap: str | mcolors.Colormap | None = None,
@@ -1294,19 +1301,19 @@ class PydeckPlotter:
         line_cmap: str | mcolors.Colormap = "viridis",
         line_cmap_norm: mcolors.Normalize | None = None,
         line_alpha: float | dict | pd.Series = 0.9,
-        line_widths: float | dict | pd.Series = 1500,
+        line_widths: float | dict | pd.Series = 1.5,
         link_flow: float | dict | pd.Series = 0,
         link_colors: str | dict | pd.Series = "darkseagreen",
         link_cmap: str | mcolors.Colormap = "viridis",
         link_cmap_norm: mcolors.Normalize | None = None,
         link_alpha: float | dict | pd.Series = 0.9,
-        link_widths: float | dict | pd.Series = 1500,
+        link_widths: float | dict | pd.Series = 1.5,
         transformer_flow: float | dict | pd.Series = 0,
         transformer_colors: str | dict | pd.Series = "orange",
         transformer_cmap: str | mcolors.Colormap = "viridis",
         transformer_cmap_norm: mcolors.Normalize | None = None,
         transformer_alpha: float | dict | pd.Series = 0.9,
-        transformer_widths: float | dict | pd.Series = 1500,
+        transformer_widths: float | dict | pd.Series = 1.5,
         arrow_size_factor: float = 1.5,
         arrow_colors: str | dict | pd.Series | None = None,
         arrow_alpha: float | dict | pd.Series = 0.9,
@@ -1327,7 +1334,7 @@ class PydeckPlotter:
         branch_components : list, default n.branch_components
             Branch components to be plotted
         bus_sizes : float/dict/pandas.Series
-            Sizes of bus points in radius² (meters²), defaults to 25000000.
+            Sizes of bus points in radius² (km²), defaults to 25.
         bus_split_circles : bool, default False
             Draw half circles if bus_sizes is a pandas.Series with a Multiindex.
             If set to true, the upper half circle per bus then includes all positive values
@@ -1352,7 +1359,7 @@ class PydeckPlotter:
         line_alpha : float/dict/pandas.Series
             Add alpha channel to lines, defaults to 0.9.
         line_widths : float/dict/pandas.Series
-            Widths of lines in meters, defaults to 1500.
+            Widths of lines in km, defaults to 1.5.
         link_flow : float/dict/pandas.Series, default 0
             Series of link flows indexed by link names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all links.
@@ -1365,7 +1372,7 @@ class PydeckPlotter:
         link_alpha : float/dict/pandas.Series
             Add alpha channel to links, defaults to 0.9.
         link_widths : float/dict/pandas.Series
-            Widths of links in meters, defaults to 1500.
+            Widths of links in km, defaults to 1.5.
         transformer_flow : float/dict/pandas.Series, default 0
             Series of transformer flows indexed by transformer names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all transformers.
@@ -1378,7 +1385,7 @@ class PydeckPlotter:
         transformer_alpha : float/dict/pandas.Series
             Add alpha channel to transformers, defaults to 0.9.
         transformer_widths : float/dict/pandas.Series
-            Widths of transformers in meters, defaults to 1500.
+            Widths of transformers in km, defaults to 1.5.
         arrow_size_factor : float, default 1.5
             Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1 times line_width. If 0, no arrows will be created.
         arrow_colors : str/dict/pandas.Series | None, default None
@@ -1476,7 +1483,7 @@ class PydeckPlotter:
                 bus_split_circles=bus_split_circles,
                 bus_alpha=bus_alpha,
                 bus_columns=bus_columns,
-                points_per_radian=10,
+                points_per_radian=5,
                 tooltip=tooltip,
             )
         else:
