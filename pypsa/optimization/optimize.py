@@ -379,7 +379,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         model_kwargs: dict | None = None,
         extra_functionality: Callable | None = None,
         assign_all_duals: bool = False,
-        solver_name: str = "highs",
+        solver_name: str | None = None,
         solver_options: dict | None = None,
         compute_infeasibilities: bool = False,
         **kwargs: Any,
@@ -401,8 +401,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Defaults to 0, which ignores losses.
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
-        model_kwargs: dict
+        model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Defaults to module wide option (default: {}). See
+            https://go.pypsa.org/options-params for more information.
         extra_functionality : callable
             This function must take two arguments
             `extra_functionality(n, snapshots)` and is called after
@@ -412,10 +414,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
-        solver_name : str
-            Name of the solver to use.
-        solver_options : dict
+        solver_name : str, optional
+            Name of the solver to use. Defaults to module wide option
+            (default: 'highs'). See https://go.pypsa.org/options-params for more
+            information.
+        solver_options : dict, optional
             Keyword arguments used by the solver. Can also be passed via `**kwargs`.
+            Defaults to module wide option (default: {}). See
+            https://go.pypsa.org/options-params for more information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -434,11 +440,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
 
         """
+        # Handle default parameters from options
         if model_kwargs is None:
-            model_kwargs = {}
-
+            model_kwargs = options.params.optimize.model_kwargs.copy()
+        if solver_name is None:
+            solver_name = options.params.optimize.solver_name
         if solver_options is None:
-            solver_options = {}
+            solver_options = options.params.optimize.solver_options.copy()
 
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
@@ -614,7 +622,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
     def solve_model(
         self,
         extra_functionality: Callable | None = None,
-        solver_name: str = "highs",
+        solver_name: str | None = None,
         solver_options: dict | None = None,
         assign_all_duals: bool = False,
         **kwargs: Any,
@@ -629,10 +637,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             the model building is complete, but before it is sent to the
             solver. It allows the user to
             add/change constraints and add/change the objective function.
-        solver_name : str
-            Name of the solver to use.
-        solver_options : dict
-            Keyword arguments used by the solver. Can also be passed via `**kwargs`.
+        solver_name : str | None, default=None
+            Name of the solver to use. Defaults to module wide option
+            (default: 'highs'). See https://go.pypsa.org/options-params for more
+            information.
+        solver_options : dict | None, default=None
+            Keyword arguments used by the solver. Defaults to module wide option
+            (default: {}). Can also be passed via `**kwargs`. See
+            https://go.pypsa.org/options-params for more information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -652,8 +664,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
 
         """
+        # Handle default parameters from options
         if solver_options is None:
-            solver_options = {}
+            solver_options = options.params.optimize.solver_options.copy()
+        if solver_name is None:
+            solver_name = options.params.optimize.solver_name
 
         n = self._n
         if extra_functionality:

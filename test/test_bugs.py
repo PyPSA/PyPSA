@@ -21,7 +21,7 @@ def test_1144():
     n = pypsa.examples.ac_dc_meshed()
     n.c.generators.static["build_year"] = [2020, 2020, 2030, 2030, 2040, 2040]
     n.investment_periods = [2020, 2030, 2040]
-    capacity = n.statistics.installed_capacity(comps="Generator")
+    capacity = n.statistics.installed_capacity(components="Generator")
     assert capacity[2020].sum() < capacity[2030].sum() < capacity[2040].sum()
 
 
