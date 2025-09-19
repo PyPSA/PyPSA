@@ -21,9 +21,11 @@ from typing import TYPE_CHECKING, Any
 
 import geopandas as gpd
 import pandas as pd
+import xarray
 from pyproj import CRS
 
 from pypsa.common import equals
+from pypsa.components.array import ComponentsArrayMixin
 from pypsa.components.descriptors import ComponentsDescriptorsMixin
 from pypsa.components.index import ComponentsIndexMixin
 from pypsa.components.transform import ComponentsTransformMixin
@@ -88,6 +90,7 @@ class Components(
     ComponentsDescriptorsMixin,
     ComponentsTransformMixin,
     ComponentsIndexMixin,
+    ComponentsArrayMixin,
 ):
     """Components base class.
 
@@ -131,7 +134,8 @@ class Components(
             )
             raise NotImplementedError(msg)
         static, dynamic = self._get_data_containers(ctype)
-        super().__init__(ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsData.__init__(self, ctype, n=None, static=static, dynamic=dynamic)
+        ComponentsArrayMixin.__init__(self)
 
     def __str__(self) -> str:
         """Get string representation of component.
@@ -215,7 +219,6 @@ class Components(
         if key in self.__dict__:
             setattr(self, key, value)
         else:
-            # TODO: Is this to strict?
             msg = f"'{key}' not found in Component"
             raise KeyError(msg)
 
@@ -242,6 +245,17 @@ class Components(
 
         """
         return self.equals(other)
+
+    def __len__(self) -> int:
+        """Get the number of components.
+
+        Returns
+        -------
+        int
+            Number of components.
+
+        """
+        return len(self.static)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check if two Components are equal.
@@ -274,9 +288,7 @@ class Components(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n1.buses.equals(n2.buses)
         True
 
@@ -304,7 +316,7 @@ class Components(
                 {k: pd.Series(dtype=d) for k, d in static_dtypes.items()},
                 columns=static_dtypes.index,
             )
-        static.index.name = ct.name
+        static.index.name = "name"
 
         # # it's currently hard to imagine non-float series,
         # but this could be generalised
@@ -315,7 +327,7 @@ class Components(
         for k in ct.defaults.index[ct.defaults.varying]:
             df = pd.DataFrame(index=snapshots, columns=[], dtype=float)
             df.index.name = "snapshot"
-            df.columns.name = ct.name
+            df.columns.name = "name"
             dynamic[k] = df
 
         return static, dynamic
@@ -382,7 +394,7 @@ class Components(
         Examples
         --------
         >>> n.components.generators.description
-        'Power generator.'
+        'Power generator for the bus carrier it attaches to.'
 
         """
         return self.ctype.description
@@ -477,8 +489,7 @@ class Components(
         Examples
         --------
         >>> n = pypsa.Network()
-        >>> n.add('Generator', 'g1')  # doctest: +ELLIPSIS
-        Index(['g1'], dtype='object')
+        >>> n.add('Generator', 'g1')
         >>> n.components.generators.empty
         False
 
@@ -584,6 +595,56 @@ class Components(
         return self.dynamic
 
     @property
+    def ds(self) -> xarray.Dataset:
+        """Create a xarray data array view of the component.
+
+        !!! note
+
+            Note that this will create a full copy of the component data. For large networks
+            this may be a bottleneck. Use the [pypsa.Components.da][] accessor instead to
+            access a specific attribute of the component.
+
+        Returns
+        -------
+        xarray.Dataset
+            Dataset with component attributes as variables and snapshots as coordinates.
+
+        See Also
+        --------
+        [pypsa.Components.da][] :
+            Accessor for a specific attribute of the component.
+
+        Examples
+        --------
+        >>> c = n.components.generators
+        >>> c.ds  # doctest: +ELLIPSIS
+        <xarray.Dataset> Size: ...
+        Dimensions:                  (name: 6, snapshot: 10)
+        Coordinates:
+          * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
+          * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
+        Data variables: (12/38)
+            bus                      (name) object ... 'Manchester' ... 'Frankfurt'
+            control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
+            type                     (name) object ... '' '' '' '' '' ''
+            p_nom                    (name) float64 ... 80.0 5e+04 100.0 ... 110.0 8e+04
+            p_nom_mod                (name) float64 ... 0.0 0.0 0.0 0.0 0.0 0.0
+            p_nom_extendable         (name) bool ... True True True True True True
+            ...
+
+        """
+        data = {}
+
+        for attr in self.static.columns:
+            data[attr] = self._as_xarray(attr)
+
+        for attr, df in self.dynamic.items():
+            if not df.empty:
+                data[attr] = self._as_xarray(attr)
+
+        return xarray.Dataset(data)
+
+    @property
     def units(self) -> pd.Series:
         """Get units of all attributes of components.
 
@@ -631,6 +692,71 @@ class Components(
         return [
             match.group(1) for col in self.static if (match := RE_PORTS.search(col))
         ]
+
+    @property
+    def extendables(self) -> pd.Index:
+        """Get the index of extendable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of extendable elements.
+
+        """
+        extendable_col = self._operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static[extendable_col]].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    @property
+    def fixed(self) -> pd.Index:
+        """Get the index of non-extendable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of non-extendable elements.
+
+        """
+        extendable_col = self._operational_attrs["nom_extendable"]
+        if extendable_col not in self.static.columns:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[~self.static[extendable_col]].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
+
+    @property
+    def committables(self) -> pd.Index:
+        """Get the index of committable elements of this component.
+
+        Returns
+        -------
+        pd.Index
+            Single-level index of committable elements.
+
+        """
+        if "committable" not in self.static:
+            return self.static.iloc[:0].index
+
+        idx = self.static.loc[self.static["committable"]].index
+
+        # Remove scenario dimension, since they cannot vary across scenarios
+        if self.has_scenarios:
+            idx = idx.get_level_values("name").drop_duplicates()
+
+        return idx
 
 
 class SubNetworkComponents:

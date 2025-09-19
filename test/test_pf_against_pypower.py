@@ -95,12 +95,14 @@ def test_pypower_case():
 
     # PYPOWER uses PI model for transformers, whereas PyPSA defaults to
     # T since version 0.8.0
-    n.transformers.model = "pi"
+    n.c.transformers.static.model = "pi"
 
     n.pf()
 
     # compare branch flows
-    for c in n.iterate_components(n.passive_branch_components):
+    for c in n.components:
+        if c.name not in n.passive_branch_components:
+            continue
         for si in ["p0", "p1", "q0", "q1"]:
             si_pypsa = getattr(c.dynamic, si).loc[DEFAULT_TIMESTAMP].values
             si_pypower = results_df["branch"][si][c.static.original_index].values
@@ -108,17 +110,17 @@ def test_pypower_case():
 
     # compare generator dispatch
     for s in ["p", "q"]:
-        s_pypsa = getattr(n.generators_t, s).loc[DEFAULT_TIMESTAMP].values
+        s_pypsa = getattr(n.c.generators.dynamic, s).loc[DEFAULT_TIMESTAMP].values
         s_pypower = results_df["gen"][s].values
         equal(s_pypsa, s_pypower)
 
     # compare voltages
-    v_mag_pypsa = n.buses_t.v_mag_pu.loc[DEFAULT_TIMESTAMP]
+    v_mag_pypsa = n.c.buses.dynamic.v_mag_pu.loc[DEFAULT_TIMESTAMP]
     v_mag_pypower = results_df["bus"]["v_mag_pu"]
 
     equal(v_mag_pypsa, v_mag_pypower)
 
-    v_ang_pypsa = n.buses_t.v_ang.loc[DEFAULT_TIMESTAMP]
+    v_ang_pypsa = n.c.buses.dynamic.v_ang.loc[DEFAULT_TIMESTAMP]
     pypower_slack_angle = results_df["bus"]["v_ang"][
         results_df["bus"]["type"] == 3
     ].values[0]

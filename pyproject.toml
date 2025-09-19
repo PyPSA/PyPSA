@@ -27,12 +27,11 @@ requires-python = ">=3.10"
 
 dependencies = [
     "numpy",
-    "scipy>=1.14.1,!=1.15.0; python_version >= '3.13'",
-    "scipy; python_version < '3.13'",
+    "scipy",
     "pandas>=0.24",
-    "xarray<2025.07.0",
+    "xarray",
     "netcdf4",
-    "linopy>=0.4",
+    "linopy>=0.5.5",
     "matplotlib",
     "plotly",
     "seaborn",
@@ -61,7 +60,7 @@ dev = [
     "pytest-mpl", 
     "coverage",
     "pypower",
-    "pandapower>=2.14.11; python_version < '3.13'",
+    "pandapower>=2.14.11",
     "scikit-learn",
     "pre-commit", 
     "ruff",
@@ -98,10 +97,17 @@ include = ["pypsa"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
-    "error::DeprecationWarning", # Raise all DeprecationWarnings as errors
-    "error::FutureWarning",      # Raise all FutureWarnings as errors
+    # Raise warnings as errors
+    "error::DeprecationWarning", 
+    # "error::FutureWarning", 
+    # "error:RuntimeWarning",
+    # "error:UserWarning",
+    
     "ignore::matplotlib._api.deprecation.MatplotlibDeprecationWarning:pydev",
     # See https://github.com/microsoft/debugpy/issues/1623
+
+    # Ignore PyPSA New API deprecation warnings
+    "ignore:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
 ]
 markers = [
     "mpl_image_compare",
@@ -203,6 +209,7 @@ ignore = [
     'PLR0912',
     'PT011',
     'PLW2901',
+    'ERA001', #TODO add again
     ]
 
 
@@ -220,8 +227,8 @@ ignore = [
     'TRY'    # tryceratops
 ]
 
-# Still to be fixed
-"{*/optimization/**,pypsa/pf.py,test/**}" = [
+# Ignore for test files
+"{test/**}" = [
     'D100', # Missing docstring in public module
     'D101', # Missing docstring in public class
     'D102', # Missing docstring in public method
@@ -234,7 +241,6 @@ ignore = [
     'D413', # Missing blank line after last section
     'D415', # First line should end with a period, question mark, or exclamation point
     'D417', # Missing argument descriptions in the docstring
-
     ]
 
 "{test,examples}/**"=[

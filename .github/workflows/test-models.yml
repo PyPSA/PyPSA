@@ -31,7 +31,7 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         repository: PyPSA/pypsa-eur
         ref: master
@@ -64,7 +64,7 @@ jobs:
         path: |
           data
           cutouts
-        key: data-cutouts-pypsa-eur-${{ env.week }}
+        key: data-cutouts-pypsa-eur-${{ env.WEEK }}
 
     - uses: conda-incubator/setup-miniconda@v3
       if: env.pinned == 'false'
@@ -78,19 +78,24 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-eur-${{ env.week }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
+        key: conda-pypsa-eur-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
       id: cache-env
 
     - name: Update environment
       if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
       run: |
-        conda env update -n pypsa-eur -f envs/linux-64.lock.yaml
-        echo "Run conda list" && conda list
+        conda env update -n pypsa-eur -f envs/linux-64.lock.yaml --quiet
+        conda list
 
     - name: Install package from ref
       if: env.pinned == 'false'
       run: |
         python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        conda list
+
+    - name: Check pypsa version
+      run: |
+        python -c "import pypsa; print(pypsa.__version__)"
 
     - name: Run snakemake test workflows
       if: env.pinned == 'false'
@@ -127,7 +132,7 @@ jobs:
         shell: bash -l {0}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         repository: PyPSA/pypsa-de
         ref: main
@@ -160,7 +165,7 @@ jobs:
           data
           cutouts
           resources/ariadne_database.csv
-        key: data-cutouts-pypsa-de-${{ env.week }}
+        key: data-cutouts-pypsa-de-${{ env.WEEK }}
 
     - uses: conda-incubator/setup-miniconda@v3
       if: env.pinned == 'false'
@@ -174,7 +179,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-de-${{ env.week }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
+        key: conda-pypsa-de-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
       id: cache-env
 
     - name: Update environment

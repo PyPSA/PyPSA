@@ -60,13 +60,13 @@ def test_grouping_by_keys_solved(ac_dc_network_r, groupby):
 
 
 def test_grouping_by_keys_with_specific_column_solved(ac_dc_network_r):
-    df = ac_dc_network_r.statistics(groupby=["bus0", "carrier"], comps={"Link"})
+    df = ac_dc_network_r.statistics(groupby=["bus0", "carrier"], components={"Link"})
     assert not df.empty
 
 
 def test_grouping_by_new_registered_key(ac_dc_network_r):
     def new_grouper(n, c):
-        return n.df(c).index.to_series()
+        return n.c[c].static.index.to_series()
 
     n = ac_dc_network_r
     pypsa.statistics.groupers.add_grouper("new_grouper", new_grouper)
@@ -74,7 +74,7 @@ def test_grouping_by_new_registered_key(ac_dc_network_r):
     assert not df.empty
     assert df.index.nlevels == 2
 
-    df = n.statistics.supply(groupby=["new_grouper", "carrier"], comps="Link")
+    df = n.statistics.supply(groupby=["new_grouper", "carrier"], components="Link")
     assert not df.empty
     assert df.index.nlevels == 2
 
@@ -94,7 +94,7 @@ def test_drop_zero(ac_dc_network):
 
 def test_zero_profit_rule_branches(ac_dc_network_r):
     n = ac_dc_network_r
-    revenue = n.statistics.revenue(aggregate_time="sum")
+    revenue = n.statistics.revenue(groupby_time="sum")
     capex = n.statistics.capex()
     comps = ["Line", "Link"]
     assert np.allclose(revenue[comps], capex[comps])
@@ -102,9 +102,9 @@ def test_zero_profit_rule_branches(ac_dc_network_r):
 
 def test_net_and_gross_revenue(ac_dc_network_r):
     n = ac_dc_network_r
-    target = n.statistics.revenue(aggregate_time="sum")
-    revenue_out = n.statistics.revenue(aggregate_time="sum", direction="output")
-    revenue_in = n.statistics.revenue(aggregate_time="sum", direction="input")
+    target = n.statistics.revenue(groupby_time="sum")
+    revenue_out = n.statistics.revenue(groupby_time="sum", direction="output")
+    revenue_in = n.statistics.revenue(groupby_time="sum", direction="input")
     revenue = revenue_in.add(revenue_out, fill_value=0)
     comps = ["Generator", "Line", "Link"]
     assert np.allclose(revenue[comps], target[comps])
@@ -165,11 +165,11 @@ def test_opex():
     assert opex.loc["Generator", "gen"] == 2 * 2 * 5 + 2 * 0.2 * 5**2
     assert opex.loc["StorageUnit", "su"] == 2 * 20 * 2
 
-    n.generators.marginal_cost_quadratic = 0
-    n.generators.committable = True
-    n.generators.start_up_cost = 4
-    n.generators.shut_down_cost = 5
-    n.generators.stand_by_cost = 9
+    n.c.generators.static.marginal_cost_quadratic = 0
+    n.c.generators.static.committable = True
+    n.c.generators.static.start_up_cost = 4
+    n.c.generators.static.shut_down_cost = 5
+    n.c.generators.static.stand_by_cost = 9
 
     n.optimize()
 
@@ -199,7 +199,7 @@ def test_no_grouping(ac_dc_network_r):
 
 
 def test_no_time_aggregation(ac_dc_network_r):
-    df = ac_dc_network_r.statistics.supply(aggregate_time=False)
+    df = ac_dc_network_r.statistics.supply(groupby_time=False)
     assert not df.empty
     assert isinstance(df, pd.DataFrame)
 
@@ -248,43 +248,51 @@ def test_storage_capacity(ac_dc_network_r):
 
 def test_single_component(ac_dc_network_r):
     n = ac_dc_network_r
-    df = n.statistics.installed_capacity(comps="Generator")
+    df = n.statistics.installed_capacity(components="Generator")
     assert not df.empty
     assert df.index.nlevels == 1
 
 
 def test_aggregate_across_components(ac_dc_network_r):
+    import warnings
+
     n = ac_dc_network_r
-    df = n.statistics.installed_capacity(
-        comps=["Generator", "Line"], aggregate_across_components=True
-    )
-    assert not df.empty
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        df = n.statistics.installed_capacity(
+            components=["Generator", "Line"], aggregate_across_components=True
+        )
+        assert not df.empty
+        assert "component" not in df.index.names
+
+        df = n.statistics.supply(
+            components=["Generator", "Line"],
+            aggregate_across_components=True,
+            groupby_time=False,
+        )
+        assert not df.empty
     assert "component" not in df.index.names
 
-    df = n.statistics.supply(
-        comps=["Generator", "Line"],
-        aggregate_across_components=True,
-        aggregate_time=False,
-    )
-    assert not df.empty
-    assert "component" not in df.index.names
 
-
-def test_multiindexed(ac_dc_network_mi):
-    n = ac_dc_network_mi
+def test_multiindexed(ac_dc_periods):
+    n = ac_dc_periods
     df = n.statistics()
     assert not df.empty
     assert df.columns.nlevels == 2
     assert df.columns.unique(1)[0] == 2013
 
 
-def test_multiindexed_aggregate_across_components(ac_dc_network_mi):
-    n = ac_dc_network_mi
-    df = n.statistics.installed_capacity(
-        comps=["Generator", "Line"], aggregate_across_components=True
-    )
-    assert not df.empty
-    assert "component" not in df.index.names
+def test_multiindexed_aggregate_across_components(ac_dc_periods):
+    import warnings
+
+    n = ac_dc_periods
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        df = n.statistics.installed_capacity(
+            components=["Generator", "Line"], aggregate_across_components=True
+        )
+        assert not df.empty
+        assert "component" not in df.index.names
 
 
 def test_inactive_exclusion_in_static(ac_dc_network_r):
@@ -292,16 +300,16 @@ def test_inactive_exclusion_in_static(ac_dc_network_r):
     df = n.statistics()
     assert "Line" in df.index.unique(0)
 
-    n.lines["active"] = False
+    n.c.lines.static["active"] = False
     df = n.statistics()
     assert "Line" not in df.index.unique(0)
 
-    n.lines["active"] = True
+    n.c.lines.static["active"] = True
 
 
 def test_transmission_carriers(ac_dc_network_r):
     n = ac_dc_network_r
-    n.lines["carrier"] = "AC"
+    n.c.lines.static["carrier"] = "AC"
     df = pypsa.statistics.get_transmission_carriers(ac_dc_network_r)
     assert "AC" in df.unique(1)
 

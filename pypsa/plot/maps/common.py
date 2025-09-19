@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 def as_branch_series(  # noqa
     ser: pd.Series | dict | list, arg: str, c_name: str, n: "Network"
 ) -> pd.Series:
-    ser = pd.Series(ser, index=n.static(c_name).index)
+    ser = pd.Series(ser, index=n.components[c_name].static.index)
     if ser.isnull().any():
         msg = f"{c_name}_{arg}s does not specify all "
         f"entries. Missing values for {c_name}: {list(ser[ser.isnull()].index)}"
@@ -108,6 +108,6 @@ def apply_layouter(
     coordinates = pd.DataFrame(layouter(G)).T.rename({0: "x", 1: "y"}, axis=1)
 
     if inplace:
-        n.buses[["x", "y"]] = coordinates
+        n.c.buses.static[["x", "y"]] = coordinates
         return None
     return coordinates.x, coordinates.y

@@ -7,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 
+from pypsa._options import options
 from pypsa.definitions.structures import Dict
 from pypsa.networks import Network
 from pypsa.statistics.expressions import StatisticsAccessor
@@ -53,7 +54,7 @@ class NetworkCollection:
 
     >>> nc.generators
                                       bus control  ... weight  p_nom_opt
-    network  Generator                             ...
+    network  name                                  ...
     network1 Manchester Wind   Manchester      PQ  ...    1.0        0.0
              Manchester Gas    Manchester      PQ  ...    1.0        0.0
              Norway Wind           Norway      PQ  ...    1.0        0.0
@@ -292,25 +293,6 @@ class NetworkCollection:
 
         return f"NetworkCollection\n-----------------\nNetworks: {n_networks}\n{index_info}"
 
-    @property
-    def carriers(self) -> pd.DataFrame:
-        """Get a unique DataFrame of carriers across all contained networks.
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame containing the unique carriers found in all networks,
-            indexed by carrier name.
-
-        """
-        all_carriers = [n.carriers for n in self.networks]
-        combined_carriers = pd.concat(all_carriers)
-        # Keep the first occurrence of each carrier based on the index
-        unique_carriers = combined_carriers[
-            ~combined_carriers.index.duplicated(keep="first")
-        ]
-        return unique_carriers.sort_index()
-
     def _validate_network_compatibility(self) -> None:
         """Validate basic compatibility between networks in the collection.
 
@@ -327,6 +309,69 @@ class NetworkCollection:
         # TODO: Implement basic validation of network compatibility
 
 
+_all_components = (
+    r"sub_networks|buses|carriers|global_constraints|lines|line_types|"
+    r"transformers|transformer_types|links|loads|generators|storage_units|"
+    r"stores|shunt_impedances|shapes"
+)
+
+
+def _get_method_patterns() -> dict[str, str]:
+    new_api = options.api.new_components_api
+    _all_component_names = (
+        r"SubNetwork|Bus|Carrier|GlobalConstraint|Line|LineType|"
+        "Transformer|TransformerType|Link|Load|Generator|StorageUnit|"
+        "Store|ShuntImpedance|Shape"
+    )
+
+    _component_classes = (
+        ("(" if new_api else "")
+        + rf"(components|c)((\['({_all_components}|{_all_component_names})'])|(\.({_all_components})))"
+        + ("|" + _all_components + ")" if new_api else "")
+    )
+
+    _method_patterns = {
+        # run_per_network
+        # ---------------
+        "run_per_network": r"^("
+        r"(consistency_check_plots)+"
+        r")$",
+        # ---------------
+        "vertical_concat": rf"^("
+        rf"({_all_components if not new_api else ''})|"
+        rf"({_component_classes}.static)|"
+        rf"({_component_classes}.get_active_assets)|"
+        rf"static|"
+        rf"get_active_assets"
+        rf")$",
+        # ---------------
+        "horizontal_concat": rf"^("
+        rf"({'(' + _all_components + ')_t' if not new_api else ''})|"
+        rf"({_component_classes}.dynamic)|"
+        rf"dynamic|"
+        rf"get_switchable_as_dense"
+        rf")$",
+        # ---------------
+        "return_from_first": r"^("
+        r"\S+_components|"
+        r"snapshots|"
+        r"snapshot_weightings|"
+        r"bus_carrier_unit|"
+        r")$",
+        # ---------------
+        "index_concat": r"^("
+        rf"({_component_classes}).committables|"
+        r"get_committable_i|"
+        r")$",
+        # ---------------
+        "continue_proxy": rf"^("
+        rf"components|c|"
+        rf"{_component_classes}"
+        rf")$",
+    }
+    return _method_patterns
+
+
 class MemberProxy:
     """Wrapper for network accessors that combines results from multiple networks.
 
@@ -335,45 +380,6 @@ class MemberProxy:
     """
 
     collection: NetworkCollection
-
-    # Method patterns for special handling
-    _method_patterns = {
-        # run_per_network
-        # ---------------
-        "run_per_network": r"^"
-        r"(consistency_check_plots)+"
-        r"$",
-        # ---------------
-        "vertical_concat": r"^"
-        # Static component dataframes
-        r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
-        r"transformers|transformer_types|links|loads|generators|storage_units|"
-        r"stores|shunt_impedances|shapes|"
-        r"static|"
-        r"get_active_assets|"
-        # statistics and all statistics expressions
-        r"statistics|"
-        r"statistics\.[^\.\s]+)"
-        r"$",
-        # ---------------
-        "horizontal_concat": r"^"
-        r"(sub_networks|buses|carriers|global_constraints|lines|line_types|"
-        r"transformers|transformer_types|links|loads|generators|storage_units|"
-        r"stores|shunt_impedances|shapes)_t|"
-        r"dynamic|"
-        r"get_switchable_as_dense"
-        r"$",
-        # ---------------
-        "return_from_first": r"^"
-        r"\S+_components|"
-        r"snapshots|"
-        r"snapshot_weightings|"
-        r"bus_carrier_unit"
-        r"$",
-        # ---------------
-        "index_concat": r"^"
-        r"get_committable_i",
-    }
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         """Create new instance of MemberProxy.
@@ -384,13 +390,26 @@ class MemberProxy:
         instance = super().__new__(cls)
         cls.__init__(instance, *args, **kwargs)
 
-        # Immediately end recursion for non callable returns
+        # Immediately end recursion for non callable returns, unless it's an intermediate path
         first_accessor = instance.accessor_func(instance.collection.networks.iloc[0])
         if not callable(first_accessor):
+            # Check if this is an intermediate path that should continue as MemberProxy
+            if instance._is_intermediate_path():
+                return instance
             processor = instance.get_processor()
             return processor(is_call=False)
 
         return instance
+
+    def _is_intermediate_path(self) -> bool:
+        """Check if this accessor path is an intermediate path that should continue as MemberProxy."""
+        # Check if this path could be part of a longer supported path
+        for processor_name, pattern in _get_method_patterns().items():
+            if processor_name == "continue_proxy" and re.match(
+                pattern, self.accessor_path
+            ):
+                return True
+        return False
 
     def __init__(
         self,
@@ -445,10 +464,31 @@ class MemberProxy:
             self.collection, lambda n: getattr(self.accessor_func(n), name), new_path
         )
 
+    def __getitem__(self, name: str) -> Any:
+        """Handle attribute access on the accessor.
+
+        This method handles three cases:
+        1. The attribute is another accessor object (returns a new MemberProxy)
+        2. The attribute is a method (returns a function that aggregates results)
+        3. The attribute is a property (returns a ResultWrapper of property values)
+        """
+        # Get the attribute from the first accessor to determine its type
+        if len(self.collection.networks) == 0:
+            msg = f"Cannot access attribute '{name}' on empty collection"
+            raise AttributeError(msg)
+
+        # Create the new accessor path by appending the attribute name
+        new_path = f"{self.accessor_path}['{name}']" if self.accessor_path else name
+
+        # For any attribute, create a new accessor function that chains the attribute access
+        return MemberProxy(
+            self.collection, lambda n: getattr(self.accessor_func(n), name), new_path
+        )
+
     def get_processor(self) -> Any:
         """Determine the appropriate processor for the current accessor path."""
         # Check for pattern-based method processor
-        for processor_name, pattern in self._method_patterns.items():
+        for processor_name, pattern in _get_method_patterns().items():
             if re.match(pattern, self.accessor_path):
                 processor = getattr(self, processor_name)
                 return processor

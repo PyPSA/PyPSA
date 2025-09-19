@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import warnings
 from functools import wraps
@@ -15,6 +16,8 @@ from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Circle, FancyArrow, Patch, Polygon, Wedge
+from shapely.geometry import LineString
+from shapely.wkt import loads
 
 from pypsa.common import _convert_to_series, deprecated_kwargs
 from pypsa.constants import DEFAULT_EPSG
@@ -24,24 +27,22 @@ from pypsa.geo import (
 )
 from pypsa.plot.maps.common import apply_layouter
 
-cartopy_present = True
-try:
-    import cartopy
-    import cartopy.mpl.geoaxes
-    from cartopy.mpl.geoaxes import GeoAxesSubplot
-except ImportError:
-    cartopy_present = False
-    GeoAxesSubplot = Any
+
+def _is_cartopy_available() -> bool:
+    """Check if cartopy is available at runtime."""
+    return importlib.util.find_spec("cartopy") is not None
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     import networkx as nx
+    from cartopy.mpl.geoaxes import GeoAxesSubplot
     from matplotlib.legend import Legend
 
     from pypsa.components.components import Components
     from pypsa.networks import Network
+
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,9 @@ class MapPlotter:
     def boundaries(self) -> tuple[float, float, float, float] | None:
         """Get the plot boundaries."""
         if self._boundaries is None:
-            self.set_boundaries(self._boundaries, self.margin, self._n.buses.index)
+            self.set_boundaries(
+                self._boundaries, self.margin, self._n.c.buses.static.index
+            )
         return self._boundaries
 
     @boundaries.setter
@@ -189,13 +192,16 @@ class MapPlotter:
         value: Axes | GeoAxesSubplot | None,
     ) -> None:
         """Set the axis for plotting."""
-        if not cartopy_present:
-            axis_type = (Axes,)
-        else:
-            axis_type = (Axes, GeoAxesSubplot)  # type: ignore
-        if value is not None and not isinstance(value, axis_type):
-            msg = "ax must be either matplotlib Axes or GeoAxesSubplot"
-            raise ValueError(msg)
+        if value is not None:
+            if _is_cartopy_available():
+                from cartopy.mpl.geoaxes import GeoAxesSubplot  # noqa: PLC0415
+
+                axis_type: tuple[type, ...] = (Axes, GeoAxesSubplot)
+            else:
+                axis_type = (Axes,)
+            if not isinstance(value, axis_type):
+                msg = "ax must be either matplotlib Axes or GeoAxesSubplot"
+                raise ValueError(msg)
         self._ax = value
 
     @property
@@ -231,14 +237,17 @@ class MapPlotter:
         """
         # Check if networkx layouter is given or needed to get bus positions
         is_empty = (
-            (self.n.buses[["x", "y"]].isnull() | (self.n.buses[["x", "y"]] == 0))
+            (
+                self.n.c.buses.static[["x", "y"]].isnull()
+                | (self.n.c.buses.static[["x", "y"]] == 0)
+            )
             .all()
             .all()
         )
         if layouter or self._layout or is_empty:
             self.x, self.y = apply_layouter(self.n, layouter, inplace=False)
         else:
-            self.x, self.y = self.n.buses["x"], self.n.buses["y"]
+            self.x, self.y = self.n.c.buses.static["x"], self.n.c.buses.static["y"]
         self.crs = self.n.crs
 
     def set_boundaries(
@@ -273,7 +282,7 @@ class MapPlotter:
         # Set boundaries, if not given
 
         if buses is None:
-            buses = self.n.buses.index
+            buses = self.n.c.buses.static.index
 
         if boundaries is None:
             (x1, y1), (x2, y2) = compute_bbox(self.x[buses], self.y[buses], margin)
@@ -316,7 +325,7 @@ class MapPlotter:
             boundaries = self.boundaries
 
         # Check if geomap is requested but cartopy not available
-        if geomap and not cartopy_present:
+        if geomap and not _is_cartopy_available():
             logger.warning(
                 "Cartopy is not available. Falling back to non-geographic plotting."
             )
@@ -324,6 +333,9 @@ class MapPlotter:
 
         # Set up plot (either cartopy or matplotlib)
         if geomap:
+            import cartopy.crs  # noqa: PLC0415
+            from cartopy.mpl.geoaxes import GeoAxesSubplot  # noqa: PLC0415
+
             network_projection = cartopy.crs.Projection(self.n.crs)
             if projection is None:
                 projection = network_projection
@@ -393,9 +405,12 @@ class MapPlotter:
 
         """
         """Add geographic features to the map using cartopy."""
-        if not cartopy_present:
+        if not _is_cartopy_available():
             logger.warning("Cartopy is not available. Cannot add geographic features.")
             return
+
+        import cartopy.feature  # noqa: PLC0415
+        from cartopy.mpl.geoaxes import GeoAxesSubplot  # noqa: PLC0415
 
         if not isinstance(self.ax, GeoAxesSubplot):
             msg = "The axis must be a GeoAxesSubplot to add geographic features."
@@ -589,13 +604,13 @@ class MapPlotter:
             return flow
 
         if flow in self.n.snapshots:
-            return self.n.dynamic(c_name).p0.loc[flow]
+            return self.n.c[c_name].dynamic.p0.loc[flow]
 
         if isinstance(flow, str) or callable(flow):
-            return self.n.dynamic(c_name).p0.agg(flow, axis=0)
+            return self.n.c[c_name].dynamic.p0.agg(flow, axis=0)
 
         if isinstance(flow, int | float):
-            return pd.Series(flow, index=self.n.static(c_name).index)
+            return pd.Series(flow, index=self.n.components[c_name].static.index)
 
         if flow is not None:
             msg = f"The 'flow' argument must be a pandas.Series, a string, a float or a callable, got {type(flow)}."
@@ -662,9 +677,6 @@ class MapPlotter:
                 )
             ).transpose(2, 0, 1)
         else:
-            from shapely.geometry import LineString  # noqa: PLC0415
-            from shapely.wkt import loads  # noqa: PLC0415
-
             linestrings = geometry[lambda ds: ds != ""].map(loads)
             if not all(isinstance(ls, LineString) for ls in linestrings):
                 msg = "The WKT-encoded geometry in the 'geometry' column must be "
@@ -1105,7 +1117,7 @@ class MapPlotter:
             raise ValueError(msg)
 
         # Check for ValueErrors
-        if geomap and not cartopy_present:
+        if geomap and not _is_cartopy_available():
             logger.warning("Cartopy needs to be installed to use `geomap=True`.")
             geomap = False
 
@@ -1117,28 +1129,31 @@ class MapPlotter:
         # Apply default values
         if bus_colors is None:
             if multindex_buses:
-                bus_colors = n.carriers.color
+                bus_colors = n.c.carriers.static.color
             else:
                 bus_colors = "cadetblue"
 
         # Format different input types
-        bus_colors = _convert_to_series(bus_colors, n.buses.index)
-        bus_sizes = _convert_to_series(bus_sizes, n.buses.index)
+        bus_colors = _convert_to_series(bus_colors, n.c.buses.static.index)
+        bus_sizes = _convert_to_series(bus_sizes, n.c.buses.static.index)
 
         # Add missing colors
         # TODO: This is not consistent, since for multiindex a ValueError is raised
         if not multindex_buses:
-            bus_colors = bus_colors.reindex(n.buses.index)
+            bus_colors = bus_colors.reindex(n.c.buses.static.index)
 
         # Raise additional ValueErrors after formatting
         if multindex_buses:
-            if len(bus_sizes.index.unique(level=0).difference(n.buses.index)) != 0:
+            if (
+                len(bus_sizes.index.unique(level=0).difference(n.c.buses.static.index))
+                != 0
+            ):
                 msg = "The first MultiIndex level of sizes must contain buses"
                 raise ValueError(msg)
             if not bus_sizes.index.unique(level=1).isin(bus_colors.index).all():
                 msg = "Colors not defined for all elements in the second MultiIndex "
                 "level of sizes, please make sure that all the elements are "
-                "included in colors or in n.carriers.color"
+                "included in colors or in n.c.carriers.static.color"
                 raise ValueError(msg)
 
         # Apply all cmaps
@@ -1165,7 +1180,9 @@ class MapPlotter:
         branch_collections = {}
         flow_collections = {}
 
-        for c in n.iterate_components(branch_components):
+        for c in n.components:
+            if c.name not in branch_components:
+                continue
             # Get branch collection
             if c.name == "Line":
                 widths = line_widths
@@ -1208,7 +1225,7 @@ class MapPlotter:
             if flow is not None:
                 if auto_scale_branches:
                     rough_scale = (
-                        sum([len(n.static(c)) for c in branch_components]) + 100
+                        sum([len(n.c[c].static) for c in branch_components]) + 100
                     )
                     data["flow"] = (
                         data.flow.mul(abs(data.widths), fill_value=0) / rough_scale
@@ -1275,7 +1292,7 @@ def plot(  # noqa: D103
             bus_sizes.index if not multindex_buses else bus_sizes.index.unique(level=0)
         )
     else:
-        buses = n.buses.index
+        buses = n.c.buses.static.index
 
     if isinstance(geomap, str):
         logger.warning(

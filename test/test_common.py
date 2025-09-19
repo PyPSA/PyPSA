@@ -114,8 +114,8 @@ def test_class_method_access():
         ("investment_periods", "period"),
     ],
 )
-def test_as_index(ac_dc_network_mi, attr, expected_name):
-    n = ac_dc_network_mi
+def test_as_index(ac_dc_periods, attr, expected_name):
+    n = ac_dc_periods
 
     # Test with None values
     result = as_index(n, None, attr)
@@ -308,14 +308,14 @@ def mock_response():
     [
         # Test case format: (current_version, latest_version, expected_message)
         (
-            (1, 0, 0),
+            "1.0.0",
             "2.0.0",
             "New version 2.0.0 available! (Current: 1.0.0)",
         ),  # newer version
-        ((1, 0, 0), "1.0.0", ""),  # same version
-        ((2, 0, 0), "1.0.0", ""),  # current is newer
+        ("1.0.0", "1.0.0", ""),  # same version
+        ("2.0.0", "1.0.0", ""),  # current is newer
         (
-            (1, 2, 2),
+            "1.2.2",
             "1.2.3",
             "New version 1.2.3 available! (Current: 1.2.2)",
         ),  # minor update
@@ -336,7 +336,7 @@ def test_check_for_update_error_handling():
         mock_urlopen.side_effect = Exception("Connection failed")
 
         _check_for_update.cache_clear()
-        result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+        result = _check_for_update("1.0.0", "test_owner", "test_repo")
         assert result == ""
 
 
@@ -346,7 +346,7 @@ def test_check_for_update_respects_network_option(mock_response):
 
     # Test that version check is skipped when network requests are disabled
     with pypsa.option_context("general.allow_network_requests", False):
-        result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+        result = _check_for_update("1.0.0", "test_owner", "test_repo")
         assert result == ""
 
     # Test that version check works when network requests are allowed
@@ -355,7 +355,7 @@ def test_check_for_update_respects_network_option(mock_response):
 
         _check_for_update.cache_clear()
         with pypsa.option_context("general.allow_network_requests", True):
-            result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+            result = _check_for_update("1.0.0", "test_owner", "test_repo")
             assert "New version 2.0.0 available!" in result
 
 

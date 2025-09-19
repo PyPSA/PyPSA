@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
+
+from packaging.version import parse as parse_version
 
 from pypsa.networks import Network
-from pypsa.version import __version_semver__, __version_semver_tuple__
+from pypsa.version import __version_base__
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +18,22 @@ logger = logging.getLogger(__name__)
 def _repo_url(
     master: bool = False, url: str = "https://github.com/PyPSA/PyPSA/raw/"
 ) -> str:
-    if master or __version_semver_tuple__ < (0, 35):  # Feature was added in 0.35.0
+    if master or parse_version(__version_base__) < parse_version(
+        "0.35.0"
+    ):  # Feature was added in 0.35.0
         return f"{url}master/"
-    return f"{url}v{__version_semver__}/"
+    return f"{url}v{__version_base__}/"
+
+
+def _check_url_availability(url: str) -> bool:
+    """Check if a URL is available by making a HEAD request."""
+    if not url.startswith(("http://", "https://")):
+        return False
+    try:
+        with urlopen(url) as response:  # noqa: S310
+            return response.status == 200
+    except (HTTPError, URLError, OSError):
+        return False
 
 
 def _retrieve_if_not_local(path: str | Path) -> Network:
@@ -147,3 +164,64 @@ def model_energy(update: bool = False, from_master: bool = False) -> Network:
 
     """
     return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")
+
+
+def stochastic_network() -> Network:
+    """Load the stochastic network example.
+
+    For details check the example notebook. #TODO new-docs link.
+
+    Returns
+    -------
+    pypsa.Network
+        Stochastic network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.stochastic_network()
+    >>> n
+    Stochastic PyPSA Network 'Stochastic-Network'
+    ---------------------------------------------
+    Components:
+        - Bus: 3
+        - Generator: 12
+        - Load: 3
+    Snapshots: 2920
+    Scenarios: 3
+
+    """
+    n = _retrieve_if_not_local(
+        "examples/networks/stochastic-network/stochastic-network.nc"
+    )
+
+    return n
+
+
+def carbon_management() -> Network:
+    """Load the carbon management network example of PyPSA.
+
+    The Carbon Management Network has 20 days of data on the hybrid case from a
+    recently published paper on carbon management based on PyPSA-Eur. It is
+    sector-coupled and currently the most complex example network within PyPSA,
+    making it ideal for exploring the plotting and statistical functionality.
+
+    References
+    ----------
+    [^1]: Hofmann, F., Tries, C., Neumann, F. et al. H2 and CO2 network strategies for
+    the European energy system. Nat Energy 10, 715–724 (2025).
+    https://doi.org/10.1038/s41560-025-01752-6
+
+    """
+    primary_url = (
+        "https://tubcloud.tu-berlin.de/s/b37rfZrBymTFpZ4/download/carbon-management.nc"
+    )
+
+    if _check_url_availability(primary_url):
+        return Network(primary_url)
+    else:
+        msg = (
+            "The carbon management example is currently unavailable. Please check "
+            "your internet connection and make sure you are on the latest version of "
+            "PyPSA."
+        )
+        raise RuntimeError(msg)

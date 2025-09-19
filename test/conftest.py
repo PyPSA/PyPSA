@@ -9,6 +9,25 @@ from shapely.geometry import Polygon
 import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
+pypsa.options.debug.runtime_verification = True
+
+
+def pytest_addoption(parser):
+    """Add custom pytest command line options."""
+    parser.addoption(
+        "--new-components-api",
+        action="store_true",
+        default=False,
+        help="Activate the new components API (options.api.new_components_api)",
+    )
+
+
+def pytest_configure(config):
+    """Configure pytest session with custom options."""
+    if config.getoption("--new-components-api"):
+        pypsa.options.api.new_components_api = True
+
+
 COMPONENT_NAMES = [
     "sub_networks",
     "buses",
@@ -33,6 +52,9 @@ def component_name(request):
     return request.param
 
 
+# Example Networks
+
+
 @pytest.fixture
 def ac_dc_network():
     return pypsa.examples.ac_dc_meshed()
@@ -44,34 +66,80 @@ def storage_hvdc_network():
 
 
 @pytest.fixture
+def scigrid_de_network():
+    return pypsa.examples.scigrid_de()
+
+
+@pytest.fixture
 def model_energy_network():
     return pypsa.examples.model_energy()
 
 
 @pytest.fixture
-def scigrid_de_network():
-    return pypsa.examples.scigrid_de()
+def stochastic_network():
+    return pypsa.examples.stochastic_network()
 
 
-@pytest.fixture  # scope="session")
+# AC-DC-Meshed types
+
+
+@pytest.fixture
+def ac_dc_solved():
+    n = pypsa.examples.ac_dc_meshed()
+    n.optimize()
+    del n.model.solver_model
+    return n
+
+
+@pytest.fixture
+def ac_dc_periods(ac_dc_network):
+    n = ac_dc_network
+    n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
+    n.investment_periods = [2013]
+    gens_i = n.c.generators.static.index
+    rng = np.random.default_rng()  # Create a random number generator
+    n.c.generators.dynamic.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
+    return n
+
+
+@pytest.fixture
+def ac_dc_stochastic():
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
+    return n
+
+
+AC_DC_MESHED_TYPES = [
+    "ac_dc_network",
+    "ac_dc_solved",
+    "ac_dc_periods",
+    "ac_dc_stochastic",
+]
+
+
+@pytest.fixture(params=AC_DC_MESHED_TYPES)
+def ac_dc_types(request):
+    return request.getfixturevalue(request.param)
+
+
+# AC-DC-Meshed results
+
+
+@pytest.fixture
 def ac_dc_network_r():
     csv_folder = Path(__file__).parent / "data" / "ac-dc-meshed" / "results-lopf"
     return pypsa.Network(csv_folder)
 
 
 @pytest.fixture
-def ac_dc_network_mi(ac_dc_network):
-    n = ac_dc_network
-    n.snapshots = pd.MultiIndex.from_product([[2013], n.snapshots])
-    n.investment_periods = [2013]
-    gens_i = n.generators.index
-    rng = np.random.default_rng()  # Create a random number generator
-    n.generators_t.p[gens_i] = rng.random(size=(len(n.snapshots), len(gens_i)))
+def ac_dc_stochastic_r(ac_dc_network_r):
+    n = ac_dc_network_r.copy()
+    n.set_scenarios({"low": 0.3, "high": 0.7})
     return n
 
 
 @pytest.fixture
-def ac_dc_network_shapes(ac_dc_network):
+def ac_dc_shapes(ac_dc_network):
     n = ac_dc_network
 
     # Create bounding boxes around points
@@ -85,7 +153,7 @@ def ac_dc_network_shapes(ac_dc_network):
             ]
         )
 
-    bboxes = n.buses.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
+    bboxes = n.c.buses.static.apply(lambda row: create_bbox(row["x"], row["y"]), axis=1)
 
     # Convert to GeoSeries
     geo_series = gpd.GeoSeries(bboxes, crs=DEFAULT_EPSG)
@@ -101,12 +169,15 @@ def ac_dc_network_shapes(ac_dc_network):
     return n
 
 
+# Other network fixtures
+
+
 @pytest.fixture
 def scipy_network():
     n = pypsa.examples.scigrid_de()
-    n.generators.control = "PV"
-    g = n.generators[n.generators.bus == "492"]
-    n.generators.loc[g.index, "control"] = "PQ"
+    n.c.generators.static.control = "PV"
+    g = n.c.generators.static[n.c.generators.static.bus == "492"]
+    n.c.generators.static.loc[g.index, "control"] = "PQ"
     n.calculate_dependent_values()
     n.determine_network_topology()
     return n
@@ -124,20 +195,32 @@ def network_only_component_names():
     return n
 
 
-@pytest.fixture(
-    params=[
-        "ac_dc_network",
-        "scigrid_de_network",
-        "storage_hvdc_network",
-        "model_energy_network",
-        # "ac_dc_network_r",
-        # "ac_dc_network_mi",
-        # "ac_dc_network_shapes",
-        "network_only_component_names",
-    ]
-)
-def network_all(request):
+# Other fixture collections
+UNSOLVED_NETWORKS = [
+    "ac_dc_network",
+    "scigrid_de_network",
+    "storage_hvdc_network",
+    "model_energy_network",
+    "stochastic_network",
+    "network_only_component_names",
+]
+
+SOLVED_NETWORKS = [
+    "ac_dc_solved",
+]
+
+
+@pytest.fixture(params=UNSOLVED_NETWORKS)
+def networks(request):
     return request.getfixturevalue(request.param)
+
+
+@pytest.fixture(params=UNSOLVED_NETWORKS + SOLVED_NETWORKS)
+def networks_including_solved(request):
+    return request.getfixturevalue(request.param)
+
+
+# Network collections
 
 
 @pytest.fixture
@@ -148,6 +231,7 @@ def network_collection(ac_dc_network_r):
     )
 
 
+# Pandapower networks
 @pytest.fixture(scope="module")
 def pandapower_custom_network():
     try:
@@ -184,3 +268,75 @@ def pandapower_cigre_network():
     except ImportError:
         pytest.skip("pandapower not installed")
     return pn.create_cigre_network_mv(with_der="all")
+
+
+# Complex stochastic network
+
+
+@pytest.fixture
+def stochastic_benchmark_network():
+    """
+    Create a network for benchmarking stochastic problems.
+    This optimization problem is also uploaded to the pypsa examples repository
+    with stochastic problem solved in two ways: out-of-the-box using PyPSA
+    functionality and hardcoded using linopy.
+    """
+    # Configuration
+    GAS_PRICE = 40  # Default scenario
+    FREQ = "3h"
+    LOAD_MW = 1
+    TS_URL = "https://tubcloud.tu-berlin.de/s/pKttFadrbTKSJKF/download/time-series-lecture-2.csv"
+
+    # Technology specs
+    TECH = {
+        "solar": {"profile": "solar", "inv": 1e6, "m_cost": 0.01},
+        "wind": {"profile": "onwind", "inv": 2e6, "m_cost": 0.02},
+        "gas": {"inv": 7e5, "eff": 0.6},
+        "lignite": {"inv": 1.3e6, "eff": 0.4, "m_cost": 130},
+    }
+    FOM, DR, LIFE = 3.0, 0.03, 25
+
+    def annuity(life, rate):
+        return rate / (1 - (1 + rate) ** -life) if rate else 1 / life
+
+    for cfg in TECH.values():
+        cfg["fixed_cost"] = (annuity(LIFE, DR) + FOM / 100) * cfg["inv"]
+
+    # Load time series data from URL - same as in the original script
+    ts = pd.read_csv(TS_URL, index_col=0, parse_dates=True).resample(FREQ).asfreq()
+
+    n = pypsa.Network()
+    n.set_snapshots(ts.index)
+    n.snapshot_weightings = pd.Series(int(FREQ[:-1]), index=ts.index)
+
+    n.add("Bus", "DE")
+    n.add("Load", "DE_load", bus="DE", p_set=LOAD_MW)
+
+    for tech in ["solar", "wind"]:
+        cfg = TECH[tech]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            p_max_pu=ts[cfg["profile"]],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=cfg["m_cost"],
+        )
+
+    for tech in ["gas", "lignite"]:
+        cfg = TECH[tech]
+        mc = (GAS_PRICE / cfg["eff"]) if tech == "gas" else cfg["m_cost"]
+        n.add(
+            "Generator",
+            tech,
+            bus="DE",
+            p_nom_extendable=True,
+            efficiency=cfg["eff"],
+            capital_cost=cfg["fixed_cost"],
+            marginal_cost=mc,
+        )
+    # Set up scenarios
+    n.set_scenarios({"low": 0.4, "medium": 0.3, "high": 0.3})
+
+    return n

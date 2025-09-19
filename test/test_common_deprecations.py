@@ -14,7 +14,7 @@ from pypsa.common import (
 
 @pytest.fixture
 def mock_version_semver():
-    with patch("pypsa.common.__version_semver__", "1.0.0"):
+    with patch("pypsa.common.__version_base__", "1.0.0"):
         yield
 
 
