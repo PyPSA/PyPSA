@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
@@ -41,7 +42,14 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
         path = _repo_url() + str(path)
         Path.cwd()
 
-    return Network(path)
+    # Suppress warning which occurs due to numpy version mismatch
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="numpy.ndarray size changed, may indicate binary incompatibility",
+            category=RuntimeWarning,
+        )
+        return Network(path)
 
 
 def ac_dc_meshed(

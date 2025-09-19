@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -285,6 +286,170 @@ class Network(
 
         """
         return self.equals(other)
+
+    def __getitem__(self, key: str) -> Network:
+        """Return a shallow slice of the Network object.
+
+        A network can be sliced in three different ways:
+        1. If the key is a scenario name and the network has scenarios, the corresponding
+           scenario is returned as a new network object.
+           See [pypsa.Network.get_scenario][].
+        2. If the network is a collection and the key is a name of one of the networks
+           in the collection, that network is returned.
+           See [pypsa.Network.get_collection][].
+        3. If the key is a bus name or a boolean indexer for buses, a sliced copy of
+           the network is returned, containing only the selected buses and all
+           connected components. See [pypsa.Network.slice_network][].
+
+        A warning will be issued if the key matches multiple of the above
+        entities. In that case, the first match is returned. But it is recommended to
+        use the explicit methods (e.g. get_scenario(), get_network()) or use unique
+        scenario, collection and bus names to avoid ambiguity.
+
+        Parameters
+        ----------
+        key : str or boolean mask
+            The key or boolean mask to select a scenario, a network from a collection
+            or slice the network based on buses.
+
+        Returns
+        -------
+        n : pypsa.Network
+
+        Examples
+        --------
+        Select single scenario from a stochastic network:
+
+        >>> n_stochastic
+        Stochastic PyPSA Network 'Stochastic-Network'
+        ---------------------------------------------
+        Components:
+        - Bus: 3
+        - Generator: 12
+        - Load: 3
+        Snapshots: 2920
+        Scenarios: 3
+        >>> n_stochastic["high"]
+        PyPSA Network 'Stochastic-Network - Scenario 'high''
+        ----------------------------------------------------
+        Components:
+        - Bus: 1
+        - Generator: 4
+        - Load: 1
+        Snapshots: 2920
+
+        Select single collection from a network collection:
+
+        >>> network_collection
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'Storage-HVDC']
+
+        >>> network_collection["AC-DC-Meshed"]
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 9
+        - Carrier: 6
+        - Generator: 6
+        - GlobalConstraint: 1
+        - Line: 7
+        - Link: 4
+        - Load: 6
+        Snapshots: 10
+
+        Select a network slice based on buses:
+
+        >>> n
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+         - Carrier: 6
+         - Generator: 6
+         - GlobalConstraint: 1
+         - Line: 7
+         - Link: 4
+         - Load: 6
+         - SubNetwork: 3
+        Snapshots: 10
+        >>> n["London"]
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 1
+        - Carrier: 6
+        - GlobalConstraint: 1
+        - Load: 1
+        Snapshots: 10
+
+        or use the pandas `.loc` method to select multiple buses:
+
+        >>> n[n.buses.carrier=='AC']
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 6
+        - Carrier: 6
+        - Generator: 6
+        - GlobalConstraint: 1
+        - Line: 4
+        - Link: 1
+        - Load: 6
+        Snapshots: 10
+
+        """
+        # For a scalar key, selection is done either on scenarios, collection items or
+        # a network slice
+        if np.isscalar(key):
+            results = []
+
+            # Check scenarios
+            if key in self.scenarios:
+                results.append(("scenario", self.get_scenario(key)))
+
+            # Check collection
+            if self.is_collection and key in self.networks.index:  # type: ignore[attr-defined]
+                results.append(("collection", self.networks[key]))  # type: ignore[attr-defined]
+
+            # Check network slice
+            if key in self.c.buses.component_names:
+                results.append(("network", self.slice_network([key])))
+
+            # Handle results
+            if len(results) > 1:
+                types = [r[0] for r in results]
+                logger.warning(
+                    "Key '%s' matches multiple entities: %s. Returning the "
+                    "first match (%s). It is recommended to use explicit "
+                    "methods, e.g. get_scenario() or get_network() to avoid "
+                    "ambiguity or to use unique scenario, collection and bus names.",
+                    key,
+                    types,
+                    types[0],
+                )
+
+            if results:
+                return results[0][1]
+            else:
+                msg = f"Key '{key}' not found in scenarios, collection, or buses."
+                raise KeyError(msg)
+        else:
+            # Check for deprecated tuple usage (buses, snapshots)
+            if isinstance(key, tuple) and len(key) == 2:
+                warnings.warn(
+                    "Slicing by (buses, snapshots) tuples in __getitem__ is no longer supported. "
+                    "Use the slice_network() method instead: "
+                    "n.slice_network(buses=buses, snapshots=snapshots)",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                msg = "Tuple slicing is deprecated. Use slice_network(buses=..., snapshots=...) instead."
+                raise NotImplementedError(msg)
+
+            return self.slice_network(key)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
@@ -789,97 +954,6 @@ class Network(
         ]:
             if hasattr(self, attr):
                 setattr(n, attr, getattr(self, attr))
-
-        return n
-
-    def __getitem__(self, key: str) -> Network:
-        """Return a shallow slice of the Network object.
-
-        A shallow slice will only include the selected buses and all the connected
-        components.
-
-        Parameters
-        ----------
-        key : indexer or tuple of indexer
-            If only one indexer is provided it is used in the .loc
-            indexer of the buses dataframe (refer also to the help for
-            pd.DataFrame.loc). If a tuple of two indexers are provided,
-            the first one is used to slice snapshots and the second
-            one buses.
-
-        Returns
-        -------
-        n : pypsa.Network
-
-        Examples
-        --------
-        >>> sub_network_0 = n[n.buses.sub_network == "0"]
-
-        """
-        if isinstance(key, tuple):
-            time_i, key = key
-        else:
-            time_i = slice(None)
-
-        # Setup new network
-        n = self.__class__()
-
-        n.add(
-            "Bus",
-            pd.DataFrame(self.c.buses.static.loc[key]).assign(sub_network="").index,
-            **pd.DataFrame(self.c.buses.static.loc[key]).assign(sub_network=""),
-        )
-        buses_i = n.c.buses.static.index
-
-        rest_components = (
-            self.all_components
-            - self.standard_type_components
-            - self.one_port_components
-            - self.branch_components
-        )
-        for c in rest_components - {"Bus", "SubNetwork"}:
-            n.add(c, self.components[c].static.index, **self.components[c].static)
-
-        for c in self.standard_type_components:
-            static = pd.DataFrame(
-                self.components[c].static.drop(
-                    self.components[c]["standard_types"].index
-                )
-            )
-            n.add(c, static.index, **static)
-
-        for c in self.one_port_components:
-            static = pd.DataFrame(self.c[c].static.loc[lambda df: df.bus.isin(buses_i)])
-            n.add(c, static.index, **static)
-
-        for c in self.branch_components:
-            static = pd.DataFrame(
-                self.c[c].static.loc[
-                    lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
-                ]
-            )
-            n.add(c, static.index, **static)
-
-        n.set_snapshots(self.snapshots[time_i])
-        for c in self.all_components:
-            c = n.c[c]
-            i = c.static.index
-            try:
-                ndynamic = n.c[c.name].dynamic
-                dynamic = c.dynamic
-
-                for k in dynamic:
-                    ndynamic[k] = dynamic[k].loc[
-                        time_i, i.intersection(dynamic[k].columns)
-                    ]
-            except AttributeError:
-                pass
-
-        # catch all remaining attributes of network
-        for attr in ["name", "_crs"]:
-            setattr(n, attr, getattr(self, attr))
-
-        n.snapshot_weightings = self.snapshot_weightings.loc[time_i]
 
         return n
 
