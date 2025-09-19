@@ -89,7 +89,7 @@ jobs:
         uv run pytest \
         --mpl \
         --mpl-generate-summary=html \
-        --mpl-results-path=/mpl-results \
+        --mpl-results-path=mpl-results \
         --cov=pypsa
         uv run coverage xml
 
@@ -99,7 +99,7 @@ jobs:
       with:
         name: results-plotting
         path: |
-          /mpl-results
+          mpl-results
         retention-days: 14
         if-no-files-found: ignore
 
