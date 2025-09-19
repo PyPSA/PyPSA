@@ -616,6 +616,8 @@ class ChartGenerator(PlotsGenerator, ABC):
         filtered_cols = list(set(filtered_cols))  # Remove duplicates
         if filtered_cols:
             stats_kwargs["groupby"] = filtered_cols
+        if method_name == "prices":
+            stats_kwargs.pop("groupby", None)  # prices does not support groupby
 
         # `aggregate_across_components`
         if method_name != "prices":
