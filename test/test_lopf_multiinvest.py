@@ -603,7 +603,7 @@ def test_store_primary_energy_and_operational_limit_constraint_without_per_perio
     with pytest.raises(NotImplementedError):
         n.optimize(multi_investment_periods=True)
 
-    n.remove("GlobalConstraint", n.global_constraints.index)
+    n.remove("GlobalConstraint", n.c.global_constraints.static.index)
     n.add(
         "GlobalConstraint",
         "co2",
@@ -642,7 +642,7 @@ def test_store_primary_energy_and_operational_limit_constraint_with_per_period()
     n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
     n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
 
-    n.stores.e_initial_per_period = True
+    n.c.stores.static.e_initial_per_period = True
     n.add(
         "GlobalConstraint",
         "co2",
@@ -656,7 +656,7 @@ def test_store_primary_energy_and_operational_limit_constraint_with_per_period()
     almost_equal(n.objective, 10 * 4 + 1 * 4)
 
     # Test operational limit constraint as well
-    n.remove("GlobalConstraint", n.global_constraints.index)
+    n.remove("GlobalConstraint", n.c.global_constraints.component_names)
     n.add(
         "GlobalConstraint",
         "dispatch",
@@ -708,7 +708,7 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_without_pe
     with pytest.raises(NotImplementedError):
         n.optimize(multi_investment_periods=True)
 
-    n.remove("GlobalConstraint", n.global_constraints.index)
+    n.remove("GlobalConstraint", n.c.global_constraints.component_names)
     n.add(
         "GlobalConstraint",
         "co2",
@@ -748,7 +748,7 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_with_per_p
     n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
     n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
 
-    n.storage_units.state_of_charge_initial_per_period = True
+    n.c.storage_units.static.state_of_charge_initial_per_period = True
     n.add(
         "GlobalConstraint",
         "co2",
@@ -762,7 +762,7 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_with_per_p
     almost_equal(n.objective, 10 * 4 + 1 * 4)
 
     # Test operational limit constraint as well
-    n.remove("GlobalConstraint", n.global_constraints.index)
+    n.remove("GlobalConstraint", n.c.global_constraints.component_names)
     n.add(
         "GlobalConstraint",
         "dispatch",
