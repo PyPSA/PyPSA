@@ -108,6 +108,11 @@ jobs:
       run: |
         uv run pytest --new-components-api
 
+    - name: Run unit tests (new API)
+      if: matrix.api == 'new_api'
+      run: |
+        uv run pytest --new-components-api
+
     - name: Upload code coverage report
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
       uses: codecov/codecov-action@v5
