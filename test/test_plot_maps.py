@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from pypsa.plot.maps.common import _is_cartopy_available
 from pypsa.plot.maps.static import (
-    _is_cartopy_available,
     add_legend_circles,
     add_legend_lines,
     add_legend_patches,
