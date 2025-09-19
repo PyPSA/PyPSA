@@ -19,8 +19,8 @@ plt.rcParams["figure.dpi"] = 100
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
+    reason="Run only once for stability.",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
@@ -32,8 +32,8 @@ def test_simple_plot(ac_dc_network_r, stat_func):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
+    reason="Run only once for stability.",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.parametrize("kind", CHART_TYPES + ["map"])
