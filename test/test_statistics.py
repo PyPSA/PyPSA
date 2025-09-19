@@ -336,8 +336,8 @@ def test_prices(ac_dc_network_r):
 
     # Test bus carrier filtering
     ac_prices = n.statistics.prices(bus_carrier="AC")
-    assert len(ac_prices) == sum(n.buses.carrier == "AC")
+    assert len(ac_prices) == sum(n.c.buses.static.carrier == "AC")
 
     # Test groupby bus_carrier
     grouped = n.statistics.prices(groupby="bus_carrier")
-    assert set(grouped.index) == set(n.buses.carrier.unique())
+    assert set(grouped.index) == set(n.c.buses.static.carrier.unique())

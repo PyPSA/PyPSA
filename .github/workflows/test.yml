@@ -86,11 +86,7 @@ jobs:
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: |
-        uv run pytest \
-        --mpl \
-        --mpl-generate-summary=html \
-        --mpl-results-path=mpl-results \
-        --cov=pypsa
+        uv run pytest --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results --cov=pypsa
         uv run coverage xml
 
     - name: Upload artifacts

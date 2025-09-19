@@ -2584,7 +2584,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df = a / b
 
         if groupby == "bus_carrier":
-            df = df.groupby(n.buses.carrier).apply(
+            df = df.groupby(n.c.buses.static.carrier).apply(
                 lambda g: (g * b.loc[g.index]).sum() / b.loc[g.index].sum()
             )
             df.index.name = "bus_carrier"
