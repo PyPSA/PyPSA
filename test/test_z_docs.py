@@ -3,6 +3,7 @@ import importlib
 import pkgutil
 import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -48,6 +49,14 @@ modules = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def close_matplotlib_figures():
+    """Close all matplotlib figures before and after each test."""
+    plt.close("all")
+    yield
+    plt.close("all")
+
+
 @pytest.mark.skipif(
     sys.version_info[:2] == (3, 10),
     reason="Doctest fail until linopy supports numpy 2 on all python versions",
@@ -55,7 +64,7 @@ modules = [
 @pytest.mark.skipif(new_api, reason="New components API not yet shown in docs")
 @pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize("module", modules)
-def test_doctest(module):
+def test_doctest(module, close_matplotlib_figures):
     finder = doctest.DocTestFinder()
 
     runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
