@@ -6,27 +6,35 @@ different default parameters. This schema defines default parameters if they are
 different based on the plot type. If they do not differ, the signature's default
 is used and no entry is made in the schema.
 
-The module defines two dictionaries:
+The module defines the following dictionaries:
 1. SCHEMA_DEFAULTS:
     {"<parameter_name>": <default_value>}
     General default values for all statistics/ plot combinations. Will be used if
     no specific overwrite value is defined in the SCHEMA dictionary.
-2. SCHEMA_ADDITIONAL_PARAMETERS:
-    {"<statistics_name>": <allowed_boolean>}
+2. PARAMETERS_ADDITIONAL:
+    {"<statistics_name>": [<parameter_names>]}
     Different statistics functions can have different signatures, therefore not all
-    parameters are allowed for all statistics functions. When a statistics function
-    is set to False here, all methods will raise an error if the parameter is
-    provided. It can be used only if also defined in the SCHEMA dictionary.
+    parameters are allowed for all statistics functions. Parameters listed here are
+    additional parameters that are allowed for the specific statistics function.
+    By default, parameters in this list are not allowed unless explicitly enabled
+    here. Once enabled, they can be used for all plot types of that statistic
+    unless excluded elsewhere.
     For arguments of the plotting functions, the allowed values do not need to be
     defined, since they are already defined in the function signature.
-    {"<parameter_name>": <allowed_value_list>}
-2. SCHEMA:
+3. PARAMETERS_EXCLUDED:
+    {"<statistics_name>": [<parameter_names_to_exclude>]}
+    Parameters that should be excluded (not allowed) for specific statistics functions
+    across all plot types. This provides a cleaner alternative to achieve the same result
+    as adding many entries to PARAMETERS_ADDITIONAL. Use this when a parameter
+    from PARAMETERS_ADDITIONAL should be excluded for a statistics function
+    rather than defining separate entries in PARAMETERS_ADDITIONAL.
+4. SCHEMA:
     {"<statistics_name>": {"<plot_type>": {"<parameter_name>": <default_value>}}}
     The schema for each statistics function and plot type. The default values are
     defined in the SCHEMA_DEFAULTS dictionary and overwritten here if they are
     different for the specific statistics/ plot combination.
 
-Both dictionaries are combined to create a final schema which has a default and optional
+All dictionaries are combined to create a final schema which has a default and optional
 allowed value list for each statistics/ plot combination.
 """
 
@@ -65,11 +73,15 @@ SCHEMA_METHOD_DEFAULTS: dict = {
     "bar": {"x": "value", "y": "carrier", "color": "carrier"},
 }
 
-SCHEMA_ADDITIONAL_PARAMETERS: dict = {
+PARAMETERS_ADDITIONAL: dict = {
     "optimal_capacity": ["storage"],
     "installed_capacity": ["storage"],
     "energy_balance": ["direction"],
     "revenue": ["direction"],
+}
+
+PARAMETERS_EXCLUDED: dict = {
+    "prices": ["carrier"],
 }
 
 SCHEMA: dict = {
@@ -143,6 +155,7 @@ SCHEMA: dict = {
         "area": {"x": "snapshot", "color": "carrier"},
     },
     "system_cost": {},
+    "prices": {},
 }
 
 
@@ -159,9 +172,7 @@ def _combine_schemas() -> dict:
     plot_types = ["map", "plot"] + CHART_TYPES
 
     additional_parameters = {
-        value
-        for param_list in SCHEMA_ADDITIONAL_PARAMETERS.values()
-        for value in param_list
+        value for param_list in PARAMETERS_ADDITIONAL.values() for value in param_list
     }
 
     for stat_name in SCHEMA:  # noqa: PLC0206
@@ -179,7 +190,7 @@ def _combine_schemas() -> dict:
                 }
 
                 # Allow if Other Parameters selection again
-                if param in SCHEMA_ADDITIONAL_PARAMETERS.get(stat_name, []):
+                if param in PARAMETERS_ADDITIONAL.get(stat_name, []):
                     combined_schema[stat_name][plot_type][param]["allowed"] = True
 
             if plot_type in SCHEMA_METHOD_DEFAULTS:
@@ -197,6 +208,12 @@ def _combine_schemas() -> dict:
                     "default": value,
                     "allowed": True,
                 }
+
+            # Apply parameter exclusions from PARAMETERS_EXCLUDED
+            excluded_params = PARAMETERS_EXCLUDED.get(stat_name, [])
+            for param in excluded_params:
+                if param in combined_schema[stat_name][plot_type]:
+                    combined_schema[stat_name][plot_type][param]["allowed"] = False
 
     return combined_schema
 

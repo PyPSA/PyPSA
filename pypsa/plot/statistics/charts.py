@@ -618,7 +618,8 @@ class ChartGenerator(PlotsGenerator, ABC):
             stats_kwargs["groupby"] = filtered_cols
 
         # `aggregate_across_components`
-        stats_kwargs["aggregate_across_components"] = "component" not in args
+        if method_name != "prices":
+            stats_kwargs["aggregate_across_components"] = "component" not in args
 
         # `groupby_time` is only relevant for time series data
         if "snapshot" in args:
