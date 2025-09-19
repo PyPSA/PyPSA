@@ -324,17 +324,20 @@ def test_system_cost(ac_dc_network_r):
 
 def test_prices(ac_dc_network_r):
     n = ac_dc_network_r
+
+    # Test basic prices (load-weighted by default)
     prices = n.statistics.prices()
-    assert not prices.empty
     assert isinstance(prices, pd.Series)
+    assert len(prices) == len(n.buses)
 
     time_weighted = n.statistics.prices(weighting="time")
     load_weighted = n.statistics.prices(weighting="load")
     assert not time_weighted.equals(load_weighted)
 
+    # Test bus carrier filtering
     ac_prices = n.statistics.prices(bus_carrier="AC")
-    assert len(ac_prices) == 6
+    assert len(ac_prices) == sum(n.buses.carrier == "AC")
 
-    aggregate_buses = n.statistics.prices(aggregate_buses=True)
-    answer = pd.Index(["AC", "DC"])
-    assert aggregate_buses.index.equals(answer)
+    # Test groupby bus_carrier
+    grouped = n.statistics.prices(groupby="bus_carrier")
+    assert set(grouped.index) == set(n.buses.carrier.unique())
