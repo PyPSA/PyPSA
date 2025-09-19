@@ -94,7 +94,7 @@ jobs:
         uv run coverage xml
 
     - name: Upload artifacts
-      if: matrix.api == 'default'
+      if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
       uses: actions/upload-artifact@v4
       with:
         name: results-plotting
