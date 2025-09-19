@@ -86,7 +86,23 @@ jobs:
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: |
-        uv run pytest --mpl --cov=pypsa && uv run coverage xml
+        uv run pytest --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results --cov=pypsa
+        uv run coverage xml
+
+    - name: Upload artifacts
+      if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
+      uses: actions/upload-artifact@v4
+      with:
+        name: results-plotting
+        path: |
+          mpl-results
+        retention-days: 14
+        if-no-files-found: ignore
+
+    - name: Run unit tests (new API)
+      if: matrix.api == 'new_api'
+      run: |
+        uv run pytest --new-components-api
 
     - name: Run unit tests (new API)
       if: matrix.api == 'new_api'
