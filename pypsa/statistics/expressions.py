@@ -561,6 +561,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             self.opex,
             self.revenue,
             self.market_value,
+            self.carbon_emissions,
         ]
 
         res = {}
@@ -2468,4 +2469,110 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
         df = self.revenue(**kwargs) / self.supply(**kwargs)
         df.attrs["name"] = "Market Value"
         df.attrs["unit"] = "currency / MWh"
+        return df
+
+    @MethodHandlerWrapper(handler_class=StatisticHandler, inject_attrs={"n": "_n"})
+    def carbon_emissions(
+        self,
+        comps: str | Sequence[str] | None = None,
+        aggregate_time: str | bool = "sum",
+        aggregate_groups: Callable | str = "sum",
+        aggregate_across_components: bool = False,
+        groupby: str | Sequence[str] | Callable = "carrier",
+        at_port: bool | str | Sequence[str] = True,
+        carrier: str | Sequence[str] | None = None,
+        bus_carrier: str | Sequence[str] | None = None,
+        nice_names: bool | None = None,
+        drop_zero: bool | None = None,
+        round: int | None = None,
+    ) -> pd.DataFrame:
+        """
+        Calculate the carbon emission of components in the network.
+
+        If `bus_carrier` is given, only the carbon emission resulting from buses with
+        carrier `bus_carrier` are calculated.
+        For information on the list of arguments, see the docs in
+        `Network.statistics` or `pypsa.statistics.StatisticsAccessor`.
+
+        Parameters
+        ----------
+        comps : str | Sequence[str] | None, default=None
+            Components to include in the calculation. If None, includes all one-port
+            and branch components. Available components are 'Generator', 'StorageUnit',
+            'Store', 'Load', 'Line', 'Transformer' and'Link'.
+        aggregate_groups : Callable | str, default="sum"
+            Function to aggregate groups when using the groupby parameter.
+            Any pandas aggregation function can be used.
+        aggregate_across_components : bool, default=False
+            Whether to aggregate across components. If there are different components
+            which would be grouped together due to the same index, this is avoided.
+        groupby : str | Sequence[str] | Callable, default=["carrier", "bus_carrier"]
+            How to group components:
+            - str or list of str: Column names from component static DataFrames
+            - callable: Function that takes network and component name as arguments
+        at_port : bool | str | Sequence[str], default=True
+            Which ports to consider:
+            - True: All ports of components
+            - False: Exclude first port ("bus"/"bus0")
+            - str or list of str: Specific ports to include
+        carrier : str | Sequence[str] | None, default=None
+            Filter by carrier. If specified, only considers assets with given
+            carrier(s).
+        bus_carrier : str | Sequence[str] | None, default=None
+            Filter by carrier of connected buses. If specified, only considers assets
+            connected to buses with the given carrier(s).
+        nice_names : bool | None, default=None
+            Whether to use carrier nice names defined in n.carriers.nice_name. Defaults
+            to module wide option (default: True).
+            See `pypsa.options.params.statistics.describe()` for more information.
+        drop_zero : bool | None, default=None
+            Whether to drop zero values from the result. Defaults to module wide option
+            (default: True). See `pypsa.options.params.statistics.describe()` for more
+            information.
+        round : int | None, default=None
+            Number of decimal places to round the result to. Defaults to module wide
+            option (default: 2). See `pypsa.options.params.statistics.describe()` for
+            more information.
+
+        Additional Parameters
+        ---------------------
+        aggregate_time : str | bool, default="sum"
+            Type of aggregation when aggregating time series. Deactivate by setting to
+            False. Any pandas aggregation function can be used. Note that when
+            aggregating the time series are aggregated to MWh using snapshot weightings.
+            With False the time series is given in MW.
+
+        """
+
+        @pass_empty_series_if_keyerror
+        def func(n: Network, c: str, port: str) -> pd.Series:
+            if c != "Generator":
+                return pd.Series(dtype=float)
+
+            efficiency = n.get_switchable_as_dense(c, "efficiency")
+            if not at_port:
+                efficiency = abs(efficiency)
+            weights = get_weightings(n, c)
+            p = (
+                get_operation(n, c).abs()
+                / efficiency
+                * n.static(c).carrier.map(n.carriers.co2_emissions).fillna(0)
+            )
+            return self._aggregate_timeseries(p, weights, agg=aggregate_time)
+
+        df = self._aggregate_components(
+            func,
+            agg=aggregate_groups,
+            comps=comps,
+            groupby=groupby,
+            aggregate_across_components=aggregate_across_components,
+            at_port=at_port,
+            carrier=carrier,
+            bus_carrier=bus_carrier,
+            drop_zero=drop_zero,
+            nice_names=nice_names,
+            round=round,
+        )
+        df.attrs["name"] = "Carbon Emission"
+        df.attrs["unit"] = "carbon"
         return df
