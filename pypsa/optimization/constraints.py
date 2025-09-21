@@ -14,6 +14,7 @@ from linopy import merge
 from numpy import inf, isfinite
 from xarray import DataArray, concat
 
+from pypsa._options import options
 from pypsa.common import as_index, expand_series
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
@@ -29,9 +30,6 @@ if TYPE_CHECKING:
     ArgItem = list[str | int | float | DataArray]
 
 logger = logging.getLogger(__name__)
-
-# Big-M constant for committable+extendable components
-DEFAULT_BIG_M = 1e6
 
 # TODO move to constants.py
 lookup = pd.read_csv(
@@ -334,10 +332,11 @@ def define_operational_constraints_for_committables(
         p_nom_max_vals = c.da.p_nom_max.sel(name=com_ext_i)
         max_pu_vals = max_pu.sel(name=com_ext_i).max("snapshot")
 
+        big_m_default = options.params.optimize.big_m
         M_values = xr.where(
             isfinite(p_nom_max_vals) & (p_nom_max_vals > 0),
             p_nom_max_vals * max_pu_vals,
-            DEFAULT_BIG_M,
+            big_m_default,
         )
         p_ext = p.sel(name=com_ext_i)
         status_ext = status.sel(name=com_ext_i)

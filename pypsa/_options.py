@@ -515,3 +515,8 @@ options._add_option(
     {},
     "Default value for the 'solver_options' parameter in optimization module.",
 )
+options._add_option(
+    "params.optimize.big_m",
+    1e6,
+    "Default big-M value used for committable+extendable constraints in optimization.",
+)
