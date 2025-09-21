@@ -3,6 +3,7 @@
 import time
 
 import numpy as np
+import pytest
 
 import pypsa
 
@@ -221,6 +222,126 @@ def test_big_m_formulation_constraints():
     )
     assert len(capacity_upper_constraints) > 0, (
         f"Capacity upper constraints should exist. Found constraints: {constraint_names}"
+    )
+
+
+def test_non_negative_constraint_added():
+    """Ensure non-negative dispatch constraint is added when min_pu >= 0."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+
+    n.add("Bus", "bus", carrier="el")
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.add(
+        "Generator",
+        "uc_gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=200,
+        p_min_pu=0.0,
+        p_max_pu=0.8,
+        marginal_cost=10,
+        capital_cost=1000,
+    )
+
+    n.optimize.create_model()
+
+    constraint_names = list(n.model.constraints)
+    assert any("Generator-com-ext-p-lower-nonneg" in name for name in constraint_names)
+
+
+def test_non_negative_constraint_skipped_for_negative_min_pu():
+    """Ensure non-negative constraint is skipped when min_pu is negative."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+
+    n.add("Bus", "bus", carrier="el")
+    n.add("Load", "load", bus="bus", p_set=50)
+
+    n.add(
+        "Generator",
+        "uc_gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=200,
+        p_min_pu=-0.1,
+        p_max_pu=0.8,
+        marginal_cost=10,
+        capital_cost=1000,
+    )
+
+    n.optimize.create_model()
+
+    constraint_names = list(n.model.constraints)
+    assert not any(
+        "Generator-com-ext-p-lower-nonneg" in name for name in constraint_names
+    )
+
+
+def test_committable_extendable_can_switch_off():
+    """Ensure committable+extendable units can be offline without infeasibility."""
+    n = pypsa.Network()
+    n.set_snapshots(range(2))
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[100, 0])
+
+    n.add(
+        "Generator",
+        "uc_gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        marginal_cost=40,
+        capital_cost=60000,
+        p_nom_max=200,
+        p_min_pu=0.4,
+        start_up_cost=200,
+        shut_down_cost=100,
+    )
+
+    status, termination_code = n.optimize(solver_name="highs")
+
+    assert status == "ok"
+    assert n.generators.p_nom_opt.loc["uc_gen"] > 0
+
+    status_values = n.generators_t.status["uc_gen"]
+    dispatch_values = n.generators_t.p["uc_gen"]
+
+    assert status_values.iloc[0] > 0.5
+    assert dispatch_values.iloc[0] == pytest.approx(100, rel=1e-6, abs=1e-6)
+
+    assert status_values.iloc[1] < 0.5
+    assert abs(dispatch_values.iloc[1]) < 1e-6
+
+
+def test_big_m_warning_emitted(caplog):
+    """Trigger the big-M warning when optimized capacity exceeds the bound."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+
+    n.add("Bus", "bus")
+    n.add(
+        "Generator",
+        "uc_gen",
+        bus="bus",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_max=100,
+    )
+
+    n.generators.loc["uc_gen", "p_nom_opt"] = 60
+    n.generators.loc["uc_gen", "p_max_pu"] = 0.2
+    n.generators_t.p_max_pu.loc[:, "uc_gen"] = 0.2
+
+    caplog.set_level("WARNING", logger="pypsa.optimization.optimize")
+    n.optimize._warn_big_m_exceeded()
+
+    assert any("big-M bounds" in record.message for record in caplog.records), (
+        "Expected big-M warning was not emitted"
     )
 
 

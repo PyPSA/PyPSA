@@ -345,11 +345,11 @@ def define_operational_constraints_for_committables(
         max_pu_ext = max_pu.sel(name=com_ext_i)
 
         active_ext = active.sel(name=com_ext_i)
-        lhs_lower = (1, p_ext), (-min_pu_ext, p_nom_ext), (M_values, status_ext)
+        lhs_lower = (1, p_ext), (-min_pu_ext, p_nom_ext), (-M_values, status_ext)
         n.model.add_constraints(
             lhs_lower,
             ">=",
-            M_values,
+            -M_values,
             name=f"{c.name}-com-ext-p-lower",
             mask=active_ext,
         )
@@ -363,14 +363,35 @@ def define_operational_constraints_for_committables(
             mask=active_ext,
         )
 
-        lhs_tuple_3 = (1, p_ext), (-max_pu_ext, p_nom_ext)
+        lhs_upper_cap = (1, p_ext), (-max_pu_ext, p_nom_ext)
         n.model.add_constraints(
-            lhs_tuple_3,
+            lhs_upper_cap,
             "<=",
             0,
             name=f"{c.name}-com-ext-p-upper-cap",
             mask=active_ext,
         )
+
+        dims_excl_name = [dim for dim in min_pu_ext.dims if dim != "name"]
+        if dims_excl_name:
+            nonneg_mask = (min_pu_ext >= 0).all(dim=dims_excl_name)
+        else:
+            nonneg_mask = min_pu_ext >= 0
+
+        if nonneg_mask.any().item():
+            nonneg_idx = nonneg_mask.to_series()
+            nonneg_idx = nonneg_idx[nonneg_idx].index
+            if len(nonneg_idx) > 0:
+                p_nonneg = p_ext.sel(name=nonneg_idx)
+                active_nonneg = active_ext.sel(name=nonneg_idx)
+                lhs_nonneg = ((1, p_nonneg),)
+                n.model.add_constraints(
+                    lhs_nonneg,
+                    ">=",
+                    0,
+                    name=f"{c.name}-com-ext-p-lower-nonneg",
+                    mask=active_nonneg,
+                )
 
     if not com_fix_i.empty:
         p_fix = p.sel(name=com_fix_i)
@@ -379,14 +400,22 @@ def define_operational_constraints_for_committables(
         upper_p_fix = upper_p.sel(name=com_fix_i)
         active_fix = active.sel(name=com_fix_i)
 
-        lhs_tuple_fix_1 = (1, p_fix), (-lower_p_fix, status_fix)
+        lhs_lower_fix = (1, p_fix), (-lower_p_fix, status_fix)
         n.model.add_constraints(
-            lhs_tuple_fix_1, ">=", 0, name=f"{c.name}-com-p-lower", mask=active_fix
+            lhs_lower_fix,
+            ">=",
+            0,
+            name=f"{c.name}-com-p-lower",
+            mask=active_fix,
         )
 
-        lhs_tuple_fix_2 = (1, p_fix), (-upper_p_fix, status_fix)
+        lhs_upper_fix = (1, p_fix), (-upper_p_fix, status_fix)
         n.model.add_constraints(
-            lhs_tuple_fix_2, "<=", 0, name=f"{c.name}-com-p-upper", mask=active_fix
+            lhs_upper_fix,
+            "<=",
+            0,
+            name=f"{c.name}-com-p-upper",
+            mask=active_fix,
         )
 
     # state-transition constraint
