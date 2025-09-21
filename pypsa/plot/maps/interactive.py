@@ -22,12 +22,15 @@ from pypsa.plot.maps.common import (
     as_branch_series,
     calculate_angle,
     calculate_midpoint,
+    create_rgba_colors,
     df_to_html_table,
     feature_to_geojson,
     flip_polygon,
+    get_global_stat,
     meters_to_lonlat,
     rotate_polygon,
     scale_polygon_by_width,
+    scale_to_max_abs,
     set_tooltip_style,
     shapefile_to_geojson,
     to_rgba255,
@@ -399,6 +402,7 @@ class PydeckPlotter:
         )
         self._layers: dict[str, pdk.Layer] = {}
         self._tooltip_style: dict[str, str] = set_tooltip_style()
+        self._component_data: dict[str, pd.DataFrame] = {}
 
     @property
     def map_style(self) -> str:
@@ -979,65 +983,35 @@ class PydeckPlotter:
 
         self._layers["PieChart"] = layer
 
-    # Add branch layer
-    def add_branch_layer(
+    def init_branch_component_data(
         self,
         c_name: str,
-        branch_flow: float | dict | pd.Series = 0,
-        branch_color: str | dict | pd.Series = "rosybrown",
-        branch_cmap: str | mcolors.Colormap = "viridis",
-        branch_cmap_norm: mcolors.Normalize | None = None,
-        branch_alpha: float | dict | pd.Series = 0.9,
-        branch_width: float | dict | pd.Series = 1.5,
         branch_columns: list | None = None,
-        arrow_size_factor: float = 1.5,
-        arrow_color: str | dict | pd.Series = "black",
-        arrow_alpha: float | dict | pd.Series = 0.9,
-        tooltip: bool = True,
     ) -> None:
-        """Add a line layer of Pydeck type PathLayer to the interactive map.
+        """Initialize data for a specific branch component type.
 
         Parameters
         ----------
         c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer".
-        branch_flow : float/dict/pandas.Series
-            Flow values for the branch component, defaults to 0.
-            If not 0, arrows will be drawn on the lines.
-        branch_color : str/dict/pandas.Series
-            Colors for the branch component, defaults to 'rosybrown'.
-        branch_cmap : str/matplotlib.colors.Colormap, default 'viridis'
-            Colormap to use if branch_color is a numeric pandas.Series.
-        branch_cmap_norm : matplotlib.colors.Normalize, optional
-            Normalization to use if branch_color is a numeric pandas.Series.
-        branch_alpha : float/dict/pandas.Series
-            Add alpha channel to branch components, defaults to 0.9.
-        branch_width : float/dict/pandas.Series
-            Widths of branch component in km, defaults to 1.5.
+            Name of the branch component type, e.g. "Line", "Link", "Transformer
         branch_columns : list, default None
-            List of branch columns to include.
-            Specify additional columns to include in the tooltip.
-        arrow_size_factor : float, default 1.5
-            Factor to scale the arrow size. If 0, no arrows will be drawn.
-        arrow_color : str/dict/pandas.Series
-            Colors for the arrows, defaults to 'black'.
-        arrow_alpha : float/dict/pandas.Series
-            Add alpha channel to arrows, defaults to 0.9.
-        tooltip : bool, default True
-            Enable or disable tooltips for the branch layer.
+            List of branch columns to include. Specify additional columns to include in the tooltip.
 
         Returns
         -------
         None
 
         """
+        if c_name not in self._component_data:
+            self._component_data[c_name] = {}
+
         if self._n.static(c_name).empty:
             msg = f"No data found for component '{c_name}'. Skipping layer creation."
             logger.warning(msg)
             return
 
         # Prepare data for lines
-        c_data, valid_columns = self.prepare_component_data(
+        c_data, _ = self.prepare_component_data(
             c_name,
             default_columns=["bus0", "bus1"],
             extra_columns=branch_columns,
@@ -1055,9 +1029,29 @@ class PydeckPlotter:
             if c_data.empty:
                 return
 
+        self._component_data[c_name] = c_data
+
+    def create_branch_paths(
+        self,
+        c_name: str,
+    ) -> None:
+        """Create path geometries for a specific branch component type.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+
+        Returns
+        -------
+        None
+
+        """
+        c_data = self._component_data[c_name]
+
         # Build path column as list of [lon, lat] pairs for each line
-        # Assuming x, y are aligned, done above
-        c_data["path"] = list(
+        # Assuming x, y are aligned
+        branch_paths = list(
             zip(
                 zip(
                     self._x.loc[c_data["bus0"]],
@@ -1072,41 +1066,71 @@ class PydeckPlotter:
                 strict=False,
             )
         )
+        c_data["path"] = branch_paths
 
-        # Convert colors to RGBA list
-        colors = _convert_to_series(branch_color, c_data.index)
-        alphas = _convert_to_series(branch_alpha, c_data.index)
+    def create_branch_colors(
+        self,
+        c_name: str,
+        branch_color: str | dict | pd.Series = "rosybrown",
+        branch_cmap: str | mcolors.Colormap = "viridis",
+        branch_cmap_norm: mcolors.Normalize | None = None,
+        branch_alpha: float | dict | pd.Series = 0.9,
+    ) -> None:
+        """Create colors for a specific branch component type.
 
-        # Apply colormap only if numeric
-        colors = apply_cmap(colors, branch_cmap, branch_cmap_norm)
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        branch_color : str/dict/pandas.Series
+            Colors for the branch component, defaults to 'rosybrown'.
+        branch_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if branch_color is a numeric pandas.Series.
+        branch_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if branch_color is a numeric pandas.Series.
+        branch_alpha : float/dict/pandas.Series
+            Add alpha channel to branch components, defaults to 0.9.
 
-        # # Convert everything to RGBA 0-255 for Pydeck
-        c_data["rgba"] = [
-            to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
-        ]
+        Returns
+        -------
+        None
 
-        # Map line widths
-        branch_width = _convert_to_series(branch_width, c_data.index)
-        # Convert widths from km to m
-        branch_width = branch_width * 1e3
-        c_data["width"] = branch_width.abs()
+        """
+        c_data = self._component_data[c_name]
+        create_rgba_colors(
+            df=c_data,
+            color=branch_color,
+            cmap=branch_cmap,
+            cmap_norm=branch_cmap_norm,
+            alpha=branch_alpha,
+            target_col="rgba",
+        )
 
-        # Tooltip
-        if tooltip:
-            c_data["tooltip_html"] = df_to_html_table(
-                c_data,
-                columns=valid_columns,
-                rounding=2,
-                value_align="left",
-                max_header_length=30,
-            )
+    # Add branch layer
+    def create_branch_layer(
+        self,
+        c_name: str,
+    ) -> None:
+        """Add a line layer of Pydeck type PathLayer to the interactive map.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+
+        Returns
+        -------
+        None
+
+        """
+        c_data = self._component_data[c_name]
 
         # Create PathLayer, use "path" column for get_path
         layer = pdk.Layer(
             "PathLayer",
             data=c_data.reset_index(),
             get_path="path",
-            get_width="width",
+            get_width="width_pdk",
             get_color="rgba",
             pickable=True,
             auto_highlight=True,
@@ -1117,10 +1141,34 @@ class PydeckPlotter:
 
         self._layers[c_name] = layer
 
+    def init_arrow_data(
+        self,
+        c_name: str,
+        branch_flow: float | dict | pd.Series = 0,
+        arrow_size_factor: float = 1.5,
+    ) -> None:
+        """Initialize arrow data for a specific branch component type.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        branch_flow : float/dict/pandas.Series
+            Flow values for the branch component, defaults to 0.
+            If not 0, arrows will be drawn on the lines.
+        arrow_size_factor : float, default 1.5
+            Factor to scale the arrow size. If 0, no arrows will be drawn.
+
+        Returns
+        -------
+        None
+
+        """
+        c_data = self._component_data[c_name]
+
         # Arrow layer
         branch_flow = _convert_to_series(branch_flow, c_data.index)
-        # Convert flows from 1e3 to 1
-        branch_flow = branch_flow * 1e3
+        branch_flow = branch_flow * 1e3  # Convert flow from km to m
         flows_are_zero = (branch_flow == 0).all()
 
         if (
@@ -1128,43 +1176,439 @@ class PydeckPlotter:
             and not flows_are_zero
             and arrow_size_factor != 0
         ):
-            if arrow_color is None:
-                arrow_color = branch_color
-
-            # Map branch_flows to c_data
             c_data["flow"] = c_data.index.map(branch_flow)
-            c_data["arrow"] = c_data.apply(
-                lambda row: PydeckPlotter._make_arrows(
-                    flow=row["flow"],
-                    p0_geo=row["path"][0],
-                    p1_geo=row["path"][-1],
-                    arrow_size_factor=arrow_size_factor,
-                ),
-                axis=1,
+
+    def create_arrows(
+        self,
+        c_name: str,
+        arrow_size_factor: float = 1.5,
+    ) -> None:
+        """Create and scale arrows for a specific branch component type.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        arrow_size_factor : float, default 1.5
+            Factor to scale the arrow size. If 0, no arrows will be drawn.
+
+        """
+        c_data = self._component_data[c_name]
+        c_data["arrow"] = c_data.apply(
+            lambda row: PydeckPlotter._make_arrows(
+                flow=row["flow_pdk"],
+                p0_geo=row["path"][0],
+                p1_geo=row["path"][-1],
+                arrow_size_factor=arrow_size_factor,
+            ),
+            axis=1,
+        )
+
+    def create_arrow_colors(
+        self,
+        c_name: str,
+        arrow_color: str | dict | pd.Series | None = None,
+        arrow_cmap: str | mcolors.Colormap = "viridis",
+        arrow_cmap_norm: mcolors.Normalize | None = None,
+        arrow_alpha: float | dict | pd.Series = 0.9,
+    ) -> None:
+        """Create arrow colors for a specific branch component type.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        arrow_color : str/dict/pandas.Series/None
+            Colors for the arrows, defaults to None.
+            If None, the branch color is used for the arrows.
+        arrow_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if arrow_color is a numeric pandas.Series.
+        arrow_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if arrow_color is a numeric pandas.Series.
+        arrow_alpha : float/dict/pandas.Series
+            Add alpha channel to arrows, defaults to 0.9.
+
+        Returns
+        -------
+        None
+
+        """
+        c_data = self._component_data[c_name]
+        create_rgba_colors(
+            df=c_data,
+            color=arrow_color,
+            cmap=arrow_cmap,
+            cmap_norm=arrow_cmap_norm,
+            alpha=arrow_alpha,
+            target_col="rgba_arrow",
+            fallback_col="rgba",  # reuse branch colors if arrow_color is None
+        )
+
+    def create_arrow_layer(
+        self,
+        c_name: str,
+    ) -> None:
+        """Create arrow PolygonLayer for a specific branch component type.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer
+
+        Returns
+        -------
+        None
+
+        """
+        c_data = self._component_data[c_name]
+
+        layer = pdk.Layer(
+            "PolygonLayer",
+            data=c_data.reset_index(),
+            get_polygon="arrow",
+            get_fill_color="rgba_arrow",
+            pickable=True,
+            auto_highlight=True,
+            parameters={
+                "depthTest": False
+            },  # To prevent z-fighting issues/flickering in 3D space
+        )
+        self._layers[f"{c_name}_arrows"] = layer
+
+    def scale_branch_param(
+        self,
+        c_name: str,
+        branch_param_name: str,
+        branch_param: float | dict | pd.Series | None = None,
+        branch_param_factor: float | None = None,
+        branch_param_max: float = 10,  # km
+        global_param_max: float | None = 1,  # km
+        keep_algebraic_sign: bool = True,
+    ) -> None:
+        """Scale branch params (width, flow) for a specific branch component type.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer
+        branch_param_name : str
+            Name of the branch parameter to be scaled, e.g. "width", "flow".
+        branch_param : float/dict/pandas.Series/None
+            Parameter of branch component in km. If None, width falls back to 1.5 km.
+        branch_param_factor : float/None
+            If None, branch params are auto-scaled to branch_param_max.
+            If a float is provided, branch params are scaled by this factor.
+        branch_param_max : float, default 10
+            Maximum param of branch component in km when auto-scaling.
+        global_param_max : float/None, default 1
+            If multiple branch components are plotted, this ensures that the maximum params are scaled proportionally.
+        keep_algebraic_sign : bool, default True
+            If True, the algebraic sign of branch_param is readded to the scaled parameter.
+
+        Returns
+        -------
+        None
+
+        """
+        c_data = self._component_data[c_name]
+
+        if branch_param is None:
+            branch_param = 1.5  # Default width in km
+
+        if global_param_max == 0:
+            global_param_max = None  # Avoid division by zero
+
+        branch_param = _convert_to_series(branch_param, c_data.index)
+
+        if (branch_param == 0).all():
+            c_data[f"{branch_param_name}_pdk"] = 0
+
+        c_data[branch_param_name] = branch_param
+
+        # Use absolute values
+        sign = (
+            branch_param.apply(np.sign)
+            if keep_algebraic_sign
+            else pd.Series(1, index=branch_param.index)
+        )
+        branch_param_deck = branch_param.abs()
+        local_param_max = branch_param_deck.max()
+
+        if branch_param_factor is None and global_param_max is not None:
+            scaling_factor = (
+                local_param_max / global_param_max * 1e3
+            )  # Keep proportions and convert from km to m
+            branch_param_deck = (
+                scale_to_max_abs(
+                    branch_param_deck,
+                    branch_param_max,
+                )
+                * scaling_factor
+            )
+        if branch_param_factor is not None and global_param_max is not None:
+            scaling_factor = (
+                branch_param_factor * 1e3
+            )  # Manual scaling, convert from km to m
+            branch_param_deck = branch_param_deck * scaling_factor
+        if branch_param_factor is None and global_param_max is None:
+            branch_param_deck = 1500
+
+        c_data[f"{branch_param_name}_pdk"] = branch_param_deck * sign
+
+    def create_tooltips(
+        self,
+        c_name: str,
+        columns: list | None = None,
+    ) -> None:
+        """Create tooltip HTML for a specific branch component type.
+
+        Parameters
+        ----------
+        c_name : str
+            Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        columns : list, default None
+            List of branch columns to include. If None, all columns are used.
+
+        Returns
+        -------
+        None
+
+        """
+        c_data = self._component_data[c_name]
+        if columns is None:
+            columns = list(c_data.columns)
+
+        exclude_cols = ["path", "width_pdk", "arrow", "rgba", "rgba_arrow"]
+        columns = [col for col in columns if col not in exclude_cols]
+
+        c_data["tooltip_html"] = df_to_html_table(
+            c_data,
+            columns=columns,
+            rounding=2,
+            value_align="left",
+            max_header_length=30,
+        )
+
+    def add_branch_and_arrow_layer(
+        self,
+        branch_components: list | set | None = None,
+        branch_width_factor: float | None = None,
+        branch_width_max: float = 10,  # km
+        line_flow: float | dict | pd.Series = 0,
+        line_color: str | dict | pd.Series = "rosybrown",
+        line_cmap: str | mcolors.Colormap = "viridis",
+        line_cmap_norm: mcolors.Normalize | None = None,
+        line_alpha: float | dict | pd.Series = 0.9,
+        line_width: float | dict | pd.Series | None = None,
+        line_columns: list | None = None,
+        link_flow: float | dict | pd.Series = 0,
+        link_color: str | dict | pd.Series = "darkorange",
+        link_cmap: str | mcolors.Colormap = "viridis",
+        link_cmap_norm: mcolors.Normalize | None = None,
+        link_alpha: float | dict | pd.Series = 0.9,
+        link_width: float | dict | pd.Series | None = None,
+        link_columns: list | None = None,
+        transformer_flow: float | dict | pd.Series = 0,
+        transformer_color: str | dict | pd.Series = "purple",
+        transformer_cmap: str | mcolors.Colormap = "viridis",
+        transformer_cmap_norm: mcolors.Normalize | None = None,
+        transformer_alpha: float | dict | pd.Series = 0.9,
+        transformer_width: float | dict | pd.Series | None = None,
+        transformer_columns: list | None = None,
+        arrow_color: str | dict | pd.Series | None = None,
+        arrow_cmap: str | mcolors.Colormap = "viridis",
+        arrow_cmap_norm: mcolors.Normalize | None = None,
+        arrow_alpha: float | dict | pd.Series = 0.9,
+        arrow_size_factor: float = 1.5,
+        tooltip: bool = True,
+    ) -> None:
+        """Add branch and arrow layers of Pydeck type PathLayer and PolygonLayer to the interactive map.
+
+        Parameters
+        ----------
+        branch_components : list, set, optional, default ['Line', 'Link', 'Transformer']
+            Branch components to be plotted
+        branch_width_factor : float/None
+            If None, branch widths are auto-scaled to branch_width_max.
+            If a float is provided, branch widths are scaled by this factor.
+        branch_width_max : float, default 10
+            Maximum width of branch component in km when auto-scaling.
+        line_flow : float/dict/pandas.Series
+            Flow values for lines, defaults to 0.
+            If not 0, arrows will be drawn on the lines.
+        line_color : str/dict/pandas.Series
+            Colors for the lines, defaults to 'rosybrown'.
+        line_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if line_color is a numeric pandas.Series.
+        line_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if line_color is a numeric pandas.Series.
+        line_alpha : float/dict/pandas.Series
+            Add alpha channel to lines, defaults to 0.9.
+        line_width : float/dict/pandas.Series/None
+            Widths of line component in km. If None, width falls back to 1.5 km.
+        line_columns : list, default None
+            List of line columns to include. Specify additional columns to include in the tooltip.
+        link_flow : float/dict/pandas.Series
+            Flow values for links, defaults to 0.
+            If not 0, arrows will be drawn on the links.
+        link_color : str/dict/pandas.Series
+            Colors for the links, defaults to 'darkorange'.
+        link_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if link_color is a numeric pandas.Series.
+        link_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if link_color is a numeric pandas.Series.
+        link_alpha : float/dict/pandas.Series
+            Add alpha channel to links, defaults to 0.9.
+        link_width : float/dict/pandas.Series/None
+            Widths of link component in km. If None, width falls back to 1.5 km.
+        link_columns : list, default None
+            List of link columns to include. Specify additional columns to include in the tooltip.
+        transformer_flow : float/dict/pandas.Series
+            Flow values for transformers, defaults to 0.
+            If not 0, arrows will be drawn on the transformers.
+        transformer_color : str/dict/pandas.Series
+            Colors for the transformers, defaults to 'purple'.
+        transformer_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if transformer_color is a numeric pandas.Series.
+        transformer_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if transformer_color is a numeric pandas.Series.
+        transformer_alpha : float/dict/pandas.Series
+            Add alpha channel to transformers, defaults to 0.9.
+        transformer_width : float/dict/pandas.Series/None
+            Widths of transformer in km. If None, width falls back to 1.5 km.
+        transformer_columns : list, default None
+            List of transformer columns to include. Specify additional columns to include in the tooltip.
+        arrow_color : str/dict/pandas.Series/None
+            Colors for the arrows, defaults to None.
+            If None, the branch color is used for the arrows.
+        arrow_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if arrow_color is a numeric pandas.Series.
+        arrow_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if arrow_color is a numeric pandas.Series.
+        arrow_alpha : float/dict/pandas.Series
+            Add alpha channel to arrows, defaults to 0.9.
+        arrow_size_factor : float, default 1.5
+            Factor to scale the arrow size. If 0, no arrows will be drawn.
+        tooltip : bool, default True
+            Whether to show a tooltip on hover.
+
+        Returns
+        -------
+        None
+
+        """
+        n = self._n
+
+        branch_settings = {
+            "Line": {
+                "flow": line_flow,
+                "color": line_color,
+                "cmap": line_cmap,
+                "cmap_norm": line_cmap_norm,
+                "alpha": line_alpha,
+                "width": line_width,
+                "columns": line_columns,
+            },
+            "Link": {
+                "flow": link_flow,
+                "color": link_color,
+                "cmap": link_cmap,
+                "cmap_norm": link_cmap_norm,
+                "alpha": link_alpha,
+                "width": link_width,
+                "columns": link_columns,
+            },
+            "Transformer": {
+                "flow": transformer_flow,
+                "color": transformer_color,
+                "cmap": transformer_cmap,
+                "cmap_norm": transformer_cmap_norm,
+                "alpha": transformer_alpha,
+                "width": transformer_width,
+                "columns": transformer_columns,
+            },
+        }
+
+        global_width_max = get_global_stat(
+            elements=[s["width"] for s in branch_settings.values()],
+            stat="max",
+            absolute=True,
+        )  # If elements empty, global_width_max is None
+
+        global_flow_max = get_global_stat(
+            elements=[s["flow"] for s in branch_settings.values()],
+            stat="max",
+            absolute=True,
+        )  # If elements empty, global_flow_max is None
+
+        for c in n.iterate_components(branch_components):
+            if n.static(c.name).empty:
+                continue
+
+            # Branch lines
+            self.init_branch_component_data(
+                c_name=c.name,
+                branch_columns=branch_settings[c.name]["columns"],
+            )
+            self.create_branch_paths(c.name)
+            self.create_branch_colors(
+                c_name=c.name,
+                branch_color=branch_settings[c.name]["color"],
+                branch_cmap=branch_settings[c.name]["cmap"],
+                branch_cmap_norm=branch_settings[c.name]["cmap_norm"],
+                branch_alpha=branch_settings[c.name]["alpha"],
+            )
+            self.scale_branch_param(
+                c_name=c.name,
+                branch_param_name="width",
+                branch_param=branch_settings[c.name]["width"],
+                branch_param_factor=branch_width_factor,
+                branch_param_max=branch_width_max,  # km
+                global_param_max=global_width_max,
+                keep_algebraic_sign=False,
+            )
+            if tooltip:
+                self.create_tooltips(
+                    c_name=c.name,
+                )
+            self.create_branch_layer(
+                c_name=c.name,
             )
 
-            colors = _convert_to_series(arrow_color, c_data.index)
-            alphas = _convert_to_series(arrow_alpha, c_data.index)
-
-            # Apply colormap only if numeric
-            colors = apply_cmap(colors, branch_cmap, branch_cmap_norm)
-
-            c_data["rgba"] = [
-                to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
-            ]
-
-            layer = pdk.Layer(
-                "PolygonLayer",
-                data=c_data.reset_index(),
-                get_polygon="arrow",
-                get_fill_color="rgba",
-                pickable=True,
-                auto_highlight=True,
-                parameters={
-                    "depthTest": False
-                },  # To prevent z-fighting issues/flickering in 3D space
+            # Branch arrows
+            self.init_arrow_data(
+                c_name=c.name,
+                branch_flow=branch_settings[c.name]["flow"],
+                arrow_size_factor=arrow_size_factor,
             )
-            self._layers[f"{c_name}_arrows"] = layer
+            self.scale_branch_param(
+                c_name=c.name,
+                branch_param_name="flow",
+                branch_param=branch_settings[c.name]["flow"],
+                branch_param_factor=branch_width_factor,
+                branch_param_max=branch_width_max,  # km
+                global_param_max=global_flow_max,
+                keep_algebraic_sign=True,
+            )
+            self.create_arrows(
+                c_name=c.name,
+                arrow_size_factor=arrow_size_factor,
+            )
+            self.create_arrow_colors(
+                c_name=c.name,
+                arrow_color=arrow_color,
+                arrow_cmap=arrow_cmap,
+                arrow_cmap_norm=arrow_cmap_norm,
+                arrow_alpha=arrow_alpha,
+            )
+            if tooltip:
+                self.create_tooltips(
+                    c_name=c.name,
+                    columns=["flow"],
+                )
+            self.create_arrow_layer(
+                c_name=c.name,
+            )
 
     def add_geomap_layer(
         self,
@@ -1289,6 +1733,8 @@ class PydeckPlotter:
     def build_layers(
         self,
         branch_components: list | set | None = None,
+        branch_width_factor: float | None = None,
+        branch_width_max: float = 10,  # km
         bus_size: float | dict | pd.Series = 25,
         bus_split_circle: bool = False,
         bus_color: str | dict | pd.Series = "cadetblue",
@@ -1300,22 +1746,23 @@ class PydeckPlotter:
         line_cmap: str | mcolors.Colormap = "viridis",
         line_cmap_norm: mcolors.Normalize | None = None,
         line_alpha: float | dict | pd.Series = 0.9,
-        line_width: float | dict | pd.Series = 1.5,
-        line_width_factor: float | Literal["auto"] = "auto",
+        line_width: float | dict | pd.Series | None = None,
         link_flow: float | dict | pd.Series = 0,
         link_color: str | dict | pd.Series = "darkseagreen",
         link_cmap: str | mcolors.Colormap = "viridis",
         link_cmap_norm: mcolors.Normalize | None = None,
         link_alpha: float | dict | pd.Series = 0.9,
-        link_width: float | dict | pd.Series = 1.5,
+        link_width: float | dict | pd.Series | None = None,
         transformer_flow: float | dict | pd.Series = 0,
         transformer_color: str | dict | pd.Series = "orange",
         transformer_cmap: str | mcolors.Colormap = "viridis",
         transformer_cmap_norm: mcolors.Normalize | None = None,
         transformer_alpha: float | dict | pd.Series = 0.9,
-        transformer_width: float | dict | pd.Series = 1.5,
+        transformer_width: float | dict | pd.Series | None = None,
         arrow_size_factor: float = 1.5,
         arrow_color: str | dict | pd.Series | None = None,
+        arrow_cmap: str | mcolors.Colormap = "viridis",
+        arrow_cmap_norm: mcolors.Normalize | None = None,
         arrow_alpha: float | dict | pd.Series = 0.9,
         geomap: bool = False,
         geomap_alpha: float = 0.9,
@@ -1331,8 +1778,13 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        branch_components : list, default n.branch_components
+        branch_components : list, set, optional, default ['Line', 'Link', 'Transformer']
             Branch components to be plotted
+        branch_width_factor : float/None
+            If None, branch widths are auto-scaled to branch_width_max.
+            If a float is provided, branch widths are scaled by this factor.
+        branch_width_max : float, default 10
+            Maximum width of branch component in km when auto-scaling.
         bus_size : float/dict/pandas.Series
             Sizes of bus points in radius² (km²), defaults to 25.
         bus_split_circle : bool, default False
@@ -1358,10 +1810,8 @@ class PydeckPlotter:
             The norm applied to the line_cmap.
         line_alpha : float/dict/pandas.Series
             Add alpha channel to lines, defaults to 0.9.
-        line_width : float/dict/pandas.Series
-            Widths of lines in km, defaults to 1.5.
-        line_width_factor : float | 'auto', default 'auto'
-            Factor to scale line widths based on the network size. If 'auto', the factor is calculated by fitting the maximum line_width.
+        line_width : float/dict/pandas.Series/None
+            Widths of line component in km. If None, width falls back to 1.5 km.
         link_flow : float/dict/pandas.Series, default 0
             Series of link flows indexed by link names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all links.
@@ -1373,8 +1823,8 @@ class PydeckPlotter:
             The norm applied to the link_cmap.
         link_alpha : float/dict/pandas.Series
             Add alpha channel to links, defaults to 0.9.
-        link_width : float/dict/pandas.Series
-            Widths of links in km, defaults to 1.5.
+        link_width : float/dict/pandas.Series/None
+            Widths of link component in km. If None, width falls back to 1.5 km.
         transformer_flow : float/dict/pandas.Series, default 0
             Series of transformer flows indexed by transformer names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all transformers.
@@ -1386,12 +1836,16 @@ class PydeckPlotter:
             The norm applied to the transformer_cmap.
         transformer_alpha : float/dict/pandas.Series
             Add alpha channel to transformers, defaults to 0.9.
-        transformer_width : float/dict/pandas.Series
-            Widths of transformers in km, defaults to 1.5.
+        transformer_width : float/dict/pandas.Series/None
+            Widths of transformer in km. If None, width falls back to 1.5 km.
         arrow_size_factor : float, default 1.5
             Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1 times line_width. If 0, no arrows will be created.
         arrow_color : str/dict/pandas.Series | None, default None
             Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
+        arrow_cmap : str/matplotlib.colors.Colormap, default 'viridis'
+            Colormap to use if arrow_color is a numeric pandas.Series.
+        arrow_cmap_norm : matplotlib.colors.Normalize, optional
+            Normalization to use if arrow_color is a numeric pandas.Series.
         arrow_alpha : float/dict/pandas.Series, default 0.9
             Add alpha channel to arrows, defaults to 0.9.
         geomap : bool, default False
@@ -1436,47 +1890,38 @@ class PydeckPlotter:
         if branch_components is None:
             branch_components = n.branch_components
 
-        for c in n.iterate_components(branch_components):
-            if c.name == "Line":
-                branch_color = line_color
-                branch_alpha = line_alpha
-                branch_width = line_width
-                branch_columns = line_columns
-                branch_flow = line_flow
-                branch_cmap = line_cmap
-                branch_cmap_norm = line_cmap_norm
-            elif c.name == "Link":
-                branch_color = link_color
-                branch_alpha = link_alpha
-                branch_width = link_width
-                branch_columns = link_columns
-                branch_flow = link_flow
-                branch_cmap = link_cmap
-                branch_cmap_norm = link_cmap_norm
-            elif c.name == "Transformer":
-                branch_color = transformer_color
-                branch_alpha = transformer_alpha
-                branch_width = transformer_width
-                branch_columns = transformer_columns
-                branch_flow = transformer_flow
-                branch_cmap = transformer_cmap
-                branch_cmap_norm = transformer_cmap_norm
-
-            if not n.static(c.name).empty:
-                self.add_branch_layer(
-                    c_name=c.name,
-                    branch_color=branch_color,
-                    branch_alpha=branch_alpha,
-                    branch_width=branch_width,
-                    branch_columns=branch_columns,
-                    branch_flow=branch_flow,
-                    arrow_size_factor=arrow_size_factor,
-                    arrow_color=arrow_color,
-                    branch_cmap=branch_cmap,
-                    branch_cmap_norm=branch_cmap_norm,
-                    arrow_alpha=arrow_alpha,
-                    tooltip=tooltip,
-                )
+        self.add_branch_and_arrow_layer(
+            branch_components=branch_components,
+            branch_width_factor=branch_width_factor,
+            branch_width_max=branch_width_max,
+            line_flow=line_flow,
+            line_color=line_color,
+            line_cmap=line_cmap,
+            line_cmap_norm=line_cmap_norm,
+            line_alpha=line_alpha,
+            line_width=line_width,
+            line_columns=line_columns,
+            link_flow=link_flow,
+            link_color=link_color,
+            link_cmap=link_cmap,
+            link_cmap_norm=link_cmap_norm,
+            link_alpha=link_alpha,
+            link_width=link_width,
+            link_columns=link_columns,
+            transformer_flow=transformer_flow,
+            transformer_color=transformer_color,
+            transformer_cmap=transformer_cmap,
+            transformer_cmap_norm=transformer_cmap_norm,
+            transformer_alpha=transformer_alpha,
+            transformer_width=transformer_width,
+            transformer_columns=transformer_columns,
+            arrow_color=arrow_color,
+            arrow_cmap=arrow_cmap,
+            arrow_cmap_norm=arrow_cmap_norm,
+            arrow_alpha=arrow_alpha,
+            arrow_size_factor=arrow_size_factor,
+            tooltip=tooltip,
+        )
 
         # Bus layer
         if hasattr(bus_size, "index") and isinstance(bus_size.index, pd.MultiIndex):

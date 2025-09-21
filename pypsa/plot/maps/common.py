@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import MultiPolygon, Polygon, mapping
 
+from pypsa.common import _convert_to_series
 from pypsa.constants import EARTH_RADIUS
 
 if TYPE_CHECKING:
@@ -265,6 +266,150 @@ def set_tooltip_style(
         "overflowWrap": "break-word",
         "overflow": "hidden",
     }
+
+
+def scale_to_max_abs(series: pd.Series, max_value: float = 1.0) -> pd.Series:
+    """Scale a pandas Series by a single factor so that its maximum absolute value equals max_value.
+
+    Parameters
+    ----------
+    series : pd.Series
+        Input data to be scaled.
+    max_value : float, optional
+        Desired maximum of scaled series. Default is 1.0.
+
+    Returns
+    -------
+    pd.Series
+        Scaled Series.
+
+    """
+    s_max = series.abs().max()
+    if s_max == 0:
+        # avoid division by zero
+        return pd.Series([0.0] * len(series), index=series.index)
+
+    factor = max_value / s_max
+    return series * factor
+
+
+def get_global_stat(
+    elements: list[float | dict[Any, float] | pd.Series],
+    stat: str | Callable = "max",
+    absolute: bool = True,
+) -> float:
+    """Compute a global statistic (min, max, median, mean, etc.) across a list of floats, dicts, or pandas Series.
+
+    Parameters
+    ----------
+    elements : list of (float | dict | pd.Series)
+        Elements to evaluate.
+    stat : str or Callable, default "max"
+        Aggregation to apply ("max", "min", "median", "mean", ...).
+        Can also pass a custom function like np.percentile.
+    absolute : bool, default True
+        Whether to apply abs() before aggregation.
+
+    Returns
+    -------
+    float
+        The global statistic across all elements.
+
+    """
+    # Resolve stat into a function
+    if isinstance(stat, str):
+        stat_map = {
+            "max": np.max,
+            "min": np.min,
+            "median": np.median,
+            "mean": np.mean,
+            "sum": np.sum,
+        }
+        if stat not in stat_map:
+            msg = f"Unsupported stat '{stat}'. Supported: {list(stat_map)}."
+            raise ValueError(msg)
+        func = stat_map[stat]
+    elif callable(stat):
+        func = stat
+    else:
+        msg = "stat must be a string or callable."
+        raise TypeError(msg)
+
+    # Collect all values into one flat array
+    values: list[float] = []
+    for el in elements:
+        if el is None:
+            continue
+        if isinstance(el, (int | float)):
+            if np.isnan(el):
+                continue
+            values.append(el)
+        elif isinstance(el, dict):
+            values.extend(v for v in el.values() if v is not None and not pd.isna(v))
+        elif isinstance(el, pd.Series):
+            if not el.empty:
+                values.extend(el.dropna().to_numpy())
+        else:
+            msg = f"Unsupported type: {type(el)}."
+            raise TypeError(msg)
+
+    if not values or len(values) == 0:
+        return None
+
+    arr = np.array(values, dtype=float)
+    if absolute:
+        arr = np.abs(arr)
+
+    return float(func(arr))
+
+
+def create_rgba_colors(
+    df: pd.DataFrame,
+    color: str | float | dict | pd.Series | None,
+    cmap: str | mcolors.Colormap,
+    cmap_norm: mcolors.Normalize | None,
+    alpha: float | dict | pd.Series = 0.9,
+    target_col: str | None = None,
+    fallback_col: str | None = None,
+) -> None:
+    """Create RGBA colors in 0-255 integer list format and store them in a DataFrame column.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to store colors in.
+    color : str, float, dict, pandas.Series, or None
+        Colors to apply. If numeric, a colormap is applied.
+        If None, colors are copied from `fallback_col`.
+    cmap : str or matplotlib.colors.Colormap
+        Colormap to use if `color` is numeric.
+    cmap_norm : matplotlib.colors.Normalize, optional
+        Normalization to use if `color` is numeric.
+    alpha : float, dict, or pandas.Series, default 0.9
+        Alpha transparency for the colors.
+    target_col : str, required
+        Column in df to store the resulting RGBA colors as 0-255 integer lists.
+    fallback_col : str, optional
+        If `color` is None, copy colors from this column to `target_col`.
+
+    """
+    if target_col is None:
+        msg = "target_col must be specified."
+        raise ValueError(msg)
+
+    if color is not None:
+        colors = _convert_to_series(color, df.index)
+        alphas = _convert_to_series(alpha, df.index)
+        df["color"] = colors
+        colors = apply_cmap(colors, cmap, cmap_norm)
+        df[target_col] = [
+            to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
+        ]
+    elif fallback_col is not None:
+        if fallback_col not in df:
+            msg = f"fallback_col '{fallback_col}' not in DataFrame."
+            raise KeyError(msg)
+        df[target_col] = df[fallback_col]
 
 
 # Geometric functions
