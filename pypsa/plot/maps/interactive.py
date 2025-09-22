@@ -31,6 +31,7 @@ from pypsa.plot.maps.common import (
     rotate_polygon,
     scale_polygon_by_width,
     scale_to_max_abs,
+    series_to_pdk_path,
     set_tooltip_style,
     shapefile_to_geojson,
     to_rgba255,
@@ -1034,6 +1035,7 @@ class PydeckPlotter:
     def create_branch_paths(
         self,
         c_name: str,
+        geometry: bool = False,
     ) -> None:
         """Create path geometries for a specific branch component type.
 
@@ -1041,6 +1043,8 @@ class PydeckPlotter:
         ----------
         c_name : str
             Name of the branch component type, e.g. "Line", "Link", "Transformer".
+        geometry : bool, default False
+            Whether to use the geometry column of the branch components.
 
         Returns
         -------
@@ -1048,24 +1052,29 @@ class PydeckPlotter:
 
         """
         c_data = self._component_data[c_name]
+        static_data = self._n.static(c_name)
 
         # Build path column as list of [lon, lat] pairs for each line
         # Assuming x, y are aligned
-        branch_paths = list(
-            zip(
+        if geometry and "geometry" in static_data.columns:
+            geoms = static_data["geometry"].reindex(c_data.index)
+            branch_paths = series_to_pdk_path(geoms)
+        else:
+            branch_paths = list(
                 zip(
-                    self._x.loc[c_data["bus0"]],
-                    self._y.loc[c_data["bus0"]],
+                    zip(
+                        self._x.loc[c_data["bus0"]],
+                        self._y.loc[c_data["bus0"]],
+                        strict=False,
+                    ),
+                    zip(
+                        self._x.loc[c_data["bus1"]],
+                        self._y.loc[c_data["bus1"]],
+                        strict=False,
+                    ),
                     strict=False,
-                ),
-                zip(
-                    self._x.loc[c_data["bus1"]],
-                    self._y.loc[c_data["bus1"]],
-                    strict=False,
-                ),
-                strict=False,
+                )
             )
-        )
         c_data["path"] = branch_paths
 
     def create_branch_colors(
@@ -1194,12 +1203,22 @@ class PydeckPlotter:
 
         """
         c_data = self._component_data[c_name]
+
+        def center_segment(path: list[list[float]]) -> tuple[list[float], list[float]]:
+            """Return the two “center” points of a path for arrow placement."""
+            n = len(path)
+            mid_idx = n // 2
+            return path[mid_idx - 1], path[mid_idx]
+
         c_data["arrow"] = c_data.apply(
             lambda row: PydeckPlotter._make_arrows(
-                flow=row["flow_pdk"],
-                p0_geo=row["path"][0],
-                p1_geo=row["path"][-1],
-                arrow_size_factor=arrow_size_factor,
+                row["flow_pdk"],
+                *(
+                    center_segment(row["path"])
+                    if len(row["path"]) > 2
+                    else (row["path"][0], row["path"][-1])
+                ),
+                arrow_size_factor,
             ),
             axis=1,
         )
@@ -1379,7 +1398,7 @@ class PydeckPlotter:
         if columns is None:
             columns = list(c_data.columns)
 
-        exclude_cols = ["path", "width_pdk", "arrow", "rgba", "rgba_arrow"]
+        exclude_cols = ["path", "width_pdk", "arrow", "rgba", "rgba_arrow", "geometry"]
         columns = [
             col for col in columns if col not in exclude_cols and col in c_data.columns
         ]
@@ -1423,6 +1442,7 @@ class PydeckPlotter:
         arrow_cmap_norm: mcolors.Normalize | None = None,
         arrow_alpha: float | dict | pd.Series = 0.9,
         arrow_size_factor: float = 1.5,
+        geometry: bool = False,
         tooltip: bool = True,
     ) -> None:
         """Add branch and arrow layers of Pydeck type PathLayer and PolygonLayer to the interactive map.
@@ -1492,6 +1512,8 @@ class PydeckPlotter:
             Add alpha channel to arrows, defaults to 0.9.
         arrow_size_factor : float, default 1.5
             Factor to scale the arrow size. If 0, no arrows will be drawn.
+        geometry : bool, default False
+            Whether to use the geometry column of the branch components.
         tooltip : bool, default True
             Whether to show a tooltip on hover.
 
@@ -1548,7 +1570,10 @@ class PydeckPlotter:
                 c_name=c.name,
                 branch_columns=branch_columns,
             )
-            self.create_branch_paths(c.name)
+            self.create_branch_paths(
+                c.name,
+                geometry=geometry,
+            )
             self.create_branch_colors(
                 c_name=c.name,
                 branch_color=branch_color,
@@ -1766,6 +1791,7 @@ class PydeckPlotter:
         geomap_alpha: float = 0.9,
         geomap_color: dict | None = None,
         geomap_resolution: Literal["110m", "50m", "10m"] = "50m",
+        geometry: bool = False,
         tooltip: bool = True,
         bus_columns: list | None = None,
         line_columns: list | None = None,
@@ -1854,6 +1880,8 @@ class PydeckPlotter:
             Dictionary specifying colors for different geomap features. If None, default colors will be used: `{'land': 'whitesmoke', 'ocean': 'lightblue'}
         geomap_resolution : {'110m', '50m', '10m'}, default '50m'
             Resolution of the geomap layer if geomap is True.
+        geometry : bool, default False
+            Whether to use the geometry column of the branch components.
         tooltip : bool, default True
             Whether to add a tooltip to the bus layer.
         bus_columns : list, default None
@@ -1918,6 +1946,7 @@ class PydeckPlotter:
             arrow_cmap_norm=arrow_cmap_norm,
             arrow_alpha=arrow_alpha,
             arrow_size_factor=arrow_size_factor,
+            geometry=geometry,
             tooltip=tooltip,
         )
 

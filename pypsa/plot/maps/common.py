@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
-from shapely.geometry import MultiPolygon, Polygon, mapping
+from shapely import wkt
+from shapely.geometry import LineString, MultiPolygon, Polygon, mapping
 
 from pypsa.common import _convert_to_series
 from pypsa.constants import EARTH_RADIUS
@@ -411,6 +412,76 @@ def create_rgba_colors(
             msg = f"fallback_col '{fallback_col}' not in DataFrame."
             raise KeyError(msg)
         df[target_col] = df[fallback_col]
+
+
+def wkt_to_linestring(wkt_str: str) -> LineString:
+    """Convert a WKT string to a Shapely LineString.
+
+    Raises
+    ------
+        TypeError: if the WKT does not represent a LineString.
+        ValueError: if the string cannot be parsed.
+
+    Parameters
+    ----------
+    wkt_str : str
+        WKT representation of a LineString.
+
+    Returns
+    -------
+    LineString
+        Shapely LineString object.
+
+    """
+    geom = wkt.loads(wkt_str)
+    if not isinstance(geom, LineString):
+        msg = f"Expected LineString, got {type(geom)}"
+        raise TypeError(msg)
+    return geom
+
+
+def linestring_to_pdk_path(line: LineString) -> list[list[float]]:
+    """Convert a single LineString to a pydeck list of [lon, lat] coordinates for PathLayer.
+
+    Raises TypeError if input is not a LineString.
+
+    Parameters
+    ----------
+    line : LineString
+        Shapely LineString object.
+
+    Returns
+    -------
+    list of list of float
+        List of [lon, lat] coordinates.
+
+    """
+    if not isinstance(line, LineString):
+        msg = f"Expected LineString, got {type(line)}."
+        raise TypeError(msg)
+    return [[x, y] for x, y in line.coords]
+
+
+def series_to_pdk_path(geoms: pd.Series) -> list[list[list[float]]]:
+    """Convert a pandas Series of LineStrings or WKT strings to Pydeck-ready paths.
+
+    Parameters
+    ----------
+    geoms : pd.Series
+        Each element must be either a LineString or a WKT string representing a LineString.
+
+    Returns
+    -------
+    List[List[List[float]]]
+        List of Pydeck paths.
+
+    """
+    pydeck_paths = []
+    for g in geoms:
+        if isinstance(g, str):
+            g = wkt_to_linestring(g)
+        pydeck_paths.append(linestring_to_pdk_path(g))
+    return pydeck_paths
 
 
 # Geometric functions
