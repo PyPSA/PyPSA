@@ -195,6 +195,8 @@ def get_transmission_carriers(
         carriers = {}
         for c in branches.unique(0):
             idx = branches[branches.get_loc(c)].get_level_values(1)
+            if "carrier" not in n.c[c].static:
+                continue
             carriers[c] = n.c[c].static.carrier[idx].unique()
         return pd.MultiIndex.from_tuples(
             [(c, i) for c, idx in carriers.items() for i in idx],
