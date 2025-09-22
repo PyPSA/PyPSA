@@ -316,8 +316,6 @@ def get_global_stat(
         The global statistic across all elements. Returns None if no valid values are found.
 
     """
-    func: Callable[..., Any]
-
     # Resolve stat into a function
     if isinstance(stat, str):
         stat_map = {
