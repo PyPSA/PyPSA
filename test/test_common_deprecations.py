@@ -194,3 +194,12 @@ def test_deprecated_namespace(mock_version_semver):
 
     # Check that the function worked correctly
     assert result == "value"
+
+
+def test_component_names_deprecation(ac_dc_network):
+    """Test component_names deprecation."""
+    with pytest.warns(DeprecationWarning, match="component_names is deprecated"):
+        assert (
+            ac_dc_network.c.generators.component_names
+            == ac_dc_network.c.generators.names
+        ).all()
