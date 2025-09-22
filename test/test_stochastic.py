@@ -196,7 +196,7 @@ def test_statistics(ac_dc_stochastic_r):
     assert "scenario" in ds.index.names
     assert not stats.empty
 
-    df = n.statistics.supply(aggregate_time=False)
+    df = n.statistics.supply(groupby_time=False)
     assert isinstance(df, pd.DataFrame)
     assert isinstance(df.index, pd.MultiIndex)
     assert "scenario" in df.index.names
