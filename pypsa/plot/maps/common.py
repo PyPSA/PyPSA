@@ -316,7 +316,7 @@ def get_global_stat(
         The global statistic across all elements. Returns None if no valid values are found.
 
     """
-    func: Callable[[np.ndarray], float]
+    func: Callable[[np.ndarray], Any]
 
     # Resolve stat into a function
     if isinstance(stat, str):

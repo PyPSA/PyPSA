@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 import matplotlib.colors as mcolors
 import numpy as np
@@ -1502,71 +1502,64 @@ class PydeckPlotter:
         """
         n = self._n
 
-        branch_settings = {
-            "Line": {
-                "flow": line_flow,
-                "color": line_color,
-                "cmap": line_cmap,
-                "cmap_norm": line_cmap_norm,
-                "alpha": line_alpha,
-                "width": line_width,
-                "columns": line_columns,
-            },
-            "Link": {
-                "flow": link_flow,
-                "color": link_color,
-                "cmap": link_cmap,
-                "cmap_norm": link_cmap_norm,
-                "alpha": link_alpha,
-                "width": link_width,
-                "columns": link_columns,
-            },
-            "Transformer": {
-                "flow": transformer_flow,
-                "color": transformer_color,
-                "cmap": transformer_cmap,
-                "cmap_norm": transformer_cmap_norm,
-                "alpha": transformer_alpha,
-                "width": transformer_width,
-                "columns": transformer_columns,
-            },
-        }
-
         global_width_max = get_global_stat(
-            elements=[s["width"] for s in branch_settings.values()],
+            elements=[line_width, link_width, transformer_width],
             stat="max",
             absolute=True,
         )  # If elements empty, global_width_max is None
 
         global_flow_max = get_global_stat(
-            elements=[s["flow"] for s in branch_settings.values()],
+            elements=[line_flow, link_flow, transformer_flow],
             stat="max",
             absolute=True,
         )  # If elements empty, global_flow_max is None
 
         for c in n.iterate_components(branch_components):
+            if c.name == "Line":
+                branch_flow = line_flow
+                branch_color = line_color
+                branch_cmap = line_cmap
+                branch_cmap_norm = line_cmap_norm
+                branch_alpha = line_alpha
+                branch_width = line_width
+                branch_columns = line_columns
+            elif c.name == "Link":
+                branch_flow = link_flow
+                branch_color = link_color
+                branch_cmap = link_cmap
+                branch_cmap_norm = link_cmap_norm
+                branch_alpha = link_alpha
+                branch_width = link_width
+                branch_columns = link_columns
+            elif c.name == "Transformer":
+                branch_flow = transformer_flow
+                branch_color = transformer_color
+                branch_cmap = transformer_cmap
+                branch_cmap_norm = transformer_cmap_norm
+                branch_alpha = transformer_alpha
+                branch_width = transformer_width
+                branch_columns = transformer_columns
+
             if n.static(c.name).empty:
                 continue
 
             # Branch lines
             self.init_branch_component_data(
                 c_name=c.name,
-                branch_columns=cast(
-                    "list[str] | None", branch_settings[c.name]["columns"]
-                ),
+                branch_columns=branch_columns,
             )
             self.create_branch_paths(c.name)
             self.create_branch_colors(
                 c_name=c.name,
-                branch_color=branch_settings[c.name]["color"],
-                branch_cmap=branch_settings[c.name]["cmap"],
-                branch_cmap_norm=branch_settings[c.name]["cmap_norm"],
-                branch_alpha=branch_settings[c.name]["alpha"],
+                branch_color=branch_color,
+                branch_cmap=branch_cmap,
+                branch_cmap_norm=branch_cmap_norm,
+                branch_alpha=branch_alpha,
             )
             self.scale_branch_param(
                 c_name=c.name,
                 branch_param_name="width",
-                branch_param=branch_settings[c.name]["width"],
+                branch_param=branch_width,
                 branch_param_factor=branch_width_factor,
                 branch_param_max=branch_width_max,  # km
                 global_param_max=global_width_max,
@@ -1583,13 +1576,13 @@ class PydeckPlotter:
             # Branch arrows
             self.init_arrow_data(
                 c_name=c.name,
-                branch_flow=branch_settings[c.name]["flow"],
+                branch_flow=branch_flow,
                 arrow_size_factor=arrow_size_factor,
             )
             self.scale_branch_param(
                 c_name=c.name,
                 branch_param_name="flow",
-                branch_param=branch_settings[c.name]["flow"],
+                branch_param=branch_flow,
                 branch_param_factor=branch_width_factor,
                 branch_param_max=branch_width_max,  # km
                 global_param_max=global_flow_max,
