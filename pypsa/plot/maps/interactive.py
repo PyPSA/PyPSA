@@ -566,7 +566,7 @@ class PydeckPlotter:
         component: str,
         default_columns: list[str] | None = None,
         extra_columns: list[str] | None = None,
-    ) -> tuple[pd.DataFrame, list[str]]:
+    ) -> pd.DataFrame:
         """Prepare data for a specific component type.
 
         Parameters
@@ -580,8 +580,8 @@ class PydeckPlotter:
 
         Returns
         -------
-        tuple of (pd.DataFrame, list of str)
-            A tuple containing the prepared DataFrame and a list of layer columns.
+        pandas.DataFrame
+            DataFrame containing the prepared data for the component.
 
         """
         df = self._n.static(component)
@@ -609,32 +609,31 @@ class PydeckPlotter:
         df = df[layer_columns].copy()
         df.index.name = "name"
 
-        return df, layer_columns
+        return df
 
     # Layer functions
     def add_bus_layer(
         self,
-        bus_size: float | dict | pd.Series | None = None,
-        bus_size_factor: float | None = None,
-        bus_size_max: float = 5000,  # km²
+        bus_size: float | dict | pd.Series = 25,  # km²
+        bus_size_factor: float = 1.0,
+        bus_size_max: float = 10000,  # km²
         bus_color: str | dict | pd.Series = "cadetblue",
         bus_cmap: str | mcolors.Colormap | None = None,
         bus_cmap_norm: mcolors.Normalize | None = None,
         bus_alpha: float | dict | pd.Series = 0.9,
         bus_columns: list | None = None,
+        auto_scale: bool = False,
         tooltip: bool = True,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
 
         Parameters
         ----------
-        bus_size : float/dict/pandas.Series/None
-            Sizes of bus points in radius² (km²), defaults to 25.
-            If None, all buses are plotted with the default size.
-        bus_size_factor : float/None
-            If None, bus sizes are auto-scaled to bus_size_max. If a float is provided,
-            bus sizes are scaled by this factor.
-        bus_size_max : float, default 5000
+        bus_size : float/dict/pandas.Series
+            Sizes of bus points in km² (corresponds to circle area), defaults to 25 km².
+        bus_size_factor : float, default 1.0
+            Bus sizes are scaled by this factor.
+        bus_size_max : float, default 10000
             Maximum size of bus points in km² when auto-scaling.
         bus_color : str/dict/pandas.Series
             Colors for the buses, defaults to "cadetblue". If bus_size is a
@@ -648,6 +647,8 @@ class PydeckPlotter:
             Add alpha channel to buses, defaults to 0.9.
         bus_columns : list, default None
             List of bus columns to include.
+        auto_scale : bool, default False
+            Whether to auto-scale bus sizes to fit within bus_size_max.
         tooltip : bool, default True
             Whether to show a tooltip on hover.
 
@@ -656,13 +657,11 @@ class PydeckPlotter:
         None
 
         """
-        DEFAULT_BUS_SIZE = 25  # km²
-
         msg = "bus_size_factor must be non-negative"
-        if bus_size_factor is not None and bus_size_factor < 0:
+        if bus_size_factor < 0:
             raise ValueError(msg)
 
-        bus_data, _ = self.prepare_component_data("Bus", extra_columns=bus_columns)
+        bus_data = self.prepare_component_data("Bus", extra_columns=bus_columns)
 
         valid_idx = self._x.index.intersection(bus_data.index)
         bus_data = bus_data.loc[valid_idx].copy()
@@ -671,15 +670,12 @@ class PydeckPlotter:
         bus_data["y"] = self._y.loc[bus_data.index]
 
         # Handle bus sizes
-        if bus_size is None:
-            bus_size_series = pd.Series(DEFAULT_BUS_SIZE, index=bus_data.index)
-        else:
-            bus_size_series = _convert_to_series(bus_size, bus_data.index).clip(lower=0)
-        if (bus_size_series == 0.0).all():
+        bus_size_series = _convert_to_series(bus_size, bus_data.index).clip(lower=0)
+        if bus_size_series.eq(0).all():
             return
         bus_data["size"] = bus_size_series
 
-        if bus_size_factor is None:
+        if auto_scale:
             bus_size_series = scale_to_max_abs(bus_size_series, bus_size_max)
         else:
             bus_size_series = bus_size_series * bus_size_factor
@@ -836,7 +832,7 @@ class PydeckPlotter:
                 "color": color,
                 "bus": bus,
                 "label": label,
-                "value": val,
+                "size": val,
             }
             for val, color, label, start, delta in zip(
                 values, colors, labels, start_angles, angles, strict=False
@@ -847,10 +843,13 @@ class PydeckPlotter:
     def add_pie_chart_layer(
         self,
         bus_size: pd.Series,
+        bus_size_factor: float | None = None,
+        bus_size_max: float = 10000,  # km²
         bus_split_circle: bool = False,
         bus_alpha: float | dict | pd.Series = 0.9,
         bus_columns: list | None = None,
         points_per_radian: int = 5,
+        auto_scale: bool = False,
         tooltip: bool = True,
     ) -> None:
         """Add a bus layer of Pydeck type ScatterplotLayer to the interactive map.
@@ -859,6 +858,10 @@ class PydeckPlotter:
         ----------
         bus_size : float/dict/pandas.Series
             Sizes of bus points in radius² (km²), defaults to 25.
+        bus_size_factor : float, default 1.0
+            Bus sizes are scaled by this factor.
+        bus_size_max : float, default 10000
+            Maximum size of bus points in km² when auto-scaling.
         bus_split_circle : bool, default False
             Draw half circles if bus_size is a pandas.Series with a Multiindex.
             If set to true, the upper half circle per bus then includes all positive values
@@ -869,6 +872,8 @@ class PydeckPlotter:
             List of bus columns to include.
         points_per_radian : int, default 5
             Number of points per radian for pie chart resolution.
+        auto_scale : bool, default False
+            Whether to auto-scale bus sizes to fit within bus_size_max.
         tooltip : bool, default True
             Whether to show a tooltip on hover.
 
@@ -878,7 +883,7 @@ class PydeckPlotter:
 
         """
         EPS = 1e-6  # Small epsilon to avoid numerical issues
-        bus_data, valid_columns = self.prepare_component_data(
+        bus_data = self.prepare_component_data(
             "Bus",
             extra_columns=bus_columns,
         )
@@ -886,15 +891,40 @@ class PydeckPlotter:
         # Only keep buses with valid coordinates, same index order as self._x and self._y
         bus_data = bus_data.loc[self._x.index[self._x.index.isin(bus_data.index)]]
 
-        # Convert bus_size from km² to m²
-        bus_size = 1e6 * bus_size
+        # Drop tiny values to avoid numerical issues
         bus_size = bus_size.drop(bus_size[abs(bus_size) < EPS].index)
+
         # Reindex first level of MultiIndex to only valid buses
         bus_size = bus_size.reindex(
             bus_data.index.intersection(bus_size.index.get_level_values(0)),
             level=0,
         )
         bus_size = bus_size.unstack(level=1, fill_value=0)
+        carrier_order = bus_size.columns.to_numpy()
+
+        # --- Split positive and negative contributions ---
+        bus_area_pos = bus_size.clip(lower=0).sum(axis=1)  # positive only
+        bus_area_neg = (-bus_size.clip(upper=0)).sum(axis=1)  # negative magnitudes
+
+        # --- Global scaling factor based on largest magnitude ---
+        max_val = max(bus_area_pos.max(), bus_area_neg.max())
+
+        if auto_scale:
+            scale_factor = bus_size_max / max_val if max_val > 0 else 1
+        else:
+            scale_factor = bus_size_factor
+
+        # Apply scaling
+        bus_area_pos = bus_area_pos * scale_factor
+        bus_area_neg = bus_area_neg * scale_factor
+
+        # Convert to m²
+        bus_area_pos = bus_area_pos * 1e6
+        bus_area_neg = bus_area_neg * 1e6
+
+        # Radii in meters
+        bus_radius_pos = (bus_area_pos / np.pi) ** 0.5
+        bus_radius_neg = (bus_area_neg / np.pi) ** 0.5
 
         alphas = _convert_to_series(bus_alpha, bus_size.index)
         carrier_colors = self._n.c.carriers.static["color"]
@@ -906,7 +936,6 @@ class PydeckPlotter:
         polygons = []
         # Convert to NumPy arrays for speed-up
         bus_indices = bus_size.index.to_numpy()
-        bus_cols = bus_size.columns.to_numpy()
         bus_values = bus_size.to_numpy()
         bus_coords = np.column_stack(
             (self._x, self._y)
@@ -916,47 +945,55 @@ class PydeckPlotter:
             values = bus_values[i]
             x, y = bus_coords[i]
 
+            pos_mask = values > 0
+            neg_mask = values < 0
+
             if bus_split_circle and np.any(values < 0):
-                pos_mask = values > 0
-                if np.any(pos_mask):
+                if np.any(pos_mask) and bus_radius_pos[bus] > 0:
+                    colors = [carrier_rgba[bus][c] for c in carrier_order[pos_mask]]
+                    labels = list(carrier_order[pos_mask])
+                    vals = values[pos_mask].round(3)
+
                     poly_pos = PydeckPlotter._make_pie(
                         bus=bus,
                         p_center=(x, y),
-                        radius_m=(values[pos_mask].sum()) ** 0.5,
-                        values=values[pos_mask].round(3),
-                        colors=[carrier_rgba[bus][c] for c in bus_cols[pos_mask]],
-                        labels=list(bus_cols[pos_mask]),
+                        radius_m=bus_radius_pos[bus],
+                        values=vals,
+                        colors=colors,
+                        labels=labels,
                         points_per_radian=points_per_radian,
                         flip_y=False,
                         bus_split_circle=True,
                     )
                     polygons.extend(poly_pos)
 
-                neg_mask = values < 0
-                if np.any(neg_mask):
+                if np.any(neg_mask) and bus_radius_neg[bus] > 0:
+                    colors = [carrier_rgba[bus][c] for c in carrier_order[neg_mask]]
+                    labels = list(carrier_order[neg_mask])
+                    vals = (-values[neg_mask]).round(3)
                     poly_neg = PydeckPlotter._make_pie(
                         bus=bus,
                         p_center=(x, y),
-                        radius_m=(-values[neg_mask].sum()) ** 0.5,
-                        values=-values[neg_mask].round(3),
-                        colors=[carrier_rgba[bus][c] for c in bus_cols[neg_mask]],
-                        labels=list(bus_cols[neg_mask]),
+                        radius_m=bus_radius_neg[bus],
+                        values=vals,
+                        colors=colors,
+                        labels=labels,
                         points_per_radian=points_per_radian,
                         flip_y=True,
                         bus_split_circle=True,
                     )
                     polygons.extend(poly_neg)
-            else:
-                mask = values > 0
-                if not np.any(mask):
-                    continue
+            elif np.any(pos_mask) and bus_radius_pos[bus] > 0:
+                colors = [carrier_rgba[bus][c] for c in carrier_order[pos_mask]]
+                labels = list(carrier_order[pos_mask])
+                vals = values[pos_mask].round(3)
                 poly_pos = PydeckPlotter._make_pie(
                     bus=bus,
                     p_center=(x, y),
-                    radius_m=(values[mask].sum()) ** 0.5,
-                    values=values[mask].round(3),
-                    colors=[carrier_rgba[bus][c] for c in bus_cols[mask]],
-                    labels=list(bus_cols[mask]),
+                    radius_m=bus_radius_pos[bus],
+                    values=vals,
+                    colors=colors,
+                    labels=labels,
                     points_per_radian=points_per_radian,
                     flip_y=False,
                     bus_split_circle=False,
@@ -968,8 +1005,8 @@ class PydeckPlotter:
 
         # Tooltip
         if tooltip:
-            columns = ["label", "value"] + valid_columns
-            p_data[valid_columns] = bus_data.reindex(p_data.index)[valid_columns]
+            columns = ["label", "size"] + bus_data.columns.tolist()
+            p_data = bus_data.reindex(p_data.index).join(p_data)
 
             p_data["tooltip_html"] = df_to_html_table(
                 p_data,
@@ -1018,7 +1055,7 @@ class PydeckPlotter:
             return
 
         # Prepare data for lines
-        c_data, _ = self.prepare_component_data(
+        c_data = self.prepare_component_data(
             c_name,
             default_columns=["bus0", "bus1"],
             extra_columns=branch_columns,
@@ -1179,7 +1216,7 @@ class PydeckPlotter:
         # Arrow layer
         branch_flow = _convert_to_series(branch_flow, c_data.index)
         branch_flow = branch_flow * 1e3  # Convert flow from km to m
-        flows_are_zero = (branch_flow == 0).all()
+        flows_are_zero = branch_flow.eq(0).all()
 
         if (
             not self._n.static(c_name).empty
@@ -1302,11 +1339,12 @@ class PydeckPlotter:
         self,
         c_name: str,
         branch_param_name: str,
-        branch_param: float | dict | pd.Series | None = None,
-        branch_param_factor: float | None = None,
+        branch_param: float | dict | pd.Series = 2,
+        branch_param_factor: float = 1,
         branch_param_max: float = 10,  # km
         global_param_max: float | None = 1,  # km
         keep_algebraic_sign: bool = True,
+        auto_scale: bool = False,
     ) -> None:
         """Scale branch params (width, flow) for a specific branch component type.
 
@@ -1327,6 +1365,8 @@ class PydeckPlotter:
             If multiple branch components are plotted, this ensures that the maximum params are scaled proportionally.
         keep_algebraic_sign : bool, default True
             If True, the algebraic sign of branch_param is readded to the scaled parameter.
+        auto_scale : bool, default False
+            Whether to auto-scale branch params to fit within branch_param_max.
 
         Returns
         -------
@@ -1335,15 +1375,9 @@ class PydeckPlotter:
         """
         c_data = self._component_data[c_name]
 
-        if branch_param is None:
-            branch_param = 1.5  # Default width in km
-
-        if global_param_max == 0:
-            global_param_max = None  # Avoid division by zero
-
         branch_param_series: pd.Series = _convert_to_series(branch_param, c_data.index)
 
-        if (branch_param_series == 0).all():
+        if branch_param_series.eq(0).all():
             c_data[f"{branch_param_name}_pdk"] = 0
             return
 
@@ -1358,24 +1392,16 @@ class PydeckPlotter:
         branch_param_deck = branch_param_series.abs()
         local_param_max = branch_param_deck.max()
 
-        if branch_param_factor is None and global_param_max is not None:
-            scaling_factor = (
-                local_param_max / global_param_max * 1e3
-            )  # Keep proportions and convert from km to m
-            branch_param_deck = (
-                scale_to_max_abs(
-                    branch_param_deck,
-                    branch_param_max,
-                )
-                * scaling_factor
+        if auto_scale:
+            # if global_param_max is None or global_param_max == 0:
+            #     global_param_max = local_param_max
+
+            scaling_factor = local_param_max / global_param_max * 1e3
+            branch_param_deck = scaling_factor * scale_to_max_abs(
+                branch_param_deck, branch_param_max
             )
-        if branch_param_factor is not None and global_param_max is not None:
-            scaling_factor = (
-                branch_param_factor * 1e3
-            )  # Manual scaling, convert from km to m
-            branch_param_deck = branch_param_deck * scaling_factor
-        if branch_param_factor is None and global_param_max is None:
-            branch_param_deck = 1500
+        else:
+            branch_param_deck = branch_param_deck * branch_param_factor * 1e3
 
         c_data[f"{branch_param_name}_pdk"] = branch_param_deck * sign
 
@@ -1402,7 +1428,15 @@ class PydeckPlotter:
         if columns is None:
             columns = list(c_data.columns)
 
-        exclude_cols = ["path", "width_pdk", "arrow", "rgba", "rgba_arrow", "geometry"]
+        exclude_cols = [
+            "path",
+            "width_pdk",
+            "arrow",
+            "rgba",
+            "rgba_arrow",
+            "geometry",
+            "size_pdk",
+        ]
         columns = [
             col for col in columns if col not in exclude_cols and col in c_data.columns
         ]
@@ -1418,28 +1452,28 @@ class PydeckPlotter:
     def add_branch_and_arrow_layer(
         self,
         branch_components: list | set | None = None,
-        branch_width_factor: float | None = None,
+        branch_width_factor: float = 1,
         branch_width_max: float = 10,  # km
         line_flow: float | dict | pd.Series = 0,
         line_color: str | dict | pd.Series = "rosybrown",
         line_cmap: str | mcolors.Colormap = "viridis",
         line_cmap_norm: mcolors.Normalize | None = None,
         line_alpha: float | dict | pd.Series = 0.9,
-        line_width: float | dict | pd.Series | None = None,
+        line_width: float | dict | pd.Series = 2,
         line_columns: list | None = None,
         link_flow: float | dict | pd.Series = 0,
         link_color: str | dict | pd.Series = "darkorange",
         link_cmap: str | mcolors.Colormap = "viridis",
         link_cmap_norm: mcolors.Normalize | None = None,
         link_alpha: float | dict | pd.Series = 0.9,
-        link_width: float | dict | pd.Series | None = None,
+        link_width: float | dict | pd.Series = 2,
         link_columns: list | None = None,
         transformer_flow: float | dict | pd.Series = 0,
         transformer_color: str | dict | pd.Series = "purple",
         transformer_cmap: str | mcolors.Colormap = "viridis",
         transformer_cmap_norm: mcolors.Normalize | None = None,
         transformer_alpha: float | dict | pd.Series = 0.9,
-        transformer_width: float | dict | pd.Series | None = None,
+        transformer_width: float | dict | pd.Series = 2,
         transformer_columns: list | None = None,
         arrow_color: str | dict | pd.Series | None = None,
         arrow_cmap: str | mcolors.Colormap = "viridis",
@@ -1447,6 +1481,7 @@ class PydeckPlotter:
         arrow_alpha: float | dict | pd.Series = 0.9,
         arrow_size_factor: float = 1.5,
         geometry: bool = False,
+        auto_scale: bool = False,
         tooltip: bool = True,
     ) -> None:
         """Add branch and arrow layers of Pydeck type PathLayer and PolygonLayer to the interactive map.
@@ -1454,57 +1489,50 @@ class PydeckPlotter:
         Parameters
         ----------
         branch_components : list, set, optional, default ['Line', 'Link', 'Transformer']
-            Branch components to be plotted
-        branch_width_factor : float/None
-            If None, branch widths are auto-scaled to branch_width_max.
-            If a float is provided, branch widths are scaled by this factor.
+            Branch components to be plotted.
+        branch_width_factor : float, default 1.0
+            Branch widths are scaled by this factor.
         branch_width_max : float, default 10
             Maximum width of branch component in km when auto-scaling.
-        line_flow : float/dict/pandas.Series
-            Flow values for lines, defaults to 0.
-            If not 0, arrows will be drawn on the lines.
+        line_flow : float/dict/pandas.Series, default 0
+            Series of line flows indexed by line names, defaults to 0. If 0, no arrows will be created.
+            If a float is provided, it will be used as a constant flow for all lines.
         line_color : str/dict/pandas.Series
             Colors for the lines, defaults to 'rosybrown'.
-        line_cmap : str/matplotlib.colors.Colormap, default 'viridis'
-            Colormap to use if line_color is a numeric pandas.Series.
-        line_cmap_norm : matplotlib.colors.Normalize, optional
-            Normalization to use if line_color is a numeric pandas.Series.
+        line_cmap : matplotlib.colors.Colormap/str
+            If line_color are floats, this color map will assign the colors.
+        line_cmap_norm : matplotlib.colors.Normalize
+            The norm applied to the line_cmap.
         line_alpha : float/dict/pandas.Series
             Add alpha channel to lines, defaults to 0.9.
-        line_width : float/dict/pandas.Series/None
-            Widths of line component in km. If None, width falls back to 1.5 km.
-        line_columns : list, default None
-            List of line columns to include. Specify additional columns to include in the tooltip.
-        link_flow : float/dict/pandas.Series
-            Flow values for links, defaults to 0.
-            If not 0, arrows will be drawn on the links.
+        line_width : float/dict/pandas.Series, default 2
+            Widths of line component in km.
+        link_flow : float/dict/pandas.Series, default 0
+            Series of link flows indexed by link names, defaults to 0. If 0, no arrows will be created.
+            If a float is provided, it will be used as a constant flow for all links.
         link_color : str/dict/pandas.Series
-            Colors for the links, defaults to 'darkorange'.
-        link_cmap : str/matplotlib.colors.Colormap, default 'viridis'
-            Colormap to use if link_color is a numeric pandas.Series.
-        link_cmap_norm : matplotlib.colors.Normalize, optional
-            Normalization to use if link_color is a numeric pandas.Series.
+            Colors for the links, defaults to 'darkseagreen'.
+        link_cmap : matplotlib.colors.Colormap/str|dict, default 'viridis'
+            If link_color are floats, this color map will assign the colors.
+        link_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+            The norm applied to the link_cmap.
         link_alpha : float/dict/pandas.Series
             Add alpha channel to links, defaults to 0.9.
-        link_width : float/dict/pandas.Series/None
-            Widths of link component in km. If None, width falls back to 1.5 km.
-        link_columns : list, default None
-            List of link columns to include. Specify additional columns to include in the tooltip.
-        transformer_flow : float/dict/pandas.Series
-            Flow values for transformers, defaults to 0.
-            If not 0, arrows will be drawn on the transformers.
+        link_width : float/dict/pandas.Series, default 2
+            Widths of link component in km.
+        transformer_flow : float/dict/pandas.Series, default 0
+            Series of transformer flows indexed by transformer names, defaults to 0. If 0, no arrows will be created.
+            If a float is provided, it will be used as a constant flow for all transformers.
         transformer_color : str/dict/pandas.Series
-            Colors for the transformers, defaults to 'purple'.
-        transformer_cmap : str/matplotlib.colors.Colormap, default 'viridis'
-            Colormap to use if transformer_color is a numeric pandas.Series.
-        transformer_cmap_norm : matplotlib.colors.Normalize, optional
-            Normalization to use if transformer_color is a numeric pandas.Series.
+            Colors for the transformers, defaults to 'orange'.
+        transformer_cmap : matplotlib.colors.Colormap/str
+            If transformer_color are floats, this color map will assign the colors.
+        transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
+            The norm applied to the transformer_cmap.
         transformer_alpha : float/dict/pandas.Series
             Add alpha channel to transformers, defaults to 0.9.
-        transformer_width : float/dict/pandas.Series/None
-            Widths of transformer in km. If None, width falls back to 1.5 km.
-        transformer_columns : list, default None
-            List of transformer columns to include. Specify additional columns to include in the tooltip.
+        transformer_width : float/dict/pandas.Series, default 2
+            Widths of transformer in km.
         arrow_color : str/dict/pandas.Series/None
             Colors for the arrows, defaults to None.
             If None, the branch color is used for the arrows.
@@ -1518,6 +1546,14 @@ class PydeckPlotter:
             Factor to scale the arrow size. If 0, no arrows will be drawn.
         geometry : bool, default False
             Whether to use the geometry column of the branch components.
+        auto_scale : bool, default False
+            Whether to auto-scale branch widths to fit within branch_width_max.
+        line_columns : list, default None
+            List of line columns to include. Specify additional columns to include in the tooltip.
+        link_columns : list, default None
+            List of link columns to include. Specify additional columns to include in the tooltip.
+        transformer_columns : list, default None
+            List of transformer columns to include. Specify additional columns to include in the tooltip.
         tooltip : bool, default True
             Whether to show a tooltip on hover.
 
@@ -1593,6 +1629,7 @@ class PydeckPlotter:
                 branch_param_max=branch_width_max,  # km
                 global_param_max=global_width_max,
                 keep_algebraic_sign=False,
+                auto_scale=auto_scale,
             )
             if tooltip:
                 self.create_tooltips(
@@ -1616,6 +1653,7 @@ class PydeckPlotter:
                 branch_param_max=branch_width_max,  # km
                 global_param_max=global_flow_max,
                 keep_algebraic_sign=True,
+                auto_scale=auto_scale,
             )
             self.create_arrows(
                 c_name=c.name,
@@ -1757,14 +1795,12 @@ class PydeckPlotter:
         )
         return deck
 
-    def build_layers(
+    def build_layers(  # noqa: D417
         self,
         branch_components: list | set | None = None,
-        branch_width_factor: float | None = None,
-        branch_width_max: float = 10,  # km
-        bus_size: float | dict | pd.Series | None = None,
-        bus_size_factor: float | None = None,
-        bus_size_max: float = 5000,  # km²
+        branch_width_factor: float = 1,
+        bus_size: float | dict | pd.Series = 25,
+        bus_size_factor: float = 1.0,
         bus_split_circle: bool = False,
         bus_color: str | dict | pd.Series = "cadetblue",
         bus_cmap: str | mcolors.Colormap | None = None,
@@ -1775,63 +1811,60 @@ class PydeckPlotter:
         line_cmap: str | mcolors.Colormap = "viridis",
         line_cmap_norm: mcolors.Normalize | None = None,
         line_alpha: float | dict | pd.Series = 0.9,
-        line_width: float | dict | pd.Series | None = None,
+        line_width: float | dict | pd.Series = 2,
         link_flow: float | dict | pd.Series = 0,
         link_color: str | dict | pd.Series = "darkseagreen",
         link_cmap: str | mcolors.Colormap = "viridis",
         link_cmap_norm: mcolors.Normalize | None = None,
         link_alpha: float | dict | pd.Series = 0.9,
-        link_width: float | dict | pd.Series | None = None,
+        link_width: float | dict | pd.Series = 2,
         transformer_flow: float | dict | pd.Series = 0,
         transformer_color: str | dict | pd.Series = "orange",
         transformer_cmap: str | mcolors.Colormap = "viridis",
         transformer_cmap_norm: mcolors.Normalize | None = None,
         transformer_alpha: float | dict | pd.Series = 0.9,
-        transformer_width: float | dict | pd.Series | None = None,
+        transformer_width: float | dict | pd.Series = 2,
         arrow_size_factor: float = 1.5,
         arrow_color: str | dict | pd.Series | None = None,
         arrow_cmap: str | mcolors.Colormap = "viridis",
         arrow_cmap_norm: mcolors.Normalize | None = None,
         arrow_alpha: float | dict | pd.Series = 0.9,
+        tooltip: bool = True,
+        auto_scale: bool = False,
+        branch_width_max: float = 10,  # km
+        bus_size_max: float = 10000,  # km²
+        bus_columns: list | None = None,
+        line_columns: list | None = None,
+        link_columns: list | None = None,
+        transformer_columns: list | None = None,
         geomap: bool = False,
         geomap_alpha: float = 0.9,
         geomap_color: dict | None = None,
         geomap_resolution: Literal["110m", "50m", "10m"] = "50m",
         geometry: bool = False,
-        tooltip: bool = True,
-        bus_columns: list | None = None,
-        line_columns: list | None = None,
-        link_columns: list | None = None,
-        transformer_columns: list | None = None,
     ) -> "PydeckPlotter":
         """Create an interactive map of the PyPSA network using Pydeck.
 
         Parameters
         ----------
-        branch_components : list, set, optional, default ['Line', 'Link', 'Transformer']
-            Branch components to be plotted
-        branch_width_factor : float/None
-            If None, branch widths are auto-scaled to branch_width_max.
-            If a float is provided, branch widths are scaled by this factor.
-        branch_width_max : float, default 10
-            Maximum width of branch component in km when auto-scaling.
-        bus_size : float/dict/pandas.Series/None
-            Sizes of bus points in radius² (km²). If None, bus size falls back to 25 km².
-        bus_size_factor : float/None
-            If None, bus sizes are auto-scaled to bus_size_max. If a float is provided,
-            bus sizes are scaled by this factor.
-        bus_size_max : float, default 5000
-            Maximum size of bus points in km² when auto-scaling.
+        branch_width_factor : float, default 1.0
+            Branch widths are scaled by this factor.
+        bus_size : float/dict/pandas.Series
+            Sizes of bus points in km² (corresponds to circle area), defaults to 25 km².
+        bus_size_factor : float, default 1.0
+            Bus sizes are scaled by this factor.
         bus_split_circle : bool, default False
             Draw half circles if bus_size is a pandas.Series with a Multiindex.
             If set to true, the upper half circle per bus then includes all positive values
             of the series, the lower half circle all negative values. Defaults to False.
-        bus_color : str/dict/pandas.Series
-            Colors for the buses, defaults to "cadetblue".
-        bus_cmap : mcolors.Colormap/str
-            If bus_color are floats, this color map will assign the colors
-        bus_cmap_norm : mcolors.Normalize
-            The norm applied to the bus_cmap
+        bus_color : str/dict/pandas.Series/None
+            Colors for the buses, defaults to "cadetblue". If bus_size is a
+            pandas.Series with a Multiindex, bus_color defaults to the
+            n.c.carriers.static['color'] column.
+        bus_cmap : mcolors.Colormap/str/None
+            If bus_color are floats, this color map will assign the colors.
+        bus_cmap_norm : mcolors.Normalize/None
+            Normalization for bus_cmap, defaults to None.
         bus_alpha : float/dict/pandas.Series
             Add alpha channel to buses, defaults to 0.9.
         line_flow : float/dict/pandas.Series, default 0
@@ -1839,42 +1872,53 @@ class PydeckPlotter:
             If a float is provided, it will be used as a constant flow for all lines.
         line_color : str/dict/pandas.Series
             Colors for the lines, defaults to 'rosybrown'.
-        line_cmap : mcolors.Colormap/str|dict
-            If line_color are floats, this color map will assign the colors.
-        line_cmap_norm : mcolors.Normalize
-            The norm applied to the line_cmap.
         line_alpha : float/dict/pandas.Series
             Add alpha channel to lines, defaults to 0.9.
-        line_width : float/dict/pandas.Series/None
-            Widths of line component in km. If None, width falls back to 1.5 km.
+        line_width : float/dict/pandas.Series, default 2
+            Widths of line component in km.
         link_flow : float/dict/pandas.Series, default 0
             Series of link flows indexed by link names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all links.
         link_color : str/dict/pandas.Series
             Colors for the links, defaults to 'darkseagreen'.
-        link_cmap : mcolors.Colormap/str|dict
+        link_alpha : float/dict/pandas.Series
+            Add alpha channel to links, defaults to 0.9.
+        link_width : float/dict/pandas.Series, default 2
+            Widths of link component in km.
+        tooltip : bool, default True
+            Whether to add a tooltip to the bus layer.
+
+        Other Parameters
+        ----------------
+        branch_components : list, set, optional, default ['Line', 'Link', 'Transformer']
+            Branch components to be plotted.
+        branch_width_max : float, default 10
+            Maximum width of branch component in km when `auto_scale` is True.
+        bus_size_max : float, default 10000
+            Maximum area size of bus component in km² when `auto_scale` is True.
+        line_cmap : mcolors.Colormap/str, default 'viridis'
+            If line_color are floats, this color map will assign the colors.
+        line_cmap_norm : mcolors.Normalize
+            The norm applied to the line_cmap.
+        link_cmap : mcolors.Colormap/str|dict, default 'viridis'
             If link_color are floats, this color map will assign the colors.
         link_cmap_norm : mcolors.Normalize|matplotlib.colors.*Norm
             The norm applied to the link_cmap.
-        link_alpha : float/dict/pandas.Series
-            Add alpha channel to links, defaults to 0.9.
-        link_width : float/dict/pandas.Series/None
-            Widths of link component in km. If None, width falls back to 1.5 km.
         transformer_flow : float/dict/pandas.Series, default 0
             Series of transformer flows indexed by transformer names, defaults to 0. If 0, no arrows will be created.
             If a float is provided, it will be used as a constant flow for all transformers.
         transformer_color : str/dict/pandas.Series
             Colors for the transformers, defaults to 'orange'.
-        transformer_cmap : mcolors.Colormap/str|dict
+        transformer_cmap : mcolors.Colormap/str, default 'viridis'
             If transformer_color are floats, this color map will assign the colors.
         transformer_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
             The norm applied to the transformer_cmap.
         transformer_alpha : float/dict/pandas.Series
             Add alpha channel to transformers, defaults to 0.9.
-        transformer_width : float/dict/pandas.Series/None
-            Widths of transformer in km. If None, width falls back to 1.5 km.
+        transformer_width : float/dict/pandas.Series, default 2
+            Widths of transformer in km.
         arrow_size_factor : float, default 1.5
-            Factor to scale the arrow size in relation to line_flow. A value of 1 denotes a multiplier of 1 times line_width. If 0, no arrows will be created.
+            Multiplier on branch flows to scale the arrow size.
         arrow_color : str/dict/pandas.Series | None, default None
             Colors for the arrows. If not specified, defaults to the same colors as the respective branch component.
         arrow_cmap : str/matplotlib.colors.Colormap, default 'viridis'
@@ -1883,18 +1927,6 @@ class PydeckPlotter:
             Normalization to use if arrow_color is a numeric pandas.Series.
         arrow_alpha : float/dict/pandas.Series, default 0.9
             Add alpha channel to arrows, defaults to 0.9.
-        geomap : bool, default False
-            Whether to add a geomap layer to the plot.
-        geomap_alpha : float, default 0.9
-            Alpha transparency for the geomap features.
-        geomap_color : dict | None, default None
-            Dictionary specifying colors for different geomap features. If None, default colors will be used: `{'land': 'whitesmoke', 'ocean': 'lightblue'}
-        geomap_resolution : {'110m', '50m', '10m'}, default '50m'
-            Resolution of the geomap layer if geomap is True.
-        geometry : bool, default False
-            Whether to use the geometry column of the branch components.
-        tooltip : bool, default True
-            Whether to add a tooltip to the bus layer.
         bus_columns : list, default None
             List of bus columns to include.
             Specify additional columns to include in the tooltip.
@@ -1907,6 +1939,16 @@ class PydeckPlotter:
         transformer_columns : list, default None
             List of transformer columns to include. If None, only the bus0 and bus1 columns are used.
             Specify additional columns to include in the tooltip.
+        geomap : bool, default False
+            Whether to add a geomap layer to the plot.
+        geomap_alpha : float, default 0.9
+            Alpha transparency for the geomap features.
+        geomap_color : dict | None, default None
+            Dictionary specifying colors for different geomap features. If None, default colors will be used: `{'land': 'whitesmoke', 'ocean': 'lightblue'}
+        geomap_resolution : {'110m', '50m', '10m'}, default '50m'
+            Resolution of the geomap features. One of '110m', '50m', or '10m'.
+        geometry : bool, default False
+            Whether to use the geometry column of the branch components.
 
         Returns
         -------
@@ -1958,6 +2000,7 @@ class PydeckPlotter:
             arrow_alpha=arrow_alpha,
             arrow_size_factor=arrow_size_factor,
             geometry=geometry,
+            auto_scale=auto_scale,
             tooltip=tooltip,
         )
 
@@ -1965,10 +2008,13 @@ class PydeckPlotter:
         if hasattr(bus_size, "index") and isinstance(bus_size.index, pd.MultiIndex):
             self.add_pie_chart_layer(
                 bus_size=bus_size,
+                bus_size_factor=bus_size_factor,
+                bus_size_max=bus_size_max,
                 bus_split_circle=bus_split_circle,
                 bus_alpha=bus_alpha,
                 bus_columns=bus_columns,
                 points_per_radian=5,
+                auto_scale=auto_scale,
                 tooltip=tooltip,
             )
         else:
@@ -1981,6 +2027,7 @@ class PydeckPlotter:
                 bus_cmap_norm=bus_cmap_norm,
                 bus_alpha=bus_alpha,
                 bus_columns=bus_columns,
+                auto_scale=auto_scale,
                 tooltip=tooltip,
             )
 
