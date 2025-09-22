@@ -1060,21 +1060,16 @@ class PydeckPlotter:
             geoms = static_data["geometry"].reindex(c_data.index)
             branch_paths = series_to_pdk_path(geoms)
         else:
-            branch_paths = list(
-                zip(
-                    zip(
-                        self._x.loc[c_data["bus0"]],
-                        self._y.loc[c_data["bus0"]],
-                        strict=False,
-                    ),
-                    zip(
-                        self._x.loc[c_data["bus1"]],
-                        self._y.loc[c_data["bus1"]],
-                        strict=False,
-                    ),
+            branch_paths = [
+                [[x0, y0], [x1, y1]]
+                for x0, y0, x1, y1 in zip(
+                    self._x.loc[c_data["bus0"]],
+                    self._y.loc[c_data["bus0"]],
+                    self._x.loc[c_data["bus1"]],
+                    self._y.loc[c_data["bus1"]],
                     strict=False,
                 )
-            )
+            ]
         c_data["path"] = branch_paths
 
     def create_branch_colors(
@@ -1197,7 +1192,7 @@ class PydeckPlotter:
         Parameters
         ----------
         c_name : str
-            Name of the branch component type, e.g. "Line", "Link", "Transformer
+            Name of the branch component type, e.g. "Line", "Link", "Transformer".
         arrow_size_factor : float, default 1.5
             Factor to scale the arrow size. If 0, no arrows will be drawn.
 
@@ -1210,14 +1205,17 @@ class PydeckPlotter:
             mid_idx = n // 2
             return path[mid_idx - 1], path[mid_idx]
 
+        # Precompute start/end points for arrows
+        arrow_points = c_data["path"].apply(
+            lambda path: center_segment(path) if len(path) > 2 else (path[0], path[-1])
+        )
+
+        # Apply _make_arrows using the precomputed points
         c_data["arrow"] = c_data.apply(
             lambda row: PydeckPlotter._make_arrows(
                 row["flow_pdk"],
-                *(
-                    center_segment(row["path"])
-                    if len(row["path"]) > 2
-                    else (row["path"][0], row["path"][-1])
-                ),
+                arrow_points.loc[row.name][0],  # p0_geo
+                arrow_points.loc[row.name][1],  # p1_geo
                 arrow_size_factor,
             ),
             axis=1,
