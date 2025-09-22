@@ -472,7 +472,7 @@ def series_to_pdk_path(geoms: pd.Series) -> list[list[list[float]]]:
 
     Returns
     -------
-    List[List[List[float]]]
+    list of list of list of float
         List of Pydeck paths.
 
     """

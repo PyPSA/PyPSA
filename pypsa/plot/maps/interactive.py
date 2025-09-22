@@ -609,14 +609,6 @@ class PydeckPlotter:
         df = df[layer_columns].copy()
         df.index.name = "name"
 
-        if extra_columns:
-            # Round all numeric columns to 3 decimal places. Only columns in valid_columns
-            numeric_cols = [
-                col for col in valid_columns if pd.api.types.is_numeric_dtype(df[col])
-            ]
-            for col in numeric_cols:
-                df[col] = df[col].round(3)
-
         return df, layer_columns
 
     # Layer functions
