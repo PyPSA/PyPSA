@@ -69,6 +69,9 @@ def check_for_unknown_buses(
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
+        # if bus contains empty strings for global constraints do not warn
+        if component.name == "GlobalConstraint":
+            missing &= component.static[attr] != ""
         if missing.any():
             _log_or_raise(
                 strict,

@@ -620,13 +620,13 @@ class ChartGenerator(PlotsGenerator, ABC):
         # `aggregate_across_components`
         stats_kwargs["aggregate_across_components"] = "component" not in args
 
-        # `aggregate_time` is only relevant for time series data
+        # `groupby_time` is only relevant for time series data
         if "snapshot" in args:
             derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
             if derived_agg_time:
-                # Convert to list since aggregate_time expects a list of strings
-                stats_kwargs["aggregate_time"] = "sum"
+                # Convert to list since groupby_time expects a list of strings
+                stats_kwargs["groupby_time"] = "sum"
             else:
-                stats_kwargs["aggregate_time"] = False
+                stats_kwargs["groupby_time"] = False
 
         return stats_kwargs

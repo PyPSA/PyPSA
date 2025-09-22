@@ -672,41 +672,38 @@ def test_io_time_dependent_efficiencies(tmpdir):
 
 
 def test_sort_attrs():
-    """Test _sort_attrs function for sorting DataFrame columns/index."""
+    """Ensure _sort_attrs preserves attribute order semantics."""
     from pypsa.network.io import _sort_attrs
 
-    # Test sorting columns (axis=1)
-    df = pd.DataFrame(
-        {"c": [1, 2, 3], "a": [4, 5, 6], "b": [7, 8, 9], "d": [10, 11, 12]}
-    )
-
-    # Sort columns according to attrs_list
+    axis_labels = pd.Index(["c", "a", "b", "d"])
     attrs_list = ["a", "b", "c"]
-    result = _sort_attrs(df, attrs_list, axis=1)
-    expected_order = ["a", "b", "c", "d"]  # d is appended at end
-    assert list(result.columns) == expected_order
+    ordered = _sort_attrs(axis_labels, attrs_list)
+    assert list(ordered) == ["a", "b", "c", "d"]
 
-    # Test with attrs not in DataFrame (should be ignored)
+    # Ignore attributes that are not present on the axis
     attrs_list = ["a", "x", "b", "y"]
-    result = _sort_attrs(df, attrs_list, axis=1)
-    expected_order = ["a", "b", "c", "d"]  # x, y ignored; c, d appended
-    assert list(result.columns) == expected_order
+    ordered = _sort_attrs(axis_labels, attrs_list)
+    assert list(ordered) == ["a", "b", "c", "d"]
 
-    # Test sorting index (axis=0)
-    df = pd.DataFrame([[1, 2], [3, 4], [5, 6]], index=["c", "a", "b"])
-    attrs_list = ["a", "b"]
-    result = _sort_attrs(df, attrs_list, axis=0)
-    expected_order = ["a", "b", "c"]  # c is appended at end
-    assert list(result.index) == expected_order
+    # Missing attrs_list should leave order untouched
+    ordered = _sort_attrs(axis_labels, [])
+    assert ordered.equals(axis_labels)
 
-    # Test empty attrs_list
-    result = _sort_attrs(df, [], axis=0)
-    assert list(result.index) == ["c", "a", "b"]  # original order preserved
+    # Empty axis behaves like a no-op
+    empty_axis = pd.Index([])
+    ordered = _sort_attrs(empty_axis, ["a", "b"])
+    assert ordered.equals(empty_axis)
 
-    # Test empty DataFrame
-    empty_df = pd.DataFrame()
-    result = _sort_attrs(empty_df, ["a", "b"], axis=1)
-    assert result.empty
+    # Works with non-unique Index types (e.g. MultiIndex)
+    axis_labels = pd.MultiIndex.from_product([["a", "b"], ["x", "y"]])
+    attrs_list = pd.MultiIndex.from_product([["b", "a"], ["y"]])
+    ordered = _sort_attrs(axis_labels, attrs_list)
+    assert list(ordered) == [
+        ("b", "y"),
+        ("a", "y"),
+        ("a", "x"),
+        ("b", "x"),
+    ]
 
 
 def test_version_warning(caplog):

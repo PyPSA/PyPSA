@@ -1025,34 +1025,43 @@ class _ExporterNetCDF(_Exporter):
                 self.ds.to_netcdf(_path)
 
 
-def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFrame:
-    """Sort axis of DataFrame according to the order of attrs_list.
-
-    Attributes not in attrs_list are appended at the end. Attributes in the list but
-    not in the DataFrame are ignored.
+def _sort_attrs(
+    axis_labels: pd.Index, attrs_list: Sequence[str] | pd.Index
+) -> pd.Index:
+    """Order axis labels to match a desired attribute sequence.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame to sort
-    attrs_list : list
-        List of attributes to sort by
-    axis : int
-        Axis to sort (0 for index, 1 for columns)
+    axis_labels : pandas.Index
+        Original axis labels that should be reordered.
+    attrs_list : Sequence[str] | pandas.Index
+        Desired ordering given as an ordered collection of attribute names.
 
     Returns
     -------
-    pd.DataFrame
-        Sorted DataFrame
+    pandas.Index
+        ``axis_labels`` with the attributes appearing in ``attrs_list`` first and
+        in the same order. Attributes missing from ``attrs_list`` follow in their
+        original order while names not present in ``axis_labels`` are ignored.
 
     """
-    df_cols_set = set(df.columns if axis == 1 else df.index)
+    if axis_labels.empty or len(attrs_list) == 0:
+        return axis_labels
 
-    existing_cols = [col for col in attrs_list if col in df_cols_set]
-    remaining_cols = [
-        col for col in (df.columns if axis == 1 else df.index) if col not in attrs_list
-    ]
-    return df.reindex(existing_cols + remaining_cols, axis=axis)
+    attrs_index = (
+        attrs_list if isinstance(attrs_list, pd.Index) else pd.Index(attrs_list)
+    )
+    existing = attrs_index.intersection(axis_labels, sort=False)
+    if existing.empty:
+        return axis_labels
+
+    remaining = axis_labels.difference(attrs_index, sort=False)
+    target = existing.append(remaining)
+
+    if axis_labels.equals(target):
+        return axis_labels
+
+    return target
 
 
 class NetworkIOMixin(_NetworkABC):
@@ -1807,7 +1816,16 @@ class NetworkIOMixin(_NetworkABC):
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)
 
         # Align index (component names) and columns (attributes)
-        new_static = _sort_attrs(new_static, attrs.index, axis=1)
+        ordered_columns = _sort_attrs(new_static.columns, attrs.index)
+        if not new_static.columns.equals(ordered_columns):
+            if isinstance(new_static.columns, pd.MultiIndex):
+                new_static = new_static.loc[:, ordered_columns]
+            else:
+                indexer = new_static.columns.get_indexer(ordered_columns)
+                if (indexer >= 0).all():
+                    new_static = new_static.iloc[:, indexer]
+                else:
+                    new_static = new_static.loc[:, ordered_columns]
 
         new_static.index.names = (
             ["name"]
@@ -1907,10 +1925,9 @@ class NetworkIOMixin(_NetworkABC):
         if not attrs.loc[attr].static:
             # Preserve static component order for consistency
             ordered_columns = _sort_attrs(
-                pd.DataFrame(columns=df.columns.union(static.index)),
-                static.index.tolist(),
-                axis=1,
-            ).columns
+                df.columns.union(static.index),
+                static.index,
+            )
             dynamic[attr] = dynamic[attr].reindex(
                 columns=ordered_columns,
                 fill_value=attrs.loc[attr].default,
@@ -1918,10 +1935,9 @@ class NetworkIOMixin(_NetworkABC):
         else:
             # Preserve existing dynamic order for static attrs
             ordered_columns = _sort_attrs(
-                pd.DataFrame(columns=df.columns.union(dynamic[attr].columns)),
-                dynamic[attr].columns.tolist(),
-                axis=1,
-            ).columns
+                df.columns.union(dynamic[attr].columns),
+                dynamic[attr].columns,
+            )
             dynamic[attr] = dynamic[attr].reindex(columns=ordered_columns)
 
         dynamic[attr].loc[self.snapshots, df.columns] = df.loc[

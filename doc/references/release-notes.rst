@@ -52,9 +52,14 @@ Features
 * The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
   to get the previous behavior of returning component names which have been added.
 
-* Refactored version attributes: ``__version_semver__`` → ``__version_base__``, 
+* Refactored version attributes: ``__version_semver__`` → ``__version_base__``,
   ``__version_short__`` → ``__version_major_minor__``. Removed tuple versions.
   Old names raise ``DeprecationWarning``.
+
+* Refined statistic arguments across optimization expressions and plotting modules.
+  Renamed ``comps`` → ``components``, ``aggregate_groups`` → ``groupby_method``,
+  and ``aggregate_time`` → ``groupby_time`` for consistency. Old argument names
+  are deprecated and will be removed in v2.0.0.
 
 * Added new options to set default optimization parameters, like `solver_name` and
   `solver_options`. See https://go.pypsa.org/options-params for more information.
@@ -65,6 +70,8 @@ Features
   Previously, components could only be either committable or extendable, but not both.
   The implementation automatically detects when both attributes are set and applies
   the appropriate big-M constraints to ensure correct operation.
+
+* Improve performance of loading networks by avoiding re-ordering dataframe columns and indices where unnecessary; especially impactful for networks with large numbers of components.
 
 Bug Fixes
 ---------
@@ -81,6 +88,9 @@ Bug Fixes
 
 * Fix bug when using ``solver_model`` after adding custom variable to linopy model.
   (https://github.com/PyPSA/PyPSA/issues/1351)
+
+* Fix ``get_transmission_carriers()`` to handle components without carrier attribute (e.g., Transformer).
+  (https://github.com/PyPSA/PyPSA/issues/1321)
 
 `v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
 =======================================================================================
