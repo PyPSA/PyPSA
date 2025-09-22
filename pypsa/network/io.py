@@ -42,6 +42,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _get_safe_excel_sheet_name(sheet_name: str) -> str:
+    """Convert sheet name to/from safe version for Excel's 31-character limit.
+
+    Works bidirectionally - converts long names to short and short back to long. Only
+    built-in mappings are handled, other names are returned unchanged and need to be
+    handled by the user (via UserWarning from openpyxl).
+    """
+    mappings = {
+        "storage_units-state_of_charge_set": "storage_units-soc_set",
+        "storage_units-efficiency_dispatch": "storage_units-eff_dispatch",
+    }
+
+    if sheet_name in mappings:
+        return mappings[sheet_name]
+
+    for long_name, short_name in mappings.items():
+        if sheet_name == short_name:
+            return long_name
+
+    return sheet_name
+
+
 @overload
 def _retrieve_from_url(
     url: str, io_function: Callable[[Path], pd.read_excel]
@@ -263,7 +285,6 @@ class _ImporterCSV(_Importer):
                     index_col=0,
                     encoding=self.encoding,
                     quotechar=self.quotechar,
-                    parse_dates=True,
                 )
                 yield attr, df
 
@@ -514,6 +535,7 @@ class _ImporterExcel(_Importer):
         """Get dynamic components data."""
         for sheet_name, df in self.sheets.items():
             if sheet_name.startswith(list_name + "-"):
+                sheet_name = _get_safe_excel_sheet_name(sheet_name)
                 attr = sheet_name[len(list_name) + 1 :]
                 df = df.set_index(df.columns[0])
                 yield attr, df
@@ -613,6 +635,7 @@ class _ExporterExcel(_Exporter):
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save dynamic components data."""
         sheet_name = f"{list_name}-{attr}"
+        sheet_name = _get_safe_excel_sheet_name(sheet_name)
         df.to_excel(self.writer, sheet_name=sheet_name)
 
     def remove_static(self, list_name: str) -> None:
@@ -631,6 +654,7 @@ class _ExporterExcel(_Exporter):
         Needed to not have stale sheets for empty components.
         """
         sheet_name = f"{list_name}-{attr}"
+        sheet_name = _get_safe_excel_sheet_name(sheet_name)
         if sheet_name in self.writer.book.sheetnames:
             del self.writer.book[sheet_name]
             logger.warning("Stale sheet %s removed", sheet_name)

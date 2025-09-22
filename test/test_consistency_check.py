@@ -64,14 +64,19 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
 @pytest.mark.parametrize("strict", [[], ["shapes"]])
 def test_shapes_with_missing_idx(ac_dc_shapes, caplog, strict):
     n = ac_dc_shapes
-    n.add(
-        "Shape",
-        "missing_idx",
-        geometry=n.c.shapes.static.geometry.iloc[0],
-        component="Bus",
-        idx="missing_idx",
-    )
+    with pytest.warns(UserWarning, match="CRS not set"):  # Userwarning from pyproj
+        n.add(
+            "Shape",
+            "missing_idx",
+            geometry=n.c.shapes.static.geometry.iloc[0],
+            component="Bus",
+            idx="missing_idx",
+        )
     assert_log_or_error_in_consistency(ac_dc_shapes, caplog, strict=strict)
+    if not strict:
+        assert any(
+            "have idx values that are not included" in r.message for r in caplog.records
+        )
 
 
 @pytest.mark.parametrize("strict", [[], ["unknown_buses"]])

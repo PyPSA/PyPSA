@@ -101,14 +101,14 @@ filterwarnings = [
     "error::DeprecationWarning",
     "error::FutureWarning",
     "error::RuntimeWarning",
-    "error:UserWarning",
-    
-    # Don't raise PyPSA New API deprecation warnings
-    "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
+    "error::UserWarning",
 
-    # Ignore warnings from/ via linopy and its dependencies
-    # "ignore::DeprecationWarning:linopy",
-    # "ignore::FutureWarning:linopy",
+    # Ignore internal warnings
+    "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
+    "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
+
+    # Ignore linopy warnings
+    "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
     "ignore:In a future version of xarray the default value for join will change:FutureWarning",
 ]
 markers = [
