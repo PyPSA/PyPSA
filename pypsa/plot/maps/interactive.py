@@ -614,7 +614,9 @@ class PydeckPlotter:
     # Layer functions
     def add_bus_layer(
         self,
-        bus_size: float | dict | pd.Series = 25,
+        bus_size: float | dict | pd.Series | None = None,
+        bus_size_factor: float | None = None,
+        bus_size_max: float = 5000,  # km²
         bus_color: str | dict | pd.Series = "cadetblue",
         bus_cmap: str | mcolors.Colormap | None = None,
         bus_cmap_norm: mcolors.Normalize | None = None,
@@ -626,19 +628,26 @@ class PydeckPlotter:
 
         Parameters
         ----------
-        bus_size : float/dict/pandas.Series
+        bus_size : float/dict/pandas.Series/None
             Sizes of bus points in radius² (km²), defaults to 25.
+            If None, all buses are plotted with the default size.
+        bus_size_factor : float/None
+            If None, bus sizes are auto-scaled to bus_size_max. If a float is provided,
+            bus sizes are scaled by this factor.
+        bus_size_max : float, default 5000
+            Maximum size of bus points in km² when auto-scaling.
         bus_color : str/dict/pandas.Series
-            Colors for the buses, defaults to 'cadetblue'.
-        bus_cmap : mcolors.Colormap/str
-            If bus_color are floats, this color map will assign the colors
-        bus_cmap_norm : mcolors.Normalize
-            The norm applied to the bus_cmap
+            Colors for the buses, defaults to "cadetblue". If bus_size is a
+            pandas.Series with a Multiindex, bus_color defaults to the
+            n.c.carriers.static['color'] column.
+        bus_cmap : mcolors.Colormap/str/None
+            If bus_color are floats, this color map will assign the colors.
+        bus_cmap_norm : mcolors.Normalize/None
+            Normalization for bus_cmap, defaults to None.
         bus_alpha : float/dict/pandas.Series
             Add alpha channel to buses, defaults to 0.9.
         bus_columns : list, default None
-            List of bus columns to include. If None, only the bus index and x, y coordinates are used.
-            Specify additional columns to include in the tooltip.
+            List of bus columns to include.
         tooltip : bool, default True
             Whether to show a tooltip on hover.
 
@@ -647,55 +656,63 @@ class PydeckPlotter:
         None
 
         """
-        # Check if columns exist and only keep the ones that also exist in the network
-        bus_data, valid_columns = self.prepare_component_data(
-            "Bus",
-            extra_columns=bus_columns,
-        )
+        DEFAULT_BUS_SIZE = 25  # km²
 
-        # Only keep buses with valid coordinates, same index order as self._x and self._y
-        bus_data = bus_data.loc[self._x.index[self._x.index.isin(bus_data.index)]]
+        msg = "bus_size_factor must be non-negative"
+        if bus_size_factor is not None and bus_size_factor < 0:
+            raise ValueError(msg)
 
-        # Map bus sizes
-        bus_size = _convert_to_series(bus_size, bus_data.index)
-        bus_size = bus_size * 1e6  # Convert sizes from km² to m²
-        bus_data["radius"] = bus_size**0.5
+        bus_data, _ = self.prepare_component_data("Bus", extra_columns=bus_columns)
 
-        # Tooltip
-        if tooltip:
-            bus_data["tooltip_html"] = df_to_html_table(
-                bus_data,
-                columns=valid_columns,
-                rounding=2,
-                value_align="left",
-                max_header_length=30,
-            )
+        valid_idx = self._x.index.intersection(bus_data.index)
+        bus_data = bus_data.loc[valid_idx].copy()
+        self._component_data["Bus"] = bus_data
+        bus_data["x"] = self._x.loc[bus_data.index]
+        bus_data["y"] = self._y.loc[bus_data.index]
 
-        # Convert colors to RGBA list
-        colors = _convert_to_series(bus_color, bus_data.index).reindex(bus_data.index)
-        alphas = _convert_to_series(bus_alpha, bus_data.index).reindex(bus_data.index)
+        # Handle bus sizes
+        if bus_size is None:
+            bus_size_series = pd.Series(DEFAULT_BUS_SIZE, index=bus_data.index)
+        else:
+            bus_size_series = _convert_to_series(bus_size, bus_data.index).clip(lower=0)
+        if (bus_size_series == 0.0).all():
+            return
+        bus_data["size"] = bus_size_series
 
-        # Apply colormap only if numeric
-        colors = apply_cmap(colors, bus_cmap, bus_cmap_norm)
+        if bus_size_factor is None:
+            bus_size_series = scale_to_max_abs(bus_size_series, bus_size_max)
+        else:
+            bus_size_series = bus_size_series * bus_size_factor
 
+        bus_data["size_pdk"] = (
+            bus_size_series * 1e6 / np.pi
+        ) ** 0.5  # convert to meters for Pydeck
+
+        # 6. Handle colors and alpha
+        color_series = _convert_to_series(bus_color, bus_data.index)
+        alpha_series = _convert_to_series(bus_alpha, bus_data.index)
+        color_series = apply_cmap(color_series, bus_cmap, bus_cmap_norm)
         bus_data["rgba"] = [
-            to_rgba255(c, a) for c, a in zip(colors, alphas, strict=False)
+            to_rgba255(c, a) for c, a in zip(color_series, alpha_series, strict=False)
         ]
 
+        # 7. Create tooltips if requested
+        if tooltip:
+            self.create_tooltips("Bus")
+
+        # 8. Create Pydeck layer
         layer = pdk.Layer(
             "ScatterplotLayer",
-            data=bus_data.assign(x=self._x, y=self._y),
+            data=bus_data,
             get_position=["x", "y"],
             get_color="rgba",
-            get_radius="radius",
+            get_radius="size_pdk",
             pickable=True,
             auto_highlight=True,
-            parameters={
-                "depthTest": False
-            },  # To prevent z-fighting issues/flickering in 3D space
+            parameters={"depthTest": False},  # prevent z-fighting
         )
 
-        # Append the bus layer to the layers property
+        # 9. Store the layer
         self._layers["Bus"] = layer
 
     @staticmethod
@@ -995,9 +1012,6 @@ class PydeckPlotter:
         None
 
         """
-        if c_name not in self._component_data:
-            self._component_data[c_name] = {}
-
         if self._n.static(c_name).empty:
             msg = f"No data found for component '{c_name}'. Skipping layer creation."
             logger.warning(msg)
@@ -1748,7 +1762,9 @@ class PydeckPlotter:
         branch_components: list | set | None = None,
         branch_width_factor: float | None = None,
         branch_width_max: float = 10,  # km
-        bus_size: float | dict | pd.Series = 25,
+        bus_size: float | dict | pd.Series | None = None,
+        bus_size_factor: float | None = None,
+        bus_size_max: float = 5000,  # km²
         bus_split_circle: bool = False,
         bus_color: str | dict | pd.Series = "cadetblue",
         bus_cmap: str | mcolors.Colormap | None = None,
@@ -1799,8 +1815,13 @@ class PydeckPlotter:
             If a float is provided, branch widths are scaled by this factor.
         branch_width_max : float, default 10
             Maximum width of branch component in km when auto-scaling.
-        bus_size : float/dict/pandas.Series
-            Sizes of bus points in radius² (km²), defaults to 25.
+        bus_size : float/dict/pandas.Series/None
+            Sizes of bus points in radius² (km²). If None, bus size falls back to 25 km².
+        bus_size_factor : float/None
+            If None, bus sizes are auto-scaled to bus_size_max. If a float is provided,
+            bus sizes are scaled by this factor.
+        bus_size_max : float, default 5000
+            Maximum size of bus points in km² when auto-scaling.
         bus_split_circle : bool, default False
             Draw half circles if bus_size is a pandas.Series with a Multiindex.
             If set to true, the upper half circle per bus then includes all positive values
@@ -1953,6 +1974,8 @@ class PydeckPlotter:
         else:
             self.add_bus_layer(
                 bus_size=bus_size,
+                bus_size_factor=bus_size_factor,
+                bus_size_max=bus_size_max,
                 bus_color=bus_color,
                 bus_cmap=bus_cmap,
                 bus_cmap_norm=bus_cmap_norm,
