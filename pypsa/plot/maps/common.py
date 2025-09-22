@@ -294,15 +294,15 @@ def scale_to_max_abs(series: pd.Series, max_value: float = 1.0) -> pd.Series:
 
 
 def get_global_stat(
-    elements: list[float | dict[Any, float] | pd.Series],
+    elements: list[float | int | dict[Any, float | int] | pd.Series],
     stat: str | Callable = "max",
     absolute: bool = True,
-) -> float:
+) -> float | None:
     """Compute a global statistic (min, max, median, mean, etc.) across a list of floats, dicts, or pandas Series.
 
     Parameters
     ----------
-    elements : list of (float | dict | pd.Series)
+    elements : list of (float | int | dict | pd.Series)
         Elements to evaluate.
     stat : str or Callable, default "max"
         Aggregation to apply ("max", "min", "median", "mean", ...).
@@ -312,10 +312,12 @@ def get_global_stat(
 
     Returns
     -------
-    float
-        The global statistic across all elements.
+    float or None
+        The global statistic across all elements. Returns None if no valid values are found.
 
     """
+    func: Callable[[np.ndarray], float]
+
     # Resolve stat into a function
     if isinstance(stat, str):
         stat_map = {
@@ -353,7 +355,7 @@ def get_global_stat(
             msg = f"Unsupported type: {type(el)}."
             raise TypeError(msg)
 
-    if not values or len(values) == 0:
+    if not values:
         return None
 
     arr = np.array(values, dtype=float)

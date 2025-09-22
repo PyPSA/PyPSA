@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable, Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import matplotlib.colors as mcolors
 import numpy as np
@@ -1318,20 +1318,21 @@ class PydeckPlotter:
         if global_param_max == 0:
             global_param_max = None  # Avoid division by zero
 
-        branch_param = _convert_to_series(branch_param, c_data.index)
+        branch_param_series: pd.Series = _convert_to_series(branch_param, c_data.index)
 
-        if (branch_param == 0).all():
+        if (branch_param_series == 0).all():
             c_data[f"{branch_param_name}_pdk"] = 0
+            return
 
-        c_data[branch_param_name] = branch_param
+        c_data[branch_param_name] = branch_param_series
 
         # Use absolute values
         sign = (
-            branch_param.apply(np.sign)
+            branch_param_series.apply(np.sign)
             if keep_algebraic_sign
-            else pd.Series(1, index=branch_param.index)
+            else pd.Series(1, index=branch_param_series.index)
         )
-        branch_param_deck = branch_param.abs()
+        branch_param_deck = branch_param_series.abs()
         local_param_max = branch_param_deck.max()
 
         if branch_param_factor is None and global_param_max is not None:
@@ -1379,7 +1380,9 @@ class PydeckPlotter:
             columns = list(c_data.columns)
 
         exclude_cols = ["path", "width_pdk", "arrow", "rgba", "rgba_arrow"]
-        columns = [col for col in columns if col not in exclude_cols]
+        columns = [
+            col for col in columns if col not in exclude_cols and col in c_data.columns
+        ]
 
         c_data["tooltip_html"] = df_to_html_table(
             c_data,
@@ -1548,7 +1551,9 @@ class PydeckPlotter:
             # Branch lines
             self.init_branch_component_data(
                 c_name=c.name,
-                branch_columns=branch_settings[c.name]["columns"],
+                branch_columns=cast(
+                    "list[str] | None", branch_settings[c.name]["columns"]
+                ),
             )
             self.create_branch_paths(c.name)
             self.create_branch_colors(
