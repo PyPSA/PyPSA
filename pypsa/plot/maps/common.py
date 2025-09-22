@@ -3,7 +3,7 @@
 import importlib
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -360,7 +360,8 @@ def get_global_stat(
     if absolute:
         arr = np.abs(arr)
 
-    return float(func(arr))
+    cast_func = Callable[[np.ndarray], Any]
+    return float(cast("cast_func", func)(arr))
 
 
 def create_rgba_colors(
