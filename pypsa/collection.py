@@ -237,6 +237,48 @@ class NetworkCollection:
         return iter(self.networks)
 
     @property
+    def is_collection(self) -> bool:
+        """Check if this is a collection of networks or a single network.
+
+        Returns
+        -------
+        bool
+            True, since this is a NetworkCollection.
+
+        See Also
+        --------
+        [pypsa.Network][]
+        [pypsa.Collection][]
+
+        """
+        return True
+
+    def get_network(self, collection: Any) -> Network:
+        """Return a single network from the collection.
+
+        Parameters
+        ----------
+        collection : Any
+            Name or identifier of the network to retrieve.
+
+        Returns
+        -------
+        Network
+            The requested network from the collection.
+
+        Raises
+        ------
+        KeyError
+            If the collection name is not found.
+
+        """
+        try:
+            return self.networks.loc[collection]
+        except KeyError as err:
+            msg = f"Collection '{collection}' not found in network collection."
+            raise KeyError(msg) from err
+
+    @property
     def index(self) -> pd.Index:
         """Get the index of the NetworkCollection.
 
