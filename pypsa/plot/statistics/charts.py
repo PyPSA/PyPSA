@@ -331,10 +331,14 @@ class ChartGenerator(PlotsGenerator, ABC):
             g.map_dataframe(sns.scatterplot, x=x, y=y, hue=color, **kwargs)
         elif kind == "line":
             g.map_dataframe(sns.lineplot, x=x, y=y, hue=color, **kwargs)
-        elif kind == "box":
-            g.map_dataframe(sns.boxplot, x=x, y=y, hue=color, **kwargs)
-        elif kind == "violin":
-            g.map_dataframe(sns.violinplot, x=x, y=y, hue=color, **kwargs)
+        elif kind in ["box", "violin"]:
+            # FacetGrid adds color internally, remove to avoid conflict with hue
+            kwargs.pop("color", None)
+            plot_func = sns.boxplot if kind == "box" else sns.violinplot
+            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
+            if color is not None:
+                plot_kwargs["palette"] = palette
+            g.map_dataframe(plot_func, **plot_kwargs)
         elif kind == "histogram":
             if y is None:
                 g.map_dataframe(sns.histplot, x=x, hue=color, **kwargs)
