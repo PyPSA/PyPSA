@@ -243,7 +243,7 @@ def test_from_xarray_edge_cases():
     # Create mock component for testing
     class MockComponent:
         def __init__(self):
-            self.component_names = ["gen1", "gen2"]
+            self.names = ["gen1", "gen2"]
             self.scenarios = ["s1", "s2"]
             self.has_scenarios = False
 

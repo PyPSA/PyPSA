@@ -417,7 +417,7 @@ def apply_line_types(n: Network) -> None:
     # Get unique line types from lines
     line_types_used = n.c.lines.static.loc[lines_with_types_b, "type"].unique()
 
-    missing_types = pd.Index(line_types_used).difference(n.c.line_types.component_names)
+    missing_types = pd.Index(line_types_used).difference(n.c.line_types.names)
 
     if not missing_types.empty:
         msg = f"The type(s) {', '.join(missing_types)} do(es) not exist in n.c.line_types.static"

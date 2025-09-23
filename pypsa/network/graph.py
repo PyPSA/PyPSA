@@ -113,7 +113,7 @@ class NetworkGraphMixin:
         with warnings.catch_warnings():
             # TODO Resolve
             warnings.filterwarnings(
-                "default",
+                "ignore",
                 message=".*iterate_components is deprecated.*",
                 category=DeprecationWarning,
             )

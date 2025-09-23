@@ -363,7 +363,13 @@ class MapPlotter:
                 self.ax = plt.gca()
             else:
                 self.ax = ax
-            self.ax.axis(boundaries)
+            # Only set axis boundaries if they are not degenerate
+            if (
+                boundaries is not None
+                and boundaries[0] != boundaries[1]
+                and boundaries[2] != boundaries[3]
+            ):
+                self.ax.axis(boundaries)
             self.x_trans, self.y_trans = self.x, self.y
         self.ax.set_aspect("equal")
         self.ax.axis("off")

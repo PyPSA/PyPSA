@@ -174,8 +174,8 @@ def _as_xarray_guard(component: Any, res: xarray.DataArray) -> None:
         msg = f"Scenario order mismatch: {list(res.scenario.values)} != {list(component.scenarios)}"
         raise UnexpectedError(msg)
 
-    if list(res.coords["name"].values) != list(component.component_names):
-        msg = f"Component order mismatch: {list(res.coords['name'].values)} != {list(component.component_names)}"
+    if list(res.coords["name"].values) != list(component.names):
+        msg = f"Component order mismatch: {list(res.coords['name'].values)} != {list(component.names)}"
         raise UnexpectedError(msg)
 
 

@@ -99,16 +99,18 @@ include = ["pypsa"]
 [tool.pytest.ini_options]
 filterwarnings = [
     # Raise warnings as errors
-    "error::DeprecationWarning", 
-    # "error::FutureWarning", 
-    # "error:RuntimeWarning",
-    # "error:UserWarning",
-    
-    "ignore::matplotlib._api.deprecation.MatplotlibDeprecationWarning:pydev",
-    # See https://github.com/microsoft/debugpy/issues/1623
+    "error::DeprecationWarning",
+    "error::FutureWarning",
+    "error::RuntimeWarning",
+    "error::UserWarning",
 
-    # Ignore PyPSA New API deprecation warnings
-    "ignore:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
+    # Ignore internal warnings
+    "default:With PyPSA 1.0, the API for how to access components data has changed:DeprecationWarning",
+    "default:When combining.*with other plots on a geographical axis.*:UserWarning", # TODO: needs to be checked
+
+    # Ignore linopy warnings
+    "default:Coordinates across variables not equal. Perform outer join.:UserWarning",
+    "ignore:In a future version of xarray the default value for join will change:FutureWarning",
 ]
 markers = [
     "mpl_image_compare",

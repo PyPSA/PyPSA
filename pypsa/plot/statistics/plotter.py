@@ -280,7 +280,7 @@ class StatisticPlotter:
         # Get statistics data and return plot
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                "default",
+                "ignore",
                 message=".*Passing `aggregate_across_components` was deprecated.*",
                 category=DeprecationWarning,
             )
@@ -671,7 +671,7 @@ class StatisticInteractivePlotter:
         # Get statistics data and return plot
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                "default",
+                "ignore",
                 message=".*Passing `aggregate_across_components` was deprecated.*",
                 category=DeprecationWarning,
             )

@@ -145,6 +145,9 @@ Features
     experimental and might change with the next release. Documentation and API
     reference will follow with a stable version of it.
 
+* Add new statistics function ``n.statistics.prices()`` which can return
+  time-averaged or consumption-weighted prices by bus or bus carrier.
+
 Bug Fixes
 ---------
 
