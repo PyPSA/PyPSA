@@ -57,5 +57,5 @@ class TestDynamicDependencyChecking:
         n = pypsa.Network()
         n.add("Bus", "bus1", x=0, y=0)
 
-        with patch("pypsa.plot.maps._is_cartopy_available", return_value=False):
+        with patch("pypsa.plot.maps.common._is_cartopy_available", return_value=False):
             n.plot(geomap=True)  # Should work despite geomap=True
