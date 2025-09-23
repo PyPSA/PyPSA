@@ -415,7 +415,7 @@ class Network(
                 results.append(("collection", self.networks[key]))  # type: ignore[attr-defined]
 
             # Check network slice
-            if key in self.c.buses.component_names:
+            if key in self.c.buses.names:
                 results.append(("network", self.slice_network([key])))
 
             # Handle results
