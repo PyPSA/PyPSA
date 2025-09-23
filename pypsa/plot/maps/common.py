@@ -557,6 +557,11 @@ def scale_polygon_by_width(
 
     """
     width = poly[:, 1].max() - poly[:, 1].min()
+
+    if width == 0:
+        msg = "Cannot scale polygon with zero width."
+        raise ValueError(msg)
+
     return poly * (target_width / width)
 
 
