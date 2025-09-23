@@ -56,6 +56,9 @@ class TestDynamicDependencyChecking:
 
         n = pypsa.Network()
         n.add("Bus", "bus1", x=0, y=0)
+        n.add(
+            "Bus", "bus2", x=1, y=1
+        )  # TODO: Actual issue lies in x_min, x_max, y_min, y_max calculation when only one bus is present. Fix this properly. Reproduce by removing one bus.
 
         with patch("pypsa.plot.maps.common._is_cartopy_available", return_value=False):
             n.plot(geomap=True)  # Should work despite geomap=True
