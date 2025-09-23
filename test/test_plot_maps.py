@@ -1,4 +1,3 @@
-import importlib.util
 import os
 
 import matplotlib.pyplot as plt
@@ -17,18 +16,8 @@ from pypsa.plot.maps.static import (
 )
 from pypsa.statistics import get_transmission_branches, groupers
 
-
-def _is_explore_dependencies_available() -> bool:
-    """Check if folium and mapclassify are available for explore functionality."""
-    return (
-        importlib.util.find_spec("folium") is not None
-        and importlib.util.find_spec("mapclassify") is not None
-    )
-
-
 # Use dynamic checking for test skipping
 cartopy_present = _is_cartopy_available()
-explore_deps_present = _is_explore_dependencies_available()
 
 # Import actual packages for test usage (these imports are conditional on availability)
 if cartopy_present:
