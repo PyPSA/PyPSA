@@ -41,12 +41,12 @@ class TestDynamicDependencyChecking:
     def test_cartopy_checking_not_cached(self):
         """Test that cartopy checking responds to changes."""
         with patch(
-            "pypsa.plot.maps.common.importlib.util.find_spec", return_value=None
+            "pypsa.plot.maps.static.importlib.util.find_spec", return_value=None
         ):
             assert _is_cartopy_available() is False
 
         with patch(
-            "pypsa.plot.maps.common.importlib.util.find_spec", return_value="mock"
+            "pypsa.plot.maps.static.importlib.util.find_spec", return_value="mock"
         ):
             assert _is_cartopy_available() is True
 
@@ -57,5 +57,5 @@ class TestDynamicDependencyChecking:
         n = pypsa.Network()
         n.add("Bus", "bus1", x=0, y=0)
 
-        with patch("pypsa.plot.maps.common._is_cartopy_available", return_value=False):
+        with patch("pypsa.plot.maps._is_cartopy_available", return_value=False):
             n.plot(geomap=True)  # Should work despite geomap=True
