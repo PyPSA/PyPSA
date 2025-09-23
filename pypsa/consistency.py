@@ -65,7 +65,7 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.c.buses.component_names)
+        missing = ~component.static[attr].astype(str).isin(n.c.buses.names)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
             missing &= component.static[attr] != ""
@@ -105,7 +105,7 @@ def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
         for attr in _bus_columns(component.static):
             connected_buses.update(component.static[attr])
 
-    disconnected_buses = set(n.c.buses.component_names) - connected_buses
+    disconnected_buses = set(n.c.buses.names) - connected_buses
     if disconnected_buses:
         _log_or_raise(
             strict,
@@ -140,7 +140,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.c.carriers.component_names)
+            ~component.static["carrier"].isin(n.c.carriers.names)
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )
