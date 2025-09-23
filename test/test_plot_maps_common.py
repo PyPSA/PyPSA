@@ -585,6 +585,7 @@ def test_feature_to_geojson_mock():
 
 
 # shapefile_to_geojson
+@pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
 def test_shapefile_to_geojson_basic():
     # Use the smallest dataset to keep test fast
     features = shapefile_to_geojson(

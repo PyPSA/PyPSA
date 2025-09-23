@@ -41,12 +41,12 @@ class TestDynamicDependencyChecking:
     def test_cartopy_checking_not_cached(self):
         """Test that cartopy checking responds to changes."""
         with patch(
-            "pypsa.plot.maps.static.importlib.util.find_spec", return_value=None
+            "pypsa.plot.maps.common.importlib.util.find_spec", return_value=None
         ):
             assert _is_cartopy_available() is False
 
         with patch(
-            "pypsa.plot.maps.static.importlib.util.find_spec", return_value="mock"
+            "pypsa.plot.maps.common.importlib.util.find_spec", return_value="mock"
         ):
             assert _is_cartopy_available() is True
 
