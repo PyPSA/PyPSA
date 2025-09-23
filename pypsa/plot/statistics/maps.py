@@ -105,7 +105,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         # Get bus sizes from statistics function
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                "default",
+                "ignore",
                 message=".*Passing `aggregate_across_components` was deprecated.*",
                 category=DeprecationWarning,
             )

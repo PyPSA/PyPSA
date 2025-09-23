@@ -145,6 +145,7 @@ def test_query_filtering(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 def test_consistency_checks(ac_dc_network_r):
@@ -165,6 +166,7 @@ def test_stacking(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -183,6 +185,7 @@ def test_networks_bar_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -192,6 +195,7 @@ def test_networks_line_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -201,6 +205,7 @@ def test_networks_area_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 def test_networks_query_filtering(network_collection):
