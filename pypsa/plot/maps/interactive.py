@@ -1,4 +1,4 @@
-"""Plot the network interactively using plotly and folium."""
+"""Plot the network interactively using plotly or pydeck."""
 
 import logging
 from collections.abc import Callable, Sequence
