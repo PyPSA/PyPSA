@@ -673,7 +673,7 @@ def test_bug_1360_storage_units():
 
     n.optimize(multi_investment_periods=False)
     equal(
-        n.storage_units_t.state_of_charge["storage_unit"].values,
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
         [0.9, 0.8, 0.7, 0.6],
         decimal=5,
     )
@@ -702,7 +702,7 @@ def test_bug_1360_storage_units():
 
     n.optimize(multi_investment_periods=False)
     equal(
-        n.storage_units_t.state_of_charge["storage_unit"].values,
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
         [0.9, 0.8, 0.7, 0.6],
         decimal=5,
     )
@@ -728,7 +728,7 @@ def test_bug_1360_storage_units():
 
     n.optimize(multi_investment_periods=True)
     equal(
-        n.storage_units_t.state_of_charge["storage_unit"].values,
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
         [0.9, 0.8, 0.9, 0.8],
         decimal=5,
     )
@@ -754,7 +754,7 @@ def test_bug_1360_storage_units():
 
     n.optimize(multi_investment_periods=True)
     equal(
-        n.storage_units_t.state_of_charge["storage_unit"].values,
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
         [0.9, 0.8, 0.7, 0.6],
         decimal=5,
     )
