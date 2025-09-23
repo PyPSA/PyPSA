@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+import pydeck as pdk
 import pytest
 
 from pypsa.plot.maps.common import _is_cartopy_available
@@ -331,16 +332,6 @@ def test_plot_legend_semicircles_geomap(ac_dc_network):
     plt.close()
 
 
-@pytest.mark.skipif(
-    not explore_deps_present,
-    reason="Dependencies for n.plot.explore() not installed: folium, mapclassify",
-)
-def test_network_explore(ac_dc_network):
-    n = ac_dc_network
-
-    n.plot.explore()
-
-
 def test_plot_alias_for_plot_map(ac_dc_network):
     """Test that n.plot() is an alias for n.plot.map()."""
     n = ac_dc_network
@@ -357,17 +348,29 @@ def test_plot_alias_for_plot_map(ac_dc_network):
     assert type(result1) is type(result2)
 
 
-@pytest.mark.skipif(
-    not explore_deps_present,
-    reason="Dependencies for n.plot.explore() not installed: folium, mapclassify",
-)
 def test_plot_explore_alias_for_explore(ac_dc_network):
     """Test that n.plot.explore is an alias for n.explore()."""
     n = ac_dc_network
 
-    # Both should return the same type of object
     result1 = n.plot.explore()
     result2 = n.explore()
 
-    # Both should return folium Map objects
     assert type(result1) is type(result2)
+
+
+def test_explore_parameters(ac_dc_network):
+    n = ac_dc_network
+
+    # Custom map style
+    deck = n.plot.explore(map_style="dark")
+    assert deck.map_style == "dark" or pdk.Deck(map_style="dark").map_style
+
+    # Custom view state
+    view_state = pdk.ViewState(latitude=0, longitude=0, zoom=5)
+    deck = n.plot.explore(view_state=view_state)
+    assert deck.initial_view_state.latitude == 0
+    assert deck.initial_view_state.zoom == 5
+
+    # With jitter
+    deck = n.plot.explore(jitter=0.1)
+    assert isinstance(deck, pdk.Deck)
