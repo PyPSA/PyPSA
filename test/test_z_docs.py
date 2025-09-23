@@ -3,7 +3,6 @@ import importlib
 import pkgutil
 import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -47,14 +46,6 @@ modules = [
     for _, name, _ in pkgutil.walk_packages(pypsa.__path__, pypsa.__name__ + ".")
     if name not in ["pypsa.utils", "pypsa.components.utils", "pypsa.typing"]
 ]
-
-
-@pytest.fixture(autouse=True)
-def close_matplotlib_figures():
-    """Close all matplotlib figures before and after each test."""
-    plt.close("all")
-    yield
-    plt.close("all")
 
 
 @pytest.mark.skipif(
