@@ -88,6 +88,11 @@ Bug Fixes
 * Fix ``get_transmission_carriers()`` to handle components without carrier attribute (e.g., Transformer).
   (https://github.com/PyPSA/PyPSA/issues/1321)
 
+* Fix storage state-of-charge handling with multi-indexed snapshots. Storage units and stores
+  now correctly preserve their state of charge across investment periods when
+  ``state_of_charge_initial_per_period=False`` or ``e_initial_per_period=False``. 
+  (https://github.com/PyPSA/PyPSA/issues/1360)
+
 `v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
 =======================================================================================
 Bug Fixes

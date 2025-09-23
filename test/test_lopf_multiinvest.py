@@ -563,3 +563,198 @@ def test_max_relative_growth_constraint(n):
         n.c.generators.static.build_year
     ).sum()
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
+
+
+def test_bug_1360_stores():
+    """
+    Storage state of charge should behave correctly with various snapshot configurations.
+    See https://github.com/PyPSA/PyPSA/issues/1360.
+    """
+    # Case 1: Simple snapshots without multi_investment_periods
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge
+    n = pypsa.Network()
+    n.snapshots = [1, 2, 3, 4]
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add("Store", "store", bus="bus", e_nom=10, e_initial=10, marginal_cost=1)
+
+    n.optimize(multi_investment_periods=False)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+    # Case 2: Multi-indexed snapshots without multi_investment_periods
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+    # Case 3: Multi_investment_periods with e_initial_per_period=True
+    # Expected: stores_t.e [9, 8, 9, 8] - reset at each period
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=True,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(n.stores_t.e["store"].values, [9, 8, 9, 8], decimal=5)
+
+    # Case 4: Multi_investment_periods with e_initial_per_period=False
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge across periods
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+
+def test_bug_1360_storage_units():
+    """
+    Storage units state of charge should behave correctly with various snapshot configurations.
+    See https://github.com/PyPSA/PyPSA/issues/1360.
+    """
+    # Case 1: Simple snapshots without multi_investment_periods
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge
+    n = pypsa.Network()
+    n.snapshots = [1, 2, 3, 4]
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(
+        n.storage_units_t.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+    # Case 2: Multi-indexed snapshots without multi_investment_periods
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(
+        n.storage_units_t.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+    # Case 3: Multi_investment_periods with state_of_charge_initial_per_period=True
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.9, 0.8] - reset at each period
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=True,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(
+        n.storage_units_t.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.9, 0.8],
+        decimal=5,
+    )
+
+    # Case 4: Multi_investment_periods with state_of_charge_initial_per_period=False
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge across periods
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(
+        n.storage_units_t.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
