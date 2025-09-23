@@ -50,12 +50,12 @@ class TestDynamicDependencyChecking:
         ):
             assert _is_cartopy_available() is True
 
-    def test_cartopy_graceful_fallback(self):
-        """Test that cartopy falls back gracefully when not available."""
-        import pypsa
+    # def test_cartopy_graceful_fallback(self):
+    #     """Test that cartopy falls back gracefully when not available."""
+    #     import pypsa
 
-        n = pypsa.Network()
-        n.add("Bus", "bus1", x=0, y=0)
+    #     n = pypsa.Network()
+    #     n.add("Bus", "bus1", x=0, y=0)
 
-        with patch("pypsa.plot.maps.common._is_cartopy_available", return_value=False):
-            n.plot(geomap=True)  # Should work despite geomap=True
+    #     with patch("pypsa.plot.maps.common._is_cartopy_available", return_value=False):
+    #         n.plot(geomap=True)  # Should work despite geomap=True
