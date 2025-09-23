@@ -1,15 +1,21 @@
 
-todo: general update
+# Non-linear Power Flow
 
-# Power Flow
 
-## Non-linear power flow
+The non-linear power flow calculation [`n.pf()`][pypsa.Network.pf] works for AC
+networks and by extension for DC networks, too. It can be called for a
+particular snapshot as `n.pf(snapshots=n.snapshots[0])` or on an iterable of
+snapshots as `n.pf(snapshots=n.snapshots[:24])`.
 
-The non-linear power flow [`n.pf()`][pypsa.Network.pf] works for AC networks and by extension for DC networks too.
+The power flow calculation is independent of the optimisation. A common workflow
+is to first optimise the network with the linearised approximations of
+[`n.optimize()`][pypsa.Network.optimize] and then to run the non-linear power
+flow calculation on the optimised network with [`n.pf()`][pypsa.Network.pf] for
+validation, using the power imbalances from the optimisation as setpoints. There
+is a function that does this for you,
+[`n.optimize.optimize_and_run_non_linear_powerflow()`][pypsa.optimization.optimize_and_run_non_linear_powerflow].
 
-It can be called for a particular `snapshot` as `n.pf(snapshots=snapshot)` or on an iterable of `snapshots` as `n.pf(snapshots=snapshots)` to calculate the non-linear power flow on a selection of snapshots at once (which is more performant than calling `n.pf` on each snapshot separately). If no argument is passed, it will be called on all [`n.snapshots`][pypsa.Network.snapshots].
-
-### AC networks (single slack)
+## AC networks (single slack)
 
 The power flow ensures for given inputs (load and power plant dispatch) that the following equation is satisfied for each bus $i$:
 
@@ -19,15 +25,16 @@ where $V_i = |V_i|e^{j\theta_i}$ is the complex voltage, whose rotating angle is
 
 $Y_{ij}$ is the bus admittance matrix, based on the branch impedances and any shunt admittances attached to the buses.
 
-For the slack bus $i=0$ it is assumed $|V_0|$ is given and that $\theta_0 = 0$; P and Q are to be found.
+For the slack bus $i=0$ it is assumed $|V_0|$ is given and that $\theta_0 = 0$; $P$ and $Q$ are to be found.
 
-For the PV buses, P and $|V|$ are given; Q and $\theta$ are to be found.
+For the PV buses, $P$ and $|V|$ are given; $Q$ and $\theta$ are to be found.
 
-For the PQ buses, P and Q are given; $|V|$ and $\theta$ are to be found.
+For the PQ buses, $P$ and $Q$ are given; $|V|$ and $\theta$ are to be found.
 
 If PV and PQ are the sets of buses, then there are $|PV| + 2|PQ|$ real equations to solve:
 
 $$\textrm{Re}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - P_i = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PV \cup PQ$$
+
 $$\textrm{Im}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - Q_i = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PQ$$
 
 To be found: $\theta_i \forall i \in PV \cup PQ$ and $|V_i| \forall i \in PQ$.
@@ -39,23 +46,25 @@ $$\frac{\partial f}{\partial x} = \left( \begin{array}{cc}
 \frac{\partial Q}{\partial \theta} & \frac{\partial Q}{\partial |V|}
 \end{array} \right)$$
 
-and the initial "flat" guess of $\theta_i = 0$ and $|V_i| = 1$ for unknown quantities.
+and the initial flat guess of $\theta_i = 0$ and $|V_i| = 1$ for unknown quantities.
 
-### AC networks (distributed slack)
+## AC networks (distributed slack)
 
-If the slack is to be distributed to all generators in proportion to their dispatch (`distribute_slack=True`), instead of being allocated fully to the slack bus, the active power balance is altered to
+If the slack is to be distributed to all generators in proportion to their
+dispatch with `n.pf(distribute_slack=True)`, instead of being allocated fully to
+the slack bus, the active power balance is altered to
 
 $$\textrm{Re}\left[ V_i \left(\sum_j Y_{ij} V_j\right)^* \right] - P_i - P_{slack}\gamma_i = 0 \hspace{.7cm}\forall\hspace{.1cm} i \in PV \cup PQ \cup slack$$
 
 where $P_{slack}$ is the total slack power and $\gamma_{i}$ is the share of bus $i$ of the total generation that is used to distribute the slack power. Note that also an additional active power balance is included for the slack bus since it is now part of the distribution scheme.
 
-This adds an additional **row** to the Jacobian for the derivatives of the slack bus active power balance and an additional **column** for the partial derivatives with respect to $\gamma_i$.
+This adds an additional row to the Jacobian for the derivatives of the slack bus active power balance and an additional column for the partial derivatives with respect to $\gamma_i$.
 
-### DC networks
+## DC networks
 
 For meshed DC networks the equations are a special case of those for AC networks, with the difference that all quantities are real.
 
-To solve the non-linear equations for a DC network, ensure that the series reactance $x$ and shunt susceptance $b$ are zero for all branches, pick a Slack bus (where $V_0 = 1$) and set all other buses to be 'PQ' buses. Then execute [`n.pf()`][pypsa.Network.pf].
+To solve the non-linear equations for a DC network, ensure that the series reactance $x$ and shunt susceptance $b$ are zero for all branches, pick a slack bus (where $V_0 = 1$) and set all other buses to be 'PQ' buses. Then execute [`n.pf()`][pypsa.Network.pf].
 
 The voltage magnitudes then satisfy at each bus $i$:
 
@@ -65,7 +74,7 @@ where all quantities are real.
 
 $G_{ij}$ is based only on the branch resistances and any shunt conductances attached to the buses.
 
-### Line model
+## Line model
 
 Lines are modelled with the standard equivalent PI model.
 
@@ -97,11 +106,11 @@ v_0 \\ v_1
 \end{array}
 \right)$$
 
-### Transformer model
+## Transformer model
 
 The transformer models here are largely based on the implementation in [pandapower](https://github.com/panda-power/pandapower), which is loosely based on [DIgSILENT PowerFactory](http://www.digsilent.de/index.php/products-powerfactory.html).
 
-Transformers are modelled either with the equivalent T model (the default, since this represents the physics better) or with the equivalent PI model. The can be controlled by setting transformer attribute `model` to either `t` or `pi`.
+Transformers are modelled either with the equivalent T model (the default, since this represents the physics better) or with the equivalent PI model. The can be controlled by setting transformer attribute `model` to either "t" or "pi".
 
 The tap changer can either be modelled on the primary, high voltage side 0 (the default) or on the secondary, low voltage side 1. This is set with attribute `tap_side`.
 
@@ -109,14 +118,14 @@ If the transformer `type` is not given, then `tap_ratio` is defined by the user,
 
 $$\tau = 1 + (\textrm{tap_position} - \textrm{tap_neutral})\cdot \frac{\textrm{tap_step}}{100}$$
 
-For a transformer with tap ratio $\tau$ on the primary side `tap_side = 0` and phase shift $\theta_{\textrm{shift}}$, the equivalent T model is given by:
+For a transformer with tap ratio $\tau$ on the primary side `tap_side=0` and phase shift $\theta_{\textrm{shift}}$, the equivalent T model is given by:
 
 <figure markdown="span">
   ![Transformer T equivalent model (tap HV)](../assets/images/transformer-t-equivalent-tap-hv.png){ width="600" }
   <figcaption>Transformer T equivalent model (tap HV)</figcaption>
 </figure>
 
-For a transformer with tap ratio $\tau$ on the secondary side `tap_side = 1` and phase shift $\theta_{\textrm{shift}}`, the equivalent T model is given by:
+For a transformer with tap ratio $\tau$ on the secondary side `tap_side1` and phase shift $\theta_{\textrm{shift}}$, the equivalent T model is given by:
 
 <figure markdown="span">
   ![Transformer T equivalent model (tap LV)](../assets/images/transformer-t-equivalent-tap-lv.png){ width="600" }
@@ -125,7 +134,7 @@ For a transformer with tap ratio $\tau$ on the secondary side `tap_side = 1` and
 
 For the admittance matrix, the T model is transformed into a PI model with the wye-delta transformation.
 
-For a transformer with tap ratio $\tau$ on the primary side `tap_side = 0` and phase shift $\theta_{\textrm{shift}}`, the equivalent PI model is given by:
+For a transformer with tap ratio $\tau$ on the primary side `tap_side=0` and phase shift $\theta_{\textrm{shift}}$, the equivalent PI model is given by:
 
 <figure markdown="span">
   ![Transformer PI equivalent model (tap HV)](../assets/images/transformer-pi-equivalent-tap-hv.png){ width="600" }
@@ -145,7 +154,7 @@ v_0 \\ v_1
 \end{array}
 \right)$$
 
-For a transformer with tap ratio $\tau$ on the secondary side `tap_side = 1` and phase shift $\theta_{\textrm{shift}}`, the equivalent PI model is given by:
+For a transformer with tap ratio $\tau$ on the secondary side `tap_side=1` and phase shift $\theta_{\textrm{shift}}$, the equivalent PI model is given by:
 
 <figure markdown="span">
   ![Transformer PI equivalent model (tap LV)](../assets/images/transformer-pi-equivalent-tap-lv.png){ width="600" }
@@ -165,9 +174,9 @@ v_0 \\ v_1
 \end{array}
 \right)$$
 
-### Inputs
+## Inputs
 
-For the non-linear power flow, the following data for each component are used. For almost all values, defaults are assumed if not explicitly set. For the defaults and units, see [Components](/user-guide/components).
+For the non-linear power flow, the following data for each component are used. For the defaults and units, see [Components](/user-guide/components).
 
 - `n.buses.{v_nom, v_mag_pu_set}`
 - `n.loads.{p_set, q_set}`
@@ -179,13 +188,15 @@ For the non-linear power flow, the following data for each component are used. F
 - `n.transformers.{x, r, b, g}`
 - `n.links.{p_set}`
 
-!!! Note
-  Note that the control strategy for active and reactive power PQ/PV/Slack is set on the generators not on the buses. Buses then inherit the control strategy from the generators attached at the bus (defaulting to PQ if there is no generator attached). Any PV generator will make the whole bus a PV bus. For PV buses, the voltage magnitude set point is set on the bus, not the generator, with bus.v_mag_pu_set since it is a bus property.
+!!! note
 
-!!! Note
-  Note that for lines and transformers you MUST make sure that $r+jx$ is non-zero, otherwise the bus admittance matrix will be singular.
+    Note that the control strategy for active and reactive power PQ/PV/Slack is set on the generators not on the buses. Buses then inherit the control strategy from the generators attached at the bus, defaulting to PQ if there is no generator attached. Any PV generator will make the whole bus a PV bus. For PV buses, the voltage magnitude set point is set on the bus, not the generator, with `n.buses.v_mag_pu_set`.
 
-### Outputs
+!!! note
+
+    Note that for lines and transformers you **must** make sure that $r+jx$ is non-zero, otherwise the bus admittance matrix will be singular.
+
+## Outputs
 
 - `n.buses.{v_mag_pu, v_ang, p, q}`
 - `n.loads.{p, q}`
@@ -197,60 +208,28 @@ For the non-linear power flow, the following data for each component are used. F
 - `n.transformers.{p0, q0, p1, q1}`
 - `n.links.{p0, p1}`
 
-## Linear power flow
 
-The linear power flow `n.lpf()` can be called for a particular `snapshot` as `n.lpf(snapshot)` or on an iterable of `snapshots` as `n.lpf(snapshots)` to calculate the linear power flow on a selection of snapshots at once (which is more performant than calling `n.lpf` on each snapshot separately). If no argument is passed, it will be called on all `n.snapshots`, see `pypsa.Network.lpf` for details.
+## Examples
 
-### AC networks
 
-For AC networks, it is assumed for the linear power flow that reactive power decouples, there are no voltage magnitude variations, voltage angles differences across branches are small and branch resistances are much smaller than branch reactances (i.e. it is good for overhead transmission lines).
+<div class="grid cards" markdown>
 
-For AC networks, the linear load flow is calculated using small voltage angle differences and the series reactances alone.
+-   :material-notebook:{ .lg .middle } **Name**
 
-It is assumed that the active powers $P_i$ are given for all buses except the slack bus and the task is to find the voltage angles $\theta_i$ at all buses except the slack bus, where it is assumed $\theta_0 = 0$.
+    ---
 
-To find the voltage angles, the following linear set of equations are solved
+    Description
+    
+    [:material-notebook: Go to example](../examples/XXX.ipynb)
 
-$$P_i = \sum_j (KBK^T)_{ij} \theta_j - \sum_l K_{il} b_l \theta_l^{\textrm{shift}}$$
+    ---
 
-where $K$ is the incidence matrix of the network, $B$ is the diagonal matrix of inverse branch series reactances $x_l$ multiplied by the tap ratio $\tau_l$, i.e. $B_{ll} = b_l = \frac{1}{x_l\tau_l}$ and $\theta_l^{\textrm{shift}}$ is the phase shift for a transformer. The matrix $KBK^T$ is singular with a single zero eigenvalue for a connected network, therefore the row and column corresponding to the slack bus is deleted before inverting.
+-   :material-notebook:{ .lg .middle } **Name**
 
-The flows `p0` in the network branches at `bus0` can then be found by multiplying by the transpose incidence matrix and inverse series reactances:
+    ---
 
-$$F_l = \sum_i (BK^T)_{li} \theta_i - b_l \theta_l^{\textrm{shift}}$$
+    Description
+    
+    [:material-notebook: Go to example](../examples/XXX.ipynb)
 
-### DC networks
-
-For DC networks, it is assumed for the linear power flow that voltage magnitude differences across branches are all small.
-
-For DC networks, the linear load flow is calculated using small voltage magnitude differences and series resistances alone.
-
-The linear load flow for DC networks follows the same calculation as for AC networks, but replacing the voltage angles by the difference in voltage magnitude $\delta V_{n,t}$ and the series reactance by the series resistance $r_l$.
-
-### Inputs
-
-For the linear power flow, the following data for each component are used. For almost all values, defaults are assumed if not explicitly set. For the defaults and units, see [Components](/user-guide/components).
-
-- `n.buses.{v_nom}`
-- `n.loads.{p_set}`
-- `n.generators.{p_set}`
-- `n.storage_units.{p_set}`
-- `n.stores.{p_set}`
-- `n.shunt_impedances.{g}`
-- `n.lines.{x}`
-- `n.transformers.{x}`
-- `n.links.{p_set}`
-
-> **Note**: Note that for lines and transformers you must make sure that $x$ is non-zero, otherwise the bus admittance matrix will be singular.
-
-### Outputs
-
-- `n.buses.{v_mag_pu, v_ang, p}`
-- `n.loads.{p}`
-- `n.generators.{p}`
-- `n.storage_units.{p}`
-- `n.stores.{p}`
-- `n.shunt_impedances.{p}`
-- `n.lines.{p0, p1}`
-- `n.transformers.{p0, p1}`
-- `n.links.{p0, p1}`
+</div>

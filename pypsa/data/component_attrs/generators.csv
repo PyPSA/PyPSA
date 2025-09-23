@@ -42,8 +42,16 @@ p_nom_opt,float,MW,0.,Optimised nominal capacity.,Output
 status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
 start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
 shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only returned if `committable=True`.",Output
+<<<<<<< HEAD
 mu_upper,series,currency/MWh,n/a,Shadow price of upper `p_nom` limit,Output
 mu_lower,series,currency/MWh,n/a,Shadow price of lower `p_nom` limit,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed power generation `p_set`,Output
 mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output
+=======
+mu_upper,series,currency/MWh,0.,Shadow price of upper `p_nom` limit,Output
+mu_lower,series,currency/MWh,0.,Shadow price of lower `p_nom` limit,Output
+mu_p_set,series,currency/MWh,0.,Shadow price of fixed power generation `p_set`,Output
+mu_ramp_limit_up,series,currency/MWh,0.,Shadow price of upper ramp up limit,Output
+mu_ramp_limit_down,series,currency/MWh,0.,Shadow price of lower ramp down limit,Output
+>>>>>>> 5ce26ebb (Documentation revamp user guide (optimisation, components) (#1292))
