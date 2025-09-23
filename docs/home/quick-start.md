@@ -1,66 +1,80 @@
-###########################
-Quick Start
-###########################
+# Quickstart
 
-For installation instructions see :doc:`/getting-started/installation`.
+For installation instructions see [installation](installation.md).
 
-In principle, PyPSA networks can be assigned with
+In principle, PyPSA networks can be created with
 
-.. code:: python
+``` python
 
-    import pypsa
-    import numpy as np
+import pypsa
 
-    network = pypsa.Network()
+network = pypsa.Network()
+```
 
-Components like buses can be added with :py:meth:`pypsa.Network.add`.
+Components like buses can be added with [`n.add`][pypsa.Network.add].
 
-.. code:: python
+``` python
 
-    #add three buses
-    n_buses = 3
+#add three buses
+n_buses = 3
 
-    for i in range(n_buses):
-        network.add("Bus", "My bus {}".format(i),  v_nom=20.)
+for i in range(n_buses):
+    network.add("Bus", "My bus {}".format(i),  v_nom=20.)
+```
 
-The same counts for lines, generators and loads, see the list of all components :doc:`/user-guide/components`.
+The same counts for lines, generators and loads. See the list of all components in the [:material-bookshelf: user guide section](/user-guide/components.md).
 
-.. code:: python
+``` python
 
-    #add three lines in a ring
-    for i in range(n_buses):
-        network.add("Line", "My line {}".format(i),
-		    bus0="My bus {}".format(i),
-		    bus1="My bus {}".format((i+1)%3),
-		    x=0.1,
-		    r=0.01)
+#add three lines in a ring
+for i in range(n_buses):
+    network.add("Line", "My line {}".format(i),
+    bus0="My bus {}".format(i),
+    bus1="My bus {}".format((i+1)%3),
+    x=0.1,
+    r=0.01)
 
-    #add a generator at bus 0
-    network.add("Generator", "My gen",
-		bus="My bus 0",
-		p_set=100,
-		control="PQ")
-
-
-    #add a load at bus 1
-    network.add("Load", "My load",
-		bus="My bus 1",
-		p_set=100,
-		q_set=100)
+#add a generator at bus 0
+network.add("Generator", "My gen",
+bus="My bus 0",
+p_set=100,
+control="PQ")
 
 
-Note that fixed values of active and reactive power are set with ``p_set`` and ``q_set`` respectively. After initializing, there are plenty of options for what you can do with your network. The examples section gives a broad overview.
+#add a load at bus 1
+network.add("Load", "My load",
+bus="My bus 1",
+p_set=100,
+q_set=100)
 
-Basic Examples
-~~~~~~~~~~~~~~~
+```
+
+Note that fixed values of active and reactive power are set with `p_set` and `q_set` respectively. After initializing, there are plenty of options for what you can do with your network. The examples section gives a broad overview.
+
+## Basic Examples
 
 Two more basic examples are given in the following notebooks:
 
-.. toctree::
-   :maxdepth: 1
+<div class="grid cards" markdown>
 
-   ../examples/minimal_example_pf.ipynb
-   ../examples/ac-dc-lopf.ipynb
+-   :material-clock-fast:{ .lg .middle } **Minimal three node network**
 
-Find many more extensive examples in the :doc:`Examples </examples-index/lopf>` section. Also
-have a look on the :doc:`User Guide </user-guide/design>` section. 
+    ---
+
+    Here, we are going to create a network with three nodes, three lines and one generator. We then solve the non-linear power flow using a Newton-Raphson. 
+    
+    [:material-notebook: Go to example](../examples/minimal_example_pf.ipynb)
+
+-   :material-view-list:{ .lg .middle } **Meshed AC-DC example**
+
+    ---
+
+    This example has a 3-node AC network coupled via AC-DC converters to a 3-node DC network. There is also a single point-to-point DC using the Link component.
+
+    [:material-notebook: Go to example](../examples/ac-dc-lopf.ipynb)
+
+</div>
+
+
+Find many more extensive examples in the [examples](examples.md) section. The [user guide](user-guide.md) section contains detailed information on architecture, components and utilities.
+
