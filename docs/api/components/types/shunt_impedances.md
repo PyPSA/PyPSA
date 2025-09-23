@@ -1,0 +1,1 @@
+::: pypsa.components.ShuntImpedances

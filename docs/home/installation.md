@@ -1,87 +1,138 @@
-################
- Installation
-################
+# Installation
 
+!!! hint
 
-Getting Python
-==============
+    If this is your first time with Python, check out the [First Time Users¶](first-time-users.md) guide.
 
-If it is your first time with Python, we recommend `conda
-<https://docs.conda.io/en/latest/miniconda.html>`_, `mamba
-<https://github.com/mamba-org/mamba>`_ or `pip
-<https://pip.pypa.io/en/stable/>`_ as easy-to-use package managers. They are
-available for Windows, Mac OS X and GNU/Linux.
+You can install PyPSA via all common package managers:
 
-It is always helpful to use dedicated `conda/mamba environments <https://mamba.readthedocs.io/en/latest/user_guide/mamba.html>`_ or `virtual environments
-<https://pypi.python.org/pypi/virtualenv>`_.
+=== "pip"
 
-
-Installation with conda
-=======================
-
-If you are using ``conda`` you can install PyPSA with::
-
-    conda install -c conda-forge pypsa
-
-Replace ``conda`` with ``mamba`` if you use this alternative.
-
-
-Installing with pip
-===================
-
-If you have the Python package installer ``pip`` then just run::
-
+    ``` bash
     pip install pypsa
+    ```
 
-If you're feeling adventurous, you can also install the latest master branch from github with::
+=== "conda/mamba"
 
-    pip install git+https://github.com/PyPSA/PyPSA.git
+    ``` bash
+    conda install -c conda-forge pypsa
+    ```
 
-Getting a solver
-================
+=== "uv"
 
-PyPSA passes optimisation problems for :doc:`/user-guide/optimal-power-flow` to an
-external solver. PyPSA is known to work via ``linopy`` with the free software
+    ``` bash
+    uv add pypsa
+    ```
 
-- `HiGHS <https://highs.dev/>`_
-- `Cbc <https://projects.coin-or.org/Cbc#DownloadandInstall>`_
-- `GLPK <https://www.gnu.org/software/glpk/>`_ (`WinGLKP <http://winglpk.sourceforge.net/>`_)
-- `SCIP <https://scip.zib.de/>`_
+PyPSA is written and tested to be compatible with Python 3.10 and above. We recommend to use the latest version with active support (see [endoflife.date](https://endoflife.date/python)).
 
-and the non-free software, commercial software (for some of which free academic licenses are available)
+## Getting a solver
 
-- `Gurobi <https://www.gurobi.com/documentation/quickstart.html>`_
-- `CPLEX <https://www.ibm.com/products/ilog-cplex-optimization-studio>`_
-- `FICO Xpress <https://www.fico.com/en/products/fico-xpress-optimization>`_
-- `MOSEK <https://www.mosek.com/>`_
-- `COPT <https://www.shanshu.ai/copt>`_
-- `MindOpt <https://solver.damo.alibaba.com/doc/en/html/index.html>`_
+PyPSA passes optimisation problems (see [overview](optimal-power-flow/#overview)) to an external solver and is deeply integrated with [linopy](https://github.com/PyPSA/linopy) to do so.
 
-An installation of PyPSA will automatically install the default solver HiGHS.
-For installation instructions of further solvers for your operating system,
-follow the links above.
+Free software:
 
-.. note::
+- [HiGHS](https://highs.dev/)
+- [Cbc](https://projects.coin-or.org/Cbc#DownloadandInstall)
+- [GLPK](https://www.gnu.org/software/glpk/) ([WinGLKP](http://winglpk.sourceforge.net/))
+- [SCIP](https://scip.zib.de/)
+
+Commercial software (for some of which free academic licenses are available):
+
+- [Gurobi](https://www.gurobi.com/documentation/quickstart.html)
+- [CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio)
+- [FICO Xpress](https://www.fico.com/en/products/fico-xpress-optimization)
+- [MOSEK](https://www.mosek.com/)
+- [COPT](https://www.shanshu.ai/copt)
+- [MindOpt](https://solver.damo.alibaba.com/doc/en/html/index.html)
+
+An installation of PyPSA will automatically install the default solver HiGHS. For installation instructions of further solvers for your operating system, follow the links above.
+
+!!! note
+
     Commercial solvers such as Gurobi, CPLEX, and Xpress currently significantly outperform open-source solvers for large-scale problems.
     It might be the case that you can only retrieve solutions by using a commercial solver.
 
-.. _upgrading-pypsa:
 
-Upgrading PyPSA
-===============
+## Upgrading PyPSA
 
 We recommend always keeping your PyPSA installation up-to-date, since bugs get
 fixed and new features are added. PyPSA is also only tested with the latest
 stable versions of all the dependent packages for the respective Python
 versions.
 
-To upgrade PyPSA with pip, do at the command line::
+To upgrade PyPSA, run:
 
+=== "pip"
+
+    ``` bash
     pip install -U pypsa
+    ```
 
-To upgrade PyPSA with conda, do at the command line::
+=== "conda/mamba"
 
+    ``` bash
     conda update pypsa
+    ```
 
-Don't forget to read the :doc:`/references/release-notes` regarding API changes
-that might require you to update your code.
+=== "uv"
+
+    todo
+
+Check the [release notes](https://pypsa.readthedocs.io/en/latest/release-notes.html) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes. If you are coming from a very old version (< `v1.0.0`), it makes sense to update gradually and fix any deprecation warnings before updating to the latest version.
+
+## Dependencies
+
+PyPSA relies heavily on other open-source Python packages. Some of them are:
+
+* [pandas](http://pandas.pydata.org/) for storing data about components and time series
+* [numpy](http://www.numpy.org/) and [scipy](http://scipy.org/) for calculations, such as linear algebra and sparse matrix calculations
+* [linopy](https://github.com/PyPSA/linopy) for preparing optimisation problems (currently only linear and mixed-integer linear)
+* [matplotlib](https://matplotlib.org/), [seaborn](https://seaborn.pydata.org/) and [plotly](https://plotly.com/python/) for static and interactive plotting
+* [networkx](https://networkx.github.io/) for some network calculations
+* [pytest](http://pytest.org/) for unit testing
+
+Find the full list of dependencies in the [`pyproject.toml`](https://github.com/PyPSA/PyPSA/blob/master/pyproject.toml) file.
+
+### Optional dependencies
+
+Besides the mandatory dependencies that are installed by default, PyPSA has a number of optional dependencies that are not installed by default and are only needed for certain features. You can install them by executing the command:
+
+=== "pip"
+
+    ``` bash
+    pip install "pypsa[<feature>]"
+    ```
+
+=== "conda/mamba"
+
+    ``` bash
+    conda install -c conda-forge "pypsa[<feature>]"
+    ```
+
+=== "uv"
+
+    ``` bash
+    uv add "pypsa[<feature>]"
+    ```
+
+where `<feature>` can be one of the following:
+
+**IO**
+
+- `pypsa[hdf5]`: for reading and writing HDF5 files
+- `pypsa[excel]`: for reading and writing Excel files
+- `pypsa[cloudpath]`: for reading and writing files from cloud storage
+
+**Plots**
+
+- `pypsa[cartopy]`: for plotting geographical maps
+
+**Solvers**
+
+- `pypsa[gurobipy]`: for installing the Gurobi Python API
+
+**Development**
+
+- `pypsa[dev]`: for installing all development dependencies, including linopy and pytest
+- `pypsa[docs]`: for installing all dependencies needed to build the documentation
