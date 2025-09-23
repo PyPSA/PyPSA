@@ -418,7 +418,8 @@ def test_flip_polygon_invalid_axis():
 
 
 def test_flip_polygon_preserves_shape():
-    poly = np.random.Generator(5, 2)
+    rng = np.random.default_rng(42)
+    poly = rng.random((5, 2))
     flipped = flip_polygon(poly, axis="x")
     assert flipped.shape == poly.shape
 
