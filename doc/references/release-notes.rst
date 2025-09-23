@@ -48,6 +48,8 @@ Features
 
 * Add additional standard line types from pandapower.
 
+* New network indexing methods: ``n.get_network``, ``n.get_scenario``, ``n.slice_network`` and enhanced ``n[...]`` for convenient network access.
+
 
 * The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
   to get the previous behavior of returning component names which have been added.
@@ -82,6 +84,9 @@ Bug Fixes
 
 * Fix bug when using ``solver_model`` after adding custom variable to linopy model.
   (https://github.com/PyPSA/PyPSA/issues/1351)
+
+* Fix ``get_transmission_carriers()`` to handle components without carrier attribute (e.g., Transformer).
+  (https://github.com/PyPSA/PyPSA/issues/1321)
 
 `v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
 =======================================================================================
