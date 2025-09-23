@@ -14,6 +14,7 @@ import pydeck as pdk
 import pyproj
 
 from pypsa.common import _convert_to_series
+from pypsa.components.common import as_components
 from pypsa.plot.maps.common import (
     _is_cartopy_available,
     add_jitter,
@@ -584,7 +585,7 @@ class PydeckPlotter:
             DataFrame containing the prepared data for the component.
 
         """
-        df = self._n.static(component)
+        df = as_components(self._n, component).static
         if default_columns is None:
             default_columns = []
 
@@ -1049,7 +1050,7 @@ class PydeckPlotter:
         None
 
         """
-        if self._n.static(c_name).empty:
+        if as_components(self._n, c_name).empty:
             msg = f"No data found for component '{c_name}'. Skipping layer creation."
             logger.warning(msg)
             return
@@ -1095,7 +1096,7 @@ class PydeckPlotter:
 
         """
         c_data = self._component_data[c_name]
-        static_data = self._n.static(c_name)
+        static_data = as_components(self._n, c_name).static
 
         # Build path column as list of [lon, lat] pairs for each line
         # Assuming x, y are aligned
@@ -1219,7 +1220,7 @@ class PydeckPlotter:
         flows_are_zero = branch_flow.eq(0).all()
 
         if (
-            not self._n.static(c_name).empty
+            not as_components(self._n, c_name).empty
             and not flows_are_zero
             and arrow_size_factor != 0
         ):
@@ -1576,8 +1577,8 @@ class PydeckPlotter:
             absolute=True,
         )  # If elements empty, global_flow_max is None
 
-        for c in n.iterate_components(branch_components):
-            if c.name == "Line":
+        for c in n.branch_components:
+            if c == "Line":
                 branch_flow = line_flow
                 branch_color = line_color
                 branch_cmap = line_cmap
@@ -1585,7 +1586,7 @@ class PydeckPlotter:
                 branch_alpha = line_alpha
                 branch_width = line_width
                 branch_columns = line_columns
-            elif c.name == "Link":
+            elif c == "Link":
                 branch_flow = link_flow
                 branch_color = link_color
                 branch_cmap = link_cmap
@@ -1593,7 +1594,7 @@ class PydeckPlotter:
                 branch_alpha = link_alpha
                 branch_width = link_width
                 branch_columns = link_columns
-            elif c.name == "Transformer":
+            elif c == "Transformer":
                 branch_flow = transformer_flow
                 branch_color = transformer_color
                 branch_cmap = transformer_cmap
@@ -1602,27 +1603,27 @@ class PydeckPlotter:
                 branch_width = transformer_width
                 branch_columns = transformer_columns
 
-            if n.static(c.name).empty:
+            if as_components(n, c).empty:
                 continue
 
             # Branch lines
             self.init_branch_component_data(
-                c_name=c.name,
+                c_name=c,
                 branch_columns=branch_columns,
             )
             self.create_branch_paths(
-                c.name,
+                c,
                 geometry=geometry,
             )
             self.create_branch_colors(
-                c_name=c.name,
+                c_name=c,
                 branch_color=branch_color,
                 branch_cmap=branch_cmap,
                 branch_cmap_norm=branch_cmap_norm,
                 branch_alpha=branch_alpha,
             )
             self.scale_branch_param(
-                c_name=c.name,
+                c_name=c,
                 branch_param_name="width",
                 branch_param=branch_width,
                 branch_param_factor=branch_width_factor,
@@ -1633,20 +1634,20 @@ class PydeckPlotter:
             )
             if tooltip:
                 self.create_tooltips(
-                    c_name=c.name,
+                    c_name=c,
                 )
             self.create_branch_layer(
-                c_name=c.name,
+                c_name=c,
             )
 
             # Branch arrows
             self.init_arrow_data(
-                c_name=c.name,
+                c_name=c,
                 branch_flow=branch_flow,
                 arrow_size_factor=arrow_size_factor,
             )
             self.scale_branch_param(
-                c_name=c.name,
+                c_name=c,
                 branch_param_name="flow",
                 branch_param=branch_flow,
                 branch_param_factor=branch_width_factor,
@@ -1656,11 +1657,11 @@ class PydeckPlotter:
                 auto_scale=auto_scale,
             )
             self.create_arrows(
-                c_name=c.name,
+                c_name=c,
                 arrow_size_factor=arrow_size_factor,
             )
             self.create_arrow_colors(
-                c_name=c.name,
+                c_name=c,
                 arrow_color=arrow_color,
                 arrow_cmap=arrow_cmap,
                 arrow_cmap_norm=arrow_cmap_norm,
@@ -1668,11 +1669,11 @@ class PydeckPlotter:
             )
             if tooltip:
                 self.create_tooltips(
-                    c_name=c.name,
+                    c_name=c,
                     columns=["flow"],
                 )
             self.create_arrow_layer(
-                c_name=c.name,
+                c_name=c,
             )
 
     def add_geomap_layer(
