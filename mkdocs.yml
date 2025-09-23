@@ -10,7 +10,7 @@ nav:
   - Home: index.md
   - Overview:
     - Features: home/features.md
-    - What's new: release-notes.md
+    - Release Notes: release-notes.md
   - Getting Started:
     - Installation: home/installation.md
     - Quickstart: home/quick-start.md
@@ -22,6 +22,7 @@ nav:
 
 - User Guide:
   - Overview: user-guide/user-guide.md
+  - What's new in v1.0: user-guide/v1-guide.md
   - Core Design:
     - Design: user-guide/design.md
     - Component Types: user-guide/component-types.md
@@ -39,9 +40,9 @@ nav:
     - Clustering: user-guide/clustering.md
     - Import and Export: user-guide/import-export.md
     - Statistics: user-guide/statistics.md
-    - Plotting: user-guide/plotting.md
-    - Network Collection: user-guide/collection.md
-    - Package Options: user-guide/options.md
+    - Create plots: user-guide/plotting.md
+    - Compare multiple networks: user-guide/collection.md
+    - Options and settings: user-guide/options.md
     - Logging: user-guide/logging.md
   - Support:
     - FAQ: user-guide/faq.md
@@ -234,9 +235,10 @@ plugins:
     type: timeago
     timezone: Europe/Berlin
     enable_creation_date: true
-- git-committers:
-    repository: PyPSA/PyPSA
-    branch: v1-docs
+# - git-committers:
+#     repository: PyPSA/PyPSA
+#     branch: v1-docs # TODO: Change to master before merging
+#     token: !!python/object/apply:os.getenv ["MKDOCS_GIT_COMMITTERS_APIKEY"]
 - argref:
     autolinks:
     - reference_prefix: ":octicons-git-pull-request-16:"
