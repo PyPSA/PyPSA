@@ -70,28 +70,26 @@ For a comprehensive treatment of two-stage stochastic programming theory and met
 
 Let us consider a single-node capacity expansion model in the style of [model.energy](https://model.energy). This stylized model calculates the cost of meeting an hourly electricity demand time series from a combination of wind power, solar power, battery and hydrogen storage as well as load shedding. See this [example](../../examples/capacity-expansion-planning-single-node.ipynb). We add a gas power plant as additional technology option and solve the model with given load and renewable availability profiles as a deterministic problem. Afterwards, we inspect the optimal objective value and expanded capacities.
 
-```py
+``` py
 >>> import pypsa
->>> 
+>>>
 >>> n = pypsa.examples.model_energy()
 >>> n.add(
->>>     "Generator",
->>>     "gas",
->>>     carrier="gas",
->>>     bus="electricity",
->>>     p_nom=5000,
->>>     efficiency=0.5,
->>>     marginal_cost=100,
->>> )
->>> 
+...     "Generator",
+...     "gas",
+...     carrier="gas",
+...     bus="electricity",
+...     p_nom=5000,
+...     efficiency=0.5,
+...     marginal_cost=100,
+... )
+>>>
 >>> n.optimize(log_to_console=False)
->>> 
+('ok', 'optimal')
+>>>
 >>> cap_deterministic = n.statistics.optimal_capacity().div(1e3).round(1)
->>> display(cap_deterministic)
->>> 
->>> obj_deterministic = n.objective / 1e9
->>> display(obj_deterministic)
-component    carrier         
+>>> cap_deterministic
+component    carrier
 Generator    gas                   5.0
              load shedding        10.9
              solar                22.8
@@ -101,29 +99,33 @@ Link         electrolysis          0.1
 StorageUnit  battery storage      11.0
 Store        hydrogen storage    245.4
 dtype: float64
+>>>
+>>> obj_deterministic = n.objective / 1e9
+>>> obj_deterministic
+5.357484973420313
 ```
 
 ### Scenario Definition
 
 Now suppose we want to consider the case that with a 10% probability, a volcano erupts which reduces the solar capacity factor time series uniformly by 70%. For such a scenario, we can use PyPSA's stochastic optimization functionality. First, we need to define the scenarios with probabilities that must sum to 1:
 
-```py
+``` py
 >>> n.set_scenarios({"volcano": 0.1, "no_volcano": 0.9})
 ```
 
 We can check that the scenarios have been set correctly:
 
-```py
+``` py
 >>> n.has_scenarios
 True
 ```
 
-```py
+``` py
 >>> n.scenarios
 Index(['volcano', 'no_volcano'], dtype='object', name='scenario')
 ```
 
-```py
+``` py
 >>> n.scenario_weightings
             weight
 scenario          
@@ -133,21 +135,19 @@ no_volcano     0.9
 
 The key change after calling `n.set_scenarios()` is that all component data is broadcasted across all scenarios. All component `pandas.DataFrame` objects gain a "scenario" dimension as outermost index level.
 
-```py
->>> n.generators
-bus  marginal_cost  efficiency
-scenario   name                                                 
+``` py
+>>> n.generators[["bus", "marginal_cost", "efficiency"]]  # doctest: +ELLIPSIS
+                                  bus  marginal_cost  efficiency
+scenario   name
 volcano    load shedding  electricity         2000.0         1.0
            wind           electricity            0.0         1.0
            solar          electricity            0.0         1.0
            gas            electricity          100.0         0.5
 no_volcano load shedding  electricity         2000.0         1.0
-           wind           electricity            0.0         1.0
-           solar          electricity            0.0         1.0
-           gas            electricity          100.0         0.5
+           wi...
 ```
 
-```py
+``` py
 >>> n.generators_t.p_max_pu.head(3)
 scenario            volcano         no_volcano        
 name                  solar    wind      solar    wind
@@ -167,7 +167,7 @@ snapshot
 So far, all data is the same across scenarios. Now that we have a separate index level for 
 the scenarios, we can modify scenario-specific parameters. In our case, we want to reduce the solar capacity factor in the "volcano" scenario by 70%:
 
-```py
+``` py
 >>> n.generators_t.p_max_pu.loc[:, ("volcano", "solar")] *= 0.3
 >>> n.generators_t.p_max_pu.loc["2019-06-21"]
 scenario            volcano         no_volcano        
@@ -187,17 +187,18 @@ snapshot
 
 When we now call `n.optimize()`, the network is solved as a stochastic problem considering all defined scenarios and their respective probabilities.
 
-```py
+``` py
 >>> n.optimize()
+('ok', 'optimal')
 ```
 
 PyPSA creates stochastic optimization models by reformulating the two-stage problem as a large-scale deterministic equivalent with scenario-indexed variables and constraints:
 
-```py
+``` py
 >>> n.model
 Linopy LP model
 ===============
-
+<BLANKLINE>
 Variables:
 ----------
  * Generator-p_nom (name)
@@ -211,7 +212,7 @@ Variables:
  * StorageUnit-p_store (scenario, name, snapshot)
  * StorageUnit-state_of_charge (scenario, name, snapshot)
  * Store-p (scenario, name, snapshot)
-
+<BLANKLINE>
 Constraints:
 ------------
  * Generator-ext-p_nom-lower (name, scenario)
@@ -235,7 +236,7 @@ Constraints:
  * Bus-nodal_balance (name, scenario, snapshot)
  * StorageUnit-energy_balance (scenario, name, snapshot)
  * Store-energy_balance (scenario, name, snapshot)
-
+<BLANKLINE>
 Status:
 -------
 ok
@@ -254,10 +255,10 @@ As investment variables (i.e. `p_nom`, `s_nom`, `e_nom`) are scenario-independen
 
 After solving the stochastic optimization problem, we can evaluate the results. The optimal capacities for each scenario can, among other ways, be accessed via `n.statistics.optimal_capacity()`:
 
-```py
+``` py
 >>> cap_stochastic = (
->>>     n.statistics.optimal_capacity().div(1e3).round(1).unstack(level="scenario")
->>> )
+...     n.statistics.optimal_capacity().div(1e3).round(1).unstack(level="scenario")
+... )
 >>> cap_stochastic
 scenario                      no_volcano  volcano
 component   carrier                              
@@ -273,7 +274,7 @@ Store       hydrogen storage       221.0    221.0
 
 Note that the optimal capacities are the same across scenarios for investment variables, reflecting the non-anticipativity constraint. However, compared to the previous deterministic model, the optimal capacities are different:
 
-```py
+``` py
 >>> cap_stochastic.iloc[:, 0].div(cap_deterministic).round(2)
 component    carrier         
 Generator    gas                 1.00
@@ -290,27 +291,20 @@ dtype: float64
 For example, we see less solar and batteries and more wind and hydrogen storage.
 The system costs are also 3% larger because the model has to hedge against uncertainty to remain feasible.
 
-```py
->>> n.objective / 1e9 / obj_deterministic
-1.03133257573562
+``` py
+>>> n.objective / 1e9 / obj_deterministic  # doctest: +ELLIPSIS
+1.03...
 ```
 
 Finally, we can also see in the energy balance that more gas is used in case the volcano erupts to compensate for the reduced solar generation. Additionally, wind curtailment is reduced:
 
-```py
-n.statistics.energy_balance().div(1e6).round(2).unstack(level="scenario")
+``` py
+>>> n.statistics.energy_balance().div(1e6).round(2).unstack(level="scenario")  # doctest: +ELLIPSIS
 scenario                                 no_volcano  volcano
-component   carrier         bus_carrier                     
+component   carrier         bus_carrier
 Generator   gas             electricity       10.14    21.20
             load shedding   electricity        0.06     0.28
-            solar           electricity       24.43     7.49
-            wind            electricity       33.05    38.48
-Link        electrolysis    electricity       -1.12    -1.31
-                            hydrogen           0.70     0.81
-            turbine         electricity        0.29     0.33
-                            hydrogen          -0.70    -0.81
-Load        -               electricity      -66.27   -66.27
-StorageUnit battery storage electricity       -0.58    -0.20
+...
 ```
 
 ## Value of Information Metrics

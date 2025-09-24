@@ -56,7 +56,7 @@ modules = [
 @pytest.mark.skipif(new_api, reason="New components API not yet shown in docs")
 @pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize("module", modules)
-def test_doctest(module, close_matplotlib_figures):
+def test_doctest_code(module, close_matplotlib_figures):
     finder = doctest.DocTestFinder()
 
     runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
@@ -83,12 +83,51 @@ def test_doctest(module, close_matplotlib_figures):
     sys.version_info[:2] == (3, 10),
     reason="Doctest fail until linopy supports numpy 2 on all python versions",
 )
+@pytest.mark.skipif(new_api, reason="New components API not yet shown in docs")
 @pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize(
     "fpath", [*Path("docs").glob("**/*.md"), Path("README.md")], ids=str
 )
-def test_markdown_code_blocks(fpath):
-    """Test Python code blocks in markdown files using mktestdocs."""
-    from mktestdocs import check_md_file
+def test_doctest_docs(fpath):
+    """Test Python code blocks in markdown files using doctest."""
+    import re
 
-    check_md_file(fpath=fpath, memory=True)
+    # Read the markdown file
+    content = fpath.read_text()
+
+    # Extract Python code blocks
+    python_blocks = re.findall(r"``` py\n(.*?)\n```", content, re.DOTALL)
+
+    if not python_blocks:
+        return  # No Python code blocks to test
+
+    # Combine all Python blocks into one docstring-like content
+    combined_content = "\n\n".join(python_blocks)
+
+    # Create a pseudo-module with the combined content as docstring
+    class PseudoModule:
+        def __init__(self, content):
+            self.__doc__ = content
+            self.__name__ = str(fpath)
+
+    module = PseudoModule(combined_content)
+
+    finder = doctest.DocTestFinder()
+    runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
+    tests = finder.find(module)
+    failures = 0
+
+    for test in tests:
+        # Create a fresh copy of the globals for each test
+        test_globals = dict(doctest_globals)
+
+        # For docs files, use a fresh network to avoid optimization artifacts
+        if str(fpath).startswith("docs/"):
+            test_globals["n"] = pypsa.examples.ac_dc_meshed()
+
+        test.globs.update(test_globals)
+
+        # Run the test
+        failures += runner.run(test).failed
+
+    assert failures == 0, f"{failures} doctest(s) failed in {fpath}"

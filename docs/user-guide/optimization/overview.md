@@ -21,7 +21,7 @@ The kind of optimisation problem is determined by the parameters provided for th
 
 To solve a network with a solver of your choice, run
 
-```python
+``` py
 n.optimize(solver_name="highs", solver_options={"solver": "ipm"})
 ```
 

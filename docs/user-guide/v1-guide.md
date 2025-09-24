@@ -11,15 +11,19 @@
 
 PyPSA now supports **two-stage stochastic programming** with scenario trees out of the box, which allows users to optimize investment decisions (first-stage) that are robust across multiple possible future realizations (scenarios) of uncertain parameters. See [:material-bookshelf: User Guide](optimization/stochastic-optimization.md) and [:material-notebook-multiple: Example Notebook](../examples/stochastic-optimization.ipynb).
 
-```python
->>> n = pypsa.examples.ac_dc_meshed()
->>> n.set_scenarios({"low": 0.4, "med": 0.3, "high": 0.3})
->>> n
+``` py
+>>> n_stoch = pypsa.examples.ac_dc_meshed()
+>>> n_stoch.set_scenarios({"low": 0.4, "med": 0.3, "high": 0.3})
+>>> n_stoch
 Stochastic PyPSA Network 'AC-DC-Meshed'
 ---------------------------------------
 Components:
  - Bus: 27
- ...
+ - Carrier: 18
+ - Generator: 18
+ - GlobalConstraint: 3
+ - Line: 21
+ - Link: 12
  - Load: 18
 Snapshots: 10
 Scenarios: 3
@@ -28,8 +32,8 @@ Scenarios: 3
 ### Plotting Module
 Any **network metric** like `energy_balance` or `installed_capacity` can now be plotted as a line, bar, area, map and more, to allow easier exploration and better tooling to create plots. The equivalent plotting methods extend parameters from the statistics module and therefore use the same logic to be easily adaptable. Also **interactive plots** can be create for all metric/ plot type combinations. See [:material-bookshelf: User Guide](plotting.md) and [:octicons-code-16: API Reference](/api/networks/plot.md).
 
-```python
->>> n.statistics.energy_balance.iplot.area()
+``` py
+>>> n_stoch.statistics.energy_balance.iplot.area()  # doctest: +SKIP
 ```
 
 <div style="width: 100%; height: 400px; overflow: hidden;">
@@ -42,7 +46,11 @@ Any **network metric** like `energy_balance` or `installed_capacity` can now be 
 ### Network Collection
 A new object called [`NetworkCollection`][pypsa.Network] has been added to the library. It allows users to store multiple networks in a single object and perform operations on them. See [:material-bookshelf: User Guide](network-collection.md) and [:material-notebook-multiple: Example Notebook](/examples/network-collection.ipynb).
 
-```python
+``` py
+>>> n_base = pypsa.examples.ac_dc_meshed() # docs-skip
+>>> n_base.name = 'Base Case' # docs-skip
+>>> n_reference = pypsa.examples.ac_dc_meshed() # docs-skip
+>>> n_reference.name = 'Reference Case' 
 >>> pypsa.NetworkCollection([n_base, n_reference])
 NetworkCollection
 -----------------
@@ -55,18 +63,22 @@ Entries: ['Base Case', 'Reference Case']
 ### Components Class
 PyPSA [`Components`][pypsa.components.Components] are an intermediate layer between the network object and the components data. They allow for a lot of functionality that would otherwise always have to be reimplemented on the underlying `pandas` DataFrames. Using them removes the need for a lot of boilerplate code without changing the `pandas`-based structure. With the release of PyPSA `v1.0`, they are officially released alongside a new optional and breaking API. See the dedicated [:material-bookshelf: User Guide](../user-guide/components.md).
 
-```python
+``` py
+>>> n = pypsa.examples.ac_dc_meshed()
 >>> n.generators
-                        bus control type    p_nom  ...  
-Generator                                          ...                                                              
-.                
-Frankfurt Wind    Frankfurt      PQ         110.0  ...                
-Frankfurt Gas     Frankfurt      PQ       80000.0  ...                
-
+                        bus control  ... weight  p_nom_opt
+name                                 ...
+Manchester Wind  Manchester      PQ  ...    1.0        0.0
+Manchester Gas   Manchester      PQ  ...    1.0        0.0
+Norway Wind          Norway      PQ  ...    1.0        0.0
+Norway Gas           Norway      PQ  ...    1.0        0.0
+Frankfurt Wind    Frankfurt      PQ  ...    1.0        0.0
+Frankfurt Gas     Frankfurt      PQ  ...    1.0        0.0
+<BLANKLINE>
 [6 rows x 37 columns]
 
 # Opt-in to new components API
->>> pypsa.options.legacy_components_api = False
+>>> pypsa.options.api.new_components_api = True
 
 # n.generators will now return a Components object
 >>> n.generators
@@ -77,13 +89,18 @@ Components: 6
 
 # Static data and more is still available
 >>> n.generators.static
-                        bus control type    p_nom  ...  
-Generator                                          ...                                                              
-.                
-Frankfurt Wind    Frankfurt      PQ         110.0  ...                
-Frankfurt Gas     Frankfurt      PQ       80000.0  ...                
-
+                        bus control  ... weight  p_nom_opt
+name                                 ...
+Manchester Wind  Manchester      PQ  ...    1.0        0.0
+Manchester Gas   Manchester      PQ  ...    1.0        0.0
+Norway Wind          Norway      PQ  ...    1.0        0.0
+Norway Gas           Norway      PQ  ...    1.0        0.0
+Frankfurt Wind    Frankfurt      PQ  ...    1.0        0.0
+Frankfurt Gas     Frankfurt      PQ  ...    1.0        0.0
+<BLANKLINE>
 [6 rows x 37 columns]
+
+>>> pypsa.options.api.new_components_api = False
 ```
 
 ## Breaking Changes
@@ -100,9 +117,9 @@ While PyPSA has been stable for a while now, version `v1.0` is the first stable 
 !!! warning
 
     If you are unsure if you are still using any deprecated features, first install the latest version `v0.35.1` and resolve all warnings. You can easily catch them all by raising them as errors. Just add the following to the top of your script:
-    ```python
-    import warnings
-    warnings.filterwarnings('error', category=DeprecationWarning, module='pypsa')
+    ``` py
+    >>> import warnings
+    >>> warnings.filterwarnings('error', category=DeprecationWarning, module='pypsa')
     ```
 
 ### Major future change

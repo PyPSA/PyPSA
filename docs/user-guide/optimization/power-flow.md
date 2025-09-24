@@ -103,8 +103,8 @@ These constraints are set in the function `define_loss_constraints()`.
 The transmission loss approximation is not activated by default, but must be
 enabled by providing a number of tangents in [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
-```python
-n.optimize(transmission_losses=3)
+``` py
+n.optimize(transmission_losses=3)  
 ```
 
 The higher the number of tangents, the more accurate the approximation, but also

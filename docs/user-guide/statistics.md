@@ -248,7 +248,7 @@ With the `statistics` module, you can look at different metrics of your network.
 
 Now lets look at an example.
 
-```python
+``` py
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -257,13 +257,13 @@ import pypsa
 
 First, we open an example network we want to investigate.
 
-```python
+``` py
 n = pypsa.examples.scigrid_de()
 ```
 
 Lets run an overview of all statistics by calling:
 
-```python
+``` py
 n.statistics().dropna()
 ```
 
@@ -273,13 +273,13 @@ You can see that `statistics` returns a `pandas.DataFrame`. The MultiIndex of th
 
 Now lets solve the network.
 
-```python
+``` py
 n.optimize(n.snapshots[:4])
 ```
 
 Now we can look at the `statistics` of the solved network.
 
-```python
+``` py
 n.statistics().round(1)
 ```
 
@@ -287,7 +287,7 @@ As you can see there is now much more information available. There are still no 
 
 If you are interested in a specific metric, e.g. curtailment, you can run
 
-```python
+``` py
 curtailment = n.statistics.curtailment()
 curtailment[curtailment != 0]
 ```
@@ -295,7 +295,7 @@ curtailment[curtailment != 0]
 Note that when calling a specific metric the `statistics` module returns a `pandas.Series`.
 To find the unit of the data returned by `statistics`, you can call `attrs` on the `DataFrame` or `Series`.
 
-```python
+``` py
 curtailment.attrs
 ```
 
@@ -304,7 +304,7 @@ So the unit of curtailment is given in `MWh`. You can also customize your reques
 For this you have various options:
 1. You can select the component from which you want to get the metric with the attribute `comps`. Careful, `comps` has to be a list of strings.
 
-```python
+``` py
 n.statistics.supply(comps=["Generator"])
 ```
 
@@ -312,19 +312,19 @@ n.statistics.supply(comps=["Generator"])
 
 For example calculate the mean supply/generation per time step is
 
-```python
+``` py
 n.statistics.supply(comps=["Generator"], aggregate_time="mean")
 ```
 
 Or retrieve the supply time series by not aggregating the time series. 
 
-```python
+``` py
 n.statistics.supply(comps=["Generator"], aggregate_time=False).iloc[:, :4]
 ```
 
 3. You can choose how you want to group the components of the network and how to aggregate the groups. By default the components are grouped by their carriers and summed. However, you can change this by providing different `groupby` and `aggregate_groups` attributes.
 
-```python
+``` py
 n.statistics.supply(comps=["Generator"], groupby=["bus"], aggregate_groups="max")
 ```
 
@@ -332,7 +332,7 @@ Now you obtained the maximal supply in one time step for every bus in the networ
 
 The keys in the provided in the `groupby` argument is primarily referring to grouper functions registered in the `n.statistics.grouper` class. You can also provide a custom function to group the components. Let's say you want to group the components by the carrier and the price zone. The carrier grouping is already implemented in the `grouper` class, but the price zone grouping is not. You can provide a custom function to group the components by the price zone.
 
-```python
+``` py
 # Create random number generator
 rng = np.random.default_rng()
 
@@ -354,7 +354,7 @@ n.statistics.supply(
 
 Often it is better when inspecting your network to visualize the tables. Therefore, you can easily make plots to analyze your results. For example the supply of the generators.
 
-```python
+``` py
 n.statistics.supply(comps=["Generator"]).droplevel(0).div(1e3).plot.bar(
     title="Generator in GWh"
 )
@@ -362,7 +362,7 @@ n.statistics.supply(comps=["Generator"]).droplevel(0).div(1e3).plot.bar(
 
 Or you could plot the generation time series of the generators.
 
-```python
+``` py
 fig, ax = plt.subplots()
 n.statistics.supply(comps=["Generator"], aggregate_time=False).droplevel(0).iloc[
     :, :4
@@ -377,7 +377,7 @@ ax.legend(bbox_to_anchor=(1, 0), loc="lower left", title=None, ncol=1)
 
 Finally, we want to look at the energy balance of the network. The energy balance is not included in the overview of the statistics module. To calculate the energy balance, you can do
 
-```python
+``` py
 n.statistics.energy_balance()
 ```
 
@@ -385,7 +385,7 @@ Note that there is now an additional index level called bus carrier. This is bec
 
 Finally, we want to plot the energy balance and the energy balance time series for electrcity which has the bus carrier AC. In a sector coupled network, you could also choose other bus carriers like H2 or heat. Note that in this example "-" represents the load in the system.
 
-```python
+``` py
 fig, ax = plt.subplots()
 n.statistics.energy_balance().loc[:, :, "AC"].groupby(
     "carrier"
@@ -393,7 +393,7 @@ n.statistics.energy_balance().loc[:, :, "AC"].groupby(
 ax.legend(bbox_to_anchor=(1, 0), loc="lower left", title=None, ncol=1)
 ```
 
-```python
+``` py
 fig, ax = plt.subplots()
 n.statistics.energy_balance(aggregate_time=False).loc[:, :, "AC"].droplevel(0).iloc[
     :, :4

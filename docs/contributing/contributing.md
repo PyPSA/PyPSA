@@ -46,16 +46,16 @@ manually via `pip install pre-commit` or `conda install -c conda-forge pre-commi
 
 To use it automatically before every commit (recommended), just run once:
 
-```bash
-$ pre-commit install
+``` bash
+pre-commit install
 ```
 
 This will automatically check the changes which are staged before you commit them.
 
 To manually run it, use:
 
-```bash
-$ pre-commit run --all
+``` bash
+pre-commit run --all
 ```
 
 This will check all files in the repository.
@@ -73,8 +73,8 @@ manually using `pip install ruff`.
 
 To use the linter in your CLI, run:
 
-```bash
-$ ruff check . --fix
+``` bash
+ruff check . --fix
 ```
 
 This will check all files in the repository and gives you hints on what to improve. The 
@@ -83,8 +83,8 @@ issues need to be fixed manually.
 
 And to run the formatter, use:
 
-```bash
-$ ruff format .
+``` bash
+ruff format .
 ```
 
 This will format all the files in the repository and immediately apply the changes to 
@@ -100,14 +100,14 @@ Unit testing is performed with pytest which is installed with the development de
 
 The tests can be found in the `test/` folder and can be run with:
 
-```bash
-$ pytest
+``` bash
+pytest
 ```
 
 Or to run individual tests:
 
-```bash
-$ pytest test_lpf_against_pypower.py
+``` bash
+pytest test_lpf_against_pypower.py
 ```
 
 Power flow is tested against PYPOWER (the Python implementation of MATPOWER)

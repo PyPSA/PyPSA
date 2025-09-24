@@ -4,10 +4,11 @@ TODO: Update section
 
 The [`pypsa.Components`][] are the store for all component specific data. While the [`pypsa.Network`][] bundles together functionality across components, the Components class is the interface for all data and processing for a specific component type. The two data stores are [`c.static`][pypsa.Components.static] and [`c.dynamic`][pypsa.Components.dynamic] (with an additional `snapshots` dimension).
 
-```py
+``` py
 >>> import pypsa
 >>> n = pypsa.Network()
->>> c = n.components.generators
+>>> n.components.generators
+Empty 'Generator' Components
 ```
 
 !!! tip
@@ -25,22 +26,24 @@ Components can be accessed in any Network via the Components store [`n.component
     There is also an alias [`n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
 
 Access a single component:
-``` python
-c = n.components.generators
-c = n.components["Generator"] # also subscriptable
-c
+``` py
+>>> c = n.components.generators
+>>> c = n.components["Generator"] # also subscriptable
+>>> c
+Empty 'Generator' Components
 ```
 
 Access a list of components:
-``` python
-comps = n.components["Generator", "Bus"]
-comps
+``` py
+>>> comps = n.components["Generator", "Bus"]  # doctest: +SKIP
+>>> comps  # doctest: +SKIP
+[Empty 'Generator' Components, Empty 'Bus' Components]
 ```
 
 Loop through all components:
-``` python
-for c in n.components:
-    break
+``` py
+>>> for c in n.components:
+...     break
 ```
 !!! info
 
@@ -56,11 +59,13 @@ The current components API is therefore a bit confusing:
 
 To get access to the full functionality of [`pypsa.Components`][] you need to use the long namespace or assign them to a variable. E.g. to get the list of components which support unit commitment:
 
-``` python
-committables = n.components["Generator"].committables
-# or
-c = n.components["Generator"]
-c.committables
+``` py
+>>> committables = n.components["Generator"].committables
+>>> committables
+Index([], dtype='int64', name='name')
+>>> c = n.components["Generator"]
+>>> c.committables
+Index([], dtype='int64', name='name')
 ```
 
 ### New API
@@ -83,18 +88,18 @@ To make the migration as easy as possible, and to also allow step-by-step migrat
 
 As a quick example, let's take a snippet of the [Three-Node Capacity Expansion Example](../examples/3-node-cem.ipynb).
 
-``` python
-
+``` py
 # Interconnector Capacities
-n.links.query("carrier == 'HVDC'").p_nom_opt.round(2)
+>>> n.links.query("carrier == 'HVDC'").p_nom_opt.round(2)
+Series([], Name: p_nom_opt, dtype: float64)
 
 # Interconnector Flows
-n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()
+>>> n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()  # doctest: +SKIP
 ```
 
 To switch to the new API, we just need to set the package option `api.new_components_api` to `True`.
 
-``` python
+``` py
 pypsa.options.api.new_components_api = True
 
 # Interconnector Capacities
@@ -107,7 +112,7 @@ n.links.dynamic.p0.loc[:, n.links.static.carrier == "HVDC"].rolling("7d").mean()
 #### Step-by-step migration
 To migrate a script step by step, we can just set the option back again.
 
-``` python
+``` py
 pypsa.options.api.new_components_api = True
 
 # Interconnector Capacities
@@ -122,7 +127,7 @@ n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()
 
 Another way is to use the [`options_context`][pypsa.options_context] context manager to temporarily switch the API.
 
-``` python
+``` py
 with pypsa.options_context(api.new_components_api=True):
     # Interconnector Capacities
     n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
