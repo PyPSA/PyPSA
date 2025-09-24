@@ -50,6 +50,26 @@ def test_pdkplotter_piecharts(ac_dc_network):
     plotter.deck()
 
 
+def test_pdk_plotter_piecharts_bus_split_circle(ac_dc_network):
+    n = ac_dc_network
+    pies = n.statistics.installed_capacity(
+        groupby=["bus", "carrier"],
+    )
+    pies.index = pies.index.droplevel(0)
+
+    load = -n.loads_t.p_set.sum(axis=0)
+    load.index.name = "bus"
+
+    pies = pies.unstack().fillna(0)
+    pies["load"] = load
+    pies.fillna(0, inplace=True)
+    pies = pies.stack()
+
+    plotter = interactive.PydeckPlotter(n, map_style="light")
+    plotter.build_layers(bus_size=pies, bus_split_circle=True)
+    plotter.deck()
+
+
 def test_pdk_plotter_auto_scale(ac_dc_network):
     n = ac_dc_network
     plotter = interactive.PydeckPlotter(n, map_style="light")
