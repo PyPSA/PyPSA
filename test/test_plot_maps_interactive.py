@@ -63,8 +63,8 @@ def test_pdk_plotter_flows(ac_dc_network):
     n = ac_dc_network
     plotter = interactive.PydeckPlotter(n, map_style="light")
 
-    line_flow = n.lines.s_nom / 1e3
-    link_flow = n.links.p_nom / 1e3
+    line_flow = n.c.lines.static.s_nom / 1e3
+    link_flow = n.c.links.static.p_nom / 1e3
 
     # Test flows with default parameters
     plotter.build_layers(
@@ -79,9 +79,9 @@ def test_pdk_color_cmaps(ac_dc_network):
     plotter = interactive.PydeckPlotter(n, map_style="light")
 
     # Test with different colormaps
-    bus_color = n.buses.v_nom
-    line_color = n.lines.s_nom
-    link_color = n.links.p_nom
+    bus_color = n.c.buses.static.v_nom
+    line_color = n.c.lines.static.s_nom
+    link_color = n.c.links.static.p_nom
 
     plotter.build_layers(
         bus_color=bus_color,
