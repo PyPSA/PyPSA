@@ -44,38 +44,37 @@ here are some suggestions to try out:
 
 === "HiGHS"
 
-    ```python
+    ``` py
     n.optimize(solver_name='highs', solver="ipm", run_crossover="off", random_seed=123)
-    ```
 
 === "SCIP"
 
-    ```python
-    n.optimize(solver_name='scip', solver_options={"lp/initalgorithm": "b"})
+    ``` py
+    n.optimize(solver_name='scip', solver_options={"lp/initalgorithm": "b"})  
     ```
 
 === "Gurobi"
 
-    ```python
-    n.optimize(solver_name='gurobi', method=2, crossover=0, Seed=123)
+    ``` py
+    n.optimize(solver_name='gurobi', method=2, crossover=0, Seed=123)  
     ```
 
 === "CPLEX"
 
-    ```python
-    n.optimize(solver_name='cplex', lpmethod=4, solutiontype=2)
+    ``` py
+    n.optimize(solver_name='cplex', lpmethod=4, solutiontype=2)  
     ```
 
 === "COPT"
 
-    ```python
-    n.optimize(solver_name='copt', LpMethod=2, Crossover=0)
+    ``` py
+    n.optimize(solver_name='copt', LpMethod=2, Crossover=0)  
     ```
 
 === "Xpress"
 
-    ```python
-    n.optimize(solver_name='xpress', LPFLAGS=4, CROSSOVER=0, BARALG=2)
+    ``` py
+    n.optimize(solver_name='xpress', LPFLAGS=4, CROSSOVER=0, BARALG=2)  
     ```
 
 * Your problem may be infeasible, i.e. there is no solution that satisfies all
@@ -85,8 +84,8 @@ here are some suggestions to try out:
   Inconsistent Subset
   (IIS)](https://support.gurobi.com/hc/en-us/articles/360029969391-How-do-I-determine-why-my-model-is-infeasible):
 
-  ```python
-  n.optimize(solver_name='gurobi', compute_infeasibilities=True)
+  ``` py
+  n.optimize(solver_name='gurobi', compute_infeasibilities=True)  
   ```
 
 * Add a load shedding generator with high marginal cost to all buses, which can
@@ -95,15 +94,15 @@ here are some suggestions to try out:
   Then, based on where the load shedding generator is used, you can identify
   which constraints are causing the infeasibility.
 
-  ```python
+  ``` py
   n.add(
-      "Generator",
-      n.buses.index,
-      suffix="load-shedding",
-      bus=n.buses.index,
-      marginal_cost=10_000, # high marginal cost
-      p_nom=1e9, # non-binding capacity
-      carrier="load_shedding",
+       "Generator",
+       n.buses.index,
+       suffix="load-shedding",
+       bus=n.buses.index,
+       marginal_cost=10_000, # high marginal cost
+       p_nom=1e9, # non-binding capacity
+       carrier="load_shedding",
   )
   ```
 
@@ -129,19 +128,16 @@ There are some steps you can take to distinguish these two cases:
 * Check with a linear power flow [`n.lpf()`][pypsa.Network.lpf] that all voltage
   angles differences across branches are less than 40 degrees. You can do this with the following code:
 
-  ```python
-  import pandas as pd
-  import numpy as np
-
-  now = n.snapshots[0]
-
-  angle_diff = pd.Series(
-      n.buses_t.v_ang.loc[now,n.lines.bus0].values -
-      n.buses_t.v_ang.loc[now,n.lines.bus1].values,
-      index=n.lines.index
-  )
-
-  (angle_diff * 180 / np.pi).describe()
+  ``` py
+  >>> import pandas as pd
+  >>> import numpy as np
+  >>> now = n.snapshots[0]  #
+  >>> angle_diff = pd.Series(
+  ...     n.buses_t.v_ang.loc[now,n.lines.bus0].values -
+  ...     n.buses_t.v_ang.loc[now,n.lines.bus1].values,
+  ...     index=n.lines.index
+  ... )  
+  >>> (angle_diff * 180 / np.pi).describe()  #D doctest: +SKIP
   ```
 
 * You can seed the non-linear power flow initial guess with the
@@ -150,7 +146,7 @@ There are some steps you can take to distinguish these two cases:
   solutions far away from the flat initial guess of all voltage angles
   being zero. To seed the problem activate the `use_seed` switch:
 
-  ```python
+  ``` py
   n.lpf()
   n.pf(use_seed=True)
   ```

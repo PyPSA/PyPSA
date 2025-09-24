@@ -29,6 +29,12 @@ def pytest_addoption(parser):
         default=False,
         help="Activate the new components API (options.api.new_components_api)",
     )
+    parser.addoption(
+        "--test-docs",
+        action="store_true",
+        default=False,
+        help="Run documentation tests (doctest tests)",
+    )
 
 
 def pytest_configure(config):

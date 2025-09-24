@@ -912,7 +912,7 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
 
     >>> pypsa.common.annuity(pd.Series([0.05, 0]), 20)
     0    0.080243
-    1    0.05
+    1    0.050000
     dtype: float64
 
     """

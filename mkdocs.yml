@@ -77,8 +77,8 @@ nav:
     - Statistics: user-guide/statistics.md
     - Plotting: user-guide/plotting.md
     - Comparing networks: user-guide/collection.md
-    - Options and settings: user-guide/options.md
-    - Logging: user-guide/logging.md
+    - Options: user-guide/options.md
+    - Logging: user-guide/logging.ipynb
 
 - Examples:
   - Overview: examples/examples.md
@@ -159,7 +159,7 @@ nav:
     - Consistency Checks: api/other/consistency.md
     - Geo: api/other/geo.md
     - Examples: api/other/api-examples.md
-    - Package Options: api/other/options.md
+    - Options: api/other/options.md
 
 - Contributing:
   - Instructions: contributing/contributing.md
@@ -338,7 +338,7 @@ plugins:
 # This will rebuild and execute the notebooks during any modifications when running ``mkdocs serve``
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
-    execute: true
+    execute: false
     include: ["*.ipynb"]
     # allow_errors: false
     include_source: true
@@ -352,6 +352,7 @@ plugins:
 
 hooks:
 - docs/assets/overrides/hooks/shortcodes.py
+- docs/assets/overrides/hooks/cleanup.py
 
 extra:
   social:

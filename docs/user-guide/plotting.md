@@ -11,7 +11,7 @@ Various key metrics that can be calculated on any PyPSA network are described in
     Load the networks:
     
     === "Simple Network"
-        ```python
+        ``` py
         # Simple three-node network
         >>> n_simple = pypsa.examples.ac_dc_meshed()
         >>> n_simple
@@ -26,34 +26,34 @@ Various key metrics that can be calculated on any PyPSA network are described in
          - Link: 4
          - Load: 6
         Snapshots: 10
-        ```
+        <BLANKLINE>
     
     === "Complex Network"
-        ```python
+        ``` py
         # Complex sector coupled network
         >>> n = pypsa.examples.carbon_management()
         >>> n
         PyPSA Network 'Hybrid Scenario from https://www.nature.com/articles/s41560-025-01752-6'
         ---------------------------------------------------------------------------------------
         Components:
-            - Bus: 2164
-            - Carrier: 89
-            - Generator: 1489
-            - GlobalConstraint: 4
-            - Line: 157
-            - Link: 6830
-            - Load: 1357
-            - StorageUnit: 106
-            - Store: 1263
+         - Bus: 2164
+         - Carrier: 89
+         - Generator: 1489
+         - GlobalConstraint: 4
+         - Line: 157
+         - Link: 6830
+         - Load: 1357
+         - StorageUnit: 106
+         - Store: 1263
         Snapshots: 168
-        ```
+        <BLANKLINE>
 
 
 ### Basic Plots
 
 Many statistics are already available via the [`n.statistics`][pypsa.Network.statistics] accessor:
 
-```python
+``` py
 >>> n_simple.statistics.energy_balance()
 component  carrier  bus_carrier
 Generator  gas      AC              1465.27439
@@ -64,8 +64,8 @@ dtype: float64
 
 Any of these metrics can also be used to create plots straight away:
 
-```python
->>> n_simple.statistics.energy_balance.plot()
+``` py
+>>> n_simple.statistics.energy_balance.plot()  # doctest: +SKIP
 ```
 <figure markdown="span">
   ![Buses](../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
@@ -73,8 +73,8 @@ Any of these metrics can also be used to create plots straight away:
 
 The plot type varies depending on which type makes the most sense for a given metric. For instance, energy_balance produces an area plot with snapshots on the x-axis, whereas installed_capacity produces a simple bar chart without a time dimension.
 
-```python
->>> n_simple.statistics.installed_capacity.plot()
+``` py
+>>> n_simple.statistics.installed_capacity.plot()  # doctest: +SKIP
 ```
 <figure markdown="span">
   ![Buses](../assets/images/ac_dc_meshed-installed_capacity-bar_plot.png){ width="350" }
@@ -93,8 +93,8 @@ All options are described in the following sections.
 The basic plotting method ([`n.statistics.<metric>.plot()`][pypsa.Network]) is not very flexible, but it is useful for quick exploration. To gain more control over the plot, the according plot type method can be called directly. Any plot type can be used with any metric, although not all plots will be meaningful for all metrics.
 
 Energy balance can also be shown as a bar chart, ignoring the time dimension:
-```python
->>> n_simple.statistics.energy_balance.plot.bar()
+``` py
+>>> n_simple.statistics.energy_balance.plot.bar()  # doctest: +SKIP
 ```
 <figure markdown="span">
   ![Buses](../assets/images/ac_dc_meshed-energy_balance-bar_plot.png){ width="350" }
@@ -114,64 +114,64 @@ The following plot types are available:
 - [Histogram Plot][pypsa.Network]
 
 === "Area Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.area()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.area()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
     </figure>
 
 === "Bar Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.bar()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.bar()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-bar_plot.png){ width="350" }
     </figure>
 
 === "Map Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.map()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.map()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-map_plot.png){ width="600" }
     </figure>
 
 === "Scatter Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.scatter()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.scatter()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-scatter_plot.png){ width="350" }
     </figure>
 
 === "Line Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.line()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.line()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-line_plot.png){ width="600" }
     </figure>
 
 === "Box Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.box()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.box()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-box_plot.png){ width="350" }
     </figure>
 
 === "Violin Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.violin()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.violin()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-violin_plot.png){ width="350" }
     </figure>
 
 === "Histogram Plot"
-    ```python
-    >>> n_simple.statistics.energy_balance.plot.histogram()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot.histogram()  # doctest: +SKIP
     ```
     <figure markdown="span">
       ![Buses](../assets/images/ac_dc_meshed-energy_balance-histogram_plot.png){ width="350" }
@@ -181,7 +181,7 @@ The following plot types are available:
 ### Customization with matplotlib and seaborn
 All plot methods return a matplotlib figure object, a matplotlib axes object and a facet grid object. These can be used to customise the plot further. See the matplotlib documentation on [`matplotlib.figure`](https://matplotlib.org/stable/api/figure_api.html), [`matplotlib.axes`](https://matplotlib.org/stable/api/axes_api.html) and the seaborn documentation on [`seaborn.FacetGrid`](https://seaborn.pydata.org/generated/seaborn.FacetGrid.html).
 
-```python
+``` py
 >>> fig, ax, facet_col = n_simple.statistics.energy_balance.plot.area()
 >>> fig.set_size_inches(12, 3)
 >>> fig.suptitle("My Scenario", fontsize=12)
@@ -198,8 +198,8 @@ Parameters which are available in the base statistics method, to filter and aggr
 
 === "Buses with AC carrier"
 
-    ```python
-    >>> n.statistics.energy_balance.plot.area(bus_carrier="AC", figsize=(12, 3))
+    ``` py
+    >>> n.statistics.energy_balance.plot.area(bus_carrier="AC", figsize=(12, 3))  # doctest: +SKIP
     ```
     <figure markdown="span">
     ![Buses](../assets/images/carbon_management-energy_balance-area_plot-AC-bus_carrier.png){ width="800" }
@@ -207,8 +207,8 @@ Parameters which are available in the base statistics method, to filter and aggr
 
 === "All Buses"
 
-    ```python
-    >>> n.statistics.energy_balance.plot.area(figsize=(10, 3))
+    ``` py
+    >>> n.statistics.energy_balance.plot.area(figsize=(10, 3))  # doctest: +SKIP
     ```
     <figure markdown="span">
     ![Buses](../assets/images/carbon_management-energy_balance-area_plot.png){ width="800" }
@@ -232,8 +232,8 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
 
 === "Interactive Version"
 
-    ```python
-    >>> n_simple.statistics.energy_balance.iplot.area()
+    ``` py
+    >>> n_simple.statistics.energy_balance.iplot.area()  # doctest: +SKIP
     ```
     
     <div style="width: 100%; height: 500px;">
@@ -244,8 +244,8 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
 
 === "Static Plot"
 
-    ```python
-    >>> n_simple.statistics.energy_balance.plot()
+    ``` py
+    >>> n_simple.statistics.energy_balance.plot()  # doctest: +SKIP
     ```
     <figure markdown="span">
     ![Buses](../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
@@ -255,8 +255,8 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
 
 === "Interactive Version"
 
-    ```python
-    >>> n.statistics.energy_balance.iplot.area(bus_carrier="AC")
+    ``` py
+    >>> n.statistics.energy_balance.iplot.area(bus_carrier="AC")  # doctest: +SKIP
     ```
     
     <div style="width: 100%; height: 500px;">
@@ -267,8 +267,8 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
 
 === "Static Plot"
 
-    ```python
-    >>> n.statistics.energy_balance.plot(bus_carrier="AC")
+    ``` py
+    >>> n.statistics.energy_balance.plot(bus_carrier="AC")  # doctest: +SKIP
     ```
     <figure markdown="span">
     ![Buses](../assets/images/carbon_management-energy_balance-area_plot-AC-bus_carrier.png){ width="800" }
@@ -279,8 +279,8 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
 
 === "Interactive Version"
 
-    ```python
-    >>> n.statistics.energy_balance.iplot.area()
+    ``` py
+    >>> n.statistics.energy_balance.iplot.area()  # doctest: +SKIP
     ```
     <div style="width: 100%; height: 500px;">
         <iframe src="../../assets/interactive-plots/carbon_management-energy_balance-area_iplot.html" 
@@ -290,8 +290,8 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
 
 === "Static Plot"
 
-    ```python
-    >>> n.statistics.energy_balance.plot.area(figsize=(10, 3))
+    ``` py
+    >>> n.statistics.energy_balance.plot.area(figsize=(10, 3))  # doctest: +SKIP
     ```
     <figure markdown="span">
     ![Buses](../assets/images/carbon_management-energy_balance-area_plot.png){ width="800" }
@@ -304,7 +304,7 @@ Any plotting functionality is optional and only extend the existing statistics m
 
 <!-- Here, we are going to import a network and plot the electricity flow:
 
-```python
+``` py
 import warnings
 
 import cartopy.crs as ccrs
@@ -320,20 +320,20 @@ plt.rc("figure", figsize=(10, 8))
 
 #### Import and optimize a network
 
-```python
+``` py
 n = pypsa.examples.ac_dc_meshed(from_master=True)
 n.optimize()
 ```
 
 Get mean generator power by bus and carrier:
 
-```python
+``` py
 gen = n.generators.assign(g=n.generators_t.p.mean()).groupby(["bus", "carrier"]).g.sum()
 ```
 
 Plot the electricity flows:
 
-```python
+``` py
 # links are not displayed for prettier output ('link_widths=0')
 n.plot(
     bus_sizes=gen / 5e3,
@@ -348,7 +348,7 @@ plt.show()
 
 Plot the electricity flows with a different projection and a colored map:
 
-```python
+``` py
 # links are not displayed for prettier output ('link_widths=0')
 n.plot(
     bus_sizes=gen / 5e3,
@@ -365,16 +365,16 @@ plt.show()
 
 Set arbitrary values as flow argument using a specific level from the `n.branches()` MultiIndex:
 
-```python
+``` py
 line_flow = pd.Series(10, index=n.branches().loc["Line"].index)
 link_flow = pd.Series(10, index=n.branches().loc["Link"].index)
 ```
 
-```python
+``` py
 line_flow
 ```
 
-```python
+``` py
 # links are not displayed for prettier output ('link_widths=0')
 n.plot(
     bus_sizes=gen / 5e3,
@@ -392,7 +392,7 @@ plt.show()
 
 Adjust link colors according to their mean load:
 
-```python
+``` py
 # Pandas series with MultiIndex
 # links are not displayed for prettier output ('link_widths=0')
 collections = n.plot(
