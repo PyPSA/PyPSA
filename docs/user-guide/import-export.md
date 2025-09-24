@@ -11,18 +11,18 @@ providers.
 Networks can be built step-by-step for each component by calling 
 [`n.add()`][pypsa.network.transform.NetworkTransformMixin.remove] to **add** a single or multiple components.
 
-```py
+``` py
 n.add("Bus", "my_bus")
 n.add("Generator", "gen_1", bus="my_bus", p_nom=100, marginal_cost=100)
 ```
 
-```py
+``` py
 n.add("Load", ["load_1", "load_2"], bus="my_bus", p_set=[10, 20])
 ```
 
 Components can be **removed** with [`n.remove()`][pypsa.network.transform.NetworkTransformMixin.add].
 
-```py
+``` py
 n.remove("Load", ["load_1", "load_2"])
 n.remove("Generator", "my_generator")
 ```
@@ -41,7 +41,7 @@ Create a folder with CSVs for each component type (e.g. `generators.csv`), then 
 
 A network can be **exported** as a folder of csv files with [`n.export_to_csv_folder()`][pypsa.network.io.NetworkIOMixin.export_to_csv_folder].
 
-```py
+``` py
 n.export_to_csv_folder("foo/bar")
 n_import = pypsa.Network("foo/bar")
 ```
@@ -52,7 +52,7 @@ To **import** a network from an Excel file, run [`n.import_from_excel()`][pypsa.
 
 To **export** a network to an Excel file, run [`n.export_to_excel()`][pypsa.network.io.NetworkIOMixin.export_to_excel].
 
-```py
+``` py
 n.export_to_excel("foo/bar.xlsx")
 n_import = pypsa.Network("foo/bar.xlsx")
 ```
@@ -71,7 +71,7 @@ To **import** network data from netCDF file run [`n.import_from_netcdf()`][pypsa
     cleanly, is easier to use from other programming languages, can limit
     float precision to save space and supports lazy loading.
 
-```py
+``` py
 n.export_to_netcdf("foo/bar.nc")
 n_import = pypsa.Network("foo/bar.nc")
 ```
@@ -82,7 +82,7 @@ To **export** the network to an HDF store, run [`n.export_to_hdf5()`][pypsa.netw
 
 To **import** network data from an HDF5 store, run [`n.import_from_hdf5()`][pypsa.network.io.NetworkIOMixin.import_from_hdf5] or simply provide the path in the [`pypsa.Network`][] constructor.
 
-```py
+``` py
 n.export_to_hdf5("foo/bar.h5")
 n_import = pypsa.Network("foo/bar.h5")
 ```
@@ -94,7 +94,7 @@ version 2, run the function [`n.import_from_pypower_ppc()`][pypsa.network.io.Net
 
 **Exporting** to PYPOWER is not currently supported.
 
-```py
+``` py
 from pypower.api import case30
 ppc = case30()
 n.import_from_pypower_ppc(ppc)
@@ -112,7 +112,7 @@ To **import** a network from [pandapower](http://www.pandapower.org/), run the f
     three-winding transformers, switches, `in_service` status and tap positions
     of transformers.
 
-```py
+``` py
 import pandapower.networks as pn
 net = pn.create_cigre_network_mv(with_der='all')
 n = pypsa.Network()
@@ -134,7 +134,7 @@ corresponding cloud storage provider client library to interface with the cloud
 storage provider via `cloudpathlib` (e.g. `boto3`, `google-cloud-storage` or
 `azure-storage-blob`).
 
-```python
+``` py
 from pypsa import Network
 n = Network('examples/ac-dc-meshed/ac-dc-data')
 n.export_to_csv_folder('s3://my-s3-bucket/ac-dc-data')

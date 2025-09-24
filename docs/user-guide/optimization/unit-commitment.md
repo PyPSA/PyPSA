@@ -225,7 +225,7 @@ $$u_{*,t},\quad su_{*,t},\quad sd_{*,t}\quad  \in [0,1]$$
 
 This allows for partial commitment states (generators can be partially on/off), making the problem more computationally tractable while loosing some accuracy. To enable this, use:
 
-```py
+``` py
 n.optimize(linearized_unit_commitment=True)
 ```
 

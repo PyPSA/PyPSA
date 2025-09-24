@@ -9,19 +9,19 @@ You can install PyPSA via all common package managers:
 === "pip"
 
     ``` bash
-    $ pip install pypsa
+    pip install pypsa
     ```
 
 === "conda/mamba"
 
     ``` bash
-    $ conda install -c conda-forge pypsa
+    conda install -c conda-forge pypsa
     ```
 
 === "uv"
 
     ``` bash
-    $ uv add pypsa
+    uv add pypsa
     ```
 
 PyPSA is written and tested to be compatible with Python 3.10 and above. We recommend to use the latest version with active support (see [endoflife.date](https://endoflife.date/python)).
@@ -59,19 +59,19 @@ To upgrade PyPSA, run:
 === "pip"
 
     ``` bash
-    $ pip install -U pypsa
+    pip install -U pypsa
     ```
 
 === "conda/mamba"
 
     ``` bash
-    $ conda update pypsa
+    conda update pypsa
     ```
 
 === "uv"
     
     ``` bash
-    $ uv pip install -U pypsa
+    uv pip install -U pypsa
     ```
 
 Check the [release notes](https://pypsa.readthedocs.io/en/latest/release-notes.html) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes, including a version when they are going to be removed (always the next major version, e.g. `v2.0.0`). That way you can be sure that your code will continue to work at least until the next major version.
@@ -97,19 +97,19 @@ Besides the mandatory dependencies that are installed by default, PyPSA has a nu
 === "pip"
 
     ``` bash
-    $ pip install "pypsa[<feature>]"
+    pip install "pypsa[<feature>]"
     ```
 
 === "conda/mamba"
 
     ``` bash
-    $ conda install -c conda-forge "pypsa[<feature>]"
+    conda install -c conda-forge "pypsa[<feature>]"
     ```
 
 === "uv"
 
     ``` bash
-    $ uv add "pypsa[<feature>]"
+    uv add "pypsa[<feature>]"
     ```
 
 where `<feature>` can be one of the following:

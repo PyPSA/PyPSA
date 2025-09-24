@@ -52,9 +52,7 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
         return Network(path)
 
 
-def ac_dc_meshed(
-    update: bool = False, from_master: bool = False, remove_link_p_set: bool = False
-) -> Network:
+def ac_dc_meshed() -> Network:
     """Load the meshed AC-DC example network.
 
     Returns
@@ -82,7 +80,7 @@ def ac_dc_meshed(
     return _retrieve_if_not_local("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
 
 
-def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
+def storage_hvdc() -> Network:
     """Load the storage network example of PyPSA.
 
     Returns
@@ -111,7 +109,7 @@ def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
     return _retrieve_if_not_local("examples/networks/storage-hvdc/storage-hvdc.nc")
 
 
-def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
+def scigrid_de() -> Network:
     """Load the SciGrid network example of PyPSA.
 
     Returns
@@ -139,7 +137,7 @@ def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
     return _retrieve_if_not_local("examples/networks/scigrid-de/scigrid-de.nc")
 
 
-def model_energy(update: bool = False, from_master: bool = False) -> Network:
+def model_energy() -> Network:
     """Load the single-node capacity expansion model in style of model.energy.
 
     Check out the [model.energy website](https://model.energy/) for more information.
@@ -223,19 +221,20 @@ def carbon_management() -> Network:
     --------
     >>> n = pypsa.examples.carbon_management()
     >>> n
-    PyPSA Network 'Carbon-Management'
-    ----------------------------
+    PyPSA Network 'Hybrid Scenario from https://www.nature.com/articles/s41560-025-01752-6'
+    ---------------------------------------------------------------------------------------
     Components:
-     - Bus: 10
-     - Carrier: 10
-     - Generator: 10
-     - GlobalConstraint: 1
-     - Line: 10
-     - Load: 10
-     - Store: 10
-     - Store: 10
-     - Store: 10
-     - Store: 10
+     - Bus: 2164
+     - Carrier: 89
+     - Generator: 1489
+     - GlobalConstraint: 4
+     - Line: 157
+     - Link: 6830
+     - Load: 1357
+     - StorageUnit: 106
+     - Store: 1263
+    Snapshots: 168
+    <BLANKLINE>
 
     """
     primary_url = (
