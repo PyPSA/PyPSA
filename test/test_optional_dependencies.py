@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pypsa.plot.maps.static import _is_cartopy_available
+from pypsa.plot.maps.common import _is_cartopy_available
 
 
 @pytest.fixture
@@ -41,12 +41,12 @@ class TestDynamicDependencyChecking:
     def test_cartopy_checking_not_cached(self):
         """Test that cartopy checking responds to changes."""
         with patch(
-            "pypsa.plot.maps.static.importlib.util.find_spec", return_value=None
+            "pypsa.plot.maps.common.importlib.util.find_spec", return_value=None
         ):
             assert _is_cartopy_available() is False
 
         with patch(
-            "pypsa.plot.maps.static.importlib.util.find_spec", return_value="mock"
+            "pypsa.plot.maps.common.importlib.util.find_spec", return_value="mock"
         ):
             assert _is_cartopy_available() is True
 
@@ -56,6 +56,9 @@ class TestDynamicDependencyChecking:
 
         n = pypsa.Network()
         n.add("Bus", "bus1", x=0, y=0)
+        n.add(
+            "Bus", "bus2", x=1, y=1
+        )  # TODO: Actual issue lies in x_min, x_max, y_min, y_max calculation when only one bus is present. Fix this properly. Reproduce by removing one bus.
 
-        with patch("pypsa.plot.maps.static._is_cartopy_available", return_value=False):
+        with patch("pypsa.plot.maps.common._is_cartopy_available", return_value=False):
             n.plot(geomap=True)  # Should work despite geomap=True

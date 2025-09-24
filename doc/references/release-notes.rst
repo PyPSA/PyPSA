@@ -15,6 +15,11 @@ Upcoming Release
 Features
 --------
 
+* New feature for interactive map plotting: PyDeck-based interactive maps (https://github.com/PyPSA/PyPSA/pull/1312)
+
+  * New API: ``Network.explore(...)`` returns a ``pydeck.Deck`` object: Extending the previous folium/geopandas-based interactive html map by all static map plotting parameters.
+  * Interactive maps can be exported to self-contained htmls by ``Network.explore(...).to_html("file.html", offline=True)``.
+
 * New optimization mode: Stochastic optimization problems (https://github.com/PyPSA/PyPSA/pull/1154)
 
   * Two-stage stochastic optimization: stage 1 investment "here-and-now"; stage 2 operations "wait-and-see". Uncertainty via user-defined scenarios. Supports uncertain model parameters in both static and time-series format.
