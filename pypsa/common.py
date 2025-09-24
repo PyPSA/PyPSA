@@ -565,7 +565,7 @@ def deprecated_in_next_major(details: str) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         return deprecated(
-            deprecated_in="1.0",
+            deprecated_in="1.0rc1",
             removed_in="2.0",
             current_version=__version_base__,
             details=details,
