@@ -19,6 +19,14 @@ except ImportError:
 
 new_api = pypsa.options.api.new_components_api
 
+
+# Create a pytest fixture to check for the test-docs flag
+@pytest.fixture(scope="session")
+def test_docs_flag(pytestconfig):
+    """Check if --test-docs flag is provided."""
+    return pytestconfig.getoption("--test-docs", default=False)
+
+
 sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
 # Warning: Keep in sync with settings in doc/conf.py
 n = pypsa.examples.ac_dc_meshed()
@@ -56,7 +64,9 @@ modules = [
 @pytest.mark.skipif(new_api, reason="New components API not yet shown in docs")
 @pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize("module", modules)
-def test_doctest_code(module, close_matplotlib_figures):
+def test_doctest_code(module, close_matplotlib_figures, test_docs_flag):
+    if not test_docs_flag:
+        pytest.skip("Need --test-docs option to run documentation tests")
     finder = doctest.DocTestFinder()
 
     runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)
@@ -88,8 +98,10 @@ def test_doctest_code(module, close_matplotlib_figures):
 @pytest.mark.parametrize(
     "fpath", [*Path("docs").glob("**/*.md"), Path("README.md")], ids=str
 )
-def test_doctest_docs(fpath):
+def test_doctest_docs(fpath, test_docs_flag):
     """Test Python code blocks in markdown files using doctest."""
+    if not test_docs_flag:
+        pytest.skip("Need --test-docs option to run documentation tests")
     import re
 
     # Read the markdown file
