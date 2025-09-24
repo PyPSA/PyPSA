@@ -619,7 +619,7 @@ class PydeckPlotter:
         bus_size_factor: float = 1.0,
         bus_size_max: float = 10000,  # km²
         bus_color: str | dict | pd.Series = "cadetblue",
-        bus_cmap: str | mcolors.Colormap | None = None,
+        bus_cmap: str | mcolors.Colormap = "Reds",
         bus_cmap_norm: mcolors.Normalize | None = None,
         bus_alpha: float | dict | pd.Series = 0.9,
         bus_columns: list | None = None,
@@ -640,7 +640,7 @@ class PydeckPlotter:
             Colors for the buses, defaults to "cadetblue". If bus_size is a
             pandas.Series with a Multiindex, bus_color defaults to the
             n.c.carriers.static['color'] column.
-        bus_cmap : mcolors.Colormap/str/None
+        bus_cmap : mcolors.Colormap/str, default 'Reds'
             If bus_color are floats, this color map will assign the colors.
         bus_cmap_norm : mcolors.Normalize/None
             Normalization for bus_cmap, defaults to None.
@@ -1513,7 +1513,7 @@ class PydeckPlotter:
             If a float is provided, it will be used as a constant flow for all links.
         link_color : str/dict/pandas.Series
             Colors for the links, defaults to 'darkseagreen'.
-        link_cmap : matplotlib.colors.Colormap/str|dict, default 'viridis'
+        link_cmap : matplotlib.colors.Colormap/str, default 'viridis'
             If link_color are floats, this color map will assign the colors.
         link_cmap_norm : matplotlib.colors.Normalize|matplotlib.colors.*Norm
             The norm applied to the link_cmap.
@@ -1577,7 +1577,7 @@ class PydeckPlotter:
             absolute=True,
         )  # If elements empty, global_flow_max is None
 
-        for c in n.branch_components:
+        for c in branch_components or n.branch_components:
             if c == "Line":
                 branch_flow = line_flow
                 branch_color = line_color
@@ -1804,7 +1804,7 @@ class PydeckPlotter:
         bus_size_factor: float = 1.0,
         bus_split_circle: bool = False,
         bus_color: str | dict | pd.Series = "cadetblue",
-        bus_cmap: str | mcolors.Colormap | None = None,
+        bus_cmap: str | mcolors.Colormap = "Reds",
         bus_cmap_norm: mcolors.Normalize | None = None,
         bus_alpha: float | dict | pd.Series = 0.9,
         line_flow: float | dict | pd.Series = 0,
@@ -1862,7 +1862,7 @@ class PydeckPlotter:
             Colors for the buses, defaults to "cadetblue". If bus_size is a
             pandas.Series with a Multiindex, bus_color defaults to the
             n.c.carriers.static['color'] column.
-        bus_cmap : mcolors.Colormap/str/None
+        bus_cmap : mcolors.Colormap/str, default 'Reds'
             If bus_color are floats, this color map will assign the colors.
         bus_cmap_norm : mcolors.Normalize/None
             Normalization for bus_cmap, defaults to None.
@@ -1901,7 +1901,7 @@ class PydeckPlotter:
             If line_color are floats, this color map will assign the colors.
         line_cmap_norm : mcolors.Normalize
             The norm applied to the line_cmap.
-        link_cmap : mcolors.Colormap/str|dict, default 'viridis'
+        link_cmap : mcolors.Colormap/str, default 'viridis'
             If link_color are floats, this color map will assign the colors.
         link_cmap_norm : mcolors.Normalize|matplotlib.colors.*Norm
             The norm applied to the link_cmap.
@@ -2038,7 +2038,7 @@ class PydeckPlotter:
 # TODO: fix typing differences between PydeckPlotter.build_layers and explore function
 @wraps(
     PydeckPlotter.build_layers,
-    assigned=("__doc__"),
+    assigned=("__doc__", "__annotations__", "__type_params__"),
 )
 def explore(  # noqa: D103
     n: "Network",
