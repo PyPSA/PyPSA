@@ -42,7 +42,7 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 * The **optimization module was heavily refactored**. While the underlying `pandas`-based
   data structure remains the same, the optimization module now uses an `xarray` view via
   the [`Components`][pypsa.components.Components] class to write the optimization model.
-  The xarray view allows for easier problem forumlation with an object which contains 
+  The xarray view allows for easier problem formulation with an object which contains 
   all components data across all dimensions andcoordinates (e.g. `name`, `snapshots` 
   with `timesteps` and `periods` and `scenarios`)
   (:octicons-git-pull-request-16:1154)

@@ -8,11 +8,13 @@ its key features:
 
 ## Optimisation Functionalities
 
-- **:material-power-plug-battery-outline: Economic Dispatch (ED):** Models short-term market-based dispatch including
-unit commitment, renewable availability, short-duration and seasonal storage
-including hydro reservoirs with inflow and spillage dynamics, elastic demands,
-load shedding and conversion between energy carriers, using either perfect
-operational foresight or rolling horizon time resolution.
+- **:material-power-plug-battery-outline: Economic Dispatch (ED):** Models
+short-term market-based dispatch including unit commitment (either with integer
+variables as MILP or in a relaxed approximation as LP), renewable availability,
+short-duration and seasonal storage including hydro reservoirs with inflow and
+spillage dynamics, elastic demands, load shedding and conversion between energy
+carriers, using either perfect operational foresight or rolling horizon time
+resolution.
 
 - **:material-transmission-tower: Linear Optimal Power Flow (LOPF):** Extends economic dispatch to determine
 the least-cost dispatch while respecting network constraints in meshed AC-DC
