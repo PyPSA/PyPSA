@@ -11,106 +11,119 @@ The accessor [n.optimize][pypsa.optimization.OptimizationAccessor] additionally 
 
 Initially, let us consider one of the canonical PyPSA examples and solve it with [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
-```python
-import pypsa
-n = pypsa.examples.ac_dc_meshed(from_master=True)
+``` py
+>>> import pypsa
+>>> n = pypsa.examples.ac_dc_meshed()
 ```
 
 In order to make the network a bit more interesting, we modify its data by setting gas generators to be non-extendable,
 
-```python
-n.generators.loc[n.generators.carrier == "gas", "p_nom_extendable"] = False
+``` py
+>>> n.generators.loc[n.generators.carrier == "gas", "p_nom_extendable"] = False
 ```
 
 ... adding ramp limits,
 
-```python
-n.generators.loc[n.generators.carrier == "gas", "ramp_limit_down"] = 0.2
-n.generators.loc[n.generators.carrier == "gas", "ramp_limit_up"] = 0.2
+``` py
+>>> n.generators.loc[n.generators.carrier == "gas", "ramp_limit_down"] = 0.2
+>>> n.generators.loc[n.generators.carrier == "gas", "ramp_limit_up"] = 0.2
 ```
 
 ... adding additional storage units (cyclic and non-cyclic) and fixing the state of charge of one storage unit,
 
-```python
-n.add(
-    "StorageUnit",
-    "su",
-    bus="Manchester",
-    marginal_cost=10,
-    inflow=50,
-    p_nom_extendable=True,
-    capital_cost=10,
-    p_nom=2000,
-    efficiency_dispatch=0.5,
-    cyclic_state_of_charge=True,
-    state_of_charge_initial=1000,
-)
-
-n.add(
-    "StorageUnit",
-    "su2",
-    bus="Manchester",
-    marginal_cost=10,
-    p_nom_extendable=True,
-    capital_cost=50,
-    p_nom=2000,
-    efficiency_dispatch=0.5,
-    carrier="gas",
-    cyclic_state_of_charge=False,
-    state_of_charge_initial=1000,
-)
-
-n.storage_units_t.state_of_charge_set.loc[n.snapshots[7], "su"] = 100
+``` py
+>>> n.add(
+...     "StorageUnit",
+...     "su",
+...     bus="Manchester",
+...     marginal_cost=10,
+...     inflow=50,
+...     p_nom_extendable=True,
+...     capital_cost=10,
+...     p_nom=2000,
+...     efficiency_dispatch=0.5,
+...     cyclic_state_of_charge=True,
+...     state_of_charge_initial=1000,
+... )
+>>> n.add(
+...     "StorageUnit",
+...     "su2",
+...     bus="Manchester",
+...     marginal_cost=10,
+...     p_nom_extendable=True,
+...     capital_cost=50,
+...     p_nom=2000,
+...     efficiency_dispatch=0.5,
+...     carrier="gas",
+...     cyclic_state_of_charge=False,
+...     state_of_charge_initial=1000,
+... )
+>>> n.storage_units_t.state_of_charge_set.loc[n.snapshots[7], "su"] = 100
 ```
 
 ...and adding an additional store.
 
-```python
-n.add("Bus", "storebus", carrier="hydro", x=-5, y=55)
-
-n.add(
-    "Link",
-    ["battery_power", "battery_discharge"],
-    "",
-    bus0=["Manchester", "storebus"],
-    bus1=["storebus", "Manchester"],
-    p_nom=100,
-    efficiency=0.9,
-    p_nom_extendable=True,
-    p_nom_max=1000,
-)
-
-n.add(
-    "Store",
-    ["store"],
-    bus="storebus",
-    e_nom=2000,
-    e_nom_extendable=True,
-    marginal_cost=10,
-    capital_cost=10,
-    e_nom_max=5000,
-    e_initial=100,
-    e_cyclic=True,
-);
+``` py
+>>> n.add("Bus", "storebus", carrier="hydro", x=-5, y=55)
+>>> n.add(
+...     "Link",
+...     ["battery_power", "battery_discharge"],
+...     "",
+...     bus0=["Manchester", "storebus"],
+...     bus1=["storebus", "Manchester"],
+...     p_nom=100,
+...     efficiency=0.9,
+...     p_nom_extendable=True,
+...     p_nom_max=1000,
+... )
+>>> n.add(
+...     "Store",
+...     ["store"],
+...     bus="storebus",
+...     e_nom=2000,
+...     e_nom_extendable=True,
+...     marginal_cost=10,
+...     capital_cost=10,
+...     e_nom_max=5000,
+...     e_initial=100,
+...     e_cyclic=True,
+... )
 ```
 
 ## Run Optimization
 
 Now, let's solve the network.
 
-```python
-n.optimize()
+``` py
+>>> n.optimize()
+('ok', 'optimal')
 ```
 
 We now have a model instance attached to our network object. It is a container of all variables, constraints and the objective function. It can be modified by directly adding or deleting variables or constraints or changing the objective function.
 
-```python
-n.model
+``` py
+>>> n.model  # doctest: +ELLIPSIS
+Linopy LP model
+===============
+<BLANKLINE>
+Variables:
+----------
+ * Generator-p_nom (name)
+ * ...
+<BLANKLINE>
+Constraints:
+------------
+ * Generator-ext-p_nom-lower (name)
+ * ...
+<BLANKLINE>
+Status:
+-------
+ok
 ```
 
 Results are written to the network components' data fields, for instance:
 
-```python
+``` py
 n.generators_t.p
 n.stores.e_nom_opt
 n.buses_t.marginal_price
@@ -121,20 +134,35 @@ n.buses_t.marginal_price
 The function call to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] already solves the model directly after creating it.
 To create the model instance without solving it yet, you can use the following command:
 
-```python
-n.optimize.create_model()
+``` py
+>>> n.optimize.create_model()  # doctest: +ELLIPSIS
+Linopy LP model
+===============
+<BLANKLINE>
+Variables:
+----------
+...
+<BLANKLINE>
+Constraints:
+------------
+...
+<BLANKLINE>
+Status:
+-------
+initialized
 ```
 
 With the access to the model instance we gain a lot of flexibility. Let's say, for example, we want to remove the Kirchhoff Voltage Law constraint, thus converting the model to a transport model. This can be done via
 
-```python
-n.model.constraints.remove("Kirchhoff-Voltage-Law")
+``` py
+>>> n.model.constraints.remove("Kirchhoff-Voltage-Law")
 ```
 
 Now, we can solve the altered model and write the solution back to the network. Here again, we use the [`n.optimize`][pypsa.optimization.OptimizationAccessor] accessor:
 
-```python
-n.optimize.solve_model()
+``` py
+>>> n.optimize.solve_model()
+('ok', 'optimal')
 ```
 
 Here, we followed the recommended way to create and solve models with custom alterations:
@@ -145,8 +173,9 @@ Here, we followed the recommended way to create and solve models with custom alt
 
 It is also possible to pass modifications as an `extra_functionality` argument to [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]:
 
-```python
+``` py
 import pandas as pd
+
 def remove_kvl(n: pypsa.Network, sns: pd.Index) -> None:
     n.model.constraints.remove("Kirchhoff-Voltage-Law")
 
@@ -163,102 +192,106 @@ In the following, we present a selection of examples for additional constraints.
 
 Again, we **first build** the optimization model, then **add our constraints** and finally **solve the network**:
 
-```python
-m = n.optimize.create_model()  # the return value is the model, let's use it directly!
+``` py
+>>> m = n.optimize.create_model()  # the return value is the model, let's use it directly!
 ```
 
 ### Minimum for state of charge
 
 Assume we want to set a minimum state of charge of 50 MWh for our storage unit. This is done by: 
 
-```python
-sus = m.variables["StorageUnit-state_of_charge"]
-m.add_constraints(sus >= 50, name="StorageUnit-minimum_soc")
+``` py
+>>> sus = m.variables["StorageUnit-state_of_charge"]
+>>> m.add_constraints(sus >= 50, name="StorageUnit-minimum_soc")  # doctest: +ELLIPSIS
+Constraint `StorageUnit-minimum_soc` [snapshot: ..., name: ...]:
+-------------------------------------------------------------
+...
 ```
 
 The return value of the `m.add_constraints()` function is an array containing constraint labels, which can be accessed through `m.constraints`.
 
-```python
-m.constraints["StorageUnit-minimum_soc"]
+``` py
+>>> m.constraints["StorageUnit-minimum_soc"]  # doctest: +SKIP
 ```
 
 and inspected via its attributes like `lhs`, `sign` and `rhs`, e.g.
 
-```python
-m.constraints["StorageUnit-minimum_soc"].rhs
+``` py
+>>> m.constraints["StorageUnit-minimum_soc"].rhs  # doctest: +SKIP
 ```
 
 ### Fix the ratio between incoming and outgoing capacity of the `Store`
 
 The battery in our system is modelled with two links and a store. We should make sure that its charging and discharging capacities, i.e. the links representing the inverter, are coupled. 
 
-```python
-capacity = m.variables["Link-p_nom"]
-eff = n.links.at["battery_power", "efficiency"]
-lhs = capacity.loc["battery_power"] - eff * capacity.loc["battery_discharge"]
-m.add_constraints(lhs == 0, name="Link-battery_fix_ratio")
+``` py
+>>> capacity = m.variables["Link-p_nom"]
+>>> eff = n.links.at["battery_power", "efficiency"]
+>>> lhs = capacity.loc["battery_power"] - eff * capacity.loc["battery_discharge"]
+>>> m.add_constraints(lhs == 0, name="Link-battery_fix_ratio")  # doctest: +SKIP
 ```
 
 ### Every bus must in total produce the 20% of the total demand
 
 For this, we use the `linopy` function `groupby_sum` which follows the pattern from `pandas` or `xarray` `groupby` functions.
 
-```python
-total_demand = n.loads_t.p_set.sum().sum()
-buses = n.generators.bus.to_xarray()
-prod_per_bus = m.variables["Generator-p"].groupby(buses).sum().sum("snapshot")
-m.add_constraints(prod_per_bus >= total_demand / 5, name="Bus-minimum_production_share")
+``` py
+>>> total_demand = n.loads_t.p_set.sum().sum()
+>>> buses = n.generators.bus.to_xarray()
+>>> prod_per_bus = m.variables["Generator-p"].groupby(buses).sum().sum("snapshot")
+>>> m.add_constraints(prod_per_bus >= total_demand / 5, name="Bus-minimum_production_share")  # doctest: +SKIP
 ```
 
-```python
-con = prod_per_bus >= total_demand / 5
-con
+``` py
+>>> con = prod_per_bus >= total_demand / 5
+>>> con  # doctest: +SKIP
 ```
 
 Now, let's solve the network again:
 
-```python
-n.optimize.solve_model()
+``` py
+>>> n.optimize.solve_model()
+('ok', 'optimal')
 ```
 
 ## Analysing Constraints
 
 Let's see if the optimized system adheres to our custom constraints. Let's first look at `n.constraints` which summarises the constraints of the model:
 
-```python
-n.model.constraints
+``` py
+>>> n.model.constraints  # doctest: +SKIP
 ```
 
 The last three entries show our constraints. Let's check whether our two custom constraints are fulfilled:
 
-```python
-n.links.loc[["battery_power", "battery_discharge"], ["p_nom_opt"]]
+``` py
+>>> n.links.loc[["battery_power", "battery_discharge"], ["p_nom_opt"]]  # doctest: +SKIP
 ```
 
-```python
-n.storage_units_t.state_of_charge
+``` py
+>>> n.storage_units_t.state_of_charge  # doctest: +SKIP
 ```
 
-```python
-n.generators_t.p.groupby(n.generators.bus, axis=1).sum().sum() / n.loads_t.p.sum().sum()
+``` py
+>>> n.generators_t.p.T.groupby(n.generators.bus).sum().sum() / n.loads_t.p.sum().sum()  # doctest: +SKIP
 ```
 
-Looks good! Now, let's see which dual values were parsed. For that, we have a look into `n.model.dual`: 
+Looks good! Now, let's see which dual values were parsed. For that, we have a look into `n.model.dual`:
 
-```python
-n.model.dual
+``` py
+>>> n.model.dual  # doctest: +SKIP
 ```
 
-```python
-n.model.dual["StorageUnit-minimum_soc"]
+``` py
+>>> n.model.dual["StorageUnit-minimum_soc"]  # doctest: +SKIP
 ```
 
-```python
-n.model.dual["Link-battery_fix_ratio"]
+``` py
+>>> n.model.dual["Link-battery_fix_ratio"]  # doctest: +SKIP
 ```
 
-```python
-n.model.dual["Bus-minimum_production_share"]
+``` py
+>>> n.model.dual["Bus-minimum_production_share"]  # doctest: +SKIP
 ```
 
 These are the basic functionalities of the [`n.optimize`][pypsa.optimization.OptimizationAccessor] accessor. There are many more functions like extended problem formulations for security constraint optimization, iterative transmission expansion optimization, and rolling-horizon optimization alongside several helper functions (fixing optimized capacities, adding load shedding). Check them out in the [:octicons-code-16: API reference](/api/networks/optimize/).

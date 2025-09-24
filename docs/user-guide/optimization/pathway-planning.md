@@ -21,7 +21,7 @@ compared to **Type I**.
 
 Optimisation with multiple investment periods can be run with
 
-```py
+``` py
 n.optimize(multi_investment_periods=True)
 ```
 

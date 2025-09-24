@@ -89,25 +89,25 @@ PyPSA has extensive [documentation](https://docs.pypsa.org) with tutorials, user
 
 pip:
 
-```sh
+``` bash
 pip install pypsa
 ```
 
 conda/mamba:
 
-```sh
+``` bash
 conda install -c conda-forge pypsa
 ```
 
 uv:
 
-```sh
+``` bash
 uv add pypsa
 ```
 
 ## Usage
 
-```py
+``` py
 import pypsa
 
 # create a new network

@@ -27,7 +27,7 @@ using
 This model instance contains all variables, constraints, and the objective
 function of the optimization problem. 
 
-```python
+``` py
 >>> m = n.optimize.create_model()
 ```
 
@@ -38,15 +38,31 @@ constraints, and the objective as needed.
 
 To get a first overview of the variables and constraints in the model, call
 
-```python
->>> m
+``` py
+>>> m  # doctest: +ELLIPSIS
+Linopy LP model
+===============
+<BLANKLINE>
+Variables:
+----------
+ * Generator-p_nom (name)
+ * ...
+<BLANKLINE>
+Constraints:
+------------
+ * Generator-ext-p_nom-lower (name)
+ * ...
+<BLANKLINE>
+Status:
+-------
+initialized
 ```
 
 Specific variables can be accessed using `m.variables`, which provides a
 dictionary-like structure containing the variables associated with each
 component. For example, the following call retrieves generator active power variables:
 
-```python
+``` py
 >>> gen_p = m.variables["Generator-p"]
 ```
 
@@ -59,8 +75,12 @@ To create custom constraints, sets of variables are first combined into
 addition, subtraction, multiplication, division) that represent the relationship
 between variables involved in the constraint.
 
-```python
->>> 2 * m.variables["Generator-p"] + 0.5 * m.variables["Link-p"]
+``` py
+>>> 2 * m.variables["Generator-p"] + 0.5 * m.variables["Link-p"]  # doctest: +ELLIPSIS
+LinearExpression [snapshot: 10, name: 10]:
+------------------------------------------
+[2015-01-01 00:00:00, Bremen Converter]: +0.5 Link-p[2015-01-01 00:00:00, Bremen Converter]
+...
 ```
 
 The constraint can then be created using standard Python operators like `==`,
@@ -68,7 +88,7 @@ The constraint can then be created using standard Python operators like `==`,
 forces the total generation at a bus to be at least 80% of the total demand,
 would be written as follows:
 
-```python
+``` py
 >>> bus = n.generators.bus.to_xarray()
 >>> total_generation = gen_p.groupby(bus).sum().sum("snapshot")
 >>> total_demand = n.loads_t.p_set.sum().sum()
@@ -79,8 +99,11 @@ After defining the constraint expression, it is added to the Linopy model instan
 `m.add_constraints()` function, providing a name for the constraint to
 facilitate further modifications or inspection:
 
-```python
->>> m.add_constraints(constraint_expression, name="Bus-minimum_generation_share")
+``` py
+>>> m.add_constraints(constraint_expression, name="Bus-minimum_generation_share")  # doctest: +ELLIPSIS
+Constraint `Bus-minimum_generation_share` [bus: 3]:
+---------------------------------------------------
+[Frankfurt]: +1 Generator-p[2015-01-01 00:00:00, Frankfurt Wind] + ... ≥ 26038.102467283523
 ```
 
 Once the custom constraints is registered, calling
@@ -89,14 +112,15 @@ solves the model including any modifications after
 [`n.optimize.create_model()`][pypsa.optimization.OptimizationAccessor.create_model]
 and writes the solution.
 
-```python
-n.optimize.solve_model()
+``` py
+>>> n.optimize.solve_model()
+('warning', 'infeasible')
 ```
 
 Generally, optimised values for custom variables are not written back to the network object `n`. They must be retrieved seperately from the Linopy model instance `n.model`. For example, if you created a custom variable `custom_var`, you can access its optimised values as follows:
 
-```python
-custom_var_values = n.model.variables["custom_var"].solution
+``` py
+>>> custom_var_values = n.model.variables["custom_var"].solution  # doctest: +SKIP
 ```
 
 <!-- However, if you follow the naming convention `{component}-{variable}`, where `component` is the name of the component (e.g., "Generator") and `variable` is the name of the variable (e.g., "custom_var"),
@@ -106,13 +130,12 @@ the optimised values will be stored for the network component (e.g. `n.generator
 
     The workflow described above is the recommended way to add custom constraints to a PyPSA network. It allows for direct access to the Linopy model instance and provides flexibility in defining and modifying constraints.  However, if you prefer a more integrated approach, you can use the `extra_functionality` argument in the [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] function. This allows you to pass a function that will be executed after the model is created and before it is solved, enabling you to add custom constraints or modify the model as needed:
 
-    ```python
-    def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
-        m = n.model
-        # Define and add custom constraints here
-        ...
-
-    n.optimize(extra_functionality=custom_constraints)
+    ``` py
+    >>> def custom_constraints(n: pypsa.Network, sns: pd.Index) -> None:
+    ...     m = n.model
+    ...     # Define and add custom constraints here
+    ...     ...
+    >>> n.optimize(extra_functionality=custom_constraints)  
     ```
 
 !!! warning "Persistence of Linopy model instances"

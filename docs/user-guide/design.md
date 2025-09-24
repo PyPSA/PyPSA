@@ -8,9 +8,15 @@ exist without a network and are always attached to one. A network also holds
 functions to run different types of optimisation problems, compute power flows,
 read or write networks to files, retrieve statistics and plot the network.
 
-```py
+``` py
 >>> import pypsa
 >>> n = pypsa.Network()
+>>> n
+Empty PyPSA Network 'Unnamed Network'
+-------------------------------
+Components: none
+Snapshots: 1
+<BLANKLINE>
 ```
 
 !!! tip
@@ -50,7 +56,7 @@ it in any time step. A [`Bus`](/api/components/types/buses) can represent a powe
 be used for other, non-electric energy carriers (e.g. hydrogen, heat, oil) or
 even non-energy carriers (e.g. CO~2~ or steel) in different locations.
 
-```py
+``` py
 >>> n.add("Bus", "my_bus")
 ```
 
@@ -82,9 +88,10 @@ default to a single snapshot called "now" and can be set with
 [`n.set_snapshots()`][pypsa.Network.set_snapshots].
 
 
-```py
+``` py
 >>> n.set_snapshots([0, 1, 2])
 >>> n.snapshots
+Index([0, 1, 2], dtype='int64', name='snapshot')
 ```
 
 !!! note
@@ -100,8 +107,13 @@ when calculating global constraints and energy balances. Snapshot weightings are
 stored as a `pandas.DataFrame` and indexed by [`n.snapshots`][pypsa.network.index.NetworkIndexMixin.snapshots]. They default to a
 uniform snapshot weighting of 1 hour.
 
-```py
+``` py
 >>> n.snapshot_weightings
+          objective  stores  generators
+snapshot
+0               1.0     1.0         1.0
+1               1.0     1.0         1.0
+2               1.0     1.0         1.0
 ```
 
 ## Investment Periods
@@ -113,9 +125,10 @@ time horizons, it is possible to define multiple investment periods (e.g. 2025,
 a `pandas.Index` of monotonically increasing integers of years, with
 [`n.set_investment_periods()`][pypsa.Network.set_investment_periods].
 
-```py
+``` py
 >>> n.set_investment_periods([2025, 2035, 2045])
 >>> n.investment_periods
+Index([2025, 2035, 2045], dtype='int64', name='period')
 ```
 
 By default, there are no investment periods defined, and the network is
@@ -133,8 +146,13 @@ denote the elapsed time until the subsequent investment period (e.g. for global
 constraints on emissions). They default to a uniform weighting of 1 for each
 investment period.
 
-```py
+``` py
 >>> n.investment_period_weightings
+        objective  years
+period
+2025          1.0    1.0
+2035          1.0    1.0
+2045          1.0    1.0
 ```
 
 !!! note
@@ -169,16 +187,18 @@ investment period.
 ## Scenarios
 
 By default, the network is optimised for a deterministic scenario
-(`n.has_scenarios` is `False`). If scenarios are defined, the network is
+([`n.has_scenarios`][pypsa.Network.has_scenarios] is `False`). If scenarios are defined, the network is
 optimised for multiple scenarios in form of a two-stage stochastic programming
 framework (see [:material-book: Stochastic Programming](/examples/stochastic-optimization.ipynb)).
 
-Scenario names are stored in `n.scenarios`, a `pandas.Index`, and are set
+Scenario names are stored in `n.scenarios`, a `pandas.DataFrame`, and are set
 with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
 
-```py
+``` py
+>>> n = pypsa.Network() # docs-hide
 >>> n.set_scenarios(["low", "high"])
 >>> n.scenarios
+Index(['low', 'high'], dtype='object', name='scenario')
 ```
 
 Probabilities for each scenario can also be set with
@@ -186,9 +206,14 @@ Probabilities for each scenario can also be set with
 scenario names as keys and probabilities as values. The probabilities are stored
 in `n.scenario_weightings`, a `pandas.Series` indexed by `n.scenarios`.
 
-```py
+``` py
+>>> n = pypsa.Network() # docs-hide
 >>> n.set_scenarios({"low": 0.7, "high": 0.3})
 >>> n.scenario_weightings
+          weight
+scenario
+low          0.7
+high         0.3
 ```
 
 If no probabilities are set, they default to a uniform distribution.
@@ -201,8 +226,22 @@ memory in `pandas.DataFrame` objects.
 **Static data** is stored in a `pandas.DataFrame`, which is an attribute of the
 [`pypsa.Network`][], with names that follow the component names. For instance,
 
-```py
+``` py
+>>> n = pypsa.examples.ac_dc_meshed() # docs-hide
 >>> n.buses
+            v_nom type      x      y  ... control generator sub_network  country
+name                                  ...
+London      380.0       -0.13  51.50  ...      PQ                             UK
+Norwich     380.0        1.30  52.60  ...      PQ                             UK
+Norwich DC  200.0        1.30  52.50  ...      PQ                             UK
+Manchester  380.0       -2.20  53.47  ...      PQ                             UK
+Bremen      380.0        8.80  53.08  ...      PQ                             DE
+Bremen DC   200.0        8.80  52.98  ...      PQ                             DE
+Frankfurt   380.0        8.70  50.12  ...      PQ                             DE
+Norway      380.0       10.75  60.00  ...      PQ                             NO
+Norway DC   200.0       10.75  60.00  ...      PQ                             NO
+<BLANKLINE>
+[9 rows x 14 columns]
 ```
 
 In this `pandas.DataFrame`, the index corresponds to the unique
@@ -213,8 +252,22 @@ static attributes.
 which is an attribute of the [`pypsa.Network`][], with names that follow the
 component names with a `_t` suffix. For instance,
 
-```py
+``` py
+>>> n = pypsa.examples.ac_dc_meshed() # docs-hide
 >>> n.buses_t
+{'v_mag_pu_set': Empty DataFrame
+Columns: []
+Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00, 2015-01-01 02:00:00, 2015-01-01 03:00:00, 2015-01-01 04:00:00, 2015-01-01 05:00:00, 2015-01-01 06:00:00, 2015-01-01 07:00:00, 2015-01-01 08:00:00, 2015-01-01 09:00:00], 'p': Empty DataFrame
+Columns: []
+Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00, 2015-01-01 02:00:00, 2015-01-01 03:00:00, 2015-01-01 04:00:00, 2015-01-01 05:00:00, 2015-01-01 06:00:00, 2015-01-01 07:00:00, 2015-01-01 08:00:00, 2015-01-01 09:00:00], 'q': Empty DataFrame
+Columns: []
+Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00, 2015-01-01 02:00:00, 2015-01-01 03:00:00, 2015-01-01 04:00:00, 2015-01-01 05:00:00, 2015-01-01 06:00:00, 2015-01-01 07:00:00, 2015-01-01 08:00:00, 2015-01-01 09:00:00], 'v_mag_pu': Empty DataFrame
+Columns: []
+Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00, 2015-01-01 02:00:00, 2015-01-01 03:00:00, 2015-01-01 04:00:00, 2015-01-01 05:00:00, 2015-01-01 06:00:00, 2015-01-01 07:00:00, 2015-01-01 08:00:00, 2015-01-01 09:00:00], 'v_ang': Empty DataFrame
+Columns: []
+Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00, 2015-01-01 02:00:00, 2015-01-01 03:00:00, 2015-01-01 04:00:00, 2015-01-01 05:00:00, 2015-01-01 06:00:00, 2015-01-01 07:00:00, 2015-01-01 08:00:00, 2015-01-01 09:00:00], 'marginal_price': Empty DataFrame
+Columns: []
+Index: [2015-01-01 00:00:00, 2015-01-01 01:00:00, 2015-01-01 02:00:00, 2015-01-01 03:00:00, 2015-01-01 04:00:00, 2015-01-01 05:00:00, 2015-01-01 06:00:00, 2015-01-01 07:00:00, 2015-01-01 08:00:00, 2015-01-01 09:00:00]}
 ```
 
 The keys of the dictionary are the names of the component attributes. The index
@@ -223,9 +276,17 @@ correspond to the component names. For instance, this can be used to represent
 the changing availability of variable renewable generators per unit of nominal
 capacity (`p_max_pu`):
 
-```py
->>> n.add("Generator", "Wind", bus="my_bus", p_nom=10, p_max_pu=[0.1, 0.5, 0.2, 0.3])
+``` py
+>>> n = pypsa.Network() # docs-hide
+>>> n.set_snapshots(pd.date_range("2015-01-01", periods=3, freq="h")) # docs-hide
+>>> n.add("Bus", "my_bus") # docs-hide
+>>> n.add("Generator", "Wind", bus="my_bus", p_nom=10, p_max_pu=[0.1, 0.5, 0.2])
 >>> n.generators_t.p_max_pu
+name                  Wind
+snapshot
+2015-01-01 00:00:00    0.1
+2015-01-01 01:00:00    0.5
+2015-01-01 02:00:00    0.2
 ```
 
 **Input data**, such as the availability `p_max_pu` of a generator, can be
