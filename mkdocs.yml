@@ -338,9 +338,9 @@ plugins:
 # This will rebuild and execute the notebooks during any modifications when running ``mkdocs serve``
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
-    execute: false
+    execute: true
     include: ["*.ipynb"]
-    # allow_errors: false
+    allow_errors: false
     include_source: true
 # Global redirects
 - redirects:
