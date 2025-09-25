@@ -35,6 +35,12 @@ def pytest_addoption(parser):
         default=False,
         help="Run documentation tests (doctest tests)",
     )
+    parser.addoption(
+        "--fix-notebooks",
+        action="store_true",
+        default=False,
+        help="Auto-fix notebook issues found during validation (self-healing mode)",
+    )
 
 
 def pytest_configure(config):

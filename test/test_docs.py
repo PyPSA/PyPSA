@@ -1,5 +1,6 @@
 import doctest
 import importlib
+import json
 import pkgutil
 import sys
 from pathlib import Path
@@ -143,3 +144,75 @@ def test_doctest_docs(fpath, test_docs_flag):
         failures += runner.run(test).failed
 
     assert failures == 0, f"{failures} doctest(s) failed in {fpath}"
+
+
+def test_notebooks(test_docs_flag, pytestconfig):
+    """Test and manage warning filter injection in Jupyter notebooks.
+
+    This test validates that all notebooks have the correct warning filter cell
+    injected as the first cell. When run with --fix-notebooks flag, it will
+    automatically inject or update the warning filters for self-healing.
+    """
+    if not test_docs_flag:
+        pytest.skip("Need --test-docs option to run documentation tests")
+
+    fix_notebooks = pytestconfig.getoption("--fix-notebooks", default=False)
+    expected_tags = ["injected-warnings", "hide-cell"]
+    expected_source = [
+        "# General notebook settings\n",
+        "import warnings\n",
+        "\n",
+        'warnings.filterwarnings("error", category=DeprecationWarning)',
+    ]
+    expected_cell = {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {"tags": expected_tags},
+        "outputs": [],
+        "source": expected_source,
+    }
+
+    notebook_paths = list(Path("docs").glob("**/*.ipynb"))
+    if not notebook_paths:
+        pytest.skip("No notebooks found to test")
+
+    failed_notebooks = []
+    injection_count = 0
+
+    for notebook_path in notebook_paths:
+        with notebook_path.open(encoding="utf-8") as f:
+            notebook = json.load(f)
+
+        cells = notebook.get("cells", [])
+        if not cells:
+            continue
+
+        # Check if first cell matches expected warning filter
+        first_cell = cells[0]
+        is_correct = (
+            first_cell.get("metadata", {}).get("tags") == expected_tags
+            and first_cell.get("source") == expected_source
+        )
+
+        if not is_correct:
+            if fix_notebooks:
+                # Replace or insert warning cell
+                if first_cell.get("metadata", {}).get("tags") == expected_tags:
+                    cells[0] = expected_cell.copy()  # Update existing
+                else:
+                    cells.insert(0, expected_cell.copy())  # Insert new
+
+                with notebook_path.open("w", encoding="utf-8") as f:
+                    json.dump(notebook, f, indent=1, ensure_ascii=False)
+                injection_count += 1
+            else:
+                failed_notebooks.append(notebook_path)
+
+    if fix_notebooks and injection_count > 0:
+        print(f"Fixed {injection_count} notebooks")
+
+    if failed_notebooks and not fix_notebooks:
+        pytest.fail(
+            f"{len(failed_notebooks)} notebook(s) have missing or incorrect warning filters. "
+            f"Run `pytest test/test_docs.py::test_notebooks --test-docs --fix-notebooks` and commit the changes."
+        )
