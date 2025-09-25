@@ -369,7 +369,7 @@ Bug Fixes
   (:octicons-git-pull-request-16:1099)
 
 - Added PyPSA options architecture via :meth:`pypsa.get_option`, :meth:`pypsa.set_option`, 
-  :meth:`pypsa.describe_options` and :meth:`pypsa.option_context`.
+  :meth:`pypsa.describe` and :meth:`pypsa.option_context`.
   This allows to set and get global options for PyPSA and
   mimics the options setting behavior of pandas. Currently there are not many options
   available, but this will be extended in future. 
