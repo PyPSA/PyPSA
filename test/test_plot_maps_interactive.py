@@ -1,3 +1,5 @@
+import sys
+
 import pydeck as pdk
 import pytest
 
@@ -125,6 +127,7 @@ def test_pdk_tooltips(ac_dc_network):
     plotter.deck(tooltip=False)
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="Cartopy issues on macos.")
 def test_geomap_warning(ac_dc_network, caplog):
     n = ac_dc_network
     with caplog.at_level("WARNING"):
@@ -176,6 +179,7 @@ def test_extra_columns(ac_dc_network, caplog):
     assert "doesnotexist" not in df.columns
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="Cartopy issues on macos.")
 @pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
 def test_geomap_params(ac_dc_network):
     n = ac_dc_network
