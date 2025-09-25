@@ -11,7 +11,7 @@ old/
 
 # Ignore all jupyter notebooks, except the example notebooks
 *.ipynb
-!/docs/*.ipynb
+!/docs/**/*.ipynb
 
 
 test/.cache/
