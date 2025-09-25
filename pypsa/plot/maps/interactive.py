@@ -902,7 +902,7 @@ class PydeckPlotter:
         )
         bus_size = bus_size.unstack(level=1, fill_value=0)
         carrier_order = bus_size.columns.to_numpy()
-        
+
         valid_buses = bus_data.index.intersection(bus_size.index)
         bus_size = bus_size.loc[valid_buses]
 
@@ -931,7 +931,9 @@ class PydeckPlotter:
         bus_radius_neg = (bus_area_neg / np.pi) ** 0.5
 
         # Convert to NumPy arrays for speed-up
-        bus_coords = np.column_stack([self._x.loc[valid_buses], self._y.loc[valid_buses]]) # assumes that bus_data is aligned with self._x and self._y, done above
+        bus_coords = np.column_stack(
+            [self._x.loc[valid_buses], self._y.loc[valid_buses]]
+        )  # assumes that bus_data is aligned with self._x and self._y, done above
         bus_indices = valid_buses.to_numpy()
         bus_values = bus_size.to_numpy()
 
