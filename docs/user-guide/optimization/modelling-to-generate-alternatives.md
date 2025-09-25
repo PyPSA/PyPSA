@@ -22,7 +22,7 @@ The alternative objectives $c_1, c_2, \dots$ effectively specify a coordinates i
 
 As running `optimize_mga_in_direction` in multiple different directions is a common operation, PyPSA provides a separate function, [`n.optimize.optimize_mga_in_multiple_directions`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_multiple_directions], which takes a list (or pandas `DataFrame`) of directions, and solves for them in parallel.
 
-Moreover, three functions ([`pypsa.optimization.abstract.generate_directions_random`][pypsa.optimization.abstract.generate_directions_random], [`pypsa.optimization.abstract.generate_directions_evenly_spaced`][pypsa.optimization.abstract.generate_directions_evenly_spaced], [`pypsa.optimization.abstract.generate_directions_halton`][pypsa.optimization.abstract.generate_directions_halton]) are provided which generate sets of directions in the format expected by `optimize_mga_in_multiple_directions`. Of course, you can also provide your own directions.
+Moreover, three functions ([`pypsa.optimization.mga.generate_directions_random`][pypsa.optimization.mga.generate_directions_random], [`pypsa.optimization.mga.generate_directions_evenly_spaced`][pypsa.optimization.mga.generate_directions_evenly_spaced], [`pypsa.optimization.mga.generate_directions_halton`][pypsa.optimization.mga.generate_directions_halton]) are provided which generate sets of directions in the format expected by `optimize_mga_in_multiple_directions`. Of course, you can also provide your own directions.
 
 The function [`n.optimize.optimize_mga`][pypsa.optimization.OptimizationAccessor.optimize_mga] runs modelling-to-generate-alternatives (MGA) on network to find near-optimal solutions.
 
