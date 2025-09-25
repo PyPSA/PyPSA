@@ -77,7 +77,7 @@ nav:
     - Statistics: user-guide/statistics.md
     - Plotting: user-guide/plotting.md
     - Comparing networks: user-guide/collection.md
-    - Options and settings: user-guide/options.md
+    - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
 
 - Examples:
@@ -159,7 +159,7 @@ nav:
     - Consistency Checks: api/other/consistency.md
     - Geo: api/other/geo.md
     - Examples: api/other/api-examples.md
-    - Package Options: api/other/options.md
+    - Options: api/other/options.md
 
 - Contributing:
   - Instructions: contributing/contributing.md

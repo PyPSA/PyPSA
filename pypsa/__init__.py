@@ -41,9 +41,9 @@ from pypsa.version import (
 version = __version__  # Alias for legacy access
 
 # Module access to options
-describe_options = options.describe_options
 get_option = options.get_option
 set_option = options.set_option
+reset_option = options.reset_option
 
 
 __all__ = [
@@ -54,7 +54,6 @@ __all__ = [
     "options",
     "set_option",
     "get_option",
-    "describe_options",
     "option_context",
     "clustering",
     "common",
