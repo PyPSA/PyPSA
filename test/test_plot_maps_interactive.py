@@ -1,6 +1,7 @@
+import sys
+
 import pydeck as pdk
 import pytest
-import sys
 
 import pypsa.plot.maps.interactive as interactive
 from pypsa.plot.maps.common import _is_cartopy_available
@@ -125,9 +126,8 @@ def test_pdk_tooltips(ac_dc_network):
     plotter.deck(tooltip=True)
     plotter.deck(tooltip=False)
 
-@pytest.mark.skipif(
-    sys.platform != "linux", reason="Cartopy issues on macos."
-)
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Cartopy issues on macos.")
 def test_geomap_warning(ac_dc_network, caplog):
     n = ac_dc_network
     with caplog.at_level("WARNING"):
@@ -178,9 +178,8 @@ def test_extra_columns(ac_dc_network, caplog):
     assert "bus0" in df.columns
     assert "doesnotexist" not in df.columns
 
-@pytest.mark.skipif(
-    sys.platform != "linux", reason="Cartopy issues on macos."
-)
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Cartopy issues on macos.")
 @pytest.mark.skipif(not cartopy_present, reason="Cartopy not installed")
 def test_geomap_params(ac_dc_network):
     n = ac_dc_network
