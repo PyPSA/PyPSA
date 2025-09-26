@@ -1310,14 +1310,14 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     soc_init = c.da.state_of_charge_initial
     rhs = -c.da.inflow.sel(snapshot=sns) * eh
 
-    if isinstance(sns, pd.MultiIndex):
+    if n._multi_invest:
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = soc.coords["period"]
         per_period = (
             c.da.cyclic_state_of_charge_per_period
-            | c.da.state_of_charge_initial_per_period
-        )
+            & c.da.state_of_charge_initial_per_period
+        ) | (c.da.cyclic_state_of_charge_per_period & c.da.cyclic_state_of_charge)
 
         # We calculate the previous soc per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
@@ -1444,13 +1444,14 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     e_init = c.da.e_initial.sel(name=c.active_assets)
     rhs = DataArray(0)
 
-    if isinstance(sns, pd.MultiIndex):
+    if n._multi_invest:
         # If multi-horizon optimization, we update previous_e and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = e.coords["period"]
-        per_period = c.da.e_cyclic_per_period.sel(
-            name=c.active_assets
-        ) | c.da.e_initial_per_period.sel(name=c.active_assets)
+        per_period = (c.da.e_cyclic_per_period & c.da.e_initial_per_period) | (
+            c.da.e_cyclic_per_period & c.da.e_cyclic
+        )
+        per_period = per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
         # Normally, we should use groupby, but it's broken for multi-index
