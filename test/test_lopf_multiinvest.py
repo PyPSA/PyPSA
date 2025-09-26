@@ -758,3 +758,90 @@ def test_bug_1360_storage_units():
         [0.9, 0.8, 0.7, 0.6],
         decimal=5,
     )
+
+
+def test_highlight_storage_unit_problem():
+    """Capture expected fail: cp=True, ip=False, c=False.
+
+    Shows current logic ignores cyclic_per_period in this combo: we get pure monotonic discharge [0.9,0.8,0.7,0.6]; assertion flags missing semantics.
+    """
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    # Add a generator that is more expensive than discharging the storage so the
+    # optimizer prefers to discharge if cyclic-per-period isn't enforced. This
+    # keeps the test sensitive: with correct semantics it would need to
+    # recharge within each period, producing level pattern like [0.9,1.0,0.9,1.0].
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=1.0,
+        marginal_cost=1.0,
+    )
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        cyclic_state_of_charge=False,
+        cyclic_state_of_charge_per_period=True,
+        state_of_charge_initial_per_period=False,
+        marginal_cost=0.0,  # cheaper than generator
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    soc = n.c.storage_units.dynamic.state_of_charge["su"].values
+    # Detect monotonic discharge signature.
+    expected_continuous = [0.9, 0.8, 0.7, 0.6]
+    if all(abs(soc[i] - expected_continuous[i]) < 1e-6 for i in range(4)):
+        raise AssertionError(
+            "Observed continuous discharge pattern [0.9,0.8,0.7,0.6]"
+            "cyclic_state_of_charge_per_period=True was ignored"
+        )
+
+
+def test_highlight_storage_unit_problem_one_more():
+    """Capture expected fail: ip=True, cp=False, c=False.
+
+    Current logic ignores ip=True when cp=False & c=False (because the mask requires cp), yielding continuous depletion [0.9, 0.8, 0.7, 0.6]. Here we raise error to flag the missing behavior.
+    """
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "su_ip_only",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        cyclic_state_of_charge=False,
+        cyclic_state_of_charge_per_period=False,
+        state_of_charge_initial_per_period=True,  # target behavior
+        marginal_cost=1.0,  # non-zero cost for objective contribution
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    soc = n.c.storage_units.dynamic.state_of_charge["su_ip_only"].values
+    continuous = [0.9, 0.8, 0.7, 0.6]
+    # If we observe the continuous pattern, storage level reset did not occur.
+    if all(abs(soc[i] - continuous[i]) < 1e-6 for i in range(4)):
+        raise AssertionError(
+            "Observed continuous discharge [0.9,0.8,0.7,0.6]"
+            "state_of_charge_initial_per_period=True was ignored"
+        )
