@@ -76,7 +76,7 @@ nav:
     - Clustering: user-guide/clustering.ipynb
     - Statistics: user-guide/statistics.md
     - Plotting: user-guide/plotting.md
-    - Comparing networks: user-guide/collection.md
+    - Network Collection: user-guide/collection.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
 

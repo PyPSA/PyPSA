@@ -344,25 +344,27 @@ class Network(
 
         Select single collection from a network collection:
 
-        >>> network_collection
+        >>> nc
         NetworkCollection
         -----------------
         Networks: 2
         Index name: 'network'
-        Entries: ['AC-DC-Meshed', 'Storage-HVDC']
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 
-        >>> network_collection["AC-DC-Meshed"]
+        >>> nc["AC-DC-Meshed"]
         PyPSA Network 'AC-DC-Meshed'
         ----------------------------
         Components:
-        - Bus: 9
-        - Carrier: 6
-        - Generator: 6
-        - GlobalConstraint: 1
-        - Line: 7
-        - Link: 4
-        - Load: 6
+         - Bus: 9
+         - Carrier: 6
+         - Generator: 6
+         - GlobalConstraint: 1
+         - Line: 7
+         - Link: 4
+         - Load: 6
+         - SubNetwork: 3
         Snapshots: 10
+        <BLANKLINE>
 
         Select a network slice based on buses:
 

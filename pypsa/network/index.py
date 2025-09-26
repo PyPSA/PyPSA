@@ -938,14 +938,14 @@ class NetworkIndexMixin(_NetworkABC):
 
         Examples
         --------
-        >>> network_collection
+        >>> nc
         NetworkCollection
         -----------------
         Networks: 2
         Index name: 'network'
-        Entries: ['AC-DC-Meshed', 'Storage-HVDC']
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 
-        >>> selected = network_collection.get_network("AC-DC-Meshed")
+        >>> selected = nc.get_network("AC-DC-Meshed")
         >>> selected
         PyPSA Network 'AC-DC-Meshed'
         ----------------------------
@@ -957,7 +957,9 @@ class NetworkIndexMixin(_NetworkABC):
          - Line: 7
          - Link: 4
          - Load: 6
+         - SubNetwork: 3
         Snapshots: 10
+        <BLANKLINE>
 
         A network collection does not copy the selected network, but returns
         a reference to it:

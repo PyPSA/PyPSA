@@ -21,6 +21,9 @@ except ImportError:
 new_api = pypsa.options.api.new_components_api
 
 
+rng = np.random.default_rng(42)
+
+
 # Create a pytest fixture to check for the test-docs flag
 @pytest.fixture(scope="session")
 def test_docs_flag(pytestconfig):
@@ -33,19 +36,35 @@ sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
 n = pypsa.examples.ac_dc_meshed()
 n.optimize()
 
+# Create another network with shuffled load time series for collection comparisons
+n_shuffled_load = pypsa.examples.ac_dc_meshed()
+df = n.loads_t.p_set
+flat_values = df.values.ravel()
+shuffled_series = pd.Series(flat_values).sample(frac=1).values
+df_shuffled = pd.DataFrame(
+    shuffled_series.reshape(df.shape), index=df.index, columns=df.columns
+)
+n_shuffled_load.loads_t.p_set = df_shuffled
+n_shuffled_load.name = "AC-DC-Meshed-Shuffled-Load"
+n_shuffled_load.optimize()
+
+# Remove solver model to allow copying
+n.model.solver_model = None
+n_shuffled_load.model.solver_model = None
+
+# Create a network collection
+nc = pypsa.NetworkCollection([n.copy(), n_shuffled_load.copy()])
+
 
 doctest_globals = {
     "np": np,
     "pd": pd,
     "pypsa": pypsa,
     "n": n,
+    "n_shuffled_load": n_shuffled_load,
     "n_stochastic": pypsa.examples.stochastic_network(),
-    "network_collection": pypsa.NetworkCollection(
-        [
-            pypsa.examples.ac_dc_meshed(),
-            pypsa.examples.storage_hvdc(),
-        ]
-    ),
+    "nc": nc,
+    "network_collection": nc,
     "c": pypsa.examples.ac_dc_meshed().components.generators,
     "sub_network_parent": pypsa.examples.ac_dc_meshed().determine_network_topology(),
     "sub_network": sub_network_parent.c.sub_networks.static.loc["0", "obj"],
