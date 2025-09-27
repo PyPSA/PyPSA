@@ -44,14 +44,21 @@ def test_missing_bus(consistent_n, caplog, strict):
 
 
 @pytest.mark.parametrize("strict", [[], ["assets"]])
-def test_infeasible_capacity_limits(consistent_n, caplog, strict):
+def test_committable_extendable_allowed(consistent_n, caplog, strict):
+    # Committable+extendable is now allowed using big-M formulation
     consistent_n.c.generators.static.loc[
         "gen_one", ["p_nom_extendable", "committable"]
     ] = (
         True,
         True,
     )
-    assert_log_or_error_in_consistency(consistent_n, caplog, strict=strict)
+    # Should not raise any warnings or errors
+    consistent_n.consistency_check(strict=strict)
+    # Verify no warnings were logged
+    assert not any(
+        "only be committable or extendable" in record.message
+        for record in caplog.records
+    )
 
 
 @pytest.mark.parametrize("strict", [[], ["static_power_attrs"]])

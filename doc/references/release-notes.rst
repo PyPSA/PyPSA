@@ -71,8 +71,14 @@ Features
 * Added new options to set default optimization parameters, like `solver_name` and
   `solver_options`. See https://go.pypsa.org/options-params for more information.
 
-* Improve performance of loading networks by avoiding re-ordering dataframe columns and indices where unnecessary; especially impactful for networks with large numbers of components.
+* Components (Generators and Links) can now be both committable and extendable
+  simultaneously. This enables unit commitment with capacity expansion optimization
+  using a big-M formulation that maintains the linear programming structure.
+  Previously, components could only be either committable or extendable, but not both.
+  The implementation automatically detects when both attributes are set and applies
+  the appropriate big-M constraints to ensure correct operation.
 
+* Improve performance of loading networks by avoiding re-ordering dataframe columns and indices where unnecessary; especially impactful for networks with large numbers of components.
 
 Bug Fixes
 ---------

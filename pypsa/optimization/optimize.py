@@ -864,6 +864,88 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                 ", ".join(unassigned_constraints),
             )
 
+    def _warn_big_m_exceeded(self) -> None:
+        """Emit warnings when optimized capacities surpass the big-M bounds."""
+
+        def _format_index(label: Any) -> str:
+            if isinstance(label, tuple):
+                return "/".join(str(part) for part in label)
+            return str(label)
+
+        n = self._n
+
+        for c_name in ["Generator", "Link"]:
+            c = as_components(n, c_name)
+
+            if c.static.empty:
+                continue
+
+            com_i = c.committables.difference(c.inactive_assets)
+            if com_i.empty:
+                continue
+
+            ext_i = c.extendables.difference(c.inactive_assets)
+            com_ext_i = com_i.intersection(ext_i)
+            if com_ext_i.empty:
+                continue
+
+            nom_attr = nominal_attrs[c_name]
+
+            p_nom_max_da = c.da[f"{nom_attr}_max"].sel(name=com_ext_i)
+            valid_mask = np.isfinite(p_nom_max_da) & (p_nom_max_da > 0)
+            if not valid_mask.any().item():
+                continue
+            p_nom_max_da = p_nom_max_da.where(valid_mask, drop=True)
+
+            p_nom_opt_da = c.da[f"{nom_attr}_opt"].sel(name=p_nom_max_da.coords["name"])
+
+            if p_nom_opt_da.size == 0:
+                continue
+
+            _, max_pu_da = c.get_bounds_pu(attr="p")
+            max_pu_da = max_pu_da.sel(name=p_nom_max_da.coords["name"])
+            reduce_dims = [dim for dim in max_pu_da.dims if dim != "name"]
+            if reduce_dims:
+                max_pu_da = max_pu_da.max(dim=reduce_dims)
+
+            p_nom_max_series = p_nom_max_da.to_series()
+            p_nom_opt_series = p_nom_opt_da.to_series()
+            max_pu_series = max_pu_da.to_series()
+
+            max_pu_series = max_pu_series.reindex(p_nom_max_series.index)
+            big_m_series = p_nom_max_series * max_pu_series
+            big_m_series = big_m_series.dropna()
+            if big_m_series.empty:
+                continue
+
+            aligned_opt = p_nom_opt_series.reindex(big_m_series.index)
+            aligned_opt = aligned_opt.dropna()
+            if aligned_opt.empty:
+                continue
+
+            exceeded_mask = aligned_opt > big_m_series.loc[aligned_opt.index]
+            exceeded_mask &= aligned_opt > 0
+
+            if not exceeded_mask.any():
+                continue
+
+            details = []
+            for label, exceeded in exceeded_mask.items():
+                if not exceeded:
+                    continue
+                limit = big_m_series.loc[label]
+                opt_val = aligned_opt.loc[label]
+                details.append(
+                    f"{_format_index(label)} (p_nom_opt={opt_val:.3g}, big_M={limit:.3g})"
+                )
+
+            if details:
+                logger.warning(
+                    "Optimized capacities exceed big-M bounds for committable extendable %s: %s.",
+                    c_name.lower(),
+                    ", ".join(details),
+                )
+
     def post_processing(self) -> None:
         """Post-process the optimized network.
 
@@ -872,6 +954,8 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """
         n = self._n
         sns = n.model.parameters.snapshots.to_index()
+
+        self._warn_big_m_exceeded()
 
         # correct prices with objective weightings
         if n._multi_invest:

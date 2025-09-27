@@ -448,10 +448,9 @@ def check_assets(n: NetworkType, component: Components, strict: bool = False) ->
         extendables = component.extendables
         intersection = committables.intersection(extendables)
         if not intersection.empty:
-            _log_or_raise(
-                strict,
-                "Assets can only be committable or extendable."
-                " Found assets in component %s which are both:\n\n\t%s",
+            logger.info(
+                "Components in %s are both committable and extendable: %s. "
+                "This is supported using a big-M formulation for mixed-integer optimization.",
                 component.name,
                 ", ".join(intersection),
             )
