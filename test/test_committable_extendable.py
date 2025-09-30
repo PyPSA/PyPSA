@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import pypsa
+from pypsa.optimization.constraints import _infer_big_m_scale
 
 
 def test_committable_extendable_generator():
@@ -223,6 +224,29 @@ def test_big_m_formulation_constraints():
     assert len(capacity_upper_constraints) > 0, (
         f"Capacity upper constraints should exist. Found constraints: {constraint_names}"
     )
+
+
+def test_big_m_scale_infers_peak_load():
+    """The auto big-M scale uses the network peak load when available."""
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[100, 250, 180])
+
+    inferred_scale = _infer_big_m_scale(n, "Generator")
+
+    assert inferred_scale == pytest.approx(2500)
+
+
+def test_big_m_scale_fallback_without_load():
+    """Auto big-M falls back to a conservative default when no load exists."""
+    n = pypsa.Network()
+    n.set_snapshots([0])
+    n.add("Bus", "bus")
+
+    inferred_scale = _infer_big_m_scale(n, "Generator")
+
+    assert inferred_scale == pytest.approx(1e6)
 
 
 def test_non_negative_constraint_added():

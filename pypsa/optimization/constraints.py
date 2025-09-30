@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
+import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import merge
@@ -36,6 +37,38 @@ lookup = pd.read_csv(
     Path(__file__).parent / ".." / "data" / "variables.csv",
     index_col=["component", "variable"],
 )
+
+
+def _infer_big_m_scale(n: Network, component: str) -> float:
+    """Infer a reasonable big-M scale from network data."""
+    candidates: list[float] = []
+
+    # Peak total load over time provides a natural system-scale bound
+    load = n.get_switchable_as_dense("Load", "p_set")
+    peak_load = load.sum(axis=1).abs().max()
+    candidates.append(peak_load)
+
+    # Use existing nominal values as additional hints
+    c = as_components(n, component)
+    if not c.static.empty:
+        nom_attr = c._operational_attrs["nom"]
+        nom_series = c.static[nom_attr]
+        finite_nominal = nom_series[np.isfinite(nom_series) & (nom_series > 0)]
+        if not finite_nominal.empty:
+            candidates.append(float(finite_nominal.max()))
+
+        nom_max_series = c.static[f"{nom_attr}_max"]
+        finite_max = nom_max_series[np.isfinite(nom_max_series) & (nom_max_series > 0)]
+        if not finite_max.empty:
+            candidates.append(finite_max.max())
+
+    if not candidates:
+        return 1e6
+
+    fallback = max(candidates) * 10
+    if not np.isfinite(fallback) or fallback <= 0:
+        return 1e6
+    return fallback
 
 
 def define_operational_constraints_for_non_extendables(
@@ -332,11 +365,19 @@ def define_operational_constraints_for_committables(
         p_nom_max_vals = c.da.p_nom_max.sel(name=com_ext_i)
         max_pu_vals = max_pu.sel(name=com_ext_i).max("snapshot")
 
-        big_m_default = options.params.optimize.big_m
+        big_m_default = options.params.optimize.committable_big_m
+        if (
+            big_m_default is None
+            or not np.isfinite(big_m_default)
+            or big_m_default <= 0
+        ):
+            big_m_default = _infer_big_m_scale(n, component)
+
+        fallback_values = big_m_default * max_pu_vals.fillna(1)
         M_values = xr.where(
             isfinite(p_nom_max_vals) & (p_nom_max_vals > 0),
             p_nom_max_vals * max_pu_vals,
-            big_m_default,
+            fallback_values,
         )
         p_ext = p.sel(name=com_ext_i)
         status_ext = status.sel(name=com_ext_i)
