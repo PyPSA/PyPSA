@@ -9,6 +9,142 @@ import pypsa
 from pypsa.optimization.constraints import _infer_big_m_scale
 
 
+def test_committable_extendable_modular_generator():
+    """Test a generator that is committable, extendable, AND modular.
+
+    This tests compatibility between:
+    - Unit commitment (binary status variables)
+    - Capacity expansion (continuous p_nom variable)
+    - Modular expansion (integer n_mod variable, p_nom = n_mod * p_nom_mod)
+    """
+    n = pypsa.Network()
+    n.set_snapshots(range(4))  # 4 hours for simplicity
+
+    n.add("Carrier", "gas")
+    n.add("Bus", "bus", carrier="AC")
+
+    # Simple load pattern
+    load_profile = [400, 600, 800, 500]
+    n.add("Load", "load", bus="bus", p_set=load_profile)
+
+    # Add a committable + extendable + modular generator
+    # Module size: 200 MW, max 5 modules = 1000 MW
+    n.add(
+        "Generator",
+        "modular_gas",
+        bus="bus",
+        carrier="gas",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_mod=200,  # Modular: must build in 200 MW increments
+        p_nom_max=1000,
+        p_min_pu=0.3,  # 30% minimum stable generation when online
+        marginal_cost=50,
+        capital_cost=50000,
+        start_up_cost=100,
+        shut_down_cost=50,
+    )
+
+    # Solve
+    status, termination_code = n.optimize(solver_name="highs")
+
+    assert status == "ok", f"Optimization failed with status: {status}"
+
+    # Verify capacity is a multiple of p_nom_mod
+    p_nom_opt = n.c["Generator"].static.loc["modular_gas", "p_nom_opt"]
+    p_nom_mod = n.c["Generator"].static.loc["modular_gas", "p_nom_mod"]
+
+    assert p_nom_opt > 0, "Should have built some capacity"
+
+    # Check that p_nom_opt is a multiple of p_nom_mod (within numerical tolerance)
+    n_modules = p_nom_opt / p_nom_mod
+    assert abs(n_modules - round(n_modules)) < 1e-3, (
+        f"Capacity {p_nom_opt} MW should be a multiple of module size {p_nom_mod} MW"
+    )
+
+    # Verify the n_mod variable exists and has the correct value
+    assert "Generator-n_mod" in n.model.variables, "Modular variable should exist"
+    n_mod_solution = n.model.variables["Generator-n_mod"].solution.loc["modular_gas"]
+    assert n_mod_solution == round(n_modules), (
+        f"n_mod solution {n_mod_solution} should match {round(n_modules)}"
+    )
+
+    # Verify unit commitment constraints are respected
+    status_values = n.model.variables["Generator-status"].solution.sel(
+        name="modular_gas"
+    )
+    dispatch_values = n.c["Generator"].dynamic["p"]["modular_gas"]
+    p_min_pu = n.c["Generator"].static.loc["modular_gas", "p_min_pu"]
+    min_power = p_min_pu * p_nom_opt
+
+    for t in range(4):
+        if status_values.isel(snapshot=t).item() < 0.5:  # Offline
+            assert dispatch_values.iloc[t] < 1e-6, f"At t={t}, offline but dispatching"
+        else:  # Online
+            assert dispatch_values.iloc[t] >= min_power - 1e-3, (
+                f"At t={t}, online but below minimum power"
+            )
+
+    # Verify power balance
+    total_load = sum(load_profile)
+    total_generation = dispatch_values.sum()
+    assert abs(total_load - total_generation) < 1e-3, "Power balance violated"
+
+
+def test_committable_extendable_modular_link():
+    """Test a link that is committable, extendable, AND modular."""
+    n = pypsa.Network()
+    n.set_snapshots(range(3))
+
+    n.add("Bus", "bus0", carrier="AC")
+    n.add("Bus", "bus1", carrier="AC")
+
+    # Load on bus1
+    n.add("Load", "load", bus="bus1", p_set=[300, 500, 400])
+
+    # Cheap generator on bus0
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom=1000,
+        marginal_cost=10,
+    )
+
+    # Committable + extendable + modular link
+    n.add(
+        "Link",
+        "modular_link",
+        bus0="bus0",
+        bus1="bus1",
+        p_nom_extendable=True,
+        committable=True,
+        p_nom_mod=150,  # 150 MW modules
+        p_nom_max=600,
+        p_min_pu=0.2,
+        marginal_cost=5,
+        capital_cost=30000,
+        start_up_cost=50,
+    )
+
+    status, termination_code = n.optimize(solver_name="highs")
+
+    assert status == "ok"
+
+    # Verify modular capacity
+    p_nom_opt = n.c["Link"].static.loc["modular_link", "p_nom_opt"]
+    p_nom_mod = n.c["Link"].static.loc["modular_link", "p_nom_mod"]
+    n_modules = p_nom_opt / p_nom_mod
+
+    assert p_nom_opt > 0
+    assert abs(n_modules - round(n_modules)) < 1e-3
+
+    # Verify n_mod variable
+    assert "Link-n_mod" in n.model.variables
+    n_mod_solution = n.model.variables["Link-n_mod"].solution.loc["modular_link"]
+    assert n_mod_solution == round(n_modules)
+
+
 def test_committable_extendable_generator():
     """Test a generator that is both committable and extendable."""
     # Create a simple network
@@ -70,7 +206,7 @@ def test_committable_extendable_generator():
     assert status == "ok"
 
     # Check that the generator was built with some capacity
-    assert n.generators.p_nom_opt.loc["gas_gen"] > 0
+    assert n.c["Generator"].static.loc["gas_gen", "p_nom_opt"] > 0
 
     # Check that status variables were created
     assert "Generator-status" in n.model.variables
@@ -79,12 +215,12 @@ def test_committable_extendable_generator():
 
     # Get status and dispatch for verification
     status_values = n.model.variables["Generator-status"].solution
-    dispatch_values = n.generators_t.p["gas_gen"]
+    dispatch_values = n.c["Generator"].dynamic["p"]["gas_gen"]
 
     # Check that when status is 0, dispatch is 0
     # And when status is 1, dispatch is >= p_min_pu * p_nom_opt
-    p_nom_opt = n.generators.p_nom_opt.loc["gas_gen"]
-    p_min_pu = n.generators.p_min_pu.loc["gas_gen"]
+    p_nom_opt = n.c["Generator"].static.loc["gas_gen", "p_nom_opt"]
+    p_min_pu = n.c["Generator"].static.loc["gas_gen", "p_min_pu"]
     min_power = p_min_pu * p_nom_opt
 
     for t in range(24):
@@ -160,19 +296,21 @@ def test_committable_extendable_multiple_generators():
     assert status == "ok"
 
     # Check that extendable generators got some capacity
-    assert n.generators.p_nom_opt.loc["gas_ext"] >= 0
-    assert n.generators.p_nom_opt.loc["gas_com_ext"] >= 0
+    assert n.c["Generator"].static.loc["gas_ext", "p_nom_opt"] >= 0
+    assert n.c["Generator"].static.loc["gas_com_ext", "p_nom_opt"] >= 0
 
     # Check that status variables only exist for committable generators
     if "Generator-status" in n.model.variables:
         status_vars = n.model.variables["Generator-status"]
-        committable_gens = n.generators.loc[n.generators.committable].index
+        committable_gens = (
+            n.c["Generator"].static.loc[n.c["Generator"].static["committable"]].index
+        )
         for gen in committable_gens:
             assert gen in status_vars.coords["name"].values
 
     # Verify power balance
     total_load = sum(load_profile)
-    total_generation = n.generators_t.p.sum(axis=1).sum()
+    total_generation = n.c["Generator"].dynamic["p"].sum(axis=1).sum()
     assert abs(total_load - total_generation) < 1e-3
 
 
@@ -330,10 +468,10 @@ def test_committable_extendable_can_switch_off():
     status, termination_code = n.optimize(solver_name="highs")
 
     assert status == "ok"
-    assert n.generators.p_nom_opt.loc["uc_gen"] > 0
+    assert n.c["Generator"].static.loc["uc_gen", "p_nom_opt"] > 0
 
-    status_values = n.generators_t.status["uc_gen"]
-    dispatch_values = n.generators_t.p["uc_gen"]
+    status_values = n.c["Generator"].dynamic["status"]["uc_gen"]
+    dispatch_values = n.c["Generator"].dynamic["p"]["uc_gen"]
 
     assert status_values.iloc[0] > 0.5
     assert dispatch_values.iloc[0] == pytest.approx(100, rel=1e-6, abs=1e-6)
@@ -357,9 +495,9 @@ def test_big_m_warning_emitted(caplog):
         p_nom_max=100,
     )
 
-    n.generators.loc["uc_gen", "p_nom_opt"] = 60
-    n.generators.loc["uc_gen", "p_max_pu"] = 0.2
-    n.generators_t.p_max_pu.loc[:, "uc_gen"] = 0.2
+    n.c["Generator"].static.loc["uc_gen", "p_nom_opt"] = 60
+    n.c["Generator"].static.loc["uc_gen", "p_max_pu"] = 0.2
+    n.c["Generator"].dynamic["p_max_pu"]["uc_gen"] = 0.2
 
     caplog.set_level("WARNING", logger="pypsa.optimization.optimize")
     n.optimize._warn_big_m_exceeded()
@@ -451,13 +589,15 @@ def test_many_generators_performance():
 
     # Verify results make sense
     total_load = sum(load_pattern)
-    total_generation = n.generators_t.p.sum().sum()
+    total_generation = n.c["Generator"].dynamic["p"].sum().sum()
     assert abs(total_load - total_generation) < 1e-3
 
     # Check that extendable generators got some capacity
-    extendable_gens = n.generators.loc[n.generators.p_nom_extendable].index
+    extendable_gens = (
+        n.c["Generator"].static.loc[n.c["Generator"].static["p_nom_extendable"]].index
+    )
     for gen in extendable_gens:
-        assert n.generators.p_nom_opt.loc[gen] >= 0
+        assert n.c["Generator"].static.loc[gen, "p_nom_opt"] >= 0
 
     # Performance check: should complete in reasonable time
     assert optimization_time < 30, (
@@ -524,13 +664,15 @@ def test_extreme_parameters():
     assert status == "ok"
 
     # Check that all constraints are satisfied
-    for gen in n.generators.index:
-        if n.generators.committable.loc[gen]:
-            p_min_pu = n.generators.p_min_pu.loc[gen]
-            p_nom_opt = n.generators.p_nom_opt.loc[gen]
-            dispatch = n.generators_t.p[gen]
+    for gen in n.c["Generator"].static.index:
+        if n.c["Generator"].static.loc[gen, "committable"]:
+            p_min_pu = n.c["Generator"].static.loc[gen, "p_min_pu"]
+            p_nom_opt = n.c["Generator"].static.loc[gen, "p_nom_opt"]
+            dispatch = n.c["Generator"].dynamic["p"][gen]
             status_vals = (
-                n.generators_t.status[gen] if "status" in n.generators_t else None
+                n.c["Generator"].dynamic["status"][gen]
+                if gen in n.c["Generator"].dynamic["status"].columns
+                else None
             )
 
             if status_vals is not None:
@@ -593,10 +735,10 @@ def test_maximum_minimum_load():
     assert status == "ok"
 
     # Verify that when generator is on, it runs at full capacity
-    if hasattr(n.generators_t, "status"):
-        status_vals = n.generators_t.status["must_run"]
-        dispatch_vals = n.generators_t.p["must_run"]
-        p_nom_opt = n.generators.p_nom_opt.loc["must_run"]
+    if "must_run" in n.c["Generator"].dynamic["status"].columns:
+        status_vals = n.c["Generator"].dynamic["status"]["must_run"]
+        dispatch_vals = n.c["Generator"].dynamic["p"]["must_run"]
+        p_nom_opt = n.c["Generator"].static.loc["must_run", "p_nom_opt"]
 
         for t in range(len(status_vals)):
             if status_vals.iloc[t] > 0.5:  # Online
