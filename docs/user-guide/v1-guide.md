@@ -30,7 +30,8 @@ Scenarios: 3
 ```
 
 ### Plotting Module
-Any **network metric** like `energy_balance` or `installed_capacity` can now be plotted as a line, bar, area, map and more, to allow easier exploration and better tooling to create plots. The equivalent plotting methods extend parameters from the statistics module and therefore use the same logic to be easily adaptable. Also **interactive plots** can be create for all metric/ plot type combinations. See [:material-bookshelf: User Guide](plotting.md) and [:octicons-code-16: API Reference](../api/networks/plot.md).
+#### Basic Graphs
+Any **network metric** like `energy_balance` or `installed_capacity` can now be plotted as a line, bar, area, map and more, to allow easier exploration and better tooling to create plots. The equivalent plotting methods extend parameters from the statistics module and therefore use the same logic to be easily adaptable. Also **interactive plots** can be create for all metric/ plot type combinations. See [:material-bookshelf: User Guide](plotting/charts.md) and [:octicons-code-16: API Reference](/api/networks/plot.md).
 
 ``` py
 >>> n_stoch.statistics.energy_balance.iplot.area()  # doctest: +SKIP
@@ -42,6 +43,21 @@ Any **network metric** like `energy_balance` or `installed_capacity` can now be 
             style="border: 1px solid #ccc; transform: scale(0.6); transform-origin: 0 0;">
     </iframe>
 </div>
+
+#### Interactive Maps
+Next to static map plotting, networks can now be rendered on a map, interactively. With `Network.explore()`, you can explore the location of all components, including buses, lines, links, transformers, their component attributes and map results or other properties to the bus sizes, branch widths, colors, etc. Calling the method returns a standard `pydeck.Deck` object than can be layered on top of other `pydeck.Deck` objects (see https://deckgl.readthedocs.io/en/latest/layer.html). They can also be exported in self-contained HTML files for sharing. See [:material-bookshelf: User Guide](plotting/explore.ipynb) and [:octicons-code-16: API Reference](/api/networks/plot.md)
+
+``` py
+>>> n.explore()  # doctest: +SKIP
+```
+
+<div style="width: 120%; height: 800px; overflow: hidden;">
+    <iframe src="../../assets/interactive-plots/scigrid-interactive-map.html"
+            width="100%" height="100%" frameborder="0" 
+            style="border: 1px solid #ccc; transform: scale(0.6); transform-origin: 0 0;">
+    </iframe>
+</div>
+
 
 ### Network Collection
 A new object called [`NetworkCollection`][pypsa.Network] has been added to the library. It allows users to store multiple networks in a single object and perform operations on them. See <!-- md:guide collection.md -->.
