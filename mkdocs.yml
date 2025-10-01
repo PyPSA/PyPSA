@@ -75,8 +75,10 @@ nav:
     - Import and Export: user-guide/import-export.md
     - Clustering: user-guide/clustering.ipynb
     - Statistics: user-guide/statistics.md
-    - Plotting: user-guide/plotting.md
-    - Exploring Results: user-guide/exploring.ipynb
+    - Plotting:
+      - Charts: user-guide/plotting/charts.md
+      - Static Map: user-guide/plotting/static-map.ipynb
+      - Explore: user-guide/plotting/explore.ipynb
     - Comparing networks: user-guide/collection.md
     - Options: user-guide/options.md
     - Logging: user-guide/logging.ipynb
@@ -336,7 +338,7 @@ plugins:
 # This will rebuild and execute the notebooks during any modifications when running ``mkdocs serve``
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
-    execute: true
+    execute: false
     include: ["*.ipynb"]
     allow_errors: false
     include_source: true
