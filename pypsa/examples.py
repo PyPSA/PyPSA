@@ -248,7 +248,7 @@ def carbon_management() -> Network:
 
     """
     primary_url = (
-        "https://tubcloud.tu-berlin.de/s/b37rfZrBymTFpZ4/download/carbon-management.nc"
+        "https://tubcloud.tu-berlin.de/s/4nsj6XSAbnq8skc/download/carbon-management.nc"
     )
 
     if _check_url_availability(primary_url):
