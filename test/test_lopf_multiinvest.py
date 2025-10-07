@@ -760,10 +760,12 @@ def test_bug_1360_storage_units():
     )
 
 
-def test_highlight_storage_unit_problem():
-    """Capture expected fail: cp=True, ip=False, c=False.
+def test_storageunit_cp_only_wraps_per_period():
+    """cp=True, ip=False, c=False: per-period wrap is enforced.
 
-    Shows current logic ignores cyclic_per_period in this combo: we get pure monotonic discharge [0.9,0.8,0.7,0.6]; assertion flags missing semantics.
+    Verifies that with cyclic per period enabled (and no per-period initial reset),
+    the model links the first snapshot of each period to the last snapshot of the
+    same period (wrap) and thus avoids a purely continuous discharge pattern.
     """
     n = pypsa.Network()
     years = [2030, 2040]
@@ -809,10 +811,12 @@ def test_highlight_storage_unit_problem():
         )
 
 
-def test_highlight_storage_unit_problem_one_more():
-    """Capture expected fail: ip=True, cp=False, c=False.
+def test_storageunit_ip_only_resets_per_period():
+    """ip=True, cp=False, c=False: per-period resets to initial are enforced.
 
-    Current logic ignores ip=True when cp=False & c=False (because the mask requires cp), yielding continuous depletion [0.9, 0.8, 0.7, 0.6]. Here we raise error to flag the missing behavior.
+    Verifies that with per-period initial enabled (and no cyclic-per-period wrap),
+    the model resets state of charge to the user-provided initial at each period
+    start, avoiding a continuous discharge pattern across period boundaries.
     """
     n = pypsa.Network()
     years = [2030, 2040]

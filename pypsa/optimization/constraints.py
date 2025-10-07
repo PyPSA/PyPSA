@@ -1257,6 +1257,17 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
     For multi-investment period models, the function supports both cycling
     within each period and carrying state of charge between periods.
 
+    Three key flags control the behavior:
+
+    - **C** (cyclic_state_of_charge): If True, globally cycle state of charge
+      from the last snapshot back to the first snapshot across all periods.
+    - **CP** (cyclic_state_of_charge_per_period): If True, cycle state of charge
+      within each investment period (last snapshot of period wraps to first).
+    - **IP** (state_of_charge_initial_per_period): If True, reset to initial
+      state_of_charge_initial value at the start of each period.
+
+    When CP=True and IP=True simultaneously, CP takes precedence (wrapping behavior).
+
     Standing losses are applied based on the elapsed hours between snapshots.
 
     """
@@ -1314,10 +1325,13 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         # If multi-horizon optimizing, we update the previous_soc and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = soc.coords["period"]
+        # An asset is treated as per-period if:
+        # 1. It cycles per period (CP=cyclic_state_of_charge_per_period=True), OR
+        # 2. It uses initial state per period (IP=state_of_charge_initial_per_period=True)
         per_period = (
             c.da.cyclic_state_of_charge_per_period
-            & c.da.state_of_charge_initial_per_period
-        ) | (c.da.cyclic_state_of_charge_per_period & c.da.cyclic_state_of_charge)
+            | c.da.state_of_charge_initial_per_period
+        )
 
         # We calculate the previous soc per period while cycling within a period
         # Normally, we should use groupby, but is broken for multi-index
@@ -1329,10 +1343,17 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         ]
         previous_soc_pp = concat(previous_soc_pp_list, dim="snapshot")
 
-        # We create a mask `include_previous_soc_pp` which excludes the first
-        # snapshot of each period for non-cyclic assets
-        include_previous_soc_pp = (periods == periods.shift(snapshot=1)) & active
-        include_previous_soc_pp = include_previous_soc_pp.where(noncyclic_b, True)
+        # We create a mask `include_previous_soc_pp` which determines when to include
+        # previous state of charge from within the period:
+        # - Always include previous for snapshots within a period (periods == periods.shift())
+        # - At period boundaries (first snapshot):
+        #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
+        #   * If IP=True: use initial value instead (no wrap, handled via rhs)
+        #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        include_previous_soc_pp = active & (
+            (periods == periods.shift(snapshot=1))
+            | c.da.cyclic_state_of_charge_per_period
+        )
 
         # Ensure that dimension order is consistent for stochastic networks
         if n.has_scenarios:
@@ -1401,6 +1422,17 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
     For multi-investment period models, the function supports both cycling
     within each period and carrying energy between periods.
 
+    Three key flags control the behavior:
+
+    - **C** (e_cyclic): If True, globally cycle energy level
+      from the last snapshot back to the first snapshot across all periods.
+    - **CP** (e_cyclic_per_period): If True, cycle energy level
+      within each investment period (last snapshot of period wraps to first).
+    - **IP** (e_initial_per_period): If True, reset to initial
+      e_initial value at the start of each period.
+
+    When CP=True and IP=True simultaneously, CP takes precedence (wrapping behavior).
+
     Standing losses are applied based on the elapsed hours between snapshots.
 
     """
@@ -1448,9 +1480,10 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         # If multi-horizon optimization, we update previous_e and the rhs
         # for all assets which are cyclic/non-cyclic per period
         periods = e.coords["period"]
-        per_period = (c.da.e_cyclic_per_period & c.da.e_initial_per_period) | (
-            c.da.e_cyclic_per_period & c.da.e_cyclic
-        )
+        # An asset is treated as per-period if:
+        # 1. It cycles per period (CP=e_cyclic_per_period=True), OR
+        # 2. It uses initial energy per period (IP=e_initial_per_period=True)
+        per_period = c.da.e_cyclic_per_period | c.da.e_initial_per_period
         per_period = per_period.sel(name=c.active_assets)
 
         # We calculate the previous e per period while cycling within a period
@@ -1461,10 +1494,16 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         previous_e_pp_list = [e.data.sel(snapshot=(p, sl)).roll(snapshot=1) for p in ps]
         previous_e_pp = concat(previous_e_pp_list, dim="snapshot")
 
-        # We create a mask `include_previous_e_pp` which excludes the first
-        # snapshot of each period for non-cyclic assets
-        include_previous_e_pp = active & (periods == periods.shift(snapshot=1))
-        include_previous_e_pp = include_previous_e_pp.where(noncyclic_b, True)
+        # We create a mask `include_previous_e_pp` which determines when to include
+        # previous energy from within the period:
+        # - Always include previous for snapshots within a period (periods == periods.shift())
+        # - At period boundaries (first snapshot):
+        #   * If CP=True AND IP=False: cycle to last snapshot of period (wrap)
+        #   * If IP=True: use initial value instead (no wrap, handled via rhs)
+        #   * If CP=True AND IP=True: CP takes precedence, wrap (IP ignored)
+        include_previous_e_pp = active & (
+            (periods == periods.shift(snapshot=1)) | c.da.e_cyclic_per_period
+        )
 
         # We take values still to handle internal xarray multi-index difficulties
         previous_e_pp = previous_e_pp.where(
