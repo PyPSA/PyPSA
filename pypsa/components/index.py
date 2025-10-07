@@ -11,6 +11,7 @@ the attached parent network.
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 from pypsa.components.abstract import _ComponentsABC
@@ -31,7 +32,7 @@ class ComponentsIndexMixin(_ComponentsABC):
     """
 
     @property
-    def component_names(self) -> pd.Series:
+    def names(self) -> pd.Series:
         """Get component names.
 
         Returns
@@ -49,6 +50,26 @@ class ComponentsIndexMixin(_ComponentsABC):
 
         """
         return self.static.index.get_level_values("name").drop_duplicates()
+
+    @property
+    def component_names(self) -> pd.Series:
+        """Get component names.
+
+        .. deprecated:: 1.0.0
+            Use :attr:`names` instead.
+
+        Returns
+        -------
+        pd.Series
+            Series with component names as index and values.
+
+        """
+        warnings.warn(
+            "c.component_names is deprecated, use c.names instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.names
 
     # Derived from attached Network
 

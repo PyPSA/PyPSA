@@ -111,7 +111,7 @@ class TestNetworkScenarioIndex:
 def test_get_scenario():
     n = pypsa.examples.ac_dc_meshed()
     n.set_scenarios(high=0.1, low=0.9)
-    n.c.generators.static.p_nom.loc[("high", "Manchester Wind")] = 200
+    n.c.generators.static.loc[("high", "Manchester Wind"), "p_nom"] = 200
 
     n_high = n.get_scenario("high")
     n_low = n.get_scenario("low")
@@ -125,7 +125,7 @@ def test_get_scenario():
     assert n_low.equals(ac_dc_meshed, log_mode="strict")
     assert n_low is not ac_dc_meshed
 
-    ac_dc_meshed.c.generators.static.p_nom.loc[("Manchester Wind")] = 200
+    ac_dc_meshed.c.generators.static.loc[("Manchester Wind"), "p_nom"] = 200
     assert n_high.equals(ac_dc_meshed, log_mode="strict")
     assert n_high is not ac_dc_meshed
 
@@ -148,7 +148,7 @@ def test_get_network_from_collection():
     n = pypsa.examples.ac_dc_meshed()
     n2 = n.copy()
     n2.name = "AC-DC-Meshed Copy"
-    n2.c.generators.static.p_nom.loc[("Manchester Wind")] = 200
+    n2.c.generators.static.loc[("Manchester Wind"), "p_nom"] = 200
 
     nc = pypsa.NetworkCollection([n, n2])
 
@@ -167,7 +167,7 @@ def test_get_network_from_collection():
 
     # Stochastic network in collection
     n2.set_scenarios(high=0.1, low=0.9)
-    n2.c.generators.static.p_nom.loc[("high", "Manchester Wind")] = 300
+    n2.c.generators.static.loc[("high", "Manchester Wind"), "p_nom"] = 300
     nc = pypsa.NetworkCollection([n, n2])
 
     nc2 = nc.get_network("AC-DC-Meshed Copy")
@@ -280,7 +280,7 @@ def test_getitem_index_methods():
     # Test stochastic network __getitem__ (mirrors get_scenario)
     n_stoch = pypsa.examples.ac_dc_meshed()
     n_stoch.set_scenarios(high=0.3, low=0.7)
-    n_stoch.c.generators.static.p_nom.loc[("high", "Manchester Wind")] = 200
+    n_stoch.c.generators.static.loc[("high", "Manchester Wind"), "p_nom"] = 200
 
     n_high_getitem = n_stoch["high"]
     n_high_get = n_stoch.get_scenario("high")

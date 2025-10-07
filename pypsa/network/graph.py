@@ -35,7 +35,7 @@ class NetworkGraphMixin:
     iterate_components: Any
     passive_branches: pd.DataFrame
     has_scenarios: Any
-    scenarios: pd.DatFrame
+    scenarios: pd.DataFrame
 
     def graph(
         self,
@@ -113,7 +113,7 @@ class NetworkGraphMixin:
         with warnings.catch_warnings():
             # TODO Resolve
             warnings.filterwarnings(
-                "default",
+                "ignore",
                 message=".*iterate_components is deprecated.*",
                 category=DeprecationWarning,
             )

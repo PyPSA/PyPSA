@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 import warnings
 from functools import wraps
@@ -25,13 +24,12 @@ from pypsa.geo import (
     compute_bbox,
     get_projected_area_factor,
 )
-from pypsa.plot.maps.common import apply_layouter
-
-
-def _is_cartopy_available() -> bool:
-    """Check if cartopy is available at runtime."""
-    return importlib.util.find_spec("cartopy") is not None
-
+from pypsa.plot.maps.common import (
+    _is_cartopy_available,
+    add_jitter,
+    apply_cmap,
+    apply_layouter,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -45,20 +43,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
-
-def _apply_cmap(
-    colors: pd.Series,
-    cmap: str | mcolors.Colormap | None,
-    cmap_norm: mcolors.Normalize | None = None,
-) -> pd.Series:
-    if np.issubdtype(colors.dtype, np.number):
-        if not isinstance(cmap, mcolors.Colormap):
-            cmap = plt.get_cmap(cmap)
-        if not cmap_norm:
-            cmap_norm = plt.Normalize(vmin=colors.min(), vmax=colors.max())
-        colors = colors.apply(lambda cval: cmap(cmap_norm(cval)))
-    return colors
 
 
 class MapPlotter:
@@ -118,7 +102,7 @@ class MapPlotter:
         self._area_factor = 1.0
 
         if jitter:
-            self.add_jitter(jitter)
+            self.x, self.y = add_jitter(x=self.x, y=self.y, jitter=jitter)
 
     @property
     def n(self) -> Network:
@@ -379,7 +363,13 @@ class MapPlotter:
                 self.ax = plt.gca()
             else:
                 self.ax = ax
-            self.ax.axis(boundaries)
+            # Only set axis boundaries if they are not degenerate
+            if (
+                boundaries is not None
+                and boundaries[0] != boundaries[1]
+                and boundaries[2] != boundaries[3]
+            ):
+                self.ax.axis(boundaries)
             self.x_trans, self.y_trans = self.x, self.y
         self.ax.set_aspect("equal")
         self.ax.axis("off")
@@ -451,29 +441,6 @@ class MapPlotter:
             linewidth=0.3,
             edgecolor=geomap_colors.get("coastline", "black"),
         )
-
-    def add_jitter(self, jitter: float) -> tuple[pd.Series, pd.Series]:
-        """Add random jitter to data.
-
-        Parameters
-        ----------
-        jitter : float
-            The amount of jitter to add. Function adds a random number between -jitter and
-            jitter to each element in the data arrays.
-
-        Returns
-        -------
-        x_jittered : numpy.ndarray
-            X data with added jitter.
-        y_jittered : numpy.ndarray
-            Y data with added jitter.
-
-        """
-        rng = np.random.default_rng()  # Create a random number generator
-        self.x = self.x + rng.uniform(low=-jitter, high=jitter, size=len(self.x))
-        self.y = self.y + rng.uniform(low=-jitter, high=jitter, size=len(self.y))
-
-        return self.x, self.y
 
     def get_multiindex_buses(
         self,
@@ -1015,7 +982,7 @@ class MapPlotter:
             n.carriers['color'] column.
         bus_cmap : mcolors.Colormap/str
             If bus_colors are floats, this color map will assign the colors
-        bus_cmap_norm : plt.Normalize
+        bus_cmap_norm : mcolors.Normalize
             The norm applied to the bus_cmap
         bus_alpha : float/dict/pandas.Series
             Adds alpha channel to buses, defaults to 1
@@ -1045,7 +1012,7 @@ class MapPlotter:
             Colors for the lines, defaults to 'rosybrown'.
         line_cmap : mcolors.Colormap/str|dict
             If line_colors are floats, this color map will assign the colors.
-        line_cmap_norm : plt.Normalize
+        line_cmap_norm : mcolors.Normalize
             The norm applied to the line_cmap.
         line_alpha : str/pandas.Series
             Alpha for the lines, defaults to 1.
@@ -1057,7 +1024,7 @@ class MapPlotter:
             Colors for the links, defaults to 'darkseagreen'.
         link_cmap : mcolors.Colormap/str|dict
             If link_colors are floats, this color map will assign the colors.
-        link_cmap_norm : plt.Normalize|matplotlib.colors.*Norm
+        link_cmap_norm : mcolors.Normalize|matplotlib.colors.*Norm
             The norm applied to the link_cmap.
         link_alpha : str/pandas.Series
             Alpha for the links, defaults to 1.
@@ -1157,7 +1124,7 @@ class MapPlotter:
                 raise ValueError(msg)
 
         # Apply all cmaps
-        bus_colors = _apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
+        bus_colors = apply_cmap(bus_colors, bus_cmap, bus_cmap_norm)
 
         # Plot buses
         bus_sizes = bus_sizes.sort_index(level=0, sort_remaining=False)
@@ -1212,7 +1179,7 @@ class MapPlotter:
             if data.empty:
                 continue
 
-            data["colors"] = _apply_cmap(data.colors, cmap, cmap_norm)
+            data["colors"] = apply_cmap(data.colors, cmap, cmap_norm)
 
             branch_coll = self.get_branch_collection(
                 c, data.widths, data.colors, data.alpha, geometry, auto_scale_branches
@@ -1310,11 +1277,8 @@ def plot(  # noqa: D103
         boundaries=boundaries,
         margin=margin,
         buses=buses,
+        jitter=jitter,
     )
-
-    # Add jitter if given
-    if jitter is not None:
-        plotter.add_jitter(jitter)
 
     return plotter.draw_map(
         ax,
