@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,6 +11,14 @@ import pypsa
 from pypsa.constants import DEFAULT_EPSG
 
 pypsa.options.debug.runtime_verification = True
+
+
+@pytest.fixture(autouse=True)
+def close_matplotlib_figures():
+    """Close all matplotlib figures before and after each test."""
+    plt.close("all")
+    yield
+    plt.close("all")
 
 
 def pytest_addoption(parser):

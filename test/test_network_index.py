@@ -1,6 +1,8 @@
 import pandas as pd
 import pytest
 
+import pypsa
+
 
 class TestNetworkScenarioIndex:
     def test_empty_input(self, ac_dc_network):
@@ -104,3 +106,200 @@ class TestNetworkScenarioIndex:
             ValueError, match="The sum of the weights in `scenarios` must be equal to 1"
         ):
             n.set_scenarios(scenarios=scenarios)
+
+
+def test_get_scenario():
+    n = pypsa.examples.ac_dc_meshed()
+    n.set_scenarios(high=0.1, low=0.9)
+    n.c.generators.static.loc[("high", "Manchester Wind"), "p_nom"] = 200
+
+    n_high = n.get_scenario("high")
+    n_low = n.get_scenario("low")
+
+    assert n_high.name == "AC-DC-Meshed - Scenario 'high'"
+
+    n_high.name = n.name
+    n_low.name = n.name
+
+    ac_dc_meshed = pypsa.examples.ac_dc_meshed()
+    assert n_low.equals(ac_dc_meshed, log_mode="strict")
+    assert n_low is not ac_dc_meshed
+
+    ac_dc_meshed.c.generators.static.loc[("Manchester Wind"), "p_nom"] = 200
+    assert n_high.equals(ac_dc_meshed, log_mode="strict")
+    assert n_high is not ac_dc_meshed
+
+    # Test ValueError when network has no scenarios
+    n_no_scenarios = pypsa.examples.ac_dc_meshed()
+    with pytest.raises(
+        ValueError,
+        match="This method can only be used on a stochastic network with scenarios",
+    ):
+        n_no_scenarios.get_scenario("high")
+
+    # Test KeyError when scenario doesn't exist
+    with pytest.raises(
+        KeyError, match="Scenario 'nonexistent' not found in network scenarios"
+    ):
+        n.get_scenario("nonexistent")
+
+
+def test_get_network_from_collection():
+    n = pypsa.examples.ac_dc_meshed()
+    n2 = n.copy()
+    n2.name = "AC-DC-Meshed Copy"
+    n2.c.generators.static.loc[("Manchester Wind"), "p_nom"] = 200
+
+    nc = pypsa.NetworkCollection([n, n2])
+
+    nc1 = nc.get_network("AC-DC-Meshed")
+    nc2 = nc.get_network("AC-DC-Meshed Copy")
+
+    # Make sure a collection only holds references to the original networks
+    assert nc1 is n
+    assert nc2 is n2
+
+    # Test KeyError when collection doesn't exist
+    with pytest.raises(
+        KeyError, match="Collection 'nonexistent' not found in network collection"
+    ):
+        nc.get_network("nonexistent")
+
+    # Stochastic network in collection
+    n2.set_scenarios(high=0.1, low=0.9)
+    n2.c.generators.static.loc[("high", "Manchester Wind"), "p_nom"] = 300
+    nc = pypsa.NetworkCollection([n, n2])
+
+    nc2 = nc.get_network("AC-DC-Meshed Copy")
+
+    assert nc2 is n2
+
+    with pytest.raises(
+        KeyError, match="Collection 'nonexistent' not found in network collection"
+    ):
+        nc.get_network("nonexistent")
+
+    # Test ValueError when network is not a collection
+    n_no_collection = pypsa.examples.ac_dc_meshed()
+    with pytest.raises(
+        ValueError,
+        match="This method can only be used on a NetworkCollection",
+    ):
+        n_no_collection.get_network("high")
+
+
+def test_slice_network():
+    n = pypsa.examples.ac_dc_meshed()
+
+    # Test slicing by buses - single bus
+    n_single = n.slice_network(buses="Manchester")
+    assert len(n_single.buses) == 1
+    assert "Manchester" in n_single.c.buses.static.index
+    # Check connected components are included
+    assert len(n_single.c.generators) > 0
+    assert all(n_single.c.generators.static.bus == "Manchester")
+
+    # Test slicing by buses - list of buses
+    bus_list = ["Manchester", "Frankfurt"]
+    n_subset = n.slice_network(buses=bus_list)
+    assert len(n_subset.buses) == 2
+    assert set(n_subset.c.buses.static.index) == set(bus_list)
+    # Check lines between selected buses
+    lines_between = n.c.lines.static[
+        n.c.lines.static.bus0.isin(bus_list) & n.c.lines.static.bus1.isin(bus_list)
+    ]
+    assert len(n_subset.c.lines.static) == len(lines_between)
+
+    # Test slicing by snapshots using slice object
+    n_snap = n.slice_network(snapshots=slice(None, 2))
+    assert len(n_snap.snapshots) == 2
+    assert all(n_snap.snapshots == n.snapshots[:2])
+    assert len(n_snap.buses) == len(n.buses)  # All buses preserved
+
+    # Test slicing by both buses and snapshots
+    n_both = n.slice_network(buses="Manchester", snapshots=0)
+    assert len(n_both.buses) == 1
+    assert len(n_both.snapshots) == 1
+    assert n_both.snapshots[0] == n.snapshots[0]
+
+    # Test with boolean mask for buses
+    bus_mask = n.c.buses.static.v_nom > 300
+    n_hv = n.slice_network(buses=bus_mask)
+    assert all(n_hv.c.buses.static.v_nom > 300)
+
+    # Test error when neither buses nor snapshots provided
+    with pytest.raises(
+        ValueError, match="Either `buses` or `snapshots` must be provided"
+    ):
+        n.slice_network()
+
+    # Test that dynamic data is properly sliced
+    n.generators_t.p_set.loc[:, "Manchester Wind"] = range(len(n.snapshots))
+    n_snap2 = n.slice_network(snapshots=slice(1, 3))
+    assert all(n_snap2.generators_t.p_set.loc[:, "Manchester Wind"] == [1, 2])
+
+    # Test that network attributes are preserved
+    n.name = "Test Network"
+    n_sliced = n.slice_network(buses="Manchester")
+    assert n_sliced.name == "Test Network"
+
+    # Test snapshot weightings are properly sliced with list of indices
+    n_snap3 = n.slice_network(snapshots=[0, 2])
+    expected_weights = n.snapshot_weightings.iloc[[0, 2]]
+    pd.testing.assert_frame_equal(n_snap3.snapshot_weightings, expected_weights)
+
+
+def test_getitem_index_methods():
+    """Test that __getitem__ mirrors all three index methods."""
+    # Test network slicing via __getitem__
+    n = pypsa.examples.ac_dc_meshed()
+
+    # Test slicing by single bus (mirrors slice_network)
+    n_manchester = n["Manchester"]
+    n_manchester_slice = n.slice_network(buses="Manchester")
+    assert n_manchester.equals(n_manchester_slice, log_mode="strict")
+
+    # Test slicing by multiple buses
+    bus_list = ["Manchester", "Frankfurt"]
+    n_multi = n[bus_list]
+    n_multi_slice = n.slice_network(buses=bus_list)
+    assert n_multi.equals(n_multi_slice, log_mode="strict")
+
+    # Slicing by snapshots is currently not supported in __getitem__
+    # as it would clash with the other two methods.
+
+    # Test NetworkCollection __getitem__ (mirrors get_network)
+    n2 = n.copy()
+    n2.name = "Test Network Copy"
+    nc = pypsa.NetworkCollection([n, n2])
+
+    nc_getitem = nc["AC-DC-Meshed"]
+    nc_get = nc.get_network("AC-DC-Meshed")
+    assert nc_getitem is nc_get  # Should return same reference
+
+    # Test stochastic network __getitem__ (mirrors get_scenario)
+    n_stoch = pypsa.examples.ac_dc_meshed()
+    n_stoch.set_scenarios(high=0.3, low=0.7)
+    n_stoch.c.generators.static.loc[("high", "Manchester Wind"), "p_nom"] = 200
+
+    n_high_getitem = n_stoch["high"]
+    n_high_get = n_stoch.get_scenario("high")
+    assert n_high_getitem.equals(n_high_get, log_mode="strict")
+
+    # Test error cases
+    with pytest.raises(KeyError):
+        nc["nonexistent"]
+
+    with pytest.raises(KeyError):
+        n_stoch["nonexistent"]
+
+    # Test that regular network raises KeyError for non-existent bus
+    with pytest.raises(KeyError):
+        n["nonexistent_bus"]
+
+    # Test deprecated tuple slicing raises warning and error
+    with pytest.warns(
+        DeprecationWarning, match="Slicing by \\(buses, snapshots\\) tuples"
+    ):
+        with pytest.raises(NotImplementedError, match="Tuple slicing is deprecated"):
+            n[("Manchester", slice(0, 2))]

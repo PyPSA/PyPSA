@@ -39,7 +39,7 @@ def _from_xarray(da: xarray.DataArray, c: Components) -> pd.DataFrame | pd.Serie
     """
     # Add missing dimensions if needed
     if "name" not in da.dims:
-        da = da.expand_dims(name=c.component_names)
+        da = da.expand_dims(name=c.names)
     if "scenario" not in da.dims and c.has_scenarios:
         da = da.expand_dims(scenario=c.scenarios)
 
@@ -278,7 +278,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         if self.has_scenarios:
             res = (
                 res.unstack(res.indexes["scenario"].name)
-                .reindex(name=self.component_names)
+                .reindex(name=self.names)
                 .reindex(scenario=self.scenarios)
             )
 

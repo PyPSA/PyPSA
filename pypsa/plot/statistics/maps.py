@@ -82,6 +82,9 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """Plot network statistics on a map."""
+        if func.__name__ == "prices":
+            msg = "Plotting 'prices' on a map is not yet implemented."
+            raise NotImplementedError(msg)
         n = self._n
         colors = self.get_carrier_colors(nice_names=False)
         n.consistency_check_plots()
@@ -102,7 +105,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         # Get bus sizes from statistics function
         with warnings.catch_warnings():
             warnings.filterwarnings(
-                "default",
+                "ignore",
                 message=".*Passing `aggregate_across_components` was deprecated.*",
                 category=DeprecationWarning,
             )

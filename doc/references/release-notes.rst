@@ -15,6 +15,11 @@ Upcoming Release
 Features
 --------
 
+* New feature for interactive map plotting: PyDeck-based interactive maps (https://github.com/PyPSA/PyPSA/pull/1312)
+
+  * New API: ``Network.explore(...)`` returns a ``pydeck.Deck`` object: Extending the previous folium/geopandas-based interactive html map by all static map plotting parameters.
+  * Interactive maps can be exported to self-contained htmls by ``Network.explore(...).to_html("file.html", offline=True)``.
+
 * New optimization mode: Stochastic optimization problems (https://github.com/PyPSA/PyPSA/pull/1154)
 
   * Two-stage stochastic optimization: stage 1 investment "here-and-now"; stage 2 operations "wait-and-see". Uncertainty via user-defined scenarios. Supports uncertain model parameters in both static and time-series format.
@@ -48,6 +53,7 @@ Features
 
 * Add additional standard line types from pandapower.
 
+* New network indexing methods: ``n.get_network``, ``n.get_scenario``, ``n.slice_network`` and enhanced ``n[...]`` for convenient network access.
 
 * The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
   to get the previous behavior of returning component names which have been added.
@@ -90,6 +96,9 @@ Bug Fixes
   and storage in multi-investment period optimization. Non-cyclic storage units and stores now 
   require the ``state_of_charge_initial_per_period`` and ``e_initial_per_period`` flags respectively 
   to be set to ``True`` when using primary energy or operational limit constraints.
+  
+* Fix ``get_transmission_carriers()`` to handle components without carrier attribute (e.g., Transformer).
+  (https://github.com/PyPSA/PyPSA/issues/1321)
 
 `v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
 =======================================================================================
@@ -147,6 +156,9 @@ Features
     ``pypsa.NetworkCollection()`` and pass a list of networks. The feature is
     experimental and might change with the next release. Documentation and API
     reference will follow with a stable version of it.
+
+* Add new statistics function ``n.statistics.prices()`` which can return
+  time-averaged or consumption-weighted prices by bus or bus carrier.
 
 Bug Fixes
 ---------

@@ -52,7 +52,7 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
     c.dynamic[attr] = (
         c.dynamic[attr]
         .reindex(n.snapshots, level="snapshot", axis=0)
-        .reindex(c.component_names, level="name", axis=1)
+        .reindex(c.names, level="name", axis=1)
         .fillna(0.0)
     )
 

@@ -222,7 +222,7 @@ def define_growth_limit(n: Network, sns: pd.Index) -> None:
         component_carriers = static.loc[:, "carrier"]
 
         if n.has_scenarios:
-            unique_component_names = n.components[c].component_names
+            unique_component_names = n.components[c].names
             carrier_map = component_carriers.groupby(level="name").first()
         else:
             unique_component_names = static.index
