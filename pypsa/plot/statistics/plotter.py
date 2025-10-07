@@ -211,6 +211,19 @@ class StatisticPlotter:
         >>> fig, ax, g = n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
 
         """
+        index_names = getattr(self._n, "_index_names", [])
+        index_color = index_names[0] if index_names else None
+
+        if chart_type == "bar" and index_color:
+            if color is None:
+                color = index_color
+            if stacked and color == index_color:
+                stacked = False
+            if hue_order is None and hasattr(self._n, "index"):
+                index_values = getattr(self._n, "index", None)
+                if index_values is not None:
+                    hue_order = list(index_values)
+
         plot_kwargs = {
             "x": x,
             "y": y,
@@ -605,6 +618,19 @@ class StatisticInteractivePlotter:
         >>> fig = n.statistics.installed_capacity.iplot.bar(x="carrier", y="value", color="carrier") # doctest: +ELLIPSIS
 
         """
+        index_names = getattr(self._n, "_index_names", [])
+        index_color = index_names[0] if index_names else None
+
+        if chart_type == "bar" and index_color:
+            if color is None:
+                color = index_color
+            if stacked and color == index_color:
+                stacked = False
+            if color_order is None and hasattr(self._n, "index"):
+                index_values = getattr(self._n, "index", None)
+                if index_values is not None:
+                    color_order = list(index_values)
+
         plot_kwargs = {
             "x": x,
             "y": y,

@@ -261,11 +261,26 @@ class ChartGenerator(PlotsGenerator, ABC):
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to be implemented by subclasses."""
         self._n.consistency_check_plots(strict="all")
+        index_names = getattr(self._n, "_index_names", [])
+        index_color = index_names[0] if index_names else None
+
+        # For NetworkCollections default to grouping bars by network instead of faceting
+        if kind == "bar" and index_color:
+            if color is None:
+                color = index_color
+            if stacked and color == index_color:
+                stacked = False
+            if hue_order is None and hasattr(self._n, "index"):
+                hue_order = list(self._n.index)
+
         ldata = self._to_long_format(data)
         if query:
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
-        palette = self.get_carrier_colors(nice_names=nice_names)
+
+        palette = None
+        if color in (None, "carrier"):
+            palette = self.get_carrier_colors(nice_names=nice_names)
 
         # set shared axis to the one where "value" is plotted
         if sharex is None:
@@ -456,9 +471,11 @@ class ChartGenerator(PlotsGenerator, ABC):
         # Prepare color mapping if color column is provided
         if color and color_discrete_map is None and color in ldata.columns:
             color_values = ldata[color].unique()
-            color_discrete_map = {
-                col: carrier_colors.get(col, "#AAAAAA") for col in color_values
-            }
+            if all(value in carrier_colors for value in color_values):
+                color_discrete_map = {
+                    value: carrier_colors.get(value, "#AAAAAA")
+                    for value in color_values
+                }
 
         # Set default title if none is provided
         if title is None:

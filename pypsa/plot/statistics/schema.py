@@ -269,12 +269,13 @@ def apply_parameter_schema(
         and not kwargs.get("facet_col")
         and not kwargs.get("facet_row")
     ):
-        index_names = context["index_names"]
-        if len(index_names) == 1:
-            kwargs["facet_col"] = index_names[0]
-        elif len(index_names) >= 2:
+        # Ignore unnamed index levels to avoid creating empty facets
+        index_names = [name for name in context["index_names"] if name is not None]
+        if len(index_names) >= 2:
             kwargs["facet_row"] = index_names[0]
             kwargs["facet_col"] = index_names[1]
+        elif len(index_names) == 1 and plot_name != "bar":
+            kwargs["facet_col"] = index_names[0]
 
     return kwargs
 

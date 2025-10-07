@@ -222,25 +222,20 @@ def test_networks_interactive_stacking(network_collection):
 class TestAutoFaceting:
     """Test automatic faceting functionality for NetworkCollections."""
 
-    def test_single_index_auto_facet_col(self, collection_single_index):
-        """Test that single index automatically sets facet_col."""
-        # Call plot method and check that the plot is created successfully
-        # The autofaceting should work transparently
+    def test_single_index_grouped_bars(self, collection_single_index):
+        """Single-index collections should group bars instead of faceting."""
         fig = collection_single_index.statistics.installed_capacity.iplot.bar()
         assert isinstance(fig, go.Figure)
 
-        # Check that we have data for multiple scenarios
-        assert len(fig.data) >= 1
+        # Bars should share a single subplot axis (no auto-created facets)
+        subplot_axes = {getattr(trace, "xaxis", "x") for trace in fig.data}
+        assert subplot_axes == {"x"}
 
-        # The plot should have faceted structure for multiple scenarios
-        # We can verify this by checking subplot annotations or layout
-        if hasattr(fig, "layout") and hasattr(fig.layout, "annotations"):
-            # Faceted plots often have annotations for subplot titles
-            annotations = [
-                ann.text for ann in fig.layout.annotations if hasattr(ann, "text")
-            ]
-            # This is a softer check since the exact annotation format may vary
-            assert len(annotations) >= 0  # Just ensure no errors occurred
+        # Default behaviour should group bars by scenario (network index)
+        assert fig.layout.barmode == "group"
+        trace_names = {trace.name for trace in fig.data if hasattr(trace, "name")}
+        expected_names = set(map(str, collection_single_index.index))
+        assert expected_names.issubset(trace_names)
 
     def test_multiindex_auto_facet_both(self, collection_multiindex):
         """Test that MultiIndex automatically sets both facet_row and facet_col."""
