@@ -35,7 +35,7 @@ class NetworkGraphMixin:
     iterate_components: Any
     passive_branches: pd.DataFrame
     has_scenarios: Any
-    scenarios: pd.DatFrame
+    scenarios: pd.DataFrame
 
     def graph(
         self,
