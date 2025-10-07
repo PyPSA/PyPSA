@@ -29,7 +29,7 @@ dependencies = [
     "numpy",
     "scipy",
     "pandas>=0.24",
-    "xarray",
+    "xarray<=2025.9.0",
     "netcdf4",
     "linopy>=0.5.5",
     "matplotlib",
