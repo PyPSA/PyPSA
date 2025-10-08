@@ -93,6 +93,14 @@ Bug Fixes
 * Fix ``get_transmission_carriers()`` to handle components without carrier attribute (e.g., Transformer).
   (https://github.com/PyPSA/PyPSA/issues/1321)
 
+* Fix storage state-of-charge handling in multi-investment period optimizations. The constraint 
+  logic incorrectly determined when to apply per-period cycling vs. continuous storage state tracking, causing storage to behave unexpectedly regardless of flag settings. The fix ensures storage units and stores correctly preserve or reset their state across investment periods based on the ``cyclic_state_of_charge_per_period``/``e_cyclic_per_period`` and ``state_of_charge_initial_per_period``/``e_initial_per_period`` flags.
+  (https://github.com/PyPSA/PyPSA/issues/1360)
+
+  **Breaking Change**: The default values for ``cyclic_state_of_charge_per_period`` (StorageUnit)
+  and ``e_cyclic_per_period`` (Store) have been changed from ``True`` to ``False``. This ensures
+  intuitive default behavior (w/o a cycling storage constraint) and it is consistent with single investment period optimization  where cycling behavior defaults to ``False``. Users who work with multi-investment period optimizations and want per-period cycling behavior must now explicitly set these attributes to ``True``.
+
 `v0.35.2 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2>`__ (15th August 2025)
 =======================================================================================
 Bug Fixes
