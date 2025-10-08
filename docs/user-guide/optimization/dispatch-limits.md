@@ -1,8 +1,8 @@
 # Dispatch Limits
 
-Each [`Generator`](/api/components/types/generators) has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each [`Link`](/api/components/types/links) has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each [`Line`](/api/components/types/lines) and [`Transformer`](/api/components/types/transformers) has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.
+Each [`Generator`][pypsa.components.Generators] has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each [`Line`][pypsa.components.Lines] and [`Transformer`][pypsa.components.Transformers] has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.
 
-!!! note "Dispatch limits of [`Store`](/api/components/types/stores) and [`StorageUnit`](/api/components/types/storage_units)"
+!!! note "Dispatch limits of [`Store`][pypsa.components.Stores] and [`StorageUnit`][pypsa.components.StorageUnits]"
 
     Dispatch limits of stores and storage units are described together with their
     storage consistency equations in the [Storage](storage.md) section.

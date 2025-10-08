@@ -55,6 +55,8 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
 def ac_dc_meshed() -> Network:
     """Load the meshed AC-DC example network.
 
+    <!-- md:badge-version v0.18.0 -->
+
     Returns
     -------
     pypsa.Network
@@ -82,6 +84,8 @@ def ac_dc_meshed() -> Network:
 
 def storage_hvdc() -> Network:
     """Load the storage network example of PyPSA.
+
+    <!-- md:badge-version v0.18.0 -->
 
     Returns
     -------
@@ -112,6 +116,8 @@ def storage_hvdc() -> Network:
 def scigrid_de() -> Network:
     """Load the SciGrid network example of PyPSA.
 
+    <!-- md:badge-version v0.18.0 --> | <!-- md:badge-example scigrid-lopf-then-pf.ipynb -->
+
     Returns
     -------
     pypsa.Network
@@ -139,6 +145,8 @@ def scigrid_de() -> Network:
 
 def model_energy() -> Network:
     """Load the single-node capacity expansion model in style of model.energy.
+
+    <!-- md:badge-version v0.34.1 -->
 
     Check out the [model.energy website](https://model.energy/) for more information.
 
@@ -175,7 +183,7 @@ def model_energy() -> Network:
 def stochastic_network() -> Network:
     """Load the stochastic network example.
 
-    For details check the example notebook. #TODO new-docs link.
+    <!-- md:badge-version v1.0.0 --> | <!-- md:guide-badge optimization/stochastic.md -->
 
     Returns
     -------
@@ -205,6 +213,8 @@ def stochastic_network() -> Network:
 
 def carbon_management() -> Network:
     """Load the carbon management network example of PyPSA.
+
+    <!-- md:badge-version v1.0.0 -->
 
     The Carbon Management Network has 20 days of data on the hybrid case from a
     recently published paper on carbon management based on PyPSA-Eur. It is

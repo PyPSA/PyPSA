@@ -53,11 +53,6 @@ class ComponentsStore(dict):
     def __repr__(self) -> str:
         """Get representation of component store.
 
-        Returns
-        -------
-        str
-            Representation of component store
-
         Examples
         --------
         >>> n.components

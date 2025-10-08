@@ -51,10 +51,6 @@ def generate_directions_random(
         A DataFrame containing the generated random directions, where each row
         represents a direction and each column corresponds to a key from `keys`.
 
-    See Also
-    --------
-    [pypsa.Network.optimize.optimize_mga_in_multiple_directions][]
-
     """
     # Use numpy with random seed 0 to generate a random array with
     # `len(keys)` columns and `n_directions` rows.
@@ -92,7 +88,7 @@ def generate_directions_evenly_spaced(
 
     See Also
     --------
-    [pypsa.Network.optimize.optimize_mga_in_multiple_directions][]
+    [pypsa.optimization.mga.generate_directions_random][]
 
     """
     # Check that there are exactly two keys
@@ -135,7 +131,7 @@ def generate_directions_halton(
 
     See Also
     --------
-    [pypsa.Network.optimize.optimize_mga_in_multiple_directions][]
+    [pypsa.optimization.mga.generate_directions_random][]
 
     """
     n = len(keys)
@@ -177,9 +173,9 @@ def _worker_init() -> None:
 class OptimizationAbstractMGAMixin:
     """Mixin class for MGA (Models to Generate Alternatives) optimization.
 
-    Class only inherits to [pypsa.optimize.abstract.OptimizationAbstractMixin][] which
-    again inherits to [pypsa.optimize.OptimizationAccessor][] and should not be used
-    directly.
+    Class inherits to [pypsa.optimization.OptimizationAccessor][]. All attributes and
+    methods can be used within any Network instance via `n.optimize`.
+
     """
 
     _n: Network
@@ -306,7 +302,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://`go.pypsa.org/options-params` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -314,11 +310,11 @@ class OptimizationAbstractMGAMixin:
         -------
         status : str
             The status of the optimization, either "ok" or one of the codes listed
-            in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            in [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html).
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
         # Handle default parameters from options
@@ -456,7 +452,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://`go.pypsa.org/options-params` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -464,11 +460,11 @@ class OptimizationAbstractMGAMixin:
         -------
         status : str
             The status of the optimization, either "ok" or one of the codes listed
-            in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            in [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html).
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
         coordinates : pd.Series | None
             If the optimization status is "ok", then the final return
             value is a pd.Series representing the coordinates of the
@@ -617,7 +613,7 @@ class OptimizationAbstractMGAMixin:
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         max_parallel : int
             Maximum number of parallel processes to use for solving multiple directions.
             Defaults to 4.

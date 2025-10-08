@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import warnings
-from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
 
 from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
@@ -47,12 +46,6 @@ class StatisticPlotter:
         self._bound_method = bound_method
         self._n = n
 
-        for chart_type in CHART_TYPES:
-            func = partial(self._chart, chart_type=chart_type)
-            func = update_wrapper(func, self._chart)  # type: ignore
-            func.__doc__ = func.__doc__.replace("chart_type", chart_type)  # type: ignore
-            setattr(self, chart_type, func)
-
     def __call__(
         self, kind: str | None = None
     ) -> (
@@ -92,7 +85,37 @@ class StatisticPlotter:
         plot_func = getattr(self, kind_)
         return plot_func()
 
-    def _chart(  # noqa: D417
+    def area(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="area", **kwargs)
+
+    def bar(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="bar", **kwargs)
+
+    def scatter(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="scatter", **kwargs)
+
+    def line(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="line", **kwargs)
+
+    def box(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="box", **kwargs)
+
+    def violin(self, **kwargs: Any) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="violin", **kwargs)
+
+    def histogram(
+        self, **kwargs: Any
+    ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticPlotter.chart] for parameters."""
+        return self.chart(chart_type="histogram", **kwargs)
+
+    def chart(  # noqa: D417
         self,
         chart_type: str,
         x: str | None = None,
@@ -455,12 +478,6 @@ class StatisticInteractivePlotter:
         self._bound_method = bound_method
         self._n = n
 
-        for chart_type in CHART_TYPES:
-            func = partial(self._chart, chart_type=chart_type)
-            func = update_wrapper(func, self._chart)  # type: ignore
-            func.__doc__ = func.__doc__.replace("chart_type", chart_type)  # type: ignore
-            setattr(self, chart_type, func)
-
     def __call__(
         self, kind: str | None = None
     ) -> tuple[go.Figure, go.Figure | np.ndarray]:
@@ -497,7 +514,35 @@ class StatisticInteractivePlotter:
         plot_func = getattr(self, kind_)
         return plot_func()
 
-    def _chart(  # noqa: D417
+    def area(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="area", **kwargs)
+
+    def bar(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="bar", **kwargs)
+
+    def scatter(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="scatter", **kwargs)
+
+    def line(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="line", **kwargs)
+
+    def box(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="box", **kwargs)
+
+    def violin(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="violin", **kwargs)
+
+    def histogram(self, **kwargs: Any) -> go.Figure:
+        """See [`chart`][pypsa.plot.statistics.plotter.StatisticInteractivePlotter.chart] for parameters."""
+        return self.chart(chart_type="histogram", **kwargs)
+
+    def chart(  # noqa: D417
         self,
         chart_type: str,
         x: str | None = None,

@@ -25,9 +25,9 @@ class OrderedGraph(nx.MultiGraph):
 class NetworkGraphMixin:
     """Mixin class for network graph methods.
 
-    Class only inherits to [pypsa.Network][]/[pypsa.SubNetwork][] and should not be
-    used directly.
-    All attributes and methods can be used within any Network/SubNetwork instance.
+    Class inherits to [pypsa.Network][]/[pypsa.SubNetwork][]. All attributes and
+    methods can be used within any Network/SubNetwork instance.
+
     """
 
     c: Any

@@ -1091,12 +1091,12 @@ def _sort_attrs(
 class NetworkIOMixin(_NetworkABC):
     """Mixin class for network I/O methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
 
     User Guide
     ----------
-    Check out the corresponding user guide: [:material-bookshelf: Import and Export](/user-guide/networks.md)
+    <!-- md:guide import-export.md -->
     """
 
     def _export_to_exporter(
@@ -1206,7 +1206,7 @@ class NetworkIOMixin(_NetworkABC):
         for component in self.all_components:
             c = self.components[component]
             list_name = c["list_name"]
-            attrs = c["attrs"]
+            attrs = c["defaults"]
 
             static = c.static
             dynamic = c.dynamic
@@ -1333,7 +1333,7 @@ class NetworkIOMixin(_NetworkABC):
             pypsa_version_str = str(pypsa_version)
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
-                "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
+                "release notes at `https://go.pypsa.org/release-notes` "
                 "to prepare your network for import.",
                 pypsa_version_str,
                 __version_base__,
@@ -1439,9 +1439,8 @@ class NetworkIOMixin(_NetworkABC):
         path : string
             Name of folder
         encoding : str, default None
-            Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
-            standard encodings
-            <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+            Encoding to use for UTF when reading (ex. 'utf-8'). See [List of Python
+            standard encodings](https://docs.python.org/3/library/codecs.html#standard-encodings)
         quotechar : str, default '"'
             String of length 1. Character used to denote the start and end of a
             quoted item. Quoted items can include "," and it will be ignored
@@ -1485,9 +1484,8 @@ class NetworkIOMixin(_NetworkABC):
         path : string
             Name of folder to which to export.
         encoding : str, default None
-            Encoding to use for UTF when reading (ex. 'utf-8'). `List of Python
-            standard encodings
-            <https://docs.python.org/3/library/codecs.html#standard-encodings>`_
+            Encoding to use for UTF when reading (ex. 'utf-8'). See [List of Python
+            standard encodings](https://docs.python.org/3/library/codecs.html#standard-encodings)
         quotechar : str, default '"'
             String of length 1. Character used to quote fields.
         export_standard_types : boolean, default False
@@ -1500,9 +1498,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_netcdf : Export to a netCDF file
-        export_to_hdf5 : Export to an HDF5 file
-        export_to_excel : Export to an Excel file
+        [pypsa.Network.export_to_netcdf][], [pypsa.Network.export_to_hdf5][],
+        [pypsa.Network.export_to_excel][]
 
         """
         with _ExporterCSV(
@@ -1529,8 +1526,8 @@ class NetworkIOMixin(_NetworkABC):
         skip_time : bool, default False
             Skip reading in time dependent attributes
         engine : string, default "calamine"
-            The engine to use for reading the Excel file. See `pandas.read_excel
-            <https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html>`_
+            The engine to use for reading the Excel file. See [pandas.read_excel
+            ](https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html).
 
         Examples
         --------
@@ -1572,8 +1569,8 @@ class NetworkIOMixin(_NetworkABC):
             If True, then standard types are exported too (upon reimporting you
             should then set "ignore_standard_types" when initialising the network).
         engine : string, default "openpyxl"
-            The engine to use for writing the Excel file. See `pandas.ExcelWriter
-            <https://pandas.pydata.org/docs/reference/api/pandas.ExcelWriter.html>`_
+            The engine to use for writing the Excel file. See [pandas.ExcelWriter
+            ](https://pandas.pydata.org/docs/reference/api/pandas.ExcelWriter.html).
 
         Examples
         --------
@@ -1581,9 +1578,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_netcdf : Export to a netCDF file
-        export_to_hdf5 : Export to an HDF5 file
-        export_to_csv_folder : Export to a folder of CSVs
+        [pypsa.Network.export_to_netcdf][], [pypsa.Network.export_to_hdf5][],
+        [pypsa.Network.export_to_csv_folder][]
 
         """
         with _ExporterExcel(path, engine=engine) as exporter:
@@ -1644,9 +1640,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_netcdf : Export to a netCDF file
-        export_to_csv_folder : Export to a folder of CSVs
-        export_to_excel : Export to an Excel file
+        [pypsa.Network.export_to_netcdf][], [pypsa.Network.export_to_csv_folder][],
+        [pypsa.Network.export_to_excel][]
 
         """
         kwargs.setdefault("complevel", 4)
@@ -1689,7 +1684,7 @@ class NetworkIOMixin(_NetworkABC):
         compression: dict | None = None,
         float32: bool = False,
     ) -> xr.Dataset:
-        """Export network and components to a netCDF file.
+        r"""Export network and components to a netCDF file.
 
         Both static and series attributes of components are exported, but only
         if they have non-default values.
@@ -1713,7 +1708,7 @@ class NetworkIOMixin(_NetworkABC):
         compression : dict|None
             Compression level to use for all features which are being prepared.
             The compression is handled via xarray.Dataset.to_netcdf(...). For details see:
-            https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html
+            [xarray.Dataset.to\_netcdf](https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html)
             An example compression directive is ``{'zlib': True, 'complevel': 4}``.
             The default is None which disables compression.
         float32 : boolean, default False
@@ -1730,9 +1725,8 @@ class NetworkIOMixin(_NetworkABC):
 
         See Also
         --------
-        export_to_hdf5 : Export to an HDF5 file
-        export_to_csv_folder : Export to a folder of CSVs
-        export_to_excel : Export to an Excel file
+        [pypsa.Network.export_to_hdf5][], [pypsa.Network.export_to_csv_folder][],
+        [pypsa.Network.export_to_excel][]
 
         """
         with _ExporterNetCDF(path, compression, float32) as exporter:
@@ -1761,7 +1755,7 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing components.
 
         """
-        attrs = self.components[cls_name]["attrs"]
+        attrs = self.components[cls_name]["defaults"]
 
         static_attrs = attrs[attrs.static].drop("name")
         non_static_attrs = attrs[~attrs.static]
@@ -1929,7 +1923,7 @@ class NetworkIOMixin(_NetworkABC):
             )
 
         # Get all attributes for the component
-        attrs = self.components[cls_name]["attrs"]
+        attrs = self.components[cls_name]["defaults"]
 
         # Add all unknown attributes to the dataframe without any checks
         expected_attrs = attrs[lambda ds: ds.type.str.contains("series")].index

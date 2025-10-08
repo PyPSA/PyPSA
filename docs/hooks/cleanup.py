@@ -1,4 +1,13 @@
+from __future__ import annotations
+
 import re
+
+try:
+    import griffe
+
+    GRIFFE_AVAILABLE = True
+except ImportError:
+    GRIFFE_AVAILABLE = False
 
 
 def on_page_markdown(markdown, page, config, files):
@@ -12,6 +21,7 @@ def on_page_markdown(markdown, page, config, files):
         code_block = re.sub(r"\s*# doctest: \+ELLIPSIS", "", code_block)
         # Remove entire lines ending with # docs-hide
         code_block = re.sub(r"^.*# docs-hide\s*$", "", code_block, flags=re.MULTILINE)
+        code_block = re.sub(r"^.*<BLANKLINE>\s*$", "", code_block, flags=re.MULTILINE)
         return code_block
 
     markdown = re.sub(pattern, remove_doctest_skip, markdown, flags=re.DOTALL)

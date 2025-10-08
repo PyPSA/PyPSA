@@ -136,9 +136,9 @@ def iplot(
     transformer_text : pandas.Series
         Text for transformers, defaults to transformer names.
     layouter : networkx.drawing.layout function, default None
-        Layouting function from `networkx <https://networkx.github.io/>`_ which
+        Layouting function from [networkx](https://networkx.github.io/) which
         overrules coordinates given in ``n.buses[['x', 'y']]``. See
-        `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`_
+        [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
         of available options.
     title : string
         Graph title
@@ -166,7 +166,7 @@ def iplot(
             basic, streets, outdoors, light, dark, satellite, satellite-streets
 
     mapbox_token : string
-        Mapbox API access token. Obtain from https://www.mapbox.com.
+        Mapbox API access token. Obtain from `https://www.mapbox.com`.
         Can also be included in mapbox_parameters as `accesstoken=mapbox_token`.
     mapbox_parameters : dict
         Configuration parameters of the Mapbox layout.
@@ -316,7 +316,7 @@ def iplot(
         ):
             msg = (
                 "Using Mapbox layout styles requires a valid access token from "
-                "https://www.mapbox.com/, style which do not require a token "
+                "[https://www.mapbox.com/](https://www.mapbox.com/), style which do not require a token "
                 "are:\n{', '.join(_open__mb_styles)}."
             )
             raise ValueError(msg)
@@ -383,9 +383,9 @@ class PydeckPlotter:
             Initial view state for the map. If None, a default view state is created.
             If a dict is provided, it should contain keys like 'longitude', 'latitude', 'zoom', 'pitch', and 'bearing'.
         layouter : Callable | None, optional
-            Layouting function from `networkx <https://networkx.github.io/>`_ which
+            Layouting function from [networkx](https://networkx.github.io/) which
             overrules coordinates given in ``n.buses[['x', 'y']]``. See
-            `list <https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout>`
+            [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
             of available options.
         jitter : float, optional
             Amount of random noise to add to node positions
@@ -2052,6 +2052,8 @@ def explore(  # noqa: D103
     **kwargs: Any,
 ) -> pdk.Deck:
     """Create an interactive map of the PyPSA network using Pydeck.
+
+    <!-- md:badge-version v1.0.0 -->
 
     Returns
     -------

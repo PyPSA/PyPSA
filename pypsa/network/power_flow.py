@@ -246,7 +246,7 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
         for attr in attributes:
             dynamic[attr] = dynamic[attr].reindex(
                 columns=static.index,
-                fill_value=n.components[component]["attrs"].at[attr, "default"],
+                fill_value=n.components[component]["defaults"].at[attr, "default"],
             )
 
 
@@ -703,8 +703,8 @@ def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
 class NetworkPowerFlowMixin(_NetworkABC):
     """Mixin class for network power flow methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def calculate_dependent_values(self) -> None:
@@ -939,8 +939,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
 class SubNetworkPowerFlowMixin:
     """Mixin class for sub-network power flow methods.
 
-    Class only inherits to [pypsa.SubNetwork][] and should not be used directly.
-    All attributes and methods can be used within any SubNetwork instance.
+    Class inherits to [pypsa.SubNetwork][]. All attributes and methods can be used
+    within any SubNetwork instance.
     """
 
     # Type Hints
