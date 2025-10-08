@@ -1394,6 +1394,20 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
                 "User-defined state_of_charge_initial will be ignored.",
                 affected,
             )
+
+        # Warn if per-period cyclic overrides global cyclic
+        if n._multi_invest:
+            cp_overrides_c = (
+                c.da.cyclic_state_of_charge & c.da.cyclic_state_of_charge_per_period
+            )
+            if cp_overrides_c.any():
+                affected = c.static.index[cp_overrides_c.values].tolist()
+                logger.warning(
+                    "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
+                    "overrides global cyclic (cyclic_state_of_charge=True). "
+                    "Storage will cycle within each investment period, not across the entire horizon.",
+                    affected,
+                )
     except Exception as e:
         logger.debug("Could not check for ignored initial states: %s", e)
 
@@ -1559,6 +1573,20 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
                 "User-defined e_initial will be ignored.",
                 affected,
             )
+
+        # Warn if per-period cyclic overrides global cyclic
+        if n._multi_invest:
+            cp_overrides_c = (
+                c.da.e_cyclic.sel(name=c.active_assets) & c.da.e_cyclic_per_period
+            )
+            if cp_overrides_c.any():
+                affected = c.static.index[cp_overrides_c.values].tolist()
+                logger.warning(
+                    "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
+                    "overrides global cyclic (e_cyclic=True). "
+                    "Storage will cycle within each investment period, not across the entire horizon.",
+                    affected,
+                )
     except Exception as e:
         logger.debug("Could not check for ignored initial energy: %s", e)
 

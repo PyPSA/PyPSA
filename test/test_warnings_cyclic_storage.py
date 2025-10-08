@@ -151,3 +151,80 @@ def test_warning_store_per_period_cyclic(caplog):
         and "store" in record.message
         for record in caplog.records
     ), "Expected warning about cyclic overriding initial values not found"
+
+
+def test_warning_storage_unit_cp_overrides_c(caplog):
+    """Test warning when per-period cyclic overrides global cyclic for StorageUnit."""
+    n = pypsa.Network()
+    n.set_snapshots(
+        pd.MultiIndex.from_tuples(
+            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
+        )
+    )
+    n.set_investment_periods([2030, 2040])
+    n.add("Bus", "bus")
+    n.add("Carrier", "carrier")
+    n.add("Load", "load", bus="bus", p_set=0.1)
+    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
+
+    # Add storage with both global cyclic AND per-period cyclic (CP overrides C)
+    n.add(
+        "StorageUnit",
+        "storage",
+        bus="bus",
+        carrier="carrier",
+        p_nom=1,
+        max_hours=1,
+        cyclic_state_of_charge=True,  # Global cyclic
+        cyclic_state_of_charge_per_period=True,  # Per-period cyclic (overrides global)
+        marginal_cost=1,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        n.optimize(multi_investment_periods=True)
+
+    # Check that warning was issued
+    assert any(
+        "Per-period cyclic (cyclic_state_of_charge_per_period=True) overrides global cyclic"
+        in record.message
+        and "storage" in record.message
+        for record in caplog.records
+    ), "Expected warning about CP overriding C not found"
+
+
+def test_warning_store_cp_overrides_c(caplog):
+    """Test warning when per-period cyclic overrides global cyclic for Store."""
+    n = pypsa.Network()
+    n.set_snapshots(
+        pd.MultiIndex.from_tuples(
+            [(2030, 0), (2030, 1), (2040, 0), (2040, 1)], names=["period", "timestep"]
+        )
+    )
+    n.set_investment_periods([2030, 2040])
+    n.add("Bus", "bus")
+    n.add("Carrier", "carrier")
+    n.add("Load", "load", bus="bus", p_set=0.1)
+    n.add("Generator", "gen", bus="bus", carrier="carrier", p_nom=1, marginal_cost=10)
+
+    # Add store with both global cyclic AND per-period cyclic (CP overrides C)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        carrier="carrier",
+        e_nom=1,
+        e_cyclic=True,  # Global cyclic
+        e_cyclic_per_period=True,  # Per-period cyclic (overrides global)
+        marginal_cost=1,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        n.optimize(multi_investment_periods=True)
+
+    # Check that warning was issued
+    assert any(
+        "Per-period cyclic (e_cyclic_per_period=True) overrides global cyclic"
+        in record.message
+        and "store" in record.message
+        for record in caplog.records
+    ), "Expected warning about CP overriding C not found"
