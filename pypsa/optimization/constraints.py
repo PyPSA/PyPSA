@@ -1373,43 +1373,40 @@ def define_storage_unit_constraints(n: Network, sns: pd.Index) -> None:
         )
 
     # Warn if cyclic overrides initial values (both global and per-period)
-    try:
-        has_initial = c.da.state_of_charge_initial != 0
-        global_conflict = c.da.cyclic_state_of_charge & has_initial
-        period_conflict = (
-            (
-                c.da.cyclic_state_of_charge_per_period
-                & c.da.state_of_charge_initial_per_period
-                & has_initial
-            )
-            if n._multi_invest
-            else False
+    has_initial = c.da.state_of_charge_initial != 0
+    global_conflict = c.da.cyclic_state_of_charge & has_initial
+    period_conflict = (
+        (
+            c.da.cyclic_state_of_charge_per_period
+            & c.da.state_of_charge_initial_per_period
+            & has_initial
+        )
+        if n._multi_invest
+        else False
+    )
+
+    ignored = global_conflict | period_conflict
+    if ignored.any():
+        affected = c.static.index[ignored.values].tolist()
+        logger.warning(
+            "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
+            "User-defined state_of_charge_initial will be ignored.",
+            affected,
         )
 
-        ignored = global_conflict | period_conflict
-        if ignored.any():
-            affected = c.static.index[ignored.values].tolist()
+    # Warn if per-period cyclic overrides global cyclic
+    if n._multi_invest:
+        cp_overrides_c = (
+            c.da.cyclic_state_of_charge & c.da.cyclic_state_of_charge_per_period
+        )
+        if cp_overrides_c.any():
+            affected = c.static.index[cp_overrides_c.values].tolist()
             logger.warning(
-                "StorageUnits %s: Cyclic state of charge constraint overrules initial storage level setting. "
-                "User-defined state_of_charge_initial will be ignored.",
+                "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
+                "overrides global cyclic (cyclic_state_of_charge=True). "
+                "Storage will cycle within each investment period, not across the entire horizon.",
                 affected,
             )
-
-        # Warn if per-period cyclic overrides global cyclic
-        if n._multi_invest:
-            cp_overrides_c = (
-                c.da.cyclic_state_of_charge & c.da.cyclic_state_of_charge_per_period
-            )
-            if cp_overrides_c.any():
-                affected = c.static.index[cp_overrides_c.values].tolist()
-                logger.warning(
-                    "StorageUnits %s: Per-period cyclic (cyclic_state_of_charge_per_period=True) "
-                    "overrides global cyclic (cyclic_state_of_charge=True). "
-                    "Storage will cycle within each investment period, not across the entire horizon.",
-                    affected,
-                )
-    except Exception as e:
-        logger.debug("Could not check for ignored initial states: %s", e)
 
     lhs += [(eff_stand, previous_soc)]
 
@@ -1554,41 +1551,38 @@ def define_store_constraints(n: Network, sns: pd.Index) -> None:
         include_previous_e = include_previous_e_pp.where(per_period, include_previous_e)
 
     # Warn if cyclic overrides initial values (both global and per-period)
-    try:
-        has_initial = c.da.e_initial != 0
-        global_conflict = c.da.e_cyclic.sel(name=c.active_assets) & has_initial
-        period_conflict = (
-            (c.da.e_cyclic_per_period & c.da.e_initial_per_period & has_initial).sel(
-                name=c.active_assets
-            )
-            if n._multi_invest
-            else False
+    has_initial = c.da.e_initial != 0
+    global_conflict = c.da.e_cyclic.sel(name=c.active_assets) & has_initial
+    period_conflict = (
+        (c.da.e_cyclic_per_period & c.da.e_initial_per_period & has_initial).sel(
+            name=c.active_assets
+        )
+        if n._multi_invest
+        else False
+    )
+
+    ignored = global_conflict | period_conflict
+    if ignored.any():
+        affected = c.static.index[ignored.values].tolist()
+        logger.warning(
+            "Stores %s: Cyclic energy level constraint overrules initial value setting. "
+            "User-defined e_initial will be ignored.",
+            affected,
         )
 
-        ignored = global_conflict | period_conflict
-        if ignored.any():
-            affected = c.static.index[ignored.values].tolist()
+    # Warn if per-period cyclic overrides global cyclic
+    if n._multi_invest:
+        cp_overrides_c = (
+            c.da.e_cyclic.sel(name=c.active_assets) & c.da.e_cyclic_per_period
+        )
+        if cp_overrides_c.any():
+            affected = c.static.index[cp_overrides_c.values].tolist()
             logger.warning(
-                "Stores %s: Cyclic energy level constraint overrules initial value setting. "
-                "User-defined e_initial will be ignored.",
+                "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
+                "overrides global cyclic (e_cyclic=True). "
+                "Storage will cycle within each investment period, not across the entire horizon.",
                 affected,
             )
-
-        # Warn if per-period cyclic overrides global cyclic
-        if n._multi_invest:
-            cp_overrides_c = (
-                c.da.e_cyclic.sel(name=c.active_assets) & c.da.e_cyclic_per_period
-            )
-            if cp_overrides_c.any():
-                affected = c.static.index[cp_overrides_c.values].tolist()
-                logger.warning(
-                    "Stores %s: Per-period cyclic (e_cyclic_per_period=True) "
-                    "overrides global cyclic (e_cyclic=True). "
-                    "Storage will cycle within each investment period, not across the entire horizon.",
-                    affected,
-                )
-    except Exception as e:
-        logger.debug("Could not check for ignored initial energy: %s", e)
 
     # Add the previous energy term with standing efficiency factor
     lhs += [(eff_stand, previous_e)]
