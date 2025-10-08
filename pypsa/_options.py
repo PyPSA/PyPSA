@@ -56,6 +56,8 @@ class Option:
 class OptionsNode:
     """PyPSA package options.
 
+    <!-- md:badge-version v0.33.0 --> | <!-- md:guide options.md -->
+
     This class provides a hierarchical structure for managing package options and
     the functionality can be accessed via `pypsa.options`.
 
@@ -464,7 +466,7 @@ options._add_option(
     "Activate the new components API, which replaces the static components data access\n\t"
     "with the more flexible components class. This will just change the api and not any\n\t"
     "functionality. Components class features are always available.\n\t"
-    "See https://go.pypsa.org/new-components-api for more details.",
+    "See `https://go.pypsa.org/new-components-api` for more details.",
 )
 
 

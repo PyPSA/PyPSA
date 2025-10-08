@@ -6,7 +6,7 @@ lines). Only branch outages are considered here.
 
 !!! tip "Tip: Modelling of generator outages"
 
-    Generator outages can be modelled through stochastic optimisation, by setting the attribute `p_max_pu` to zero for a scenario-dependent outage period. See the [Stochastic Optimisation](../optimization/stochastic-optimization.md) section for more details.
+    Generator outages can be modelled through stochastic optimisation, by setting the attribute `p_max_pu` to zero for a scenario-dependent outage period. See <!-- md:guide optimization/stochastic.md --> for more details.
 
 ## N-1 Security Constraints for SCLOPF
 

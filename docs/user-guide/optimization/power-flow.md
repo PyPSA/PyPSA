@@ -39,9 +39,9 @@ These constraints are set in the function `define_kirchhoff_voltage_constraints(
 
     The PTDF matrix of sub-networks (i.e. synchronous zones) can be calculated with [`sn.calculate_PTDF()`][pypsa.networks.SubNetwork.calculate_PTDF] method.
 
-!!! tip "Tip: Using the [`Link`](/api/components/types/links) component for Net Transfer Capacities (NTCs)"
+!!! tip "Tip: Using the [`Link`][pypsa.components.Links] component for Net Transfer Capacities (NTCs)"
 
-    For simplified transmission representation using Net Transfer Capacities (NTCs), use the [`Link`](/api/components/types/links) component with controllable power flow like a transport model. The [`Link`](/api/components/types/links) component can also be used to represent a point-to-point HVDC link.
+    For simplified transmission representation using Net Transfer Capacities (NTCs), use the [`Link`][pypsa.components.Links] component with controllable power flow like a transport model. The [`Link`][pypsa.components.Links] component can also be used to represent a point-to-point HVDC link.
 
 !!! note "Note: Handling impedance changes with transmission expansion"
 

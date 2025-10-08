@@ -1,4 +1,4 @@
-"""General utility functions for PyPSA."""
+"""General utility functions for PyPSA components."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
 def as_components(n: NetworkType, value: str | Components) -> Components:
     """Get component instance from string.
+
+    <!-- md:badge-version v0.33.0 -->
 
     E.g. pass 'Generator', 'generators' or Components class instance to get the
     corresponding Components class instance.

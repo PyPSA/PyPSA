@@ -68,12 +68,7 @@ class Groupers:
             return component_series.map(mapping_series)
 
     def __repr__(self) -> str:
-        """Return a string representation of the grouper container.
-
-        Returns
-        -------
-        str
-            String representation.
+        """Get representation of the grouper container.
 
         Examples
         --------

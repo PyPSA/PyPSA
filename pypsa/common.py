@@ -30,7 +30,10 @@ logger = logging.getLogger(__name__)
 
 
 class UnexpectedError(AssertionError):
-    """Custom error for unexpected conditions with issue tracker reference."""
+    """Custom error for unexpected conditions with issue tracker reference.
+
+    <!-- md:badge-version v0.35.0 -->
+    """
 
     URL_CREATE_ISSUE = "https://go.pypsa.org/report-bug"
 
@@ -212,6 +215,8 @@ def as_index(
     n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
     """Return a pd.Index object from a list-like or scalar object.
+
+    <!-- md:badge-version v0.30.0 -->
 
     Also checks if the values are a subset of the corresponding attribute of the
     network object. If values is None, it is also used as the default.

@@ -18,11 +18,7 @@ logger = logging.getLogger(__name__)
 class NetworkCollection:
     """A collection of networks that can be accessed like a single network.
 
-    <!-- md:version v0.35.0 -->
-
-    User Guide
-    ----------
-    Check out the corresponding user guide: <!-- md:guide collection.md -->
+    <!-- md:badge-version v0.35.0 --> | <!-- md:guide collection.md -->
 
     Examples
     --------
@@ -89,12 +85,12 @@ class NetworkCollection:
     [12 rows x 37 columns]
 
 
-    >>> nc.statistics.energy_balance()
+    >>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
     component  network                     carrier  bus_carrier
     Generator  AC-DC-Meshed                gas      AC              1465.27439
                                            wind     AC             31082.35370
-               AC-DC-Meshed-Shuffled-Load  gas      AC              1473.94003
-                                           wind     AC             31073.68805
+               AC-DC-Meshed-Shuffled-Load  gas      AC              ...
+                                           wind     AC             ...
     Load       AC-DC-Meshed                load     AC            -32547.62808
                AC-DC-Meshed-Shuffled-Load  load     AC            -32547.62808
     dtype: float64
@@ -324,8 +320,7 @@ class NetworkCollection:
 
         See Also
         --------
-        [pypsa.Network][]
-        [pypsa.NetworkCollection][]
+        [pypsa.Network][], [pypsa.NetworkCollection][]
 
         """
         return True
@@ -397,12 +392,16 @@ class NetworkCollection:
         return self.index.names or [self.index.name]
 
     def __repr__(self) -> str:
-        """Return a string representation of the NetworkCollection.
+        """Get representation of NetworkCollection.
 
-        Returns
-        -------
-        str
-            A string representation showing the number of networks and index information.
+        Examples
+        --------
+        >>> nc
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 
         """
         n_networks = len(self.networks)

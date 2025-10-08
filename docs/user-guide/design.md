@@ -2,11 +2,11 @@
 
 ## Network Object
 
-The [`pypsa.Network`][] is an overall container for all network
-[:material-bookshelf: Components](/user-guide/components). Components cannot
-exist without a network and are always attached to one. A network also holds
-functions to run different types of optimisation problems, compute power flows,
-read or write networks to files, retrieve statistics and plot the network.
+The [`pypsa.Network`][] is an overall container for all network <!-- md:guide 
+components.md -->. Components cannot exist without a network and are always 
+attached to one. A network also holds functions to run different types of 
+optimisation problems, compute power flows, read or write networks to files, 
+retrieve statistics and plot the network.
 
 ``` py
 >>> import pypsa
@@ -32,8 +32,7 @@ PyPSA represents power and energy systems using the following component types:
 Each component has a set of attributes with data types, default values, and
 descriptions for each attribute. For instance, attributes for capacity,
 efficiency, costs, and the buses to which components are attached. For the
-documentation of attributes for each component, see [:material-bookshelf:
-Components](/user-guide/components), which can also be accessed as a
+documentation of attributes for each component, see <!-- md:guide components.md -->, which can also be accessed as a
 `pandas.DataFrame`, e.g. as
 [`n.components.buses.defaults`][pypsa.Components.defaults].
 
@@ -50,9 +49,9 @@ imbalances), and
 
 ## Buses
 
-The [`Bus`](/api/components/types/buses) is the fundamental node of the network, to which all other components
+The [`Bus`][pypsa.components.Buses] is the fundamental node of the network, to which all other components
 attach. It enforces conservation of flows for all elements feeding in and out of
-it in any time step. A [`Bus`](/api/components/types/buses) can represent a power substation, but it can also
+it in any time step. A [`Bus`][pypsa.components.Buses] can represent a power substation, but it can also
 be used for other, non-electric energy carriers (e.g. hydrogen, heat, oil) or
 even non-energy carriers (e.g. CO~2~ or steel) in different locations.
 
@@ -66,14 +65,14 @@ even non-energy carriers (e.g. CO~2~ or steel) in different locations.
 
 ## Energy Balances
 
-- Energy **enters** the model via [`Generator`](/api/components/types/generators) components, [`Load`](/api/components/types/loads) components with
-  negative sign, and [`StorageUnit`](/api/components/types/storage_units) or [`Store`](/api/components/types/stores) components with higher energy
+- Energy **enters** the model via [`Generator`][pypsa.components.Generators] components, [`Load`][pypsa.components.Loads] components with
+  negative sign, and [`StorageUnit`][pypsa.components.StorageUnits] or [`Store`][pypsa.components.Stores] components with higher energy
   levels in the first than in the last time step, and any components with
   efficiency values greater than 1 (e.g. heat pumps).
 
-- Energy **leaves** the model via [`Load`](/api/components/types/loads) components, [`Generator`](/api/components/types/generators) components with
-  negative sign, [`StorageUnit`](/api/components/types/storage_units) or [`Store`](/api/components/types/stores) components with higher energy in the
-  last then in the first time step, and in [`Link`](/api/components/types/links), [`Line`](/api/components/types/lines) and [`StorageUnit`](/api/components/types/storage_units)
+- Energy **leaves** the model via [`Load`][pypsa.components.Loads] components, [`Generator`][pypsa.components.Generators] components with
+  negative sign, [`StorageUnit`][pypsa.components.StorageUnits] or [`Store`][pypsa.components.Stores] components with higher energy in the
+  last then in the first time step, and in [`Link`][pypsa.components.Links], [`Line`][pypsa.components.Lines] and [`StorageUnit`][pypsa.components.StorageUnits]
   components with efficiency less than 1.
 
 ## Snapshots
@@ -189,7 +188,7 @@ period
 By default, the network is optimised for a deterministic scenario
 ([`n.has_scenarios`][pypsa.Network.has_scenarios] is `False`). If scenarios are defined, the network is
 optimised for multiple scenarios in form of a two-stage stochastic programming
-framework (see [:material-book: Stochastic Programming](/examples/stochastic-optimization.ipynb)).
+framework (see [:material-book: Stochastic Programming](../examples/stochastic-optimization.ipynb)).
 
 Scenario names are stored in `n.scenarios`, a `pandas.DataFrame`, and are set
 with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
@@ -302,7 +301,7 @@ such as the optimised nominal capacity `p_nom` of a generator in
 `n.generators.p_nom`.
 
 Attributes that can be time-varying are marked as "series" in the listings in
-[:material-bookshelf: Components](/user-guide/components).
+<!-- md:guide components.md -->.
 
 
 ## Separation of Inputs and Outputs
@@ -311,7 +310,7 @@ Input and output data is strictly separated, such that inputs are not
 overwritten by outputs. For instance, set points (`p_set`) are stored separately
 from actual dispatch points (`p`).
 
-The listings in [:material-bookshelf: Components](/user-guide/components) show
+The listings in <!-- md:guide components.md --> show
 for each attribute whether it is an input (which the user specifies) or output
 (which is computed by PyPSA). Inputs can be either "required" or "optional".
 Optional inputs are assigned a sensible default value if the user gives no

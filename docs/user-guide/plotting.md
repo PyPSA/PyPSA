@@ -2,7 +2,7 @@ PyPSA offers a variety of functions for plotting networks. These include the abi
 
 
 ## Static Plots
-Various key metrics that can be calculated on any PyPSA network are described in the [:material-bookshelf: Statistics](statistics.md) section. The plotting module lets you create plots of any of these metrics.
+Various key metrics that can be calculated on any PyPSA network are described in the <!-- md:guide statistics.md --> section. The plotting module lets you create plots of any of these metrics.
 
 !!! info
 
@@ -215,7 +215,7 @@ Parameters which are available in the base statistics method, to filter and aggr
     </figure>
 
 
-Behind the scenes, each plotting method selects a different set of parameters to call the relevant statistics method. Therefore, the default value can be different for each plot type/metric. Most of these parameters can also be passed directly to the plotting method. Please refer to the [Statistics User Guide](statistics.md) for more details.
+Behind the scenes, each plotting method selects a different set of parameters to call the relevant statistics method. Therefore, the default value can be different for each plot type/metric. Most of these parameters can also be passed directly to the plotting method. Please refer to the <!-- md:guide statistics.md --> for more details.
 
 !!! tip
 

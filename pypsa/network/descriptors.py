@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 class NetworkDescriptorsMixin(_NetworkABC):
     """Mixin class for network descriptor methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     @deprecated_in_next_major(
@@ -227,7 +227,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
         Raises
         ------
-        ValueError:
+        ValueError
             If the specified bus carrier is not found in the network or if multiple
             units are found for the specified bus carrier.
 

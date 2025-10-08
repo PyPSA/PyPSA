@@ -154,7 +154,7 @@ details on global constraints for expansion limits.
 
 ### Storage Cyclicity and Initial Energy Levels
 
-The cyclicity constraints for the [`Store`](/api/components/types/stores) and [`StorageUnit`](/api/components/types/storage_units) components and
+The cyclicity constraints for the [`Store`][pypsa.components.Stores] and [`StorageUnit`][pypsa.components.StorageUnits] components and
 initial energy levels require special attention in the context of multiple
 investment periods.
 

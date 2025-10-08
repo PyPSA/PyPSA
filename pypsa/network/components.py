@@ -59,12 +59,8 @@ _DYNAMIC_SETTER_WARNING = (
 class NetworkComponentsMixin(_NetworkABC):
     """Mixin class for network components methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
-
-    User Guide
-    ----------
-    Check out the corresponding user guide: [:material-bookshelf: Import-Export](../user-guide/import-export)
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def __init__(self) -> None:
@@ -148,6 +144,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def sub_networks(self) -> Any:
+        """Access to static data of [pypsa.components.SubNetworks][]."""
         return (
             self.c.sub_networks.static
             if not options.api.new_components_api
@@ -162,6 +159,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def buses(self) -> Any:
+        """Access to static data of [pypsa.components.Buses][]."""
         return (
             self.c.buses.static if not options.api.new_components_api else self.c.buses
         )
@@ -174,6 +172,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def carriers(self) -> Any:
+        """Access to static data of [pypsa.components.Carriers][]."""
         return (
             self.c.carriers.static
             if not options.api.new_components_api
@@ -188,6 +187,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def global_constraints(self) -> Any:
+        """Access to static data of [pypsa.components.GlobalConstraints][]."""
         return (
             self.c.global_constraints.static
             if not options.api.new_components_api
@@ -202,6 +202,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def lines(self) -> Any:
+        """Access to static data of [pypsa.components.Lines][]."""
         return (
             self.c.lines.static if not options.api.new_components_api else self.c.lines
         )
@@ -214,6 +215,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def line_types(self) -> Any:
+        """Access to static data of [pypsa.components.LineTypes][]."""
         return (
             self.c.line_types.static
             if not options.api.new_components_api
@@ -228,6 +230,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def transformers(self) -> Any:
+        """Access to static data of [pypsa.components.Transformers][]."""
         return (
             self.c.transformers.static
             if not options.api.new_components_api
@@ -242,6 +245,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def transformer_types(self) -> Any:
+        """Access to static data of [pypsa.components.TransformerTypes][]."""
         return (
             self.c.transformer_types.static
             if not options.api.new_components_api
@@ -256,6 +260,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def links(self) -> Any:
+        """Access to static data of [pypsa.components.Links][]."""
         return (
             self.c.links.static if not options.api.new_components_api else self.c.links
         )
@@ -268,6 +273,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def loads(self) -> Any:
+        """Access to static data of [pypsa.components.Loads][]."""
         return (
             self.c.loads.static if not options.api.new_components_api else self.c.loads
         )
@@ -280,6 +286,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def generators(self) -> Any:
+        """Access to static data of [pypsa.components.Generators][]."""
         return (
             self.c.generators.static
             if not options.api.new_components_api
@@ -294,6 +301,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def storage_units(self) -> Any:
+        """Access to static data of [pypsa.components.StorageUnits][]."""
         return (
             self.c.storage_units.static
             if not options.api.new_components_api
@@ -308,6 +316,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def stores(self) -> Any:
+        """Access to static data of [pypsa.components.Stores][]."""
         return (
             self.c.stores.static
             if not options.api.new_components_api
@@ -322,6 +331,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def shunt_impedances(self) -> Any:
+        """Access to static data of [pypsa.components.ShuntImpedances][]."""
         return (
             self.c.shunt_impedances.static
             if not options.api.new_components_api
@@ -336,6 +346,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def shapes(self) -> Any:
+        """Access to static data of [pypsa.components.Shapes][]."""
         return (
             self.c.shapes.static
             if not options.api.new_components_api
@@ -350,6 +361,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def sub_networks_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.SubNetworks][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("sub_networks"),
@@ -370,6 +382,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def buses_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Buses][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("buses"),
@@ -390,6 +403,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def carriers_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Carriers][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("carriers"),
@@ -410,6 +424,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def global_constraints_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.GlobalConstraints][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("global_constraints"),
@@ -430,6 +445,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def lines_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Lines][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("lines"),
@@ -450,6 +466,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def line_types_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.LineTypes][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("line_types"),
@@ -470,6 +487,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def transformers_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Transformers][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("transformers"),
@@ -490,6 +508,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def transformer_types_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.TransformerTypes][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("transformer_types"),
@@ -510,6 +529,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def links_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Links][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("links"),
@@ -530,6 +550,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def loads_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Loads][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("loads"),
@@ -550,6 +571,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def generators_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Generators][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("generators"),
@@ -570,6 +592,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def storage_units_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.StorageUnits][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("storage_units"),
@@ -590,6 +613,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def stores_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Stores][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("stores"),
@@ -610,6 +634,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def shunt_impedances_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.ShuntImpedances][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("shunt_impedances"),
@@ -630,6 +655,7 @@ class NetworkComponentsMixin(_NetworkABC):
 
     @property
     def shapes_t(self) -> Dict:
+        """Access to dynamic data of [pypsa.components.Shapes][]."""
         if options.api.new_components_api:
             warnings.warn(
                 _DYNAMIC_GETTER_WARNING.format("shapes"),
@@ -779,16 +805,12 @@ class NetworkComponentsMixin(_NetworkABC):
     def component_attrs(self) -> pd.DataFrame:
         """Component attributes.
 
-        Deprecation
-        -----------
-        Deprecated in [:material-tag-outline: v1.0](/release-notes/#v1.0.0) and will be
-        removed in v2.0:
-
-        Use the [Components Class][pypsa.Components] to access components attributes.
-        As a drop in replacement you can use either
-        [`n.components[<component>].defaults`][pypsa.Components.defaults] or
-        `n.components.<component>.defaults`. You can also use the alias [
-        `n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use the [Components Class][pypsa.Components] to access components attributes.
+            As a drop in replacement you can use either
+            [`n.components[<component>].defaults`][pypsa.Components.defaults] or
+            `n.components.<component>.defaults`. You can also use the alias
+            [`n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
 
         Parameters
         ----------
@@ -808,16 +830,12 @@ class NetworkComponentsMixin(_NetworkABC):
     def df(self, component_name: str) -> pd.DataFrame:
         """Alias for [`n.static`][pypsa.Network.static].
 
-        Deprecation
-        -----------
-        Deprecated in [:material-tag-outline: v1.0](/release-notes/#v1.0.0) and will be
-        removed in v2.0:
-
-        Use the [Components Class][pypsa.Components] to access components attributes.
-        As a drop in replacement you can use either
-        [`n.components[<component>].static`][pypsa.Components.static] or
-        `n.components.<component>.static`. You can also use the alias [
-        `n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use the [Components Class][pypsa.Components] to access components attributes.
+            As a drop in replacement you can use either
+            [`n.components[<component>].static`][pypsa.Components.static] or
+            `n.components.<component>.static`. You can also use the alias
+            [`n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
 
         Parameters
         ----------
@@ -838,16 +856,12 @@ class NetworkComponentsMixin(_NetworkABC):
     def static(self, component_name: str) -> pd.DataFrame:
         """Return the DataFrame of static components for component_name.
 
-        Deprecation
-        -----------
-        Deprecated in [:material-tag-outline: v1.0](/release-notes/#v1.0.0) and will be
-        removed in v2.0:
-
-        Use the [Components Class][pypsa.Components] to access components attributes.
-        As a drop in replacement you can use either
-        [`n.components[<component>].static`][pypsa.Components.static] or
-        `n.components.<component>.static`. You can also use the alias [
-        `n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use the [Components Class][pypsa.Components] to access components attributes.
+            As a drop in replacement you can use either
+            [`n.components[<component>].static`][pypsa.Components.static] or
+            `n.components.<component>.static`. You can also use the alias
+            [`n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
 
         Parameters
         ----------
@@ -868,16 +882,12 @@ class NetworkComponentsMixin(_NetworkABC):
     def pnl(self, component_name: str) -> Dict:
         """Alias for [`n.dynamic`][pypsa.Network.dynamic].
 
-        Deprecation
-        -----------
-        Deprecated in [:material-tag-outline: v1.0](/release-notes/#v1.0.0) and will be
-        removed in v2.0:
-
-        Use the [Components Class][pypsa.Components] to access components attributes.
-        As a drop in replacement you can use either
-        [`n.components[<component>].dynamic`][pypsa.Components.dynamic] or
-        `n.components.<component>.dynamic`. You can also use the alias [
-        `n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use the [Components Class][pypsa.Components] to access components attributes.
+            As a drop in replacement you can use either
+            [`n.components[<component>].dynamic`][pypsa.Components.dynamic] or
+            `n.components.<component>.dynamic`. You can also use the alias
+            [`n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
 
         Parameters
         ----------
@@ -898,16 +908,12 @@ class NetworkComponentsMixin(_NetworkABC):
     def dynamic(self, component_name: str) -> Dict:
         """Return the dictionary of DataFrames of varying components.
 
-        Deprecation
-        -----------
-        Deprecated in [:material-tag-outline: v1.0](/release-notes/#v1.0.0) and will be
-        removed in v2.0:
-
-        Use the [Components Class][pypsa.Components] to access components attributes.
-        As a drop in replacement you can use either
-        [`n.components[<component>].dynamic`][pypsa.Components.dynamic] or
-        `n.components.<component>.dynamic`. You can also use the alias [
-        `n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use the [Components Class][pypsa.Components] to access components attributes.
+            As a drop in replacement you can use either
+            [`n.components[<component>].dynamic`][pypsa.Components.dynamic] or
+            `n.components.<component>.dynamic`. You can also use the alias
+            [`n.c`][pypsa.Network.c] for [`n.components`][pypsa.Network.components].
 
         Parameters
         ----------

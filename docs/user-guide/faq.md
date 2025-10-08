@@ -35,10 +35,10 @@ Constraints](../user-guide/optimization/custom-constraints.md)).
 
 ## Can you model market clearing in PyPSA?
 
-Yes, if you take care with demand side. The [`Load`](/api/components/types/loads) component represents
-perfectly inelastic demand. Use [`Generator`](/api/components/types/generators) component with negative sign
-attribute to represent elastic demand, and pair [`Load`](/api/components/types/loads) components with [`Store`](/api/components/types/stores)
-and [`StorageUnit`](/api/components/types/storage_units) components for modelling shiftable loads.
+Yes, if you take care with demand side. The [`Load`][pypsa.components.Loads] component represents
+perfectly inelastic demand. Use [`Generator`][pypsa.components.Generators] component with negative sign
+attribute to represent elastic demand, and pair [`Load`][pypsa.components.Loads] components with [`Store`][pypsa.components.Stores]
+and [`StorageUnit`][pypsa.components.StorageUnits] components for modelling shiftable loads.
 
 ## Does PyPSA do ancillary service co-optimization (e.g. frequency control)?
 

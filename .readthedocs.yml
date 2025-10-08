@@ -6,19 +6,16 @@ build:
     python: "3.13"
   jobs:
     pre_system_dependencies:
-    - git fetch --unshallow # Needed to get version tags
-    pre_install:
-    - pip install mkdocs-material
+    - git fetch --unshallow   # Needed to get version tags
+    pre_create_environment:
+    - asdf plugin add uv
+    - asdf install uv latest
+    - asdf global uv latest
+    create_environment:
+    - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
+    install:
+    - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --frozen --group docs
 
 mkdocs:
   configuration: mkdocs.yml
-  # fail_on_warning: true # TODO: Enable
-
-python:
-  install:
-  - method: pip
-    path: .
-    extra_requirements:
-    - docs
-    - dev
-    - cartopy
+  fail_on_warning: true

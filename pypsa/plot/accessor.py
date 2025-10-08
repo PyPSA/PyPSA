@@ -24,7 +24,7 @@ class PlotAccessor:
 
     @functools.wraps(plot)
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        """Legacy plot method."""
+        """Alias for [pypsa.Network.plot.map][pypsa.plot.PlotAccessor.map]."""
         return plot(self._n, *args, **kwargs)
 
     @functools.wraps(plot)

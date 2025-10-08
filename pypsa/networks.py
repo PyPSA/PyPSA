@@ -82,7 +82,10 @@ class Network(
     NetworkPowerFlowMixin,
     NetworkIOMixin,
 ):
-    """Network container for all buses, one-ports and branches."""
+    """Network container for all [pypsa.Components][] and helds most of PyPSA's functionality.
+
+    <!-- md:badge-version v0.1.0 --> | <!-- md:guide networks.md -->
+    """
 
     # Optimization
     _multi_invest: int
@@ -102,19 +105,15 @@ class Network(
     ) -> None:
         """Initialize a new PyPSA Network.
 
-        User Guide
-        ----------
-        Check out the corresponding user guide: [:material-bookshelf: Network](../user-guide/networks.md)
-
         Parameters
         ----------
-        import_name : string, Path
+        import_name : string or Path
             Path to netCDF file, HDF5 .h5 store or folder of CSV files from which to
             import network data. The string could be a URL. If cloudpathlib is installed,
             the string could be a object storage URI with an `s3`, `gs` or `az` URI scheme.
-        name : string, default: "Unnamed Network"
+        name : string
             Network name.
-        ignore_standard_types : boolean, default False
+        ignore_standard_types : boolean
             If True, do not read in PyPSA standard types into standard types
             DataFrames.
         kwargs : Any
@@ -163,32 +162,20 @@ class Network(
 
         # Initialize accessors
         self.optimize: OptimizationAccessor = OptimizationAccessor(self)
-        """Accessor to the network optimization functionality.
-
-        See Also
-        --------
-        [pypsa.optimization.OptimizationAccessor][]
+        """
+        Network [optimization functionality][pypsa.optimization.OptimizationAccessor] accessor.
         """
         self.cluster: ClusteringAccessor = ClusteringAccessor(self)
-        """Accessor to the network clustering functionality.
-
-        See Also
-        --------
-        [pypsa.clustering.ClusteringAccessor][]
+        """
+        Network [clustering functionality][pypsa.clustering.ClusteringAccessor] accessor.
         """
         self.statistics: StatisticsAccessor = StatisticsAccessor(self)
-        """Accessor to the network statistics functionality.
-
-        See Also
-        --------
-        [pypsa.statistics.StatisticsAccessor][]
+        """
+        Network [statistics functionality][pypsa.statistics.StatisticsAccessor] accessor.
         """
         self.plot: PlotAccessor = PlotAccessor(self)
-        """Accessor to the network plotting functionality.
-
-        See Also
-        --------
-        [pypsa.plot.PlotAccessor][]
+        """
+        Network [plotting functionality][pypsa.plot.PlotAccessor] accessor.
         """
 
         NetworkComponentsMixin.__init__(self)
@@ -217,12 +204,35 @@ class Network(
             setattr(self, key, value)
 
     def __str__(self) -> str:
-        """Human Readable string representation of the network."""
+        """Get a string representation of the network.
+
+        <!-- md:badge-version v0.33.0 -->
+
+        Examples
+        --------
+        >>> str(n)
+        'PyPSA Network 'AC-DC-Meshed''
+        >>> str(n_stochastic)
+        'Stochastic PyPSA Network 'Stochastic-Network''
+
+        """
         prefix = "Stochastic PyPSA Network" if self.has_scenarios else "PyPSA Network"
         return f"{prefix} '{self.name}'"
 
     def __repr__(self) -> str:
-        """Return a string representation for the REPL."""
+        """Get representation of the network.
+
+        <!-- md:badge-version v0.3.0 -->
+
+        Examples
+        --------
+        >>> n
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+
+        """
         # TODO make this actually for the REPL
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
@@ -249,6 +259,8 @@ class Network(
     def __add__(self, other: Network) -> None:
         """Merge all components of two networks.
 
+        <!-- md:badge-version v0.28.0 -->
+
         Parameters
         ----------
         other : Network
@@ -256,7 +268,7 @@ class Network(
 
         See Also
         --------
-        [pypsa.Network.merge][] : Merge second network into network.
+        [pypsa.Network.merge][]
 
         Examples
         --------
@@ -286,7 +298,7 @@ class Network(
 
         See Also
         --------
-        [pypsa.Network.equals][] : Check for equality of two networks.
+        [pypsa.Network.equals][]
 
         """
         return self.equals(other)
@@ -300,7 +312,6 @@ class Network(
            See [pypsa.Network.get_scenario][].
         2. If the network is a collection and the key is a name of one of the networks
            in the collection, that network is returned.
-           See [pypsa.Network.get_collection][].
         3. If the key is a bus name or a boolean indexer for buses, a sliced copy of
            the network is returned, containing only the selected buses and all
            connected components. See [pypsa.Network.slice_network][].
@@ -530,6 +541,8 @@ class Network(
     def name(self) -> str:
         """Name of the network.
 
+        <!-- md:badge-version v0.1.0 -->
+
         The name is set when the network is created. It can also be changed by setting
         the `name` attribute. It is only descriptive and not used for any
         functionality.
@@ -559,6 +572,8 @@ class Network(
     def pypsa_version(self) -> str:
         """PyPSA version of the network.
 
+        <!-- md:badge-version v0.10.0 -->
+
         The PyPSA version is set when the network is created and cannot be changed
         manually. When a network of an older version is imported, the version is
         automatically updated to the current version.
@@ -575,6 +590,8 @@ class Network(
     @property
     def meta(self) -> dict:
         """Dictionary of the network meta data.
+
+        <!-- md:badge-version v0.20.0 -->
 
         Any additional meta data can be added to the network by setting the `meta`
         attribute. Meta data will be saved on export.
@@ -601,6 +618,8 @@ class Network(
     @property
     def model(self) -> linopy.Model:
         """Access to linopy model object.
+
+        <!-- md:badge-version v0.21.0 -->
 
         After optimizing a network, the linopy model object is stored in the network
         and can be accessed via this property. It cannot be set manually.
@@ -656,6 +675,8 @@ class Network(
     def objective(self) -> float | None:
         """Objective value of the solved network.
 
+        <!-- md:badge-version v0.21.0 -->
+
         The property yields the objective value of the solved network. It is set after
         optimizing the network points to the linopy solution (e.g. is an alias for
         `n.model.objective.value`). When loading a network from file and the model
@@ -684,6 +705,8 @@ class Network(
     @property
     def objective_constant(self) -> float | None:
         """Objective constant of the network.
+
+        <!-- md:badge-version v0.21.0 -->
 
         The property yields the fixed part of the objective function. It is set after
         optimizing the network.
@@ -714,6 +737,8 @@ class Network(
     def is_solved(self) -> bool:
         """Check if the network has been solved.
 
+        <!-- md:badge-version v0.35.0 -->
+
         A solved network has an [objective][pypsa.Network.objective][] value assigned. A
         [model][pypsa.Network.model][] does not necessarily need to be stored in the
         network.
@@ -734,6 +759,8 @@ class Network(
     @property
     def crs(self) -> Any:
         """Coordinate reference system of the network's geometries.
+
+        <!-- md:badge-version v0.26.0 -->
 
         Examples
         --------
@@ -759,9 +786,7 @@ class Network(
 
         See Also
         --------
-        [pypsa.Network.srid][] : Spatial reference system identifier of the network's
-            geometries.
-        [pypsa.Network.shapes][] : Geometries of the network
+        [pypsa.Network.srid][], [pypsa.Network.shapes][]
 
         """
         self.c.shapes.static.set_crs(new)
@@ -770,12 +795,11 @@ class Network(
     def to_crs(self, new: int | str | pyproj.CRS) -> None:
         """Convert the network's geometries and bus coordinates to a new crs.
 
+        <!-- md:badge-version v0.26.0 -->
+
         See Also
         --------
-        [pypsa.Network.crs][] : Coordinate reference system of the network's geometries
-        [pypsa.Network.srid][] : Spatial reference system identifier of the network's
-            geometries.
-        [pypsa.Network.shapes][] : Geometries of the network
+        [pypsa.Network.crs][], [pypsa.Network.srid][], [pypsa.Network.shapes][]
 
         """
         current = self.crs
@@ -790,6 +814,8 @@ class Network(
     def srid(self) -> int:
         """Spatial reference system identifier of the network's geometries.
 
+        <!-- md:badge-version v0.26.0 -->
+
         Examples
         --------
         >>> n.srid
@@ -797,8 +823,7 @@ class Network(
 
         See Also
         --------
-        [pypsa.Network.crs][] : Coordinate reference system of the network's geometries
-        [pypsa.Network.shapes][] : Geometries of the network
+        [pypsa.Network.crs][], [pypsa.Network.shapes][]
 
         """
         return self.crs.to_epsg()
@@ -809,8 +834,7 @@ class Network(
 
         See Also
         --------
-        [pypsa.Network.crs][] : Coordinate reference system of the network's geometries
-        [pypsa.Network.shapes][] : Geometries of the network
+        [pypsa.Network.crs][], [pypsa.Network.shapes][]
 
         """
         self.crs = pyproj.CRS.from_epsg(new)
@@ -827,6 +851,8 @@ class Network(
         ignore_standard_types: bool = False,
     ) -> Network:
         """Return a deep copy of Network object.
+
+        <!-- md:badge-version v0.4.0 -->
 
         If only default arguments are passed, the copy will be created via
         :func:`copy.deepcopy` and will contain all components and time-varying data.
@@ -979,6 +1005,8 @@ class Network(
     def branches(self) -> pd.DataFrame:
         """Get branches.
 
+        <!-- md:badge-version v0.3.0 -->
+
         Branches are Lines, Links and Transformers.
 
         !!! note
@@ -1007,7 +1035,7 @@ class Network(
 
         See Also
         --------
-        [pypsa.Network.passive_branches][]
+        [pypsa.Network.passive_branches][],
         [pypsa.Network.controllable_branches][]
 
         """
@@ -1026,6 +1054,8 @@ class Network(
 
     def passive_branches(self) -> pd.DataFrame:
         """Get passive branches.
+
+        <!-- md:badge-version v0.3.0 -->
 
         Passive branches are Lines and Transformers.
 
@@ -1067,6 +1097,8 @@ class Network(
     def controllable_branches(self) -> pd.DataFrame:
         """Get controllable branches.
 
+        <!-- md:badge-version v0.3.0 -->
+
         Controllable branches are Links.
 
         !!! note
@@ -1090,7 +1122,7 @@ class Network(
 
         See Also
         --------
-        [pypsa.Network.branches][]
+        [pypsa.Network.branches][],
         [pypsa.Network.passive_branches][]
 
         """
@@ -1115,6 +1147,8 @@ class Network(
         skip_isolated_buses: bool = False,
     ) -> Network:
         """Build sub_networks from topology.
+
+        <!-- md:badge-version v0.3.0 -->
 
         For the default case investment_period=None, it is not taken
         into account whether the branch components are active (based on
@@ -1213,6 +1247,8 @@ class Network(
     ) -> pd.DataFrame:
         """Get the cycles in the network and represent them as a DataFrame.
 
+        <!-- md:badge-version v1.0.0 -->
+
         This function identifies a cycle basis of the network topology and
         returns a DataFrame representation of the cycle matrix. The cycles
         matrix is a sparse matrix with branches as rows and independent
@@ -1293,7 +1329,7 @@ class Network(
     def component(self, c_name: str) -> Component:
         """Get a component from the network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `n.components.<component>` or `n.components[component_name]` instead.
 
         """
@@ -1305,7 +1341,7 @@ class Network(
     ) -> Iterator[Component]:
         """Iterate over components.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `for component in n.components` instead.
 
         Examples
@@ -1329,8 +1365,11 @@ class Network(
 class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     """SubNetwork for electric buses (AC or DC).
 
-    SubNetworks are generated by `n.determine_network_topology()` for electric buses
-    with passive flows or isolated non-electric buses.
+    <!-- md:badge-version v0.3.0 -->
+
+    SubNetworks are generated by [pypsa.Network.determine_network_topology][] for
+    electric buses with passive flows or isolated non-electric buses and stored in
+    the [`n.components.sub_networks`][pypsa.components.SubNetworks] component.`
     """
 
     # Type hints
@@ -1567,7 +1606,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def component(self, c_name: str) -> SubNetworkComponents:
         """Get a component from the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>` instead.
 
         See Also
@@ -1583,7 +1622,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def df(self, c_name: str) -> pd.DataFrame:
         """Get a static component from the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>.static` instead.
 
         See Also
@@ -1599,7 +1638,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def static(self, c_name: str) -> pd.DataFrame:
         """Get a static component from the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>.static` instead.
 
         See Also
@@ -1615,7 +1654,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def pnl(self, c_name: str) -> Dict:
         """Get a dynamic component from the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>.dynamic` instead.
 
         See Also
@@ -1631,7 +1670,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def dynamic(self, c_name: str) -> Dict:
         """Get a dynamic component from the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>.dynamic` instead.
 
         See Also
@@ -1647,7 +1686,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def buses_i(self) -> pd.Index:
         """Get the index of the buses in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.buses.static.index` instead.
 
         See Also
@@ -1663,7 +1702,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def lines_i(self) -> pd.Index:
         """Get the index of the lines in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.lines.static.index` instead.
 
         See Also
@@ -1679,7 +1718,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def transformers_i(self) -> pd.Index:
         """Get the index of the transformers in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.transformers.static.index` instead.
 
         See Also
@@ -1695,7 +1734,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def generators_i(self) -> pd.Index:
         """Get the index of the generators in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.generators.static.index` instead.
 
         See Also
@@ -1711,7 +1750,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def loads_i(self) -> pd.Index:
         """Get the index of the loads in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.loads.static.index` instead.
 
         See Also
@@ -1727,7 +1766,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def shunt_impedances_i(self) -> pd.Index:
         """Get the index of the shunt impedances in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.shunt_impedances.static.index` instead.
 
         See Also
@@ -1743,7 +1782,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def storage_units_i(self) -> pd.Index:
         """Get the index of the storage units in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.storage_units.static.index` instead.
 
         See Also
@@ -1759,7 +1798,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def stores_i(self) -> pd.Index:
         """Get the index of the stores in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.stores.static.index` instead.
 
         See Also
@@ -1775,7 +1814,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def buses(self) -> pd.DataFrame:
         """Get the buses in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.buses.static` instead.
 
         See Also
@@ -1791,7 +1830,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def generators(self) -> pd.DataFrame:
         """Get the generators in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.generators.static` instead.
 
         See Also
@@ -1807,7 +1846,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def loads(self) -> pd.DataFrame:
         """Get the loads in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.loads.static` instead.
 
         See Also
@@ -1823,7 +1862,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def shunt_impedances(self) -> pd.DataFrame:
         """Get the shunt impedances in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.shunt_impedances.static` instead.
 
         See Also
@@ -1839,7 +1878,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def storage_units(self) -> pd.DataFrame:
         """Get the storage units in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.storage_units.static` instead.
 
         See Also
@@ -1855,7 +1894,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def stores(self) -> pd.DataFrame:
         """Get the stores in the sub-network.
 
-        !!! warning "Deprecated in v1.0"
+        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.stores.static` instead.
         """
         return self.c.stores.static
