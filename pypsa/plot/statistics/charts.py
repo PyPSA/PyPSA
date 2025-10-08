@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -28,6 +29,41 @@ CHART_TYPES = [
     "violin",
     "histogram",
 ]
+
+
+def adjust_collection_bar_defaults(
+    network: Any,
+    chart_type: str,
+    color: str | None,
+    stacked: bool,
+    order: Sequence[Any] | None,
+) -> tuple[str | None, bool, Sequence[Any] | None]:
+    """Return adjusted defaults for bar charts on NetworkCollections.
+
+    For single-level indexed collections we prefer grouped bars by scenario instead
+    of auto-faceting. Multi-level indices keep the existing faceting behaviour.
+    """
+    if chart_type != "bar":
+        return color, stacked, order
+
+    index_names = getattr(network, "_index_names", [])
+    if len(index_names) != 1:
+        return color, stacked, order
+
+    index_name = index_names[0]
+    if not index_name:
+        return color, stacked, order
+
+    if color is None:
+        color = index_name
+    if stacked and color == index_name:
+        stacked = False
+    if order is None:
+        index_values = getattr(network, "index", None)
+        if index_values is not None:
+            order = list(index_values)
+
+    return color, stacked, order
 
 
 def facet_iter(
@@ -261,17 +297,9 @@ class ChartGenerator(PlotsGenerator, ABC):
     ) -> tuple[Figure, Axes | np.ndarray, sns.FacetGrid]:
         """Plot method to be implemented by subclasses."""
         self._n.consistency_check_plots(strict="all")
-        index_names = getattr(self._n, "_index_names", [])
-        index_color = index_names[0] if index_names else None
-
-        # For NetworkCollections default to grouping bars by network instead of faceting
-        if kind == "bar" and index_color:
-            if color is None:
-                color = index_color
-            if stacked and color == index_color:
-                stacked = False
-            if hue_order is None and hasattr(self._n, "index"):
-                hue_order = list(self._n.index)
+        color, stacked, hue_order = adjust_collection_bar_defaults(
+            self._n, kind, color, stacked, hue_order
+        )
 
         ldata = self._to_long_format(data)
         if query:

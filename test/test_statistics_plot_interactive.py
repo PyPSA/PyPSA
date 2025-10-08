@@ -246,6 +246,20 @@ class TestAutoFaceting:
         # Check that we have data
         assert len(fig.data) >= 1
 
+        # Automated defaults should keep carrier colouring
+        trace_names = {trace.name for trace in fig.data if getattr(trace, "name", None)}
+        carriers_table = collection_multiindex.c.carriers.static
+        if isinstance(carriers_table.index, pd.MultiIndex):
+            expected_names = set(
+                carriers_table.index.get_level_values("name").astype(str)
+            )
+        else:
+            expected_names = set(carriers_table.index.astype(str))
+        if "nice_name" in carriers_table:
+            expected_names.update(carriers_table["nice_name"].dropna().astype(str))
+        assert trace_names
+        assert trace_names <= expected_names
+
         # For multiindex, we should have a more complex layout structure
         # indicating both row and column faceting
         layout = fig.layout

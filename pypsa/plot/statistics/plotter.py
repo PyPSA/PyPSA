@@ -6,7 +6,11 @@ import warnings
 from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
 
-from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
+from pypsa.plot.statistics.charts import (
+    CHART_TYPES,
+    ChartGenerator,
+    adjust_collection_bar_defaults,
+)
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import (
     apply_parameter_schema,
@@ -211,18 +215,9 @@ class StatisticPlotter:
         >>> fig, ax, g = n.statistics.installed_capacity.plot.bar(x="carrier", y="value", color=None) # doctest: +ELLIPSIS
 
         """
-        index_names = getattr(self._n, "_index_names", [])
-        index_color = index_names[0] if index_names else None
-
-        if chart_type == "bar" and index_color:
-            if color is None:
-                color = index_color
-            if stacked and color == index_color:
-                stacked = False
-            if hue_order is None and hasattr(self._n, "index"):
-                index_values = getattr(self._n, "index", None)
-                if index_values is not None:
-                    hue_order = list(index_values)
+        color, stacked, hue_order = adjust_collection_bar_defaults(
+            self._n, chart_type, color, stacked, hue_order
+        )
 
         plot_kwargs = {
             "x": x,
@@ -618,18 +613,9 @@ class StatisticInteractivePlotter:
         >>> fig = n.statistics.installed_capacity.iplot.bar(x="carrier", y="value", color="carrier") # doctest: +ELLIPSIS
 
         """
-        index_names = getattr(self._n, "_index_names", [])
-        index_color = index_names[0] if index_names else None
-
-        if chart_type == "bar" and index_color:
-            if color is None:
-                color = index_color
-            if stacked and color == index_color:
-                stacked = False
-            if color_order is None and hasattr(self._n, "index"):
-                index_values = getattr(self._n, "index", None)
-                if index_values is not None:
-                    color_order = list(index_values)
+        color, stacked, color_order = adjust_collection_bar_defaults(
+            self._n, chart_type, color, stacked, color_order
+        )
 
         plot_kwargs = {
             "x": x,
