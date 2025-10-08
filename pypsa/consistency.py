@@ -65,9 +65,12 @@ def check_for_unknown_buses(
 
     """
     for attr in _bus_columns(component.static):
-        missing = ~component.static[attr].astype(str).isin(n.c.buses.component_names)
+        missing = ~component.static[attr].astype(str).isin(n.c.buses.names)
         # if bus2, bus3... contain empty strings do not warn
         if component.name in n.branch_components and int(attr[-1]) > 1:
+            missing &= component.static[attr] != ""
+        # if bus contains empty strings for global constraints do not warn
+        if component.name == "GlobalConstraint":
             missing &= component.static[attr] != ""
         if missing.any():
             _log_or_raise(
@@ -98,11 +101,11 @@ def check_for_disconnected_buses(n: NetworkType, strict: bool = False) -> None:
 
     """
     connected_buses = set()
-    for component in n.iterate_components():
+    for component in n.components:
         for attr in _bus_columns(component.static):
             connected_buses.update(component.static[attr])
 
-    disconnected_buses = set(n.c.buses.component_names) - connected_buses
+    disconnected_buses = set(n.c.buses.names) - connected_buses
     if disconnected_buses:
         _log_or_raise(
             strict,
@@ -137,7 +140,7 @@ def check_for_unknown_carriers(
     """
     if "carrier" in component.static.columns:
         missing = (
-            ~component.static["carrier"].isin(n.c.carriers.component_names)
+            ~component.static["carrier"].isin(n.c.carriers.names)
             & component.static["carrier"].notna()
             & (component.static["carrier"] != "")
         )
@@ -583,7 +586,9 @@ def check_investment_periods(n: NetworkType, strict: bool = False) -> None:
 
 
     """
-    constraint_periods = set(n.global_constraints.investment_period.dropna().unique())
+    constraint_periods = set(
+        n.c.global_constraints.static.investment_period.dropna().unique()
+    )
     if isinstance(n.snapshots, pd.MultiIndex):
         if not constraint_periods.issubset(n.snapshots.unique("period")):
             msg = (
@@ -623,10 +628,10 @@ def check_shapes(n: NetworkType, strict: bool = False) -> None:
 
 
     """
-    shape_components = n.shapes.component.unique()
+    shape_components = n.c.shapes.static.component.unique()
     for c in set(shape_components) & set(n.all_components):
-        geos = n.shapes.query("component == @c")
-        not_included = geos.index[~geos.idx.isin(n.static(c).index)]
+        geos = n.c.shapes.static.query("component == @c")
+        not_included = geos.index[~geos.idx.isin(n.c[c].static.index)]
 
         if not not_included.empty:
             _log_or_raise(
@@ -665,10 +670,8 @@ def check_nans_for_component_default_attrs(
 
     """
     # Get non-NA and not-empty default attributes for the current component
-    default = n.component_attrs[component.name]["default"]
-    not_null_component_attrs = n.component_attrs[component.name][
-        default.notna() & default.ne("")
-    ].index
+    default = component.attrs["default"]
+    not_null_component_attrs = component.attrs[default.notna() & default.ne("")].index
 
     # Remove attributes that are not in the component's static data
     relevant_static_df = component.static[
@@ -717,7 +720,9 @@ def check_for_missing_carrier_colors(n: Network, strict: bool = False) -> None:
         If True, raise an error instead of logging a warning.
 
     """
-    missing_colors = n.carriers[n.carriers.color.isna() | n.carriers.color.eq("")]
+    missing_colors = n.c.carriers.static[
+        n.c.carriers.static.color.isna() | n.c.carriers.static.color.eq("")
+    ]
     if not missing_colors.empty:
         _log_or_raise(
             strict,
@@ -827,7 +832,7 @@ class NetworkConsistencyMixin(_NetworkABC):
         # TODO: Warn if any ramp limits are 0.
 
         # Per component checks
-        for c in self.iterate_components():
+        for c in self.components:
             # Checks all components
             check_for_unknown_buses(self, c, "unknown_buses" in strict)
             check_for_unknown_carriers(self, c, "unkown_carriers" in strict)
@@ -901,7 +906,7 @@ class NetworkConsistencyMixin(_NetworkABC):
             )
             raise ValueError(msg)
 
-        for c in self.iterate_components():
+        for c in self.components:
             check_for_unknown_carriers(self, c, strict="unknown_carriers" in strict)
         check_for_missing_carrier_colors(
             self,  # type: ignore
@@ -986,7 +991,7 @@ def check_scenario_invariant_attributes(n: NetworkType, strict: bool = False) ->
         "active",  # theoretically can be different, but problematic with "Line"
     }
 
-    for component in n.iterate_components():
+    for component in n.components:
         if component.static.index.nlevels < 2:
             continue  # No scenario dimension
 
@@ -1048,14 +1053,16 @@ def check_line_types_consistency(n: NetworkType, strict: bool = False) -> None:
         return
 
     # Check line_types consistency across scenarios
-    if not n.line_types.empty and len(n.scenarios) > 1:
+    if not n.c.line_types.static.empty and len(n.scenarios) > 1:
         # Get reference line_types from first scenario
         reference_scenario = n.scenarios[0]
-        reference_line_types = n.line_types.xs(reference_scenario, level="scenario")
+        reference_line_types = n.c.line_types.static.xs(
+            reference_scenario, level="scenario"
+        )
 
         # Check each other scenario
         for scenario in n.scenarios[1:]:
-            scenario_line_types = n.line_types.xs(scenario, level="scenario")
+            scenario_line_types = n.c.line_types.static.xs(scenario, level="scenario")
 
             # Check if DataFrames are equal
             if not reference_line_types.equals(scenario_line_types):
@@ -1095,19 +1102,19 @@ def check_stochastic_slack_bus_consistency(
         return
 
     # Check that each sub-network has the same slack bus across all scenarios
-    if n.has_scenarios and "control" in n.buses.columns:
+    if n.has_scenarios and "control" in n.c.buses.static.columns:
         # Extract slack buses for each scenario
         slack_buses_by_scenario = {}
 
         for scenario in n.scenarios:
-            if n.buses.index.nlevels > 1:
+            if n.c.buses.static.index.nlevels > 1:
                 # MultiIndex case (stochastic network)
-                scenario_buses = n.buses.xs(scenario, level="scenario")
+                scenario_buses = n.c.buses.static.xs(scenario, level="scenario")
                 slack_buses = scenario_buses[scenario_buses.control == "Slack"]
                 slack_buses_by_scenario[scenario] = set(slack_buses.index)
             else:
                 # Single scenario case, shouldn't reach here for stochastic networks
-                slack_buses = n.buses[n.buses.control == "Slack"]
+                slack_buses = n.c.buses.static[n.c.buses.static.control == "Slack"]
                 slack_buses_by_scenario[scenario] = set(slack_buses.index)
 
         # Compare slack buses across scenarios

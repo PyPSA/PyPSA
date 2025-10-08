@@ -71,7 +71,7 @@ class ComponentsStore(dict):
         - 0 'Store' Components
         - 0 'StorageUnit' Components
         - 7 'Line' Components
-        - 36 'LineType' Components
+        - 59 'LineType' Components
         - 0 'Transformer' Components
         - 14 'TransformerType' Components
         - 0 'ShuntImpedance' Components
@@ -109,7 +109,7 @@ class ComponentsStore(dict):
         - 0 'Store' Components
         - 0 'StorageUnit' Components
         - 7 'Line' Components
-        - 36 'LineType' Components
+        - 59 'LineType' Components
         - 0 'Transformer' Components
         - 14 'TransformerType' Components
         - 0 'ShuntImpedance' Components
@@ -166,8 +166,15 @@ class ComponentsStore(dict):
         return dict_keys + obj_attrs
 
     def __iter__(self) -> Any:
-        """Value iterator over components in store."""
-        return iter(self.values())
+        """Value iterator over components in store.
+
+        Filters out empty components to maintain backward compatibility with
+        n.iterate_components() behavior. For accessing all components including
+        empty ones, use n.components.values() directly instead of iterating over the
+        store.
+        """
+        # Filter to only return non-empty components (same behavior as iterate_components)
+        return iter(c for c in self.values() if not c.empty)
 
     def __contains__(self, item: Any) -> bool:
         """Check if component is in store."""

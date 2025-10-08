@@ -7,6 +7,7 @@ from typing import Any
 
 import pandas as pd
 
+from pypsa._options import options
 from pypsa.definitions.structures import Dict
 from pypsa.networks import Network
 from pypsa.statistics.expressions import StatisticsAccessor
@@ -236,6 +237,48 @@ class NetworkCollection:
         return iter(self.networks)
 
     @property
+    def is_collection(self) -> bool:
+        """Check if this is a collection of networks or a single network.
+
+        Returns
+        -------
+        bool
+            True, since this is a NetworkCollection.
+
+        See Also
+        --------
+        [pypsa.Network][]
+        [pypsa.Collection][]
+
+        """
+        return True
+
+    def get_network(self, collection: Any) -> Network:
+        """Return a single network from the collection.
+
+        Parameters
+        ----------
+        collection : Any
+            Name or identifier of the network to retrieve.
+
+        Returns
+        -------
+        Network
+            The requested network from the collection.
+
+        Raises
+        ------
+        KeyError
+            If the collection name is not found.
+
+        """
+        try:
+            return self.networks.loc[collection]
+        except KeyError as err:
+            msg = f"Collection '{collection}' not found in network collection."
+            raise KeyError(msg) from err
+
+    @property
     def index(self) -> pd.Index:
         """Get the index of the NetworkCollection.
 
@@ -314,25 +357,21 @@ _all_components = (
     r"stores|shunt_impedances|shapes"
 )
 
-_all_component_names = (
-    r"SubNetwork|Bus|Carrier|GlobalConstraint|Line|LineType|"
-    "Transformer|TransformerType|Link|Load|Generator|StorageUnit|"
-    "Store|ShuntImpedance|Shape"
-)
 
-_component_classes = rf"components((\['({_all_components}|{_all_component_names})'])|(\.({_all_components})))"
+def _get_method_patterns() -> dict[str, str]:
+    new_api = options.api.new_components_api
+    _all_component_names = (
+        r"SubNetwork|Bus|Carrier|GlobalConstraint|Line|LineType|"
+        "Transformer|TransformerType|Link|Load|Generator|StorageUnit|"
+        "Store|ShuntImpedance|Shape"
+    )
 
+    _component_classes = (
+        ("(" if new_api else "")
+        + rf"(components|c)((\['({_all_components}|{_all_component_names})'])|(\.({_all_components})))"
+        + ("|" + _all_components + ")" if new_api else "")
+    )
 
-class MemberProxy:
-    """Wrapper for network accessors that combines results from multiple networks.
-
-    This class handles arbitrary nesting of accessor methods and properties,
-    dynamically proxying calls to the underlying network objects.
-    """
-
-    collection: NetworkCollection
-
-    # Method patterns for special handling
     _method_patterns = {
         # run_per_network
         # ---------------
@@ -341,14 +380,15 @@ class MemberProxy:
         r")$",
         # ---------------
         "vertical_concat": rf"^("
-        rf"({_all_components})|"
+        rf"({_all_components if not new_api else ''})|"
         rf"({_component_classes}.static)|"
+        rf"({_component_classes}.get_active_assets)|"
         rf"static|"
         rf"get_active_assets"
         rf")$",
         # ---------------
         "horizontal_concat": rf"^("
-        rf"(({_all_components})_t)|"
+        rf"({'(' + _all_components + ')_t' if not new_api else ''})|"
         rf"({_component_classes}.dynamic)|"
         rf"dynamic|"
         rf"get_switchable_as_dense"
@@ -367,10 +407,21 @@ class MemberProxy:
         r")$",
         # ---------------
         "continue_proxy": rf"^("
-        rf"components|"
+        rf"components|c|"
         rf"{_component_classes}"
         rf")$",
     }
+    return _method_patterns
+
+
+class MemberProxy:
+    """Wrapper for network accessors that combines results from multiple networks.
+
+    This class handles arbitrary nesting of accessor methods and properties,
+    dynamically proxying calls to the underlying network objects.
+    """
+
+    collection: NetworkCollection
 
     def __new__(cls, *args: Any, **kwargs: Any) -> Any:
         """Create new instance of MemberProxy.
@@ -395,7 +446,7 @@ class MemberProxy:
     def _is_intermediate_path(self) -> bool:
         """Check if this accessor path is an intermediate path that should continue as MemberProxy."""
         # Check if this path could be part of a longer supported path
-        for processor_name, pattern in self._method_patterns.items():
+        for processor_name, pattern in _get_method_patterns().items():
             if processor_name == "continue_proxy" and re.match(
                 pattern, self.accessor_path
             ):
@@ -479,7 +530,7 @@ class MemberProxy:
     def get_processor(self) -> Any:
         """Determine the appropriate processor for the current accessor path."""
         # Check for pattern-based method processor
-        for processor_name, pattern in self._method_patterns.items():
+        for processor_name, pattern in _get_method_patterns().items():
             if re.match(pattern, self.accessor_path):
                 processor = getattr(self, processor_name)
                 return processor

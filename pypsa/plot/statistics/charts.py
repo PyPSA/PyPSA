@@ -331,10 +331,14 @@ class ChartGenerator(PlotsGenerator, ABC):
             g.map_dataframe(sns.scatterplot, x=x, y=y, hue=color, **kwargs)
         elif kind == "line":
             g.map_dataframe(sns.lineplot, x=x, y=y, hue=color, **kwargs)
-        elif kind == "box":
-            g.map_dataframe(sns.boxplot, x=x, y=y, hue=color, **kwargs)
-        elif kind == "violin":
-            g.map_dataframe(sns.violinplot, x=x, y=y, hue=color, **kwargs)
+        elif kind in ["box", "violin"]:
+            # FacetGrid adds color internally, remove to avoid conflict with hue
+            kwargs.pop("color", None)
+            plot_func = sns.boxplot if kind == "box" else sns.violinplot
+            plot_kwargs = {"x": x, "y": y, "hue": color, **kwargs}
+            if color is not None:
+                plot_kwargs["palette"] = palette
+            g.map_dataframe(plot_func, **plot_kwargs)
         elif kind == "histogram":
             if y is None:
                 g.map_dataframe(sns.histplot, x=x, hue=color, **kwargs)
@@ -616,17 +620,20 @@ class ChartGenerator(PlotsGenerator, ABC):
         filtered_cols = list(set(filtered_cols))  # Remove duplicates
         if filtered_cols:
             stats_kwargs["groupby"] = filtered_cols
+        if method_name == "prices":
+            stats_kwargs.pop("groupby", None)  # prices does not support groupby
 
         # `aggregate_across_components`
-        stats_kwargs["aggregate_across_components"] = "component" not in args
+        if method_name != "prices":
+            stats_kwargs["aggregate_across_components"] = "component" not in args
 
-        # `aggregate_time` is only relevant for time series data
+        # `groupby_time` is only relevant for time series data
         if "snapshot" in args:
             derived_agg_time: str | bool = "snapshot" not in args  # Check in args tuple
             if derived_agg_time:
-                # Convert to list since aggregate_time expects a list of strings
-                stats_kwargs["aggregate_time"] = "sum"
+                # Convert to list since groupby_time expects a list of strings
+                stats_kwargs["groupby_time"] = "sum"
             else:
-                stats_kwargs["aggregate_time"] = False
+                stats_kwargs["groupby_time"] = False
 
         return stats_kwargs

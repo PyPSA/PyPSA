@@ -29,6 +29,7 @@ class _NetworkABC(ABC):
     scenarios: pd.Series
     scenario_weightings: pd.DataFrame
     _scenarios_data: pd.DataFrame
+    _risk_preference: dict[str, float] | None
     static: pd.DataFrame
     dynamic: Callable
     _import_series_from_df: Callable
@@ -77,6 +78,12 @@ class _NetworkABC(ABC):
     @property
     @abstractmethod
     def passive_branch_components(self) -> set[str]:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
+    def one_port_components(self) -> set[str]:
         """Read only placeholder."""
         ...
 

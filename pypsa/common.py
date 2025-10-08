@@ -19,7 +19,7 @@ from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.definitions.structures import Dict
-from pypsa.version import __version_semver__
+from pypsa.version import __version_base__
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -154,7 +154,7 @@ class MethodHandlerWrapper:
 
 
 @lru_cache(maxsize=1)
-def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -> str:
+def _check_for_update(current_version: str, repo_owner: str, repo_name: str) -> str:
     """Log a message if a newer version is available.
 
     Checks the latest release on GitHub and compares it to the current version. Does
@@ -163,8 +163,8 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
 
     Parameters
     ----------
-    current_version : tuple
-        The current version of the package as a tuple (major, minor, patch).
+    current_version : str
+        The current version of the package as a semantic version string.
     repo_owner : str
         The owner of the repository.
     repo_name : str
@@ -193,12 +193,14 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
         response = request.urlopen(req)  # noqa: S310
         latest_version = json.loads(response.read())["tag_name"].replace("v", "")
 
-        # Simple version comparison
-        latest = tuple(map(int, latest_version.split(".")))
+        # Version comparison using packaging.version
+        latest_parsed = version.parse(latest_version)
+        current_parsed = version.parse(current_version)
 
-        if latest > current_version:
-            current_version_str = ".".join(map(str, current_version))
-            return f"New version {latest_version} available! (Current: {current_version_str})"
+        if latest_parsed > current_parsed:
+            return (
+                f"New version {latest_version} available! (Current: {current_version})"
+            )
 
     except Exception:  # noqa: S110
         pass
@@ -563,9 +565,9 @@ def deprecated_in_next_major(details: str) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         return deprecated(
-            deprecated_in="1.0",
+            deprecated_in="1.0rc1",
             removed_in="2.0",
-            current_version=__version_semver__,
+            current_version=__version_base__,
             details=details,
         )(func)
 
@@ -597,11 +599,11 @@ def deprecated_namespace(
         A wrapper function that warns about the deprecated namespace.
 
     """
-    current_version = version.parse(__version_semver__)
-    if version.parse(deprecated_in) > current_version and __version_semver__ != "0.0":
+    current_version = version.parse(__version_base__)
+    if version.parse(deprecated_in) > current_version and __version_base__ != "0.0":
         msg = (
             "'deprecated_namespace' can only be used in a version >= deprecated_in "
-            f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
+            f"(current version: {__version_base__}, deprecated_in: {deprecated_in})."
         )
         raise ValueError(msg)
 

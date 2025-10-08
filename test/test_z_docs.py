@@ -16,19 +16,29 @@ try:
 except ImportError:
     cartopy_available = False
 
+new_api = pypsa.options.api.new_components_api
+
 sub_network_parent = pypsa.examples.ac_dc_meshed().determine_network_topology()
 # Warning: Keep in sync with settings in doc/conf.py
 n = pypsa.examples.ac_dc_meshed()
 n.optimize()
+
 
 doctest_globals = {
     "np": np,
     "pd": pd,
     "pypsa": pypsa,
     "n": n,
+    "n_stochastic": pypsa.examples.stochastic_network(),
+    "network_collection": pypsa.NetworkCollection(
+        [
+            pypsa.examples.ac_dc_meshed(),
+            pypsa.examples.storage_hvdc(),
+        ]
+    ),
     "c": pypsa.examples.ac_dc_meshed().components.generators,
     "sub_network_parent": pypsa.examples.ac_dc_meshed().determine_network_topology(),
-    "sub_network": sub_network_parent.sub_networks.loc["0", "obj"],
+    "sub_network": sub_network_parent.c.sub_networks.static.loc["0", "obj"],
 }
 
 modules = [
@@ -42,9 +52,10 @@ modules = [
     sys.version_info[:2] == (3, 10),
     reason="Doctest fail until linopy supports numpy 2 on all python versions",
 )
+@pytest.mark.skipif(new_api, reason="New components API not yet shown in docs")
 @pytest.mark.skipif(not cartopy_available, reason="Cartopy not available")
 @pytest.mark.parametrize("module", modules)
-def test_doctest(module):
+def test_doctest(module, close_matplotlib_figures):
     finder = doctest.DocTestFinder()
 
     runner = doctest.DocTestRunner(optionflags=doctest.NORMALIZE_WHITESPACE)

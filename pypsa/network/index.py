@@ -11,9 +11,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from pypsa import Network
 
 from pypsa.network.abstract import _NetworkABC
 
@@ -26,6 +30,8 @@ class NetworkIndexMixin(_NetworkABC):
     Class only inherits to [pypsa.Network][] and should not be used directly.
     All attributes and methods can be used within any Network instance.
     """
+
+    _risk_preference: dict[str, float] | None
 
     # ----------------
     # Snapshots
@@ -115,7 +121,7 @@ class NetworkIndexMixin(_NetworkABC):
             )
 
         for component in self.all_components:
-            dynamic = self.dynamic(component)
+            dynamic = self.c[component].dynamic
             attrs = self.components[component]["attrs"]
 
             for k in dynamic:
@@ -331,7 +337,7 @@ class NetworkIndexMixin(_NetworkABC):
             )
             names = ["period", "timestep"]
             for component in self.all_components:
-                dynamic = self.dynamic(component)
+                dynamic = self.c[component].dynamic
 
                 for k in dynamic:
                     dynamic[k] = pd.concat(
@@ -714,7 +720,7 @@ class NetworkIndexMixin(_NetworkABC):
         scenarios_.index = scenarios_.index.astype(str)
         scenarios_.index.name = "scenario"
 
-        for c in self.components.values():
+        for c in self.components.values():  # Loop all components, not just empty ones
             c.static = pd.concat(
                 dict.fromkeys(scenarios_.index, c.static), names=["scenario"]
             )
@@ -757,3 +763,399 @@ class NetworkIndexMixin(_NetworkABC):
     def has_scenarios(self) -> bool:
         """Boolean indicating if the network has scenarios defined."""
         return len(self._scenarios_data) > 0
+
+    # Risk Preferences (CVaR)
+
+    def set_risk_preference(self, alpha: float, omega: float) -> None:
+        """Set risk aversion preferences for stochastic optimization using CVaR formulation.
+
+        Parameters
+        ----------
+        alpha : float
+            Confidence level in (0, 1). CVaR averages losses over the worst
+            (1 - alpha) probability mass (the tail). For worst 10% tail,
+            set alpha = 0.9 so that 1 - alpha = 0.1. Typical choices
+            are alpha in {0.90, 0.95, 0.99}. Higher alpha focuses on
+            rarer, more extreme tails; lower alpha considers a broader tail.
+        omega : float
+            Risk preference parameter (risk aversion weight). Must be between 0 and 1.
+            - omega = 0: Risk-neutral optimization
+            - omega > 0: Risk-averse optimization (more focus on the tail risk)
+            - omega = 1: Maximum risk aversion (optimize for the tail risk only)
+            Higher values indicate more risk aversion.
+
+        Examples
+        --------
+        >>> n = pypsa.Network()
+        >>> n.set_scenarios({"low": 0.3, "medium": 0.4, "high": 0.3})
+        >>> n.set_risk_preference(alpha=0.95, omega=0.1)  # 5% tail CVaR (1 - 0.05)
+        >>> n.risk_preference
+        {'alpha': 0.95, 'omega': 0.1}
+
+        Notes
+        -----
+        This method must be called after `set_scenarios()` as CVaR formulation
+        requires stochastic scenarios to be defined. The CVaR formulation will
+        add auxiliary variables and constraints to the optimization model during
+        the model building phase.
+
+        """
+        # Validate that scenarios are defined
+        if not self.has_scenarios:
+            msg = (
+                "Risk preferences can only be set for stochastic networks. "
+                "Please call set_scenarios() first to define scenarios."
+            )
+            raise ValueError(msg)
+
+        # Validate parameters
+        if not (0 < alpha < 1):
+            msg = f"Alpha must be between 0 and 1, got {alpha}"
+            raise ValueError(msg)
+
+        if not (0 <= omega <= 1):
+            msg = f"Omega must be between 0 and 1, got {omega}"
+            raise ValueError(msg)
+
+        # Store risk preferences
+        self._risk_preference = {"alpha": alpha, "omega": omega}
+
+    @property
+    def risk_preference(self) -> dict[str, float] | None:
+        """Get the risk preference parameters for the network.
+
+        Returns
+        -------
+        dict[str, float] | None
+            Dictionary containing 'alpha' and 'omega' parameters if risk preferences
+            are set, None otherwise.
+
+        """
+        return self._risk_preference
+
+    @property
+    def has_risk_preference(self) -> bool:
+        """Boolean indicating if the network has risk preferences defined."""
+        return self._risk_preference is not None
+
+    # -----------
+    # Collections
+    # -----------
+
+    @property
+    def is_collection(self) -> bool:
+        """Check if this is a collection of networks or a single network.
+
+        Returns
+        -------
+        bool
+            True, since this is a NetworkCollection.
+
+        See Also
+        --------
+        [pypsa.Network][]
+        [pypsa.Collection][]
+
+        """
+        return False
+
+    # -----------
+    # Selectors
+    # -----------
+
+    def get_scenario(self, scenario: str) -> Network:
+        """Return a network for a single scenario from a stochastic network.
+
+        Parameters
+        ----------
+        scenario : str
+            Name of the scenario to extract.
+
+        Returns
+        -------
+        n : pypsa.Network
+            A new network instance containing only the selected scenario.
+
+        Examples
+        --------
+        >>> n_stochastic
+        Stochastic PyPSA Network 'Stochastic-Network'
+        ---------------------------------------------
+        Components:
+         - Bus: 3
+         - Generator: 12
+         - Load: 3
+        Snapshots: 2920
+        Scenarios: 3
+        >>> n_high = n_stochastic.get_scenario("high")
+        >>> n_high
+        PyPSA Network 'Stochastic-Network - Scenario 'high''
+        ----------------------------------------------------
+        Components:
+         - Bus: 1
+         - Generator: 4
+         - Load: 1
+        Snapshots: 2920
+
+        """
+        if not self.has_scenarios:
+            msg = "This method can only be used on a stochastic network with scenarios."
+            raise ValueError(msg)
+
+        try:
+            self._scenarios_data.loc[scenario]
+        except KeyError as e:
+            msg = f"Scenario '{scenario}' not found in network scenarios."
+            raise KeyError(msg) from e
+
+        n = self.copy()
+
+        n.name = f"{n.name} - Scenario '{scenario}'"
+        # Remove
+        n._scenarios_data = n._scenarios_data.iloc[:0]
+
+        for c in n.components.values():
+            if not c.static.empty:
+                c.static = c.static.xs(scenario, level="scenario", axis=0)
+            for k, v in c.dynamic.items():
+                if not c.dynamic[k].empty:
+                    c.dynamic[k] = v.xs(scenario, level="scenario", axis=1)
+
+        return n
+
+    def get_network(self, collection: str) -> None | Network:
+        """Return a single network from a NetworkCollection.
+
+        Parameters
+        ----------
+        collection : str
+            Name of the network to be selected from the collection.
+
+        Returns
+        -------
+        n : pypsa.Network
+            Reference to the selected network from the collection.
+
+        Examples
+        --------
+        >>> network_collection
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'Storage-HVDC']
+
+        >>> selected = network_collection.get_network("AC-DC-Meshed")
+        >>> selected
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+         - Carrier: 6
+         - Generator: 6
+         - GlobalConstraint: 1
+         - Line: 7
+         - Link: 4
+         - Load: 6
+        Snapshots: 10
+
+        A network collection does not copy the selected network, but returns
+        a reference to it:
+        >>> n1 = pypsa.Network(name="Network1")
+        >>> n2 = pypsa.Network(name="Network2")
+        >>> nc = pypsa.NetworkCollection([n1, n2])
+        >>> nc.get_network("Network1") is n1
+        True
+
+        """
+        if not self.is_collection:
+            msg = "This method can only be used on a NetworkCollection."
+            raise ValueError(msg)
+
+        return None
+
+    def slice_network(
+        self,
+        buses: str | Sequence[str] | pd.Index | slice | None = None,
+        snapshots: int | Sequence | pd.Index | slice | None = None,
+    ) -> Network:
+        """Return a sliced copy of the network.
+
+        Parameters
+        ----------
+        buses : slice, list, or str, or tuple
+            Used to slice a network by buses. Any valid indexer
+            for pandas.DataFrame.loc is allowed (refer to pandas.DataFrame.loc).
+        snapshots : int, slice, list or boolean array, optional
+            Used to slice a network by snapshots. Any valid indexer
+            for pandas.Index is allowed (refer to pandas.Index.__getitem__). If
+            None, all snapshots are used.
+
+        Returns
+        -------
+        n : pypsa.Network
+            A new network instance containing only the selected buses with attached
+            components and/or the selected snapshots.
+
+        Examples
+        --------
+        Slice network to a single bus and its connected components:
+
+        >>> n_manchester = n.slice_network(buses="Manchester")
+        >>> n_manchester
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 1
+        - Carrier: 6
+        - Generator: 2
+        - GlobalConstraint: 1
+        - Load: 1
+        Snapshots: 10
+
+        >>> n_manchester.buses.index.tolist()
+        ['Manchester']
+
+        Slice network to multiple buses:
+
+        >>> n_subset = n.slice_network(buses=["Manchester", "Frankfurt"])
+        >>> n_subset
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 2
+        - Carrier: 6
+        - Generator: 4
+        - GlobalConstraint: 1
+        - Load: 2
+        Snapshots: 10
+
+        >>> sorted(n_subset.buses.index.tolist())
+        ['Frankfurt', 'Manchester']
+
+        Slice network by DC carrier:
+
+        >>> n_hv = n.slice_network(buses=n.buses.carrier == "DC")
+        >>> n_hv
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 3
+        - Carrier: 6
+        - GlobalConstraint: 1
+        - Line: 3
+        Snapshots: 10
+
+        Slice network to first 3 snapshots:
+
+        >>> n_snap = n.slice_network(snapshots=slice(None, 3))
+        >>> n_snap
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 9
+        - Carrier: 6
+        - Generator: 6
+        - GlobalConstraint: 1
+        - Line: 7
+        - Link: 4
+        - Load: 6
+        Snapshots: 3
+
+        Slice both buses and snapshots:
+
+        >>> n_both = n.slice_network(buses="Manchester", snapshots=slice(None, 2))
+        >>> n_both
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 1
+        - Carrier: 6
+        - Generator: 2
+        - GlobalConstraint: 1
+        - Load: 1
+        Snapshots: 2
+
+        """
+        if buses is None and snapshots is None:
+            msg = "Either `buses` or `snapshots` must be provided to slice the network."
+            raise ValueError(msg)
+
+        # Set defaults
+        if buses is None:
+            buses = slice(None)
+        if snapshots is None:
+            snapshots = slice(None)
+
+        # Allow single selection without losing a dimension
+        if np.isscalar(buses):
+            buses = pd.Index([buses])
+
+        # Handle scalar snapshot selection
+        selected_snapshots = self.snapshots[snapshots]
+        if not isinstance(selected_snapshots, pd.Index):
+            # Single snapshot was selected, wrap in Index
+            selected_snapshots = pd.Index([selected_snapshots])
+
+        # Setup new network
+        n = self.__class__()
+
+        n.add(
+            "Bus",
+            pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network="").index,
+            **pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network=""),
+        )
+
+        buses_i = n.c.buses.static.index
+
+        rest_components = (
+            self.all_components
+            - self.standard_type_components
+            - self.one_port_components
+            - self.branch_components
+        )
+        for c in rest_components - {"Bus", "SubNetwork"}:
+            n.add(c, self.components[c].static.index, **self.components[c].static)
+
+        for c in self.standard_type_components:
+            static = pd.DataFrame(
+                self.components[c].static.drop(
+                    self.components[c]["standard_types"].index
+                )
+            )
+            n.add(c, static.index, **static)
+
+        for c in self.one_port_components:
+            static = pd.DataFrame(self.c[c].static.loc[lambda df: df.bus.isin(buses_i)])
+            n.add(c, static.index, **static)
+
+        for c in self.branch_components:
+            static = pd.DataFrame(
+                self.c[c].static.loc[
+                    lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
+                ]
+            )
+            n.add(c, static.index, **static)
+
+        n.set_snapshots(selected_snapshots)
+        for c in self.all_components:
+            c = n.c[c]
+            i = c.static.index
+            try:
+                ndynamic = n.c[c.name].dynamic
+                dynamic = self.c[c.name].dynamic
+
+                for k in dynamic:
+                    ndynamic[k] = dynamic[k].loc[
+                        n.snapshots, i.intersection(dynamic[k].columns)
+                    ]
+            except AttributeError:
+                pass
+
+        # catch all remaining attributes of network
+        for attr in ["name", "_crs"]:
+            setattr(n, attr, getattr(self, attr))
+
+        n.snapshot_weightings = self.snapshot_weightings.loc[n.snapshots]
+
+        return n  # type: ignore[return-value]

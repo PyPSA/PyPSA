@@ -1,5 +1,7 @@
 import pytest
 
+import pypsa
+
 
 @pytest.fixture
 def mocked_pypsa():
@@ -205,3 +207,55 @@ def test_general_allow_network_requests():
     with pypsa.option_context("general.allow_network_requests", False):
         assert pypsa.get_option("general.allow_network_requests") is False
     assert pypsa.get_option("general.allow_network_requests") is True
+
+
+def test_add_return_names_option():
+    """Test the params.add.return_names option."""
+    import pandas as pd
+
+    import pypsa
+
+    n = pypsa.Network()
+
+    # Default: option is False, returns None
+    assert pypsa.get_option("params.add.return_names") is False
+    assert n.add("Bus", "bus1") is None
+
+    # Set option to True, now returns Index
+    pypsa.set_option("params.add.return_names", True)
+    result = n.add("Bus", "bus2")
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus2"
+
+    # Explicit parameter overrides option
+    assert n.add("Bus", "bus3", return_names=False) is None
+    pypsa.set_option("params.add.return_names", False)
+    result = n.add("Bus", "bus4", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus4"
+
+    # Test with option_context
+    with pypsa.option_context("params.add.return_names", True):
+        result = n.add("Bus", "bus5")
+        assert isinstance(result, pd.Index)
+        assert result[0] == "bus5"
+    assert n.add("Bus", "bus6") is None  # Back to False
+
+
+def test_params_optimize():
+    n = pypsa.examples.ac_dc_meshed()
+
+    n.optimize()
+    assert n.model.solver_name == "highs"
+
+    n.optimize.create_model()
+    n.optimize.solve_model()
+    assert n.model.solver_name == "highs"
+
+    with pypsa.option_context("params.optimize.solver_name", "gurobi"):
+        n.optimize()
+        assert n.model.solver_name == "gurobi"
+
+        n.optimize.create_model()
+        n.optimize.solve_model()
+        assert n.model.solver_name == "gurobi"

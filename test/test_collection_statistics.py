@@ -156,7 +156,7 @@ def test_network_collection_carrier_bus_carrier_grouper(
 def test_network_collection_country_grouper(simple_network):
     """Test country grouper with NetworkCollection."""
     # Add country information to buses
-    simple_network.buses["country"] = ["DE", "DE", "FR"]
+    simple_network.c.buses.static["country"] = ["DE", "DE", "FR"]
 
     nc = pypsa.NetworkCollection(
         [simple_network, simple_network.copy()],
@@ -176,7 +176,7 @@ def test_network_collection_country_grouper(simple_network):
 def test_network_collection_location_grouper(simple_network):
     """Test location grouper with NetworkCollection."""
     # Add location information to buses
-    simple_network.buses["location"] = ["Berlin", "Munich", "Paris"]
+    simple_network.c.buses.static["location"] = ["Berlin", "Munich", "Paris"]
 
     nc = pypsa.NetworkCollection(
         [simple_network, simple_network.copy()],
@@ -200,7 +200,7 @@ def test_network_collection_location_grouper(simple_network):
 def test_network_collection_unit_grouper(simple_network):
     """Test unit grouper with NetworkCollection."""
     # Add unit information to buses
-    simple_network.buses["unit"] = ["MW", "MW", "MVA"]
+    simple_network.c.buses.static["unit"] = ["MW", "MW", "MVA"]
 
     nc = pypsa.NetworkCollection(
         [simple_network, simple_network.copy()],
@@ -304,7 +304,7 @@ def test_network_collection_custom_grouper(ac_dc_network_r):
 
     # Define custom grouper that groups by first letter of generator name
     def first_letter_grouper(n, c, **kwargs):
-        idx = n.static(c).index
+        idx = n.c[c].static.index
         # Handle MultiIndex case (NetworkCollection)
         if isinstance(idx, pd.MultiIndex):
             # Get the last level (component names)
@@ -321,7 +321,7 @@ def test_network_collection_custom_grouper(ac_dc_network_r):
 
     # Test with custom grouper using installed_capacity (no optimization needed)
     result = nc.statistics.installed_capacity(
-        comps=["Generator"], groupby=["carrier", "bus_carrier", "first_letter"]
+        components=["Generator"], groupby=["carrier", "bus_carrier", "first_letter"]
     )
     assert not result.empty
     assert "first_letter" in result.index.names

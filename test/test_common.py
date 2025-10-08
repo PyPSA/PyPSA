@@ -1,3 +1,4 @@
+import copy
 import warnings
 from unittest.mock import patch
 
@@ -13,6 +14,7 @@ from pypsa.common import (
     equals,
     list_as_string,
 )
+from pypsa.definitions.structures import Dict
 
 
 def test_unexpected_error_message_formatting():
@@ -308,14 +310,14 @@ def mock_response():
     [
         # Test case format: (current_version, latest_version, expected_message)
         (
-            (1, 0, 0),
+            "1.0.0",
             "2.0.0",
             "New version 2.0.0 available! (Current: 1.0.0)",
         ),  # newer version
-        ((1, 0, 0), "1.0.0", ""),  # same version
-        ((2, 0, 0), "1.0.0", ""),  # current is newer
+        ("1.0.0", "1.0.0", ""),  # same version
+        ("2.0.0", "1.0.0", ""),  # current is newer
         (
-            (1, 2, 2),
+            "1.2.2",
             "1.2.3",
             "New version 1.2.3 available! (Current: 1.2.2)",
         ),  # minor update
@@ -336,7 +338,7 @@ def test_check_for_update_error_handling():
         mock_urlopen.side_effect = Exception("Connection failed")
 
         _check_for_update.cache_clear()
-        result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+        result = _check_for_update("1.0.0", "test_owner", "test_repo")
         assert result == ""
 
 
@@ -346,7 +348,7 @@ def test_check_for_update_respects_network_option(mock_response):
 
     # Test that version check is skipped when network requests are disabled
     with pypsa.option_context("general.allow_network_requests", False):
-        result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+        result = _check_for_update("1.0.0", "test_owner", "test_repo")
         assert result == ""
 
     # Test that version check works when network requests are allowed
@@ -355,7 +357,7 @@ def test_check_for_update_respects_network_option(mock_response):
 
         _check_for_update.cache_clear()
         with pypsa.option_context("general.allow_network_requests", True):
-            result = _check_for_update((1, 0, 0), "test_owner", "test_repo")
+            result = _check_for_update("1.0.0", "test_owner", "test_repo")
             assert "New version 2.0.0 available!" in result
 
 
@@ -396,3 +398,38 @@ def test_network_constructor_respects_network_option():
     with pypsa.option_context("general.allow_network_requests", False):
         with pytest.raises(ValueError, match="Network requests are disabled"):
             pypsa.Network("https://example.com/test.nc")
+
+
+class TestDict:
+    """Test Dict class copy functionality."""
+
+    def test_dict_copy_methods(self):
+        """Test that all copy methods preserve Dict type and values."""
+        d = Dict({"a": 1, "b": [2, 3]})
+
+        # Test .copy() - shallow copy
+        d_copy = d.copy()
+        assert type(d_copy) is Dict
+        assert d_copy == d
+        assert d_copy is not d
+        d_copy["b"].append(4)
+        assert d["b"] == [2, 3, 4]
+
+        # Test copy.copy() - shallow copy
+        d["b"] = [2, 3]  # Reset
+        d_shallow = copy.copy(d)
+        assert type(d_shallow) is Dict
+        assert d_shallow == d
+        assert d_shallow is not d
+        d_shallow["b"].append(5)
+        assert d["b"] == [2, 3, 5]
+
+        # Test copy.deepcopy() - deep copy
+        d["b"] = [2, 3]  # Reset
+        d_deep = copy.deepcopy(d)
+        assert type(d_deep) is Dict
+        assert d_deep == d
+        assert d_deep is not d
+        d_deep["b"].append(6)
+        assert d["b"] == [2, 3]
+        assert d_deep["b"] == [2, 3, 6]

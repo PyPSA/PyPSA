@@ -100,8 +100,8 @@ class TestCSVDir:
         ac_dc_periods.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
 
     def test_csv_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -109,20 +109,20 @@ class TestCSVDir:
         ac_dc_shapes.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_csv_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "csv_export"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_csv_folder(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -194,8 +194,8 @@ class TestNetcdf:
         ac_dc_periods.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
@@ -209,20 +209,20 @@ class TestNetcdf:
         ac_dc_shapes.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_netcdf_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "netcdf_export.nc"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_netcdf(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -235,7 +235,10 @@ class TestNetcdf:
         scipy_network.export_to_netcdf(fn, float32=False, compression=None)
         scipy_network_compressed = pypsa.Network(fn)
         assert (
-            (scipy_network.loads_t.p_set == scipy_network_compressed.loads_t.p_set)
+            (
+                scipy_network.c.loads.dynamic.p_set
+                == scipy_network_compressed.c.loads.dynamic.p_set
+            )
             .all()
             .all()
         )
@@ -249,7 +252,8 @@ class TestNetcdf:
         assert (
             (
                 (
-                    scipy_network.loads_t.p_set - scipy_network_compressed.loads_t.p_set
+                    scipy_network.c.loads.dynamic.p_set
+                    - scipy_network_compressed.c.loads.dynamic.p_set
                 ).abs()
                 < 1 / 10**digits
             )
@@ -320,8 +324,8 @@ class TestHDF5:
         ac_dc_periods.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
 
     def test_hdf5_io_shapes(self, ac_dc_shapes, tmpdir):
@@ -329,20 +333,20 @@ class TestHDF5:
         ac_dc_shapes.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_hdf5_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "hdf5_export.h5"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_hdf5(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -414,8 +418,8 @@ class TestExcelIO:
         ac_dc_periods.export_to_excel(fn)
         m = pypsa.Network(fn)
         pd.testing.assert_frame_equal(
-            m.generators_t.p,
-            ac_dc_periods.generators_t.p,
+            m.c.generators.dynamic.p,
+            ac_dc_periods.c.generators.dynamic.p,
         )
         pd.testing.assert_frame_equal(
             m.snapshot_weightings,
@@ -428,20 +432,20 @@ class TestExcelIO:
         ac_dc_shapes.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            ac_dc_shapes.shapes,
+            m.c.shapes.static,
+            ac_dc_shapes.c.shapes.static,
             check_less_precise=True,
         )
 
     def test_excel_io_shapes_with_missing(self, ac_dc_shapes, tmpdir):
         fn = tmpdir / "excel_export.xlsx"
         n = ac_dc_shapes.copy()
-        n.shapes.loc["Manchester", "geometry"] = None
+        n.c.shapes.static.loc["Manchester", "geometry"] = None
         n.export_to_excel(fn)
         m = pypsa.Network(fn)
         assert_geodataframe_equal(
-            m.shapes,
-            n.shapes,
+            m.c.shapes.static,
+            n.c.shapes.static,
             check_less_precise=True,
         )
 
@@ -494,17 +498,24 @@ class TestExcelIO:
         fn = tmpdir / "network-time-eff.xlsx"
         n.export_to_excel(fn)
         m = pypsa.Network(fn)
-        assert not m.stores_t.standing_loss.empty
-        assert not m.storage_units_t.standing_loss.empty
-        assert not m.generators_t.efficiency.empty
-        assert not m.storage_units_t.efficiency_store.empty
-        assert not m.storage_units_t.efficiency_dispatch.empty
-        equal(m.stores_t.standing_loss, n.stores_t.standing_loss)
-        equal(m.storage_units_t.standing_loss, n.storage_units_t.standing_loss)
-        equal(m.generators_t.efficiency, n.generators_t.efficiency)
-        equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
+        assert not m.c.stores.dynamic.standing_loss.empty
+        assert not m.c.storage_units.dynamic.standing_loss.empty
+        assert not m.c.generators.dynamic.efficiency.empty
+        assert not m.c.storage_units.dynamic.efficiency_store.empty
+        assert not m.c.storage_units.dynamic.efficiency_dispatch.empty
+        equal(m.c.stores.dynamic.standing_loss, n.c.stores.dynamic.standing_loss)
         equal(
-            m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch
+            m.c.storage_units.dynamic.standing_loss,
+            n.c.storage_units.dynamic.standing_loss,
+        )
+        equal(m.c.generators.dynamic.efficiency, n.c.generators.dynamic.efficiency)
+        equal(
+            m.c.storage_units.dynamic.efficiency_store,
+            n.c.storage_units.dynamic.efficiency_store,
+        )
+        equal(
+            m.c.storage_units.dynamic.efficiency_dispatch,
+            n.c.storage_units.dynamic.efficiency_dispatch,
         )
 
 
@@ -610,11 +621,13 @@ def test_import_from_pandapower_network(
             use_pandapower_index=use_pandapower_index,
             extra_line_data=extra_line_data,
         )
-        assert len(n.buses) == len(net.bus)
-        assert len(n.generators) == (len(net.gen) + len(net.sgen) + len(net.ext_grid))
+        assert len(n.c.buses.static) == len(net.bus)
+        assert len(n.c.generators.static) == (
+            len(net.gen) + len(net.sgen) + len(net.ext_grid)
+        )
         assert len(n.loads) == len(net.load)
-        assert len(n.transformers) == len(net.trafo)
-        assert len(n.shunt_impedances) == len(net.shunt)
+        assert len(n.c.transformers.static) == len(net.trafo)
+        assert len(n.c.shunt_impedances.static) == len(net.shunt)
 
 
 def test_io_time_dependent_efficiencies(tmpdir):
@@ -637,55 +650,60 @@ def test_io_time_dependent_efficiencies(tmpdir):
     n.export_to_netcdf(fn)
     m = pypsa.Network(fn)
 
-    assert not m.stores_t.standing_loss.empty
-    assert not m.storage_units_t.standing_loss.empty
-    assert not m.generators_t.efficiency.empty
-    assert not m.storage_units_t.efficiency_store.empty
-    assert not m.storage_units_t.efficiency_dispatch.empty
+    assert not m.c.stores.dynamic.standing_loss.empty
+    assert not m.c.storage_units.dynamic.standing_loss.empty
+    assert not m.c.generators.dynamic.efficiency.empty
+    assert not m.c.storage_units.dynamic.efficiency_store.empty
+    assert not m.c.storage_units.dynamic.efficiency_dispatch.empty
 
-    equal(m.stores_t.standing_loss, n.stores_t.standing_loss)
-    equal(m.storage_units_t.standing_loss, n.storage_units_t.standing_loss)
-    equal(m.generators_t.efficiency, n.generators_t.efficiency)
-    equal(m.storage_units_t.efficiency_store, n.storage_units_t.efficiency_store)
-    equal(m.storage_units_t.efficiency_dispatch, n.storage_units_t.efficiency_dispatch)
+    equal(m.c.stores.dynamic.standing_loss, n.c.stores.dynamic.standing_loss)
+    equal(
+        m.c.storage_units.dynamic.standing_loss, n.c.storage_units.dynamic.standing_loss
+    )
+    equal(m.c.generators.dynamic.efficiency, n.c.generators.dynamic.efficiency)
+    equal(
+        m.c.storage_units.dynamic.efficiency_store,
+        n.c.storage_units.dynamic.efficiency_store,
+    )
+    equal(
+        m.c.storage_units.dynamic.efficiency_dispatch,
+        n.c.storage_units.dynamic.efficiency_dispatch,
+    )
 
 
 def test_sort_attrs():
-    """Test _sort_attrs function for sorting DataFrame columns/index."""
+    """Ensure _sort_attrs preserves attribute order semantics."""
     from pypsa.network.io import _sort_attrs
 
-    # Test sorting columns (axis=1)
-    df = pd.DataFrame(
-        {"c": [1, 2, 3], "a": [4, 5, 6], "b": [7, 8, 9], "d": [10, 11, 12]}
-    )
-
-    # Sort columns according to attrs_list
+    axis_labels = pd.Index(["c", "a", "b", "d"])
     attrs_list = ["a", "b", "c"]
-    result = _sort_attrs(df, attrs_list, axis=1)
-    expected_order = ["a", "b", "c", "d"]  # d is appended at end
-    assert list(result.columns) == expected_order
+    ordered = _sort_attrs(axis_labels, attrs_list)
+    assert list(ordered) == ["a", "b", "c", "d"]
 
-    # Test with attrs not in DataFrame (should be ignored)
+    # Ignore attributes that are not present on the axis
     attrs_list = ["a", "x", "b", "y"]
-    result = _sort_attrs(df, attrs_list, axis=1)
-    expected_order = ["a", "b", "c", "d"]  # x, y ignored; c, d appended
-    assert list(result.columns) == expected_order
+    ordered = _sort_attrs(axis_labels, attrs_list)
+    assert list(ordered) == ["a", "b", "c", "d"]
 
-    # Test sorting index (axis=0)
-    df = pd.DataFrame([[1, 2], [3, 4], [5, 6]], index=["c", "a", "b"])
-    attrs_list = ["a", "b"]
-    result = _sort_attrs(df, attrs_list, axis=0)
-    expected_order = ["a", "b", "c"]  # c is appended at end
-    assert list(result.index) == expected_order
+    # Missing attrs_list should leave order untouched
+    ordered = _sort_attrs(axis_labels, [])
+    assert ordered.equals(axis_labels)
 
-    # Test empty attrs_list
-    result = _sort_attrs(df, [], axis=0)
-    assert list(result.index) == ["c", "a", "b"]  # original order preserved
+    # Empty axis behaves like a no-op
+    empty_axis = pd.Index([])
+    ordered = _sort_attrs(empty_axis, ["a", "b"])
+    assert ordered.equals(empty_axis)
 
-    # Test empty DataFrame
-    empty_df = pd.DataFrame()
-    result = _sort_attrs(empty_df, ["a", "b"], axis=1)
-    assert result.empty
+    # Works with non-unique Index types (e.g. MultiIndex)
+    axis_labels = pd.MultiIndex.from_product([["a", "b"], ["x", "y"]])
+    attrs_list = pd.MultiIndex.from_product([["b", "a"], ["y"]])
+    ordered = _sort_attrs(axis_labels, attrs_list)
+    assert list(ordered) == [
+        ("b", "y"),
+        ("a", "y"),
+        ("a", "x"),
+        ("b", "x"),
+    ]
 
 
 def test_version_warning(caplog):

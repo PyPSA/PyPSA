@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any
 from weakref import ref
 
@@ -50,7 +51,7 @@ from pypsa.optimization.optimize import OptimizationAccessor
 from pypsa.plot.accessor import PlotAccessor
 from pypsa.plot.maps import explore
 from pypsa.statistics.expressions import StatisticsAccessor
-from pypsa.version import __version_semver__
+from pypsa.version import __version_base__
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterator, Sequence
@@ -127,7 +128,7 @@ class Network(
         logging.basicConfig(level=logging.INFO)
 
         # Store PyPSA version
-        self._pypsa_version: str = __version_semver__
+        self._pypsa_version: str = __version_base__
 
         # Set attributes
         self._name = name
@@ -148,6 +149,9 @@ class Network(
         cols = ["weight"]
         index = pd.Index([], name="scenario")
         self._scenarios_data: pd.DataFrame = pd.DataFrame([], index=index, columns=cols)
+
+        # Risk preference
+        self._risk_preference: dict[str, float] | None = None
 
         self._model: linopy.Model | None = None
         self._objective: float | None = None
@@ -219,7 +223,7 @@ class Network(
         header = f"{self}\n" + "-" * len(str(self))  # + "\n"
         comps = {
             c.name: f" - {c.name}: {len(c.static)}"
-            for c in self.iterate_components()
+            for c in self.components
             if "Type" not in c.name and len(c.static)
         }
         content = "\nComponents:"
@@ -255,9 +259,7 @@ class Network(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus2")
-        Index(['bus2'], dtype='object')
         >>> new_network = n1 + n2
         >>> len(new_network.buses)
         2
@@ -284,6 +286,170 @@ class Network(
 
         """
         return self.equals(other)
+
+    def __getitem__(self, key: str) -> Network:
+        """Return a shallow slice of the Network object.
+
+        A network can be sliced in three different ways:
+        1. If the key is a scenario name and the network has scenarios, the corresponding
+           scenario is returned as a new network object.
+           See [pypsa.Network.get_scenario][].
+        2. If the network is a collection and the key is a name of one of the networks
+           in the collection, that network is returned.
+           See [pypsa.Network.get_collection][].
+        3. If the key is a bus name or a boolean indexer for buses, a sliced copy of
+           the network is returned, containing only the selected buses and all
+           connected components. See [pypsa.Network.slice_network][].
+
+        A warning will be issued if the key matches multiple of the above
+        entities. In that case, the first match is returned. But it is recommended to
+        use the explicit methods (e.g. get_scenario(), get_network()) or use unique
+        scenario, collection and bus names to avoid ambiguity.
+
+        Parameters
+        ----------
+        key : str or boolean mask
+            The key or boolean mask to select a scenario, a network from a collection
+            or slice the network based on buses.
+
+        Returns
+        -------
+        n : pypsa.Network
+
+        Examples
+        --------
+        Select single scenario from a stochastic network:
+
+        >>> n_stochastic
+        Stochastic PyPSA Network 'Stochastic-Network'
+        ---------------------------------------------
+        Components:
+        - Bus: 3
+        - Generator: 12
+        - Load: 3
+        Snapshots: 2920
+        Scenarios: 3
+        >>> n_stochastic["high"]
+        PyPSA Network 'Stochastic-Network - Scenario 'high''
+        ----------------------------------------------------
+        Components:
+        - Bus: 1
+        - Generator: 4
+        - Load: 1
+        Snapshots: 2920
+
+        Select single collection from a network collection:
+
+        >>> network_collection
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'Storage-HVDC']
+
+        >>> network_collection["AC-DC-Meshed"]
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 9
+        - Carrier: 6
+        - Generator: 6
+        - GlobalConstraint: 1
+        - Line: 7
+        - Link: 4
+        - Load: 6
+        Snapshots: 10
+
+        Select a network slice based on buses:
+
+        >>> n
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+         - Carrier: 6
+         - Generator: 6
+         - GlobalConstraint: 1
+         - Line: 7
+         - Link: 4
+         - Load: 6
+         - SubNetwork: 3
+        Snapshots: 10
+        >>> n["London"]
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 1
+        - Carrier: 6
+        - GlobalConstraint: 1
+        - Load: 1
+        Snapshots: 10
+
+        or use the pandas `.loc` method to select multiple buses:
+
+        >>> n[n.buses.carrier=='AC']
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 6
+        - Carrier: 6
+        - Generator: 6
+        - GlobalConstraint: 1
+        - Line: 4
+        - Link: 1
+        - Load: 6
+        Snapshots: 10
+
+        """
+        # For a scalar key, selection is done either on scenarios, collection items or
+        # a network slice
+        if np.isscalar(key):
+            results = []
+
+            # Check scenarios
+            if key in self.scenarios:
+                results.append(("scenario", self.get_scenario(key)))
+
+            # Check collection
+            if self.is_collection and key in self.networks.index:  # type: ignore[attr-defined]
+                results.append(("collection", self.networks[key]))  # type: ignore[attr-defined]
+
+            # Check network slice
+            if key in self.c.buses.names:
+                results.append(("network", self.slice_network([key])))
+
+            # Handle results
+            if len(results) > 1:
+                types = [r[0] for r in results]
+                logger.warning(
+                    "Key '%s' matches multiple entities: %s. Returning the "
+                    "first match (%s). It is recommended to use explicit "
+                    "methods, e.g. get_scenario() or get_network() to avoid "
+                    "ambiguity or to use unique scenario, collection and bus names.",
+                    key,
+                    types,
+                    types[0],
+                )
+
+            if results:
+                return results[0][1]
+            else:
+                msg = f"Key '{key}' not found in scenarios, collection, or buses."
+                raise KeyError(msg)
+        else:
+            # Check for deprecated tuple usage (buses, snapshots)
+            if isinstance(key, tuple) and len(key) == 2:
+                warnings.warn(
+                    "Slicing by (buses, snapshots) tuples in __getitem__ is no longer supported. "
+                    "Use the slice_network() method instead: "
+                    "n.slice_network(buses=buses, snapshots=snapshots)",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                msg = "Tuple slicing is deprecated. Use slice_network(buses=..., snapshots=...) instead."
+                raise NotImplementedError(msg)
+
+            return self.slice_network(key)
 
     def equals(self, other: Any, log_mode: str = "silent") -> bool:
         """Check for equality of two networks.
@@ -313,9 +479,7 @@ class Network(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus2")
-        Index(['bus2'], dtype='object')
         >>> n1.equals(n2)
         False
 
@@ -594,8 +758,8 @@ class Network(
         [pypsa.Network.shapes][] : Geometries of the network
 
         """
-        self.components.shapes.static.set_crs(new)
-        self._crs = self.components.shapes.static.crs
+        self.c.shapes.static.set_crs(new)
+        self._crs = self.c.shapes.static.crs
 
     def to_crs(self, new: int | str | pyproj.CRS) -> None:
         """Convert the network's geometries and bus coordinates to a new crs.
@@ -609,11 +773,11 @@ class Network(
 
         """
         current = self.crs
-        self.shapes.to_crs(new, inplace=True)
-        self._crs = self.shapes.crs
+        self.c.shapes.static.to_crs(new, inplace=True)
+        self._crs = self.c.shapes.static.crs
         transformer = Transformer.from_crs(current, self.crs)
-        self.buses["x"], self.buses["y"] = transformer.transform(
-            self.buses["x"], self.buses["y"]
+        self.c.buses.static["x"], self.c.buses.static["y"] = transformer.transform(
+            self.c.buses.static["x"], self.c.buses.static["y"]
         )
 
     @property
@@ -740,7 +904,7 @@ class Network(
         # Copy components
         other_comps = sorted(self.all_components - {"Bus", "Carrier"})
         # Needs to copy buses and carriers first, since there are dependencies on them
-        for component in self.iterate_components(["Bus", "Carrier"] + other_comps):
+        for component in self.components[["Bus", "Carrier"] + other_comps]:
             # Drop the standard types to avoid them being read in twice
             if (
                 not ignore_standard_types
@@ -758,8 +922,8 @@ class Network(
         if len(snapshots_) > 0:
             n.set_snapshots(snapshots_)
             # Apply time-varying data
-            for component in self.iterate_components():
-                dynamic = getattr(n, component.list_name + "_t")
+            for component in self.components:
+                dynamic = getattr(n.c, component.list_name).dynamic
                 for k in component.dynamic:
                     # Check if all snapshots_ are in the index
                     if set(snapshots_).issubset(component.dynamic[k].index):
@@ -793,94 +957,6 @@ class Network(
 
         return n
 
-    def __getitem__(self, key: str) -> Network:
-        """Return a shallow slice of the Network object.
-
-        A shallow slice will only include the selected buses and all the connected
-        components.
-
-        Parameters
-        ----------
-        key : indexer or tuple of indexer
-            If only one indexer is provided it is used in the .loc
-            indexer of the buses dataframe (refer also to the help for
-            pd.DataFrame.loc). If a tuple of two indexers are provided,
-            the first one is used to slice snapshots and the second
-            one buses.
-
-        Returns
-        -------
-        n : pypsa.Network
-
-        Examples
-        --------
-        >>> sub_network_0 = n[n.buses.sub_network == "0"]
-
-        """
-        if isinstance(key, tuple):
-            time_i, key = key
-        else:
-            time_i = slice(None)
-
-        # Setup new network
-        n = self.__class__()
-
-        n.add(
-            "Bus",
-            pd.DataFrame(self.buses.loc[key]).assign(sub_network="").index,
-            **pd.DataFrame(self.buses.loc[key]).assign(sub_network=""),
-        )
-        buses_i = n.buses.index
-
-        rest_components = (
-            self.all_components
-            - self.standard_type_components
-            - self.one_port_components
-            - self.branch_components
-        )
-        for c in rest_components - {"Bus", "SubNetwork"}:
-            n.add(c, pd.DataFrame(self.static(c)).index, **pd.DataFrame(self.static(c)))
-
-        for c in self.standard_type_components:
-            static = pd.DataFrame(
-                self.static(c).drop(self.components[c]["standard_types"].index)
-            )
-            n.add(c, static.index, **static)
-
-        for c in self.one_port_components:
-            static = pd.DataFrame(self.static(c).loc[lambda df: df.bus.isin(buses_i)])
-            n.add(c, static.index, **static)
-
-        for c in self.branch_components:
-            static = pd.DataFrame(
-                self.static(c).loc[
-                    lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
-                ]
-            )
-            n.add(c, static.index, **static)
-
-        n.set_snapshots(self.snapshots[time_i])
-        for c in self.all_components:
-            i = n.static(c).index
-            try:
-                ndynamic = n.dynamic(c)
-                dynamic = self.dynamic(c)
-
-                for k in dynamic:
-                    ndynamic[k] = dynamic[k].loc[
-                        time_i, i.intersection(dynamic[k].columns)
-                    ]
-            except AttributeError:
-                pass
-
-        # catch all remaining attributes of network
-        for attr in ["name", "_crs"]:
-            setattr(n, attr, getattr(self, attr))
-
-        n.snapshot_weightings = self.snapshot_weightings.loc[time_i]
-
-        return n
-
     # beware, this turns bools like s_nom_extendable into objects because of
     # presence of links without s_nom_extendable
     def _empty_components(self) -> list:
@@ -892,7 +968,7 @@ class Network(
             List of empty components.
 
         """
-        return [c.name for c in self.iterate_components() if c.empty]
+        return [c.name for c in self.components if c.empty]
 
     def branches(self) -> pd.DataFrame:
         """Get branches.
@@ -936,7 +1012,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -967,7 +1043,7 @@ class Network(
         [7 rows x 37 columns]
 
         """
-        comps = list(
+        comps = sorted(
             set(self.passive_branch_components) - set(self._empty_components())
         )
         names = (
@@ -976,7 +1052,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -1021,7 +1097,7 @@ class Network(
             else ["component", "name"]
         )
         return pd.concat(
-            (self.static(c) for c in comps),
+            (self.c[c].static for c in comps),
             keys=comps,
             sort=True,
             names=names,
@@ -1052,22 +1128,26 @@ class Network(
         sub_network_map = labels.astype(str)
 
         # remove all old sub_networks
-        if not self.sub_networks.empty:
+        if not self.c.sub_networks.static.empty:
             # Delete sub-network objects first
-            for sub_network in self.sub_networks.index:
-                obj = self.sub_networks.at[sub_network, "obj"]
+            for sub_network in self.c.sub_networks.static.index:
+                obj = self.c.sub_networks.static.at[sub_network, "obj"]
                 del obj
 
             # Clear the sub_networks DataFrame completely
             # This handles both regular and stochastic cases
-            self.sub_networks.drop(self.sub_networks.index, inplace=True)
-            for dynamic in self.sub_networks_t.values():
+            self.c.sub_networks.static.drop(
+                self.c.sub_networks.static.index, inplace=True
+            )
+            for dynamic in self.c.sub_networks.dynamic.values():
                 dynamic.drop(dynamic.columns, inplace=True)
 
         if self.has_scenarios:
-            bus_carrier = self.buses.carrier.xs(self.scenarios[0], level="scenario")
+            bus_carrier = self.c.buses.static.carrier.xs(
+                self.scenarios[0], level="scenario"
+            )
         else:
-            bus_carrier = self.buses.carrier
+            bus_carrier = self.c.buses.static.carrier
 
         for i in np.arange(n_components):
             # index of first bus
@@ -1098,23 +1178,25 @@ class Network(
             self.add("SubNetwork", str(i), carrier=carrier)
 
         # add objects
-        self.sub_networks["obj"] = [
-            SubNetwork(self, name) for name in self.sub_networks.index
+        self.c.sub_networks.static["obj"] = [
+            SubNetwork(self, name) for name in self.c.sub_networks.static.index
         ]
 
-        self.buses = self.buses.drop(columns="sub_network").join(
+        self.c.buses.static = self.c.buses.static.drop(columns="sub_network").join(
             sub_network_map, "name"
-        )[self.buses.columns]
+        )[self.c.buses.static.columns]
 
-        for c in self.iterate_components(self.passive_branch_components):
+        for c in self.components:
+            if c.name not in self.passive_branch_components:
+                continue
             c.static["sub_network"] = c.static.bus0.map(sub_network_map)
 
             if investment_period is not None:
-                active = self.get_active_assets(c.name, investment_period)
+                active = c.get_active_assets(investment_period)
                 # set non active assets to NaN
                 c.static.loc[~active, "sub_network"] = np.nan
 
-        for sub in self.sub_networks.obj:
+        for sub in self.c.sub_networks.static.obj:
             find_cycles(sub)
             sub.find_bus_controls()
 
@@ -1159,7 +1241,7 @@ class Network(
         cycles = []
 
         # Process each sub-network to find its cycles
-        for sub_network in self.sub_networks.obj:
+        for sub_network in self.c.sub_networks.static.obj:
             branches = sub_network.branches()
 
             if self.has_scenarios:
@@ -1191,7 +1273,7 @@ class Network(
         branches_i = branches.loc[existing_branch_components].index
 
         if apply_weights:
-            is_ac = branches.sub_network.map(self.sub_networks.carrier) == "AC"
+            is_ac = branches.sub_network.map(self.c.sub_networks.static.carrier) == "AC"
             weights = branches.x_pu_eff.where(is_ac, branches.r_pu_eff)
             weights = weights[cycles_df.index]
             cycles_df = cycles_df.multiply(weights, axis=0)
@@ -1207,14 +1289,6 @@ class Network(
 
         !!! warning "Deprecated in v1.0"
             Use `n.components.<component>` or `n.components[component_name]` instead.
-
-        Examples
-        --------
-        >>> n.component("Bus")
-        'Bus' Components
-        ----------------
-        Attached to PyPSA Network 'AC-DC-Meshed'
-        Components: 9
 
         """
         return self.components[c_name]
@@ -1240,9 +1314,9 @@ class Network(
             components = self.all_components
 
         return (
-            self.component(c_name)
+            self.c[c_name]
             for c_name in components
-            if not (skip_empty and self.static(c_name).empty)
+            if not (skip_empty and self.c[c_name].static.empty)
         )
 
 
@@ -1339,14 +1413,14 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
                 if c.name in {"Bus"} | self.n.passive_branch_components:
                     return value[value.sub_network == self.name]
                 if c.name in self.n.one_port_components:
-                    buses = self.buses_i().unique("name")
+                    buses = self.c.buses.static.index.unique("name")
                     return value[value.bus.isin(buses)]
                 msg = f"Component {c.name} not supported for sub-networks"
                 raise ValueError(msg)
             if key == "dynamic":
                 dynamic = Dict()
-                index = self.static(c.name).index
-                for k, v in self.n.dynamic(c.name).items():
+                index = c.static.index
+                for k, v in c.dynamic.items():
                     dynamic[k] = v[index.intersection(v.columns)]
                 return dynamic
             return value
@@ -1463,7 +1537,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """
         types = []
         names = []
-        for c in self.iterate_components(self.n.passive_branch_components):
+        for c in self.components[sorted(self.n.passive_branch_components)]:
             static = c.static
             idx = static.query("active").index if active_only else static.index
             types += len(idx) * [c.name]
@@ -1511,7 +1585,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.static][]
 
         """
-        return self.static(c_name)
+        return self.c[c_name].static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.<c_name>.static` instead.",
@@ -1543,7 +1617,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.dynamic][]
 
         """
-        return self.dynamic(c_name)
+        return self.c[c_name].dynamic
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.<c_name>.dynamic` instead.",
@@ -1575,7 +1649,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.buses][]
 
         """
-        return self.components.buses.static.index
+        return self.c.buses.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.lines.static.index` instead.",
@@ -1591,7 +1665,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.lines][]
 
         """
-        return self.components.lines.static.index
+        return self.c.lines.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.transformers.static.index` instead.",
@@ -1607,7 +1681,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.transformers][]
 
         """
-        return self.components.transformers.static.index
+        return self.c.transformers.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.generators.static.index` instead.",
@@ -1623,7 +1697,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.generators][]
 
         """
-        return self.components.generators.static.index
+        return self.c.generators.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.loads.static.index` instead.",
@@ -1639,7 +1713,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.loads][]
 
         """
-        return self.components.loads.static.index
+        return self.c.loads.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.shunt_impedances.static.index` instead.",
@@ -1655,7 +1729,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.shunt_impedances][]
 
         """
-        return self.components.shunt_impedances.static.index
+        return self.c.shunt_impedances.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.storage_units.static.index` instead.",
@@ -1671,7 +1745,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.storage_units][]
 
         """
-        return self.components.storage_units.static.index
+        return self.c.storage_units.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.stores.index.static` instead.",
@@ -1687,7 +1761,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.stores][]
 
         """
-        return self.components.stores.static.index
+        return self.c.stores.static.index
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.buses.static` instead.",
@@ -1703,7 +1777,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.buses][]
 
         """
-        return self.components.buses.static
+        return self.c.buses.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.generators.static` instead.",
@@ -1719,7 +1793,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.generators][]
 
         """
-        return self.components.generators.static
+        return self.c.generators.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.loads.static` instead.",
@@ -1735,7 +1809,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.loads][]
 
         """
-        return self.components.loads.static
+        return self.c.loads.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.shunt_impedances.static` instead.",
@@ -1751,7 +1825,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.shunt_impedances][]
 
         """
-        return self.components.shunt_impedances.static
+        return self.c.shunt_impedances.static
 
     @deprecated_in_next_major(
         details="Use `sub_network.components.storage_units.static` instead.",
@@ -1767,7 +1841,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         [pypsa.Network.storage_units][]
 
         """
-        return self.components.storage_units.static
+        return self.c.storage_units.static
 
     @deprecated_in_next_major(
         details="Use `!!! deprecated.components.stores.static` instead.",
@@ -1778,7 +1852,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         !!! warning "Deprecated in v1.0"
             Use `sub_network.components.stores.static` instead.
         """
-        return self.components.stores.static
+        return self.c.stores.static
 
     @deprecated_in_next_major(details="Use `self.components` instead.")
     # Deprecate: Use `self.iterate_components` instead
@@ -1812,5 +1886,5 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         return (
             self.components[c_name]
             for c_name in components
-            if not (skip_empty and self.static(c_name).empty)
+            if not (skip_empty and self.c[c_name].static.empty)
         )

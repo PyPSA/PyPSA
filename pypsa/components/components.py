@@ -288,9 +288,7 @@ class Components(
         >>> n1 = pypsa.Network()
         >>> n2 = pypsa.Network()
         >>> n1.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n2.add("Bus", "bus1")
-        Index(['bus1'], dtype='object')
         >>> n1.buses.equals(n2.buses)
         True
 
@@ -491,8 +489,7 @@ class Components(
         Examples
         --------
         >>> n = pypsa.Network()
-        >>> n.add('Generator', 'g1')  # doctest: +ELLIPSIS
-        Index(['g1'], dtype='object')
+        >>> n.add('Generator', 'g1')
         >>> n.components.generators.empty
         False
 

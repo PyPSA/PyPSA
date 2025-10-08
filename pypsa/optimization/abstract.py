@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pypsa._options import options
 from pypsa.descriptors import nominal_attrs
 from pypsa.optimization.mga import OptimizationAbstractMGAMixin
 
@@ -176,34 +177,38 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         """
         n = self._n
 
-        n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
+        n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(
+            n.c.buses.static.carrier
+        )
         ext_i = n.c.lines.extendables.difference(n.c.lines.inactive_assets)
-        typed_i = n.lines.query('type != ""').index
+        typed_i = n.c.lines.static.query('type != ""').index
         ext_untyped_i = ext_i.difference(typed_i)
         ext_typed_i = ext_i.intersection(typed_i)
         base_s_nom = (
             np.sqrt(3)
-            * n.lines["type"].map(n.line_types.i_nom)
-            * n.lines.bus0.map(n.buses.v_nom)
+            * n.c.lines.static["type"].map(n.c.line_types.static.i_nom)
+            * n.c.lines.static.bus0.map(n.c.buses.static.v_nom)
         )
-        n.lines.loc[ext_typed_i, "num_parallel"] = (n.lines.s_nom / base_s_nom)[
-            ext_typed_i
-        ]
+        n.c.lines.static.loc[ext_typed_i, "num_parallel"] = (
+            n.c.lines.static.s_nom / base_s_nom
+        )[ext_typed_i]
 
         def update_line_params(n: Network, s_nom_prev: float | pd.Series) -> None:
-            factor = n.lines.s_nom_opt / s_nom_prev
+            factor = n.c.lines.static.s_nom_opt / s_nom_prev
             for attr, carrier in (("x", "AC"), ("r", "DC")):  # noqa: B007
-                ln_i = n.lines.query("carrier == @carrier").index.intersection(
+                ln_i = n.c.lines.static.query("carrier == @carrier").index.intersection(
                     ext_untyped_i
                 )
-                n.lines.loc[ln_i, attr] /= factor[ln_i]
+                n.c.lines.static.loc[ln_i, attr] /= factor[ln_i]
             ln_i = ext_i.intersection(typed_i)
-            n.lines.loc[ln_i, "num_parallel"] = (n.lines.s_nom_opt / base_s_nom)[ln_i]
+            n.c.lines.static.loc[ln_i, "num_parallel"] = (
+                n.c.lines.static.s_nom_opt / base_s_nom
+            )[ln_i]
 
         def msq_diff(n: Network, s_nom_prev: float | pd.Series) -> float:
             lines_err = (
-                np.sqrt((s_nom_prev - n.lines.s_nom_opt).pow(2).mean())
-                / n.lines["s_nom_opt"].mean()
+                np.sqrt((s_nom_prev - n.c.lines.static.s_nom_opt).pow(2).mean())
+                / n.c.lines.static["s_nom_opt"].mean()
             )
             logger.info(
                 "Mean square difference after iteration %s is %s",
@@ -214,11 +219,11 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         def save_optimal_capacities(n: Network, iteration: int, status: str) -> None:
             for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.static(c)[f"{attr}_opt_{iteration}"] = n.static(c)[f"{attr}_opt"]
+                n.c[c].static[f"{attr}_opt_{iteration}"] = n.c[c].static[f"{attr}_opt"]
             setattr(n, f"status_{iteration}", status)
             setattr(n, f"objective_{iteration}", n.objective)
             n.iteration = iteration
-            n.global_constraints = n.global_constraints.rename(
+            n.c.global_constraints.static = n.c.global_constraints.static.rename(
                 columns={"mu": f"mu_{iteration}"}
             )
 
@@ -236,7 +241,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             link_threshold = link_threshold or {}
 
             if line_unit_size:
-                n.lines["s_nom"] = n.lines.apply(
+                n.c.lines.static["s_nom"] = n.c.lines.static.apply(
                     lambda row: discretized_capacity(
                         nom_opt=row["s_nom_opt"],
                         nom_max=row["s_nom_max"],
@@ -248,9 +253,13 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 )
 
             if link_unit_size:
-                for carrier in link_unit_size.keys() & n.links.carrier.unique():
-                    idx = n.links.carrier == carrier
-                    n.links.loc[idx, "p_nom"] = n.links.loc[idx].apply(
+                for carrier in (
+                    link_unit_size.keys() & n.c.links.static.carrier.unique()
+                ):
+                    idx = n.c.links.static.carrier == carrier
+                    n.c.links.static.loc[idx, "p_nom"] = n.c.links.static.loc[
+                        idx
+                    ].apply(
                         lambda row: discretized_capacity(
                             nom_opt=row["p_nom_opt"],
                             nom_max=row["p_nom_max"],
@@ -266,7 +275,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         if track_iterations:
             for c, attr in pd.Series(nominal_attrs)[list(n.branch_components)].items():
-                n.static(c)[f"{attr}_opt_0"] = n.static(c)[f"{attr}"]
+                n.c[c].static[f"{attr}_opt_0"] = n.c[c].static[f"{attr}"]
 
         iteration = 1
         diff = msq_threshold
@@ -279,7 +288,11 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
                 )
                 break
 
-            s_nom_prev = n.lines.s_nom_opt.copy() if iteration else n.lines.s_nom.copy()
+            s_nom_prev = (
+                n.c.lines.static.s_nom_opt.copy()
+                if iteration
+                else n.c.lines.static.s_nom.copy()
+            )
             status, termination_condition = n.optimize(snapshots, **kwargs)
             if status != "ok":
                 msg = (
@@ -305,19 +318,20 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         )
 
         link_carriers = {"DC"} if not link_unit_size else link_unit_size.keys() | {"DC"}
-        ext_links_to_fix_b = n.links.p_nom_extendable & n.links.carrier.isin(
-            link_carriers
+        ext_links_to_fix_b = (
+            n.c.links.static.p_nom_extendable
+            & n.c.links.static.carrier.isin(link_carriers)
         )
-        s_nom_orig = n.lines.s_nom.copy()
-        p_nom_orig = n.links.p_nom.copy()
+        s_nom_orig = n.c.lines.static.s_nom.copy()
+        p_nom_orig = n.c.links.static.p_nom.copy()
 
-        n.lines.loc[ext_i, "s_nom"] = n.lines.loc[ext_i, "s_nom_opt"]
-        n.lines.loc[ext_i, "s_nom_extendable"] = False
+        n.c.lines.static.loc[ext_i, "s_nom"] = n.c.lines.static.loc[ext_i, "s_nom_opt"]
+        n.c.lines.static.loc[ext_i, "s_nom_extendable"] = False
 
-        n.links.loc[ext_links_to_fix_b, "p_nom"] = n.links.loc[
+        n.c.links.static.loc[ext_links_to_fix_b, "p_nom"] = n.c.links.static.loc[
             ext_links_to_fix_b, "p_nom_opt"
         ]
-        n.links.loc[ext_links_to_fix_b, "p_nom_extendable"] = False
+        n.c.links.static.loc[ext_links_to_fix_b, "p_nom_extendable"] = False
 
         discretize_branch_components(
             n,
@@ -331,19 +345,23 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         n.calculate_dependent_values()
         status, condition = n.optimize(snapshots, **kwargs)
 
-        n.lines.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
-        n.lines.loc[ext_i, "s_nom_extendable"] = True
+        n.c.lines.static.loc[ext_i, "s_nom"] = s_nom_orig.loc[ext_i]
+        n.c.lines.static.loc[ext_i, "s_nom_extendable"] = True
 
-        n.links.loc[ext_links_to_fix_b, "p_nom"] = p_nom_orig.loc[ext_links_to_fix_b]
-        n.links.loc[ext_links_to_fix_b, "p_nom_extendable"] = True
+        n.c.links.static.loc[ext_links_to_fix_b, "p_nom"] = p_nom_orig.loc[
+            ext_links_to_fix_b
+        ]
+        n.c.links.static.loc[ext_links_to_fix_b, "p_nom_extendable"] = True
 
         ## add costs of additional infrastructure to objective value of last iteration
         obj_links = (
-            n.links[ext_links_to_fix_b]
+            n.c.links.static[ext_links_to_fix_b]
             .eval("capital_cost * (p_nom_opt - p_nom_min)")
             .sum()
         )
-        obj_lines = n.lines.eval("capital_cost * (s_nom_opt - s_nom_min)").sum()
+        obj_lines = n.c.lines.static.eval(
+            "capital_cost * (s_nom_opt - s_nom_min)"
+        ).sum()
         n._objective += obj_links + obj_lines
         n._objective_constant -= obj_links + obj_lines
 
@@ -374,15 +392,18 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
             investment periods. Then, snapshots should be a ``pd.MultiIndex``.
-        model_kwargs: dict
+        model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Defaults to module wide option (default: {}). See
+            https://go.pypsa.org/options-params for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.
 
         """
+        # Handle default parameters from options
         if model_kwargs is None:
-            model_kwargs = {}
+            model_kwargs = options.params.optimize.model_kwargs.copy()
 
         n = self._n
 
@@ -411,7 +432,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             **model_kwargs,
         )
 
-        for sub_network in n.sub_networks.obj:
+        for sub_network in n.c.sub_networks.static.obj:
             branches_i = sub_network.branches_i()
             outages = branches_i.intersection(branch_outages)
 
@@ -503,11 +524,15 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             )
 
             if i:
-                if not n.stores.empty:
-                    n.stores.e_initial = n.stores_t.e.loc[snapshots[start - 1]]
-                if not n.storage_units.empty:
-                    n.storage_units.state_of_charge_initial = (
-                        n.storage_units_t.state_of_charge.loc[snapshots[start - 1]]
+                if not n.c.stores.static.empty:
+                    n.c.stores.static.e_initial = n.c.stores.dynamic.e.loc[
+                        snapshots[start - 1]
+                    ]
+                if not n.c.storage_units.static.empty:
+                    n.c.storage_units.static.state_of_charge_initial = (
+                        n.c.storage_units.dynamic.state_of_charge.loc[
+                            snapshots[start - 1]
+                        ]
                     )
 
             status, condition = n.optimize(sns, **kwargs)
@@ -576,19 +601,19 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             return {"status": status, "terminantion_condition": condition}
 
         for c in n.one_port_components:
-            n.dynamic(c)["p_set"] = n.dynamic(c)["p"]
+            n.c[c].dynamic["p_set"] = n.c[c].dynamic["p"]
         for c in ("Link",):
-            n.dynamic(c)["p_set"] = n.dynamic(c)["p0"]
+            n.c[c].dynamic["p_set"] = n.c[c].dynamic["p0"]
 
-        n.generators.control = "PV"
-        for sub_network in n.sub_networks.obj:
-            n.generators.loc[sub_network.slack_generator, "control"] = "Slack"
+        n.c.generators.static.control = "PV"
+        for sub_network in n.c.sub_networks.static.obj:
+            n.c.generators.static.loc[sub_network.slack_generator, "control"] = "Slack"
         # Need some PQ buses so that Jacobian doesn't break
-        for sub_network in n.sub_networks.obj:
-            generators = sub_network.generators_i()
+        for sub_network in n.c.sub_networks.static.obj:
+            generators = sub_network.c.generators.static.index
             other_generators = generators.difference([sub_network.slack_generator])
             if not other_generators.empty:
-                n.generators.loc[other_generators[0], "control"] = "PQ"
+                n.c.generators.static.loc[other_generators[0], "control"] = "PQ"
 
         # Step 2: Perform non-linear power flow for all snapshots
         logger.info("Running non-linear power flow iteratively...")

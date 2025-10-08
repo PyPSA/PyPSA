@@ -96,15 +96,15 @@ def test_pypower_case():
     n.lpf()
 
     # compare generator dispatch
-    p_pypsa = n.generators_t.p.loc[DEFAULT_TIMESTAMP].values
+    p_pypsa = n.c.generators.dynamic.p.loc[DEFAULT_TIMESTAMP].values
     p_pypower = results_df["gen"]["p"].values
 
     equal(p_pypsa, p_pypower)
 
     # compare branch flows
     for item in ["lines", "transformers"]:
-        df = getattr(n, item)
-        dynamic = getattr(n, item + "_t")
+        df = getattr(n.c, item).static
+        dynamic = getattr(n.c, item).dynamic
 
         for si in ["p0", "p1"]:
             si_pypsa = getattr(dynamic, si).loc[DEFAULT_TIMESTAMP].values

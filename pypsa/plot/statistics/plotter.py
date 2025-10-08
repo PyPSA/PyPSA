@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from functools import partial, update_wrapper
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -243,10 +244,10 @@ class StatisticPlotter:
 
         if any(
             key in kwargs
-            for key in ["aggregate_time", "aggregate_across_components", "groupby"]
+            for key in ["groupby_time", "aggregate_across_components", "groupby"]
         ):
             msg = (
-                "'aggregate_time', 'aggregate_across_components', and 'groupby' "
+                "'groupby_time', 'aggregate_across_components', and 'groupby' "
                 "can not be set and are automatically derived from the plot kwargs."
             )
             raise ValueError(msg)
@@ -277,7 +278,13 @@ class StatisticPlotter:
         stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
 
         # Get statistics data and return plot
-        data = self._bound_method(**stats_kwargs)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=".*Passing `aggregate_across_components` was deprecated.*",
+                category=DeprecationWarning,
+            )
+            data = self._bound_method(**stats_kwargs)
         if data.empty:
             msg = (
                 f"The statistics function '{stats_name}' returned an empty DataFrame. "
@@ -629,10 +636,10 @@ class StatisticInteractivePlotter:
 
         if any(
             key in kwargs
-            for key in ["aggregate_time", "aggregate_across_components", "groupby"]
+            for key in ["groupby_time", "aggregate_across_components", "groupby"]
         ):
             msg = (
-                "'aggregate_time', 'aggregate_across_components', and 'groupby' "
+                "'groupby_time', 'aggregate_across_components', and 'groupby' "
                 "can not be set and are automatically derived from the plot kwargs."
             )
             raise ValueError(msg)
@@ -662,7 +669,13 @@ class StatisticInteractivePlotter:
         stats_kwargs = apply_parameter_schema(stats_name, chart_type, stats_kwargs)
 
         # Get statistics data and return plot
-        data = self._bound_method(**stats_kwargs)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=".*Passing `aggregate_across_components` was deprecated.*",
+                category=DeprecationWarning,
+            )
+            data = self._bound_method(**stats_kwargs)
         if data.empty:
             msg = (
                 f"The statistics function '{stats_name}' returned an empty DataFrame. "

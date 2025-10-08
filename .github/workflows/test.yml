@@ -21,7 +21,7 @@ jobs:
     name: Build and verify package
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0   # Needed for setuptools_scm
     - uses: hynek/build-and-inspect-python-package@v2
@@ -43,15 +43,22 @@ jobs:
         - ubuntu-latest
         - macos-latest
         - windows-latest
+        api: [default, new_api]
+        exclude:
+        - os: macos-latest
+          api: new_api
+        - os: windows-latest
+          api: new_api
+
     env:
       MPLBACKEND: Agg  # https://github.com/orgs/community/discussions/26434
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0 # Needed for setuptools_scm
 
     - name: Set up Python ${{ matrix.python-version }} on ${{ matrix.os }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
 
@@ -65,7 +72,7 @@ jobs:
         brew install hdf5
 
     - name: Download package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: Packages
         path: dist
@@ -76,9 +83,31 @@ jobs:
         uv sync --all-extras --no-install-project
         uv pip install "$(ls dist/*.whl)"
 
-    - name: Run unit tests
+    - name: Run unit tests (old API)
+      if: matrix.api == 'default'
       run: |
-        uv run pytest --mpl --cov=pypsa && uv run coverage xml
+        uv run pytest --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results --cov=pypsa
+        uv run coverage xml
+
+    - name: Upload artifacts
+      if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
+      uses: actions/upload-artifact@v4
+      with:
+        name: results-plotting
+        path: |
+          mpl-results
+        retention-days: 14
+        if-no-files-found: ignore
+
+    - name: Run unit tests (new API)
+      if: matrix.api == 'new_api'
+      run: |
+        uv run pytest --new-components-api
+
+    - name: Run unit tests (new API)
+      if: matrix.api == 'new_api'
+      run: |
+        uv run pytest --new-components-api
 
     - name: Upload code coverage report
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
@@ -92,17 +121,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0 # Needed for setuptools_scm
 
     - name: Set up Python 3.12
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: 3.12
 
     - name: Download package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v5
       with:
         name: Packages
         path: dist

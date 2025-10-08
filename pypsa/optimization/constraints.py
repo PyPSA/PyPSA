@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
@@ -27,6 +28,12 @@ if TYPE_CHECKING:
     ArgItem = list[str | int | float | DataArray]
 
 logger = logging.getLogger(__name__)
+
+# TODO move to constants.py
+lookup = pd.read_csv(
+    Path(__file__).parent / ".." / "data" / "variables.csv",
+    index_col=["component", "variable"],
+)
 
 
 def define_operational_constraints_for_non_extendables(
@@ -865,7 +872,7 @@ def define_nodal_balance_constraints(
     """
     m = n.model
     if buses is None:
-        buses = n.buses.index.unique("name")
+        buses = n.c.buses.static.index.unique("name")
 
     links = as_components(n, "Link")
 
@@ -883,7 +890,7 @@ def define_nodal_balance_constraints(
     ]
 
     if not links.empty:
-        for i in n.components.links.additional_ports:
+        for i in n.c.links.additional_ports:
             eff_attr = f"efficiency{i}" if i != "1" else "efficiency"
             eff = links.da[eff_attr].sel(snapshot=sns)
             args.append(["Link", "p", f"bus{i}", eff])
@@ -1076,11 +1083,12 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     values in their '{attr}_set' attribute.
 
     """
-    if attr + "_set" not in n.static(component):
+    c = as_components(n, component)
+    if attr + "_set" not in c.static:
         return
 
     dim = f"{component}-{attr}_set_i"
-    fix = n.static(component)[attr + "_set"].dropna().rename_axis(dim)
+    fix = c.static[attr + "_set"].dropna().rename_axis(dim)
 
     if fix.empty:
         return

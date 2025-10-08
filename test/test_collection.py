@@ -246,10 +246,10 @@ def test_collection_dynamic_data(network1, network2):
         [network1, network2], index=pd.Index(["net1", "net2"], name="scenario")
     )
 
-    assert collection.generators_t.p_min_pu["net1"].equals(
-        network1.generators_t.p_min_pu
+    assert collection.c.generators.dynamic.p_min_pu["net1"].equals(
+        network1.c.generators.dynamic.p_min_pu
     )
-    assert "scenario" in collection.generators_t.p_min_pu.columns.names
+    assert "scenario" in collection.c.generators.dynamic.p_min_pu.columns.names
 
 
 def test_collection_statistics_nonexistent_method(network1):
@@ -354,25 +354,37 @@ class TestCollectionComponents:
     """Test the components property of NetworkCollection."""
 
     def test_static_data(self, component_name):
+        new_api = pypsa.options.api.new_components_api
+
         # Give networks unique names
         network1 = pypsa.examples.ac_dc_meshed()
         network2 = pypsa.examples.ac_dc_meshed()
         network1.name = "net1"
         network2.name = "net2"
         collection = pypsa.NetworkCollection([network1, network2])
-        static_data = getattr(collection, component_name)
+        static_data = (
+            getattr(collection, component_name)
+            if not new_api
+            else getattr(collection, component_name).static
+        )
+        static_network_data = (
+            getattr(network1, component_name)
+            if not new_api
+            else getattr(network1, component_name).static
+        )
+
         if not static_data.empty:
-            assert static_data.loc["net1"].equals(getattr(network1, component_name))
+            assert static_data.loc["net1"].equals(static_network_data)
             assert "name" in static_data.index.names
             assert "network" in static_data.index.names
 
             assert static_data.equals(
                 getattr(collection.components, component_name).static
             )
-
-        for key, value in getattr(collection, component_name + "_t").items():
-            assert (
-                getattr(collection.components, component_name)
-                .dynamic[key]
-                .equals(value)
-            )
+        dynamic_data = (
+            getattr(collection, component_name + "_t")
+            if not new_api
+            else getattr(collection, component_name).dynamic
+        )
+        for key, value in dynamic_data.items():
+            assert dynamic_data[key].equals(value)

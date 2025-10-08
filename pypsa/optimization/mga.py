@@ -15,6 +15,7 @@ import pandas as pd
 from linopy import LinearExpression, QuadraticExpression, merge
 from scipy.stats.qmc import Halton
 
+from pypsa._options import options
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -214,13 +215,13 @@ class OptimizationAbstractMGAMixin:
                 if isinstance(coeffs, dict):
                     coeffs = pd.Series(coeffs)
                 if attr == nominal_attrs[c] and isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(self._n.get_extendable_i(c))
+                    coeffs = coeffs.reindex(self._n.c[c].extendables)
                     coeffs.index.name = ""
                 elif isinstance(coeffs, pd.Series):
-                    coeffs = coeffs.reindex(columns=self._n.static(c).index)
+                    coeffs = coeffs.reindex(columns=self._n.c[c].static.index)
                 elif isinstance(coeffs, pd.DataFrame):
                     coeffs = coeffs.reindex(
-                        columns=self._n.static(c).index, index=self._n.snapshots
+                        columns=self._n.c[c].static.index, index=self._n.snapshots
                     )
                 expr.append(m[f"{c}-{attr}"] * coeffs)
         return merge(expr)
@@ -302,9 +303,10 @@ class OptimizationAbstractMGAMixin:
             Can also be 'max'.
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
-        model_kwargs: dict
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or
-            `chunk`.
+        model_kwargs : dict, optional
+            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Defaults to module wide option (default: {}). See
+            https://go.pypsa.org/options-params for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -319,15 +321,19 @@ class OptimizationAbstractMGAMixin:
             https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
 
         """
+        # Handle default parameters from options
         if model_kwargs is None:
-            model_kwargs = {}
+            model_kwargs = options.params.optimize.model_kwargs.copy()
+
         n = self._n
 
         if snapshots is None:
             snapshots = n.snapshots
 
         if weights is None:
-            weights = {"Generator": {"p_nom": pd.Series(1, index=n.generators.index)}}
+            weights = {
+                "Generator": {"p_nom": pd.Series(1, index=n.c.generators.static.index)}
+            }
 
         # check that network has been solved
         if not self._n.is_solved:
@@ -447,9 +453,10 @@ class OptimizationAbstractMGAMixin:
             ``pd.MultiIndex``.
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
-        model_kwargs: dict
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or
-            `chunk`.
+        model_kwargs : dict, optional
+            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Defaults to module wide option (default: {}). See
+            https://go.pypsa.org/options-params for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
 
@@ -471,6 +478,10 @@ class OptimizationAbstractMGAMixin:
             this value is None.
 
         """
+        # Handle default parameters from options
+        if model_kwargs is None:
+            model_kwargs = options.params.optimize.model_kwargs.copy()
+
         # Check consistency of `direction` and `dimensions` arguments: keys have to be the same
         if set(direction.keys()) != set(dimensions.keys()):
             msg = (
@@ -481,9 +492,6 @@ class OptimizationAbstractMGAMixin:
 
         if snapshots is None:
             snapshots = self._n.snapshots
-
-        if model_kwargs is None:
-            model_kwargs = {}
 
         # check that network has been solved
         if not self._n.is_solved:
@@ -606,9 +614,10 @@ class OptimizationAbstractMGAMixin:
             multiple investment periods. Then, snapshots should be a ``pd.MultiIndex``.
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
-        model_kwargs: dict
-            Keyword arguments used by `linopy.Model`, such as `solver_dir` or
-            `chunk`.
+        model_kwargs : dict, optional
+            Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Defaults to module wide option (default: {}). See
+            https://go.pypsa.org/options-params for more information.
         max_parallel : int
             Maximum number of parallel processes to use for solving multiple directions.
             Defaults to 4.
@@ -649,6 +658,10 @@ class OptimizationAbstractMGAMixin:
         ...
 
         """
+        # Handle default parameters from options
+        if model_kwargs is None:
+            model_kwargs = options.params.optimize.model_kwargs.copy()
+
         # Iterate over rows of `directions` if a DataFrame
         if isinstance(directions, pd.DataFrame):
             directions = list(directions.T.to_dict().values())

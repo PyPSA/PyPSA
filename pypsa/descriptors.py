@@ -239,7 +239,7 @@ def _additional_linkports(
 
     """
     if where is None:
-        where = n.links.columns
+        where = n.c.links.static.columns
     return [match.group(1) for col in where if (match := RE_PORTS_GE_2.search(col))]
 
 
@@ -278,8 +278,10 @@ def _update_linkports_component_attrs(
             .apply(_update_linkports_doc_changes, args=("1", i))
         )
         # Also update container for varying attributes
-        if attr in ["efficiency", "p"] and target not in n.dynamic(c):
-            df = pd.DataFrame(index=n.snapshots, columns=n.links.index[:0], dtype=float)
-            n.dynamic(c)[target] = df
-        elif attr == "bus" and target not in n.static(c).columns:
-            n.static(c)[target] = n.components[c]["attrs"].loc[target, "default"]
+        if attr in ["efficiency", "p"] and target not in n.c[c].dynamic:
+            df = pd.DataFrame(
+                index=n.snapshots, columns=n.c.links.static.index[:0], dtype=float
+            )
+            n.c[c].dynamic[target] = df
+        elif attr == "bus" and target not in n.c[c].static.columns:
+            n.c[c].static[target] = n.components[c]["attrs"].loc[target, "default"]

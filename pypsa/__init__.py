@@ -12,6 +12,8 @@ __copyright__ = (
 )
 
 
+from typing import NoReturn
+
 from pypsa import (
     clustering,
     common,
@@ -32,10 +34,8 @@ from pypsa.components.components import Components
 from pypsa.networks import Network, SubNetwork
 from pypsa.version import (
     __version__,
-    __version_semver__,
-    __version_semver_tuple__,
-    __version_short__,
-    __version_short_tuple__,
+    __version_base__,
+    __version_major_minor__,
 )
 
 version = __version__  # Alias for legacy access
@@ -48,10 +48,8 @@ set_option = options.set_option
 
 __all__ = [
     "__version__",
-    "__version_semver__",
-    "__version_short__",
-    "__version_semver_tuple__",
-    "__version_short_tuple__",
+    "__version_base__",
+    "__version_major_minor__",
     "version",
     "options",
     "set_option",
@@ -75,3 +73,35 @@ __all__ = [
     "SubNetwork",
     "Components",
 ]
+
+
+def __getattr__(name: str) -> NoReturn:
+    """Handle deprecated version attributes."""
+    # Deprecated tuple versions (removed)
+    if name == "__version_short_tuple__":
+        msg = (
+            "pypsa.__version_short_tuple__ has been removed. "
+            "Use pypsa.__version_major_minor__ with packaging.version.parse() for version comparisons."
+        )
+        raise DeprecationWarning(msg)
+
+    if name == "__version_semver_tuple__":
+        msg = (
+            "pypsa.__version_semver_tuple__ has been removed. "
+            "Use pypsa.__version_base__ with packaging.version.parse() for version comparisons."
+        )
+        raise DeprecationWarning(msg)
+
+    # Deprecated version names (renamed)
+    if name == "__version_semver__":
+        msg = "pypsa.__version_semver__ is deprecated. Use pypsa.__version_base__ instead."
+        raise DeprecationWarning(msg)
+
+    if name == "__version_short__":
+        msg = "pypsa.__version_short__ is deprecated. Use pypsa.__version_major_minor__ instead."
+        raise DeprecationWarning(msg)
+
+    # Raise AttributeError for all other attributes
+    # __getattr__ is only called if the attribute is not found through normal lookup
+    msg = f"module '{__name__}' has no attribute '{name}'"
+    raise AttributeError(msg)

@@ -1,5 +1,6 @@
 """Maps plots based on statistics functions."""
 
+import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -81,6 +82,9 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         **kwargs: Any,
     ) -> tuple[Figure | SubFigure | Any, Axes | Any]:
         """Plot network statistics on a map."""
+        if func.__name__ == "prices":
+            msg = "Plotting 'prices' on a map is not yet implemented."
+            raise NotImplementedError(msg)
         n = self._n
         colors = self.get_carrier_colors(nice_names=False)
         n.consistency_check_plots()
@@ -96,17 +100,23 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         trans_carriers = get_transmission_carriers(n, bus_carrier=bus_carrier).unique(
             "carrier"
         )
-        non_transmission_carriers = n.carriers.index.difference(trans_carriers)
+        non_transmission_carriers = n.c.carriers.static.index.difference(trans_carriers)
 
         # Get bus sizes from statistics function
-        bus_sizes = func(
-            bus_carrier=bus_carrier,
-            groupby=["bus", "carrier"],
-            carrier=list(non_transmission_carriers),
-            nice_names=False,
-            aggregate_across_components=True,
-            **(stats_kwargs or {}),
-        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=".*Passing `aggregate_across_components` was deprecated.*",
+                category=DeprecationWarning,
+            )
+            bus_sizes = func(
+                bus_carrier=bus_carrier,
+                groupby=["bus", "carrier"],
+                carrier=list(non_transmission_carriers),
+                nice_names=False,
+                aggregate_across_components=True,
+                **(stats_kwargs or {}),
+            )
         if bus_sizes.empty:
             # TODO: this fallback case should be handled in the statistics function
             bus_sizes = (
@@ -137,7 +147,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         else:
             branch_flow_scaled = {}
             branch_widths = func(
-                comps=n.branch_components,
+                components=n.branch_components,
                 bus_carrier=bus_carrier,
                 groupby=False,
                 carrier=list(trans_carriers),

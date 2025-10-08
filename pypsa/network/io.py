@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import tempfile
+import warnings
 from abc import abstractmethod
 from functools import partial
 from typing import TYPE_CHECKING, Any, overload
@@ -17,6 +18,7 @@ import numpy as np
 import pandas as pd
 import validators
 import xarray as xr
+from packaging.version import parse as parse_version
 from pandas.errors import ParserError
 from pyproj import CRS
 
@@ -24,7 +26,7 @@ from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
-from pypsa.version import __version_semver__, __version_semver_tuple__
+from pypsa.version import __version_base__
 
 try:
     from cloudpathlib import AnyPath as Path
@@ -38,6 +40,28 @@ if TYPE_CHECKING:
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
+
+
+def _get_safe_excel_sheet_name(sheet_name: str) -> str:
+    """Convert sheet name to/from safe version for Excel's 31-character limit.
+
+    Works bidirectionally - converts long names to short and short back to long. Only
+    built-in mappings are handled, other names are returned unchanged and need to be
+    handled by the user (via UserWarning from openpyxl).
+    """
+    mappings = {
+        "storage_units-state_of_charge_set": "storage_units-soc_set",
+        "storage_units-efficiency_dispatch": "storage_units-eff_dispatch",
+    }
+
+    if sheet_name in mappings:
+        return mappings[sheet_name]
+
+    for long_name, short_name in mappings.items():
+        if sheet_name == short_name:
+            return long_name
+
+    return sheet_name
 
 
 @overload
@@ -261,7 +285,6 @@ class _ImporterCSV(_Importer):
                     index_col=0,
                     encoding=self.encoding,
                     quotechar=self.quotechar,
-                    parse_dates=True,
                 )
                 yield attr, df
 
@@ -512,6 +535,7 @@ class _ImporterExcel(_Importer):
         """Get dynamic components data."""
         for sheet_name, df in self.sheets.items():
             if sheet_name.startswith(list_name + "-"):
+                sheet_name = _get_safe_excel_sheet_name(sheet_name)
                 attr = sheet_name[len(list_name) + 1 :]
                 df = df.set_index(df.columns[0])
                 yield attr, df
@@ -611,6 +635,7 @@ class _ExporterExcel(_Exporter):
     def save_series(self, list_name: str, attr: str, df: pd.DataFrame) -> None:
         """Save dynamic components data."""
         sheet_name = f"{list_name}-{attr}"
+        sheet_name = _get_safe_excel_sheet_name(sheet_name)
         df.to_excel(self.writer, sheet_name=sheet_name)
 
     def remove_static(self, list_name: str) -> None:
@@ -629,6 +654,7 @@ class _ExporterExcel(_Exporter):
         Needed to not have stale sheets for empty components.
         """
         sheet_name = f"{list_name}-{attr}"
+        sheet_name = _get_safe_excel_sheet_name(sheet_name)
         if sheet_name in self.writer.book.sheetnames:
             del self.writer.book[sheet_name]
             logger.warning("Stale sheet %s removed", sheet_name)
@@ -1023,34 +1049,43 @@ class _ExporterNetCDF(_Exporter):
                 self.ds.to_netcdf(_path)
 
 
-def _sort_attrs(df: pd.DataFrame, attrs_list: list[str], axis: int) -> pd.DataFrame:
-    """Sort axis of DataFrame according to the order of attrs_list.
-
-    Attributes not in attrs_list are appended at the end. Attributes in the list but
-    not in the DataFrame are ignored.
+def _sort_attrs(
+    axis_labels: pd.Index, attrs_list: Sequence[str] | pd.Index
+) -> pd.Index:
+    """Order axis labels to match a desired attribute sequence.
 
     Parameters
     ----------
-    df : pandas.DataFrame
-        DataFrame to sort
-    attrs_list : list
-        List of attributes to sort by
-    axis : int
-        Axis to sort (0 for index, 1 for columns)
+    axis_labels : pandas.Index
+        Original axis labels that should be reordered.
+    attrs_list : Sequence[str] | pandas.Index
+        Desired ordering given as an ordered collection of attribute names.
 
     Returns
     -------
-    pd.DataFrame
-        Sorted DataFrame
+    pandas.Index
+        ``axis_labels`` with the attributes appearing in ``attrs_list`` first and
+        in the same order. Attributes missing from ``attrs_list`` follow in their
+        original order while names not present in ``axis_labels`` are ignored.
 
     """
-    df_cols_set = set(df.columns if axis == 1 else df.index)
+    if axis_labels.empty or len(attrs_list) == 0:
+        return axis_labels
 
-    existing_cols = [col for col in attrs_list if col in df_cols_set]
-    remaining_cols = [
-        col for col in (df.columns if axis == 1 else df.index) if col not in attrs_list
-    ]
-    return df.reindex(existing_cols + remaining_cols, axis=axis)
+    attrs_index = (
+        attrs_list if isinstance(attrs_list, pd.Index) else pd.Index(attrs_list)
+    )
+    existing = attrs_index.intersection(axis_labels, sort=False)
+    if existing.empty:
+        return axis_labels
+
+    remaining = axis_labels.difference(attrs_index, sort=False)
+    target = existing.append(remaining)
+
+    if axis_labels.equals(target):
+        return axis_labels
+
+    return target
 
 
 class NetworkIOMixin(_NetworkABC):
@@ -1086,19 +1121,47 @@ class NetworkIOMixin(_NetworkABC):
         # exportable component types
         allowed_types = (float, int, bool, str) + tuple(np.sctypeDict.values())
 
-        # first export network properties
-        _attrs = {
-            attr: getattr(self, attr)
-            for attr in dir(self)
-            if (
-                not attr.startswith("__")
-                and isinstance(getattr(self, attr), allowed_types)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
+                category=DeprecationWarning,
             )
-        }
+
+            _attrs = {
+                attr: getattr(self, attr)
+                for attr in dir(self)
+                if (
+                    not attr.startswith("__")
+                    and attr
+                    not in {
+                        "component_attrs",
+                        "df",
+                        "pnl",
+                        "static",
+                        "dynamic",
+                        "iterate_components",
+                    }  # Skip deprecated methods
+                    and isinstance(getattr(self, attr), allowed_types)
+                )
+            }
         _attrs = {}
         for attr in dir(self):
-            if not attr.startswith("__"):
-                value = getattr(self, attr)
+            if not attr.startswith("__") and attr not in {
+                "component_attrs",
+                "df",
+                "pnl",
+                "static",
+                "dynamic",
+                "iterate_components",
+            }:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message=r".*component_attrs is deprecated as of 1\.0 and will be removed in 2\.0\..*",
+                        category=DeprecationWarning,
+                    )
+                    value = getattr(self, attr)
                 if isinstance(value, allowed_types):
                     # TODO: This needs to be refactored with NetworkData class
                     # Skip properties without setter, but not 'pypsa_version'
@@ -1137,11 +1200,12 @@ class NetworkIOMixin(_NetworkABC):
 
         exported_components = []
         for component in self.all_components:
-            list_name = self.components[component]["list_name"]
-            attrs = self.components[component]["attrs"]
+            c = self.components[component]
+            list_name = c["list_name"]
+            attrs = c["attrs"]
 
-            static = self.static(component)
-            dynamic = self.dynamic(component)
+            static = c.static
+            dynamic = c.dynamic
 
             if component == "Shape":
                 static = pd.DataFrame(static).assign(
@@ -1150,13 +1214,9 @@ class NetworkIOMixin(_NetworkABC):
 
             if not export_standard_types and component in self.standard_type_components:
                 if isinstance(static.index, pd.MultiIndex):
-                    static = static.drop(
-                        self.components[component]["standard_types"].index, level="name"
-                    )
+                    static = static.drop(c["standard_types"].index, level="name")
                 else:
-                    static = static.drop(
-                        self.components[component]["standard_types"].index
-                    )
+                    static = static.drop(c["standard_types"].index)
 
             col_export = []
             for col in static.columns:
@@ -1254,11 +1314,9 @@ class NetworkIOMixin(_NetworkABC):
                 self.name = name
 
         if "pypsa_version" in attrs:
-            pypsa_version_tuple = tuple(
-                int(v) for v in attrs.pop("pypsa_version", "0.0.0").split(".")
-            )
+            pypsa_version = parse_version(attrs.pop("pypsa_version", "0.0.0"))
         else:
-            pypsa_version_tuple = (0, 0, 0)
+            pypsa_version = parse_version("0.0.0")
 
         for attr, val in attrs.items():
             if attr in ["model", "objective", "objective_constant"]:
@@ -1267,22 +1325,22 @@ class NetworkIOMixin(_NetworkABC):
                 setattr(self, attr, val)
 
         ## https://docs.python.org/3/tutorial/datastructures.html#comparing-sequences-and-other-types
-        if pypsa_version_tuple < __version_semver_tuple__:
-            pypsa_version_str = ".".join(map(str, pypsa_version_tuple))
+        if pypsa_version < parse_version(__version_base__):
+            pypsa_version_str = str(pypsa_version)
             logger.warning(
                 "Importing network from PyPSA version v%s while current version is v%s. Read the "
                 "release notes at https://pypsa.readthedocs.io/en/latest/release_notes.html "
                 "to prepare your network for import.",
                 pypsa_version_str,
-                __version_semver__,
+                __version_base__,
             )
 
         # Check for newer PyPSA version available
-        update_msg = _check_for_update(__version_semver_tuple__, "PyPSA", "pypsa")
+        update_msg = _check_for_update(__version_base__, "PyPSA", "pypsa")
         if update_msg:
             logger.info(update_msg)
 
-        if pypsa_version_tuple < (0, 18, 0):
+        if pypsa_version < parse_version("0.18.0"):
             self._multi_invest = 0
 
         # if there is snapshots.csv, read in snapshot data
@@ -1744,7 +1802,7 @@ class NetworkIOMixin(_NetworkABC):
         for attr in [attr for attr in df if attr.startswith("bus")]:
             # allow empty buses for multi-ports
             port = int(attr[-1]) if attr[-1].isdigit() else 0
-            buses = self.c.buses.component_names
+            buses = self.c.buses.names
             mask = ~df[attr].isin(buses)
             if port > 1:
                 mask &= df[attr].ne("")
@@ -1757,7 +1815,7 @@ class NetworkIOMixin(_NetworkABC):
                 )
 
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
-        old_static = self.static(cls_name)
+        old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
 
         # Handle duplicates
@@ -1782,7 +1840,16 @@ class NetworkIOMixin(_NetworkABC):
             new_static = gpd.GeoDataFrame(new_static, crs=self.crs)
 
         # Align index (component names) and columns (attributes)
-        new_static = _sort_attrs(new_static, attrs.index, axis=1)
+        ordered_columns = _sort_attrs(new_static.columns, attrs.index)
+        if not new_static.columns.equals(ordered_columns):
+            if isinstance(new_static.columns, pd.MultiIndex):
+                new_static = new_static.loc[:, ordered_columns]
+            else:
+                indexer = new_static.columns.get_indexer(ordered_columns)
+                if (indexer >= 0).all():
+                    new_static = new_static.iloc[:, indexer]
+                else:
+                    new_static = new_static.loc[:, ordered_columns]
 
         new_static.index.names = (
             ["name"]
@@ -1793,7 +1860,7 @@ class NetworkIOMixin(_NetworkABC):
 
         # Now deal with time-dependent properties
 
-        dynamic = self.dynamic(cls_name)
+        dynamic = self.c[cls_name].dynamic
 
         for k in non_static_attrs_in_df:
             # If reading in outputs, fill the outputs
@@ -1830,8 +1897,8 @@ class NetworkIOMixin(_NetworkABC):
             If True, overwrite existing time series.
 
         """
-        static = self.static(cls_name)
-        dynamic = self.dynamic(cls_name)
+        static = self.c[cls_name].static
+        dynamic = self.c[cls_name].dynamic
         list_name = self.components[cls_name]["list_name"]
 
         if not overwrite:
@@ -1882,10 +1949,9 @@ class NetworkIOMixin(_NetworkABC):
         if not attrs.loc[attr].static:
             # Preserve static component order for consistency
             ordered_columns = _sort_attrs(
-                pd.DataFrame(columns=df.columns.union(static.index)),
-                static.index.tolist(),
-                axis=1,
-            ).columns
+                df.columns.union(static.index),
+                static.index,
+            )
             dynamic[attr] = dynamic[attr].reindex(
                 columns=ordered_columns,
                 fill_value=attrs.loc[attr].default,
@@ -1893,10 +1959,9 @@ class NetworkIOMixin(_NetworkABC):
         else:
             # Preserve existing dynamic order for static attrs
             ordered_columns = _sort_attrs(
-                pd.DataFrame(columns=df.columns.union(dynamic[attr].columns)),
-                dynamic[attr].columns.tolist(),
-                axis=1,
-            ).columns
+                df.columns.union(dynamic[attr].columns),
+                dynamic[attr].columns,
+            )
             dynamic[attr] = dynamic[attr].reindex(columns=ordered_columns)
 
         dynamic[attr].loc[self.snapshots, df.columns] = df.loc[
@@ -2147,11 +2212,13 @@ class NetworkIOMixin(_NetworkABC):
                 **pdf[self.components[component]["list_name"]],
             )
 
-        self.generators["control"] = self.generators.bus.map(self.buses["control"])
+        self.c.generators.static["control"] = self.c.generators.static.bus.map(
+            self.c.buses.static["control"]
+        )
 
         # for consistency with pypower, take the v_mag set point from the generators
-        self.buses.loc[self.generators.bus, "v_mag_pu_set"] = np.asarray(
-            self.generators["v_set_pu"]
+        self.c.buses.static.loc[self.c.generators.static.bus, "v_mag_pu_set"] = (
+            np.asarray(self.c.generators.static["v_set_pu"])
         )
 
     def import_from_pandapower_net(
@@ -2374,11 +2441,13 @@ class NetworkIOMixin(_NetworkABC):
         for i in to_replace.index:
             self.remove("Bus", i)
 
-        for component in self.iterate_components(
-            {"Load", "Generator", "ShuntImpedance"}
-        ):
+        for component in self.components[["Generator", "Load", "ShuntImpedance"]]:
+            if component.empty:
+                continue
             component.static.replace({"bus": to_replace}, inplace=True)
 
-        for component in self.iterate_components({"Line", "Transformer"}):
+        for component in self.components[["Line", "Transformer"]]:
+            if component.empty:
+                continue
             component.static.replace({"bus0": to_replace}, inplace=True)
             component.static.replace({"bus1": to_replace}, inplace=True)

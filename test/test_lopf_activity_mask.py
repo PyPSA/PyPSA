@@ -10,13 +10,13 @@ def test_optimize(ac_dc_network):
 
     inactive_links = ["DC link"]
 
-    n.links.loc[inactive_links, "active"] = False
+    n.c.links.static.loc[inactive_links, "active"] = False
 
     status, _ = n.optimize(snapshots=n.snapshots)
 
     assert status == "ok"
 
-    assert n.links_t.p0.loc[:, inactive_links].eq(0).all().all()
+    assert n.c.links.dynamic.p0.loc[:, inactive_links].eq(0).all().all()
 
     assert "Bremen Converter" in n.model.variables["Link-p_nom"].coords["name"]
     assert "DC link" not in n.model.variables["Link-p_nom"].coords["name"]
@@ -50,8 +50,8 @@ def test_optimize_with_power_flow(scipy_network):
     @pytest.mark.parametrize("line_active", [True, False])
     def test_scenario(line_active):
         n = scipy_network.copy()
-        switchable_lines = n.lines.index[100]
-        n.lines.loc[switchable_lines, "active"] = line_active
+        switchable_lines = n.c.lines.static.index[100]
+        n.c.lines.static.loc[switchable_lines, "active"] = line_active
 
         # Test optimization and non-linear power flow
         res = n.optimize.optimize_and_run_non_linear_powerflow(
@@ -62,7 +62,7 @@ def test_optimize_with_power_flow(scipy_network):
         assert res["converged"].all().all(), "Non-linear power flow did not converge"
 
         expected_flow = (
-            not np.isclose(n.lines_t.p0.loc[:, switchable_lines], 0).all().all()
+            not np.isclose(n.c.lines.dynamic.p0.loc[:, switchable_lines], 0).all().all()
         )
         msg = f"'active' attribute not respected in optimization/non-linear power flow: expected {'non-zero' if line_active else 'zero'} flow"
         assert expected_flow == line_active, msg
@@ -70,13 +70,13 @@ def test_optimize_with_power_flow(scipy_network):
         # Test linear power flow
         n.lpf()
         expected_flow = (
-            not np.isclose(n.lines_t.p0.loc[:, switchable_lines], 0).all().all()
+            not np.isclose(n.c.lines.dynamic.p0.loc[:, switchable_lines], 0).all().all()
         )
         msg = f"'active' attribute not respected in linear power flow: expected {'non-zero' if line_active else 'zero'} flow"
         assert expected_flow == line_active, msg
 
         msg = "Power balance not maintained"
-        assert np.isclose(n.buses_t.p.sum().sum(), 0, atol=1e-5), msg
+        assert np.isclose(n.c.buses.dynamic.p.sum().sum(), 0, atol=1e-5), msg
 
     test_scenario(True)
     test_scenario(False)
@@ -113,7 +113,7 @@ def test_generators_with_active_attribute():
     assert status == "ok"
 
     # Inactive generator should have zero output
-    assert (n.generators_t.p["gen_inactive"] == 0).all()
+    assert (n.c.generators.dynamic.p["gen_inactive"] == 0).all()
 
     # Inactive generator should not be in model variables
     assert "gen_inactive" not in n.model.variables["Generator-p"].coords["name"]
@@ -166,7 +166,7 @@ def test_stores_with_active_attribute():
     assert status == "ok"
 
     # Inactive store should have zero flow
-    assert (n.stores_t.p["store_inactive"] == 0).all()
+    assert (n.c.stores.dynamic.p["store_inactive"] == 0).all()
 
     # Inactive store should not be in model variables
     assert "store_inactive" not in n.model.variables["Store-p"].coords["name"]
@@ -257,9 +257,9 @@ def test_mixed_components_with_active_attribute():
     assert status == "ok"
 
     # Test inactive components have zero flows
-    assert (n.generators_t.p["gen_inactive"] == 0).all()
-    assert (n.links_t.p0["link_inactive"] == 0).all()
-    assert (n.stores_t.p["store_inactive"] == 0).all()
+    assert (n.c.generators.dynamic.p["gen_inactive"] == 0).all()
+    assert (n.c.links.dynamic.p0["link_inactive"] == 0).all()
+    assert (n.c.stores.dynamic.p["store_inactive"] == 0).all()
 
     # Test inactive components not in model variables
     assert "gen_inactive" not in n.model.variables["Generator-p"].coords["name"]
@@ -325,7 +325,7 @@ def test_inactive_stores_with_global_operational_limit():
     assert status == "ok"
 
     # Test inactive store has zero flow
-    assert (n.stores_t.p["store_inactive"] == 0).all()
+    assert (n.c.stores.dynamic.p["store_inactive"] == 0).all()
 
     # Test inactive store is not in model variables
     assert "store_inactive" not in n.model.variables["Store-p"].coords["name"]

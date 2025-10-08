@@ -314,15 +314,27 @@ class OptionsNode:
         >>> pypsa.options.describe_options() # doctest: +ELLIPSIS
         PyPSA Options
         =============
-        api.legacy_components:
-            Default: True
-            Description: WARNING: Experimental feature. Not all PyPSA functionality is supported yet. Use legacy components API for backwards compatibility to PyPSA versions prior to 1.0.0. It is still recommended to use the new API and not to rely on the legacy API. This option will be removed with PyPSA 2.0.0.
+        api.new_components_api:
+            Default: False
+            Description: Activate the new components API, which replaces the static components data access with the more flexible components class. This will just change the api and not any functionality. Components class features are always available. See https://go.pypsa.org/new-components-api for more details.
         debug.runtime_verification:
             Default: False
             Description: Enable runtime verification of PyPSA's internal state. This is useful for debugging and development purposes. This will lead to overhead in performance and should not be used in production.
         general.allow_network_requests:
             Default: True
             Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
+        params.add.return_names:
+            Default: False
+            Description: Default value for the 'return_names' parameter in Network.add method. If True, the add method returns the names of added components. If False, it returns None.
+        params.optimize.model_kwargs:
+            Default: {}
+            Description: Default value for the 'model_kwargs' parameter in optimization module.
+        params.optimize.solver_name:
+            Default: highs
+            Description: Default value for the 'solver_name' parameter in optimization module.
+        params.optimize.solver_options:
+            Default: {}
+            Description: Default value for the 'solver_options' parameter in optimization module.
         params.statistics.drop_zero:
             Default: True
             Description: Default value for the 'drop_zero' parameter in statistics module.
@@ -423,19 +435,19 @@ options._add_option(
 
 # API
 options._add_option(
-    "api.legacy_components",
-    True,
-    "WARNING: Experimental feature. Not all PyPSA functionality is supported yet. "
-    "Use legacy components API for backwards compatibility to PyPSA versions prior to "
-    "1.0.0. It is still recommended to use the new API and not to rely on the legacy "
-    "API. This option will be removed with PyPSA 2.0.0.",
+    "api.new_components_api",
+    False,
+    "Activate the new components API, which replaces the static components data access "
+    "with the more flexible components class. This will just change the api and not any "
+    "functionality. Components class features are always available. "
+    "See https://go.pypsa.org/new-components-api for more details.",
 )
 
 # Warnings category
 options._add_option(
     "warnings.components_store_iter",
     True,
-    "If False, suppresses the deprecatio warning when iterating over components. ",
+    "If False, suppresses the deprecation warning when iterating over components.",
 )
 options._add_option(
     "warnings.attribute_typos",
@@ -446,6 +458,7 @@ options._add_option(
 )
 
 # Parameters category
+
 options._add_option(
     "params.statistics.nice_names",
     True,
@@ -460,4 +473,28 @@ options._add_option(
     "params.statistics.round",
     5,
     "Default value for the 'round' parameter in statistics module.",
+)
+
+options._add_option(
+    "params.add.return_names",
+    False,
+    "Default value for the 'return_names' parameter in Network.add method. "
+    "If True, the add method returns the names of added components. "
+    "If False, it returns None.",
+)
+
+options._add_option(
+    "params.optimize.model_kwargs",
+    {},
+    "Default value for the 'model_kwargs' parameter in optimization module.",
+)
+options._add_option(
+    "params.optimize.solver_name",
+    "highs",
+    "Default value for the 'solver_name' parameter in optimization module.",
+)
+options._add_option(
+    "params.optimize.solver_options",
+    {},
+    "Default value for the 'solver_options' parameter in optimization module.",
 )

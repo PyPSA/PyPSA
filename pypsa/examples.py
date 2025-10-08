@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
+from packaging.version import parse as parse_version
+
 from pypsa.networks import Network
-from pypsa.version import __version_semver__, __version_semver_tuple__
+from pypsa.version import __version_base__
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +19,11 @@ logger = logging.getLogger(__name__)
 def _repo_url(
     master: bool = False, url: str = "https://github.com/PyPSA/PyPSA/raw/"
 ) -> str:
-    if master or __version_semver_tuple__ < (0, 35):  # Feature was added in 0.35.0
+    if master or parse_version(__version_base__) < parse_version(
+        "0.35.0"
+    ):  # Feature was added in 0.35.0
         return f"{url}master/"
-    return f"{url}v{__version_semver__}/"
+    return f"{url}v{__version_base__}/"
 
 
 def _check_url_availability(url: str) -> bool:
@@ -37,7 +42,14 @@ def _retrieve_if_not_local(path: str | Path) -> Network:
         path = _repo_url() + str(path)
         Path.cwd()
 
-    return Network(path)
+    # Suppress warning which occurs due to numpy version mismatch
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="numpy.ndarray size changed, may indicate binary incompatibility",
+            category=RuntimeWarning,
+        )
+        return Network(path)
 
 
 def ac_dc_meshed(
@@ -208,7 +220,9 @@ def carbon_management() -> Network:
     https://doi.org/10.1038/s41560-025-01752-6
 
     """
-    primary_url = "https://tubcloud.tu-berlin.de/s/3qZPGxW3r4HF9Hn/download?path=%2F&files=carbon-management.nc"
+    primary_url = (
+        "https://tubcloud.tu-berlin.de/s/b37rfZrBymTFpZ4/download/carbon-management.nc"
+    )
 
     if _check_url_availability(primary_url):
         return Network(primary_url)
