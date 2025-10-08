@@ -656,7 +656,7 @@ def test_store_primary_energy_and_operational_limit_constraint_with_per_period()
     almost_equal(n.objective, 10 * 4 + 1 * 4)
 
     # Test operational limit constraint as well
-    n.remove("GlobalConstraint", n.c.global_constraints.component_names)
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
     n.add(
         "GlobalConstraint",
         "dispatch",
@@ -708,7 +708,7 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_without_pe
     with pytest.raises(NotImplementedError):
         n.optimize(multi_investment_periods=True)
 
-    n.remove("GlobalConstraint", n.c.global_constraints.component_names)
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
     n.add(
         "GlobalConstraint",
         "co2",
@@ -762,7 +762,7 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_with_per_p
     almost_equal(n.objective, 10 * 4 + 1 * 4)
 
     # Test operational limit constraint as well
-    n.remove("GlobalConstraint", n.c.global_constraints.component_names)
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
     n.add(
         "GlobalConstraint",
         "dispatch",
