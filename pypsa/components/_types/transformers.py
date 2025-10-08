@@ -26,7 +26,7 @@ class Transformers(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------
@@ -42,6 +42,8 @@ class Transformers(Components):
         attr: str = "s",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for transformers.
+
+        <!-- md:badge-version v1.0.0 -->
 
         For passive branch components, min_pu is the negative of max_pu.
 

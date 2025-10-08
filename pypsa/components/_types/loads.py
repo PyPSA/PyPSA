@@ -19,7 +19,7 @@ class Loads(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------

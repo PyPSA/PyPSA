@@ -1,6 +1,6 @@
 # Unit Commitment
 
-Unit commitment constraints are implemented for the [`Generator`](/api/components/types/generators) and [`Link`](/api/components/types/links)
+Unit commitment constraints are implemented for the [`Generator`][pypsa.components.Generators] and [`Link`][pypsa.components.Links]
 components. They are used to model the start-up and shut-down constraints, as
 well as ramping constraints. The implementation is based on Taylor (2015)[^1],
 and is supplemented with work by Hua et al. (2017)[^2] for a tightened linear

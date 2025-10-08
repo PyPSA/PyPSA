@@ -29,7 +29,7 @@ class Links(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------
@@ -48,6 +48,8 @@ class Links(Components):
         attr: str = "p",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for links.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Parameters
         ----------

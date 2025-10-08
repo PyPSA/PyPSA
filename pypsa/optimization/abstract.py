@@ -111,8 +111,9 @@ def discretized_capacity(
 class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
     """Mixin class for additional optimization methods.
 
-    Class only inherits to [pypsa.optimize.OptimizationAccessor][] and should not be
-    used directly.
+    Class inherits to [pypsa.optimization.OptimizationAccessor][]. All attributes and
+    methods can be used within any Network instance via `n.optimize`.
+
     """
 
     _n: Network
@@ -395,7 +396,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         **kwargs:
             Keyword argument used by `linopy.Model.solve`, such as `solver_name`,
             `problem_fn` or solver options directly passed to the solver.

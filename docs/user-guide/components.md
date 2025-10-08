@@ -50,12 +50,12 @@ Loop through all components:
     Even if assigned to a variable, the components are not copied. They are still attached to the network. If you change any data of the components object, the changes will be reflected in the network as well. There is no need to re-assign the components object to the network.
 
 ## New Components Class API
-PyPSA components have been introduced in version [`v0.33`](../release-notes.md#v0.33.0). Prior to that components data was only available in the two data stores `n.generators` and `n.generators_t`, directly attached to the network and not coupled together. For backward compatibility, the same `pandas`-based structure is still used, but `n.generators` actually refers to [`n.components.generators.static`][pypsa.components.Components.static].
+PyPSA components have been introduced in version [`v0.33`](../release-notes.md#v0.33.0). Prior to that components data was only available in the two data stores `n.generators` and `n.generators_t`, directly attached to the network and not coupled together. For backward compatibility, the same `pandas`-based structure is still used, but `n.generators` actually refers to [`n.components.generators.static`][pypsa.Components.static].
 
 The current components API is therefore a bit confusing:
 
-- `n.generators` -> reference to [`n.components.generators.static`][pypsa.components.Components.static]
-- `n.generator_t` -> reference to [`n.components.generators.dynamic`][pypsa.components.Components.dynamic]
+- `n.generators` -> reference to [`n.components.generators.static`][pypsa.Components.static]
+- `n.generator_t` -> reference to [`n.components.generators.dynamic`][pypsa.Components.dynamic]
 
 To get access to the full functionality of [`pypsa.Components`][] you need to use the long namespace or assign them to a variable. E.g. to get the list of components which support unit commitment:
 
@@ -74,8 +74,8 @@ PyPSA `v1.0` now allows you to opt in to the new Components API. This simply cha
 
 | Namespace | Current API | Opt-in API |
 |-----------|--------------|------------|
-| `n.generators` | [`n.components.generators.static`][pypsa.components.Components.static] | [`n.components.generators`][pypsa.components.Components] |
-| `n.generators_t` | [`n.components.generators.dynamic`][pypsa.components.Components.dynamic] | Deprecated |
+| `n.generators` | [`n.components.generators.static`][pypsa.Components.static] | [`n.components.generators`][pypsa.components.Components] |
+| `n.generators_t` | [`n.components.generators.dynamic`][pypsa.Components.dynamic] | Deprecated |
 
 With the new API, the usage would be much more intuitive, the actual relationship between static and dynamic data is clear and the vast amount of Components class features are faster to access with full support for auto-completion in IDEs. Using them can remove a lot of boilerplate code, which is otherwise needed.
 
@@ -84,7 +84,7 @@ On the downside is that accessing the main static dataframe of components data i
 And secondly, the existing code base needs to be refactored. 
 
 ### Migrating to new API
-To make the migration as easy as possible, and to also allow step-by-step migration, the [package options](`options.md`) is used.
+To make the migration as easy as possible, and to also allow step-by-step migration, the <!-- md:guide options.md --> module is used.
 
 As a quick example, let's take a snippet of the [Three-Node Capacity Expansion Example](../examples/3-node-cem.ipynb).
 
@@ -125,7 +125,7 @@ pypsa.options.api.new_components_api = False
 n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()
 ```
 
-Another way is to use the [`options_context`][pypsa.options_context] context manager to temporarily switch the API.
+Another way is to use the [`option_context`][pypsa.option_context] context manager to temporarily switch the API.
 
 ``` py
 with pypsa.options_context(api.new_components_api=True):

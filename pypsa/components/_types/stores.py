@@ -33,7 +33,7 @@ class Stores(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     """
 
@@ -44,6 +44,8 @@ class Stores(Components):
         attr: str = "e",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for stores.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Parameters
         ----------

@@ -18,13 +18,13 @@ You can also use a context manager to set options temporarily within a `with` bl
 >>> n.optimize()  # "highs" as the solver # doctest: +SKIP
 ```
 
-To reset options to their default values, simply remove the assignment, use the option method [`reset_all()`][pypsa._options.OptionsNode.reset_all] or use [`pypsa.reset_option(..)`][pypsa._options.OptionsNode.reset_option].
+To reset options to their default values, simply remove the assignment or use [pypsa.reset_option][].
 
-Instead of setting the value and getting the value via attribute access, you can also use  [`pypsa.set_option(..)`][pypsa._options.OptionsNode.set_option] and [`pypsa.get_option(..)`][pypsa._options.OptionsNode.get_option].
+Instead of setting the value and getting the value via attribute access, you can also use  [pypsa.set_option][] and [pypsa.get_option][].
 
 
 ## List of available options
-Options are grouped into categories and sub-categories. You can run the [`describe()`][pypsa._options.OptionsNode.describe] function on any category or sub-category to get a list of available options and their current values. To list all options just run 
+Options are grouped into categories and sub-categories. You can run the [`describe()`][pypsa.options.describe] function on any category or sub-category to get a list of available options and their current values. To list all options just run 
 ``` py
 >>> pypsa.options.describe() # doctest: +ELLIPSIS
 PyPSA Options
@@ -53,7 +53,7 @@ allow_network_requests:
 
 ### Parameters options
 
-The `params` category allows to change the default parameters used in some PyPSA functions. For example the default solver used in optimizations is `highs`. When running [`n.optimize()`](pypsa.Network.optimize) you would need to pass `solver_name="gurobi"` to use a different solver. Instead you can also 
+The `params` category allows to change the default parameters used in some PyPSA functions. For example the default solver used in optimizations is `highs`. When running [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__] you would need to pass `solver_name="gurobi"` to use a different solver. Instead you can also
 change the default globally by setting the option `pypsa.options.params.optimize.solver_name="gurobi"` as shown above.
 
 ``` py
@@ -100,7 +100,7 @@ components_store_iter:
 
 ### API
 
-Make changes to the PyPSA API. See [Components Class API](../user-guide/components.md#New-Components-Class-API) for more details.
+Make changes to the PyPSA API. See <!-- md:guide components.md#new-components-class-api -->.
 
 ``` py
 >>> pypsa.options.api.describe()

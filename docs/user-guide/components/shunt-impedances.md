@@ -1,6 +1,6 @@
 # Shunt Impedance
 
-The [`ShuntImpedance`](/api/components/types/shunt_impedances) components attach to a single bus and have a
+The [`ShuntImpedance`][pypsa.components.ShuntImpedances] components attach to a single bus and have a
 voltage-dependent admittance. For shunt impedances the power consumption is
 given by $s_i = |V_i|^2 y_i^*$ so that $p_i + j q_i = |V_i|^2 (g_i -jb_i)$.
 However the `p` and `q` below are defined directly proportional to `g` and `b`

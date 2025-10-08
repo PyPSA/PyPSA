@@ -1,4 +1,4 @@
-exclude: docs/assets/overrides
+exclude: docs/hooks
 
 ci:
   autoupdate_schedule: quarterly

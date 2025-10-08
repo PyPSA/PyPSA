@@ -176,7 +176,7 @@ v_0 \\ v_1
 
 ## Inputs
 
-For the non-linear power flow, the following data for each component are used. For the defaults and units, see [Components](/user-guide/components).
+For the non-linear power flow, the following data for each component are used. For the defaults and units, see <!-- md:guide components.md -->.
 
 - `n.buses.{v_nom, v_mag_pu_set}`
 - `n.loads.{p_set, q_set}`
@@ -220,7 +220,7 @@ For the non-linear power flow, the following data for each component are used. F
 
     Solves non-linear AC power flow equations using the Newton-Raphson method to inspect voltage magnitudes and angles.
 
-    [:octicons-arrow-right-24: Go to example](../examples/minimal_example_pf.ipynb)
+    [:octicons-arrow-right-24: Go to example](../examples/minimal-example-pf.ipynb)
 
 -   :material-notebook:{ .lg .middle } **Transformers**
 
@@ -229,6 +229,6 @@ For the non-linear power flow, the following data for each component are used. F
     Shows how transformers can be considered with varying tap ratios and phase
     shifts.
 
-    [:octicons-arrow-right-24: Go to example](../examples/transformer_example.ipynb)>
+    [:octicons-arrow-right-24: Go to example](../examples/transformer-example.ipynb)
 
 </div>

@@ -1,11 +1,11 @@
 # Load
 
-The [`Load`](/api/components/types/loads) components attach to a single bus and represent a demand for the
-[`Bus`](/api/components/types/buses) carrier they are connected to. With inverted sign, they can also be used
+The [`Load`][pypsa.components.Loads] components attach to a single bus and represent a demand for the
+[`Bus`][pypsa.components.Buses] carrier they are connected to. With inverted sign, they can also be used
 to model an exogenous supply. For "AC" buses, they act as a PQ load. If $p>0$
 the load is consuming active power from the bus and if $q>0$ it is consuming
 reactive power (i.e. behaving like an inductor).
 
-!!! note "When to use [`Generator`](/api/components/types/generators) instead?"
+!!! note "When to use [`Generator`][pypsa.components.Generators] instead?"
 
-    Use the [`Generator`](/api/components/types/generators) component with a negative `sign` to model elastic demands following a linear demand curve or to represent a comnsumption at a given price.
+    Use the [`Generator`][pypsa.components.Generators] component with a negative `sign` to model elastic demands following a linear demand curve or to represent a comnsumption at a given price.

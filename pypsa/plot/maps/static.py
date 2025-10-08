@@ -1043,13 +1043,10 @@ class MapPlotter:
         transformer_widths : dict/pandas.Series
             Widths of transformer, defaults to 1.5
 
-        .. deprecated:: 0.28.0
-            `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow`
-                instead. The argument will be passed to all branches.
-            `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated,
-                use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and
-                `transformer_cmap_norm` instead.
-            `color_geomap` is deprecated, use `geomap_colors` instead.
+        !!! warning "Deprecated in <!-- md:badge-version v0.28.0 -->"
+            - `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow` instead. The argument will be passed to all branches.
+            - `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated, use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and `transformer_cmap_norm` instead.
+            - `color_geomap` is deprecated, use `geomap_colors` instead.
 
         Returns
         -------

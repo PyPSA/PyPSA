@@ -9,7 +9,7 @@
 
 ### Stochastic Optimization
 
-PyPSA now supports **two-stage stochastic programming** with scenario trees out of the box, which allows users to optimize investment decisions (first-stage) that are robust across multiple possible future realizations (scenarios) of uncertain parameters. See [:material-bookshelf: User Guide](optimization/stochastic-optimization.md) and [:material-notebook-multiple: Example Notebook](../examples/stochastic-optimization.ipynb).
+PyPSA now supports **two-stage stochastic programming** with scenario trees out of the box, which allows users to optimize investment decisions (first-stage) that are robust across multiple possible future realizations (scenarios) of uncertain parameters. See <!-- md:guide optimization/stochastic.md --> and [:material-notebook-multiple: Example Notebook](../examples/stochastic-optimization.ipynb).
 
 ``` py
 >>> n_stoch = pypsa.examples.ac_dc_meshed()
@@ -30,7 +30,7 @@ Scenarios: 3
 ```
 
 ### Plotting Module
-Any **network metric** like `energy_balance` or `installed_capacity` can now be plotted as a line, bar, area, map and more, to allow easier exploration and better tooling to create plots. The equivalent plotting methods extend parameters from the statistics module and therefore use the same logic to be easily adaptable. Also **interactive plots** can be create for all metric/ plot type combinations. See [:material-bookshelf: User Guide](plotting.md) and [:octicons-code-16: API Reference](/api/networks/plot.md).
+Any **network metric** like `energy_balance` or `installed_capacity` can now be plotted as a line, bar, area, map and more, to allow easier exploration and better tooling to create plots. The equivalent plotting methods extend parameters from the statistics module and therefore use the same logic to be easily adaptable. Also **interactive plots** can be create for all metric/ plot type combinations. See [:material-bookshelf: User Guide](plotting.md) and [:octicons-code-16: API Reference](../api/networks/plot.md).
 
 ``` py
 >>> n_stoch.statistics.energy_balance.iplot.area()  # doctest: +SKIP
@@ -44,7 +44,7 @@ Any **network metric** like `energy_balance` or `installed_capacity` can now be 
 </div>
 
 ### Network Collection
-A new object called [`NetworkCollection`][pypsa.Network] has been added to the library. It allows users to store multiple networks in a single object and perform operations on them. See [:material-bookshelf: User Guide](network-collection.md) and [:material-notebook-multiple: Example Notebook](/examples/network-collection.ipynb).
+A new object called [`NetworkCollection`][pypsa.Network] has been added to the library. It allows users to store multiple networks in a single object and perform operations on them. See <!-- md:guide collection.md -->.
 
 ``` py
 >>> n_base = pypsa.examples.ac_dc_meshed() # docs-skip
@@ -123,6 +123,6 @@ While PyPSA has been stable for a while now, version `v1.0` is the first stable 
     ```
 
 ### Major future change
-A major breaking change will be the new Components Class API, as described [above](#new-components-class-api). This functionality is opt-in with version `v1.0` and both the old and the new API are fully supported. 
+A major breaking change will be the new Components Class API, as described [above](#components-class). This functionality is opt-in with version `v1.0` and both the old and the new API are fully supported. 
 
 A detailed introduction can be found in the dedicated [user guide section](../user-guide/components.md#new-components-class-api). Please have a look and provide feedback. The new API is planned to be the default in version `v2.0`.

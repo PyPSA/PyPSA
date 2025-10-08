@@ -1,4 +1,4 @@
-Two components are available for modelling storage: [`Store`](/api/components/types/stores) and [`StorageUnit`](/api/components/types/storage_units). See
+Two components are available for modelling storage: [`Store`][pypsa.components.Stores] and [`StorageUnit`][pypsa.components.StorageUnits]. See
 the [Store Component](../components/stores.md) and [Storage Unit Component](../components/storage-units.md) descriptions for an overview of
 the conceptual differences.
 
@@ -36,9 +36,9 @@ where $E_{n,s}$ is the energy capacity to be optimised.
 
 These constraints are set in the function [`define_operational_constraints_for_extendables`.
 
-!!! note "Capacity limits of [`Store`](/api/components/types/stores) components"
+!!! note "Capacity limits of [`Store`][pypsa.components.Stores] components"
 
-    For handling of capacity limits, see the [Capacity Limits](/user-guide/optimization/capacity-limits.md) section.
+    For handling of capacity limits, see the <!-- md:guide optimization/capacity-limits.md --> section.
 
 The store energy level can also be fixed to a certain value $\tilde{e}_{n,s,t}$:
 
@@ -66,7 +66,7 @@ $$e_{n,s,t=-1} = e_{n,s,\textrm{initial}}$$
 
 $$e_{n,s,t=-1} = e_{n,s,t=|T|-1}$$
 
-!!! note "[`Store`](/api/components/types/stores) cyclicity constraints with multiple investment periods"
+!!! note "[`Store`][pypsa.components.Stores] cyclicity constraints with multiple investment periods"
 
     For how storage cyclicity constraints are handled with multiple investment periods, see the [Pathway Planning](pathway-planning.md) section.
 
@@ -120,9 +120,9 @@ where $H_{n,s}$ is the power capacity to be optimised.
 
 These constraints are set in the function `define_operational_constraints_for_extendables()`.
 
-!!! note "Capacity limits of [`StorageUnit`](/api/components/types/storage_units) components"
+!!! note "Capacity limits of [`StorageUnit`][pypsa.components.StorageUnits] components"
 
-    For handling of capacity limits, see the [Capacity Limits](/user-guide/optimization/capacity-limits.md) section.
+    For handling of capacity limits, see the <!-- md:guide optimization/capacity-limits.md --> section.
 
 All three variables can also be fixed to certain values $\tilde{h}_{n,s,t}^-$, $\tilde{h}_{n,s,t}^+$, and $\tilde{soc}_{n,s,t}$:
 
@@ -154,7 +154,7 @@ Furthermore, there are two options for specifying the initial state of charge $s
 
 $$soc_{n,s,t=-1} = soc_{n,s,t=|T|-1}$$
 
-!!! note "[`StorageUnit`](/api/components/types/storage_units) cyclicity constraints with multiple investment periods"
+!!! note "[`StorageUnit`][pypsa.components.StorageUnits] cyclicity constraints with multiple investment periods"
 
     For how store cyclicity constraints are handled with multiple investment periods, see the [Pathway Planning](pathway-planning.md) section.
 

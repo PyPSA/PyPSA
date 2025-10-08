@@ -79,7 +79,6 @@ docs = [
     "mkdocs-redirects",
     "mkdocs-video",
     "mkdocs-git-revision-date-localized-plugin",
-    "mkdocs-argref-plugin",
     "mkdocs-table-reader-plugin",
     "mkdocstrings-python",
     "mkdocs-jupyter",
@@ -208,6 +207,8 @@ ignore = [
     'E741', # ambiguous variable names
     'D203', # 1 blank line required before class docstring
     'D213', # Multi-line docstring summary should start at the second line
+    'D400', # First line should end with a period
+    'D415', # First line should end with a period, question mark, or exclamation point
     'SIM105', 
     'SIM108',
     'SIM118',

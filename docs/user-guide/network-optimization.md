@@ -2,7 +2,7 @@
 
 !!! info "See Also"
 
-    Please also refer the [optimization section](user-guide/optimization/overview.md) above, which offers more information on the mathematical formulations PyPSA uses when running [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
+    Please also refer the [optimization section](optimization/overview.md) above, which offers more information on the mathematical formulations PyPSA uses when running [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
 PyPSA uses [Linopy](https://linopy.readthedocs.io/en/latest/) as the optimization backend. Linopy is a stand-alone package and works similar to [Pyomo](https://www.pyomo.org/), but without the memory overhead and much faster. The core optimization functions can be called with [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. This call unifies creating the problem, solving it and retrieving the optimized results.
 The accessor [n.optimize][pypsa.optimization.OptimizationAccessor] additionally offers a range of different functionalities. 
@@ -186,7 +186,7 @@ n.optimize(extra_functionality=remove_kvl)
 
 !!! info "See Also"
 
-    Please also refer to the user guide section on [custom constraints](user-guide/optimization/custom-constraints.md).
+    Please also refer to the user guide section on [custom constraints](optimization/custom-constraints.md).
 
 In the following, we present a selection of examples for additional constraints. Note, the dual values of the additional constraints will not be stored in in the network object `n`, but just under `n.model` which is accessible only in the current session.
 
@@ -294,4 +294,4 @@ Looks good! Now, let's see which dual values were parsed. For that, we have a lo
 >>> n.model.dual["Bus-minimum_production_share"]  # doctest: +SKIP
 ```
 
-These are the basic functionalities of the [`n.optimize`][pypsa.optimization.OptimizationAccessor] accessor. There are many more functions like extended problem formulations for security constraint optimization, iterative transmission expansion optimization, and rolling-horizon optimization alongside several helper functions (fixing optimized capacities, adding load shedding). Check them out in the [:octicons-code-16: API reference](/api/networks/optimize/).
+These are the basic functionalities of the [`n.optimize`][pypsa.optimization.OptimizationAccessor] accessor. There are many more functions like extended problem formulations for security constraint optimization, iterative transmission expansion optimization, and rolling-horizon optimization alongside several helper functions (fixing optimized capacities, adding load shedding). Check them out in the [:octicons-code-16: API reference](../api/networks/optimize.md).

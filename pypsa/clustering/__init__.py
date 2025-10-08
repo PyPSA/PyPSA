@@ -18,7 +18,7 @@ class ClusteringAccessor:
 
     User Guide
     ----------
-    Check out the corresponding user guide: [:material-bookshelf: Clustering](/user-guide/clustering)
+    Check out the corresponding user guide: <!-- md:guide clustering.ipynb -->
     """
 
     def __init__(self, n: "Network") -> None:

@@ -40,7 +40,7 @@ outage of that branch using the branch outage distribution factor (BODF, see [](
 
 ## Inputs
 
-For the linear power flow, the following data for each component are used. For the defaults and units, see [Components](/user-guide/components).
+For the linear power flow, the following data for each component are used. For the defaults and units, see <!-- md:guide components.md -->.
 
 - `n.buses.{v_nom}`
 - `n.loads.{p_set}`
@@ -80,7 +80,7 @@ For the linear power flow, the following data for each component are used. For t
 
     Solves non-linear AC power flow equations using the Newton-Raphson method to inspect voltage magnitudes and angles.
 
-    [:octicons-arrow-right-24: Go to example](../examples/minimal_example_pf.ipynb)
+    [:octicons-arrow-right-24: Go to example](../examples/minimal-example-pf.ipynb)
 
 -   :material-notebook:{ .lg .middle } **SciGRID Network**
 
