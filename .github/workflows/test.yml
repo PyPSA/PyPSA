@@ -116,7 +116,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
-  chek-docs:
+  check-docs:
     name: Check docs
     needs: [build]
     runs-on: ubuntu-latest

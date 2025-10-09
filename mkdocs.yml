@@ -279,10 +279,10 @@ plugins:
     enable_creation_date: true
     enable_git_follow: true
     strict: false # TODO: activate
-# - social:
-#     cards_layout_options:
-#       font_family: Overpass
-#       background_color: "#292F36"
+- social:
+    cards_layout_options:
+      font_family: Overpass
+      background_color: "#292F36"
 
 # Docstring generation
 - mkdocstrings:
