@@ -1,24 +1,18 @@
 
 *~
-
+.~*
 *.py[cod]
-
 .ipynb_checkpoints/
-
 *.log
-
 old/
 
-# Ignore all jupyter notebooks, except the example notebooks
+# Ignore all jupyter notebooks, except those for the docs
 *.ipynb
 !/docs/**/*.ipynb
 
 
 test/.cache/
-
 .cache/
-
-.~*
 
 test/results/*
 

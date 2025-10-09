@@ -151,8 +151,13 @@ def on_env(env, config: MkDocsConfig, files: Files):
 
 def _resolve_path(path: str, page: Page, files: Files):
     """Resolve path of file relative to given page."""
+    original_path = path
     path, anchor, *_ = f"{path}#".split("#")
-    path = _resolve(files.get_file_from_path(path), page)
+    file = files.get_file_from_path(path)
+    if file is None:
+        logging.warning(f"File not found: {path} (referenced in {page.file.src_uri})")
+        return original_path  # Return original path unchanged
+    path = _resolve(file, page)
     return "#".join([path, anchor]) if anchor else path
 
 

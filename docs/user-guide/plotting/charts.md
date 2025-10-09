@@ -70,7 +70,7 @@ Any of these metrics can also be used to create plots straight away:
 >>> n_simple.statistics.energy_balance.plot()  # doctest: +SKIP
 ```
 <figure markdown="span">
-  ![Buses](../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
+  ![Buses](../../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
 </figure>
 
 The plot type varies depending on which type makes the most sense for a given metric. For instance, energy_balance produces an area plot with snapshots on the x-axis, whereas installed_capacity produces a simple bar chart without a time dimension.
@@ -79,7 +79,7 @@ The plot type varies depending on which type makes the most sense for a given me
 >>> n_simple.statistics.installed_capacity.plot()  # doctest: +SKIP
 ```
 <figure markdown="span">
-  ![Buses](../assets/images/ac_dc_meshed-installed_capacity-bar_plot.png){ width="350" }
+  ![Buses](../../assets/images/ac_dc_meshed-installed_capacity-bar_plot.png){ width="350" }
 </figure>
 
 #### Complex Networks
@@ -99,7 +99,7 @@ Energy balance can also be shown as a bar chart, ignoring the time dimension:
 >>> n_simple.statistics.energy_balance.plot.bar()  # doctest: +SKIP
 ```
 <figure markdown="span">
-  ![Buses](../assets/images/ac_dc_meshed-energy_balance-bar_plot.png){ width="350" }
+  ![Buses](../../assets/images/ac_dc_meshed-energy_balance-bar_plot.png){ width="350" }
 </figure>
 
 
@@ -120,7 +120,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.area()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
     </figure>
 
 === "Bar Plot"
@@ -128,7 +128,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.bar()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-bar_plot.png){ width="350" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-bar_plot.png){ width="350" }
     </figure>
 
 === "Map Plot"
@@ -136,7 +136,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.map()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-map_plot.png){ width="600" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-map_plot.png){ width="600" }
     </figure>
 
 === "Scatter Plot"
@@ -144,7 +144,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.scatter()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-scatter_plot.png){ width="350" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-scatter_plot.png){ width="350" }
     </figure>
 
 === "Line Plot"
@@ -152,7 +152,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.line()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-line_plot.png){ width="600" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-line_plot.png){ width="600" }
     </figure>
 
 === "Box Plot"
@@ -160,7 +160,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.box()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-box_plot.png){ width="350" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-box_plot.png){ width="350" }
     </figure>
 
 === "Violin Plot"
@@ -168,7 +168,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.violin()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-violin_plot.png){ width="350" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-violin_plot.png){ width="350" }
     </figure>
 
 === "Histogram Plot"
@@ -176,7 +176,7 @@ The following plot types are available:
     >>> n_simple.statistics.energy_balance.plot.histogram()  # doctest: +SKIP
     ```
     <figure markdown="span">
-      ![Buses](../assets/images/ac_dc_meshed-energy_balance-histogram_plot.png){ width="350" }
+      ![Buses](../../assets/images/ac_dc_meshed-energy_balance-histogram_plot.png){ width="350" }
     </figure>
 
 
@@ -192,7 +192,7 @@ All plot methods return a matplotlib figure object, a matplotlib axes object and
 >>> ax.set_ylabel("Energy Balance (MW)", fontsize=9)
 ```
 <figure markdown="span">
-  ![Buses](../assets/images/ac_dc_meshed-energy_balance-custom_area_plot.png){ width="800" }
+  ![Buses](../../assets/images/ac_dc_meshed-energy_balance-custom_area_plot.png){ width="800" }
 </figure>
 
 ### Customization based on statistics parameters
@@ -204,7 +204,7 @@ Parameters which are available in the base statistics method, to filter and aggr
     >>> n.statistics.energy_balance.plot.area(bus_carrier="AC", figsize=(12, 3))  # doctest: +SKIP
     ```
     <figure markdown="span">
-    ![Buses](../assets/images/carbon_management-energy_balance-area_plot-AC-bus_carrier.png){ width="800" }
+    ![Buses](../../assets/images/carbon_management-energy_balance-area_plot-AC-bus_carrier.png){ width="800" }
     </figure>
 
 === "All Buses"
@@ -213,7 +213,7 @@ Parameters which are available in the base statistics method, to filter and aggr
     >>> n.statistics.energy_balance.plot.area(figsize=(10, 3))  # doctest: +SKIP
     ```
     <figure markdown="span">
-    ![Buses](../assets/images/carbon_management-energy_balance-area_plot.png){ width="800" }
+    ![Buses](../../assets/images/carbon_management-energy_balance-area_plot.png){ width="800" }
     </figure>
 
 
@@ -250,7 +250,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     >>> n_simple.statistics.energy_balance.plot()  # doctest: +SKIP
     ```
     <figure markdown="span">
-    ![Buses](../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
+    ![Buses](../../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
     </figure>
 
 #### Carbon Network Energy Balance with bus carrier `AC`
@@ -273,7 +273,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     >>> n.statistics.energy_balance.plot(bus_carrier="AC")  # doctest: +SKIP
     ```
     <figure markdown="span">
-    ![Buses](../assets/images/carbon_management-energy_balance-area_plot-AC-bus_carrier.png){ width="800" }
+    ![Buses](../../assets/images/carbon_management-energy_balance-area_plot-AC-bus_carrier.png){ width="800" }
     </figure>
 
 
@@ -296,7 +296,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     >>> n.statistics.energy_balance.plot.area(figsize=(10, 3))  # doctest: +SKIP
     ```
     <figure markdown="span">
-    ![Buses](../assets/images/carbon_management-energy_balance-area_plot.png){ width="800" }
+    ![Buses](../../assets/images/carbon_management-energy_balance-area_plot.png){ width="800" }
     </figure>
 
 

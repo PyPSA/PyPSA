@@ -1091,12 +1091,10 @@ def _sort_attrs(
 class NetworkIOMixin(_NetworkABC):
     """Mixin class for network I/O methods.
 
+    <!-- md:guide import-export.md -->
+
     Class inherits to [pypsa.Network][]. All attributes and methods can be used
     within any Network instance.
-
-    User Guide
-    ----------
-    <!-- md:guide import-export.md -->
     """
 
     def _export_to_exporter(
