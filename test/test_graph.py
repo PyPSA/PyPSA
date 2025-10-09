@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Created on Wed May  6 12:00:00 2025
 
