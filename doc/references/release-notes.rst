@@ -9,7 +9,6 @@ Upcoming Release
   
    The features listed below are not released yet, but will be part of the next release! 
    To use the features already you have to install the ``master`` branch, e.g. 
-   ``pip install git+https://github.com/pypsa/pypsa``.
 
 
 Features
@@ -55,6 +54,9 @@ Features
 
 * New network indexing methods: ``n.get_network``, ``n.get_scenario``, ``n.slice_network`` and enhanced ``n[...]`` for convenient network access.
 
+* When using misleading attribute names or typos in the ``add`` method, a warning is 
+  now raised. (https://github.com/PyPSA/PyPSA/pull/1259)
+  
 * The ``Network.add()`` method now returns ``None`` by default. Use ``return_names=True`` 
   to get the previous behavior of returning component names which have been added.
 

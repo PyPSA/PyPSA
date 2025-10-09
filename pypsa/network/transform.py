@@ -14,9 +14,11 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+from Levenshtein import distance
 
 from pypsa._options import options
 from pypsa.components.common import as_components
+from pypsa.components.types import all_standard_attrs_set
 from pypsa.network.abstract import _NetworkABC
 from pypsa.type_utils import is_1d_list_like
 
@@ -27,6 +29,55 @@ if TYPE_CHECKING:
     from pypsa.networks import Network
 
 logger = logging.getLogger(__name__)
+
+
+def _get_potential_typos(
+    custom_attrs: set[str], standard_attrs: set[str]
+) -> set[tuple[str, str]]:
+    def is_typo(custom_attr: str, default_attr: str) -> bool:
+        """Check if custom_attr could be a typo of default_attr.
+
+        See according test in `test_transform.py` for detailed examples.
+
+        Parameters
+        ----------
+        custom_attr : str
+            Custom attribute name
+        default_attr : str
+            Default attribute name
+
+        Returns
+        -------
+        bool
+            True if custom_attr could be a typo of default_attr, False otherwise
+
+        """
+        dist = distance(custom_attr, default_attr)
+        # Basic condition
+        if (
+            dist != 1
+            or len(custom_attr) <= 1
+            or len(default_attr) <= 1
+            or default_attr in ["type"]
+        ):
+            return False
+
+        # Don't catch different base_attrs (p_nom vs e_nom etc.)
+        if dist == 1 and custom_attr[0] != default_attr[0] and custom_attr[1] == "_":
+            return False
+
+        # Don't catch different suffix (efficiency vs efficiency2, bus0 vs bus1 etc.)
+        if dist == 1 and (custom_attr[-1].isdigit() or default_attr[-1].isdigit()):  # noqa: SIM103
+            return False
+
+        return True
+
+    return {
+        (custom_attr, default_attr)
+        for custom_attr in custom_attrs
+        for default_attr in standard_attrs
+        if is_typo(custom_attr, default_attr)
+    }
 
 
 class NetworkTransformMixin(_NetworkABC):
@@ -161,6 +212,35 @@ class NetworkTransformMixin(_NetworkABC):
         if not names.is_unique:
             msg = f"Names for {c.name} must be unique."
             raise ValueError(msg)
+
+        # Check custom attributes
+        standard_attrs = set(c.attrs.index)
+        custom_attrs = set(kwargs.keys()) - standard_attrs
+        if custom_attrs:
+            # Raise warning if user adds a custom attribute which is a standard attribute
+            # for other components
+            unintended_attr_names = custom_attrs & all_standard_attrs_set
+            for unintended_attr_name in unintended_attr_names:
+                logger.warning(
+                    "The attribute '%s' is a standard attribute for other components but not for %s. "
+                    "This could cause confusion and it should be renamed. "
+                    "See also: https://go.pypsa.org/warning-attr-misleading.",
+                    unintended_attr_name,
+                    c.list_name,
+                )
+        # Check if levenshtein distance to standard attributes is small (<= 1) which
+        # indicates a typo in the attribute name
+        if options.warnings.attribute_typos:
+            potential_typos = _get_potential_typos(custom_attrs, standard_attrs)
+            for custom_attr, standard_attr in potential_typos:
+                logger.warning(
+                    "The attribute '%s' is not a standard attribute for %s. "
+                    "Did you mean '%s'? "
+                    "See also: https://go.pypsa.org/warning-attr-typo.",
+                    custom_attr,
+                    c.list_name,
+                    standard_attr,
+                )
 
         for k, v in kwargs.items():
             # If index/ columnes are passed (pd.DataFrame or pd.Series)

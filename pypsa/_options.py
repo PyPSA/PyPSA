@@ -370,30 +370,6 @@ class OptionsNode:
         api.new_components_api:
             Default: False
             Description: Activate the new components API, which replaces the static components data access with the more flexible components class. This will just change the api and not any functionality. Components class features are always available. See https://go.pypsa.org/new-components-api for more details.
-        debug.runtime_verification:
-            Default: False
-            Description: Enable runtime verification of PyPSA's internal state. This is useful for debugging and development purposes. This will lead to overhead in performance and should not be used in production.
-        general.allow_network_requests:
-            Default: True
-            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
-        params.add.return_names:
-            Default: False
-            Description: Default value for the 'return_names' parameter in Network.add method. If True, the add method returns the names of added components. If False, it returns None.
-        params.optimize.model_kwargs:
-            Default: {}
-            Description: Default value for the 'model_kwargs' parameter in optimization module.
-        params.optimize.solver_name:
-            Default: highs
-            Description: Default value for the 'solver_name' parameter in optimization module.
-        params.optimize.solver_options:
-            Default: {}
-            Description: Default value for the 'solver_options' parameter in optimization module.
-        params.statistics.drop_zero:
-            Default: True
-            Description: Default value for the 'drop_zero' parameter in statistics module.
-        params.statistics.nice_names:
-            Default: True
-            Description: Default value for the 'nice_names' parameter in statistics module.
         ...
 
         """
@@ -472,6 +448,13 @@ options._add_option(
     "warnings.components_store_iter",
     True,
     "If False, suppresses the deprecation warning when iterating over components.",
+)
+options._add_option(
+    "warnings.attribute_typos",
+    True,
+    "If False, suppresses warnings about potential typos in component attribute names. "
+    "Note: warnings about unintended attributes (standard attributes for other components) "
+    "will still be shown.",
 )
 
 # Parameters category

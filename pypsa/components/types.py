@@ -219,3 +219,7 @@ _load_default_component_types(
     attrs_path=_attrs_path,
     standard_types_path=_standard_types_path,
 )
+
+all_standard_attrs_set = {
+    attr for component in all_components.values() for attr in component.defaults.index
+}

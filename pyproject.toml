@@ -42,6 +42,7 @@ dependencies = [
     "deprecation",
     "validators",
     "highspy",
+    "levenshtein>=0.27.1",
 ]
 
 [project.urls]
