@@ -163,8 +163,14 @@ class AbstractStatisticsAccessor(ABC):
                 for col in n.c[c].static
                 if (match := RE_PORTS.search(str(col)))
             ]
-            if not at_port:
-                ports = [ports[0]]
+
+            match at_port:
+                case str():
+                    ports = [at_port] if at_port in ports else []
+                case [str(), *_]:
+                    ports = [p for p in at_port if p in ports]
+                case False | None:
+                    ports = [ports[0]]
 
             values = []
             for port in ports:
