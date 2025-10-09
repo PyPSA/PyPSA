@@ -69,7 +69,6 @@ nav:
     - Power Flow: user-guide/power-flow.md
     - Linear Power Flow: user-guide/linear-power-flow.md
   - Usage:
-    - Networks: user-guide/networks.md
     - Components: user-guide/components.md
     - Optimization: user-guide/network-optimization.md
     - Import and Export: user-guide/import-export.md
@@ -416,4 +415,5 @@ validation:
     unrecognized_links: warn
 
 copyright: >-
-  &copy Copyright 2015-2025 PyPSA Developers and Contributors
+  &copy Copyright 2015-2025 PyPSA Contributors
+
