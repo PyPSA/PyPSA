@@ -269,11 +269,7 @@ def test_concrete_at_port(prepared_network):
     expr = n.optimize.expressions.capacity("Link", at_port=["bus1", "bus2"])
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
-    assert (
-        (n.optimize.expressions.capacity("Link", at_port="bus1").coeffs == 0.9)
-        .all()
-        .item()
-    )
+    assert (expr.coeffs == 0.9).all().item()
 
     expr = n.optimize.expressions.capacity("Link", at_port="all")  # does not exist
     assert isinstance(expr, LinearExpression)
