@@ -2,7 +2,7 @@
 
 !!! hint
 
-    If this is your first time with Python, check out the [First Time Users¶](first-time-users.md) guide.
+    If it is your first time using Python, we recommend [conda](https://docs.conda.io/en/latest/miniconda.html), [mamba](https://github.com/mamba-org/mamba), or [pip](https://pip.pypa.io/en/stable/) as easy-to-use package managers. They are available for Windows, macOS, and GNU/Linux. It is always helpful to use dedicated environments.
 
 You can install PyPSA via all common package managers:
 
@@ -26,35 +26,28 @@ You can install PyPSA via all common package managers:
 
 PyPSA is written and tested to be compatible with Python 3.10 and above. We recommend to use the latest version with active support (see [endoflife.date](https://endoflife.date/python)).
 
-## Getting a solver
+## Solvers
 
-PyPSA passes optimisation problems (see [overview](optimal-power-flow/#overview)) to an external solver and is deeply integrated with [linopy](https://github.com/PyPSA/linopy) to do so.
+PyPSA passes optimisation problems (see [overview](optimal-power-flow/#overview)) to an external solver and is deeply integrated with the optimisation framework [linopy](https://github.com/PyPSA/linopy) to do so. Some examples of available solvers:
 
-Free software:
+| Free solvers | Commercial solvers |
+| ------------- | ------------------- |
+| [HiGHS](https://highs.dev/) | [Gurobi](https://www.gurobi.com/documentation/quickstart.html) |
+| [Cbc](https://projects.coin-or.org/Cbc#DownloadandInstall) | [CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio) |
+| [GLPK](https://www.gnu.org/software/glpk/) | [FICO Xpress](https://www.fico.com/en/products/fico-xpress-optimization) |
+| [SCIP](https://scip.zib.de/) | [MOSEK](https://www.mosek.com/) |
+| | [COPT](https://www.shanshu.ai/copt) |
 
-- [HiGHS](https://highs.dev/)
-- [Cbc](https://projects.coin-or.org/Cbc#DownloadandInstall)
-- [GLPK](https://www.gnu.org/software/glpk/) ([WinGLKP](http://winglpk.sourceforge.net/))
-- [SCIP](https://scip.zib.de/)
-
-Commercial software (for some of which free academic licenses are available):
-
-- [Gurobi](https://www.gurobi.com/documentation/quickstart.html)
-- [CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio)
-- [FICO Xpress](https://www.fico.com/en/products/fico-xpress-optimization)
-- [MOSEK](https://www.mosek.com/)
-- [COPT](https://www.shanshu.ai/copt)
-- [MindOpt](https://solver.damo.alibaba.com/doc/en/html/index.html)
-
-An installation of PyPSA will automatically install the default solver HiGHS. For installation instructions of further solvers for your operating system, follow the links above.
+PyPSA ships with the open-source solver HiGHS by default. For installation instructions of further solvers for your operating system, follow the links above.
 
 !!! note
 
-    Commercial solvers such as Gurobi, CPLEX, and Xpress currently significantly outperform open-source solvers for large-scale problems.
+    Commercial solvers currently significantly outperform open-source solvers for large-scale problems.
     It might be the case that you can only retrieve solutions by using a commercial solver.
+    Many commercial solvers provide free academic licenses.
 
 
-## Upgrading PyPSA
+## Upgrading
 
 We recommend always keeping your PyPSA installation up-to-date, since bugs get
 fixed and new features are added. PyPSA is also only tested with the latest
@@ -87,7 +80,7 @@ PyPSA relies heavily on other open-source Python packages. Some of them are:
 
 * [pandas](http://pandas.pydata.org/) for storing data about components and time series
 * [numpy](http://www.numpy.org/) and [scipy](http://scipy.org/) for calculations, such as linear algebra and sparse matrix calculations
-* [linopy](https://github.com/PyPSA/linopy) for preparing optimisation problems (currently only linear and mixed-integer linear)
+* [linopy](https://github.com/PyPSA/linopy) for preparing optimisation problems (LP, QP, MILP)
 * [matplotlib](https://matplotlib.org/), [seaborn](https://seaborn.pydata.org/) and [plotly](https://plotly.com/python/) for static and interactive plotting
 * [networkx](https://networkx.github.io/) for some network calculations
 * [pytest](http://pytest.org/) for unit testing

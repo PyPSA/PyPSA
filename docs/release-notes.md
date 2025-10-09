@@ -80,7 +80,7 @@ Bug Fixes
 ---------
 
 * Fixed issue when copying a solved network after setting ``solver_model`` to ``None``.
-  (https://github.com/PyPSA/PyPSA/issues/1325)
+  (https://github.com/PyPSA/PyPSA/issues/1351)
   
 * Correct use of snapshot weighting columns in statistics module. The
   doscstring for ``n.snapshot_weightings`` was clarified.
@@ -89,8 +89,6 @@ Bug Fixes
   resulting in false update information being logged.
   (https://github.com/PyPSA/PyPSA/pull/1300)
 
-* Fix bug when using ``solver_model`` after adding custom variable to linopy model.
-  (https://github.com/PyPSA/PyPSA/issues/1351)
 
 * Fixed inconsistent period weighting application in primary energy and operational limit 
   global constraints for non-cyclic storage units and stores. Previously, generators correctly 
@@ -116,11 +114,14 @@ Bug Fixes
 Bug Fixes
 ---------
 
-* Make compatible with xarray v2025.07 
+## [**v0.35.2**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2) <small>15th August 2025</small> { id="v0.35.2" }
+
+### Bug Fixes
+
+- Make compatible with xarray v2025.07 
   (https://github.com/PyPSA/PyPSA/pull/1304)
 
-`v0.35.1 <https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1>`__ (3rd July 2025)
-=======================================================================================
+## [**v0.35.1**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.1) <small>3rd July 2025</small> { id="v0.35.1" }
 
 ### Bug Fixes
 
@@ -133,7 +134,7 @@ Bug Fixes
 - Fixed Excel import when snapshots sheet is missing.
   (:octicons-issue-16:1268)
 
-## [**v0.35.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0) <small>22th June 2025</small> { id="v0.35.0" }
+## [**v0.35.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.0) 
 
 ### Features
 
