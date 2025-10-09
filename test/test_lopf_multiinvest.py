@@ -774,3 +774,289 @@ def test_storage_unit_primary_energy_and_operational_limit_constraint_with_per_p
 
     n.optimize(multi_investment_periods=True)
     almost_equal(n.objective, 10 * 2 + 1 * 6)
+
+
+def test_bug_1360_stores():
+    """
+    Storage state of charge should behave correctly with various snapshot configurations.
+    See https://github.com/PyPSA/PyPSA/issues/1360.
+    """
+    # Case 1: Simple snapshots without multi_investment_periods
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge
+    n = pypsa.Network()
+    n.snapshots = [1, 2, 3, 4]
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add("Store", "store", bus="bus", e_nom=10, e_initial=10, marginal_cost=1)
+
+    n.optimize(multi_investment_periods=False)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+    # Case 2: Multi-indexed snapshots without multi_investment_periods
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+    # Case 3: Multi_investment_periods with e_initial_per_period=True
+    # Expected: stores_t.e [9, 8, 9, 8] - reset at each period
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=True,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(n.stores_t.e["store"].values, [9, 8, 9, 8], decimal=5)
+
+    # Case 4: Multi_investment_periods with e_initial_per_period=False
+    # Expected: stores_t.e [9, 8, 7, 6] - continuous discharge across periods
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[1, 1, 1, 1])
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        e_nom=10,
+        e_initial=10,
+        marginal_cost=1,
+        e_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(n.stores_t.e["store"].values, [9, 8, 7, 6], decimal=5)
+
+
+def test_bug_1360_storage_units():
+    """
+    Storage units state of charge should behave correctly with various snapshot configurations.
+    See https://github.com/PyPSA/PyPSA/issues/1360.
+    """
+    # Case 1: Simple snapshots without multi_investment_periods
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge
+    n = pypsa.Network()
+    n.snapshots = [1, 2, 3, 4]
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+    # Case 2: Multi-indexed snapshots without multi_investment_periods
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=False)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+    # Case 3: Multi_investment_periods with state_of_charge_initial_per_period=True
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.9, 0.8] - reset at each period
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=True,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.9, 0.8],
+        decimal=5,
+    )
+
+    # Case 4: Multi_investment_periods with state_of_charge_initial_per_period=False
+    # Expected: storage_units_t.state_of_charge [0.9, 0.8, 0.7, 0.6] - continuous discharge across periods
+    n = pypsa.Network()
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "storage_unit",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        marginal_cost=1,
+        state_of_charge_initial_per_period=False,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    equal(
+        n.c.storage_units.dynamic.state_of_charge["storage_unit"].values,
+        [0.9, 0.8, 0.7, 0.6],
+        decimal=5,
+    )
+
+
+def test_storageunit_cp_only_wraps_per_period():
+    """cp=True, ip=False, c=False: per-period wrap is enforced.
+
+    Verifies that with cyclic per period enabled (and no per-period initial reset),
+    the model links the first snapshot of each period to the last snapshot of the
+    same period (wrap) and thus avoids a purely continuous discharge pattern.
+    """
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    # Add a generator that is more expensive than discharging the storage so the
+    # optimizer prefers to discharge if cyclic-per-period isn't enforced. This
+    # keeps the test sensitive: with correct semantics it would need to
+    # recharge within each period, producing level pattern like [0.9,1.0,0.9,1.0].
+    n.add(
+        "Generator",
+        "gen",
+        bus="bus",
+        p_nom=1.0,
+        marginal_cost=1.0,
+    )
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        cyclic_state_of_charge=False,
+        cyclic_state_of_charge_per_period=True,
+        state_of_charge_initial_per_period=False,
+        marginal_cost=0.0,  # cheaper than generator
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    soc = n.c.storage_units.dynamic.state_of_charge["su"].values
+    # Detect monotonic discharge signature.
+    expected_continuous = [0.9, 0.8, 0.7, 0.6]
+    if all(abs(soc[i] - expected_continuous[i]) < 1e-6 for i in range(4)):
+        raise AssertionError(
+            "Observed continuous discharge pattern [0.9,0.8,0.7,0.6]"
+            "cyclic_state_of_charge_per_period=True was ignored"
+        )
+
+
+def test_storageunit_ip_only_resets_per_period():
+    """ip=True, cp=False, c=False: per-period resets to initial are enforced.
+
+    Verifies that with per-period initial enabled (and no cyclic-per-period wrap),
+    the model resets state of charge to the user-provided initial at each period
+    start, avoiding a continuous discharge pattern across period boundaries.
+    """
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=[0.1, 0.1, 0.1, 0.1])
+    n.add(
+        "StorageUnit",
+        "su_ip_only",
+        bus="bus",
+        p_nom=1,
+        max_hours=1,
+        state_of_charge_initial=1,
+        cyclic_state_of_charge=False,
+        cyclic_state_of_charge_per_period=False,
+        state_of_charge_initial_per_period=True,  # target behavior
+        marginal_cost=1.0,  # non-zero cost for objective contribution
+    )
+
+    status, _ = n.optimize(multi_investment_periods=True)
+    assert status == "ok"
+    soc = n.c.storage_units.dynamic.state_of_charge["su_ip_only"].values
+    continuous = [0.9, 0.8, 0.7, 0.6]
+    # If we observe the continuous pattern, storage level reset did not occur.
+    if all(abs(soc[i] - continuous[i]) < 1e-6 for i in range(4)):
+        raise AssertionError(
+            "Observed continuous discharge [0.9,0.8,0.7,0.6]"
+            "state_of_charge_initial_per_period=True was ignored"
+        )

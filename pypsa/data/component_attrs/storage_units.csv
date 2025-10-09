@@ -28,7 +28,7 @@ state_of_charge_initial,float,MWh,0,State of charge before the snapshots in the 
 state_of_charge_initial_per_period,boolean,n/a,False,"Switch: if True, the state of charge at the beginning of an investment period is set to `state_of_charge_initial`.",Input (optional)
 state_of_charge_set,static or series,MWh,NaN,State of charge set points for snapshots in the optimisation.,Input (optional)
 cyclic_state_of_charge,boolean,n/a,False,"Switch: if True, then `state_of_charge_initial` is ignored and the initial state of charge is set to the final state of charge for the group of snapshots in the optimisation (`soc[-1] = soc[len(snapshots)-1]`).",Input (optional)
-cyclic_state_of_charge_per_period,boolean,n/a,True,"Switch: if True, the cyclic constraints are applied to each investment period separately.",Input (optional)
+cyclic_state_of_charge_per_period,boolean,n/a,False,"Switch: if True, the cyclic constraints are applied to each investment period separately.",Input (optional)
 max_hours,float,hours,1,Maximum state of charge capacity in terms of hours at full output power capacity `p_nom`,Input (optional)
 efficiency_store,static or series,per unit,1,Efficiency of storage on the way into the storage.,Input (optional)
 efficiency_dispatch,static or series,per unit,1,Efficiency of storage on the way out of the storage.,Input (optional)

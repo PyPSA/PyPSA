@@ -13,7 +13,7 @@ e_max_pu,static or series,per unit,1,Maximal value of `e` relative to `e_nom` fo
 e_initial,float,MWh,0,Energy before the snapshots in the optimisation.,Input (optional)
 e_initial_per_period,boolean,n/a,False,"Switch: if True, then at the beginning of each investment period `e` is set to `e_initial`.",Input (optional)
 e_cyclic,boolean,n/a,False,"Switch: if True, then `e_initial` is ignored and the initial energy is set to the final energy for the group of snapshots in the optimisation.",Input (optional)
-e_cyclic_per_period,boolean,n/a,True,"Switch: if True, then the cyclic constraints are applied to each investment period separately.",Input (optional)
+e_cyclic_per_period,boolean,n/a,False,"Switch: if True, then the cyclic constraints are applied to each investment period separately.",Input (optional)
 p_set,static or series,MW,n/a,Active power set point (for power flow only),Input (optional)
 q_set,static or series,MVar,0,Reactive power set point (for power flow only),Input (optional)
 e_set,static or series,MWh,NaN,Fixed energy filling level set point (for optimisation only),Input (optional)
