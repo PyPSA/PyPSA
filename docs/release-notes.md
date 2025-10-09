@@ -79,6 +79,10 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
   attributes `nom_{min/max}_{carrier}_{period}` is now deprecated. The global
   constraint type `"tech_capacity_expansion_limit"` offers identical functionality.
 
+* Added utility function ``pypsa.common.annuity`` to calculate the annuity
+  factor for a given discount rate and lifetime. Also known as capital recovery
+  factor, it is used to convert a capital cost into an annualized cost.
+
 * Add additional standard line types from pandapower.
 
 * New network indexing methods: ``n.get_network``, ``n.get_scenario``, ``n.slice_network`` and enhanced ``n[...]`` for convenient network access.

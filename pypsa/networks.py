@@ -84,7 +84,7 @@ class Network(
 ):
     """Network container for all [pypsa.Components][] and helds most of PyPSA's functionality.
 
-    <!-- md:badge-version v0.1.0 --> | <!-- md:guide networks.md -->
+    <!-- md:badge-version v0.1.0 --> | <!-- md:guide design.md -->
     """
 
     # Optimization
@@ -211,9 +211,9 @@ class Network(
         Examples
         --------
         >>> str(n)
-        'PyPSA Network 'AC-DC-Meshed''
+        "PyPSA Network 'AC-DC-Meshed'"
         >>> str(n_stochastic)
-        'Stochastic PyPSA Network 'Stochastic-Network''
+        "Stochastic PyPSA Network 'Stochastic-Network'"
 
         """
         prefix = "Stochastic PyPSA Network" if self.has_scenarios else "PyPSA Network"
@@ -226,11 +226,20 @@ class Network(
 
         Examples
         --------
-        >>> n
+        >>> n  # doctest: +ELLIPSIS
         PyPSA Network 'AC-DC-Meshed'
         ----------------------------
         Components:
          - Bus: 9
+         - Carrier: ...
+         - Generator: ...
+         - GlobalConstraint: ...
+         - Line: ...
+         - Link: ...
+         - Load: ...
+         - SubNetwork: ...
+        Snapshots: 10
+        <BLANKLINE>
 
         """
         # TODO make this actually for the REPL

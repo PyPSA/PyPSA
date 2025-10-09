@@ -30,7 +30,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 7. Run tests: `pytest` (see [Testing](#testing))
 8. Push your changes to your fork and create a pull request on GitHub
 
-TODO: What to work on, TODO, which issues, labeling etc.
+<!-- TODO: What to work on, TODO, which issues, labeling etc. -->
 
 ### Style
 

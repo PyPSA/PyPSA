@@ -1,12 +1,10 @@
-# Components object
+# Components Object
 
-TODO: Update section
-
-The [`pypsa.Components`][] are the store for all component specific data. While the [`pypsa.Network`][] bundles together functionality across components, the Components class is the interface for all data and processing for a specific component type. The two data stores are [`c.static`][pypsa.Components.static] and [`c.dynamic`][pypsa.Components.dynamic] (with an additional `snapshots` dimension).
+[`pypsa.Components`][] are the store for all component specific data. While a [`pypsa.Network`][] bundles together functionality across components, the Components class is the interface for all data and processing for a specific component type. 
 
 ``` py
 >>> import pypsa
->>> n = pypsa.Network()
+>>> n = pypsa.examples.ac_dc_meshed()
 >>> n.components.generators
 Empty 'Generator' Components
 ```
@@ -14,8 +12,6 @@ Empty 'Generator' Components
 !!! tip
 
     A short name, such as `c`, is recommended since it is used frequently to access the stored data, properties and methods.
-
-TODO: Update section
 
 ## Components Store
 
@@ -49,37 +45,73 @@ Loop through all components:
 
     Even if assigned to a variable, the components are not copied. They are still attached to the network. If you change any data of the components object, the changes will be reflected in the network as well. There is no need to re-assign the components object to the network.
 
-## New Components Class API
-PyPSA components have been introduced in version [`v0.33`](../release-notes.md#v0.33.0). Prior to that components data was only available in the two data stores `n.generators` and `n.generators_t`, directly attached to the network and not coupled together. For backward compatibility, the same `pandas`-based structure is still used, but `n.generators` actually refers to [`n.components.generators.static`][pypsa.Components.static].
+## Stored Data
+All components data is stored in the two stores [`c.static`][pypsa.Components.static] and [`c.dynamic`][pypsa.Components.dynamic]:
 
-The current components API is therefore a bit confusing:
-
-- `n.generators` -> reference to [`n.components.generators.static`][pypsa.Components.static]
-- `n.generator_t` -> reference to [`n.components.generators.dynamic`][pypsa.Components.dynamic]
-
-To get access to the full functionality of [`pypsa.Components`][] you need to use the long namespace or assign them to a variable. E.g. to get the list of components which support unit commitment:
-
+- [`c.static`][pypsa.Components.static] contains all static data of the components, i.e. data that does not change over time. It is a simple `pandas.DataFrame` with the component names as index and all attributes as columns. E.g. for generators this includes `bus`, `carrier`, `p_nom`, etc.
 ``` py
->>> committables = n.components["Generator"].committables
->>> committables
-Index([], dtype='int64', name='name')
->>> c = n.components["Generator"]
->>> c.committables
-Index([], dtype='int64', name='name')
+>>> c.static # doctest: +ELLIPSIS
+                        bus control type    p_nom    ...
+name                                                       
+Manchester Wind  Manchester      PQ          80.0    ... 
+Manchester Gas   Manchester      PQ       50000.0    ...
+...
+```
+- [`c.dynamic`][pypsa.Components.dynamic] contains all time-varying data of the component. It is a dict-like object that contains a `pandas.DataFrame` for each time-varying attribute. E.g. `p` or `p_max_pu`.
+``` py
+>>> c.dynamic.p_max_pu # doctest: +ELLIPSIS
+name                 Manchester Wind  Frankfurt Wind  Norway Wind
+snapshot                                                         
+2015-01-01 00:00:00         0.930020        0.559078     0.974583
+2015-01-01 01:00:00         0.485748        0.752910     0.481290
 ```
 
-### New API
+Stochastic Networks (see <!-- md:guide optimization/stochastic.md -->) and multi-period networks (see <!-- md:guide design.md -->) use also use the same structure, but add additional dimensions to the dataframes.
 
-PyPSA `v1.0` now allows you to opt in to the new Components API. This simply changes the reference to:
+!!! info
+
+    `c.static` and `c.dynamic` are exactly the same than `n.generators` and `n.generators_t`, which is still the default way to access the data and used in most of this documentation and any examples previous to version `v1.0`. See [below](#new-components-class-api) on the alternative way to access components data.
+
+
+## Features
+[`pypsa.Components`][] have been introduced as experimental in <!-- md:badge-version v0.33.0 --> and are now released as stable in <!-- md:badge-version v1.0.0 -->. They do not change anything in the underlying data structure of static and dynamic data stored in `pandas` DataFrames. In fact, they have been released in `v0.33.0` without any noticeable changes to the users.
+
+But they add a lot of additional functionality that would otherwise always have to be reimplemented on the underlying `pandas` DataFrames. Using them removes the need for a lot of boilerplate code, but it is also possible to continue using only the underlying DataFrames directly.
+
+For a list of features, checkout the API documentation. [pypsa.Components][] lists all functionality which is available for all component types, while each type has its own class listing type-sensitive features. E.g. [pypsa.components.Generators][].
+
+!!! info
+
+    More features will be added in future releases. If you have any suggestions or requests, please open an issue on [GitHub](https://github.com/PyPSA/PyPSA/issues).   
+
+## New Components Class API
+Prior to version  <!-- md:badge-version v0.33.0 --> components data was only available in the two data stores `n.generators` and `n.generators_t`, directly attached to the network and not coupled together. With <!-- md:badge-version v1.0.0 --> it is still available in the same way, but now also via the newly introduced class. Additionaly, a new optional and breaking API is introduced to make the usage of components more intuitive.
+
+The current components API is a bit confusing:
+
+- `n.generators` -> reference to [`n.components.generators.static`][pypsa.components.Components.static]
+- `n.generator_t` -> reference to [`n.components.generators.dynamic`][pypsa.components.Components.dynamic]
+
+To get access to the full functionality of [pypsa.Components][] you need to use the long namespace or assign them to a variable. E.g. to rename a component across all dataframes ([pypsa.Components.rename_component_names][]) or add components with attribute type hints ([pypsa.components.Generators.add][]), you would need to do:
+
+``` py
+>>> n.components["Generator"].rename_component_names(bus1="bus_renamed"")
+>>> c = n.components["Generator"]
+>>> c.add(name="New Gen", bus="bus_renamed", p_nom=100, carrier="wind")
+```
+
+### Opt-in to new API
+
+Therefore, PyPSA `v1.0` now allows you to opt in to the new Components API. This simply changes the reference to:
 
 | Namespace | Current API | Opt-in API |
 |-----------|--------------|------------|
-| `n.generators` | [`n.components.generators.static`][pypsa.Components.static] | [`n.components.generators`][pypsa.components.Components] |
-| `n.generators_t` | [`n.components.generators.dynamic`][pypsa.Components.dynamic] | Deprecated |
+| `n.generators` | [`n.components.generators.static`][pypsa.components.Components.static] | [`n.components.generators`][pypsa.components.Components] |
+| `n.generators_t` | [`n.components.generators.dynamic`][pypsa.components.Components.dynamic] | Deprecated |
 
 With the new API, the usage would be much more intuitive, the actual relationship between static and dynamic data is clear and the vast amount of Components class features are faster to access with full support for auto-completion in IDEs. Using them can remove a lot of boilerplate code, which is otherwise needed.
 
-On the downside is that accessing the main static dataframe of components data is a bit more cumbersome (e.g. `n.generators.static` instead of `n.generators`). But assigning the dataframe to an variable is still possible and we are currently discussing another alias.
+On the downside is that accessing the main static dataframe of components data is a bit more cumbersome (e.g. `n.generators.static` instead of `n.generators`). But using a variable (e.g. `c`) as reference is still possible there are currently discussions for introducing a shorter alias for [`c.static`][pypsa.Components.static].
 
 And secondly, the existing code base needs to be refactored. 
 
@@ -107,6 +139,9 @@ n.links.static.query("carrier == 'HVDC'").p_nom_opt.round(2)
 
 # Interconnector Flows
 n.links.dynamic.p0.loc[:, n.links.static.carrier == "HVDC"].rolling("7d").mean()
+
+# Now you can also use the full functionality of the Components class, for example:
+n.links.additional_ports
 ```
 
 #### Step-by-step migration
@@ -138,10 +173,8 @@ n.links_t.p0.loc[:, n.links.carrier == "HVDC"].rolling("7d").mean()
 
 PyPSA `v1.0` will support full functionality for both APIs. The example above just shows how to immediately translate between the two APIs. It often also makes sense to assign the components object to a variable, which is then used in the rest of the script.
 
-### Default in PyPSA v2.0
-
-With Version `v2.0` of PyPSA, we plan to enable the new API by default with an opt-out option to still support old implementations. But already the following versions will add more functionality to the Components class.
-
 !!! info
+
+    With `v2.0` of PyPSA, there are ongoing discussions to enable the new API by default with an opt-out option to still support old implementations. 
 
     We are happy to receive feedback on this planned change of the API. Please open an issue on [GitHub](https://github.com/PyPSA/PyPSA/issues) or join the shared [Discord server](https://discord.gg/AnuJBk23FU).

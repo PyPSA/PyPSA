@@ -40,8 +40,8 @@ specific functions and components.
     ---
 
     Description of useful statistics, plotting and comparison functions.
-    
-    [:material-notebook: Usage](../user-guide/networks.md)
+
+    [:material-notebook: Usage](../user-guide/statistics.md)
 
     ---
 
