@@ -6,7 +6,9 @@ Stochastic optimization in PyPSA enables modeling and solving energy system plan
 
 PyPSA implements a **two-stage stochastic programming framework** with scenario trees, allowing users to optimize investment decisions (first-stage) that are feasible across multiple possible future realizations (scenarios) of uncertain parameters and minimize expected system costs.
 
-The stochastic optimization problem in PyPSA follows the standard two-stage stochastic programming formulation:
+### (Risk-neutral) two-stage stochastic programming problem
+
+The stochastic optimization problem in PyPSA follows the standard two-stage risk-neutral stochastic programming formulation:
 
 $$
 \begin{align}
@@ -58,8 +60,8 @@ The scenario tree in PyPSA splits into **here-and-now** investment decisions (t=
 
 !!! note "Consideration of risk preferences and robust optimisation"
 
-    The current stochastic programming implementation in PyPSA minimizes expected costs across scenarios weighted by their probabilities. This approach considers risk-neutral decision making. 
-    Support for risk preferences and robust optimization is planned for future releases.
+    The default stochastic programming implementation in PyPSA minimizes expected costs across scenarios weighted by their probabilities. This approach considers risk-neutral decision making. 
+    PyPSA also supports changing risk preference through Conditional Value at Risk (CVaR)-based risk-averse optimization, allowing users to account for extreme outcomes and tail risks in their optimization.
 
 For a comprehensive treatment of two-stage stochastic programming theory and methods, see Birge and Louveaux (2011).[^1]
 
@@ -101,8 +103,8 @@ Store        hydrogen storage    245.4
 dtype: float64
 >>>
 >>> obj_deterministic = n.objective / 1e9
->>> obj_deterministic
-5.357484973420313
+>>> obj_deterministic  # doctest: +ELLIPSIS
+5.3574849734203...
 ```
 
 ### Scenario Definition
@@ -331,17 +333,156 @@ $$
 
 For detailed treatment of these measures and their economic interpretation, see Birge and Louveaux (2011), Chapter 4.[^1]
 
+
+## Risk Preferences with Conditional Value-at-Risk (CVaR)
+
+The risk-neutral stochastic optimization introduced above minimizes expected systems costs and can leave the system exposed to rare but expensive outcomes.
+
+PyPSA also supports risk-averse stochastic optimization using Conditional Value-at-Risk (CVaR). CVaR is a risk measure that captures the expected cost in the worst-case tail of the distribution. It adds a convex penalty term for expensive outcomes, thereby shifting investments towards solutions that hedge against extreme scenarios. Users control how much of the worst-case tail to consider and how strongly to weight it relative to the expected cost optimization.
+
+### Mathematical Formulation
+
+The risk-averse stochastic optimization extends the risk-neutral formulation by including CVaR in the objective:
+
+$$
+\min_x \quad c^T x \;+\; (1-\omega)\sum_{s \in S} p_s Q(x,\xi_s) \;+\; \omega \,\mathrm{CVaR}_\alpha.
+$$
+
+Where:
+
+- $\alpha \in (0,1)$ is the confidence level that determines the probability threshold for the worst-case scenarios to be considered in the CVaR calculation. A higher $\alpha$ places more emphasis on extreme outcomes. CVaR averages costs over the worst $(1-\alpha)$ share of the distribution. At $\alpha = 1$, the denominator is zero (undefined). At $\alpha = 0$, the confidence level covers the entire distribution and the formulation degenerates (equivalent to risk-neutral expectation).
+
+- $\omega \in [0,1]$ is the tail weighting. It balances expected cost and tail cost by controlling how strongly the identified worst-case scenarios are weighted in a convex combination. The closed interval includes meaningful endpoints: $\omega=0$ corresponds to risk-neutral optimization, while $\omega=1$ corresponds to pure CVaR minimization.
+
+The CVaR at confidence level $\alpha$ is defined as the expected loss conditional on being in the worst $1-\alpha$ of outcomes:  
+
+$$
+\mathrm{CVaR}_\alpha(Q) = \mathbb{E}[\,Q(x,\xi_s)\;|\;Q(x,\xi_s)\geq \,\textrm{VaR}_\alpha(Q)].
+$$
+
+It can equivalently be written as an optimization problem, see Rockafellar & Uryasev (2002)[^2]:  
+
+$$
+\mathrm{CVaR}_\alpha(Q) = \min_{\theta \in \mathbb{R}} \Big[ \theta + \frac{1}{1-\alpha} \sum_{s \in S} p_s \max\{Q(x,\xi_s)-\theta,0\} \Big].
+$$
+
+To embed CVaR in a linear program, some auxiliary variables and constraints are introduced to enforce the definition:
+
+Variables:
+
+- $\theta$ (free): the Value-at-Risk cutoff at level $\alpha$.
+- $\mathrm{CVaR}_\alpha$ (free): the CVaR at level $\alpha$.
+- $a_s \geq 0$: excess loss of scenario $s$ above $\theta$.  
+
+Constraints:
+
+$$
+a_s \ge Q(x,\xi_s) - \theta \quad \forall s \in S,
+$$
+
+$$
+	\theta + \frac{1}{1-\alpha} \sum_{s \in S} p_s a_s \;\le\; \mathrm{CVaR}_\alpha.
+$$
+
+At the optimal solution, the auxiliary variable $\theta$ takes the role of the $\alpha$-quantile of scenario costs, i.e. the Value-at-Risk at level $\alpha$. Scenarios with costs above $\theta$ have $a_s > 0$ and thus contribute to the tail. The CVaR variable then represents the expected cost conditional on being in this worst $1-\alpha$ fraction of scenarios. In this way, the optimization automatically identifies which scenarios belong to the tail and penalizes them in the objective.
+
+!!! note "Robust-like optimization"
+    A robust "optimize against the worst scenario" setting is approximated by choosing $\omega=1$ and setting $\alpha = 1 - p(\text{worst scenario})$, so that the tail includes only the worst case.
+
+!!! note "Auxiliary variables"
+    The auxiliary variables are not written back to component tables; they are internal to the optimization model.
+
+!!! warning "Limitations"
+    CVaR is not available with quadratic marginal costs, since the resulting quadratic constraints are not supported by `linopy`.
+
+### Implementation
+
+Continuing the volcano example from above, risk preferences can be explored using the `n.set_risk_preference()` method. Let's compare different risk attitudes:
+
+```py
+# Risk-neutral baseline (expected cost)
+>>> n.optimize()
+
+# CVaR with moderate risk aversion
+>>> n.set_risk_preference(alpha=0.9, omega=0.5)
+>>> n.optimize()
+
+# Edge case: CVaR with omega=0 equals risk-neutral
+>>> n.set_risk_preference(alpha=0.9, omega=0.0)
+>>> n.optimize()
+
+# Edge case: CVaR capturing the results of the worst-case scenario 
+# (omega=1, alpha so only worst scenario is in tail)
+>>> p_worst = float(n.scenario_weightings.loc["volcano", "weight"])  # 0.1
+>>> n.set_risk_preference(alpha=1 - p_worst, omega=1.0)
+>>> n.optimize()
+```
+
+If no risk preference is set, the model reverts to risk-neutral stochastic optimization.
+
+#### Results and Interpretation
+
+With moderate risk aversion (`alpha=0.9, omega=0.5`), the optimization shifts investments to hedge against expensive tail scenarios:
+
+```py
+>>> cap_cvar = (
+...     n.statistics.optimal_capacity().div(1e3).round(1).unstack(level="scenario")
+... )
+>>> cap_diff = cap_cvar.iloc[:, 0] - cap_stochastic.iloc[:, 0]
+>>> print("Capacity diff (omega=0.5 - neutral) [GW]:")
+>>> print(cap_diff.round(2))
+component    carrier         
+Generator    load shedding          0.00
+             solar                 10.88
+             wind                   4.64
+Link         electrolysis           0.59
+             turbine                0.36
+StorageUnit  battery storage       -1.31
+Store        hydrogen storage    1579.99
+```
+
+Economic interpretation: CVaR penalizes costly tail operations (worst-scenario OPEX, such as load shedding or expensive peakers). The model invests more upfront to reduce exposure to these rare but severe outcomes. In this case, the cheapest hedge is to overbuild solar and complement it with long-duration hydrogen storage, even though solar itself is affected in the "volcano" scenario. This combination minimizes worst-case costs.
+In other words: *risk aversion hedges against the risky scenario by shifting costs from tail OPEX to upfront CAPEX.*
+
+### Evaluation Metrics
+
+The insurance premium measures the increase in expected total system costs relative to the risk-neutral solution.
+
+$$
+\mathrm{Premium}(\alpha, \omega) = \big( c^T x + \sum_{s \in S} p_s Q(x,\xi_s) \big)_{(\alpha,\omega)} - \big( c^T x + \sum_{s \in S} p_s Q(x,\xi_s) \big)_{(\omega=0)}
+$$
+
+In other words, $\mathrm{Premium}(\alpha, \omega)$ is the additional expected cost of applying a hedging strategy (or of choosing a more robust portfolio/policy) compared to a baseline.
+
+The tail risk reduction measures the decrease in CVaR at confidence level $\alpha$.
+
+$$
+\Delta \,\mathrm{CVaR}_{\alpha} = \mathrm{CVaR}_{\alpha} \big(Q(x,\xi_s)\big)_{(\omega=0)} - \mathrm{CVaR}_{\alpha} \big(Q(x,\xi_s)\big)_{(\alpha,\omega)}
+$$
+
+In other words, $\Delta \,\mathrm{CVaR}_{\alpha}$ the amount of tail risk that is reduced thanks to the hedging strategy.
+
+A useful combined indicator is the risk-hedging cost, which measures the additional expected cost per unit of tail risk avoided:
+
+$$
+	\mathrm{RHC}(\alpha, \omega) = \frac{\text{Premium}(\alpha, \omega)}{\Delta \,\mathrm{CVaR}_\alpha}
+$$
+
+
+
+
 ## Examples
 
 <div class="grid cards" markdown>
 
 -   :material-notebook:{ .lg .middle } **Stochastic Optimization**
 
-    Demonstrates investment planning under uncertainty with scenario-based
-    two-stage stochastic optimization.
+    Demonstrates investment planning under uncertainty with scenario-based two-stage stochastic optimization.
 
     [:octicons-arrow-right-24: Go to example](../../examples/stochastic-optimization.ipynb)
 
 </div>
 
 [^1]: Birge, J. R., & Louveaux, F. (2011). [Introduction to Stochastic Programming](https://link.springer.com/book/10.1007/978-1-4614-0237-4).
+
+[^2]: Rockafellar, R. T., & Uryasev, S. (2002). Conditional Value-at-Risk for General Loss Distributions. Journal of Banking & Finance, 26(7), 1443–1471.
