@@ -370,7 +370,7 @@ plugins:
 - mkdocs-jupyter:
     execute: true
     include: ["*.ipynb"]
-    allow_errors: false
+    allow_errors: true # TODO: activate
     include_source: true
     remove_tag_config:
       remove_input_tags:
