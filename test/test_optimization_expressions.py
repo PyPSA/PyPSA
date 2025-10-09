@@ -176,3 +176,20 @@ def test_expressions_operation(prepared_network):
     expr = n.optimize.expressions.operation()
     assert isinstance(expr, LinearExpression)
     assert expr.size > 0
+
+
+def test_concrete_at_port(prepared_network):
+    n = prepared_network
+    n.links["efficiency"] = 0.9
+    expr = n.optimize.expressions.capacity("Link", at_port=["1", "2"])
+    assert isinstance(expr, LinearExpression)
+    assert expr.size > 0
+    assert (
+        (n.optimize.expressions.capacity("Link", at_port="1").coeffs == 0.9)
+        .all()
+        .item()
+    )
+
+    expr = n.optimize.expressions.capacity("Link", at_port="6")  # does not exist
+    assert isinstance(expr, LinearExpression)
+    assert expr.size == 0
