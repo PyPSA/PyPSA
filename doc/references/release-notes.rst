@@ -91,6 +91,14 @@ Bug Fixes
 * Fix bug when using ``solver_model`` after adding custom variable to linopy model.
   (https://github.com/PyPSA/PyPSA/issues/1351)
 
+* Fixed inconsistent period weighting application in primary energy and operational limit 
+  global constraints for non-cyclic storage units and stores. Previously, generators correctly 
+  applied period weightings to account for yearly repetition within investment periods, while 
+  storage components did not. This caused inconsistent constraint behavior between generators 
+  and storage in multi-investment period optimization. Non-cyclic storage units and stores now 
+  require the ``state_of_charge_initial_per_period`` and ``e_initial_per_period`` flags respectively 
+  to be set to ``True`` when using primary energy or operational limit constraints.
+  
 * Fix ``get_transmission_carriers()`` to handle components without carrier attribute (e.g., Transformer).
   (https://github.com/PyPSA/PyPSA/issues/1321)
 
