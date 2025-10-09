@@ -318,7 +318,7 @@ def stochastic_benchmark_network():
     FOM, DR, LIFE = 3.0, 0.03, 25
 
     for cfg in TECH.values():
-        cfg["fixed_cost"] = (pypsa.common.annuity(LIFE, DR) + FOM / 100) * cfg["inv"]
+        cfg["fixed_cost"] = (pypsa.common.annuity(DR, LIFE) + FOM / 100) * cfg["inv"]
 
     # Load time series data from URL - same as in the original script
     ts = pd.read_csv(TS_URL, index_col=0, parse_dates=True).resample(FREQ).asfreq()
