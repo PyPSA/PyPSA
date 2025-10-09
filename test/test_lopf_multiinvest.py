@@ -6,6 +6,7 @@ Created on Fri Jul  2 10:21:16 2021.
 
 import pandas as pd
 import pytest
+from numpy.testing import assert_almost_equal as almost_equal
 from numpy.testing import assert_array_almost_equal as equal
 from pandas import IndexSlice as idx
 
@@ -563,6 +564,216 @@ def test_max_relative_growth_constraint(n):
         n.c.generators.static.build_year
     ).sum()
     assert all(built_per_period - built_per_period.shift(fill_value=0) * 1.5 <= 218)
+
+
+def test_store_primary_energy_and_operational_limit_constraint_without_per_period():
+    """Test that Store with primary energy constraint raises NotImplementedError without e_initial_per_period."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        e_nom=10,
+        e_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+    n.remove("GlobalConstraint", n.c.global_constraints.static.index)
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense="<=",
+        constant=6,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+
+def test_store_primary_energy_and_operational_limit_constraint_with_per_period():
+    """Test that Store with primary energy constraint works with e_initial_per_period=True."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "Store",
+        "store",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        e_nom=10,
+        e_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.c.stores.static.e_initial_per_period = True
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 4 + 1 * 4)
+
+    # Test operational limit constraint as well
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
+    n.add(
+        "GlobalConstraint",
+        "dispatch",
+        carrier_attribute="gas",
+        type="operational_limit",
+        sense="<=",
+        constant=6,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 2 + 1 * 6)
+
+
+def test_storage_unit_primary_energy_and_operational_limit_constraint_without_per_period():
+    """Test that StorageUnit with primary energy constraint raises NotImplementedError without state_of_charge_initial_per_period."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        p_nom=10,
+        max_hours=1,
+        state_of_charge_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="operational_limit",
+        carrier_attribute="gas",
+        sense="<=",
+        constant=6,
+    )
+
+    with pytest.raises(NotImplementedError):
+        n.optimize(multi_investment_periods=True)
+
+
+def test_storage_unit_primary_energy_and_operational_limit_constraint_with_per_period():
+    """Test that StorageUnit with primary energy constraint works with state_of_charge_initial_per_period=True."""
+
+    n = pypsa.Network()
+    years = [2030, 2040]
+    timesteps = [1, 2]
+
+    n.snapshots = pd.MultiIndex.from_product([years, timesteps])
+    n.investment_periods = years
+    n.investment_period_weightings.loc[:, :] = 2
+
+    n.add("Bus", "bus")
+    n.add("Carrier", "gas", co2_emissions=0.2)
+    n.add(
+        "StorageUnit",
+        "su",
+        bus="bus",
+        carrier="gas",
+        marginal_cost=1,
+        p_nom=10,
+        max_hours=1,
+        state_of_charge_initial=10,
+    )
+    n.add("Generator", "gen", bus="bus", marginal_cost=10, p_nom=2)
+    n.add("Load", "load", bus="bus", p_set=pd.Series(1, index=n.snapshots))
+
+    n.c.storage_units.static.state_of_charge_initial_per_period = True
+    n.add(
+        "GlobalConstraint",
+        "co2",
+        type="primary_energy",
+        carrier_attribute="co2_emissions",
+        sense="<=",
+        constant=0.8,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 4 + 1 * 4)
+
+    # Test operational limit constraint as well
+    n.remove("GlobalConstraint", n.c.global_constraints.names)
+    n.add(
+        "GlobalConstraint",
+        "dispatch",
+        carrier_attribute="gas",
+        type="operational_limit",
+        sense="<=",
+        constant=6,
+    )
+
+    n.optimize(multi_investment_periods=True)
+    almost_equal(n.objective, 10 * 2 + 1 * 6)
 
 
 def test_bug_1360_stores():
