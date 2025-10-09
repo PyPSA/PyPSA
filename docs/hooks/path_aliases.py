@@ -41,6 +41,8 @@ PATH_MAPPINGS = {
     "pypsa.networks.SubNetwork": "pypsa.SubNetwork",
     # Components
     "pypsa.components.Components": "pypsa.Components",
+    # Groupers
+    "pypsa.statistics.grouping.Groupers": "pypsa.statistics.Groupers",
 }
 
 

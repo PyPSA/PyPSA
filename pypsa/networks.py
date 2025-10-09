@@ -84,7 +84,7 @@ class Network(
 ):
     """Network container for all [pypsa.Components][] and helds most of PyPSA's functionality.
 
-    <!-- md:badge-version v0.1.0 --> | <!-- md:guide networks.md -->
+    <!-- md:badge-version v0.1.0 --> | <!-- md:guide design.md -->
     """
 
     # Optimization
@@ -211,9 +211,9 @@ class Network(
         Examples
         --------
         >>> str(n)
-        'PyPSA Network 'AC-DC-Meshed''
+        "PyPSA Network 'AC-DC-Meshed'"
         >>> str(n_stochastic)
-        'Stochastic PyPSA Network 'Stochastic-Network''
+        "Stochastic PyPSA Network 'Stochastic-Network'"
 
         """
         prefix = "Stochastic PyPSA Network" if self.has_scenarios else "PyPSA Network"
@@ -226,11 +226,20 @@ class Network(
 
         Examples
         --------
-        >>> n
+        >>> n  # doctest: +ELLIPSIS
         PyPSA Network 'AC-DC-Meshed'
         ----------------------------
         Components:
          - Bus: 9
+         - Carrier: ...
+         - Generator: ...
+         - GlobalConstraint: ...
+         - Line: ...
+         - Link: ...
+         - Load: ...
+         - SubNetwork: ...
+        Snapshots: 10
+        <BLANKLINE>
 
         """
         # TODO make this actually for the REPL
@@ -1341,7 +1350,7 @@ class Network(
     ) -> Iterator[Component]:
         """Iterate over components.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `for component in n.components` instead.
 
         Examples
@@ -1606,7 +1615,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def component(self, c_name: str) -> SubNetworkComponents:
         """Get a component from the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>` instead.
 
         See Also
@@ -1622,7 +1631,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def df(self, c_name: str) -> pd.DataFrame:
         """Get a static component from the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version-->"
             Use `sub_network.components.<c_name>.static` instead.
 
         See Also
@@ -1638,7 +1647,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def static(self, c_name: str) -> pd.DataFrame:
         """Get a static component from the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>.static` instead.
 
         See Also
@@ -1654,7 +1663,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def pnl(self, c_name: str) -> Dict:
         """Get a dynamic component from the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>.dynamic` instead.
 
         See Also
@@ -1670,7 +1679,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def dynamic(self, c_name: str) -> Dict:
         """Get a dynamic component from the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.<c_name>.dynamic` instead.
 
         See Also
@@ -1686,7 +1695,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def buses_i(self) -> pd.Index:
         """Get the index of the buses in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.buses.static.index` instead.
 
         See Also
@@ -1702,7 +1711,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def lines_i(self) -> pd.Index:
         """Get the index of the lines in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.lines.static.index` instead.
 
         See Also
@@ -1718,7 +1727,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def transformers_i(self) -> pd.Index:
         """Get the index of the transformers in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.transformers.static.index` instead.
 
         See Also
@@ -1734,7 +1743,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def generators_i(self) -> pd.Index:
         """Get the index of the generators in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.generators.static.index` instead.
 
         See Also
@@ -1750,7 +1759,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def loads_i(self) -> pd.Index:
         """Get the index of the loads in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.loads.static.index` instead.
 
         See Also
@@ -1766,7 +1775,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def shunt_impedances_i(self) -> pd.Index:
         """Get the index of the shunt impedances in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.shunt_impedances.static.index` instead.
 
         See Also
@@ -1782,7 +1791,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def storage_units_i(self) -> pd.Index:
         """Get the index of the storage units in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.storage_units.static.index` instead.
 
         See Also
@@ -1798,7 +1807,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def stores_i(self) -> pd.Index:
         """Get the index of the stores in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version
             Use `sub_network.components.stores.static.index` instead.
 
         See Also
@@ -1814,7 +1823,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def buses(self) -> pd.DataFrame:
         """Get the buses in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.buses.static` instead.
 
         See Also
@@ -1830,7 +1839,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def generators(self) -> pd.DataFrame:
         """Get the generators in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.generators.static` instead.
 
         See Also
@@ -1846,7 +1855,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def loads(self) -> pd.DataFrame:
         """Get the loads in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.loads.static` instead.
 
         See Also
@@ -1862,7 +1871,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def shunt_impedances(self) -> pd.DataFrame:
         """Get the shunt impedances in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.shunt_impedances.static` instead.
 
         See Also
@@ -1878,7 +1887,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def storage_units(self) -> pd.DataFrame:
         """Get the storage units in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.storage_units.static` instead.
 
         See Also
@@ -1894,7 +1903,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
     def stores(self) -> pd.DataFrame:
         """Get the stores in the sub-network.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use `sub_network.components.stores.static` instead.
         """
         return self.c.stores.static

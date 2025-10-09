@@ -96,6 +96,9 @@ PyPSA Options
 components_store_iter:
     Default: True
     Description: If False, suppresses the deprecation warning when iterating over components.
+attribute_typos:
+    Default: True
+    Description: If False, suppresses warnings about potential typos in component attribute names. Note: warnings about unintended attributes (standard attributes for other components) will still be shown.
 ```
 
 ### API
@@ -103,15 +106,15 @@ components_store_iter:
 Make changes to the PyPSA API. See <!-- md:guide components.md#new-components-class-api -->.
 
 ``` py
->>> pypsa.options.api.describe()
+>>> pypsa.options.api.describe()  # doctest: +NORMALIZE_WHITESPACE
 PyPSA Options
 =============
 new_components_api:
     Default: False
-    Description: Activate the new components API, which replaces the static components data access 
-        with the more flexible components class. This will just change the api and not any 
-        functionality. Components class features are always available. 
-        See https://go.pypsa.org/new-components-api for more details.
+    Description: Activate the new components API, which replaces the static components data access
+    	with the more flexible components class. This will just change the api and not any
+    	functionality. Components class features are always available.
+    	See `https://go.pypsa.org/new-components-api` for more details.
 ```
 
 

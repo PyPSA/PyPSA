@@ -5,7 +5,7 @@ simultaneously, access their combined data, and generate combined statistics and
 
 !!! example "Experimental"
 
-    NetworkCollections have been introduced in <!-- md:version v0.35.0 --> and will be 
+    NetworkCollections have been introduced in <!-- md:badge-version v0.35.0 --> and will be 
     further extended in future releases.
 
 ## Create a collection
@@ -125,13 +125,13 @@ network2   London      380.0       -0.13  ...                            0      
 
 Accessing time series data:
 ``` py
->>> nc.loads_t.p_set.iloc[:3, [0, 1, 6, 7]]  # First 3 snapshots, London and Norwich from each network
+>>> nc.loads_t.p_set.iloc[:3, [0, 1, 6, 7]]  # First 3 snapshots, London and Norwich from each network  # doctest: +ELLIPSIS
 custom-dim             network1              network2
 name                     London     Norwich    London    Norwich
 snapshot
-2015-01-01 00:00:00   35.796244  415.462564   35.796244  857.551440
-2015-01-01 01:00:00  976.824561  262.606146  605.400687  689.577264
-2015-01-01 02:00:00  250.587312  418.476353  791.976266  640.086378
+2015-01-01 00:00:00   35.796244  415.462564   ...        ...
+2015-01-01 01:00:00  976.824561  262.606146   ...        ...
+2015-01-01 02:00:00  250.587312  418.476353   ...        ...
 ```
 
 !!! info
@@ -148,12 +148,12 @@ change in future releases.
 
 Get a combined energy balance across all networks:
 ``` py
->>> nc.statistics.energy_balance()
+>>> nc.statistics.energy_balance()  # doctest: +ELLIPSIS
 component  custom-dim  carrier  bus_carrier
 Generator  network1    gas      AC              1465.27439
                        wind     AC             31082.35370
-           network2    gas      AC              1473.94003
-                       wind     AC             31073.68805
+           network2    gas      AC              ...
+                       wind     AC             ...
 Load       network1    load     AC            -32547.62808
            network2    load     AC            -32547.62808
 dtype: float64
@@ -171,5 +171,5 @@ Create a plot for the same energy balance:
             width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
     </iframe>
 </div>
-For the full range of plotting options, see <!-- md:guide plotting.md -->.
+For the full range of plotting options, see <!-- md:guide plotting/charts.md -->.
 

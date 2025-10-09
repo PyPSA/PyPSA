@@ -30,7 +30,7 @@ with new ideas, suggestions, submitting bug reports or contributing code changes
 7. Run tests: `pytest` (see [Testing](#testing))
 8. Push your changes to your fork and create a pull request on GitHub
 
-TODO: What to work on, TODO, which issues, labeling etc.
+<!-- TODO: What to work on, TODO, which issues, labeling etc. -->
 
 ### Style
 
@@ -91,8 +91,9 @@ This will format all the files in the repository and immediately apply the chang
 them. It is basically [the same](https://docs.astral.sh/ruff/faq/#how-does-ruffs-formatter-compare-to-black)
 as Black. 
 
-> **Note**: It is not mandatory to use either Ruff or pre-commit. We will also be running it in 
-> our CI/CD pipeline. But it's highly recommended, to make everyone's life easier.
+!!! note
+
+    It is not mandatory to use either Ruff or pre-commit. We will also be running it in our CI/CD pipeline. But it's highly recommended, to make everyone's life easier.
 
 ### Testing
 

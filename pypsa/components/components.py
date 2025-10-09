@@ -49,6 +49,8 @@ if TYPE_CHECKING:
 class ComponentsData:
     """Dataclass for Components.
 
+    <!-- md:guide components.md -->
+
     This class is used to store all data of a Components object. Other classes inherit
     from this class to implement logic and methods, but do not store any data next
     to the data in here.
@@ -58,10 +60,6 @@ class ComponentsData:
     attributes and properties which are available for all component types) as well as
     in specific type classes as [`Generators`][pypsa.components.Generators] (which
     define logic and methods specific to the component type).
-
-    User Guide
-    ----------
-    Check out the corresponding user guide: <!-- md:guide components.md -->.
 
     Attributes
     ----------
@@ -487,7 +485,7 @@ class Components(
     def attrs(self) -> pd.DataFrame:
         """Default values of corresponding component type.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
 
             Use [`c.defaults`][pypsa.Components.defaults] instead.
 
@@ -615,7 +613,7 @@ class Components(
     def pnl(self) -> dict:
         """Get dynamic data of all components as a dictionary of pandas DataFrames.
 
-        !!! warning "Deprecated in         <!-- md:badge-version v1.0.0 -->"
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
             Use [`c.dynamic`][pypsa.Components.dynamic] instead.
 
         Returns
