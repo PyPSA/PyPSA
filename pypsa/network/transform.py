@@ -214,7 +214,7 @@ class NetworkTransformMixin(_NetworkABC):
             raise ValueError(msg)
 
         # Check custom attributes
-        standard_attrs = set(c.attrs.index)
+        standard_attrs = set(c.defaults.index)
         custom_attrs = set(kwargs.keys()) - standard_attrs
         if custom_attrs:
             # Raise warning if user adds a custom attribute which is a standard attribute
