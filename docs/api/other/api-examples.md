@@ -1,5 +1,3 @@
-# Examples
-
 ::: pypsa.examples
     options:
         members_order: source 

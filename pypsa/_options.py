@@ -321,9 +321,9 @@ class OptionsNode:
         >>> pypsa.options.describe() # doctest: +ELLIPSIS
         PyPSA Options
         =============
-        api.new_components_api:
-            Default: False
-            Description: Activate the new components API, which replaces the static components data access with the more flexible components class. This will just change the api and not any functionality. Components class features are always available. See https://go.pypsa.org/new-components-api for more details.
+        general.allow_network_requests:
+            Default: True
+            Description: Allow PyPSA to make network requests...
         ...
 
         """
@@ -378,39 +378,6 @@ options._add_option(
     "make network requests independently.",
 )
 
-# Debugging category
-options._add_option(
-    "debug.runtime_verification",
-    False,
-    "Enable runtime verification of PyPSA's internal state. This is useful for "
-    "debugging and development purposes. This will lead to overhead in "
-    "performance and should not be used in production.",
-)
-
-# API
-options._add_option(
-    "api.new_components_api",
-    False,
-    "Activate the new components API, which replaces the static components data access "
-    "with the more flexible components class. This will just change the api and not any "
-    "functionality. Components class features are always available. "
-    "See https://go.pypsa.org/new-components-api for more details.",
-)
-
-# Warnings category
-options._add_option(
-    "warnings.components_store_iter",
-    True,
-    "If False, suppresses the deprecation warning when iterating over components.",
-)
-options._add_option(
-    "warnings.attribute_typos",
-    True,
-    "If False, suppresses warnings about potential typos in component attribute names. "
-    "Note: warnings about unintended attributes (standard attributes for other components) "
-    "will still be shown.",
-)
-
 # Parameters category
 
 options._add_option(
@@ -459,6 +426,14 @@ options._add_option(
     True,
     "If False, suppresses the deprecation warning when iterating over components.",
 )
+options._add_option(
+    "warnings.attribute_typos",
+    True,
+    "If False, suppresses warnings about potential typos in component attribute names. "
+    "Note: warnings about unintended attributes (standard attributes for other components) "
+    "will still be shown.",
+)
+
 # API
 options._add_option(
     "api.new_components_api",

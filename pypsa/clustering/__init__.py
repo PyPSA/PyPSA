@@ -16,9 +16,7 @@ if TYPE_CHECKING:
 class ClusteringAccessor:
     """Clustering accessor for clustering a network spatially and temporally.
 
-    User Guide
-    ----------
-    Check out the corresponding user guide: <!-- md:guide clustering.ipynb -->
+    <!-- md:guide clustering.ipynb -->
     """
 
     def __init__(self, n: "Network") -> None:

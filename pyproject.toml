@@ -69,8 +69,6 @@ dev = [
     "mypy",
     "jupyter>=1.1.1",
     "typing-extensions>=4.14.0",
-    "mkdocs-linkcheck",
-    "mktestdocs",
 ]
 docs = [    
     "mkdocs-material",

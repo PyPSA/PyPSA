@@ -31,7 +31,7 @@ Scenarios: 3
 
 ### Plotting Module
 #### Basic Graphs
-Any **network metric** like `energy_balance` or `installed_capacity` can now be plotted as a line, bar, area, map and more, to allow easier exploration and better tooling to create plots. The equivalent plotting methods extend parameters from the statistics module and therefore use the same logic to be easily adaptable. Also **interactive plots** can be create for all metric/ plot type combinations. See [:material-bookshelf: User Guide](plotting/charts.md) and [:octicons-code-16: API Reference](/api/networks/plot.md).
+Any **network metric** like `energy_balance` or `installed_capacity` can now be plotted as a line, bar, area, map and more, to allow easier exploration and better tooling to create plots. The equivalent plotting methods extend parameters from the statistics module and therefore use the same logic to be easily adaptable. Also **interactive plots** can be create for all metric/ plot type combinations. See [:material-bookshelf: User Guide](plotting/charts.md) and [:octicons-code-16: API Reference](../api/networks/plot.md).
 
 ``` py
 >>> n_stoch.statistics.energy_balance.iplot.area()  # doctest: +SKIP
@@ -45,14 +45,14 @@ Any **network metric** like `energy_balance` or `installed_capacity` can now be 
 </div>
 
 #### Interactive Maps
-Next to static map plotting, networks can now be rendered on a map, interactively. With `Network.explore()`, you can explore the location of all components, including buses, lines, links, transformers, their component attributes and map results or other properties to the bus sizes, branch widths, colors, etc. Calling the method returns a standard `pydeck.Deck` object than can be layered on top of other `pydeck.Deck` objects (see https://deckgl.readthedocs.io/en/latest/layer.html). They can also be exported in self-contained HTML files for sharing. See [:material-bookshelf: User Guide](plotting/explore.ipynb) and [:octicons-code-16: API Reference](/api/networks/plot.md)
+Next to static map plotting, networks can now be rendered on a map, interactively. With `Network.explore()`, you can explore the location of all components, including buses, lines, links, transformers, their component attributes and map results or other properties to the bus sizes, branch widths, colors, etc. Calling the method returns a standard `pydeck.Deck` object than can be layered on top of other `pydeck.Deck` objects (see https://deckgl.readthedocs.io/en/latest/layer.html). They can also be exported in self-contained HTML files for sharing. See [:material-bookshelf: User Guide](plotting/explore.ipynb) and [:octicons-code-16: API Reference](../api/networks/plot.md)
 
 ``` py
 >>> n.explore()  # doctest: +SKIP
 ```
 
 <div style="width: 120%; height: 800px; overflow: hidden;">
-    <iframe src="../../assets/interactive-plots/scigrid-interactive-map.html"
+    <iframe src="https://bxio.ng/assets/html/scigrid-interactive-map"
             width="100%" height="100%" frameborder="0" 
             style="border: 1px solid #ccc; transform: scale(0.6); transform-origin: 0 0;">
     </iframe>
@@ -60,13 +60,13 @@ Next to static map plotting, networks can now be rendered on a map, interactivel
 
 
 ### Network Collection
-A new object called [`NetworkCollection`][pypsa.Network] has been added to the library. It allows users to store multiple networks in a single object and perform operations on them. See <!-- md:guide collection.md -->.
+A new object called [`NetworkCollection`][pypsa.NetworkCollection] has been added to the library. It allows users to store multiple networks in a single object and perform operations on them. See [:material-bookshelf: User Guide](../user-guide/collection.md) and[:octicons-code-16: API Reference](../api/networks/collection.md).
 
 ``` py
->>> n_base = pypsa.examples.ac_dc_meshed() # docs-skip
->>> n_base.name = 'Base Case' # docs-skip
->>> n_reference = pypsa.examples.ac_dc_meshed() # docs-skip
->>> n_reference.name = 'Reference Case' 
+>>> n_base = pypsa.examples.ac_dc_meshed() # docs-hide
+>>> n_base.name = 'Base Case' # docs-hide
+>>> n_reference = pypsa.examples.ac_dc_meshed() # docs-hide
+>>> n_reference.name = 'Reference Case' # docs-hide
 >>> pypsa.NetworkCollection([n_base, n_reference])
 NetworkCollection
 -----------------
@@ -77,7 +77,7 @@ Entries: ['Base Case', 'Reference Case']
 
 
 ### Components Class
-PyPSA [`Components`][pypsa.components.Components] are an intermediate layer between the network object and the components data. They allow for a lot of functionality that would otherwise always have to be reimplemented on the underlying `pandas` DataFrames. Using them removes the need for a lot of boilerplate code without changing the `pandas`-based structure. With the release of PyPSA `v1.0`, they are officially released alongside a new optional and breaking API. See the dedicated [:material-bookshelf: User Guide](../user-guide/components.md).
+PyPSA [`Components`][pypsa.Components] are an intermediate layer between the network object and the components data. They allow for a lot of functionality that would otherwise always have to be reimplemented on the underlying `pandas` DataFrames. Using them removes the need for a lot of boilerplate code without changing the `pandas`-based structure. With the release of PyPSA `v1.0`, they are officially released alongside a new optional and breaking API. See [:material-bookshelf: User Guide](../user-guide/components.md) and [:octicons-code-16: API Reference](../api/components/components.md).
 
 ``` py
 >>> n = pypsa.examples.ac_dc_meshed()
