@@ -201,7 +201,7 @@ If you want to cite a specific PyPSA version, each release of PyPSA is archived
 on [Zenodo](https://zenodo.org/) with a release-specific DOI:
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg)](https://doi.org/10.5281/zenodo.3946412)
 
-# Licence
+## Licence
 
 Copyright [PyPSA Contributors](https://docs.pypsa.org/latest/developers.html)
 
