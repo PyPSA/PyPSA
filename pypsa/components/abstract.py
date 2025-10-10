@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Abstract components module.
 
 Only defines a base class for all Components helper classes which inherit to

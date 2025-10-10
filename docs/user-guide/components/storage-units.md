@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Storage Unit
 
 The [`StorageUnit`][pypsa.components.StorageUnits] components connect to a single bus and enable inter-temporal energy shifting with coupled power and energy capacity modelling. This compoenent is suitable for modeling batteries, pumped hydro storage, and other storage technologies where power and energy capacities are coupled.

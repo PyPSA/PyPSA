@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Modelling to Generate Alternatives (MGA)
 
 ## Searching for alternatives with given cost slack

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Sub-Network
 
 The [`SubNetwork`][pypsa.components.SubNetworks] components are network subsets formed by buses with the same

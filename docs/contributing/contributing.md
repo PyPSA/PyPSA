@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Instructions for Contributing
 
 First of all, thank you for thinking about contributing to PyPSA! 

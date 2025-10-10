@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Graph helper functions, which are attached to network and sub_network."""
 
 from __future__ import annotations

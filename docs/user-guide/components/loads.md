@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Load
 
 The [`Load`][pypsa.components.Loads] components attach to a single bus and represent a demand for the

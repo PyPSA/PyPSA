@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 [build-system]
 requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
@@ -59,16 +63,17 @@ cloudpath = ["cloudpathlib"]
 dev = [
     "pytest",
     "pytest-cov",
-    "pytest-mpl", 
+    "pytest-mpl",
     "coverage",
     "pypower",
     "pandapower>=2.14.11",
     "scikit-learn",
-    "pre-commit", 
+    "pre-commit",
     "ruff",
     "mypy",
     "jupyter>=1.1.1",
     "typing-extensions>=4.14.0",
+    "reuse>=5.1.1",
 ]
 docs = [    
     "mkdocs-material",

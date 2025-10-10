@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: PyPSA Contributors
+//
+// SPDX-License-Identifier: MIT
+
 // Use CustomEvent to generate the version selector
 document.addEventListener(
         "readthedocs-addons-data-ready",

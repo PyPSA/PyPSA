@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Build abstracted, extended optimisation problems from PyPSA networks with Linopy."""
 
 from __future__ import annotations

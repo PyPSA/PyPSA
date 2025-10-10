@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
 
 This section provides an overview of PyPSA's, design principles, optimisation
 problem formulations, power flow calculation features and usage tips for

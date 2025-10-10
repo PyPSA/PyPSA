@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Link
 
 The [`Link`][pypsa.components.Links] components are used for controllable directed flows between two or

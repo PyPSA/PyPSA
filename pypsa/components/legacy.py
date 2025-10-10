@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Legacy functionality which is kept for backwards compatibility."""
 
 from __future__ import annotations

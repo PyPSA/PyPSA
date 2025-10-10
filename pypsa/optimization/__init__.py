@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Build optimisation problems from PyPSA networks with Linopy."""
 
 from pypsa.optimization import abstract, constraints, optimize, variables

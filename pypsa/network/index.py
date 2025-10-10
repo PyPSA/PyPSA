@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network index module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.

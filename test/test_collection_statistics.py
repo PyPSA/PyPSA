@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Tests for NetworkCollection statistics with various groupers."""
 
 import pandas as pd

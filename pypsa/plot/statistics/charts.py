@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Chart plots based on statistics functions (like bar, line, area)."""
 
 from __future__ import annotations

@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
 
 PyPSA has an options system that allows users to customise its global behaviour.
 

@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Components Object
 
 [`pypsa.Components`][] are the store for all component specific data. While a [`pypsa.Network`][] bundles together functionality across components, the Components class is the interface for all data and processing for a specific component type. 

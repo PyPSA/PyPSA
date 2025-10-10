@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Python for Power Systems Analysis (PyPSA).
 
 Energy system modelling library.

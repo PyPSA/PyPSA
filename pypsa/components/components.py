@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components module.
 
 Contains classes and properties relevant to all component types in PyPSA. Also imports

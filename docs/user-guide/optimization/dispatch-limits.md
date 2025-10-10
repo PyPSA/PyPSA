@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Dispatch Limits
 
 Each [`Generator`][pypsa.components.Generators] has a dispatch variable $g_{n,s,t}$ where $n$ labels the bus, $s$ labels the particular generator at the bus and $t$ labels the snapshot. Each [`Link`][pypsa.components.Links] has a dispatch variable $f_{l,t}$ where $l$ labels the link and $t$ labels the snapshot. Each [`Line`][pypsa.components.Lines] and [`Transformer`][pypsa.components.Transformers] has a dispatch variable $p_{l,t}$ where $l$ labels the line/transformer and $t$ labels the snapshot.

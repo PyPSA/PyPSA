@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Citing
 
 If you use PyPSA for your research, we would appreciate it if you would cite the following paper:

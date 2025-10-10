@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Unit Commitment
 
 Unit commitment constraints are implemented for the [`Generator`][pypsa.components.Generators] and [`Link`][pypsa.components.Links]

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pandas as pd
 from numpy.testing import assert_array_almost_equal as equal
 from pypower.case30 import case30 as case

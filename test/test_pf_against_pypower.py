@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_array_almost_equal as equal

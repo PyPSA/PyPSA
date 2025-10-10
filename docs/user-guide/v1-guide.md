@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # What's new in PyPSA v1.0
 
 **PyPSA v1.0** is here and brings a list of exciting new features. Alongside this release, the documentation has also been completely updated, redesigned and moved to a new URL: [`https://docs.pypsa.org`](https://docs.pypsa.org). Take a look at the new documentation to find out about the latest features, as well as those that have not yet been well documented.

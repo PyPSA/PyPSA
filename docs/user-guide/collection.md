@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
 
 As the name suggests, a [NetworkCollection][pypsa.NetworkCollection] is a collection of 
 multiple networks. It provides a convenient way to manage and analyse multiple networks 
