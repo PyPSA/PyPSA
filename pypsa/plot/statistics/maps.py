@@ -196,7 +196,7 @@ class MapPlotGenerator(PlotsGenerator, MapPlotter):
         )
 
         # Get unit for legends
-        unit = bus_sizes.defaults.get("unit", "")
+        unit = bus_sizes.attrs.get("unit", "")
         if unit == "carrier dependent":
             unit = ""
 
