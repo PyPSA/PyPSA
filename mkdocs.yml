@@ -419,5 +419,5 @@ validation:
     unrecognized_links: warn
 
 copyright: >-
-  &copy Copyright 2015-2025 PyPSA Contributors
+  &copy Copyright PyPSA Contributors | CC-BY-4.0
 
