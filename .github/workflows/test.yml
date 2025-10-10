@@ -131,6 +131,12 @@ jobs:
       with:
         python-version: 3.13
 
+    - name: Download package
+      uses: actions/download-artifact@v5
+      with:
+        name: Packages
+        path: dist
+
     - name: Install package and dependencies
       run: |
         python -m pip install uv
