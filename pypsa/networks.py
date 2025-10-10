@@ -854,8 +854,8 @@ class Network(
 
     @functools.wraps(explore)
     def explore(self, *args: Any, **kwargs: Any) -> Any:
-        """Interactive map plot method."""
-        return explore(self, *args, **kwargs)
+        """Alias for [pypsa.Network.plot.explore][pypsa.plot.PlotAccessor.explore]."""
+        return self.plot.explore(*args, **kwargs)
 
     def copy(
         self,
@@ -868,10 +868,10 @@ class Network(
         <!-- md:badge-version v0.4.0 -->
 
         If only default arguments are passed, the copy will be created via
-        :func:`copy.deepcopy` and will contain all components and time-varying data.
+        `copy.deepcopy` and will contain all components and time-varying data.
         For most networks this is the fastest way. However, if the network is very
         large, it might be better to filter snapshots and investment periods to reduce
-        the size of the copy. In this case :func:`copy.deepcopy` is not used and only
+        the size of the copy. In this case `copy.deepcopy` is not used and only
         the selected snapshots and investment periods are copied to a new object.
 
 
@@ -1023,6 +1023,7 @@ class Network(
         Branches are Lines, Links and Transformers.
 
         !!! note
+
             This method will return a merged copy of all branches of the network.
             Changes to the returned DataFrame will not be reflected in the network.
 
@@ -1073,6 +1074,7 @@ class Network(
         Passive branches are Lines and Transformers.
 
         !!! note
+
             This method will return a merged copy of all passive branches of the network.
             Changes to the returned DataFrame will not be reflected in the network.
 
@@ -1089,7 +1091,7 @@ class Network(
         5            True  0.0   0.0  ...  0.238800  0.000002  0.000002
         6            True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 37 columns]
+        [7 rows x 38 columns]
 
         """
         comps = sorted(
@@ -1115,6 +1117,7 @@ class Network(
         Controllable branches are Links.
 
         !!! note
+
             This method will return a merged copy of all controllable branches of the network.
             Changes to the returned DataFrame will not be reflected in the network.
 
@@ -1131,7 +1134,7 @@ class Network(
                 5       True  0.0   0.0  ...  0.238800  0.000002  0.000002
                 6       True  0.0   0.0  ...  0.400000  0.000003  0.000003
         <BLANKLINE>
-        [7 rows x 37 columns]
+        [7 rows x 38 columns]
 
         See Also
         --------
@@ -1343,6 +1346,7 @@ class Network(
         """Get a component from the network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `n.components.<component>` or `n.components[component_name]` instead.
 
         """
@@ -1355,6 +1359,7 @@ class Network(
         """Iterate over components.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `for component in n.components` instead.
 
         Examples
@@ -1620,6 +1625,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get a component from the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.<c_name>` instead.
 
         See Also
@@ -1636,6 +1642,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get a static component from the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version-->"
+
             Use `sub_network.components.<c_name>.static` instead.
 
         See Also
@@ -1652,6 +1659,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get a static component from the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.<c_name>.static` instead.
 
         See Also
@@ -1668,6 +1676,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get a dynamic component from the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.<c_name>.dynamic` instead.
 
         See Also
@@ -1684,6 +1693,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get a dynamic component from the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.<c_name>.dynamic` instead.
 
         See Also
@@ -1700,6 +1710,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the buses in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.buses.static.index` instead.
 
         See Also
@@ -1716,6 +1727,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the lines in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.lines.static.index` instead.
 
         See Also
@@ -1732,6 +1744,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the transformers in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.transformers.static.index` instead.
 
         See Also
@@ -1748,6 +1761,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the generators in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.generators.static.index` instead.
 
         See Also
@@ -1764,6 +1778,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the loads in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.loads.static.index` instead.
 
         See Also
@@ -1780,6 +1795,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the shunt impedances in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.shunt_impedances.static.index` instead.
 
         See Also
@@ -1796,6 +1812,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the storage units in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.storage_units.static.index` instead.
 
         See Also
@@ -1812,6 +1829,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the index of the stores in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version
+
             Use `sub_network.components.stores.static.index` instead.
 
         See Also
@@ -1828,6 +1846,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the buses in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.buses.static` instead.
 
         See Also
@@ -1844,6 +1863,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the generators in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.generators.static` instead.
 
         See Also
@@ -1860,6 +1880,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the loads in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.loads.static` instead.
 
         See Also
@@ -1876,6 +1897,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the shunt impedances in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.shunt_impedances.static` instead.
 
         See Also
@@ -1892,6 +1914,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the storage units in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.storage_units.static` instead.
 
         See Also
@@ -1908,6 +1931,7 @@ class SubNetwork(NetworkGraphMixin, SubNetworkPowerFlowMixin):
         """Get the stores in the sub-network.
 
         !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+
             Use `sub_network.components.stores.static` instead.
         """
         return self.c.stores.static

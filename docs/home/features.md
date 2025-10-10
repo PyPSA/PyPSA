@@ -138,6 +138,13 @@ examples are available.
 <figure markdown="span">
   ![Buses](../assets/images/elec_s_256_lv1.09_Co2L-3H.png){ width="600" }
 </figure>
+<div style="width: 120%; height: 800px; overflow: hidden;">
+    <iframe src="https://bxio.ng/assets/html/scigrid-interactive-map"
+            width="100%" height="100%" frameborder="0" 
+            style="border: 1px solid #ccc; transform: scale(0.6); transform-origin: 0 0;">
+    </iframe>
+</div>
+
 
 [SciGRID model](https://power.scigrid.de/) simulating the German power system for 2015.
 

@@ -291,11 +291,11 @@ class OptimizationAbstractMGAMixin:
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimize in
             multiple investment periods. Then, snapshots should be a
-            ``pd.MultiIndex``.
+            `pd.MultiIndex`.
         weights : dict-like
             Weights for alternate objective function. The default is None, which
             minimizes generation capacity. The weights dictionary should be keyed
-            with the component and variable (see ``pypsa/data/variables.csv``), followed
+            with the component and variable (see `pypsa/data/variables.csv`), followed
             by a float, dict, pd.Series or pd.DataFrame for the coefficients of the
             objective function.
         sense : str|int
@@ -450,7 +450,7 @@ class OptimizationAbstractMGAMixin:
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimize in
             multiple investment periods. Then, snapshots should be a
-            ``pd.MultiIndex``.
+            `pd.MultiIndex`.
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional
@@ -611,7 +611,7 @@ class OptimizationAbstractMGAMixin:
             snapshots from the network. Defaults to None.
         multi_investment_periods : bool, default False
             Whether to optimize as a single investment period or to optimize in
-            multiple investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            multiple investment periods. Then, snapshots should be a `pd.MultiIndex`.
         slack : float
             Cost slack for budget constraint. Defaults to 0.05.
         model_kwargs : dict, optional

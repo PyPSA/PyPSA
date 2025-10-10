@@ -66,7 +66,7 @@ class ComponentsTransformMixin:
         dimension is names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
+        value from <!-- md:guide components.md -->.
 
         Parameters
         ----------

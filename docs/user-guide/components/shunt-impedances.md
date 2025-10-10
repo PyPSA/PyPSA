@@ -17,3 +17,5 @@ consuming active power from the bus and if $q>0$ it is supplying reactive power
 !!! note
 
     Shunt impedances are only used in power flow calculations ([`n.pf()`][pypsa.Network.pf]), not in any of the optimisation problems ([`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]).
+
+{{ read_csv('../../../pypsa/data/component_attrs/shunt_impedances.csv', disable_numparse=True) }} 

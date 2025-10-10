@@ -79,7 +79,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
     ) -> pd.Series:
         """Get active components mask of component type in investment period(s).
 
-        See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+        See the [`pypsa.components.descriptors.ComponentsDescriptorsMixin.get_active_assets`][].
 
         Parameters
         ----------

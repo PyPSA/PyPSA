@@ -117,7 +117,7 @@ class NetworkTransformMixin(_NetworkABC):
         dimension is names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
+        value from <!-- md:guide components.md -->.
 
         Parameters
         ----------
@@ -442,11 +442,11 @@ class NetworkTransformMixin(_NetworkABC):
         Requires disjunct sets of component indices and, if time-dependent data is
         merged, identical snapshots and snapshot weightings.
 
-        If a component in ``other`` does not have values for attributes present in
-        ``n``, default values are set.
+        If a component in `ther` does not have values for attributes present in
+        `n`, default values are set.
 
-        If a component in ``other`` has attributes which are not present in
-        ``n`` these attributes are ignored.
+        If a component in `other` has attributes which are not present in
+        `n` these attributes are ignored.
 
         Parameters
         ----------
@@ -455,7 +455,7 @@ class NetworkTransformMixin(_NetworkABC):
         components_to_skip : list-like, default None
             List of names of components which are not to be merged e.g. "Bus"
         inplace : bool, default False
-            If True, merge into ``n`` in-place, otherwise a copy is made.
+            If True, merge into `n` in-place, otherwise a copy is made.
         with_time : bool, default True
             If False, only static data is merged.
 

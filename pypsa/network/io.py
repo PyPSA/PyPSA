@@ -1068,9 +1068,9 @@ def _sort_attrs(
     Returns
     -------
     pandas.Index
-        ``axis_labels`` with the attributes appearing in ``attrs_list`` first and
-        in the same order. Attributes missing from ``attrs_list`` follow in their
-        original order while names not present in ``axis_labels`` are ignored.
+        `axis_labels` with the attributes appearing in `attrs_list` first and
+        in the same order. Attributes missing from `attrs_list` follow in their
+        original order while names not present in `axis_labels` are ignored.
 
     """
     if axis_labels.empty or len(attrs_list) == 0:
@@ -1434,7 +1434,7 @@ class NetworkIOMixin(_NetworkABC):
     ) -> None:
         """Import network data from CSVs in a folder.
 
-        The CSVs must follow the standard form, see ``pypsa/examples``.
+        The CSVs must follow the standard form, see `pypsa/examples`.
 
         Parameters
         ----------
@@ -1471,15 +1471,15 @@ class NetworkIOMixin(_NetworkABC):
         Both static and series attributes of all components are exported, but only
         if they have non-default values.
 
-        If ``path`` does not already exist, it is created.
+        If `path` does not already exist, it is created.
 
-        ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
+        `path` may also be a cloud object storage URI if cloudpathlib is installed.
 
         Static attributes are exported in one CSV file per component,
-        e.g. ``generators.csv``.
+        e.g. `generators.csv`.
 
         Series attributes are exported in one CSV file per component per
-        attribute, e.g. ``generators-p_set.csv``.
+        attribute, e.g. `generators-p_set.csv`.
 
         Parameters
         ----------
@@ -1555,13 +1555,13 @@ class NetworkIOMixin(_NetworkABC):
         Both static and series attributes of all components are exported, but only
         if they have non-default values.
 
-        If ``path`` does not already exist, it is created.
+        If `path` does not already exist, it is created.
 
         Static attributes are exported in one sheet per component,
-        e.g. a sheet named ``generators``.
+        e.g. a sheet named `generators`.
 
         Series attributes are exported in one sheet per component per
-        attribute, e.g. a sheet named ``generators-p_set``.
+        attribute, e.g. a sheet named `generators-p_set`.
 
         Parameters
         ----------
@@ -1623,7 +1623,7 @@ class NetworkIOMixin(_NetworkABC):
 
         If path does not already exist, it is created.
 
-        ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
+        `path` may also be a cloud object storage URI if cloudpathlib is installed.
 
         Parameters
         ----------
@@ -1659,7 +1659,7 @@ class NetworkIOMixin(_NetworkABC):
     ) -> None:
         """Import network data from netCDF file or xarray Dataset at `path`.
 
-        ``path`` may also be a cloud object storage URI if cloudpathlib is installed.
+        `path` may also be a cloud object storage URI if cloudpathlib is installed.
 
         Parameters
         ----------
@@ -1711,7 +1711,7 @@ class NetworkIOMixin(_NetworkABC):
             Compression level to use for all features which are being prepared.
             The compression is handled via xarray.Dataset.to_netcdf(...). For details see:
             [xarray.Dataset.to\_netcdf](https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html)
-            An example compression directive is ``{'zlib': True, 'complevel': 4}``.
+            An example compression directive is `{'zlib': True, 'complevel': 4}`.
             The default is None which disables compression.
         float32 : boolean, default False
             If True, typecasts values to float32.
@@ -1752,7 +1752,7 @@ class NetworkIOMixin(_NetworkABC):
             A DataFrame whose index is the names of the components and
             whose columns are the non-default attributes.
         cls_name : string
-            Name of class of component, e.g. ``"Line", "Bus", "Generator", "StorageUnit"``
+            Name of class of component, e.g. `"Line", "Bus", "Generator", "StorageUnit"`
         overwrite : bool, default False
             If True, overwrite existing components.
 
@@ -1887,7 +1887,7 @@ class NetworkIOMixin(_NetworkABC):
         Parameters
         ----------
         df : pandas.DataFrame
-            A DataFrame whose index is ``n.snapshots`` and
+            A DataFrame whose index is `n.snapshots` and
             whose columns are a subset of the relevant components.
         cls_name : string
             Name of class of component
@@ -2405,7 +2405,7 @@ class NetworkIOMixin(_NetworkABC):
             )
         d["Transformer"] = d["Transformer"].fillna(0)
 
-        # documented at https://pypsa.readthedocs.io/en/latest/components.html#shunt-impedance
+        # documented at https://docs.pypsa.org/latest/user-guide/components/shunt-impedances
         g_shunt = net.shunt.p_mw.values / net.shunt.vn_kv.values**2
         b_shunt = net.shunt.q_mvar.values / net.shunt.vn_kv.values**2
 

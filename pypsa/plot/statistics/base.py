@@ -21,7 +21,7 @@ class PlotsGenerator(ABC):
     """Base plot generator class for statistics plots.
 
     This class provides a common interface for all plot generators which build up
-    on statistics functions of :mod:`pypsa.statistics`. Defined methods need
+    on statistics functions of [`pypsa.Network.statistics`][]. Defined methods need
     to be implemented by subclasses.
     """
 

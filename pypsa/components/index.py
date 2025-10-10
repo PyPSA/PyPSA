@@ -64,8 +64,8 @@ class ComponentsIndexMixin(_ComponentsABC):
     def component_names(self) -> pd.Series:
         """Get component names.
 
-        .. deprecated:: 1.0.0
-            Use :attr:`names` instead.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use [`names`][pypsa.Components.names] instead.
 
         Returns
         -------

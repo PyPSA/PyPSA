@@ -20,9 +20,9 @@ Various key metrics that can be calculated on any PyPSA network are described in
     
     === "Simple Network"
         ``` py
-        # Simple three-node network
+        # Simple three-node network 
         >>> n_simple = pypsa.examples.ac_dc_meshed()
-        >>> n_simple
+        >>> n_simple # doctest: +SKIP
         PyPSA Network 'AC-DC-Meshed'
         ----------------------------
         Components:
@@ -35,12 +35,13 @@ Various key metrics that can be calculated on any PyPSA network are described in
          - Load: 6
         Snapshots: 10
         <BLANKLINE>
+        ```
     
     === "Complex Network"
         ``` py
         # Complex sector coupled network
         >>> n = pypsa.examples.carbon_management()
-        >>> n
+        >>> n # doctest: +SKIP
         PyPSA Network 'Hybrid Scenario from https://www.nature.com/articles/s41560-025-01752-6'
         ---------------------------------------------------------------------------------------
         Components:
@@ -55,6 +56,7 @@ Various key metrics that can be calculated on any PyPSA network are described in
          - Store: 1263
         Snapshots: 168
         <BLANKLINE>
+        ```
 
 
 ### Basic Plots
@@ -245,7 +247,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     ```
     
     <div style="width: 100%; height: 500px;">
-        <iframe src="../../assets/interactive-plots/ac_dc_meshed-energy_balance-area_iplot.html" 
+        <iframe src="../../../assets/interactive/ac_dc_meshed-energy_balance-area_iplot.html" 
                 width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
         </iframe>
     </div>
@@ -268,7 +270,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     ```
     
     <div style="width: 100%; height: 500px;">
-        <iframe src="../../assets/interactive-plots/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html" 
+        <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html" 
                 width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
         </iframe>
     </div>
@@ -291,7 +293,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     >>> n.statistics.energy_balance.iplot.area()  # doctest: +SKIP
     ```
     <div style="width: 100%; height: 500px;">
-        <iframe src="../../assets/interactive-plots/carbon_management-energy_balance-area_iplot.html" 
+        <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot.html" 
                 width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
         </iframe>
     </div>

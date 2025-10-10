@@ -80,7 +80,7 @@ To upgrade PyPSA, run:
     uv pip install -U pypsa
     ```
 
-Check the [release notes](https://pypsa.readthedocs.io/en/latest/release-notes.html) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes, including a version when they are going to be removed (always the next major version, e.g. `v2.0.0`). That way you can be sure that your code will continue to work at least until the next major version.
+Check the [release notes](../release-notes.md) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes, including a version when they are going to be removed (always the next major version, e.g. `v2.0.0`). That way you can be sure that your code will continue to work at least until the next major version.
 If you are coming from a very old version (< `v1.0.0`), it makes sense to update gradually and fix any deprecation warnings before updating to the latest version.
 
 ## Dependencies

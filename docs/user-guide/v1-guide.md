@@ -44,7 +44,7 @@ Any **network metric** like `energy_balance` or `installed_capacity` can now be 
 ```
 
 <div style="width: 100%; height: 400px; overflow: hidden;">
-    <iframe src="../../assets/interactive-plots/ac_dc_meshed-energy_balance-area_iplot.html"
+    <iframe src="../../assets/interactive/ac_dc_meshed-energy_balance-area_iplot.html"
             width="100%" height="100%" frameborder="0" 
             style="border: 1px solid #ccc; transform: scale(0.6); transform-origin: 0 0;">
     </iframe>
@@ -97,7 +97,7 @@ Norway Gas           Norway      PQ  ...    1.0        0.0
 Frankfurt Wind    Frankfurt      PQ  ...    1.0        0.0
 Frankfurt Gas     Frankfurt      PQ  ...    1.0        0.0
 <BLANKLINE>
-[6 rows x 37 columns]
+[6 rows x 38 columns]
 
 # Opt-in to new components API
 >>> pypsa.options.api.new_components_api = True
@@ -120,7 +120,7 @@ Norway Gas           Norway      PQ  ...    1.0        0.0
 Frankfurt Wind    Frankfurt      PQ  ...    1.0        0.0
 Frankfurt Gas     Frankfurt      PQ  ...    1.0        0.0
 <BLANKLINE>
-[6 rows x 37 columns]
+[6 rows x 38 columns]
 
 >>> pypsa.options.api.new_components_api = False
 ```
@@ -133,6 +133,8 @@ While PyPSA has been stable for a while now, version `v1.0` is the first stable 
 - Index names of all pandas dataframes used to store components data (e.g. `n.generators` and `n.generators_t`) have been changed. The axis which lists the components is now called `name` across all component types, instead of the previous component type name (e.g. `Generator`), to align with the newly introduced xarray view ([pypsa.Components.da][]).
 
 - When retrieving a list of extendable, fixed or committable components, no suffix (e.g. `"-ext"` or `"-fix"`) is added anymore. This was for example previously be possible via `n.get_extendable_i` and now via [pypsa.Components.extendables].
+
+- The default values for `cyclic_state_of_charge_per_period` (StorageUnit) and `e_cyclic_per_period` (Store) have been changed from `True` to `False`. This ensures intuitive default behavior (w/o a cycling storage constraint) and it is consistent with single investment period optimization where cycling behavior defaults to `False`. Users who work with multi-investment period optimizations and want per-period cycling behavior must now explicitly set these attributes to `True`.
 
 - All features that were announced as deprecated in previous versions have now been removed. If those warnings have not been addressed yet, you will not be able to use PyPSA `v1.0`.
 

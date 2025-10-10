@@ -60,7 +60,7 @@ class ComponentsData:
     to the data in here.
 
     All attributes can therefore also be accessed directly from
-    any [`Components`][pypsa.components.Components] object (which defines all
+    any [`Components`][pypsa.Components] object (which defines all
     attributes and properties which are available for all component types) as well as
     in specific type classes as [`Generators`][pypsa.components.Generators] (which
     define logic and methods specific to the component type).
@@ -472,8 +472,8 @@ class Components(
 
         <!-- md:badge-version v0.33.0 -->
 
-        .. note ::
-            While not actively deprecated yet, :meth:`category` is the preferred method
+        !!! note
+            While not actively deprecated yet, [`category`][pypsa.Components.category] is the preferred method
             to access component type.
 
         Returns
@@ -660,7 +660,7 @@ class Components(
         Coordinates:
           * name                     (name) object ... 'Manchester Wind' ... 'Frankfu...
           * snapshot                 (snapshot) datetime64[ns] ... 2015-01-01 ... 201...
-        Data variables: (12/38)
+        Data variables: (12/39)
             bus                      (name) object ... 'Manchester' ... 'Frankfurt'
             control                  (name) object ... 'Slack' 'PQ' ... 'Slack' 'PQ'
             type                     (name) object ... '' '' '' '' '' ''

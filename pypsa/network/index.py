@@ -55,7 +55,7 @@ class NetworkIndexMixin(_NetworkABC):
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
+        ([`pypsa.Network.dynamic`][]). NaNs are filled with the default value for
         that quantity.
 
         Parameters
@@ -258,7 +258,7 @@ class NetworkIndexMixin(_NetworkABC):
     def timesteps(self, timesteps: Sequence) -> None:
         """Setter for timesteps level of snapshots dimension.
 
-        .. warning::
+        !!! warning
             Setting `timesteps` is not supported. Please set `snapshots` instead.
 
         Parameters
@@ -457,7 +457,8 @@ class NetworkIndexMixin(_NetworkABC):
         investment periods without timesteps are defined. Otherwise only the period
         level will be returned.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Returns
         -------
@@ -501,7 +502,8 @@ class NetworkIndexMixin(_NetworkABC):
     def investment_periods(self, periods: Sequence) -> None:
         """Setter for periods level of snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Parameters
         ----------
@@ -520,7 +522,8 @@ class NetworkIndexMixin(_NetworkABC):
     def has_investment_periods(self) -> bool:
         """Check if network has investment periods assigned to snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.has_periods`.
+        !!! note
+            Alias for [`pypsa.Network.has_periods`][].
 
         Returns
         -------
