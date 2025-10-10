@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Clustering functionality for PyPSA networks."""
 
 from functools import wraps
@@ -14,7 +18,10 @@ if TYPE_CHECKING:
 
 
 class ClusteringAccessor:
-    """Clustering accessor for clustering a network spatially and temporally."""
+    """Clustering accessor for clustering a network spatially and temporally.
+
+    <!-- md:guide clustering.ipynb -->
+    """
 
     def __init__(self, n: "Network") -> None:
         """Initialize the ClusteringAccessor."""

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Array module of PyPSA components.
 
 Contains logic to combine static and dynamic pandas DataFrames to single xarray
@@ -134,12 +138,25 @@ class _XarrayAccessor:
 class ComponentsArrayMixin(_ComponentsABC):
     """Helper class for components array methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
     """
 
     def __init__(self) -> None:
         """Initialize the ComponentsArrayMixin."""
         self.da = _XarrayAccessor(self)
+        """
+        xArray accessor to get component attributes as xarray DataArray.
+
+        Examples
+        --------
+        c = n.components.generators
+        c.da.p_max_pu
+
+        For stochastic networks the scenarios are unstacked automatically:
+        c = n_stoch.components.generators
+        c.da.p_max_pu
+        """
 
     def __deepcopy__(
         self, memo: dict[int, object] | None = None

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import logging
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -20,7 +24,7 @@ class InvalidOptionError(AttributeError):
             if option_path is None:
                 msg = "'option_path' must be provided if 'message' is not."
                 raise ValueError(msg)
-            message = f"Invalid option '{option_path}'. Check 'describe_options()' for valid options."
+            message = f"Invalid option '{option_path}'. Check 'options.describe()' for valid options."
         self.message = message
 
         super().__init__(self.message, *args, **kwargs)
@@ -55,6 +59,8 @@ class Option:
 
 class OptionsNode:
     """PyPSA package options.
+
+    <!-- md:badge-version v0.33.0 --> | <!-- md:guide options.md -->
 
     This class provides a hierarchical structure for managing package options and
     the functionality can be accessed via `pypsa.options`.
@@ -231,12 +237,12 @@ class OptionsNode:
         Examples
         --------
         Set an option to a non-default value:
-        >>> pypsa.options.set_option("general.allow_network_requests", False)
+        >>> pypsa.set_option("general.allow_network_requests", False)
         >>> pypsa.options.general.allow_network_requests
         False
 
         Reset just that option:
-        >>> pypsa.options.reset_option("general.allow_network_requests")
+        >>> pypsa.reset_option("general.allow_network_requests")
         >>> pypsa.options.general.allow_network_requests
         True
 
@@ -284,8 +290,8 @@ class OptionsNode:
             else:
                 child.reset_all()
 
-    def describe_options(self, prefix: str = "") -> None:
-        """Print documentation for a subset of options.
+    def _describe_options(self, prefix: str = "") -> None:
+        """Print documentation for options via path.
 
         Parameters
         ----------
@@ -293,61 +299,13 @@ class OptionsNode:
             Prefix for the option path. Used for nested options.
             If empty, the root options are printed.
 
-        Examples
-        --------
-        Print only params.statistics options:
 
-        >>> pypsa.options.params.statistics.describe_options()
-        PyPSA Options
-        =============
-        drop_zero:
-            Default: True
-            Description: Default value for the 'drop_zero' parameter in statistics module.
-        nice_names:
-            Default: True
-            Description: Default value for the 'nice_names' parameter in statistics module.
-        round:
-            Default: 5
-            Description: Default value for the 'round' parameter in statistics module.
-
-        Or print all options:
-        >>> pypsa.options.describe_options() # doctest: +ELLIPSIS
-        PyPSA Options
-        =============
-        api.new_components_api:
-            Default: False
-            Description: Activate the new components API, which replaces the static components data access with the more flexible components class. This will just change the api and not any functionality. Components class features are always available. See https://go.pypsa.org/new-components-api for more details.
-        debug.runtime_verification:
-            Default: False
-            Description: Enable runtime verification of PyPSA's internal state. This is useful for debugging and development purposes. This will lead to overhead in performance and should not be used in production.
-        general.allow_network_requests:
-            Default: True
-            Description: Allow PyPSA to make network requests. When False, all network requests (such as checking for version updates) are disabled. This may be needed in restricted environments, offline usage, or for security/privacy reasons. This only controls PyPSA's own network requests, dependencies may still make network requests independently.
-        params.add.return_names:
-            Default: False
-            Description: Default value for the 'return_names' parameter in Network.add method. If True, the add method returns the names of added components. If False, it returns None.
-        params.optimize.model_kwargs:
-            Default: {}
-            Description: Default value for the 'model_kwargs' parameter in optimization module.
-        params.optimize.solver_name:
-            Default: highs
-            Description: Default value for the 'solver_name' parameter in optimization module.
-        params.optimize.solver_options:
-            Default: {}
-            Description: Default value for the 'solver_options' parameter in optimization module.
-        params.statistics.drop_zero:
-            Default: True
-            Description: Default value for the 'drop_zero' parameter in statistics module.
-        params.statistics.nice_names:
-            Default: True
-            Description: Default value for the 'nice_names' parameter in statistics module.
-        ...
 
         """
         if not prefix:
             print("PyPSA Options\n=============")  # noqa: T201
 
-        for name, child in sorted(self._children.items()):
+        for name, child in self._children.items():
             path = f"{prefix}.{name}" if prefix else name
 
             if isinstance(child, Option):
@@ -355,25 +313,25 @@ class OptionsNode:
                 print(f"    Default: {child._default}")  # noqa: T201
                 print(f"    Description: {child._docs}")  # noqa: T201
             else:
-                child.describe_options(path)
+                child._describe_options(path)
 
     def describe(self) -> None:
-        """Print documentation for all options.
-
-        This is a convenience method to call describe_options() without a prefix.
+        """Print documentation for options node via attribute access.
 
         Examples
         --------
+        Print all options:
+
         >>> pypsa.options.describe() # doctest: +ELLIPSIS
         PyPSA Options
         =============
-        api.new_components_api:
-            Default: False
-            Description: Activate the new components API, which replaces the static components data access with the more flexible components class. This will just change the api and not any functionality. Components class features are always available. See https://go.pypsa.org/new-components-api for more details.
+        general.allow_network_requests:
+            Default: True
+            Description: Allow PyPSA to make network requests...
         ...
 
         """
-        self.describe_options()
+        self._describe_options()
 
 
 options = OptionsNode()
@@ -417,44 +375,11 @@ def option_context(*args: Any) -> Generator[None, None, None]:
 options._add_option(
     "general.allow_network_requests",
     True,
-    "Allow PyPSA to make network requests. When False, all network requests "
-    "(such as checking for version updates) are disabled. This may be needed "
-    "in restricted environments, offline usage, or for security/privacy reasons. "
-    "This only controls PyPSA's own network requests, dependencies may still "
+    "Allow PyPSA to make network requests. When False, all network requests\n\t"
+    "(such as checking for version updates) are disabled. This may be needed\n\t"
+    "in restricted environments, offline usage, or for security/privacy reasons.\n\t"
+    "This only controls PyPSA's own network requests, dependencies may still\n\t"
     "make network requests independently.",
-)
-
-# Debugging category
-options._add_option(
-    "debug.runtime_verification",
-    False,
-    "Enable runtime verification of PyPSA's internal state. This is useful for "
-    "debugging and development purposes. This will lead to overhead in "
-    "performance and should not be used in production.",
-)
-
-# API
-options._add_option(
-    "api.new_components_api",
-    False,
-    "Activate the new components API, which replaces the static components data access "
-    "with the more flexible components class. This will just change the api and not any "
-    "functionality. Components class features are always available. "
-    "See https://go.pypsa.org/new-components-api for more details.",
-)
-
-# Warnings category
-options._add_option(
-    "warnings.components_store_iter",
-    True,
-    "If False, suppresses the deprecation warning when iterating over components.",
-)
-options._add_option(
-    "warnings.attribute_typos",
-    True,
-    "If False, suppresses warnings about potential typos in component attribute names. "
-    "Note: warnings about unintended attributes (standard attributes for other components) "
-    "will still be shown.",
 )
 
 # Parameters category
@@ -478,8 +403,8 @@ options._add_option(
 options._add_option(
     "params.add.return_names",
     False,
-    "Default value for the 'return_names' parameter in Network.add method. "
-    "If True, the add method returns the names of added components. "
+    "Default value for the 'return_names' parameter in Network.add method.\n\t"
+    "If True, the add method returns the names of added components.\n\t"
     "If False, it returns None.",
 )
 
@@ -497,4 +422,38 @@ options._add_option(
     "params.optimize.solver_options",
     {},
     "Default value for the 'solver_options' parameter in optimization module.",
+)
+
+# Warnings category
+options._add_option(
+    "warnings.components_store_iter",
+    True,
+    "If False, suppresses the deprecation warning when iterating over components.",
+)
+options._add_option(
+    "warnings.attribute_typos",
+    True,
+    "If False, suppresses warnings about potential typos in component attribute names. "
+    "Note: warnings about unintended attributes (standard attributes for other components) "
+    "will still be shown.",
+)
+
+# API
+options._add_option(
+    "api.new_components_api",
+    False,
+    "Activate the new components API, which replaces the static components data access\n\t"
+    "with the more flexible components class. This will just change the api and not any\n\t"
+    "functionality. Components class features are always available.\n\t"
+    "See `https://go.pypsa.org/new-components-api` for more details.",
+)
+
+
+# Debugging category
+options._add_option(
+    "debug.runtime_verification",
+    False,
+    "Enable runtime verification of PyPSA's internal state. This is useful for\n\t"
+    "debugging and development purposes. This will lead to overhead in\n\t"
+    "performance and should not be used in production.",
 )

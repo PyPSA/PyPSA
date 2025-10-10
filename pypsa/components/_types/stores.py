@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Stores components module."""
 
 from __future__ import annotations
@@ -33,7 +37,7 @@ class Stores(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     """
 
@@ -44,6 +48,8 @@ class Stores(Components):
         attr: str = "e",
     ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for stores.
+
+        <!-- md:badge-version v1.0.0 -->
 
         Parameters
         ----------

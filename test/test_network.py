@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import copy
 import sys
 import warnings
@@ -352,12 +356,12 @@ def test_multiple_add_defaults(n_5bus):
     # TODO: Improve tests since component is the same now
     assert (
         n_5bus.c.generators.static.loc[gen_names[0], "control"]
-        == n_5bus.components.Generator.attrs.loc["control", "default"]
+        == n_5bus.components.Generator.defaults.loc["control", "default"]
     )
 
     assert (
         n_5bus.c.loads.static.loc[line_names[0], "p_set"]
-        == n_5bus.components.Load.attrs.loc["p_set", "default"]
+        == n_5bus.components.Load.defaults.loc["p_set", "default"]
     )
 
 

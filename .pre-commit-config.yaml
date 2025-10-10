@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+exclude: docs/hooks
+
 ci:
   autoupdate_schedule: quarterly
 
@@ -42,3 +48,9 @@ repos:
   hooks:
   - id: pretty-format-yaml
     args: [--autofix, --indent, '2', --preserve-quotes]
+
+# Check for FSFE REUSE compliance (licensing)
+- repo: https://github.com/fsfe/reuse-tool
+  rev: v6.0.0
+  hooks:
+  - id: reuse

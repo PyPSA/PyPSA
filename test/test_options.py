@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 
 import pypsa
@@ -91,19 +95,19 @@ def test_setter_method(mocked_pypsa):
 
 
 def test_describe_method(capsys, mocked_pypsa):
-    mocked_pypsa.describe_options()
+    mocked_pypsa.options._describe_options()
     all_options = capsys.readouterr().out
 
     assert all_options.startswith("PyPSA Options")
     assert "test.test_option" in all_options
     assert "test.nested.test_option" in all_options
 
-    mocked_pypsa.options.describe_options()
+    mocked_pypsa.options._describe_options()
     all_options_module = capsys.readouterr().out
     assert all_options == all_options_module
 
     # Test options with no description
-    mocked_pypsa.options.test.nested.describe_options()
+    mocked_pypsa.options.test.nested.describe()
     nested_options = capsys.readouterr().out
     assert "test.nested.test_option" not in nested_options
     assert "test.test_option" not in nested_options

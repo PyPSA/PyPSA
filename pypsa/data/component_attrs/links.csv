@@ -13,6 +13,7 @@ p_nom_mod,float,MW,0,Unit size of link module (e.g. fixed blocks of 100 MW).,Inp
 p_nom_extendable,boolean,n/a,False,Switch to allow capacity `p_nom` to be extended.,Input (optional)
 p_nom_min,float,MW,0,"If `p_nom_extendable=True`, set its minimum value.",Input (optional)
 p_nom_max,float,MW,inf,"If `p_nom_extendable=True`, set its maximum value.",Input (optional)
+p_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.",Input (optional)
 p_set,static or series,MW,n/a,The dispatch set point for `p0` of the link (for optimisation and power flow).,Input (optional)
 p_min_pu,static or series,per unit of p_nom,0.,Minimal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
 p_max_pu,static or series,per unit of p_nom,1.,Maximal dispatch per unit of `p_nom` for the link. Can also be negative.,Input (optional)
@@ -39,8 +40,8 @@ p_nom_opt,float,MW,0,Optimised nominal capacity.,Output
 status,series,n/a,1.,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
 start_up,series,n/a,1.,"Whether the unit was started in the snapshot (1 is yes, 0 is no). Only returned if `committable=True`.",Output
 shut_down,series,n/a,1.,"Whether the unit was shut down in the snapshot (1 is yes, 0 is no).  Only returned if `committable=True`.",Output
-mu_lower,series,currency/MW,n/a,Shadow price of lower `p_nom` limit  $-F \leq f$. Always non-negative.,Output
-mu_upper,series,currency/MW,n/a,Shadow price of upper `p_nom` limit $f \leq F$. Always non-negative.,Output
+mu_lower,series,currency/MW,n/a,Shadow price of lower `p_nom` limit  $-F \\leq f$. Always non-negative.,Output
+mu_upper,series,currency/MW,n/a,Shadow price of upper `p_nom` limit $f \\leq F$. Always non-negative.,Output
 mu_p_set,series,currency/MWh,n/a,Shadow price of fixed dispatch `p_set`,Output
 mu_ramp_limit_up,series,currency/MWh,n/a,Shadow price of upper ramp up limit,Output
 mu_ramp_limit_down,series,currency/MWh,n/a,Shadow price of lower ramp down limit,Output

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Deprecated functionality."""
 
 COMPONENT_ALIAS_DICT = {

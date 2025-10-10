@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Groupers for PyPSA statistics.
 
 Use them via the groupers instance via `pypsa.statistics.groupers`. Do not use the
@@ -68,12 +72,7 @@ class Groupers:
             return component_series.map(mapping_series)
 
     def __repr__(self) -> str:
-        """Return a string representation of the grouper container.
-
-        Returns
-        -------
-        str
-            String representation.
+        """Get representation of the grouper container.
 
         Examples
         --------

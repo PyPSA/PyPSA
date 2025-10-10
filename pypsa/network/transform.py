@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network transform module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -83,8 +87,8 @@ def _get_potential_typos(
 class NetworkTransformMixin(_NetworkABC):
     """Mixin class for network transform methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def add(
@@ -130,7 +134,7 @@ class NetworkTransformMixin(_NetworkABC):
             ignored.
         return_names : bool | None, default=None
             Whether to return the names of the components added. Defaults to module wide
-            option (default: False). See https://go.pypsa.org/options-params for more
+            option (default: False). See `https://go.pypsa.org/options-params` for more
             information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
@@ -214,7 +218,7 @@ class NetworkTransformMixin(_NetworkABC):
             raise ValueError(msg)
 
         # Check custom attributes
-        standard_attrs = set(c.attrs.index)
+        standard_attrs = set(c.defaults.index)
         custom_attrs = set(kwargs.keys()) - standard_attrs
         if custom_attrs:
             # Raise warning if user adds a custom attribute which is a standard attribute

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Definitions for network components."""
 
 from __future__ import annotations
@@ -67,12 +71,6 @@ class ComponentType:
         )
 
     def __repr__(self) -> str:
-        """Representation of the component type.
-
-        Returns
-        -------
-        str
-
-        """
+        """Get representation of component type."""
         # TODO make this actually for the REPL
         return f"'{self.name}' Component Type"

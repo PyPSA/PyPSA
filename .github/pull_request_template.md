@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: MIT
+-->
+
 Closes # (if applicable).
 
 ## Changes proposed in this Pull Request

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistics package for PyPSA networks."""
 
 from pypsa.statistics.expressions import (

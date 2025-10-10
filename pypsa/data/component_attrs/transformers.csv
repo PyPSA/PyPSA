@@ -13,6 +13,7 @@ s_nom_mod,float,MVA,0,Modular unit size of transformer expansion of `s_nom`. Int
 s_nom_extendable,boolean,n/a,False,Switch to allow capacity `s_nom` to be extended in optimisation.,Input (optional)
 s_nom_min,float,MVA,0,"If `s_nom_extendable=True`, set the minimum value of `s_nom_opt`.",Input (optional)
 s_nom_max,float,MVA,inf,"If `s_nom_extendable=True`, set the maximum value of `s_nom_opt`.",Input (optional)
+s_nom_set,float,MVA,n/a,"If `s_nom` is extendable in optimization, set the value of `s_nom_opt`.",Input (optional)
 s_max_pu,static or series,per unit,1,The maximum allowed absolute flow per unit of `s_nom` for the oprimisation.,Input (optional)
 capital_cost,float,currency/MVA,0,"Fixed period costs of extending p_nom by 1 MVA, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
 num_parallel,float,n/a,1,"When `type` is set, this is the number of parallel transformers (can also be fractional). If `type` is empty """" this value is ignored.",Input (optional)
@@ -37,5 +38,5 @@ b_pu,float,per unit,0,Per unit shunt susceptance calculated by `n.calculate_depe
 x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
 r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `x`, `tap_ratio` for transformers and `n.buses.v_nom`.",Output
 s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
-mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit  $-F \leq f$. Always non-negative.,Output
-mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \leq F$. Always non-negative.,Output
+mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit. Always non-negative.,Output
+mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit. Always non-negative.,Output

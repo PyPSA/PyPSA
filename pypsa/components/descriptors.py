@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components descriptor module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.
@@ -29,8 +33,8 @@ logger = logging.getLogger(__name__)
 class ComponentsDescriptorsMixin(_ComponentsABC):
     """Mixin class for components descriptors methods.
 
-    Class only inherits to [pypsa.Components][] and should not be used directly.
-    All attributes and methods can be used within any Components instance.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
 
     """
 
@@ -78,6 +82,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         investment_period: int | str | Sequence | None = None,
     ) -> pd.Series:
         """Get active components mask of component type in investment period(s).
+
+        <!-- md:badge-version v0.33.0 -->
 
         A component is considered active when:
 
@@ -143,6 +149,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     def active_assets(self) -> pd.Series:
         """Get list of active assets.
 
+        <!-- md:badge-version v1.0.0 -->
+
         See corresponding [pypsa.Components.inactive_assets][] for details.
 
         Returns
@@ -161,6 +169,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     @property
     def inactive_assets(self) -> pd.Series:
         """Get list of inactive assets.
+
+        <!-- md:badge-version v1.0.0 -->
 
         An asset is considered inactive when one of the following conditions is met:
         - `active` is set to False across all dimensions (investment periods, scenarios)
@@ -210,6 +220,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         index: pd.Index | None = None,
     ) -> pd.DataFrame:
         """Get active components mask indexed by snapshots.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Gets the boolean mask for active components, indexed by snapshots and
         components instead of just components.

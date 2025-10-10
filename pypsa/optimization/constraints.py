@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define optimisation constraints from PyPSA networks with Linopy."""
 
 from __future__ import annotations
@@ -1087,11 +1091,13 @@ def define_fixed_nominal_constraints(n: Network, component: str, attr: str) -> N
     if attr + "_set" not in c.static:
         return
 
-    dim = f"{component}-{attr}_set_i"
-    fix = c.static[attr + "_set"].dropna().rename_axis(dim)
+    fix = c.static[attr + "_set"].dropna()
 
     if fix.empty:
         return
+
+    dim = f"{component}-{attr}_set_i"
+    fix = fix.rename_axis(dim)
 
     var = n.model[f"{component}-{attr}"]
     var = reindex(var, var.dims[0], fix.index)
