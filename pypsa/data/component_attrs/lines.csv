@@ -3,10 +3,10 @@ name,string,n/a,n/a,Unique name,Input (required)
 bus0,string,n/a,n/a,Name of origin bus to which branch is attached.,Input (required)
 bus1,string,n/a,n/a,Name of destination bus to which branch is attached.,Input (required)
 type,string,n/a,n/a,"Name of line standard type. If this is not an empty string """", the line standard type impedance parameters are multiplied with the `length` and divided/multiplied by `num_parallel` to compute `x`, `r`, etc. This will override any values set in `r`, `x, and `b`. If the string is empty, values manually provided for `r`, `x`, etc. are taken.",Input (optional)
-x,float,Ohm,0,"Series reactance, must be non-zero for AC branch for linearised power flow equations. If the line has series inductance $L$ in Henries then $x = 2\pi f L$ where $f$ is the frequency in Hertz. Series impedance $z = r + jx$ must be non-zero for non-linear power flow calculations. Ignored if `type` defined.",Input (required)
+x,float,Ohm,0,"Series reactance, must be non-zero for AC branch for linearised power flow equations. If the line has series inductance $L$ in Henries then $x = 2\\pi f L$ where $f$ is the frequency in Hertz. Series impedance $z = r + jx$ must be non-zero for non-linear power flow calculations. Ignored if `type` defined.",Input (required)
 r,float,Ohm,0,"Series resistance, must be non-zero for DC branch for linearised power flow equations. Series impedance $z = r + jx$ must be non-zero for the non-linear power flow. Ignored if `type` defined.",Input (required)
 g,float,Siemens,0,Shunt conductivity. Shunt admittance is $y = g + jb$.,Input (optional)
-b,float,Siemens,0,Shunt susceptance. If the line has shunt capacitance $C$ in Farads then $b = 2\pi f C$ where $f$ is the frequency in Hertz. Shunt admittance is $y = g + jb$. Ignored if `type` defined.,Input (optional)
+b,float,Siemens,0,Shunt susceptance. If the line has shunt capacitance $C$ in Farads then $b = 2\\pi f C$ where $f$ is the frequency in Hertz. Shunt admittance is $y = g + jb$. Ignored if `type` defined.,Input (optional)
 s_nom,float,MVA,0,Limit of apparent power which can pass through branch in either direction. Ignored if `s_nom_extendable=True`.,Input (optional)
 s_nom_mod,float,MVA,0,Modular unit size of line expansion of ``s_nom`` (e.g. fixed rating of added circuit). Introduces integer variables.,Input (optional)
 s_nom_extendable,boolean,n/a,False,Switch to allow capacity `s_nom` to be extended in optimisation.,Input (optional)
@@ -35,5 +35,5 @@ b_pu,float,per unit,0,Per unit shunt susceptance calculated by `n.calculate_depe
 x_pu_eff,float,per unit,0,"Effective per unit series reactance for linear power flow, calculated by `n.calculate_dependent_values()` from `x` and `n.buses.v_nom`",Output
 r_pu_eff,float,per unit,0,"Effective per unit series resistance for linear power flow, calculated by `n.calculate_dependent_values()` from `r` and `n.buses.v_nom`",Output
 s_nom_opt,float,MVA,0,Optimised nominal capacity for apparent power.,Output
-mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \leq f$. Always non-negative.,Output
-mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \leq F$. Always non-negative.,Output
+mu_lower,series,currency/MVA,0,Shadow price of lower `s_nom` limit $-F \\leq f$. Always non-negative.,Output
+mu_upper,series,currency/MVA,0,Shadow price of upper `s_nom` limit $f \\leq F$. Always non-negative.,Output
