@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Energy Balances
 
 The energy balance equations are the most important constraints, which enforces that incoming and outgoing energy flows balance out at each bus $n$ for each time $t$ (like Kirchhoff's current law for electrical buses, see [Linearised Power Flow](../optimization/power-flow.md)). Considering all components, the balance constraint is given by

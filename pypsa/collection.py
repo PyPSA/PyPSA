@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """NetworkCollection class for handling multiple PyPSA networks."""
 
 import logging

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define global constraints for optimisation problems with Linopy."""
 
 from __future__ import annotations

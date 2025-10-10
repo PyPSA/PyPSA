@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Frequently Asked Questions
 
 ## Does PyPSA model more than just the power system? Can methane, hydrogen, carbon dioxide networks be included?

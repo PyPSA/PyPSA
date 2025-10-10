@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Schema for plotting statistics in PyPSA.
 
 This module defines default parameters for different statistics/plot combinations.

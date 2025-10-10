@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Consistency check functions for PyPSA networks.
 
 Mainly used in the `Network.consistency_check()` method.

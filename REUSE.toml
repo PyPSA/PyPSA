@@ -27,19 +27,16 @@ SPDX-FileCopyrightText = "PyPSA Contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
 
 [[annotations]]
-# TODO Not sure about that; also code (MIT), but having the whole documentation as CC-BY-4.0 would be more consistent and easier to advertise in the docs
+# All documentation figures and notebooks (including their code) are for simplicity licensed under CC-BY-4.0
 path = [
-    "docs/assets/images/*.png",
-    "docs/assets/images/*.jpg",
-    "docs/assets/logo/*.png",
-    "docs/assets/logo/*.svg",
-    "docs/examples/*.ipynb",
-    "docs/examples/rh_example.png",
-    "docs/user-guide/plotting/*.ipynb",
-    "docs/user-guide/*.ipynb",
+    "docs/**/*.ipynb",
+    "docs/**/*.png",
+    "docs/**/*.html",
+    "docs/**/*.svg",
+    "docs/**/*.jpg",
 ]
 SPDX-FileCopyrightText = "PyPSA Contributors"
-SPDX-License-Identifier = "CC-BY-4.0 OR MIT"
+SPDX-License-Identifier = "CC-BY-4.0"
 
     
 [[annotations]]
@@ -50,11 +47,3 @@ path = [
 # We think this is the correct attribution (copyright holder and license)
 SPDX-FileCopyrightText = "Ministry for Economic Affairs and Climate Action"
 SPDX-License-Identifier = "CC-BY-4.0"
-
-
-[[annotations]]
-path = [
-    "docs/CODE_OF_CONDUCT.md", # TODO current version in repo is 2.1 with unclear license. Newer version is 3.0 with CC-BY-SA-4.0 explicit; can we upgrade?
-]
-SPDX-FileCopyrightText = ["Organization for Ethical Source", "PyPSA Contributors"]
-SPDX-License-Identifier = "CC-BY-SA-4.0"

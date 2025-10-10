@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: MIT
+-->
+
 <picture align="center">
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/PyPSA/PyPSA/refs/heads/v1-docs/docs/assets/logo/logo-primary-dark.svg">
   <img alt="PyPSA Banner" src="https://raw.githubusercontent.com/PyPSA/PyPSA/refs/heads/v1-docs/docs/assets/logo/logo-primary-light.svg">
@@ -15,7 +21,7 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/PyPSA/PyPSA/master.svg)](https://results.pre-commit.ci/latest/github/PyPSA/PyPSA/master)
 [![Code coverage](https://codecov.io/gh/PyPSA/PyPSA/branch/master/graph/badge.svg?token=kCpwJiV6Jr)](https://codecov.io/gh/PyPSA/PyPSA)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE.txt)
+[![License](https://img.shields.io/pypi/l/pypsa.svg)](LICENSE)
 [![Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.3946412.svg)](https://doi.org/10.5281/zenodo.3946412)
 [![Discord](https://img.shields.io/discord/911692131440148490?logo=discord)](https://discord.gg/AnuJBk23FU)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
@@ -197,8 +203,9 @@ on [Zenodo](https://zenodo.org/) with a release-specific DOI:
 
 # Licence
 
-Copyright 2015-2025 [PyPSA
-Developers and Contributors](https://docs.pypsa.org/latest/developers.html)
+Copyright [PyPSA Contributors](https://docs.pypsa.org/latest/developers.html)
 
-PyPSA is licensed under the open source [MIT
-License](LICENSE).
+PyPSA is licensed under the open source [MIT License](LICENSES/MIT.txt).
+The documentation is licensed under [CC-BY-4.0](LICENSES/CC-BY-4.0.txt).
+
+The repository uses [REUSE](https://reuse.software/) to expose the licenses of its files.

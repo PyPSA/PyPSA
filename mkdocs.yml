@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 site_name: Documentation
 site_url: !ENV READTHEDOCS_CANONICAL_URL
 repo_url: https://github.com/PyPSA/PyPSA

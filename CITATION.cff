@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 cff-version: 1.2.0
 message: "If you use this package, please cite the corresponding manuscript in Journal of Open Research Software."
 title: "PyPSA: Python for Power System Analysis"
