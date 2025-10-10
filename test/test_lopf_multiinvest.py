@@ -1,8 +1,6 @@
-"""
-Created on Fri Jul  2 10:21:16 2021.
-
-@author: fabian
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import pandas as pd
 import pytest

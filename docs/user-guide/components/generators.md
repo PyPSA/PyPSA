@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Generator
 
 The [`Generator`][pypsa.components.Generators] components attach to a single bus and can feed in power. They

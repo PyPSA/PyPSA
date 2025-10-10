@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Bus
 
 The [`Bus`][pypsa.components.Buses] is the fundamental node of the network, to which all other components

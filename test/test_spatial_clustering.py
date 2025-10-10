@@ -1,8 +1,6 @@
-"""
-Created on Mon Jan 31 18:11:09 2022.
-
-@author: fabian
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import numpy as np
 import pandas as pd

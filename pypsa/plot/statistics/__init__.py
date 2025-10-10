@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistic plots for PyPSA.
 
 This module contains all plotting functions which can be used on top of the

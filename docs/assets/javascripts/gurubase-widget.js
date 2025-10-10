@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: PyPSA Contributors
+//
+// SPDX-License-Identifier: MIT
+
 document.addEventListener("DOMContentLoaded", () => {
   // Load the GuruBase widget
   const guruScript = document.createElement("script");
