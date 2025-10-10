@@ -1,9 +1,3 @@
-"""
-Created on Fri Jul  2 10:21:16 2021.
-
-@author: fabian
-"""
-
 import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal as almost_equal
