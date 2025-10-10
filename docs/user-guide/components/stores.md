@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Store
 
 The [`Store`][pypsa.components.Stores] component connects to a single bus and provides fundamental

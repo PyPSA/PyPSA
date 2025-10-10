@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Run modelling-to-generate-alternatives (MGA) optimizations."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Plotting package for PyPSA networks."""
 
 from pypsa.plot.accessor import PlotAccessor

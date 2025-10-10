@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Shunt Impedance
 
 The [`ShuntImpedance`][pypsa.components.ShuntImpedances] components attach to a single bus and have a

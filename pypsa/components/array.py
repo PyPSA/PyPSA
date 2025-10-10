@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Array module of PyPSA components.
 
 Contains logic to combine static and dynamic pandas DataFrames to single xarray

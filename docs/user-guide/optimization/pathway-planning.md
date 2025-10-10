@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
 
 
 For long-term planning problems where the network is optimised for different

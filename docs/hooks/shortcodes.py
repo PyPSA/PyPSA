@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """
 Shortcode replacements for MkDocs Material theme and Griffe extension.
 

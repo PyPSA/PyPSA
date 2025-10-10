@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Charts
 
 PyPSA offers a variety of functions for plotting networks. These include the ability to plot different colours and widths on buses and branches, as well as labels on geographical features. Line, bar and area charts can be plotted against any network metric, and plots can be created as either static or dynamic.

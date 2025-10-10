@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Consistency Checks
 
 ::: pypsa.consistency.NetworkConsistencyMixin

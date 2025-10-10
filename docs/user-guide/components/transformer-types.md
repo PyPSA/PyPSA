@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Transformer Types
 
 The `TransformerType` components describe standard 2-winding transformer types.

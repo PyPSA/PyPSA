@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components types module.
 
 Contains module wide component types. Default types are loaded from the package data.
