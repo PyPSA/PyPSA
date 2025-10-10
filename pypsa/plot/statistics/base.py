@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Abstract base class to generate any plots based on statistics functions."""
 
 from __future__ import annotations

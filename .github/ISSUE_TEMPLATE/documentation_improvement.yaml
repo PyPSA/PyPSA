@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 name: Documentation Improvement
 description: Report wrong or missing documentation
 labels: ["needs triage"]

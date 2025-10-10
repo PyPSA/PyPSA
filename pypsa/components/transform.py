@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components transform module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.

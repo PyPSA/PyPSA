@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Import and Export
 
 PyPSA can handle several different data formats, such as CSV, netCDF and HDF5

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Use common methods for optimization problem definition with Linopy."""
 
 from __future__ import annotations

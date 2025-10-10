@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Objective
 
 The objective is to **minimise total system costs** (i.e. the sum of all costs) subject to

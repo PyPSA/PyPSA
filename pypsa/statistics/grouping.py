@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Groupers for PyPSA statistics.
 
 Use them via the groupers instance via `pypsa.statistics.groupers`. Do not use the

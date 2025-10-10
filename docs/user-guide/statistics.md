@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 The `statistics` module is used to easily extract and calculate common metrics from a [Network][pypsa.Network]. This is useful for inspecting networks and creating first visualizations of your results.
 
 It is accessed via the [`n.statistics`][pypsa.Network.statistics] property of any [pypsa.Network][] object.

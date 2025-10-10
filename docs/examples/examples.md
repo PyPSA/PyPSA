@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: PyPSA Contributors
+
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Examples
 
 The examples below demonstrate PyPSA's capabilities for energy system modeling. They cover a broad range of topics, including electricity markets, linear optimal power flow, unit commitment, capacity expansion, grid modelling, and more. 
