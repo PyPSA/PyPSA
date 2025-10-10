@@ -1,9 +1,3 @@
-"""
-Created on Mon Jan 31 18:11:09 2022.
-
-@author: fabian
-"""
-
 import numpy as np
 import pandas as pd
 import pytest

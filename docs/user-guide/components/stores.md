@@ -37,3 +37,5 @@ bought or sold at fixed market prices.
     Use [`StorageUnit`][pypsa.components.StorageUnits] when power and energy capacities have a fixed relationship and you need integrated dispatch control within a single component. For example, this is recommended for a storage device where the power-to-energy ratio is predetermined by the manufacturer.
     The [`StorageUnit`][pypsa.components.StorageUnits] also has attributes for hydro-electric `inflow` and `spillage`. 
     See [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html) for implementation differences.
+
+{{ read_csv('../../../pypsa/data/component_attrs/stores.csv', disable_numparse=True) }} 
