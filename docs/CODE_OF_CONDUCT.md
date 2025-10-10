@@ -1,4 +1,5 @@
 <!--
+SPDX-FileCopyrightText: Organization for Ethical Source
 SPDX-FileCopyrightText: PyPSA Contributors
 
 SPDX-License-Identifier: CC-BY-4.0
