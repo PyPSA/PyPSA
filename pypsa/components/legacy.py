@@ -63,7 +63,7 @@ class Component:
     Allows to keep functionallity of previous dataclass/ named tuple and wraps
     around new structure.
 
-    .. warning::
+    !!! warning
         This class is deprecated and should not be used anymore.
     """
 

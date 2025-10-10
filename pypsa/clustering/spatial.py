@@ -933,9 +933,9 @@ def busmap_by_greedy_modularity(  # noqa: D417
 
     References
     ----------
-    .. [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
+    [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
+        "Finding community structure in very large networks."
+        Physical Review E 70(6), 2004.
 
     """
     if parse(nx.__version__) < Version("2.8"):
@@ -998,9 +998,9 @@ def greedy_modularity_clustering(  # noqa: D417
 
     References
     ----------
-    .. [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
+    [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
+        "Finding community structure in very large networks."
+        Physical Review E 70(6), 2004.
 
     """
     busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)

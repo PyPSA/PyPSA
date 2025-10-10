@@ -44,10 +44,10 @@ plant).
 
 !!! example "[`Link`][pypsa.components.Links] with a single input and multiple outputs"
 
-    Suppose a link representing a combined heat and power (CHP) plant takes as input 1 unit of fuel and gives as outputs 0.3 units of electricity and 0.7 units of heat. Then `bus0` connects to the fuel, `bus1` connects to electricity with `efficiency=0.3` and `bus2` connects to heat with `efficiency2=0.7`. [This example](https://pypsa.readthedocs.io/en/latest/examples/chp-fixed-heat-power-ratio.html) illustrates a CHP with a fixed power-heat ratio using links.
+    Suppose a link representing a combined heat and power (CHP) plant takes as input 1 unit of fuel and gives as outputs 0.3 units of electricity and 0.7 units of heat. Then `bus0` connects to the fuel, `bus1` connects to electricity with `efficiency=0.3` and `bus2` connects to heat with `efficiency2=0.7`. [This example](../../examples/chp-fixed-heat-power-ratio.ipynb) illustrates a CHP with a fixed power-heat ratio using links.
 
 !!! example "[`Link`][pypsa.components.Links] with multiple inputs and a single output"
 
-    Suppose a link representing a methanation process takes as inputs one unit of hydrogen and 0.5 units of carbon dioxide, and gives as outputs 0.8 units of methane and 0.2 units of heat. Then `bus0` connects to hydrogen, `bus1` connects to carbon dioxide with `efficiency=-0.5` (since 0.5 units of carbon dioxide is taken for each unit of hydrogen), `bus2` connects to methane with `efficiency2=0.8` and `bus3` to heat with `efficiency3=0.2`. [This example](https://pypsa.readthedocs.io/en/latest/examples/biomass-synthetic-fuels-carbon-management.html) illustrates many modelling processes with multiple inputs and outputs using links.
+    Suppose a link representing a methanation process takes as inputs one unit of hydrogen and 0.5 units of carbon dioxide, and gives as outputs 0.8 units of methane and 0.2 units of heat. Then `bus0` connects to hydrogen, `bus1` connects to carbon dioxide with `efficiency=-0.5` (since 0.5 units of carbon dioxide is taken for each unit of hydrogen), `bus2` connects to methane with `efficiency2=0.8` and `bus3` to heat with `efficiency3=0.2`. [This example](../../examples/biomass-synthetic-fuels-carbon-management.ipynb) illustrates many modelling processes with multiple inputs and outputs using links.
 
 {{ read_csv('../../../pypsa/data/component_attrs/links.csv', disable_numparse=True) }} 

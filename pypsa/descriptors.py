@@ -108,7 +108,7 @@ def get_active_assets(
 ) -> pd.Series:
     """Get active assets. Use `c.get_active_assets`.
 
-    See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+    See the [`pypsa.descriptors.components.Component.get_active_assets`][].
 
     Parameters
     ----------
@@ -138,7 +138,7 @@ def get_activity_mask(
     """Get active components mask indexed by snapshots.
 
     Wrapper around the
-    `:py:meth:`pypsa.descriptors.components.Componenet.get_active_assets` method.
+    [`pypsa.descriptors.components.Componenet.get_active_assets`][] method.
     Get's the boolean mask for active components, but indexed by snapshots and
     components instead of just components.
 

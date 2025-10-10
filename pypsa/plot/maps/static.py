@@ -1048,6 +1048,7 @@ class MapPlotter:
             Widths of transformer, defaults to 1.5
 
         !!! warning "Deprecated in <!-- md:badge-version v0.28.0 -->"
+
             - `flow` will be deprecated, use `line_flow`, `link_flow` and `transformer_flow` instead. The argument will be passed to all branches.
             - `bus_norm`, `line_norm`, `link_norm` and `transformer_norm` are deprecated, use `bus_cmap_norm`, `line_cmap_norm`, `link_cmap_norm` and `transformer_cmap_norm` instead.
             - `color_geomap` is deprecated, use `geomap_colors` instead.
@@ -1553,10 +1554,10 @@ def add_legend_circles(
 ) -> Legend:
     """Add a legend for reference circles.
 
-    .. warning::
-        When combining ``n.plot()`` with other plots on a geographical axis,
-        ensure ``n.plot()`` is called first or the final axis extent is set initially
-        (``ax.set_extent(boundaries, crs=crs)``) for consistent legend circle sizes.
+    !!! warning
+        When combining `n.plot()` with other plots on a geographical axis,
+        ensure `n.plot()` is called first or the final axis extent is set initially
+        (`ax.set_extent(boundaries, crs=crs)`) for consistent legend circle sizes.
 
     Parameters
     ----------
@@ -1619,10 +1620,10 @@ def add_legend_semicircles(
 ) -> Legend:
     """Add a legend for reference semi-circles.
 
-    .. warning::
-        When combining ``n.plot()`` with other plots on a geographical axis,
-        ensure ``n.plot()`` is called first or the final axis extent is set initially
-        (``ax.set_extent(boundaries, crs=crs)``) for consistent legend semicircle sizes.
+    !!! warning
+        When combining `n.plot()` with other plots on a geographical axis,
+        ensure `n.plot()` is called first or the final axis extent is set initially
+        (`ax.set_extent(boundaries, crs=crs)`) for consistent legend semicircle sizes.
 
     Parameters
     ----------

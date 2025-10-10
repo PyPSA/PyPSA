@@ -12,6 +12,7 @@ path = [
     "test/baseline/*.png",
     "test/data/**/*.csv",
     "test/data/**/*.json",
+    "docs/requirements.txt",
 ]
 SPDX-FileCopyrightText = "PyPSA Contributors"
 SPDX-License-Identifier = "MIT"

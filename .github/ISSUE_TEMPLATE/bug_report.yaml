@@ -64,7 +64,7 @@ body:
   attributes:
     label: Installed Versions
     description: >
-      Please share information on your environment. Paste the output below.  For conda ``conda env export`` and for pip ``pip freeze``.
+      Please share information on your environment. Paste the output below.  For conda `conda env export` and for pip `pip freeze`.
     value: >
       <details>
 

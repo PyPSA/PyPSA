@@ -97,7 +97,7 @@ def apply_layouter(
         [Kamada-Kawai layout](https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.layout.kamada_kawai_layout.html#networkx.drawing.layout.kamada_kawai_layout).
     inplace : bool, default False
         Assign generated coordinates to the network bus coordinates
-        at ``n.buses[['x', 'y']]`` if True, otherwise return them.
+        at `n.buses[['x', 'y']]` if True, otherwise return them.
 
     Returns
     -------
