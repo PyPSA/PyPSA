@@ -14,6 +14,6 @@ The [`StorageUnit`][pypsa.components.StorageUnits] components connect to a singl
 
 !!! note "When to use [`Store`][pypsa.components.Stores] instead?"
 
-    For independent optimization of power and energy capacities, use the [`Store`][pypsa.components.Stores] component at an auxiliary [`Bus`][pypsa.components.Buses] combined with separate [`Link`][pypsa.components.Links] components for charging and discharging. Add a [`Generator`][pypsa.components.Generators] or [`Load`][pypsa.components.Loads] at the auxiliary [`Bus`][pypsa.components.Buses] for modelling spillage and inflow from an external source. See also [this example](https://pypsa.readthedocs.io/en/latest/examples/replace-generator-storage-units-with-store.html).
+    For independent optimization of power and energy capacities, use the [`Store`][pypsa.components.Stores] component at an auxiliary [`Bus`][pypsa.components.Buses] combined with separate [`Link`][pypsa.components.Links] components for charging and discharging. Add a [`Generator`][pypsa.components.Generators] or [`Load`][pypsa.components.Loads] at the auxiliary [`Bus`][pypsa.components.Buses] for modelling spillage and inflow from an external source. See also [this example](../../examples/replace-generator-storage-units-with-store.ipynb).
 
 {{ read_csv('../../../pypsa/data/component_attrs/storage_units.csv') }}

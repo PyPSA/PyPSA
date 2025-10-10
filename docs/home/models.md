@@ -16,8 +16,8 @@ open source and actively maintained. Below is a list of some known models.
 - **[:earth_africa: PyPSA-Earth](https://github.com/pypsa-meets-earth/pypsa-earth)**: Global energy system model, maintained by [pypsa-meets-earth](https://pypsa-meets-earth.github.io/)
 
 ### Europe
-- **[:flag_eu: PyPSA-Eur](https://github.com/PyPSA/pypsa-eur)**: European energy system model, maintained by [pypsa.org](https://pypsa.org)
-- **[:flag_de: PyPSA-DE](https://github.com/PyPSA/pypsa-de)**: German energy system model, maintained by [pypsa.org](https://pypsa.org)
+- **[:flag_eu: PyPSA-Eur](https://github.com/PyPSA/pypsa-eur)**: European energy system model, maintained by [TU Berlin](https://www.tu.berlin/en/ensys)
+- **[:flag_de: PyPSA-DE](https://github.com/PyPSA/pypsa-de)**: German energy system model, maintained by [TU Berlin](https://www.tu.berlin/en/ensys)
 - **[:earth_africa: PyPSA-CEE](https://github.com/ember-climate/pypsa-cee)**: Central and Eastern Europe power system model, maintained by [Ember](https://ember-energy.org/)
 - **[:flag_pl: PyPSA-PL](https://github.com/instrat-pl/pypsa-pl)**: Polish power system model, developed by [Instrat.pl](https://instrat.pl/en/)
 - **[:flag_es: PyPSA-Spain](https://github.com/cristobal-GC/pypsa-spain)**: Spanish energy system model, maintained by Polytechnic University of Madrid

@@ -396,7 +396,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
             to be considered.
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`.
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See

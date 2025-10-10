@@ -186,7 +186,6 @@ theme:
   - navigation.indexes  # Section indexes
   # - navigation.path # Sponsors only
   - navigation.top # Back to top button
-  - navigation.expand  # Expands all sections by default
   # - navigation.foot
   - header.autohide
   - content.action.edit
@@ -369,7 +368,7 @@ plugins:
               - pypsa.clustering.ClusteringAccessor.cluster_spatially_by_kmeans
               - pypsa.clustering.ClusteringAccessor.get_clustering_from_busmap
 
-# This will rebuild and execute the notebooks during any modifications when running ``mkdocs serve``
+# This will rebuild and execute the notebooks during any modifications when running `mkdocs serve`
 # For local development, this can be commented out/ filtered to only include the notebooks of interest
 - mkdocs-jupyter:
     execute: true
@@ -378,7 +377,7 @@ plugins:
     include_source: true
     remove_tag_config:
       remove_input_tags:
-      - hide_cell
+      - hide-cell
 
 # Global redirects
 - redirects:

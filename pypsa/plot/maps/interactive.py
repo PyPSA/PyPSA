@@ -141,7 +141,7 @@ def iplot(
         Text for transformers, defaults to transformer names.
     layouter : networkx.drawing.layout function, default None
         Layouting function from [networkx](https://networkx.github.io/) which
-        overrules coordinates given in ``n.buses[['x', 'y']]``. See
+        overrules coordinates given in `n.buses[['x', 'y']]`. See
         [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
         of available options.
     title : string
@@ -159,7 +159,7 @@ def iplot(
         Switch to use Mapbox.
     mapbox_style : str, default 'open-street-map'
         Define the mapbox layout style of the interactive plot. If this is set
-        to a mapbox layout, the argument ``mapbox_token`` must be a valid Mapbox
+        to a mapbox layout, the argument `mapbox_token` must be a valid Mapbox
         API access token.
 
         Valid open layouts are:
@@ -388,7 +388,7 @@ class PydeckPlotter:
             If a dict is provided, it should contain keys like 'longitude', 'latitude', 'zoom', 'pitch', and 'bearing'.
         layouter : Callable | None, optional
             Layouting function from [networkx](https://networkx.github.io/) which
-            overrules coordinates given in ``n.buses[['x', 'y']]``. See
+            overrules coordinates given in `n.buses[['x', 'y']]`. See
             [list](https://networkx.github.io/documentation/stable/reference/drawing.html#module-networkx.drawing.layout)
             of available options.
         jitter : float, optional

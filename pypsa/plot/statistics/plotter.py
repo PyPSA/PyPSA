@@ -165,17 +165,17 @@ class StatisticPlotter:
             Data to show as color. Pass None to disable color mapping.
         facet_col : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
-            :class:`seaborn.objects.Plot.facet` for more information.
+            `seaborn.objects.Plot.facet` for more information.
         facet_row : str | None, default: None
             Whether to create subplots with conditional subsets of the data. See
-            :class:`seaborn.objects.Plot.facet` for more information.
+            `seaborn.objects.Plot.facet` for more information.
         stacked : bool, default: False
-            Whether to stack the bars. See :class:`seaborn.objects.Stack` for more
+            Whether to stack the bars. See `seaborn.objects.Stack` for more
         query : str | None, default: None
             Pandas query string to filter the data before plotting. E.g. "value > 0".
         nice_names : bool, default: True
             Whether to use nice names for components, as defined in
-            ``c.static.nice_names.``
+            `c.static.nice_names.`
         carrier: Sequence[str] | str | None, default: None
             Filter by carrier of components. If specified, only considers assets with
             the given carrier(s). More information can be found in the
@@ -224,7 +224,7 @@ class StatisticPlotter:
             the grid for the figure.
         **kwargs: Any
             Additional keyword arguments for the plot function. These are passed to
-            the seaborn plot object (:class:`seaborn.objects.Plot`).
+            the seaborn plot object (`seaborn.objects.Plot`).
 
         Returns
         -------
@@ -598,7 +598,7 @@ class StatisticInteractivePlotter:
             Pandas query string to filter the data before plotting. E.g. "value > 0".
         nice_names : bool, default: True
             Whether to use nice names for components, as defined in
-            ``c.static.nice_names.``
+            `c.static.nice_names.`
         carrier: Sequence[str] | str | None, default: None
             Filter by carrier of components. If specified, only considers assets with
             the given carrier(s). More information can be found in the
