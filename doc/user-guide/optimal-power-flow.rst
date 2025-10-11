@@ -350,8 +350,9 @@ indicates whether the generator/link is running (1) or not (0) in period
 so that if :math:`u_{n,s,t} = 0` then also :math:`g_{n,s,t} = 0`.
 
 .. note::
-   Note that a generator/link cannot be both extendable (``n.generators.p_nom_extendable == True``) and committable (``n.generators.committable == True``) because of the coupling of the variables :math:`u_{n,s,t}`
-   and :math:`\bar{g}_{n,s}` here.
+   Generators/links can be both extendable (``n.generators.p_nom_extendable == True``) and committable (``n.generators.committable == True``), since version x.x.x
+   This is implemented using a big-M formulation to keep the optimization problem linear while allowing capacity expansion
+   with unit commitment constraints.
 
 If the minimum up time :math:`T_{\textrm{min_up}}` (``n.generators.min_up_time``) is set then we have for generic times
 
