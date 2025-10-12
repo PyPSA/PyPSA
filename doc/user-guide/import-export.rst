@@ -60,6 +60,23 @@ To **export** the network to an HDF store, run
 To **import** network data from an HDF5 store, run
 :py:meth:`pypsa.Network.import_from_hdf5`.
 
+Excel import and export
+======================
+
+PyPSA can read from and write to Excel files (.xlsx) with the call `import_from_excel('filename.xlsx')` or `export_to_excel('filename.xlsx')` using a standardised worksheet naming convention. Before using this import functionality, ensure that you install `pypsa[excel]` in your environment using `pip install pypsa[excel]`.
+
+For static component data, name each worksheet using the exact component name as it appears in PyPSA (e.g., generators, buses, lines, storage_units). For time-series data, use the format [component]-[attribute] (e.g., generators-p_max_pu, loads-p_set, storage_units-inflow). Component and attribute names are case-sensitive and must match PyPSA conventions. The I/O functionality will automatically ignore any worksheets that don't follow this naming pattern, allowing you to include documentation, notes, or auxiliary data in separate tabs without interfering with the import/export process.
+
+The snapshots worksheet must contain the time-series index using an appropriate datetime format. Other time-series worksheets should have the same number of rows, with the index column either numbered sequentially (e.g., 1-8760 for hourly annual data) or using the same datetime format as the snapshots. 
+
+.. note:: 
+
+1. To maintain data integrity and avoid conflicts, it is recommended to use Excel's data validation feature: define your buses in the Bus worksheet and apply data validation to bus reference columns in component worksheets (e.g., bus0, bus1 fields in the Line worksheet) and similarly apply validation for carriers and time-series dataset references where applicable.
+
+2. It is not necessary to add every single column, only those where values differ from the defaults listed in :doc:`/user-guide/components`. All empty values/columns are filled with the defaults.
+
+.. warning:: Excel is resource-intensive and only appropriate for small networks. Large Excel files are slow to import/export and can be unstable to work with. For larger datasets or production workflows, consider using CSV files or other more efficient data formats instead.
+
 
 Pypower import
 ==============
