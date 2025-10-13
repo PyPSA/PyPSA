@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 from numpy.testing import assert_array_almost_equal as almost_equal
 
@@ -282,7 +286,7 @@ def test_cvar_with_quadratic_opex_raises():
     """Ensure we fail fast when CVaR is enabled together with quadratic marginal costs.
 
     The guard should raise a ValueError with a clear message before model solve
-    when ``marginal_cost_quadratic`` terms are present (unsupported with CVaR).
+    when `marginal_cost_quadratic` terms are present (unsupported with CVaR).
     """
     import pandas as pd
 

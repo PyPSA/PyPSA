@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define global constraints for optimisation problems with Linopy."""
 
 from __future__ import annotations
@@ -452,6 +456,9 @@ def define_primary_energy_limit(n: Network, sns: pd.Index) -> None:
 
             lhs = merge(lhs)
             expressions.append(lhs)
+
+        if not expressions:
+            continue
 
         if n.has_scenarios:
             expression = merge(expressions, dim="scenario").assign_coords(

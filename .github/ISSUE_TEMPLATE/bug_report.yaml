@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 name: Bug Report
 description: Create a report if something doesn't work quite right.
 labels: ["needs triage"]
@@ -60,7 +64,7 @@ body:
   attributes:
     label: Installed Versions
     description: >
-      Please share information on your environment. Paste the output below.  For conda ``conda env export`` and for pip ``pip freeze``.
+      Please share information on your environment. Paste the output below.  For conda `conda env export` and for pip `pip freeze`.
     value: >
       <details>
 

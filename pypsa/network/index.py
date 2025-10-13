@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network index module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -27,8 +31,8 @@ logger = logging.getLogger(__name__)
 class NetworkIndexMixin(_NetworkABC):
     """Mixin class for network index methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     _risk_preference: dict[str, float] | None
@@ -51,7 +55,7 @@ class NetworkIndexMixin(_NetworkABC):
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
+        ([`pypsa.Network.dynamic`][]). NaNs are filled with the default value for
         that quantity.
 
         Parameters
@@ -122,7 +126,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         for component in self.all_components:
             dynamic = self.c[component].dynamic
-            attrs = self.components[component]["attrs"]
+            attrs = self.components[component]["defaults"]
 
             for k in dynamic:
                 if dynamic[k].empty:  # avoid expensive reindex operation
@@ -159,8 +163,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.timesteps][] : Get the timestep level only.
-        [pypsa.Network[] : Get the period level only.
+        [pypsa.Network.timesteps][], [pypsa.Network.periods][]
 
         Notes
         -----
@@ -191,8 +194,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Getter method
-        [pypsa.Network.set_snapshots][] : Setter method
+        [pypsa.Network.snapshots][], [pypsa.Network.set_snapshots][]
 
         """
         self.set_snapshots(snapshots)
@@ -213,8 +215,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the period level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][]
 
         Examples
         --------
@@ -257,7 +258,7 @@ class NetworkIndexMixin(_NetworkABC):
     def timesteps(self, timesteps: Sequence) -> None:
         """Setter for timesteps level of snapshots dimension.
 
-        .. warning::
+        !!! warning
             Setting `timesteps` is not supported. Please set `snapshots` instead.
 
         Parameters
@@ -371,8 +372,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.timesteps][]
 
         Examples
         --------
@@ -431,7 +431,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
+        [pypsa.Network.snapshots][]
 
         Examples
         --------
@@ -457,7 +457,8 @@ class NetworkIndexMixin(_NetworkABC):
         investment periods without timesteps are defined. Otherwise only the period
         level will be returned.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Returns
         -------
@@ -466,9 +467,8 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][],
+        [pypsa.Network.timesteps][]
 
         Examples
         --------
@@ -502,7 +502,8 @@ class NetworkIndexMixin(_NetworkABC):
     def investment_periods(self, periods: Sequence) -> None:
         """Setter for periods level of snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Parameters
         ----------
@@ -521,7 +522,8 @@ class NetworkIndexMixin(_NetworkABC):
     def has_investment_periods(self) -> bool:
         """Check if network has investment periods assigned to snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.has_periods`.
+        !!! note
+            Alias for [`pypsa.Network.has_periods`][].
 
         Returns
         -------
@@ -530,8 +532,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
-        [pypsa.Network.periods][] : Periods level of snapshots dimension.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][]
 
         Examples
         --------
@@ -853,8 +854,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network][]
-        [pypsa.Collection][]
+        [pypsa.Network][], [pypsa.NetworkCollection][]
 
         """
         return False
@@ -938,14 +938,14 @@ class NetworkIndexMixin(_NetworkABC):
 
         Examples
         --------
-        >>> network_collection
+        >>> nc
         NetworkCollection
         -----------------
         Networks: 2
         Index name: 'network'
-        Entries: ['AC-DC-Meshed', 'Storage-HVDC']
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
 
-        >>> selected = network_collection.get_network("AC-DC-Meshed")
+        >>> selected = nc.get_network("AC-DC-Meshed")
         >>> selected
         PyPSA Network 'AC-DC-Meshed'
         ----------------------------
@@ -957,7 +957,9 @@ class NetworkIndexMixin(_NetworkABC):
          - Line: 7
          - Link: 4
          - Load: 6
+         - SubNetwork: 3
         Snapshots: 10
+        <BLANKLINE>
 
         A network collection does not copy the selected network, but returns
         a reference to it:

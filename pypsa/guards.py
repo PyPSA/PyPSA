@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Assertion guards for runtime verification of PyPSA.
 
 Methods of this module should only be called when

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network descriptors module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -29,8 +33,8 @@ logger = logging.getLogger(__name__)
 class NetworkDescriptorsMixin(_NetworkABC):
     """Mixin class for network descriptor methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     @deprecated_in_next_major(
@@ -75,7 +79,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
     ) -> pd.Series:
         """Get active components mask of component type in investment period(s).
 
-        See the :py:meth:`pypsa.descriptors.components.Component.get_active_assets`.
+        See the [`pypsa.components.descriptors.ComponentsDescriptorsMixin.get_active_assets`][].
 
         Parameters
         ----------
@@ -227,7 +231,7 @@ class NetworkDescriptorsMixin(_NetworkABC):
 
         Raises
         ------
-        ValueError:
+        ValueError
             If the specified bus carrier is not found in the network or if multiple
             units are found for the specified bus carrier.
 
