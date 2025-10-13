@@ -60,7 +60,7 @@ These constraints are set in the function `define_fixed_nominal_constraints()`.
     Using `p_nom_extendable=False` means the capacity is fixed and not optimized. However, sometimes we need to fix the capacity to a specific value while still keeping track of the dual variables associated with capacity constraints. Setting `{p,s,e}_nom_set` allows for this while maintaining `p_nom_extendable=True`.
 
 
-!!! note "Mapping of symbols to component attributes"
+??? note "Mapping of symbols to component attributes"
 
     === "Generator"
 

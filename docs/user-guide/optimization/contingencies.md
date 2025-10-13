@@ -55,7 +55,7 @@ These constraints are added in the function [`n.optimize_security_constrained()`
     from the branch capacity for contingencies (e.g. by setting `s_max_pu=0.7` to prevent line loading above 70% of the branches' rated capacity).
     See, for example, the discussion in Gazafroudi et al. (2022)[^4].
 
-!!! note "Mapping of symbols to component attributes"
+??? note "Mapping of symbols to component attributes"
 
     The following table maps the symbols used in this section to the component attributes in PyPSA:
 

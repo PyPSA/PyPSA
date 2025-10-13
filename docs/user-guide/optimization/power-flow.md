@@ -121,7 +121,7 @@ tangents are sufficient for a reasonably accurate approximation.
     The losses can be calculated with `n.lines_t.p0 + n.lines_t.p1`.
 
 
-!!! note "Mapping of symbols to component attributes"
+??? note "Mapping of symbols to component attributes"
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|

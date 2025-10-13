@@ -31,7 +31,7 @@ The dual variable $\lambda_{n,t}$ represents the shadow price of the constraint 
 
 The energy balance constraints are set in the function `define_nodal_balance_constraints()` and is called `Bus-nodal_balance`.
 
-!!! note "Mapping of symbols to component attributes"
+??? note "Mapping of symbols to component attributes"
 
     | Symbol | Attribute | Type |
     |-------------------|-----------|-------------|

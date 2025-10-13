@@ -8,10 +8,9 @@ As the name suggests, a [NetworkCollection][pypsa.NetworkCollection] is a collec
 multiple networks. It provides a convenient way to manage and analyse multiple networks 
 simultaneously, access their combined data, and generate combined statistics and plots.
 
-!!! example "Experimental"
+!!! example "Under Active Development"
 
-    NetworkCollections have been introduced in <!-- md:badge-version v0.35.0 --> and will be 
-    further extended in future releases.
+    NetworkCollections have been introduced in <!-- md:badge-version v0.35.0 --> and will be further extended in future releases.
 
 ## Create a collection
 A network collection is simply a container that references multiple networks and wraps 

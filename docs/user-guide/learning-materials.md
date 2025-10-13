@@ -4,8 +4,6 @@ SPDX-FileCopyrightText: PyPSA Contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Resources
-
 This page lists a set of resources for learning about energy system modelling with and without PyPSA.
 
 - **[Energy Systems](https://nworbmot.org/courses/es-24/)** course by [Tom Brown](https://nworbmot.org), TU Berlin.
