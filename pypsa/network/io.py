@@ -38,9 +38,9 @@ except ImportError:
     from pathlib import Path
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
+    from typing import Self
 
     from pandapower.auxiliary import pandapowerNet
-    from typing_extensions import Self
 
     from pypsa import Network
 logger = logging.getLogger(__name__)
