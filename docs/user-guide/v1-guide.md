@@ -140,13 +140,9 @@ While PyPSA has been stable for a while now, version `v1.0` is the first stable 
 
 !!! warning
 
-    If you are unsure if you are still using any deprecated features, first install the latest version `v0.35.1` and resolve all warnings. You can easily catch them all by raising them as errors. Just add the following to the top of your script:
+    If you are unsure if you are still using any deprecated features, first install the latest version `v0.35.2` (also see [upgrade guide](../home/installation.md#upgrading)) and resolve all warnings. You can easily catch them all by raising them as errors. Just add the following to the top of your script:
     ``` py
     >>> import warnings
     >>> warnings.filterwarnings('error', category=DeprecationWarning, module='pypsa')
     ```
-
-### Major future change
-A major breaking change will be the new Components Class API, as described [above](#components-class). This functionality is opt-in with version `v1.0` and both the old and the new API are fully supported. 
-
-A detailed introduction can be found in the dedicated [user guide section](../user-guide/components.md#new-components-class-api). Please have a look and provide feedback. The new API is planned to be the default in version `v2.0`.
+- The new Components Class API is a major breaking change. It is opt-in with version `v1.0` and both the old and the new API are fully supported. A detailed introduction can be found in the dedicated [user guide section](../user-guide/components.md#new-components-class-api). Please have a look and provide feedback. The new API is planned to be the default in version `v2.0`.

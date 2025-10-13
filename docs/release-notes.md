@@ -13,7 +13,7 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need 
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`. -->
 
-## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>xx October 2025</small> 🎉 { id="v1.0.0" } 
+## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" } 
 
 ### **PyPSA 1.0** is here!
 
@@ -2475,18 +2475,24 @@ main component pandas.DataFrame.
 
 ## Release process
 
-* Update ``doc/references/release-notes.rst``
-* You don't need to update the version number anywhere, this is done automatically.
-* ``git commit`` and put release notes in commit message
-* ``git tag vx.x.x``
-* ``git push`` and  ``git push --tags``
-* The upload to [PyPI](https://pypi.org/) is automated in the Github Action 
+- Update ``docs/release-notes.md``
+    - Check if all major changes are documented
+    - Link PR's with badge (e.g. <!-- md:pr 1 -->)
+- You don't need to update the version number anywhere, this is done automatically.
+- Commit: ``git commit -m 'prepare release `vx.x.x`'``
+- Add tag: ``git tag vx.x.x``
+- Direct push on master: ``git push upstream master``
+- Push tag: ``git push upstream vx.x.x``
+- The upload to [PyPI](https://pypi.org/) is automated in the Github Action 
   ``deploy.yml``, which is triggered by pushing a tag.
   To upload manually, run ``python setup.py sdist``,
   then ``twine check dist/pypsa-0.x.0.tar.gz`` and
   ``twine upload dist/pypsa-0.x.0.tar.gz``
-* The [GitHub release](https://github.com/PyPSA/PyPSA/releases) is also automated in 
+- The [GitHub release](https://github.com/PyPSA/PyPSA/releases) is also automated in 
   the Github Action. Making a GitHub release will also trigger 
   [zenodo](https://zenodo.org/) to archive the release with its own DOI.
-* To update to conda-forge, check the pull request generated at the [feedstock repository
- ](https://github.com/conda-forge/pypsa-feedstock).
+- To update to conda-forge, check the pull request generated at the 
+  [feedstock repository](https://github.com/conda-forge/pypsa-feedstock). A PR will be
+  generated automatically after a couple of hours by the 
+  [conda-forge bot](https://github.com/conda-forge/conda-forge.github.io),
+  and needs to be merged by a maintainer.

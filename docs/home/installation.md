@@ -8,7 +8,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 !!! hint
 
-    If it is your first time using Python, we recommend [conda](https://docs.conda.io/en/latest/miniconda.html), [mamba](https://github.com/mamba-org/mamba), or [pip](https://pip.pypa.io/en/stable/) as easy-to-use package managers. They are available for Windows, macOS, and GNU/Linux. It is always helpful to use dedicated environments.
+    If it is your first time using Python, we recommend [conda](https://docs.conda.io/en/latest/miniconda.html), [mamba](https://github.com/mamba-org/mamba), [pip](https://pip.pypa.io/en/stable/) or [uv](https://docs.astral.sh/uv/) as easy-to-use package managers. They are available for Windows, macOS, and GNU/Linux. It is always helpful to use dedicated environments.
 
 You can install PyPSA via all common package managers:
 
@@ -36,7 +36,7 @@ PyPSA is written and tested to be compatible with Python 3.11 and above. We reco
 
 PyPSA passes optimisation problems (see [overview](overview.md)) to an external solver and is deeply integrated with the optimisation framework [linopy](https://github.com/PyPSA/linopy) to do so. Some examples of available solvers:
 
-| Free solvers | Commercial solvers |
+| Free & open source | Commercial & proprietary |
 | ------------- | ------------------- |
 | [HiGHS](https://highs.dev/) | [Gurobi](https://www.gurobi.com/documentation/quickstart.html) |
 | [Cbc](https://projects.coin-or.org/Cbc#DownloadandInstall) | [CPLEX](https://www.ibm.com/products/ilog-cplex-optimization-studio) |
@@ -65,23 +65,29 @@ To upgrade PyPSA, run:
 === "pip"
 
     ``` bash
-    pip install -U pypsa
+    pip install --upgrade pypsa
+    # Or upgrade to a specific version:
+    pip install pypsa==0.35.2
     ```
 
 === "conda/mamba"
 
     ``` bash
     conda update pypsa
+    # Or upgrade to a specific version:
+    conda install -c conda-forge pypsa==0.35.2
     ```
 
 === "uv"
     
     ``` bash
-    uv pip install -U pypsa
+    uv add --upgrade pypsa 
+    # Or upgrade to a specific version:
+    uv add pypsa==0.35.2
     ```
 
-Check the [release notes](../release-notes.md) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes, including a version when they are going to be removed (always the next major version, e.g. `v2.0.0`). That way you can be sure that your code will continue to work at least until the next major version.
-If you are coming from a very old version (< `v1.0.0`), it makes sense to update gradually and fix any deprecation warnings before updating to the latest version.
+Check the [release notes](../release-notes.md) for API changes that may require you to update your code. PyPSA releases new versions according to the [semantic versioning](https://semver.org/) scheme. Any breaking changes are always announced via deprecation warnings in the code and in the release notes, including a version when they are going to be removed (always the next major version, e.g. `v2.0.0`). That way you can be sure that your code will continue to work at least until the next major version. But this does not include bug fixes, which you only get when upgrading to the latest version.
+If you are upgrading from a pre <!-- md:version v1.0.0 --->, we recommend you upgrade in small steps and fix any deprecation warnings before upgrading to `v1.0.0`.
 
 ## Dependencies
 
