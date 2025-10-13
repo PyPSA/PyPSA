@@ -344,14 +344,14 @@ gen = n.generators.assign(g=n.generators_t.p.mean()).groupby(["bus", "carrier"])
 Plot the electricity flows:
 
 ``` py
-# links are not displayed for prettier output ('link_widths=0')
+# links are not displayed for prettier output ('link_width=0')
 n.plot(
-    bus_sizes=gen / 5e3,
-    bus_colors={"gas": "indianred", "wind": "midnightblue"},
+    bus_size=gen / 5e3,
+    bus_color={"gas": "indianred", "wind": "midnightblue"},
     margin=0.5,
-    line_widths=0.1,
+    line_width=0.1,
     line_flow="mean",
-    link_widths=0,
+    link_width=0,
 )
 plt.show()
 ```
@@ -359,14 +359,14 @@ plt.show()
 Plot the electricity flows with a different projection and a colored map:
 
 ``` py
-# links are not displayed for prettier output ('link_widths=0')
+# links are not displayed for prettier output ('link_width=0')
 n.plot(
-    bus_sizes=gen / 5e3,
-    bus_colors={"gas": "indianred", "wind": "midnightblue"},
+    bus_size=gen / 5e3,
+    bus_color={"gas": "indianred", "wind": "midnightblue"},
     margin=0.5,
-    line_widths=0.1,
+    line_width=0.1,
     line_flow="mean",
-    link_widths=0,
+    link_width=0,
     projection=ccrs.EqualEarth(),
     color_geomap=True,
 )
@@ -385,15 +385,15 @@ line_flow
 ```
 
 ``` py
-# links are not displayed for prettier output ('link_widths=0')
+# links are not displayed for prettier output ('link_width=0')
 n.plot(
-    bus_sizes=gen / 5e3,
-    bus_colors={"gas": "indianred", "wind": "midnightblue"},
+    bus_size=gen / 5e3,
+    bus_color={"gas": "indianred", "wind": "midnightblue"},
     margin=0.5,
     line_flow=line_flow,
     link_flow=link_flow,
-    line_widths=2.7,
-    link_widths=0,
+    line_width=2.7,
+    link_width=0,
     projection=ccrs.EqualEarth(),
     color_geomap=True,
 )
@@ -404,17 +404,17 @@ Adjust link colors according to their mean load:
 
 ``` py
 # Pandas series with MultiIndex
-# links are not displayed for prettier output ('link_widths=0')
+# links are not displayed for prettier output ('link_width=0')
 collections = n.plot(
-    bus_sizes=gen / 5e3,
-    bus_colors={"gas": "indianred", "wind": "midnightblue"},
+    bus_size=gen / 5e3,
+    bus_color={"gas": "indianred", "wind": "midnightblue"},
     margin=0.5,
     line_flow=line_flow,
-    line_widths=2.7,
-    link_widths=0,
+    line_width=2.7,
+    link_width=0,
     projection=ccrs.EqualEarth(),
     color_geomap=True,
-    line_colors=n.lines_t.p0.mean().abs(),
+    line_color=n.lines_t.p0.mean().abs(),
 )
 
 plt.colorbar(
