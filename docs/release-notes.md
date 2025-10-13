@@ -314,7 +314,7 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 ### Bug fixes
 
 - Fixed `pypsa.plot.add_legend_semicircles()` circle sizing to be consistent with 
-  `n.plot(bus_sizes=..., bus_split_circles=True)` argument. 
+  `n.plot(bus_size=..., bus_split_circle=True)` argument. 
   (<!-- md:pr 1179 -->)
 
 ## [**v0.33.2**](https://github.com/PyPSA/PyPSA/releases/tag/v0.33.2) <small>12th March 2025</small> { id="v0.33.2" }
@@ -796,7 +796,7 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 ## [**v0.27.0**](https://github.com/PyPSA/PyPSA/releases/tag/v0.27.0) <small>18th February 2024</small> { id="v0.27.0" }
 
 - Bugfix: If plotting a network map with split buses
-  (`n.plot(bus_split_circles=True)`), the bus sizes are now scaled by factor 2
+  (`n.plot(bus_split_circle=True)`), the bus sizes are now scaled by factor 2
   to account for the fact that the bus sizes are split into half circles. This
   makes the area scaling of the buses consistent with the area of non-split
   buses.
@@ -883,8 +883,8 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
         the `comps` argument.
 
 - The plotting function `n.plot()` now supports **plotting of only a subset of
-  network components** by allowing that arguments like `bus_sizes`,
-  `link_widths` or `link_colors` do no longer require to contain the full
+  network components** by allowing that arguments like `bus_size`,
+  `link_widths` or `link_color` do no longer require to contain the full
   set of indices of a component.
 
 - Add option to specify **time-varying ramp rates** for generators and links
