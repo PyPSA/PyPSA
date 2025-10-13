@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Components Object
 
-[`pypsa.Components`][] are the store for all component specific data. While a [`pypsa.Network`][] bundles together functionality across components, the Components class is the interface for all data and processing for a specific component type. 
+[`pypsa.Components`][] are the store for all component specific data. While a [`pypsa.Network`][] bundles together functionality across components, the `Components` class is the interface for all data and processing for a specific component type. 
 
 ``` py
 >>> import pypsa
@@ -23,7 +23,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ## Components Store
 
-Components can be accessed in any Network via the Components store [`n.components`][pypsa.Network.components]. The Components store is a dict-like object that contains all components of the network.
+Components can be accessed in any `Network` via the `Components` store [`n.components`][pypsa.Network.components]. The `Components` store is a dict-like object that contains all components of the network.
 
 !!! info
 
@@ -90,9 +90,9 @@ Stochastic Networks (see <!-- md:guide optimization/stochastic.md -->) and multi
 
 
 ## Features
-[`pypsa.Components`][] have been introduced as experimental in <!-- md:badge-version v0.33.0 --> and are now released as stable in <!-- md:badge-version v1.0.0 -->. They do not change anything in the underlying data structure of static and dynamic data stored in `pandas` DataFrames. In fact, they have been released in `v0.33.0` without any noticeable changes to the users.
+[`pypsa.Components`][] have been introduced as experimental in <!-- md:badge-version v0.33.0 --> and are now released as stable in <!-- md:badge-version v1.0.0 -->. They do not change anything in the underlying data structure of static and dynamic data stored in `pandas` DataFrames.
 
-But they add a lot of additional functionality that would otherwise always have to be reimplemented on the underlying `pandas` DataFrames. Using them removes the need for a lot of boilerplate code, but it is also possible to continue using only the underlying DataFrames directly.
+However, they add a lot of additional functionality that would otherwise have to be reimplemented on the underlying `pandas` DataFrames repeatedly. Using them reduces the need for boilerplate code, while still allowing users to continue using only the underlying DataFrames directly.
 
 For a list of features, checkout the API documentation. [pypsa.Components][] lists all functionality which is available for all component types, while each type has its own class listing type-sensitive features. E.g. [pypsa.components.Generators][].
 
@@ -101,14 +101,14 @@ For a list of features, checkout the API documentation. [pypsa.Components][] lis
     More features will be added in future releases. If you have any suggestions or requests, please open an issue on [GitHub](https://github.com/PyPSA/PyPSA/issues).   
 
 ## New Components Class API
-Prior to version  <!-- md:badge-version v0.33.0 --> components data was only available in the two data stores `n.generators` and `n.generators_t`, directly attached to the network and not coupled together. With <!-- md:badge-version v1.0.0 --> it is still available in the same way, but now also via the newly introduced class. Additionaly, a new optional and breaking API is introduced to make the usage of components more intuitive.
+Prior to version  <!-- md:badge-version v0.33.0 --> components data was only available in the two data stores `n.generators` and `n.generators_t`, which were directly attached to the network and not linked. With <!-- md:badge-version v1.0.0 --> they are still available in the same way, but now also via the newly introduced class. A new **optional** breaking API is introduced to make the usage of components more intuitive.
 
-The current components API is a bit confusing:
+The current components API works as follows:
 
 - `n.generators` -> reference to [`n.components.generators.static`][pypsa.Components.static]
 - `n.generator_t` -> reference to [`n.components.generators.dynamic`][pypsa.Components.dynamic]
 
-To get access to the full functionality of [pypsa.Components][] you need to use the long namespace or assign them to a variable. E.g. to rename a component across all dataframes ([pypsa.Components.rename_component_names][]) or add components with attribute type hints ([pypsa.components.Generators.add][]), you would need to do:
+To get access to the full functionality of [pypsa.Components][] the long namespace must be used or assigned to a variable. For example, to rename a component across all dataframes ([pypsa.Components.rename_component_names][]) or add components with attribute type hints ([pypsa.components.Generators.add][]), the following code must be run:
 
 ``` py
 >>> n.components["Generator"].rename_component_names(bus1="bus_renamed")  # doctest: +SKIP
@@ -118,18 +118,16 @@ To get access to the full functionality of [pypsa.Components][] you need to use 
 
 ### Opt-in to new API
 
-Therefore, PyPSA `v1.0` now allows you to opt in to the new Components API. This simply changes the reference to:
+Therefore, PyPSA `v1.0` now allows you to opt in to an alternative, new Components API, which changes the reference to:
 
 | Namespace | Current API | Opt-in API |
 |-----------|--------------|------------|
 | `n.generators` | [`n.components.generators.static`][pypsa.Components.static] | [`n.components.generators`][pypsa.Components] |
 | `n.generators_t` | [`n.components.generators.dynamic`][pypsa.Components.dynamic] | Deprecated |
 
-With the new API, the usage would be much more intuitive, the actual relationship between static and dynamic data is clear and the vast amount of Components class features are faster to access with full support for auto-completion in IDEs. Using them can remove a lot of boilerplate code, which is otherwise needed.
+With the new API, working with components should become more intuitive. The relationship between static and dynamic data is clearer and the numerous features of the `Components` class are faster to access with full support for auto-completion in IDEs when adding components with `n.generators.add(...)`.
 
-On the downside is that accessing the main static dataframe of components data is a bit more cumbersome (e.g. `n.generators.static` instead of `n.generators`). But using a variable (e.g. `c`) as reference is still possible there are currently discussions for introducing a shorter alias for [`c.static`][pypsa.Components.static].
-
-And secondly, the existing code base needs to be refactored. 
+One downside is that accessing the main static dataframe with `n.generators.static` instead of `n.generators` changes and is a bit longer. However,using a variable (e.g. `c`) as reference is still possible. Additionally, using the new API requires changes in existing code bases.
 
 ### Migrating to new API
 To make the migration as easy as possible, and to also allow step-by-step migration, the <!-- md:guide options.md --> module is used.

@@ -34,13 +34,15 @@ Check out the [:octicons-gear-16: Features](features.md) for more information on
 
     PyPSA has many contributors, with the maintenance led by the [Department of Digital Transformation in
     Energy Systems](https://tu.berlin/en/ensys) at the [Technical University of
-    Berlin](https://www.tu.berlin). Previous versions were developed at the [Karlsruhe
+    Berlin](https://www.tu.berlin).  The project is currently supported by the 
+    [German Research Foundation](https://www.dfg.de/en/) (grant number [`528775426`](https://gepris.dfg.de/gepris/projekt/528775426)).    
+    Previous versions were developed at the [Karlsruhe
     Institute of Technology](http://www.kit.edu/english/index.php) funded by the
     [Helmholtz Association](https://www.helmholtz.de/en/), and
     at [FIAS](https://fias.uni-frankfurt.de/) funded by the [German Federal
     Ministry for Education and Research (BMBF)](https://www.bmbf.de/bmbf/en/).
 
-
+    
 ## Quick Links
 
 <div class="grid cards" markdown>

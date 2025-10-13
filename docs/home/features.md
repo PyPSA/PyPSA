@@ -134,23 +134,19 @@ examples are available.
 
 ## Illustrations
 
-[PyPSA-Eur](https://github.com/PyPSA/pypsa-eur) optimising capacities of generation, storage and transmission lines for a 95% reduction in CO~2~ emissions in Europe:
-<figure markdown="span">
-  ![Buses](../assets/images/elec_s_256_lv1.09_Co2L-3H.png){ width="600" }
-</figure>
-<div style="width: 120%; height: 800px; overflow: hidden;">
+Interactive **network visualization** of SciGRID example network clustered by federal state, showing transmission capacities, flow directions, electricity supply (upper pie charts) and demand (lower pie charts), as well as average nodal prices (color scale):
+
+<div style="width: 100%; height: 800px; overflow: hidden;">
     <iframe src="https://bxio.ng/assets/html/scigrid-interactive-map"
             width="100%" height="100%" frameborder="0" 
-            style="border: 1px solid #ccc; transform: scale(0.6); transform-origin: 0 0;">
+            style="border: 0px solid #ccc; transform: scale(1); transform-origin: 0 0;">
     </iframe>
 </div>
 
+Interactive area plot of **electricity balance time series** in a highly-renewable sector-coupled example network, showing temporal generation (positive values) and consumption (negative values) of different technologies:
 
-[SciGRID model](https://power.scigrid.de/) simulating the German power system for 2015.
-
-<figure markdown="span">
-  ![Buses](../assets/images/stacked-gen_and_storage-scigrid.png){ width="600" }
-</figure>
-<figure markdown="span">
-  ![Buses](../assets/images/lmp_and_line-loading.png){ width="600" }
-</figure>
+<div style="width: 100%; height: 550px;">
+    <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html" 
+            width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
+    </iframe>
+</div>

@@ -12,7 +12,9 @@ Stochastic optimization in PyPSA enables modeling and solving energy system plan
 
 PyPSA implements a **two-stage stochastic programming framework** with scenario trees, allowing users to optimize investment decisions (first-stage) that are feasible across multiple possible future realizations (scenarios) of uncertain parameters and minimize expected system costs.
 
-### (Risk-neutral) two-stage stochastic programming problem
+## Risk-neutral Two-Stage Stochastic Programming
+
+### Mathematical Formulation
 
 The stochastic optimization problem in PyPSA follows the standard two-stage risk-neutral stochastic programming formulation:
 
@@ -71,10 +73,7 @@ The scenario tree in PyPSA splits into **here-and-now** investment decisions (t=
 
 For a comprehensive treatment of two-stage stochastic programming theory and methods, see Birge and Louveaux (2011).[^1]
 
-
-## Implementation
-
-### Network Initialization
+### Implementation
 
 Let us consider a single-node capacity expansion model in the style of [model.energy](https://model.energy). This stylized model calculates the cost of meeting an hourly electricity demand time series from a combination of wind power, solar power, battery and hydrogen storage as well as load shedding. See this [example](../../examples/capacity-expansion-planning-single-node.ipynb). We add a gas power plant as additional technology option and solve the model with given load and renewable availability profiles as a deterministic problem. Afterwards, we inspect the optimal objective value and expanded capacities.
 
@@ -315,7 +314,7 @@ Generator   gas             electricity       10.14    21.20
 ...
 ```
 
-## Value of Information Metrics
+### Metrics
 
 When working with stochastic optimization, it can be useful to quantify the value of accounting for uncertainty compared to deterministic approaches. There are several such value of information (VOI) metrics.
 
@@ -450,7 +449,7 @@ Store        hydrogen storage    1579.99
 Economic interpretation: CVaR penalizes costly tail operations (worst-scenario OPEX, such as load shedding or expensive peakers). The model invests more upfront to reduce exposure to these rare but severe outcomes. In this case, the cheapest hedge is to overbuild solar and complement it with long-duration hydrogen storage, even though solar itself is affected in the "volcano" scenario. This combination minimizes worst-case costs.
 In other words: *risk aversion hedges against the risky scenario by shifting costs from tail OPEX to upfront CAPEX.*
 
-### Evaluation Metrics
+### Metrics
 
 The insurance premium measures the increase in expected total system costs relative to the risk-neutral solution.
 
@@ -491,4 +490,4 @@ $$
 
 [^1]: Birge, J. R., & Louveaux, F. (2011). [Introduction to Stochastic Programming](https://link.springer.com/book/10.1007/978-1-4614-0237-4).
 
-[^2]: Rockafellar, R. T., & Uryasev, S. (2002). Conditional Value-at-Risk for General Loss Distributions. Journal of Banking & Finance, 26(7), 1443–1471.
+[^2]: Rockafellar, R. T., & Uryasev, S. (2002). [Conditional Value-at-Risk for General Loss Distributions](https://doi.org/10.1016/S0378-4266(02)00271-6). Journal of Banking & Finance, 26(7), 1443–1471.

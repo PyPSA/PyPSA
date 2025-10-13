@@ -46,6 +46,23 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
       Inspect via [`n.has_risk_preference`][pypsa.Network.has_risk_preference] 
       and [`n.risk_preference`][pypsa.Network.risk_preference].
 
+- New feature for **interactive map plotting**: PyDeck-based interactive maps (<!-- md:pr 1312 -->)
+
+    - New API: [`n.explore(...)`][pypsa.Network.explore] returns a 
+      [`pydeck.Deck`](https://deckgl.readthedocs.io/en/latest/deck.html) object: 
+      Extending the previous folium/geopandas-based interactive html map by all static 
+      map plotting parameters.
+
+    - Interactive maps can be exported to self-contained HTML files by 
+      `n.explore(...).to_html("file.html", offline=True)`.
+
+- Introduces additional **MGA functionality**. Allows for solving a network in a direction
+  given in the coordinate space of user-specified dimensions, and also
+  introduces a parallelized function to solve in multiple directions at
+  once. (<!-- md:pr 1269 -->, <!-- md:pr 1272 -->)
+
+  - New API: [`n.optimize.optimize_mga_in_direction()`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_direction] and [`n.optimize.optimize_mga_in_multiple_directions()`][pypsa.optimization.OptimizationAccessor.optimize_mga_in_multiple_directions]
+
 - The **optimization module was heavily refactored**. While the underlying `pandas`-based
   data structure remains the same, the optimization module now uses an `xarray` view via
   [pypsa.Components][] to write the optimization model. It allows for easier problem 
@@ -54,25 +71,10 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
   `periods` and `scenarios`). Access it via [`c.da`][pypsa.Components.da].
   (<!-- md:pr 1154 -->)
 
-- New feature for **interactive map plotting**: PyDeck-based interactive maps (<!-- md:pr 1312 -->)
-
-    - New API: [`n.explore(...)`][pypsa.Network.explore] returns a 
-      [`pydeck.Deck`](https://deckgl.readthedocs.io/en/latest/deck.html) object: 
-      Extending the previous folium/geopandas-based interactive html map by all static 
-      map plotting parameters.
-
-    - Interactive maps can be exported to self-contained htmls by 
-      `n.explore(...).to_html("file.html", offline=True)`.
-
-- Inactive components (see [pypsa.Components.inactive_assets][]) are now excluded from the
+- **Inactive components** (see [pypsa.Components.inactive_assets][]) are now excluded from the
   the optimization model entirely. This has no effect on the results, but it can
   reduce the memory footprint when solving the model.
   (<!-- md:pr 1310 -->)
-
-- Introduces additional MGA functionality. Allows for solving a network in a direction
-  given in the coordinate space of user-specified dimensions, and also
-  introduces a parallelized function to solve in multiple directions at
-  once. (<!-- md:pr 1269 -->, <!-- md:pr 1272 -->)
 
 - New example networks: [pypsa.examples.carbon_management][] and 
   [pypsa.examples.stochastic_network][]
@@ -94,10 +96,10 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 
 - New network indexing methods: [`n.get_network`][pypsa.NetworkCollection.get_network],
   [`n.get_scenario`][pypsa.Network.get_scenario], [`n.slice_network`][pypsa.Network.slice_network]
-  and enhanced [`n[...]`][pypsa.Network.__getitem__] for convenient network access. 
+  and enhanced [`n[...]`][pypsa.Network.__getitem__] for accessing networks. 
   (<!-- md:pr 1363 -->)
 
-- When using misleading attribute names or typos in the [pypsa.Network.add][] method, a 
+- When using certain ambiguous attribute names or typos in the [pypsa.Network.add][] method, a 
   warning is now raised. (<!-- md:pr 1259 -->)
 
 - [pypsa.Network.add][] now returns `None` by default. Use `return_names=True` 
@@ -127,13 +129,12 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
   require the `state_of_charge_initial_per_period` and `e_initial_per_period` flags respectively 
   to be set to `True` when using primary energy or operational limit constraints. (<!-- md: pr 1361 -->)
   
-    - The default values for `cyclic_state_of_charge_per_period` (StorageUnit)
-      and `e_cyclic_per_period` (Store) have been changed from `True` to `False`. This 
-      ensures intuitive default behavior (w/o a cycling storage constraint) and it is 
-      consistent with single investment period optimization  where cycling behavior 
-      defaults to `False`. Users who work with multi-investment period optimizations 
-      and want per-period cycling behavior must now explicitly set these attributes to 
-      `True`.
+- The default values for `cyclic_state_of_charge_per_period` (StorageUnit)
+  and `e_cyclic_per_period` (Store) have been changed from `True` to `False`. This 
+  is to be more consistent with single investment period optimization where cycling behavior 
+  defaults to `False`. Users who work with multi-investment period optimization 
+  and want per-period cycling behavior must now explicitly set these attributes to 
+  `True`.  (<!-- md: pr 1361 -->)
 
 - Fix storage state-of-charge handling in multi-investment period optimizations. The constraint 
   logic incorrectly determined when to apply per-period cycling vs. continuous storage state 
@@ -157,6 +158,9 @@ Check out [What's new in PyPSA v1.0](v1-guide.md).
 - Fix `get_transmission_carriers()` to handle components without carrier attribute 
   (e.g., Transformer). (<!-- md:pr 1321 -->)
 
+### Breaking Changes
+
+For a summary of **breaking changes**, see [What's new in PyPSA v1.0](v1-guide.md#breaking-changes).
 
 ## [**v0.35.2**](https://github.com/PyPSA/PyPSA/releases/tag/v0.35.2) <small>15th August 2025</small> { id="v0.35.2" }
 

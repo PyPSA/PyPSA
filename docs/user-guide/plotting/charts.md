@@ -4,9 +4,9 @@ SPDX-FileCopyrightText: PyPSA Contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-# Charts
+# Statistics
 
-PyPSA offers a variety of functions for plotting networks. These include the ability to plot different colours and widths on buses and branches, as well as labels on geographical features. Line, bar and area charts can be plotted against any network metric, and plots can be created as either static or dynamic.
+PyPSA offers a variety of functions for plotting networks based on the statistics module. Line, bar and area charts can be plotted against any network metric, and plots can be created as either as static `matplotlib` figures or interactive `plotly` charts.
 
 
 ## Static Plots
@@ -59,9 +59,9 @@ Various key metrics that can be calculated on any PyPSA network are described in
         ```
 
 
-### Basic Plots
+### Defaults
 
-Many statistics are already available via the [`n.statistics`][pypsa.Network.statistics] accessor:
+Many different statistics are available via the [`n.statistics`][pypsa.Network.statistics] accessor:
 
 ``` py
 >>> n_simple.statistics.energy_balance()
@@ -81,7 +81,7 @@ Any of these metrics can also be used to create plots straight away:
   ![Buses](../../assets/images/ac_dc_meshed-energy_balance-area_plot.png){ width="600" }
 </figure>
 
-The plot type varies depending on which type makes the most sense for a given metric. For instance, energy_balance produces an area plot with snapshots on the x-axis, whereas installed_capacity produces a simple bar chart without a time dimension.
+The default plot type varies depending on which type typically makes the most sense for a given metric. For instance, `n.statistics.energy_balance.plot()` produces an area plot with snapshots on the x-axis, whereas `n.statistics.installed_capacity.plot()` produces a simple bar chart without a time dimension.
 
 ``` py
 >>> n_simple.statistics.installed_capacity.plot()  # doctest: +SKIP
@@ -91,18 +91,18 @@ The plot type varies depending on which type makes the most sense for a given me
 </figure>
 
 #### Complex Networks
-Plots can be created from any network. Depending on factors such as network size, number of components and snapshots, the plot may be difficult to read and require further customisation. If the default option is not useful, there are three options to get useful plots for complex networks:
+In principle, these standard plots can be created from any network. However, depending on factors such as network size, number of components and snapshots, the plot may be difficult to read and may require further customisation. If the default option is not useful, there are three options to get useful plots for more complex networks:
 
-1. The full static plot API is also available for interactive plots. This gives you more control over data selection and data can be easily explored. See [Interactive Plots](#interactive-plots).
-2. PyPSA plots are created using [matplotlib](https://matplotlib.org/) and [seaborn](https://seaborn.pydata.org/) under the hood. This means that you can use all the customization options of these libraries to further customize the plot. See [Customization with matplotlib and seaborn  ](#customization-with-matplotlib-and-seaborn).
-3. The parameters that can be used to filter and aggregate data using base statistics methods can also be passed to plotting methods. See [Customization based on statistics parameters](#customization-based-on-statistics-parameters).
+1. The full static plot API is also available for interactive plots. This gives you more control over data selection and data can be more easily explored. See [Interactive Plots](#interactive-plots).
+2. Plots are created using [matplotlib](https://matplotlib.org/) and [seaborn](https://seaborn.pydata.org/). This means that you can use all the customization options of these libraries to further customize the plot. See [Customization with matplotlib and seaborn](#customization).
+3. The parameters that can be used to filter and aggregate data using base statistics methods can also be passed to plotting methods. See [Customization based on statistics parameters](#customization).
 
 All options are described in the following sections.
 
 ### Plot Types
-The basic plotting method ([`n.statistics.<metric>.plot()`][pypsa.Network]) is not very flexible, but it is useful for quick exploration. To gain more control over the plot, the according plot type method can be called directly. Any plot type can be used with any metric, although not all plots will be meaningful for all metrics.
+The basic plotting method ([`n.statistics.<metric>.plot()`][pypsa.Network]) is not very flexible, but useful for quick exploration. To gain more control over the plot, the according plot type method can be called directly. Any plot type can be used with any metric, although not all plots will be meaningful for all metrics.
 
-Energy balance can also be shown as a bar chart, ignoring the time dimension:
+For instance, energy balances can also be shown as a bar chart, ignoring the time dimension:
 ``` py
 >>> n_simple.statistics.energy_balance.plot.bar()  # doctest: +SKIP
 ```
@@ -188,8 +188,9 @@ The following plot types are available:
     </figure>
 
 
-### Customization with matplotlib and seaborn
-All plot methods return a matplotlib figure object, a matplotlib axes object and a facet grid object. These can be used to customise the plot further. See the matplotlib documentation on [`matplotlib.figure`](https://matplotlib.org/stable/api/figure_api.html), [`matplotlib.axes`](https://matplotlib.org/stable/api/axes_api.html) and the seaborn documentation on [`seaborn.FacetGrid`](https://seaborn.pydata.org/generated/seaborn.FacetGrid.html).
+### Customization
+#### Customization with matplotlib and seaborn
+All plot methods return a `matplotlib` figure object, a `matplotlib` axes object and a facet grid object. These can be used to customise the plot further. See the matplotlib documentation on [`matplotlib.figure`](https://matplotlib.org/stable/api/figure_api.html), [`matplotlib.axes`](https://matplotlib.org/stable/api/axes_api.html) and the seaborn documentation on [`seaborn.FacetGrid`](https://seaborn.pydata.org/generated/seaborn.FacetGrid.html).
 
 ``` py
 >>> fig, ax, facet_col = n_simple.statistics.energy_balance.plot.area()
@@ -203,8 +204,8 @@ All plot methods return a matplotlib figure object, a matplotlib axes object and
   ![Buses](../../assets/images/ac_dc_meshed-energy_balance-custom_area_plot.png){ width="800" }
 </figure>
 
-### Customization based on statistics parameters
-Parameters which are available in the base statistics method, to filter and aggregate data, can also be passed to the plotting methods. The full energy balance of the carbon management example yields too many different `carriers` to be shown in a single plot. However, if we filter it down to include only buses with the 'AC' carrier, via the `bus_carrier` parameter from the statistics method, we can produce an appropriate plot.
+#### Customization with statistics parameters
+Parameters which are available in the statistics methods to filter and aggregate data can also be passed to the corresponding plotting methods. The full energy balance of the carbon management example network yields too many different `carriers` to be shown in a single plot. However, if we filter it down to include only buses with the 'AC' carrier, via the `bus_carrier` parameter from the statistics method, we can produce a meaningful plot.
 
 === "Buses with AC carrier"
 
@@ -225,7 +226,7 @@ Parameters which are available in the base statistics method, to filter and aggr
     </figure>
 
 
-Behind the scenes, each plotting method selects a different set of parameters to call the relevant statistics method. Therefore, the default value can be different for each plot type/metric. Most of these parameters can also be passed directly to the plotting method. Please refer to the <!-- md:guide statistics.md --> for more details.
+Behind the scenes, each plotting method selects a different set of parameters to call the relevant statistics method. Therefore, the default value can be different for each plot type and metric. Most of these parameters can also be passed directly to the plotting method. Please refer to the <!-- md:guide statistics.md --> for more details.
 
 !!! tip
 
@@ -234,7 +235,7 @@ Behind the scenes, each plotting method selects a different set of parameters to
 
 ## Interactive Plots
 
-All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>()`, is completely mirrored for interactive plots. While the returned object and parameters may differ, you can usually simply replace `plot` with `iplot` to get an interactive version of the same plot. Behind the scenes, Plotly [Plotly](https://plotly.com/python/) is used for the interactive plots and the returned object is a Plotly figure object. Check out the [Plotly documentation](https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html) for more details.
+All the logic for static plots, using `n.statistics.<metric>.plot.<plot_type>()`, is mirrored for interactive plots. While the returned object and parameters may differ, you can usually simply replace `plot` with `iplot` to get an interactive version of the same plot. Behind the scenes, [Plotly](https://plotly.com/python/) is used for the interactive plots and the returned object is a Plotly figure object. Check out the [Plotly documentation](https://plotly.com/python-api-reference/generated/plotly.graph_objects.Figure.html) for more details.
 
 ### Examples
 
@@ -248,7 +249,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     
     <div style="width: 100%; height: 500px;">
         <iframe src="../../../assets/interactive/ac_dc_meshed-energy_balance-area_iplot.html" 
-                width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
+                width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
         </iframe>
     </div>
 
@@ -271,7 +272,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     
     <div style="width: 100%; height: 500px;">
         <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot-AC-bus_carrier.html" 
-                width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
+                width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
         </iframe>
     </div>
 
@@ -294,7 +295,7 @@ All the logic for static plots, based on `n.statistics.<metric>.plot.<plot_type>
     ```
     <div style="width: 100%; height: 500px;">
         <iframe src="../../../assets/interactive/carbon_management-energy_balance-area_iplot.html" 
-                width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
+                width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
         </iframe>
     </div>
 

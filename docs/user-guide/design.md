@@ -191,10 +191,10 @@ period
 
 ## Scenarios
 
-By default, the network is optimised for a deterministic scenario
+By default, the network is optimised for a single deterministic scenario
 ([`n.has_scenarios`][pypsa.Network.has_scenarios] is `False`). If scenarios are defined, the network is
-optimised for multiple scenarios in form of a two-stage stochastic programming
-framework (see [:material-book: Stochastic Programming](../examples/stochastic-optimization.ipynb)).
+optimised for multiple scenarios in form of a risk-neutral two-stage stochastic programming
+framework (see <!-- md:guide optimization/stochastic.md --> and [:material-book: Stochastic Programming Example](../examples/stochastic-optimization.ipynb)).
 
 Scenario names are stored in `n.scenarios`, a `pandas.DataFrame`, and are set
 with [`n.set_scenarios()`][pypsa.Network.set_scenarios].
@@ -222,6 +222,17 @@ high         0.3
 ```
 
 If no probabilities are set, they default to a uniform distribution.
+
+While the default stochastic programming formulation is risk-neutral, a risk-averse
+formulation using the Conditional Value at Risk (CVaR) is also supported. Two parameters `omega` and `alpha` control the risk-aversion. `omega` controls the trade-off between the expected costs and the CVaR measure, while `alpha` sets the confidence level for the CVaR measure. Both parameters can be set with [`n.set_risk_preference()`][pypsa.Network.set_risk_preference] and are stored in a dictionary in `n.risk_preference`.
+
+```py
+>>> n.set_risk_preference(alpha=0.9, omega=0.5)
+>>> n.risk_preference
+{'alpha': 0.9, 'omega': 0.5}
+```
+
+For more details, see <!-- md:guide optimization/stochastic.md -->.
 
 ## Data Storage
 

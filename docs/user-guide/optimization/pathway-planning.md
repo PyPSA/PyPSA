@@ -20,7 +20,7 @@ the investment costs of assets:[^1]
 
 PyPSA uses **Type II**, mainly because it allows a cleaner separation of the
 discounting over different years and the end-of-horizon effects are smaller
-compared to **Type I**.
+compared to **Type I**. End-of-horizon effects occur when models undervalue long-lived assets and overbuild short-term ones because they ignore system needs beyond the final period.
 
 ## Implementation
 
@@ -171,11 +171,11 @@ for each investment period, the `state_of_charge_initial_per_period` or
 `e_initial_per_period` attribute must be set to `True`.
 
 By default, the storage cyclicity constraints for a storage with cyclic
-behaviour (`cyclic_state_of_charge`, `e_cyclic`) are applied for each investment
-period, i.e. the storage is cyclic in each investment period. To consider that
-the storage is cyclic across all investment periods, the
+behaviour (`cyclic_state_of_charge`, `e_cyclic`) are applied across all investment
+periods, i.e. the storage is cyclic across all investment periods. To consider that
+the storage is cyclic for each investment period, the
 `cyclic_state_of_charge_per_period` or `e_cyclic_per_period` attribute must be
-set to `False`.
+set to `True`.
 
 !!! note "Technological learning"
 
