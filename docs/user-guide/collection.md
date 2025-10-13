@@ -172,7 +172,7 @@ Create a plot for the same energy balance:
 ```
 <div style="width: 100%; height: 500px;">
     <iframe src="../../assets/interactive/ac_dc_collection_energy_balance_iplot.html" 
-            width="100%" height="100%" frameborder="0" style="border: 1px solid #ccc;">
+            width="100%" height="100%" frameborder="0" style="border: 0px solid #ccc;">
     </iframe>
 </div>
 For the full range of plotting options, see <!-- md:guide plotting/charts.md -->.

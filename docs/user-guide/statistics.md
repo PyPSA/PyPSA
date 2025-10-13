@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: PyPSA Contributors
 SPDX-License-Identifier: CC-BY-4.0
 -->
 
-The `statistics` module is used to easily extract and calculate common metrics from a [Network][pypsa.Network]. This is useful for inspecting networks and creating first visualizations of your results.
+The `statistics` module is used to extract and calculate common metrics from a [Network][pypsa.Network]. This module is intended to simplify the process of inspecting networks and creating first visualizations of your results.
 
 It is accessed via the [`n.statistics`][pypsa.Network.statistics] property of any [pypsa.Network][] object.
 
@@ -13,25 +13,25 @@ It is accessed via the [`n.statistics`][pypsa.Network.statistics] property of an
 
 Currently supported metrics are:
     
-- [Capital expenditure][pypsa.statistics.StatisticsAccessor.capex]
-- [Installed capital expenditure][pypsa.statistics.StatisticsAccessor.installed_capex]
-- [Expanded capital expenditure][pypsa.statistics.StatisticsAccessor.expanded_capex]
-- [Operational expenditure][pypsa.statistics.StatisticsAccessor.opex]
-- [Installed capacities][pypsa.statistics.StatisticsAccessor.installed_capacity]
-- [Expanded capacities][pypsa.statistics.StatisticsAccessor.expanded_capacity]
-- [Optimal capacities][pypsa.statistics.StatisticsAccessor.optimal_capacity]
-- [Supply][pypsa.statistics.StatisticsAccessor.supply]
-- [Withdrawal][pypsa.statistics.StatisticsAccessor.withdrawal]
-- [Curtailment][pypsa.statistics.StatisticsAccessor.curtailment]
-- [Capacity Factor][pypsa.statistics.StatisticsAccessor.capacity_factor]
-- [Revenue][pypsa.statistics.StatisticsAccessor.revenue]
-- [Market value][pypsa.statistics.StatisticsAccessor.market_value]
-- [Energy balance][pypsa.statistics.StatisticsAccessor.energy_balance]
-- [System costs][pypsa.statistics.StatisticsAccessor.system_cost]
-- [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]
-- [Transmission][pypsa.statistics.StatisticsAccessor.transmission]
+- [Capital expenditure][pypsa.statistics.StatisticsAccessor.capex]: The capital expenditure of all components.
+- [Installed capital expenditure][pypsa.statistics.StatisticsAccessor.installed_capex]: The capital expenditure of all components before optimization.
+- [Expanded capital expenditure][pypsa.statistics.StatisticsAccessor.expanded_capex]: The capital expenditure of all components added during optimization.
+- [Operational expenditure][pypsa.statistics.StatisticsAccessor.opex]: The operational expenditure of all components.
+- [Installed capacities][pypsa.statistics.StatisticsAccessor.installed_capacity]: The capacities of all components before optimization.
+- [Expanded capacities][pypsa.statistics.StatisticsAccessor.expanded_capacity]: The capacities of all components added during optimization.
+- [Optimal capacities][pypsa.statistics.StatisticsAccessor.optimal_capacity]: The total capacities of all components after optimization.
+- [Supply][pypsa.statistics.StatisticsAccessor.supply]: The energy supplied by all components.
+- [Withdrawal][pypsa.statistics.StatisticsAccessor.withdrawal]: The energy withdrawn by all components.
+- [Curtailment][pypsa.statistics.StatisticsAccessor.curtailment]: The energy curtailed in all components.
+- [Capacity Factor][pypsa.statistics.StatisticsAccessor.capacity_factor]: The capacity factor / utilization rate of all components.
+- [Revenue][pypsa.statistics.StatisticsAccessor.revenue]: The revenue received by all components.
+- [Market value][pypsa.statistics.StatisticsAccessor.market_value]: The market value of all components.
+- [Energy balance][pypsa.statistics.StatisticsAccessor.energy_balance]: The energy balance of the network across all carriers and snapshots.
+- [System costs][pypsa.statistics.StatisticsAccessor.system_cost]: The total system costs after optimization, including capital and operational expenditure.
+- [Marginal prices][pypsa.statistics.StatisticsAccessor.prices]: The marginal prices at the buses for all snapshots.
+- [Transmission][pypsa.statistics.StatisticsAccessor.transmission]: The energy transmitted through transmission components (links, lines, transformers connecting to buses of the same carrier).
 
-Via the accessor you can call methods to calculate various metrics, such as installed capacity or operational expenditure. For example:
+These metrics can be calculated using the `n.statistics` accessor, for instance:
 
 ``` py
 >>> installed_capacity = n.statistics.installed_capacity()
@@ -155,4 +155,4 @@ Load      load                     NaN  ...                  NaN
 
 ## Expressions
 
-Next to the statistics module under [`n.statistics`][pypsa.Network.statistics], there is also an optimization expressions module under `n.optimize.expressions`. It provides similar functionality, but creates linopy expressions for the optimization model instead of calculating values from the network data.
+Next to the statistics module under [`n.statistics`][pypsa.Network.statistics], there is also an experimental optimization expressions module under `n.optimize.expressions`. It provides similar functionality, but creates `linopy` expressions for the optimization model instead of calculating values from the network data.

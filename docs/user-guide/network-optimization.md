@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
     Please also refer the [optimization section](optimization/overview.md) above, which offers more information on the mathematical formulations PyPSA uses when running [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__].
 
-PyPSA uses [Linopy](https://linopy.readthedocs.io/en/latest/) as the optimization backend. Linopy is a stand-alone package and works similar to [Pyomo](https://www.pyomo.org/), but without the memory overhead and much faster. The core optimization functions can be called with [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. This call unifies creating the problem, solving it and retrieving the optimized results.
+PyPSA uses [Linopy](https://linopy.readthedocs.io/en/latest/) as the optimization backend. Linopy is a stand-alone package and works similar to [Pyomo](https://www.pyomo.org/), but without the memory overhead and much faster. However, it has a reduced set of optimization problem types it can support (LP, MILP, QP). The core optimization functions can be called with [`n.optimize()`][pypsa.optimization.OptimizationAccessor.__call__]. This call unifies creating the problem, solving it and retrieving the optimized results.
 The accessor [n.optimize][pypsa.optimization.OptimizationAccessor] additionally offers a range of different functionalities. 
 
 ## Initialize Network

@@ -61,19 +61,23 @@ n.export_to_excel("foo/bar.xlsx")
 n_import = pypsa.Network("foo/bar.xlsx")
 ```
 
-For static component data, name each worksheet using the exact component name as it appears in PyPSA (e.g., `generators`, `buses`, `lines`, `storage_units`). For time-series data, use the format `<component>-<attribute>` (e.g., `generators-p_max_pu`, `loads-p_set`, `storage_units-inflow`). Component and attribute names are case-sensitive and must match PyPSA conventions. The I/O functionality will automatically ignore any worksheets that don't follow this naming pattern, allowing you to include documentation, notes, or auxiliary data in separate tabs without interfering with the import/export process.
+To **create** an Excel file compatible with PyPSA, structure the file with separate worksheets for each component type and their associated time-series data.
+
+For static component data, name each worksheet using the exact component name as it appears in PyPSA (e.g., `generators`, `buses`, `lines`, `storage_units`). For time-series data, use the format `<component>-<attribute>` (e.g., `generators-p_max_pu`, `loads-p_set`, `storage_units-inflow`). Component and attribute names are case-sensitive and must match PyPSA conventions.
+
+The I/O functionality will automatically ignore any worksheets that do not follow this naming pattern, allowing you to include documentation, notes, or auxiliary data in separate tabs without interfering with the import/export process.
 
 The snapshots worksheet must contain the time-series index using an appropriate datetime format. Other time-series worksheets should have the same number of rows, with the index column either numbered sequentially (e.g., 1-8760 for hourly annual data) or using the same datetime format as the snapshots. 
 
-!!! note:
+!!! note
 
-    1. To maintain data integrity and avoid conflicts, it is recommended to use Excel's data validation feature: define your buses in the Bus worksheet and apply data validation to bus reference columns in component worksheets (e.g., bus0, bus1 fields in the Line worksheet) and similarly apply validation for carriers and time-series dataset references where applicable.
+    1. To maintain data integrity and avoid conflicts, it is recommended to use the data validation feature in Excel: define your buses in the `Bus` worksheet and apply data validation to bus reference columns in component worksheets (e.g., `bus0`, `bus1` fields in the `Line` worksheet) and similarly apply validation for carriers and time-series dataset references where applicable.
 
-    2. It is not necessary to add every single column, only those where values differ from the defaults listed in :doc:`/user-guide/components`. All empty values/columns are filled with the defaults.
+    2. It is not necessary to add every single column, only those where values differ from the defaults. All empty values and columns are filled with the defaults.
 
 !!! warning
     
-    Excel is resource-intensive and only appropriate for small networks. Large Excel files are slow to import/export and can be unstable to work with. For larger datasets or production workflows, consider using netcdf files or other more efficient data formats instead.
+    Excel is resource-intensive and only appropriate for smaller networks. For larger datasets or production workflows, consider using netCDF files.
 
 
 ## netCDF
