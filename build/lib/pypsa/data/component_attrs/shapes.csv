@@ -1,0 +1,6 @@
+"attribute","type","unit","default","description","status"
+"name","string","n/a","n/a","Unique name","Input (required)"
+"geometry","geometry","n/a","n/a","Geometry","Input (optional)"
+"component","string","n/a","n/a","Component type","Input (optional)"
+"idx","string","n/a","n/a","Name of the component in index.","Input (optional)"
+"type","string","n/a","n/a","Type of geometry","Input (optional)"

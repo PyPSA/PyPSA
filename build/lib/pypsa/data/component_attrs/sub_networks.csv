@@ -1,0 +1,4 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name assigned based on order of sub-network in list of sub-networks.,Output
+carrier,string,n/a,AC,"Carrier determined from the buses in the sub-network.",Output
+slack_bus,string,n/a,n/a,Name of slack bus.,Output

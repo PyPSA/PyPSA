@@ -1,0 +1,11 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,Name of bus to which shunt impedance is attached.,Input (required)
+g,float,Siemens,0.,Shunt conductivity.,Input (optional)
+b,float,Siemens,0.,Shunt susceptance.,Input (optional)
+sign,float,n/a,-1.,Power sign (sign convention so that `g>0` withdraws `p` from bus),Input (optional)
+p,series,MW,0.,Active power at bus (positive if net load),Output
+q,series,MVar,0.,Reactive power (positive if net generation),Output
+g_pu,float,per unit,0.,Calculated from `g` and `n.buses.v_nom`,Output
+b_pu,float,per unit,0.,Calculated from `b` and `n.buses.v_nom`,Output
+active,boolean,n/a,True,Whether to consider the component as active component or not,Input (optional)
