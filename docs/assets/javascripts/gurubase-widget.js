@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Configure widget settings
   const widgetSettings = {
-    "data-widget-id": "UCKpjRTl6wbYPLxcxCJb1FA53u3bj9tUZxFry_ny3TU",
+    "data-widget-id": "3a8zez8jVEVRucKLlyrKs0hKb2-xxpTg4sZkfwY17JM",
     "data-text": "Ask AI",
     "data-margins": JSON.stringify({ bottom: "20px", right: "20px" }),
     "data-light-mode": "auto",
