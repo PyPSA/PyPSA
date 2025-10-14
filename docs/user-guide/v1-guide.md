@@ -132,7 +132,7 @@ While PyPSA has been stable for a while now, version `v1.0` is the first stable 
 
 - Index names of all pandas dataframes used to store components data (e.g. `n.generators` and `n.generators_t`) have been changed. The axis which lists the components is now called `name` across all component types, instead of the previous component type name (e.g. `Generator`), to align with the newly introduced xarray view ([pypsa.Components.da][]).
 
-- When retrieving a list of extendable, fixed or committable components, no suffix (e.g. `"-ext"` or `"-fix"`) is added anymore. This was previously be accessible via `n.get_extendable_i()` and now via [pypsa.Components.extendables].
+- When retrieving a list of extendable, fixed or committable components, no suffix (e.g. `"-ext"` or `"-fix"`) is added anymore. This was previously be accessible via `n.get_extendable_i()` and now via [pypsa.Components.extendables][].
 
 - The default values for `cyclic_state_of_charge_per_period` (StorageUnit) and `e_cyclic_per_period` (Store) have been changed from `True` to `False`. This is to be more consistent with single investment period optimization where cycling behavior defaults to `False`. Users who work with multi-investment period optimizations and want per-period cycling behavior must now explicitly set these attributes to `True`.
 
