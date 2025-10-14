@@ -115,7 +115,7 @@ jobs:
         n.export_to_csv_folder("examples/networks/model-energy/model-energy")
         n.export_to_netcdf("examples/networks/model-energy/model-energy.nc")
         # stochastic-network
-        n = pypsa.Network("examples/networks/stochastic-network/stochastic-network")
+        n = pypsa.Network("examples/networks/stochastic-network/stochastic-network.nc")
         n.export_to_netcdf("examples/networks/stochastic-network/stochastic-network.nc")
       shell: python
 
