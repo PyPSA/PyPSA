@@ -514,6 +514,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -630,6 +631,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -738,6 +740,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -848,6 +851,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1129,6 +1133,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1250,6 +1255,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1370,6 +1376,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1479,6 +1486,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1648,6 +1656,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1769,6 +1778,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1873,6 +1883,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -1977,6 +1988,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2097,6 +2109,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2236,6 +2249,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2347,6 +2361,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2461,6 +2476,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
@@ -2596,6 +2612,7 @@ class StatisticsAccessor(AbstractStatisticsAccessor):
             - True: All ports of components
             - False: Exclude first port ("bus"/"bus0")
             - str or list of str: Specific ports to include
+                Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1')
         carrier : str | Sequence[str] | None, default=None
             Filter by carrier. If specified, only considers assets with given
             carrier(s).
