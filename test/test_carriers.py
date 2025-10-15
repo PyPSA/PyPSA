@@ -164,10 +164,10 @@ def test_add_missing_carriers_many_carriers():
 
 
 def test_generate_colors_tab10():
-    """Test _generate_colors with tab10 palette."""
-    n = Network()
+    """Test generate_colors with tab10 palette."""
+    from pypsa.common import generate_colors
 
-    colors = n.c.carriers._generate_colors(5, "tab10")
+    colors = generate_colors(5, "tab10")
 
     assert len(colors) == 5
     # All colors should be valid hex strings
@@ -177,10 +177,10 @@ def test_generate_colors_tab10():
 
 
 def test_generate_colors_invalid_palette():
-    """Test _generate_colors with invalid palette falls back to tab10."""
-    n = Network()
+    """Test generate_colors with invalid palette falls back to tab10."""
+    from pypsa.common import generate_colors
 
-    colors = n.c.carriers._generate_colors(5, "invalid_palette_name")
+    colors = generate_colors(5, "invalid_palette_name")
 
     # Should still generate colors using fallback
     assert len(colors) == 5
@@ -189,10 +189,10 @@ def test_generate_colors_invalid_palette():
 
 def test_generate_colors_cycling():
     """Test that colors cycle when more carriers than palette colors."""
-    n = Network()
+    from pypsa.common import generate_colors
 
     # Get 12 colors from tab10 (which has 10 colors)
-    colors = n.c.carriers._generate_colors(12, "tab10")
+    colors = generate_colors(12, "tab10")
 
     assert len(colors) == 12
     # First and 11th color should be the same (cycling)

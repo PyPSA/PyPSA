@@ -38,16 +38,10 @@ CHART_TYPES = [
 
 def _get_investment_periods(network: Any) -> pd.Index | None:
     """Return investment periods for a network if multi-invest is enabled."""
-    try:
-        periods = network.investment_periods
-    except (AttributeError, NotImplementedError):
-        return None
+    periods = network.periods
 
-    if periods is None:
+    if periods is None or periods.empty:
         return None
-
-    if not isinstance(periods, pd.Index):
-        periods = pd.Index(periods)
 
     if len(periods) <= 1:
         return None
@@ -66,7 +60,7 @@ def adjust_collection_bar_defaults(
     if chart_type != "bar":
         return color, stacked, order
 
-    index_names = getattr(network, "_index_names", [])
+    index_names = network._index_names
 
     # Check if network has stochastic scenarios
     has_scenarios = network.has_scenarios

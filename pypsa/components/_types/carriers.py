@@ -9,10 +9,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
 import pandas as pd
 
+from pypsa.common import generate_colors
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
@@ -138,7 +137,7 @@ class Carriers(Components):
         """
         # Collect all unique carrier values from components
         all_carriers = set()
-        for c in self.n.components:
+        for c in self.n_save.components:
             # Check if component type exists in this network
             if c is None or c.static.empty:
                 continue
@@ -161,12 +160,12 @@ class Carriers(Components):
         missing_carriers = sorted(all_carriers - existing_carriers)
 
         if not missing_carriers:
-            logger.info("No missing carriers found. All carriers are already defined.")
+            logger.debug("No missing carriers found. All carriers are already defined.")
             return pd.Index([], name="name")
 
         # Generate colors for missing carriers if requested
         if assign_colors and "color" not in kwargs:
-            colors = self._generate_colors(len(missing_carriers), color_palette)
+            colors = generate_colors(len(missing_carriers), color_palette)
             kwargs["color"] = colors
 
         # Add missing carriers
@@ -199,50 +198,3 @@ class Carriers(Components):
 
         # For non-stochastic networks, simple add
         return self.add(missing_carriers, return_names=True, **kwargs)
-
-    def _generate_colors(self, n_colors: int, palette: str = "tab10") -> list[str]:
-        """Generate a list of colors from a matplotlib palette.
-
-        Parameters
-        ----------
-        n_colors : int
-            Number of colors to generate.
-        palette : str, default "tab10"
-            Matplotlib color palette name.
-
-        Returns
-        -------
-        list of str
-            List of hex color strings.
-
-        """
-        try:
-            cmap = plt.get_cmap(palette)
-        except ValueError:
-            logger.warning(
-                "Color palette '%s' not found. Using 'tab10' as fallback.", palette
-            )
-            cmap = plt.get_cmap("tab10")
-
-        # Get the number of colors in the palette
-        if hasattr(cmap, "N"):
-            n_palette_colors = cmap.N
-        else:
-            # For continuous colormaps, use a reasonable number
-            n_palette_colors = 256
-
-        # Generate colors
-        colors = []
-        for i in range(n_colors):
-            # Cycle through palette if we have more carriers than colors
-            idx = i % n_palette_colors
-            if n_palette_colors <= 20:
-                # For discrete palettes, use integer indices
-                rgba = cmap(idx)
-            else:
-                # For continuous palettes, normalize to [0, 1]
-                rgba = cmap(idx / n_palette_colors)
-            # Convert RGBA to hex
-            colors.append(mcolors.to_hex(rgba))
-
-        return colors
