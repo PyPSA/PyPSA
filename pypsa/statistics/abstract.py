@@ -156,8 +156,23 @@ class AbstractStatisticsAccessor(ABC):
                 for col in n.c[c].static
                 if (match := RE_PORTS.search(str(col)))
             ]
-            if not at_port:
-                ports = [ports[0]]
+
+            match at_port:
+                case str():
+                    if at_port in ports:
+                        ports = [at_port]
+                    elif at_port.startswith("bus"):
+                        msg = f"{at_port} with 'bus' prefix is not valid. Use the port number only."
+                        raise ValueError(msg)
+                    else:
+                        ports = []    
+                case [str(), *_]:
+                    if any(p.startswith("bus") for p in at_port):
+                        msg = f"{at_port} with 'bus' prefix is not valid. Use the port number only."
+                        raise ValueError(msg)
+                    ports = [p for p in at_port if p in ports]
+                case False | None:
+                    ports = [ports[0]]
 
             values = []
             for port in ports:
