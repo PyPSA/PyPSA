@@ -276,8 +276,13 @@ def apply_parameter_schema(
         # Ignore unnamed index levels to avoid creating empty facets
         index_names = [name for name in context["index_names"] if name is not None]
         if len(index_names) >= 2:
-            kwargs["facet_row"] = index_names[0]
-            kwargs["facet_col"] = index_names[1]
+            # For bar plots: use 1D faceting (first level) + grouped bars (second level via color)
+            # For other plots: use 2D faceting
+            if plot_name == "bar":
+                kwargs["facet_col"] = index_names[0]
+            else:
+                kwargs["facet_row"] = index_names[0]
+                kwargs["facet_col"] = index_names[1]
         elif len(index_names) == 1 and plot_name != "bar":
             kwargs["facet_col"] = index_names[0]
 

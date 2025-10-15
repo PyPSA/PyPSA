@@ -66,9 +66,22 @@ def adjust_collection_bar_defaults(
         return color, stacked, order
 
     index_names = getattr(network, "_index_names", [])
-    index_name = index_names[0] if len(index_names) == 1 else None
 
-    if index_name:
+    # Handle 2-level multiindex: use second level for grouped bars
+    if len(index_names) >= 2:
+        second_index_name = index_names[1]
+        if color is None:
+            color = second_index_name
+        if stacked and color == second_index_name:
+            stacked = False
+        if order is None:
+            index_values = getattr(network, "index", None)
+            if index_values is not None and isinstance(index_values, pd.MultiIndex):
+                # Get unique values from second level
+                order = list(index_values.get_level_values(1).unique())
+    # Handle single-level index
+    elif len(index_names) == 1:
+        index_name = index_names[0]
         if color is None:
             color = index_name
         if stacked and color == index_name:
