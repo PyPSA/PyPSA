@@ -5,13 +5,29 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Release Notes
-<!-- ## Upcoming Release
+## Upcoming Release
 
 !!! info "Upcoming Release"
 
-    The features listed below have not yet been released, but will be included in the 
-    next update! If you would like to use these features in the meantime, you will need 
-    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`. -->
+    The features listed below have not yet been released, but will be included in the
+    next update! If you would like to use these features in the meantime, you will need
+    to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
+
+### Features
+
+- New method `n.components.carriers.add_missing_carriers()` automatically discovers and adds carriers used in components (<!-- md:pr 1401 -->)
+
+    - Automatically detects carriers from all components (generators, loads, storage_units, stores, links, lines, sub_networks)
+    - Optional automatic color assignment using matplotlib color palettes (default: tab10)
+    - Supports stochastic networks with proper scenario handling
+    - Additional carrier attributes can be passed via kwargs (e.g., `co2_emissions`, `nice_name`)
+
+- Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->)
+
+    - Interactive bar plots (`iplot.bar`) now aggregate scenarios and display standard deviation as error bars
+    - Improved handling of multi-level indices in bar charts with automatic grouping/faceting
+    - Better support for multi-period investment data visualization
+    - Automatic color coding by collection index or investment period
 
 ## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" } 
 

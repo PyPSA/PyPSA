@@ -47,10 +47,9 @@ dev
 .venv
 uv.lock
 .aider*
-CLAUDE.md
-AGENTS.md
 .claude
-.github/copilot-instructions.md
-uv.lock
 site/
 doc/_build/
+CLAUDE.md
+AGENTS.md
+test.nc

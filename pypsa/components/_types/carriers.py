@@ -174,38 +174,31 @@ class Carriers(Components):
             "Adding %d missing carriers: %s", len(missing_carriers), missing_carriers
         )
 
-        # Add carriers normally first
-        result = self.add(missing_carriers, return_names=True, **kwargs)
-
-        # For stochastic networks, wrap the newly added carriers across all scenarios
+        # For stochastic networks, add carriers with scenario wrapping
         if self.n.has_scenarios:
-            # Get only the newly added carriers
-            new_carriers_df = self.static.loc[missing_carriers]
+            # Create a temporary network to leverage the standard add() method
+            temp_static = self.static.copy()
+            self.static = self.static.iloc[:0]  # Temporarily clear for clean add
 
-            # Remove them from static (they were added without scenarios)
-            self.static = self.static.drop(missing_carriers)
+            # Add carriers normally to get proper defaults
+            self.add(missing_carriers, **kwargs)
+            new_carriers_df = self.static.copy()
 
-            # Wrap them with scenarios using pd.concat (same as set_scenarios does)
+            # Restore original static
+            self.static = temp_static
+
+            # Wrap new carriers across all scenarios
             wrapped_df = pd.concat(
                 dict.fromkeys(self.n.scenarios, new_carriers_df), names=["scenario"]
             )
 
-            # Combine with existing carriers, preserving MultiIndex structure
-            if self.static.empty:
-                # If static was empty, just use the wrapped dataframe
-                self.static = wrapped_df
-            else:
-                # Concatenate preserving the MultiIndex
-                combined = pd.concat([self.static, wrapped_df], axis=0)
-                # Ensure result is a proper MultiIndex, not an Index of tuples
-                if not isinstance(combined.index, pd.MultiIndex):
-                    # Reconstruct as MultiIndex
-                    combined.index = pd.MultiIndex.from_tuples(
-                        combined.index, names=["scenario", "name"]
-                    )
-                self.static = combined
+            # Append to existing carriers
+            self.static = pd.concat([self.static, wrapped_df], axis=0)
 
-        return result
+            return pd.Index(missing_carriers, name="name")
+
+        # For non-stochastic networks, simple add
+        return self.add(missing_carriers, return_names=True, **kwargs)
 
     def _generate_colors(self, n_colors: int, palette: str = "tab10") -> list[str]:
         """Generate a list of colors from a matplotlib palette.

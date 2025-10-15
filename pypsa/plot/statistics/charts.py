@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.figure import Figure
 
+
 CHART_TYPES = [
     "area",
     "bar",
@@ -67,24 +68,8 @@ def adjust_collection_bar_defaults(
 
     index_names = getattr(network, "_index_names", [])
 
-    # Check if network has scenarios (and they're not empty)
-    has_scenarios = False
-    try:
-        has_scenarios = (
-            hasattr(network, "scenarios")
-            and network.scenarios is not None
-            and len(network.scenarios) > 0
-        )
-    except (NotImplementedError, AttributeError):
-        # For collections, network.scenarios raises NotImplementedError
-        # Check if any member network has scenarios
-        if hasattr(network, "networks"):
-            has_scenarios = any(
-                hasattr(n, "scenarios")
-                and n.scenarios is not None
-                and len(n.scenarios) > 0
-                for n in network.networks
-            )
+    # Check if network has stochastic scenarios
+    has_scenarios = network.has_scenarios
 
     # When scenarios exist, DON'T use collection indices for color
     # (they'll be used for faceting instead), so seaborn can aggregate scenarios
@@ -621,22 +606,7 @@ class ChartGenerator(PlotsGenerator, ABC):
         # Aggregate scenarios and calculate error bars for bar plots
         # Only aggregate if we have actual stochastic scenarios (not just a column named 'scenario')
         aggregated_with_std = None
-        has_stochastic_scenarios = False
-        try:
-            has_stochastic_scenarios = (
-                hasattr(self._n, "scenarios")
-                and self._n.scenarios is not None
-                and len(self._n.scenarios) > 0
-            )
-        except (NotImplementedError, AttributeError):
-            # For collections, check member networks
-            if hasattr(self._n, "networks"):
-                has_stochastic_scenarios = any(
-                    hasattr(n, "scenarios")
-                    and n.scenarios is not None
-                    and len(n.scenarios) > 0
-                    for n in self._n.networks
-                )
+        has_stochastic_scenarios = self._n.has_scenarios
 
         if kind == "bar" and "scenario" in ldata.columns and has_stochastic_scenarios:
             ldata, aggregated_with_std = aggregate_scenarios_for_plotly(ldata)

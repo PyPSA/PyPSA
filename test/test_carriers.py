@@ -22,10 +22,10 @@ def test_add_missing_carriers_basic():
     # Add missing carriers
     added = n.c.carriers.add_missing_carriers()
 
-    # Check that all carriers were added
-    assert len(added) == 3
-    assert set(added) == {"gas", "solar", "wind"}  # alphabetically sorted
-    assert len(n.c.carriers.static) == 3
+    # Check that all carriers were added (including "AC" from buses)
+    assert len(added) == 4
+    assert set(added) == {"AC", "gas", "solar", "wind"}  # alphabetically sorted
+    assert len(n.c.carriers.static) == 4
 
     # Check that colors were assigned
     assert all(n.c.carriers.static["color"].notna())
@@ -43,9 +43,9 @@ def test_add_missing_carriers_multiple_components():
 
     added = n.c.carriers.add_missing_carriers()
 
-    assert len(added) == 3
-    assert set(added) == {"battery", "electricity", "wind"}
-    assert len(n.c.carriers.static) == 3
+    assert len(added) == 4
+    assert set(added) == {"AC", "battery", "electricity", "wind"}
+    assert len(n.c.carriers.static) == 4
 
 
 def test_add_missing_carriers_with_existing():
@@ -63,10 +63,10 @@ def test_add_missing_carriers_with_existing():
     # Add missing carriers
     added = n.c.carriers.add_missing_carriers()
 
-    # Only solar should be added (wind already exists)
-    assert len(added) == 1
-    assert added[0] == "solar"
-    assert len(n.c.carriers.static) == 2
+    # Solar and AC should be added (wind already exists)
+    assert len(added) == 2
+    assert set(added) == {"AC", "solar"}
+    assert len(n.c.carriers.static) == 3
 
     # Check that wind's color wasn't changed
     assert n.c.carriers.static.loc["wind", "color"] == "blue"
@@ -86,9 +86,10 @@ def test_add_missing_carriers_no_missing():
     # Try to add missing carriers
     added = n.c.carriers.add_missing_carriers()
 
-    # No carriers should be added
-    assert len(added) == 0
-    assert len(n.c.carriers.static) == 1
+    # Only AC carrier should be added (from buses)
+    assert len(added) == 1
+    assert added[0] == "AC"
+    assert len(n.c.carriers.static) == 2
 
 
 def test_add_missing_carriers_with_empty_and_nan():
@@ -103,9 +104,9 @@ def test_add_missing_carriers_with_empty_and_nan():
 
     added = n.c.carriers.add_missing_carriers()
 
-    # Only wind should be added (empty strings and NaN are ignored)
-    assert len(added) == 1
-    assert added[0] == "wind"
+    # Wind and AC should be added (empty strings and NaN are ignored)
+    assert len(added) == 2
+    assert set(added) == {"AC", "wind"}
 
 
 def test_add_missing_carriers_custom_palette():
@@ -120,12 +121,12 @@ def test_add_missing_carriers_custom_palette():
     # Add carriers with tab20 palette
     added = n.c.carriers.add_missing_carriers(color_palette="tab20")
 
-    assert len(added) == 2
+    assert len(added) == 3
     assert all(n.c.carriers.static["color"].notna())
 
-    # Colors should be different
+    # Colors should be different for at least some carriers
     colors = n.c.carriers.static["color"].values
-    assert colors[0] != colors[1]
+    assert len(set(colors)) >= 2  # At least 2 different colors
 
 
 def test_add_missing_carriers_with_kwargs():
@@ -140,7 +141,7 @@ def test_add_missing_carriers_with_kwargs():
     # Add carriers with co2_emissions
     added = n.c.carriers.add_missing_carriers(co2_emissions=0.5)
 
-    assert len(added) == 2
+    assert len(added) == 3
     # Check that co2_emissions was set
     assert all(n.c.carriers.static["co2_emissions"] == 0.5)
 
@@ -156,8 +157,8 @@ def test_add_missing_carriers_many_carriers():
 
     added = n.c.carriers.add_missing_carriers()
 
-    # All carriers should be added
-    assert len(added) == 15
+    # All carriers should be added (including AC from bus)
+    assert len(added) == 16
     # All should have colors (cycling through palette)
     assert all(n.c.carriers.static["color"].notna())
 
@@ -235,8 +236,8 @@ def test_add_missing_carriers_links():
 
     added = n.c.carriers.add_missing_carriers()
 
-    assert len(added) == 2
-    assert set(added) == {"H2", "HVDC"}
+    assert len(added) == 3
+    assert set(added) == {"AC", "H2", "HVDC"}
 
 
 def test_add_missing_carriers_empty_network():
@@ -261,11 +262,12 @@ def test_add_missing_carriers_no_colors():
     # Add carriers without colors
     added = n.c.carriers.add_missing_carriers(assign_colors=False)
 
-    assert len(added) == 2
-    assert set(added) == {"solar", "wind"}
+    assert len(added) == 3
+    assert set(added) == {"AC", "solar", "wind"}
     # Check that no colors were assigned (should be empty or NaN)
     assert n.c.carriers.static["color"]["wind"] == ""
     assert n.c.carriers.static["color"]["solar"] == ""
+    assert n.c.carriers.static["color"]["AC"] == ""
 
 
 def test_add_missing_carriers_explicit_color_in_kwargs():
@@ -278,13 +280,16 @@ def test_add_missing_carriers_explicit_color_in_kwargs():
     n.add("Generator", "gen2", bus="bus1", carrier="solar")
 
     # Add carriers with explicit colors, even with assign_colors=True
-    added = n.c.carriers.add_missing_carriers(assign_colors=True, color=["red", "blue"])
+    added = n.c.carriers.add_missing_carriers(
+        assign_colors=True, color=["red", "blue", "green"]
+    )
 
-    assert len(added) == 2
+    assert len(added) == 3
     # Check that explicit colors were used (not auto-generated)
-    # Note: solar comes before wind alphabetically
-    assert n.c.carriers.static["color"]["solar"] == "red"
-    assert n.c.carriers.static["color"]["wind"] == "blue"
+    # Note: carriers are added alphabetically (AC, solar, wind)
+    assert n.c.carriers.static["color"]["AC"] == "red"
+    assert n.c.carriers.static["color"]["solar"] == "blue"
+    assert n.c.carriers.static["color"]["wind"] == "green"
 
 
 def test_add_missing_carriers_no_colors_with_other_kwargs():
@@ -301,7 +306,7 @@ def test_add_missing_carriers_no_colors_with_other_kwargs():
         assign_colors=False, co2_emissions=0.2, nice_name="Test Carrier"
     )
 
-    assert len(added) == 2
+    assert len(added) == 3
     # Check that co2_emissions was set but colors were not
     assert all(n.c.carriers.static["co2_emissions"] == 0.2)
     assert all(n.c.carriers.static["color"] == "")
@@ -332,9 +337,9 @@ def test_add_missing_carriers_stochastic_network():
     # Add missing carriers
     added = n.c.carriers.add_missing_carriers()
 
-    # Check that all carriers were added
-    assert len(added) == 3
-    assert set(added) == {"gas", "solar", "wind"}  # alphabetically sorted
+    # Check that all carriers were added (including AC from buses)
+    assert len(added) == 4
+    assert set(added) == {"AC", "gas", "solar", "wind"}  # alphabetically sorted
 
     # Check that carriers were added for all scenarios
     assert n.c.carriers.static.index.nlevels == 2
@@ -342,7 +347,7 @@ def test_add_missing_carriers_stochastic_network():
 
     # Each carrier should exist in both scenarios
     scenarios = ["scenario_1", "scenario_2"]
-    carriers = ["gas", "solar", "wind"]
+    carriers = ["AC", "gas", "solar", "wind"]
     for scenario in scenarios:
         for carrier in carriers:
             assert (scenario, carrier) in n.c.carriers.static.index
@@ -375,9 +380,9 @@ def test_add_missing_carriers_stochastic_with_existing():
     # Add missing carriers
     added = n.c.carriers.add_missing_carriers()
 
-    # Only solar should be added (wind already exists)
-    assert len(added) == 1
-    assert added[0] == "solar"
+    # Solar and AC should be added (wind already exists)
+    assert len(added) == 2
+    assert set(added) == {"AC", "solar"}
 
     # Check that wind's color wasn't changed in both scenarios
     wind_low = n.c.carriers.static.xs("low", level="scenario").loc["wind", "color"]
@@ -385,9 +390,11 @@ def test_add_missing_carriers_stochastic_with_existing():
     assert wind_low == "blue"
     assert wind_high == "blue"
 
-    # Check that solar was added to both scenarios
+    # Check that solar and AC were added to both scenarios
     assert ("low", "solar") in n.c.carriers.static.index
     assert ("high", "solar") in n.c.carriers.static.index
+    assert ("low", "AC") in n.c.carriers.static.index
+    assert ("high", "AC") in n.c.carriers.static.index
 
 
 def test_add_missing_carriers_stochastic_no_missing():
@@ -407,10 +414,16 @@ def test_add_missing_carriers_stochastic_no_missing():
     # Try to add missing carriers
     added = n.c.carriers.add_missing_carriers()
 
-    # No carriers should be added
-    assert len(added) == 0
+    # Only AC carrier should be added (from buses)
+    assert len(added) == 1
+    assert added[0] == "AC"
 
     # Wind should still exist in all scenarios
     assert ("scenario_a", "wind") in n.c.carriers.static.index
     assert ("scenario_b", "wind") in n.c.carriers.static.index
     assert ("scenario_c", "wind") in n.c.carriers.static.index
+
+    # AC should be added to all scenarios
+    assert ("scenario_a", "AC") in n.c.carriers.static.index
+    assert ("scenario_b", "AC") in n.c.carriers.static.index
+    assert ("scenario_c", "AC") in n.c.carriers.static.index
