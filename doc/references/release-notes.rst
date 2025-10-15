@@ -15,6 +15,8 @@ Upcoming Release
 Features
 --------
 
+* New feature for retrieving statistics in respect to a specific port: ``at_port`` statistics argument is able to accept a single port or a list of ports (as the type arguments already said they would). Note: use port number only, without 'bus' prefix (e.g., '1' instead of 'bus1') (https://github.com/PyPSA/PyPSA/pull/1386).
+
 * New feature for interactive map plotting: PyDeck-based interactive maps (https://github.com/PyPSA/PyPSA/pull/1312)
 
   * New API: ``Network.explore(...)`` returns a ``pydeck.Deck`` object: Extending the previous folium/geopandas-based interactive html map by all static map plotting parameters.
