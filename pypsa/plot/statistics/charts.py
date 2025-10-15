@@ -174,6 +174,48 @@ def prepare_bar_data(
     return stacked
 
 
+def aggregate_scenarios_for_plotly(
+    ldata: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Aggregate scenario data and calculate error bars for plotly.
+
+    Parameters
+    ----------
+    ldata : pd.DataFrame
+        Long format data with 'scenario' column
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        Aggregated data (with mean values) and full aggregated data (with std)
+
+    """
+    if "scenario" not in ldata.columns:
+        return ldata, ldata
+
+    # Group by all columns except 'scenario' and 'value'
+    groupby_cols = [col for col in ldata.columns if col not in ["scenario", "value"]]
+
+    # Calculate mean and std across scenarios
+    aggregated = ldata.groupby(groupby_cols, as_index=False).agg(
+        {"value": ["mean", "std"]}
+    )
+
+    # Flatten column names
+    aggregated.columns = groupby_cols + ["value", "value_std"]
+
+    # Fill NaN std with 0 (for cases with only one scenario)
+    aggregated["value_std"] = aggregated["value_std"].fillna(0)
+
+    # Keep the full aggregated data for error bar lookup
+    aggregated_with_std = aggregated.copy()
+
+    # Drop the std column from the main dataframe for plotting
+    aggregated = aggregated.drop(columns=["value_std"])
+
+    return aggregated, aggregated_with_std
+
+
 def facet_iter(
     g: sns.FacetGrid,
     df: pd.DataFrame,
@@ -576,6 +618,36 @@ class ChartGenerator(PlotsGenerator, ABC):
             ldata = ldata.query(query)
         ldata = self._validate(ldata)
 
+        # Aggregate scenarios and calculate error bars for bar plots
+        # Only aggregate if we have actual stochastic scenarios (not just a column named 'scenario')
+        aggregated_with_std = None
+        has_stochastic_scenarios = False
+        try:
+            has_stochastic_scenarios = (
+                hasattr(self._n, "scenarios")
+                and self._n.scenarios is not None
+                and len(self._n.scenarios) > 0
+            )
+        except (NotImplementedError, AttributeError):
+            # For collections, check member networks
+            if hasattr(self._n, "networks"):
+                has_stochastic_scenarios = any(
+                    hasattr(n, "scenarios")
+                    and n.scenarios is not None
+                    and len(n.scenarios) > 0
+                    for n in self._n.networks
+                )
+
+        if kind == "bar" and "scenario" in ldata.columns and has_stochastic_scenarios:
+            ldata, aggregated_with_std = aggregate_scenarios_for_plotly(ldata)
+            # Remove 'scenario' from parameters since it's been aggregated
+            if facet_col == "scenario":
+                facet_col = None
+            if facet_row == "scenario":
+                facet_row = None
+            if color == "scenario":
+                color = None
+
         # Get carrier colors for the plot
         carrier_colors = self.get_carrier_colors(nice_names=nice_names)
 
@@ -649,6 +721,35 @@ class ChartGenerator(PlotsGenerator, ABC):
                 title=title,
                 **{k: v for k, v in kwargs.items() if k not in ["facet_col_wrap"]},
             )
+
+            # Apply error bars if we have scenarios
+            if (
+                aggregated_with_std is not None
+                and "value_std" in aggregated_with_std.columns
+            ):
+                # Match error bars to traces based on color (usually carrier)
+                # Each trace corresponds to one value of the color parameter
+                for trace in fig.data:
+                    if (
+                        hasattr(trace, "name")
+                        and trace.name
+                        and color
+                        and color in aggregated_with_std.columns
+                    ):
+                        # Filter aggregated data for this trace's color value
+                        mask = aggregated_with_std[color] == trace.name
+                        error_values = aggregated_with_std.loc[mask, "value_std"].values
+
+                        if len(error_values) > 0:
+                            # Apply error bars based on which axis has 'value'
+                            if x == "value":
+                                trace.error_x = go.bar.ErrorX(
+                                    type="data", array=error_values, visible=True
+                                )
+                            elif y == "value":
+                                trace.error_y = go.bar.ErrorY(
+                                    type="data", array=error_values, visible=True
+                                )
 
         elif kind == "line":
             fig = px.line(
