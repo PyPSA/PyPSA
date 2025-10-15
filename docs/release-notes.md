@@ -35,7 +35,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-- Statistics functions correctly interpret `at_port` as a port number (https://github.com/PyPSA/PyPSA/pull/1386).
+- Statistics functions correctly interpret `at_port` as a port number. (<!-- md:pr 1386 -->)
 - Fix ramp limit constraints failing with mismatched index for multi-investment-period models with extendable or committable components. (<!-- md:pr 1537 -->)
 
 ### Bug Fixes

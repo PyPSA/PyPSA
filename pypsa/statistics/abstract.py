@@ -167,12 +167,12 @@ class AbstractStatisticsAccessor(ABC):
             match at_port:
                 case str():
                     if at_port in ports:
-                        ports = [at_port] if at_port in ports else []
+                        ports = [at_port]
+                    elif at_port.startswith("bus"):
+                        msg = f"{at_port} with 'bus' prefix is not valid. Use the port number only."
+                        raise ValueError(msg)
                     else:
-                        ports = []
-                        if at_port.startswith("bus"):
-                            msg = f"{at_port} with 'bus' prefix is not valid. Use the port number only."
-                            raise ValueError(msg)
+                        ports = []    
                 case [str(), *_]:
                     if any(p.startswith("bus") for p in at_port):
                         msg = f"{at_port} with 'bus' prefix is not valid. Use the port number only."
