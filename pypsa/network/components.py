@@ -803,6 +803,37 @@ class NetworkComponentsMixin(_NetworkABC):
         return []
 
     @property
+    def unique_carriers(self) -> set[str]:
+        """Get all unique carrier values used across all network components.
+
+        <!-- md:badge-version v1.0.0 -->
+
+        Returns
+        -------
+        set of str
+            Set of all unique carrier names found in components.
+
+        Examples
+        --------
+        >>> n.unique_carriers
+        {'AC', 'wind', 'solar', 'gas', 'battery'}
+
+        See Also
+        --------
+        [pypsa.components.Carriers.add_missing_carriers][]
+
+        """
+        carriers = set()
+        for c in self.components:
+            if c.static.empty or "carrier" not in c.static.columns:
+                continue
+            # Get carriers and filter out empty strings and NaN
+            c_carriers = c.static["carrier"].dropna()
+            c_carriers = c_carriers[c_carriers != ""]
+            carriers.update(c_carriers.unique())
+        return carriers
+
+    @property
     @deprecated_in_next_major(
         details="Use `self.components.<component>.defaults` instead.",
     )

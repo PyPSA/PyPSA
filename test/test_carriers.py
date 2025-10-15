@@ -119,7 +119,7 @@ def test_add_missing_carriers_custom_palette():
     n.add("Generator", "gen2", bus="bus1", carrier="solar")
 
     # Add carriers with tab20 palette
-    added = n.c.carriers.add_missing_carriers(color_palette="tab20")
+    added = n.c.carriers.add_missing_carriers(palette="tab20")
 
     assert len(added) == 3
     assert all(n.c.carriers.static["color"].notna())
@@ -260,7 +260,7 @@ def test_add_missing_carriers_no_colors():
     n.add("Generator", "gen2", bus="bus1", carrier="solar")
 
     # Add carriers without colors
-    added = n.c.carriers.add_missing_carriers(assign_colors=False)
+    added = n.c.carriers.add_missing_carriers(palette=None)
 
     assert len(added) == 3
     assert set(added) == {"AC", "solar", "wind"}
@@ -279,9 +279,9 @@ def test_add_missing_carriers_explicit_color_in_kwargs():
     n.add("Generator", "gen1", bus="bus1", carrier="wind")
     n.add("Generator", "gen2", bus="bus1", carrier="solar")
 
-    # Add carriers with explicit colors, even with assign_colors=True
+    # Add carriers with explicit colors
     added = n.c.carriers.add_missing_carriers(
-        assign_colors=True, color=["red", "blue", "green"]
+        palette=None, color=["red", "blue", "green"]
     )
 
     assert len(added) == 3
@@ -303,7 +303,7 @@ def test_add_missing_carriers_no_colors_with_other_kwargs():
 
     # Add carriers without colors but with other attributes
     added = n.c.carriers.add_missing_carriers(
-        assign_colors=False, co2_emissions=0.2, nice_name="Test Carrier"
+        palette=None, co2_emissions=0.2, nice_name="Test Carrier"
     )
 
     assert len(added) == 3

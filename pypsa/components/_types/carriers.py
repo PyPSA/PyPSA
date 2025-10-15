@@ -61,65 +61,169 @@ class Carriers(Components):
             **kwargs,
         )
 
+    def assign_colors(
+        self,
+        carriers: str | Sequence[str] | None = None,
+        palette: str = "tab10",
+        overwrite: bool = False,
+    ) -> None:
+        """Assign colors to carriers using a matplotlib color palette.
+
+        Parameters
+        ----------
+        carriers : str, Sequence[str], or None, default None
+            Carrier name(s) to assign colors to. If None, assigns colors to all
+            carriers that don't have a color set (or all if overwrite=True).
+        palette : str, default "tab10"
+            Matplotlib color palette to use for assigning colors. Options include:
+            - "tab10" (10 colors, default)
+            - "tab20" (20 colors)
+            - "Set1", "Set2", "Set3" (qualitative palettes)
+            - "Pastel1", "Pastel2" (soft colors)
+            - Any other matplotlib colormap name
+        overwrite : bool, default False
+            If True, overwrite existing colors. If False, only assign colors to
+            carriers that don't have a color set (empty string or NaN).
+
+        Examples
+        --------
+        Assign colors to all carriers without colors:
+
+        >>> n.c.carriers.assign_colors()
+
+        Assign colors using a different palette:
+
+        >>> n.c.carriers.assign_colors(palette="Set3")
+
+        Assign colors to specific carriers:
+
+        >>> n.c.carriers.assign_colors(["wind", "solar"], palette="tab20")
+
+        Overwrite existing colors:
+
+        >>> n.c.carriers.assign_colors(overwrite=True)
+
+        See Also
+        --------
+        add_missing_carriers : Add carriers that are used but not yet defined
+
+        """
+        # Determine which carriers to color
+        if carriers is None:
+            if overwrite:
+                target_carriers = (
+                    self.static.index.get_level_values("name").unique()
+                    if self.n.has_scenarios
+                    else self.static.index
+                )
+            else:
+                # Only carriers without colors
+                mask = (self.static["color"] == "") | self.static["color"].isna()
+                if self.n.has_scenarios:
+                    target_carriers = (
+                        self.static[mask].index.get_level_values("name").unique()
+                    )
+                else:
+                    target_carriers = self.static[mask].index
+        else:
+            if isinstance(carriers, str):
+                carriers = [carriers]
+            target_carriers = pd.Index(carriers)
+
+        if len(target_carriers) == 0:
+            logger.debug("No carriers to assign colors to.")
+            return
+
+        # Sort carriers for deterministic color assignment
+        target_carriers = sorted(target_carriers)
+
+        # Generate colors
+        colors = generate_colors(len(target_carriers), palette)
+
+        # Assign colors
+        for carrier, color in zip(target_carriers, colors, strict=False):
+            if self.n.has_scenarios:
+                # Update color for all scenarios
+                for scenario in self.n.scenarios:
+                    self.static.loc[(scenario, carrier), "color"] = color
+            else:
+                self.static.loc[carrier, "color"] = color
+
+        logger.info(
+            "Assigned colors to %d carriers using '%s' palette.",
+            len(target_carriers),
+            palette,
+        )
+
     def add_missing_carriers(
         self,
-        assign_colors: bool = True,
-        color_palette: str = "tab10",
+        palette: str | None = "tab10",
         **kwargs: Any,
     ) -> pd.Index:
         """Add carriers that are used in the network but not yet defined.
 
         This function iterates over all components that have a carrier attribute,
         collects all unique carrier values, and adds any carriers that are not yet
-        defined in the network. Colors can optionally be automatically assigned
-        to the new carriers using the specified color palette.
+        defined in the network. Colors are automatically assigned to the new
+        carriers using the specified color palette unless disabled.
 
         Parameters
         ----------
-        assign_colors : bool, default True
-            Whether to automatically assign colors to the new carriers. If False,
-            carriers will be added without color values (unless provided in kwargs).
-        color_palette : str, default "tab10"
+        palette : str or None, default "tab10"
             Matplotlib color palette to use for assigning colors to carriers.
-            Only used if assign_colors=True. Options include:
+            If None, no colors are assigned automatically. Options include:
             - "tab10" (10 colors, default)
             - "tab20" (20 colors)
             - "Set1", "Set2", "Set3" (qualitative palettes)
             - "Pastel1", "Pastel2" (soft colors)
             - Any other matplotlib colormap name
+            - None (no automatic color assignment)
         **kwargs : Any
             Additional keyword arguments to pass to the add() method for the new
-            carriers (e.g., co2_emissions, nice_name, color).
+            carriers (e.g., co2_emissions, nice_name). If 'color' is provided,
+            it will override the automatic color assignment from the palette.
 
         Returns
         -------
         pd.Index
             Index of newly added carrier names.
 
+        Raises
+        ------
+        ValueError
+            If both palette and color are provided in kwargs.
+
         Examples
         --------
         Add missing carriers with default tab10 colors:
 
-        >>> n.components.carriers.add_missing_carriers()
-        Index(['wind', 'solar', 'gas'], dtype='object', name='name')
+        >>> n.c.carriers.add_missing_carriers()
+        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
 
         Add missing carriers without automatic color assignment:
 
-        >>> n.components.carriers.add_missing_carriers(assign_colors=False)
-        Index(['wind', 'solar', 'gas'], dtype='object', name='name')
+        >>> n.c.carriers.add_missing_carriers(palette=None)
+        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
 
         Add missing carriers with a custom palette:
 
-        >>> n.components.carriers.add_missing_carriers(color_palette="Set3")
-        Index(['wind', 'solar', 'gas'], dtype='object', name='name')
+        >>> n.c.carriers.add_missing_carriers(palette="Set3")
+        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
 
         Add missing carriers with additional attributes:
 
-        >>> n.components.carriers.add_missing_carriers(
-        ...     color_palette="tab20",
+        >>> n.c.carriers.add_missing_carriers(
+        ...     palette="tab20",
         ...     co2_emissions=0.0
         ... )
-        Index(['wind', 'solar'], dtype='object', name='name')
+        Index(['AC', 'solar', 'wind'], dtype='object', name='name')
+
+        Add missing carriers with explicit colors:
+
+        >>> n.c.carriers.add_missing_carriers(
+        ...     color=["red", "blue", "green"]
+        ... )
+        Index(['AC', 'gas', 'solar'], dtype='object', name='name')
 
         Notes
         -----
@@ -129,25 +233,21 @@ class Carriers(Components):
         - Colors are assigned deterministically based on alphabetically sorted carrier
           names
         - If more carriers exist than colors in the palette, colors will be cycled
+        - If you provide explicit colors via kwargs, they will override palette colors
 
         See Also
         --------
         add : Add carriers manually to the network
+        assign_colors : Assign colors to existing carriers
 
         """
-        # Collect all unique carrier values from components
-        all_carriers = set()
-        for c in self.n_save.components:
-            # Check if component type exists in this network
-            if c is None or c.static.empty:
-                continue
-            if "carrier" not in c.static.columns:
-                continue
+        # Check for conflicting arguments
+        if palette is not None and "color" in kwargs:
+            msg = "Cannot specify both 'palette' and 'color' in kwargs. Use either palette for automatic assignment or color for explicit values."
+            raise ValueError(msg)
 
-            carriers = c.static["carrier"].dropna()
-            # Filter out empty strings
-            carriers = carriers[carriers != ""]
-            all_carriers.update(carriers.unique())
+        # Collect all unique carrier values from components
+        all_carriers = self.n_save.unique_carriers
 
         # Get existing carriers
         if self.n.has_scenarios:
@@ -162,11 +262,6 @@ class Carriers(Components):
         if not missing_carriers:
             logger.debug("No missing carriers found. All carriers are already defined.")
             return pd.Index([], name="name")
-
-        # Generate colors for missing carriers if requested
-        if assign_colors and "color" not in kwargs:
-            colors = generate_colors(len(missing_carriers), color_palette)
-            kwargs["color"] = colors
 
         # Add missing carriers
         logger.info(
@@ -194,7 +289,21 @@ class Carriers(Components):
             # Append to existing carriers
             self.static = pd.concat([self.static, wrapped_df], axis=0)
 
+            # Assign colors if palette is specified and colors not explicitly provided
+            if palette is not None and "color" not in kwargs:
+                self.assign_colors(
+                    carriers=missing_carriers, palette=palette, overwrite=False
+                )
+
             return pd.Index(missing_carriers, name="name")
 
-        # For non-stochastic networks, simple add
-        return self.add(missing_carriers, return_names=True, **kwargs)
+        # For non-stochastic networks, add carriers
+        result = self.add(missing_carriers, return_names=True, **kwargs)
+
+        # Assign colors if palette is specified and colors not explicitly provided
+        if palette is not None and "color" not in kwargs:
+            self.assign_colors(
+                carriers=missing_carriers, palette=palette, overwrite=False
+            )
+
+        return result
