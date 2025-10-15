@@ -294,9 +294,30 @@ class StatisticPlotter:
 
         # Create context for schema application
         periods = _get_investment_periods(self._n)
+
+        # Check if network has scenarios (and they're not empty)
+        has_scenarios = False
+        try:
+            has_scenarios = (
+                hasattr(self._n, "scenarios")
+                and self._n.scenarios is not None
+                and len(self._n.scenarios) > 0
+            )
+        except (NotImplementedError, AttributeError):
+            # For collections, network.scenarios raises NotImplementedError
+            # Check if any member network has scenarios
+            if hasattr(self._n, "networks"):
+                has_scenarios = any(
+                    hasattr(n, "scenarios")
+                    and n.scenarios is not None
+                    and len(n.scenarios) > 0
+                    for n in self._n.networks
+                )
+
         context = {
             "index_names": self._n._index_names,
             "period_name": (periods.name or "period") if periods is not None else None,
+            "has_scenarios": has_scenarios,
         }
 
         # Apply schema to plotting kwargs
@@ -734,9 +755,30 @@ class StatisticInteractivePlotter:
 
         # Create context for schema application
         periods = _get_investment_periods(self._n)
+
+        # Check if network has scenarios (and they're not empty)
+        has_scenarios = False
+        try:
+            has_scenarios = (
+                hasattr(self._n, "scenarios")
+                and self._n.scenarios is not None
+                and len(self._n.scenarios) > 0
+            )
+        except (NotImplementedError, AttributeError):
+            # For collections, network.scenarios raises NotImplementedError
+            # Check if any member network has scenarios
+            if hasattr(self._n, "networks"):
+                has_scenarios = any(
+                    hasattr(n, "scenarios")
+                    and n.scenarios is not None
+                    and len(n.scenarios) > 0
+                    for n in self._n.networks
+                )
+
         context = {
             "index_names": self._n._index_names,
             "period_name": (periods.name or "period") if periods is not None else None,
+            "has_scenarios": has_scenarios,
         }
 
         # Apply schema to plotting kwargs

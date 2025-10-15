@@ -275,15 +275,28 @@ def apply_parameter_schema(
     ):
         # Ignore unnamed index levels to avoid creating empty facets
         index_names = [name for name in context["index_names"] if name is not None]
+
+        # Check if we have stochastic scenarios by seeing if 'has_scenarios' flag is set
+        # (This flag is set by the plotting code when member networks have scenarios)
+        has_scenarios = context.get("has_scenarios", False)
+
         if len(index_names) >= 2:
-            # For bar plots: use 1D faceting (first level) + grouped bars (second level via color)
-            # For other plots: use 2D faceting
-            if plot_name == "bar":
-                kwargs["facet_col"] = index_names[0]
-            else:
+            # When scenarios present: use 2D faceting for bar plots (so scenarios can be aggregated)
+            # When no scenarios: use 1D faceting + color for bar plots (original behavior)
+            if plot_name == "bar" and has_scenarios:
+                # Use both indices for faceting when scenarios present
                 kwargs["facet_row"] = index_names[0]
                 kwargs["facet_col"] = index_names[1]
-        elif len(index_names) == 1 and plot_name != "bar":
+            elif plot_name == "bar":
+                # No scenarios: use 1D faceting (color set by adjust_collection_bar_defaults)
+                kwargs["facet_col"] = index_names[0]
+            else:
+                # Other plots: always use 2D faceting
+                kwargs["facet_row"] = index_names[0]
+                kwargs["facet_col"] = index_names[1]
+        elif len(index_names) == 1 and (has_scenarios or plot_name != "bar"):
+            # When scenarios present: always facet (so scenarios can be aggregated)
+            # When no scenarios: only non-bar plots facet (bar uses color)
             kwargs["facet_col"] = index_names[0]
 
     return kwargs

@@ -67,8 +67,34 @@ def adjust_collection_bar_defaults(
 
     index_names = getattr(network, "_index_names", [])
 
+    # Check if network has scenarios (and they're not empty)
+    has_scenarios = False
+    try:
+        has_scenarios = (
+            hasattr(network, "scenarios")
+            and network.scenarios is not None
+            and len(network.scenarios) > 0
+        )
+    except (NotImplementedError, AttributeError):
+        # For collections, network.scenarios raises NotImplementedError
+        # Check if any member network has scenarios
+        if hasattr(network, "networks"):
+            has_scenarios = any(
+                hasattr(n, "scenarios")
+                and n.scenarios is not None
+                and len(n.scenarios) > 0
+                for n in network.networks
+            )
+
+    # When scenarios exist, DON'T use collection indices for color
+    # (they'll be used for faceting instead), so seaborn can aggregate scenarios
+    if has_scenarios:
+        # Don't set color - leave it as default (usually 'carrier')
+        # This ensures custom_case = False and seaborn aggregates scenarios
+        pass
+    # No scenarios: use original logic for collection grouping
     # Handle 2-level multiindex: use second level for grouped bars
-    if len(index_names) >= 2:
+    elif len(index_names) >= 2:
         second_index_name = index_names[1]
         if color is None:
             color = second_index_name
