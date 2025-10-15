@@ -1,5 +1,10 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import copy
 import sys
+import warnings
 
 import linopy
 import numpy as np
@@ -351,13 +356,38 @@ def test_multiple_add_defaults(n_5bus):
     # TODO: Improve tests since component is the same now
     assert (
         n_5bus.c.generators.static.loc[gen_names[0], "control"]
-        == n_5bus.components.Generator.attrs.loc["control", "default"]
+        == n_5bus.components.Generator.defaults.loc["control", "default"]
     )
 
     assert (
         n_5bus.c.loads.static.loc[line_names[0], "p_set"]
-        == n_5bus.components.Load.attrs.loc["p_set", "default"]
+        == n_5bus.components.Load.defaults.loc["p_set", "default"]
     )
+
+
+def test_add_return_names():
+    """Test that return_names parameter controls return behavior."""
+    n = pypsa.Network()
+
+    # Default behavior - should return None
+    assert n.add("Bus", "bus1") is None
+    assert n.add("Bus", "bus2", return_names=False) is None
+
+    # With return_names=True - should return Index
+    result = n.add("Bus", "bus3", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus3"
+
+    # Multiple components
+    result = n.add("Bus", ["bus4", "bus5"], return_names=True)
+    assert len(result) == 2
+    assert all(name in result for name in ["bus4", "bus5"])
+
+    # Component method
+    assert n.components.buses.add("bus6") is None
+    result = n.components.buses.add("bus7", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus7"
 
 
 @pytest.mark.skipif(
@@ -582,16 +612,21 @@ def test_api_components_legacy(new_components_api):
             assert n.generators is n.components.generators.static
             assert n.c.generators.dynamic is n.components.generators.dynamic
         else:
-            # TODO: Activate when warnings are raised again
             assert n.buses is n.components.buses
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.buses_t is n.components.buses.dynamic
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.buses\.dynamic` as a drop-in"
+            ):
+                assert n.buses_t is n.components.buses.dynamic
             assert n.lines is n.components.lines
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.lines_t is n.components.lines.dynamic
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.lines\.dynamic` as a drop-in"
+            ):
+                assert n.lines_t is n.components.lines.dynamic
             assert n.generators is n.components.generators
-            # with pytest.raises(DeprecationWarning):
-            #     assert n.generators_t is n.components.generators.dynamic
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.generators\.dynamic` as a drop-in"
+            ):
+                assert n.generators_t is n.components.generators.dynamic
 
 
 @pytest.mark.parametrize("new_components_api", [True, False])
@@ -599,22 +634,49 @@ def test_api_new_components_api(component_name, new_components_api):
     """
     Test the API of the components module.
     """
-
+    warnings.filterwarnings(
+        "ignore",
+        message=".*is deprecated as of 1.0 and will be .*",
+        category=DeprecationWarning,
+    )
     with pypsa.option_context("api.new_components_api", new_components_api):
         n = pypsa.examples.ac_dc_meshed()
         if not new_components_api:
-            assert n.static(component_name) is n.c[component_name].static
-            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
 
             setattr(n, component_name, "test")
-            assert n.static(component_name) == "test"
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) == "test"
             setattr(n, f"{component_name}_t", "test")
-            assert n.dynamic(component_name) == "test"
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) == "test"
         else:
-            assert n.static(component_name) is n.c[component_name].static
-            assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
             with pytest.raises(AttributeError):
                 setattr(n, component_name, "test")
-            # TODO: Activate when warnings are raised again
-            # with pytest.raises(DeprecationWarning):
-            #     setattr(n, f"{component_name}_t", "test")
+            with pytest.warns(DeprecationWarning, match="cannot be set"):
+                setattr(n, f"{component_name}_t", "test")

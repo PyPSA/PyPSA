@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Legacy functionality which is kept for backwards compatibility."""
 
 from __future__ import annotations
@@ -59,7 +63,7 @@ class Component:
     Allows to keep functionallity of previous dataclass/ named tuple and wraps
     around new structure.
 
-    .. warning::
+    !!! warning
         This class is deprecated and should not be used anymore.
     """
 

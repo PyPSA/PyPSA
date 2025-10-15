@@ -1,4 +1,6 @@
-#!/usr/bin/env python3
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import numpy as np
 

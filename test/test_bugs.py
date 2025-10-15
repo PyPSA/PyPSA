@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -21,7 +25,7 @@ def test_1144():
     n = pypsa.examples.ac_dc_meshed()
     n.c.generators.static["build_year"] = [2020, 2020, 2030, 2030, 2040, 2040]
     n.investment_periods = [2020, 2030, 2040]
-    capacity = n.statistics.installed_capacity(comps="Generator")
+    capacity = n.statistics.installed_capacity(components="Generator")
     assert capacity[2020].sum() < capacity[2030].sum() < capacity[2040].sum()
 
 
@@ -33,11 +37,11 @@ def test_890():
     n.calculate_dependent_values()
 
     n.c.lines.static = n.c.lines.static.reindex(
-        columns=n.components["Line"]["attrs"].index[1:]
+        columns=n.components["Line"]["defaults"].index[1:]
     )
     n.c.lines.static["type"] = np.nan
     n.c.buses.static = n.c.buses.static.reindex(
-        columns=n.components["Bus"]["attrs"].index[1:]
+        columns=n.components["Bus"]["defaults"].index[1:]
     )
     n.c.buses.static["frequency"] = 50
 

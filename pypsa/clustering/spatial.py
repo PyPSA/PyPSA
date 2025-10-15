@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Functions for computing network clusters."""
 
 from __future__ import annotations
@@ -237,8 +241,8 @@ def aggregateoneport(
     if custom_strategies is None:
         custom_strategies = {}
     c = component
-    static = n.static(c)
-    attrs = n.components[c]["attrs"]
+    static = n.c[c].static
+    attrs = n.components[c]["defaults"]
     if "carrier" in static.columns:
         if carriers is None:
             carriers = static.carrier.unique()
@@ -283,7 +287,7 @@ def aggregateoneport(
     aggregated = static.groupby(grouper).agg(static_strategies)
     aggregated.index = flatten_multiindex(aggregated.index).rename(c)
 
-    non_aggregated = n.static(c)[~to_aggregate]
+    non_aggregated = n.c[c].static[~to_aggregate]
     non_aggregated = non_aggregated.assign(bus=non_aggregated.bus.map(busmap))
 
     static = pd.concat([aggregated, non_aggregated], sort=False)
@@ -291,8 +295,8 @@ def aggregateoneport(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.dynamic(c), c)
-        for attr, data in n.dynamic(c).items():
+        dynamic_strategies = align_strategies(strategies, n.c[c].dynamic, c)
+        for attr, data in n.c[c].dynamic.items():
             if data.empty:
                 dynamic[attr] = data
                 continue
@@ -348,7 +352,7 @@ def aggregatebuses(
     if custom_strategies is None:
         custom_strategies = {}
     c = "Bus"
-    attrs = n.components[c]["attrs"]
+    attrs = n.components[c]["defaults"]
 
     output_columns = attrs.index[attrs.static & attrs.status.str.startswith("Output")]
     columns = [c for c in n.c.buses.static.columns if c not in output_columns]
@@ -402,8 +406,8 @@ def aggregatelines(
         custom_strategies = {}
     if bus_strategies is None:
         bus_strategies = {}
-    attrs = n.components["Line"]["attrs"]
-    static = n.static("Line")
+    attrs = n.components["Line"]["defaults"]
+    static = n.c["Line"].static
     idx = static.index[static.bus0.map(busmap) != static.bus1.map(busmap)]
     static = static.loc[idx]
 
@@ -463,7 +467,7 @@ def aggregatelines(
 
     dynamic = {}
     if with_time:
-        dynamic_strategies = align_strategies(strategies, n.dynamic("Line"), "Line")
+        dynamic_strategies = align_strategies(strategies, n.c["Line"].dynamic, "Line")
 
         for attr, data in n.c.lines.dynamic.items():
             if data.empty:
@@ -594,14 +598,18 @@ def get_clustering_from_busmap(
 
     # Collect remaining one ports
 
-    for c in n.iterate_components(one_port_components):
+    for c in n.components:
+        if c.name not in one_port_components:
+            continue
         remaining_one_port_data = c.static.assign(bus=c.static.bus.map(busmap)).dropna(
             subset=["bus"]
         )
         clustered.add(c.name, remaining_one_port_data.index, **remaining_one_port_data)
 
     if with_time:
-        for c in n.iterate_components(one_port_components):
+        for c in n.components:
+            if c.name not in one_port_components:
+                continue
             for attr, df in c.dynamic.items():
                 if not df.empty:
                     clustered._import_series_from_df(df, c.name, attr)
@@ -839,7 +847,7 @@ def busmap_by_hac(
     return pd.Series(labels, index=buses_i, dtype=str)
 
 
-def hac_clustering(
+def hac_clustering(  # noqa: D417
     n: Network,
     n_clusters: int,
     buses_i: pd.Index | None = None,
@@ -854,8 +862,6 @@ def hac_clustering(
 
     Parameters
     ----------
-    n : pypsa.Network
-        The buses must have coordinates x, y.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -905,7 +911,7 @@ def hac_clustering(
     return get_clustering_from_busmap(n, busmap, line_length_factor=line_length_factor)
 
 
-def busmap_by_greedy_modularity(
+def busmap_by_greedy_modularity(  # noqa: D417
     n: Network, n_clusters: int, buses_i: pd.Index | None = None
 ) -> pd.Series:
     """Create a busmap according to Clauset-Newman-Moore greedy modularity maximization.
@@ -914,8 +920,6 @@ def busmap_by_greedy_modularity(
 
     Parameters
     ----------
-    n : pypsa.Network
-        Network instance.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -929,9 +933,9 @@ def busmap_by_greedy_modularity(
 
     References
     ----------
-    .. [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
+    [CNM2004_1] Clauset, A., Newman, M. E., & Moore, C.
+        "Finding community structure in very large networks."
+        Physical Review E 70(6), 2004.
 
     """
     if parse(nx.__version__) < Version("2.8"):
@@ -968,7 +972,7 @@ def busmap_by_greedy_modularity(
     return busmap
 
 
-def greedy_modularity_clustering(
+def greedy_modularity_clustering(  # noqa: D417
     n: Network,
     n_clusters: int,
     buses_i: pd.Index | None = None,
@@ -980,8 +984,6 @@ def greedy_modularity_clustering(
 
     Parameters
     ----------
-    n : pypsa.Network
-        Network instance.
     n_clusters : int
         Final number of clusters desired.
     buses_i: None | pandas.Index, default=None
@@ -996,9 +998,9 @@ def greedy_modularity_clustering(
 
     References
     ----------
-    .. [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
-       "Finding community structure in very large networks."
-       Physical Review E 70(6), 2004.
+    [CNM2004_2] Clauset, A., Newman, M. E., & Moore, C.
+        "Finding community structure in very large networks."
+        Physical Review E 70(6), 2004.
 
     """
     busmap = busmap_by_greedy_modularity(n, n_clusters, buses_i)

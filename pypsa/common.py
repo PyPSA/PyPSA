@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """General utility functions for PyPSA."""
 
 from __future__ import annotations
@@ -19,7 +23,7 @@ from pandas.api.types import is_list_like
 
 from pypsa._options import options
 from pypsa.definitions.structures import Dict
-from pypsa.version import __version_semver__
+from pypsa.version import __version_base__
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -30,7 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 class UnexpectedError(AssertionError):
-    """Custom error for unexpected conditions with issue tracker reference."""
+    """Custom error for unexpected conditions with issue tracker reference.
+
+    <!-- md:badge-version v0.35.0 -->
+    """
 
     URL_CREATE_ISSUE = "https://go.pypsa.org/report-bug"
 
@@ -154,7 +161,7 @@ class MethodHandlerWrapper:
 
 
 @lru_cache(maxsize=1)
-def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -> str:
+def _check_for_update(current_version: str, repo_owner: str, repo_name: str) -> str:
     """Log a message if a newer version is available.
 
     Checks the latest release on GitHub and compares it to the current version. Does
@@ -163,8 +170,8 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
 
     Parameters
     ----------
-    current_version : tuple
-        The current version of the package as a tuple (major, minor, patch).
+    current_version : str
+        The current version of the package as a semantic version string.
     repo_owner : str
         The owner of the repository.
     repo_name : str
@@ -193,12 +200,14 @@ def _check_for_update(current_version: tuple, repo_owner: str, repo_name: str) -
         response = request.urlopen(req)  # noqa: S310
         latest_version = json.loads(response.read())["tag_name"].replace("v", "")
 
-        # Simple version comparison
-        latest = tuple(map(int, latest_version.split(".")))
+        # Version comparison using packaging.version
+        latest_parsed = version.parse(latest_version)
+        current_parsed = version.parse(current_version)
 
-        if latest > current_version:
-            current_version_str = ".".join(map(str, current_version))
-            return f"New version {latest_version} available! (Current: {current_version_str})"
+        if latest_parsed > current_parsed:
+            return (
+                f"New version {latest_version} available! (Current: {current_version})"
+            )
 
     except Exception:  # noqa: S110
         pass
@@ -210,6 +219,8 @@ def as_index(
     n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
 ) -> pd.Index:
     """Return a pd.Index object from a list-like or scalar object.
+
+    <!-- md:badge-version v0.30.0 -->
 
     Also checks if the values are a subset of the corresponding attribute of the
     network object. If values is None, it is also used as the default.
@@ -563,9 +574,9 @@ def deprecated_in_next_major(details: str) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         return deprecated(
-            deprecated_in="1.0",
+            deprecated_in="1.0rc1",
             removed_in="2.0",
-            current_version=__version_semver__,
+            current_version=__version_base__,
             details=details,
         )(func)
 
@@ -597,11 +608,11 @@ def deprecated_namespace(
         A wrapper function that warns about the deprecated namespace.
 
     """
-    current_version = version.parse(__version_semver__)
-    if version.parse(deprecated_in) > current_version and __version_semver__ != "0.0":
+    current_version = version.parse(__version_base__)
+    if version.parse(deprecated_in) > current_version and __version_base__ != "0.0":
         msg = (
             "'deprecated_namespace' can only be used in a version >= deprecated_in "
-            f"(current version: {__version_semver__}, deprecated_in: {deprecated_in})."
+            f"(current version: {__version_base__}, deprecated_in: {deprecated_in})."
         )
         raise ValueError(msg)
 
@@ -894,16 +905,6 @@ def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     --------
     >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
     0.12950457496545661
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), pd.Series([10, 20]))
-    0    0.129505
-    1    0.067216
-    dtype: float64
-
-    >>> pypsa.common.annuity(pd.Series([0.05, 0.03]), 20)
-    0    0.080243
-    1    0.067216
-    dtype: float64
 
     """
     return r / (1.0 - 1.0 / (1.0 + r) ** n)

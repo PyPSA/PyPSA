@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 name: Documentation Improvement
 description: Report wrong or missing documentation
 labels: ["needs triage"]
@@ -10,8 +14,7 @@ body:
     label: Location
     description: >
       Please provide the location of the documentation or docstring, e.g. `pypsa.Network.import_from_netcdf` or the link to the docs.
-    placeholder: https://pypsa.readthedocs.io/en/latest/user-guide/contingency-analysis.html
-  validations:
+    placeholder: https://docs.pypsa.org/latest/user-guide/linear-power-flow
     required: true
 - type: textarea
   id: problem

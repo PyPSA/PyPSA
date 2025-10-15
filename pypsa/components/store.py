@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components store module.
 
 Contains store class which is used to store all different components in the network.
@@ -52,11 +56,6 @@ class ComponentsStore(dict):
 
     def __repr__(self) -> str:
         """Get representation of component store.
-
-        Returns
-        -------
-        str
-            Representation of component store
 
         Examples
         --------
@@ -166,8 +165,15 @@ class ComponentsStore(dict):
         return dict_keys + obj_attrs
 
     def __iter__(self) -> Any:
-        """Value iterator over components in store."""
-        return iter(self.values())
+        """Value iterator over components in store.
+
+        Filters out empty components to maintain backward compatibility with
+        n.iterate_components() behavior. For accessing all components including
+        empty ones, use n.components.values() directly instead of iterating over the
+        store.
+        """
+        # Filter to only return non-empty components (same behavior as iterate_components)
+        return iter(c for c in self.values() if not c.empty)
 
     def __contains__(self, item: Any) -> bool:
         """Check if component is in store."""

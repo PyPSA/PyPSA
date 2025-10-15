@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistics Accessor."""
 
 from __future__ import annotations
@@ -55,7 +59,7 @@ class AbstractStatisticsAccessor(ABC):
         elif isinstance(groupby, (str | list)):
             by = groupers[groupby](n, c, port=port, nice_names=nice_names)
         elif groupby is not False:
-            msg = f"Argument `groupby` must be a function, list, string, False or dict, got {repr(groupby)}."
+            msg = f"Argument `groupby` must be a string, list, callable, or False, got {repr(groupby)}."
             raise ValueError(msg)
         return {"by": by, "level": level}
 
@@ -126,7 +130,7 @@ class AbstractStatisticsAccessor(ABC):
         self,
         func: Callable,
         agg: Callable | str = "sum",
-        comps: Collection[str] | str | None = None,
+        components: Collection[str] | str | None = None,
         groupby: str | Sequence[str] | Callable | Literal[False] = "carrier",
         aggregate_across_components: bool = False,
         at_port: str | Sequence[str] | bool | None = None,
@@ -140,20 +144,20 @@ class AbstractStatisticsAccessor(ABC):
         d = {}
         n = self._n
 
-        if is_one_component := isinstance(comps, str):
-            comps = [comps]
-        if comps is None:
-            comps = sorted(n.branch_components | n.one_port_components)
+        if is_one_component := isinstance(components, str):
+            components = [components]
+        if components is None:
+            components = sorted(n.branch_components | n.one_port_components)
         if nice_names is None:
             # TODO move to _apply_option_kwargs
             nice_names = options.params.statistics.nice_names
-        for c in comps:
-            if n.static(c).empty:
+        for c in components:
+            if n.c[c].static.empty:
                 continue
 
             ports = [
                 match.group(1)
-                for col in n.static(c)
+                for col in n.c[c].static
                 if (match := RE_PORTS.search(str(col)))
             ]
             if not at_port:
@@ -225,13 +229,14 @@ class AbstractStatisticsAccessor(ABC):
         if isinstance(obj, pd.DataFrame) or "snapshot" in getattr(obj, "dims", []):
             return obj
         idx = self._get_component_index(obj, c)
+
         if not self.is_multi_indexed:
-            mask = n.get_active_assets(c)
+            mask = n.c[c].get_active_assets()
             return obj.loc[mask.index[mask].intersection(idx)]
 
         per_period = {}
         for p in n.investment_periods:
-            mask = n.get_active_assets(c, p)
+            mask = n.c[c].get_active_assets(p)
             per_period[p] = obj.loc[mask.index[mask].intersection(idx)]
         return self._concat_periods(per_period, c)
 
@@ -248,7 +253,7 @@ class AbstractStatisticsAccessor(ABC):
             return obj
 
         idx = self._get_component_index(obj, c)
-        ports = n.static(c).loc[idx, f"bus{port}"]
+        ports = n.c[c].static.loc[idx, f"bus{port}"]
         port_carriers = ports.map(n.c.buses.static.carrier)
         if isinstance(bus_carrier, str):
             if bus_carrier in n.c.buses.static.carrier.unique():
@@ -272,11 +277,11 @@ class AbstractStatisticsAccessor(ABC):
         obj: Any,
     ) -> Any:
         """Filter the DataFrame for components which have the specified carrier."""
-        if carrier is None or "carrier" not in n.static(c):
+        if carrier is None or "carrier" not in n.c[c].static:
             return obj
 
         idx = self._get_component_index(obj, c)
-        carriers = n.static(c).loc[idx, "carrier"]
+        carriers = n.c[c].static.loc[idx, "carrier"]
 
         if isinstance(carrier, str):
             if carrier in carriers.unique():

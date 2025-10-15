@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components transform module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.
@@ -25,8 +29,8 @@ logger = logging.getLogger(__name__)
 class ComponentsTransformMixin:
     """Mixin class for components descriptors methods.
 
-    Class only inherits to [pypsa.Components][] and should not be used directly.
-    All attributes and methods can be used within any Components instance.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
     """
 
     static: pd.DataFrame
@@ -40,9 +44,12 @@ class ComponentsTransformMixin:
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Add new components.
+
+        <!-- md:badge-version v0.33.0 -->
 
         Handles addition of single and multiple components along with their attributes.
         Pass a list of names to add multiple components at once or pass a single name
@@ -59,7 +66,7 @@ class ComponentsTransformMixin:
         dimension is names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
+        value from <!-- md:guide components.md -->.
 
         Parameters
         ----------
@@ -71,14 +78,19 @@ class ComponentsTransformMixin:
             If True, existing components with the same names as in `name` will be
             overwritten. Otherwise only new components will be added and others will be
             ignored.
+        return_names : bool | None, default=None
+            Whether to return the names of the new components. Defaults to module wide
+            option (default: False). See `https://go.pypsa.org/options-params` for more
+            information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
             of pandas.DataFrame for time-varying
 
         Returns
         -------
-        new_names : pandas.index
-            Names of new components (including suffix)
+        new_names : pandas.index or None
+            Names of new components (including suffix) if return_names is `True`,
+            otherwise `None`.
 
         Examples
         --------
@@ -133,7 +145,7 @@ class ComponentsTransformMixin:
 
         See Also
         --------
-        [pypsa.Network.add][] : Add components to the network instance.
+        [pypsa.Network.add][]
 
         """
         if not self.attached:
@@ -143,11 +155,12 @@ class ComponentsTransformMixin:
             )
             raise NotImplementedError(msg)
 
-        self.n_save.add(
+        return self.n_save.add(
             self.name,
             name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )
 
@@ -168,9 +181,7 @@ class ComponentsTransformMixin:
         >>> import pypsa
         >>> n = pypsa.Network()
         >>> n.add("Bus", ["bus1"])
-        Index(['bus1'], dtype='object')
         >>> n.add("Generator", ["gen1"], bus="bus1")
-        Index(['gen1'], dtype='object')
         >>> c = n.c.buses
 
         Now rename the bus
@@ -201,7 +212,7 @@ class ComponentsTransformMixin:
 
         # Rename cross references in network (if attached to one)
         if self.attached:
-            for component in self.n_save.components.values():
+            for component in self.n_save.components:
                 col_name = self.name.lower()  # TODO: Generalize
                 cols = [f"{col_name}{port}" for port in component.ports]
                 if cols and not component.static.empty:

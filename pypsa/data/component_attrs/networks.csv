@@ -1,10 +1,10 @@
 attribute,type,unit,default,description,status
 name,string,n/a,n/a,Unique name,Input (required)
-snapshots,list or pandas.Index,n/a,"[""now""]","List of snapshots or time steps. All time-dependent series quantities are indexed by ``network.snapshots``. To reset the snapshots, call ``network.set_snapshots(new)``.",Input (optional)
+snapshots,list or pandas.Index,n/a,"[""now""]","List of snapshots or time steps. All time-dependent series quantities are indexed by `network.snapshots`. To reset the snapshots, call `network.set_snapshots(new)`.",Input (optional)
 snapshot_weightings,pandas.DataFrame, hours ,1,"The weightings applied to each snapshot, so that snapshots can represent more than one hour or fractions of one hour. The objective weightings are used to weight snapshots in the objective function. The store weightings determine the state of charge change for stores and storage units. The generator weightings are used when calculating global constraints and energy balances.",Input (optional)
 investment_periods,pandas.Index,years,[],"Time periods of investment. Only used for multi investment optimisation. Years have to be integer and increasing (e.g. [2025,2030,2035]). Default is an empty pd.Index([]).",Input (optional)
 investment_period_weightings,pandas.DataFrame,n/a,1,Weightings applied to each investment period. Objective weightings are multiplied with all cost coefficients in the objective function of the respective investment period (e.g. used to include social discount rate). Years weighting denote the elapsed time until the subsequent investment period (e.g. used for global constraints CO2 emissions).,Input (optional)
-now,any,n/a,"""now""","The current snapshot/time/scenario, relevant e.g. when ``network.pf()`` is called without a snapshot argument.",Input (optional)
+now,any,n/a,"""now""","The current snapshot/time/scenario, relevant e.g. when `network.pf()` is called without a snapshot argument.",Input (optional)
 srid,integer,n/a,4326,"Spatial Reference System Indentifier for x,y coordinates of buses. It defaults to standard longitude and latitude.",Input (optional)
 crs,CRS-like,n/a,n/a,"Coordinate Reference System for the Shape components. It defaults to standard longitude and latitude, given in srid.",Input (optional)
 buses,pandas.DataFrame,n/a,n/a,"All static bus information compiled by PyPSA from inputs. Index is bus names, columns are bus attributes.",Output

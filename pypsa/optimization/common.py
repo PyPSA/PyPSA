@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Use common methods for optimization problem definition with Linopy."""
 
 from __future__ import annotations
@@ -52,7 +56,7 @@ def _set_dynamic_data(n: Network, component: str, attr: str, df: pd.DataFrame) -
     c.dynamic[attr] = (
         c.dynamic[attr]
         .reindex(n.snapshots, level="snapshot", axis=0)
-        .reindex(c.component_names, level="name", axis=1)
+        .reindex(c.names, level="name", axis=1)
         .fillna(0.0)
     )
 
@@ -73,12 +77,7 @@ def get_strongly_meshed_buses(n: Network, threshold: int = 45) -> pd.Series:
 
     """
     all_buses = pd.Series(
-        hstack(
-            [
-                ravel(c.static.filter(regex=RE_PORTS.pattern))
-                for c in n.iterate_components()
-            ]
-        )
+        hstack([ravel(c.static.filter(regex=RE_PORTS.pattern)) for c in n.components])
     )
     all_buses = all_buses[all_buses != ""]
     counts = all_buses.value_counts()

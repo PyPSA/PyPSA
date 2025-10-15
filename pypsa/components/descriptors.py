@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components descriptor module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.
@@ -29,8 +33,8 @@ logger = logging.getLogger(__name__)
 class ComponentsDescriptorsMixin(_ComponentsABC):
     """Mixin class for components descriptors methods.
 
-    Class only inherits to [pypsa.Components][] and should not be used directly.
-    All attributes and methods can be used within any Components instance.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
 
     """
 
@@ -79,6 +83,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     ) -> pd.Series:
         """Get active components mask of component type in investment period(s).
 
+        <!-- md:badge-version v0.33.0 -->
+
         A component is considered active when:
 
         - it's active attribute is True
@@ -103,9 +109,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
 
         >>> n = pypsa.Network()
         >>> n.add("Generator", "g1", active=False)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=True)
-        Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
         name
         g1    False
@@ -116,9 +120,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
         >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=False)
-        Index(['g2'], dtype='object')
         >>> n.components.generators.get_active_assets()
         name
         g1     True
@@ -147,6 +149,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     def active_assets(self) -> pd.Series:
         """Get list of active assets.
 
+        <!-- md:badge-version v1.0.0 -->
+
         See corresponding [pypsa.Components.inactive_assets][] for details.
 
         Returns
@@ -166,6 +170,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     def inactive_assets(self) -> pd.Series:
         """Get list of inactive assets.
 
+        <!-- md:badge-version v1.0.0 -->
+
         An asset is considered inactive when one of the following conditions is met:
         - `active` is set to False across all dimensions (investment periods, scenarios)
         - `build_year` + `lifetime` never satisfies the condition for any investment period
@@ -183,9 +189,7 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
         >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
-        Index(['g1'], dtype='object')
         >>> n.add("Generator", "g2", active=False)
-        Index(['g2'], dtype='object')
 
         List all components
         >>> n.generators.index
@@ -217,6 +221,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
     ) -> pd.DataFrame:
         """Get active components mask indexed by snapshots.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Gets the boolean mask for active components, indexed by snapshots and
         components instead of just components.
 
@@ -231,10 +237,8 @@ class ComponentsDescriptorsMixin(_ComponentsABC):
         --------
         >>> n = pypsa.Network()
         >>> n.snapshots = pd.MultiIndex.from_product([[2020, 2021, 2022], ["1", "2", "3"]])
-        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)  # doctest: +ELLIPSIS
-        Index(['g1'], dtype='object')
-        >>> n.add("Generator", "g2", active=False)  # doctest: +ELLIPSIS
-        Index(['g2'], dtype='object')
+        >>> n.add("Generator", "g1", build_year=2020, lifetime=1)
+        >>> n.add("Generator", "g2", active=False)
         >>> n.components.generators.get_activity_mask()  # doctest: +ELLIPSIS
         name                g1     g2
         period timestep

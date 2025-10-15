@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """
 Test stochastic functionality of PyPSA networks.
 """
@@ -196,7 +200,7 @@ def test_statistics(ac_dc_stochastic_r):
     assert "scenario" in ds.index.names
     assert not stats.empty
 
-    df = n.statistics.supply(aggregate_time=False)
+    df = n.statistics.supply(groupby_time=False)
     assert isinstance(df, pd.DataFrame)
     assert isinstance(df.index, pd.MultiIndex)
     assert "scenario" in df.index.names
@@ -728,7 +732,7 @@ def test_scenario_ordering_bug():
 
     # Check 3: verify that the results match the expected scenario ordering
     # by checking that the DataArray scenario coordinate order is preserved
-    da_p_max_pu = n.components.generators.da.p_max_pu.sel(name="Manchester Wind")
+    da_p_max_pu = n.c.generators.da.p_max_pu.sel(name="Manchester Wind")
     da_scenarios = list(da_p_max_pu.coords["scenario"].values)
     network_scenarios = list(n.scenarios)
 
@@ -1440,7 +1444,7 @@ def test_max_growth_constraint_stochastic(n):
     gen_carrier = n.c.generators.static.carrier.unique()[0]
     n.c.carriers.static.at[gen_carrier, "max_growth"] = 300
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
-    n.c.carriers.static.xs("scenario_1").at[gen_carrier, "max_growth"] = 218
+    n.c.carriers.static.loc[("scenario_1", gen_carrier), "max_growth"] = 218
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
 
@@ -1463,7 +1467,7 @@ def test_max_relative_growth_constraint(n):
     n.c.carriers.static.at[gen_carrier, "max_growth"] = 218
     n.c.carriers.static.at[gen_carrier, "max_relative_growth"] = 3
     n.set_scenarios({"scenario_1": 0.5, "scenario_2": 0.5})
-    n.c.carriers.static.xs("scenario_1").at[gen_carrier, "max_relative_growth"] = 1.5
+    n.c.carriers.static.loc[("scenario_1", gen_carrier), "max_relative_growth"] = 1.5
     kwargs = {"multi_investment_periods": True}
     status, cond = n.optimize(**kwargs)
     built_per_period = (

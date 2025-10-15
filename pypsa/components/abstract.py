@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Abstract components module.
 
 Only defines a base class for all Components helper classes which inherit to
@@ -40,7 +44,7 @@ class _ComponentsABC(ABC):
 
     @property
     @abstractmethod
-    def component_names(self) -> pd.Index:
+    def names(self) -> pd.Index:
         pass
 
     @property

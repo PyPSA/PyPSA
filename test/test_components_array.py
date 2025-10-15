@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 import xarray
@@ -7,7 +11,7 @@ from pypsa.components.array import _from_xarray
 
 def test_as_xarray_static(ac_dc_network):
     n = ac_dc_network
-    da = n.components.generators._as_xarray("bus")
+    da = n.c.generators._as_xarray("bus")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -21,7 +25,7 @@ def test_as_xarray_static(ac_dc_network):
 
 def test_as_xarray_dynamic(ac_dc_network):
     n = ac_dc_network
-    da = n.components.generators._as_xarray("p_max_pu")
+    da = n.c.generators._as_xarray("p_max_pu")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -54,7 +58,7 @@ def test_as_xarray_static_with_periods(ac_dc_network):
     # Add investment periods to the network
     n.investment_periods = [2000, 2010]
 
-    da = n.components.generators._as_xarray("bus")
+    da = n.c.generators._as_xarray("bus")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -71,7 +75,7 @@ def test_as_xarray_dynamic_with_periods(ac_dc_network):
     # Add investment periods to the network
     n.investment_periods = [2000, 2010]
 
-    da = n.components.generators._as_xarray("p_max_pu")
+    da = n.c.generators._as_xarray("p_max_pu")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -102,7 +106,7 @@ def test_as_xarray_static_with_scenarios(ac_dc_network):
     # Add scenarios to the network
     scenarios = ["scenario1", "scenario2"]
     n.scenarios = scenarios
-    da = n.components.generators._as_xarray("bus")
+    da = n.c.generators._as_xarray("bus")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -123,7 +127,7 @@ def test_as_xarray_dynamic_with_scenarios(ac_dc_network):
     scenarios = ["scenario1", "scenario2"]
     n.scenarios = scenarios
 
-    da = n.components.generators._as_xarray("p_max_pu")
+    da = n.c.generators._as_xarray("p_max_pu")
 
     assert isinstance(da, xarray.DataArray)
 
@@ -150,11 +154,11 @@ def test_as_xarray_dynamic_with_scenarios(ac_dc_network):
 def test_ds_property_consistency(ac_dc_network):
     n = ac_dc_network
     """Test that ds property returns the same data as individual da calls."""
-    ds = n.components.generators.ds
+    ds = n.c.generators.ds
 
     # Test all attributes match individual _as_xarray calls
     for attr in ds.data_vars:
-        da_individual = n.components.generators._as_xarray(attr)
+        da_individual = n.c.generators._as_xarray(attr)
         da_from_ds = ds[attr]
         assert set(da_individual.coords) == set(da_from_ds.coords)
         assert da_individual.equals(da_from_ds)
@@ -243,7 +247,7 @@ def test_from_xarray_edge_cases():
     # Create mock component for testing
     class MockComponent:
         def __init__(self):
-            self.component_names = ["gen1", "gen2"]
+            self.names = ["gen1", "gen2"]
             self.scenarios = ["s1", "s2"]
             self.has_scenarios = False
 

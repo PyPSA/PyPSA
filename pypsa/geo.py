@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Functionality to help with georeferencing and calculate distances/areas."""
 
 from __future__ import annotations

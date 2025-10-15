@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Shapes components module."""
 
 from collections.abc import Sequence
@@ -19,7 +23,7 @@ class Shapes(Components):
 
     See Also
     --------
-    [pypsa.Components][] : Base class for all components.
+    [pypsa.Components][]
 
     Examples
     --------
@@ -33,12 +37,14 @@ class Shapes(Components):
         name: str | int | Sequence[int | str],
         suffix: str = "",
         overwrite: bool = False,
+        return_names: bool | None = None,
         **kwargs: Any,
-    ) -> pd.Index:
+    ) -> pd.Index | None:
         """Wrap Components.add() and docstring is patched via decorator."""
         return super().add(
             name=name,
             suffix=suffix,
             overwrite=overwrite,
+            return_names=return_names,
             **kwargs,
         )

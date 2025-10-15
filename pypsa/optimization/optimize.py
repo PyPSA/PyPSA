@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Build optimisation problems from PyPSA networks with Linopy."""
 
 from __future__ import annotations
@@ -13,10 +17,9 @@ from linopy import Model, merge
 from linopy.solvers import available_solvers
 
 from pypsa._options import options
-from pypsa.common import as_index
+from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
 from pypsa.descriptors import nominal_attrs
 from pypsa.guards import _optimize_guard
 from pypsa.optimization.abstract import OptimizationAbstractMixin
@@ -48,6 +51,7 @@ from pypsa.optimization.global_constraints import (
     define_transmission_volume_expansion_limit,
 )
 from pypsa.optimization.variables import (
+    define_cvar_variables,
     define_loss_variables,
     define_modular_variables,
     define_nominal_variables,
@@ -88,6 +92,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
        Capex for new capacity, weighted by investment periods if `n._multi_invest` is True.
     6. **Unit-commitment costs**
        Start-up and shut-down costs for committable components.
+    7. **Conditional CVaR terms**
+        Define auxiliary CVaR constraints for stochastic risk-averse optimization.
 
     Parameters
     ----------
@@ -109,7 +115,9 @@ def define_objective(n: Network, sns: pd.Index) -> None:
     """
     weighted_cost: xr.DataArray | int
     m = n.model
-    objective = []
+    # Separate lists to distinguish CAPEX and OPEX terms
+    capex_terms = []
+    opex_terms = []
     is_quadratic = False
 
     if n._multi_invest:
@@ -164,7 +172,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         has_const = constant != 0
     if has_const:
         object_const = m.add_variables(constant, constant, name="objective_constant")
-        objective.append(-1 * object_const)
+        # Treat constant as part of CAPEX block
+        capex_terms.append(-1 * object_const)
 
     # Weightings
     weighting = n.snapshot_weightings.objective
@@ -193,7 +202,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             cost = cost * weight
 
             operation = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
-            objective.append((operation * cost).sum(dim=["name", "snapshot"]))
+            opex_terms.append((operation * cost).sum(dim=["name", "snapshot"]))
 
     # marginal cost quadratic
     for c_name, attr in lookup.query("marginal_cost_quadratic").index:
@@ -211,7 +220,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         operation = m[f"{c.name}-{attr}"].sel(
             snapshot=sns, name=cost.coords["name"].values
         )
-        objective.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
+        opex_terms.append((operation * operation * cost).sum(dim=["name", "snapshot"]))
         is_quadratic = True
 
     # stand-by cost
@@ -231,7 +240,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         status = m[f"{c.name}-status"].sel(
             snapshot=sns, name=stand_by_cost.coords["name"].values
         )
-        objective.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
+        opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -258,7 +267,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             weighted_cost = capital_cost * active
 
         caps = m[f"{c.name}-{attr}"].sel(name=ext_i)
-        objective.append((caps * weighted_cost).sum(dim=["name"]))
+        capex_terms.append((caps * weighted_cost).sum(dim=["name"]))
 
     # unit commitment
     keys = ["start_up", "shut_down"]  # noqa: F841
@@ -275,31 +284,93 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             continue
 
         var = m[f"{c.name}-{attr}"].sel(name=com_i)
-        objective.append((var * cost).sum(dim=["name", "snapshot"]))
+        opex_terms.append((var * cost).sum(dim=["name", "snapshot"]))
 
-    if not objective:
+    if not (capex_terms or opex_terms):
         msg = (
             "Objective function could not be created. "
             "Please make sure the components have assigned costs."
         )
         raise ValueError(msg)
 
-    terms = []
-    if n.has_scenarios:
-        # Apply scenario probabilities as weights to the objective
-        for s, p in n.scenario_weightings["weight"].items():
-            selected = [e.sel(scenario=s) for e in objective]
-            merged = merge(selected)
-            terms.append(merged * p)
-    else:
-        terms = objective
+    # Build expected CAPEX and expected OPEX (scenario-weighted if stochastic)
+    def _expected(exprs: list) -> Any:
+        if not exprs:
+            return 0
+        if n.has_scenarios:
+            terms = []
+            for s, p in n.scenario_weightings["weight"].items():
+                selected = [e.sel(scenario=s) for e in exprs]
+                # If quadratic terms exist, avoid merge (which is linear-only) and sum instead
+                merged = sum(selected) if is_quadratic else merge(selected)
+                terms.append(merged * p)
+            return sum(terms) if is_quadratic else merge(terms)
+        return sum(exprs) if is_quadratic else merge(exprs)
 
-    # Ensure we're returning the correct expression type (MGA compatibility)
-    m.objective = sum(terms) if is_quadratic else merge(terms)
+    expected_capex = _expected(capex_terms)
+    expected_opex = _expected(opex_terms)
+
+    # CVaR augmentation if enabled
+    if n.has_risk_preference:
+        rp = n.risk_preference
+        if rp is None:  # mypy type guard
+            msg = "risk_preference is None when has_risk_preference is True"
+            raise UnexpectedError(msg)
+        alpha = rp["alpha"]
+        omega = rp["omega"]
+
+        # Guard: quadratic OPEX would make CVaR constraints quadratic
+        if is_quadratic:
+            msg_q = (
+                "CVaR with quadratic operational costs yields quadratic constraints. "
+                "So a(s) >= OPEX(s) - theta becomes a quadratic inequality. "
+                "Remove/approximate quadratic costs (e.g. set 'marginal_cost_quadratic=0' "
+                "or use a piecewise-linear approximation)."
+            )
+            raise ValueError(msg_q)
+
+        # Create per-scenario OPEX expressions to use in constraints
+        scen_opex_exprs: dict[Any, Any] = {}
+        for s in n.scenarios:
+            scen_selected = [e.sel(scenario=s) for e in opex_terms]
+            scen_opex_exprs[s] = (
+                sum(scen_selected) if is_quadratic else merge(scen_selected)
+            )
+
+        # Retrieve CVaR auxiliary variables
+        a = m["CVaR-a"]
+        theta = m["CVaR-theta"]
+        cvar = m["CVaR"]
+
+        for s in n.scenarios:
+            lhs = a.sel(scenario=s) - scen_opex_exprs[s] + theta
+            m.add_constraints(lhs, ">=", 0, name=f"CVaR-excess-{s}")
+
+        inv_tail = 1.0 / (1.0 - alpha)
+        weighted_a = None
+        for s, p in n.scenario_weightings["weight"].items():
+            term = a.sel(scenario=s) * float(p)
+            weighted_a = term if weighted_a is None else weighted_a + term
+        if weighted_a is None:  # mypy type guard
+            msg = "No scenarios found in scenario_weightings"
+            raise UnexpectedError(msg)
+        m.add_constraints(theta + inv_tail * weighted_a, "<=", cvar, name="CVaR-def")
+
+        # Final objective: CAPEX + (1-omega) * E[OPEX] + omega * CVaR
+        obj_expr = expected_capex + (1 - omega) * expected_opex + omega * cvar
+    else:
+        # Deterministic or no risk: CAPEX + OPEX
+        obj_expr = expected_capex + expected_opex
+
+    # Set objective
+    m.objective = obj_expr
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
-    """Optimization accessor for building and solving models using linopy."""
+    """Optimization accessor for building and solving models using linopy.
+
+    <!-- md:guide network-optimization.md -->
+    """
 
     def __init__(self, n: Network) -> None:
         """Initialize the optimization accessor."""
@@ -315,7 +386,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         model_kwargs: dict | None = None,
         extra_functionality: Callable | None = None,
         assign_all_duals: bool = False,
-        solver_name: str = "highs",
+        solver_name: str | None = None,
         solver_options: dict | None = None,
         compute_infeasibilities: bool = False,
         **kwargs: Any,
@@ -329,7 +400,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.snapshots, defaults to n.snapshots
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`.
         transmission_losses : int, default 0
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation. A passed number will denote
@@ -337,8 +408,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             Defaults to 0, which ignores losses.
         linearized_unit_commitment : bool, default False
             Whether to optimise using the linearised unit commitment formulation or not.
-        model_kwargs: dict
+        model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
+            Defaults to module wide option (default: {}). See
+            `https://go.pypsa.org/options-params` for more information.
         extra_functionality : callable
             This function must take two arguments
             `extra_functionality(n, snapshots)` and is called after
@@ -348,10 +421,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
-        solver_name : str
-            Name of the solver to use.
-        solver_options : dict
+        solver_name : str, optional
+            Name of the solver to use. Defaults to module wide option
+            (default: 'highs'). See `https://go.pypsa.org/options-params` for more
+            information.
+        solver_options : dict, optional
             Keyword arguments used by the solver. Can also be passed via `**kwargs`.
+            Defaults to module wide option (default: {}). See
+            `https://go.pypsa.org/options-params` for more information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -363,18 +440,20 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         -------
         status : str
             The status of the optimization, either "ok" or one of the codes listed
-            in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            in [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html)
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
+        # Handle default parameters from options
         if model_kwargs is None:
-            model_kwargs = {}
-
+            model_kwargs = options.params.optimize.model_kwargs.copy()
+        if solver_name is None:
+            solver_name = options.params.optimize.solver_name
         if solver_options is None:
-            solver_options = {}
+            solver_options = options.params.optimize.solver_options.copy()
 
         n = self._n
         sns = as_index(n, snapshots, "snapshots")
@@ -428,7 +507,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.snapshots, defaults to n.snapshots
         multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`.
         transmission_losses : int, default: 0
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation.
@@ -468,6 +547,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
+
+        # CVaR auxiliary variables (only when stochastic + risk preference is set)
+        define_cvar_variables(n)
 
         if transmission_losses:
             for c in n.passive_branch_components:
@@ -547,7 +629,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
     def solve_model(
         self,
         extra_functionality: Callable | None = None,
-        solver_name: str = "highs",
+        solver_name: str | None = None,
         solver_options: dict | None = None,
         assign_all_duals: bool = False,
         **kwargs: Any,
@@ -562,10 +644,14 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             the model building is complete, but before it is sent to the
             solver. It allows the user to
             add/change constraints and add/change the objective function.
-        solver_name : str
-            Name of the solver to use.
-        solver_options : dict
-            Keyword arguments used by the solver. Can also be passed via `**kwargs`.
+        solver_name : str | None, default=None
+            Name of the solver to use. Defaults to module wide option
+            (default: 'highs'). See `https://go.pypsa.org/options-params` for more
+            information.
+        solver_options : dict | None, default=None
+            Keyword arguments used by the solver. Defaults to module wide option
+            (default: {}). Can also be passed via `**kwargs`. See
+            `https://go.pypsa.org/options-params` for more information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -578,15 +664,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         status : str
             The status of the optimization, either "ok" or one of the
             codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html)
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
+        # Handle default parameters from options
         if solver_options is None:
-            solver_options = {}
+            solver_options = options.params.optimize.solver_options.copy()
+        if solver_name is None:
+            solver_name = options.params.optimize.solver_name
 
         n = self._n
         if extra_functionality:
@@ -616,7 +705,28 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             if name == "objective_constant":
                 continue
 
+            # Skip auxiliary CVaR variables
+            if name.startswith("CVaR"):
+                continue
+
+            # Log variables without component-attribute naming
+            if "-" not in name:
+                # Custom variables might not contain a dash
+                logger.info(
+                    "The variable '%s' could not be mapped to the network component because it does not include the symbol '-'.",
+                    name,
+                )
+                continue
+
             _c_name, attr = name.split("-", 1)
+            if not hasattr(n.c, _c_name):
+                # Custom variables might correspond to a designated component
+                logger.info(
+                    "The variable '%s' could not be mapped to the network component because the component '%s' does not exist.",
+                    name,
+                    _c_name,
+                )
+                continue
             c = n.c[_c_name]
             df = _from_xarray(sol, c)
 
@@ -630,11 +740,13 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
                     for i in ["1"] + n.c.links.additional_ports:
                         i_eff = "" if i == "1" else i
-                        eff = get_as_dense(n, "Link", f"efficiency{i_eff}", sns)
+                        eff = n.get_switchable_as_dense(
+                            "Link", f"efficiency{i_eff}", sns
+                        )
                         _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
-                        ] = float(c.attrs.loc[f"p{i}", "default"])
+                        ] = float(c.defaults.loc[f"p{i}", "default"])
 
                 else:
                     _set_dynamic_data(n, c.name, attr, df)
@@ -783,7 +895,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # load
         if len(n.loads):
-            _set_dynamic_data(n, "Load", "p", get_as_dense(n, "Load", "p_set", sns))
+            _set_dynamic_data(
+                n, "Load", "p", n.get_switchable_as_dense("Load", "p_set", sns)
+            )
 
         # line losses
         if "Line-loss" in n.model.variables:
@@ -800,19 +914,18 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             ("Link", "p0", "bus0"),
             ("Link", "p1", "bus1"),
         ]
-        ca.extend(
-            [("Link", f"p{i}", f"bus{i}") for i in n.components.links.additional_ports]
-        )
+        ca.extend([("Link", f"p{i}", f"bus{i}") for i in n.c.links.additional_ports])
 
         def sign(c: str) -> int:
-            return n.static(c).sign if "sign" in n.static(c) else -1  # sign for 'Link'
+            return n.c[c].static.get("sign", -1)  # -1 is the sign for 'Link'
 
         n.c.buses.dynamic.p = (
             pd.concat(
                 [
-                    n.dynamic(c)[attr]
+                    n.c[c]
+                    .dynamic[attr]
                     .mul(sign(c))
-                    .rename(columns=n.static(c)[group], level="name")
+                    .rename(columns=n.c[c].static[group], level="name")
                     for c, attr, group in ca
                 ],
                 axis=1,
@@ -855,9 +968,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         """
         n = self._n
         for c, attr in nominal_attrs.items():
-            ext_i = n.c[c].extendables.difference(n.c[c].inactive_assets)
-            n.static(c).loc[ext_i, attr] = n.static(c).loc[ext_i, attr + "_opt"]
-            n.static(c)[attr + "_extendable"] = False
+            c = n.components[c]
+            ext_i = c.extendables.difference(c.inactive_assets)
+            c.static.loc[ext_i, attr] = c.static.loc[ext_i, attr + "_opt"]
+            c.static[attr + "_extendable"] = False
 
     def fix_optimal_dispatch(self) -> None:
         """Fix dispatch of all assets to optimized values.
@@ -866,9 +980,9 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         starting point for power flow calculation (`Network.pf`).
         """
         for c in self._n.one_port_components:
-            self._n.dynamic(c).p_set = self._n.dynamic(c).p
+            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p
         for c in self._n.controllable_branch_components:
-            self._n.dynamic(c).p_set = self._n.dynamic(c).p0
+            self._n.components[c].dynamic.p_set = self._n.components[c].dynamic.p0
 
     def add_load_shedding(
         self,

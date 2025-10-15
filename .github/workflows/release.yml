@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 name: Release
 
 on:
@@ -63,7 +67,7 @@ jobs:
 
     # Start of preparation script
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: 3.12
 
@@ -95,21 +99,24 @@ jobs:
       run: |
         import pypsa
         # ac-dc-meshed
-        n = pypsa.examples.ac_dc_meshed("examples/networks/ac-dc-meshed/ac-dc-meshed")
+        n = pypsa.Network("examples/networks/ac-dc-meshed/ac-dc-meshed")
         n.export_to_csv_folder("examples/networks/ac-dc-meshed/ac-dc-meshed")
         n.export_to_netcdf("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
         # storage-hvdc
-        n = pypsa.examples.storage_hvdc("examples/networks/storage-hvdc/storage-hvdc")
+        n = pypsa.Network("examples/networks/storage-hvdc/storage-hvdc")
         n.export_to_csv_folder("examples/networks/storage-hvdc/storage-hvdc")
         n.export_to_netcdf("examples/networks/storage-hvdc/storage-hvdc.nc")
         # scigrid-de
-        n = pypsa.examples.scigrid_de("examples/networks/scigrid-de/scigrid-de")
+        n = pypsa.Network("examples/networks/scigrid-de/scigrid-de")
         n.export_to_csv_folder("examples/networks/scigrid-de/scigrid-de")
         n.export_to_netcdf("examples/networks/scigrid-de/scigrid-de.nc")
         # model-energy
-        n = pypsa.examples.model_energy("examples/networks/model-energy/model-energy")
+        n = pypsa.Network("examples/networks/model-energy/model-energy")
         n.export_to_csv_folder("examples/networks/model-energy/model-energy")
         n.export_to_netcdf("examples/networks/model-energy/model-energy.nc")
+        # stochastic-network
+        n = pypsa.Network("examples/networks/stochastic-network/stochastic-network.nc")
+        n.export_to_netcdf("examples/networks/stochastic-network/stochastic-network.nc")
       shell: python
 
     # End of preparation script
@@ -120,7 +127,7 @@ jobs:
         git push origin --delete ${{ github.ref_name }}
 
     - name: Commit changes
-      uses: stefanzweifel/git-auto-commit-action@v6
+      uses: stefanzweifel/git-auto-commit-action@v7
       with:
         branch: ${{ env.BRANCH_NAME }}
         commit_message: '${{ env.PREPARATION_COMMIT }}'

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Tests for NetworkCollection statistics with various groupers."""
 
 import pandas as pd
@@ -304,7 +308,7 @@ def test_network_collection_custom_grouper(ac_dc_network_r):
 
     # Define custom grouper that groups by first letter of generator name
     def first_letter_grouper(n, c, **kwargs):
-        idx = n.static(c).index
+        idx = n.c[c].static.index
         # Handle MultiIndex case (NetworkCollection)
         if isinstance(idx, pd.MultiIndex):
             # Get the last level (component names)
@@ -321,7 +325,7 @@ def test_network_collection_custom_grouper(ac_dc_network_r):
 
     # Test with custom grouper using installed_capacity (no optimization needed)
     result = nc.statistics.installed_capacity(
-        comps=["Generator"], groupby=["carrier", "bus_carrier", "first_letter"]
+        components=["Generator"], groupby=["carrier", "bus_carrier", "first_letter"]
     )
     assert not result.empty
     assert "first_letter" in result.index.names
