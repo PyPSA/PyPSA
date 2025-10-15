@@ -297,10 +297,13 @@ def get_relevant_plot_values(plot_kwargs: dict, context: dict | None = None) -> 
 
     """
     index_names = context.get("index_names", []) if context else []
+    period_name = context.get("period_name") if context else None
     relevant_keys = {"x", "y", "color", "facet_col", "facet_row"}
     values = [
         v
         for k, v in plot_kwargs.items()
         if k in relevant_keys and v not in index_names and v is not None
     ]
+    if period_name is not None:
+        values = [value for value in values if value != period_name]
     return list(set(values))

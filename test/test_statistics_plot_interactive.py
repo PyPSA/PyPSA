@@ -6,6 +6,7 @@ import pytest
 
 import pypsa
 from pypsa.plot.statistics.charts import ChartGenerator
+from pypsa.plot.statistics.plotter import StatisticInteractivePlotter
 from pypsa.statistics.expressions import StatisticsAccessor
 
 
@@ -30,6 +31,17 @@ def collection_multiindex(ac_dc_network_r):
         [["2030", "2040", "2050"], ["low", "high"]], names=["year", "cost"]
     )
     return pypsa.NetworkCollection(networks, index=index)
+
+
+def _multi_period_sample() -> pd.DataFrame:
+    """Return deterministic sample data with investment period columns."""
+    index = pd.MultiIndex.from_product(
+        [["Generator"], ["wind"]], names=["component", "carrier"]
+    )
+    periods = pd.Index([2020, 2030], name="period")
+    data = pd.DataFrame([[1.0, 2.0]], index=index, columns=periods)
+    data.attrs = {"name": "Sample", "unit": "MW"}
+    return data
 
 
 def test_iplot_exists(ac_dc_network_r):
@@ -292,3 +304,25 @@ class TestAutoFaceting:
 
         # Check that _index_names is empty for single networks
         assert getattr(ac_dc_network_r, "_index_names", []) == []
+
+
+def test_interactive_multi_investment_grouping(ac_dc_network_r):
+    """Interactive bar charts should group investment periods side-by-side."""
+    network = ac_dc_network_r.copy()
+    network.investment_periods = pd.Index([2020, 2030], name="period")
+    sample = _multi_period_sample()
+
+    def fake_statistic(**kwargs):
+        return sample
+
+    fake_statistic.__name__ = "installed_capacity"
+
+    plotter = StatisticInteractivePlotter(fake_statistic, network)
+    fig = plotter.bar()
+
+    assert isinstance(fig, go.Figure)
+    assert fig.layout.barmode == "group"
+    trace_names = {
+        str(trace.name) for trace in fig.data if getattr(trace, "name", None)
+    }
+    assert trace_names == {"2020", "2030"}

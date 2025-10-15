@@ -9,7 +9,9 @@ from typing import TYPE_CHECKING, Any, Literal
 from pypsa.plot.statistics.charts import (
     CHART_TYPES,
     ChartGenerator,
+    _get_investment_periods,
     adjust_collection_bar_defaults,
+    prepare_bar_data,
 )
 from pypsa.plot.statistics.maps import MapPlotGenerator
 from pypsa.plot.statistics.schema import (
@@ -263,7 +265,11 @@ class StatisticPlotter:
         plotter = ChartGenerator(self._n)
 
         # Create context for schema application
-        context = {"index_names": self._n._index_names}
+        periods = _get_investment_periods(self._n)
+        context = {
+            "index_names": self._n._index_names,
+            "period_name": (periods.name or "period") if periods is not None else None,
+        }
 
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
@@ -293,6 +299,7 @@ class StatisticPlotter:
                 category=DeprecationWarning,
             )
             data = self._bound_method(**stats_kwargs)
+        data = prepare_bar_data(self._n, chart_type, data)
         if data.empty:
             msg = (
                 f"The statistics function '{stats_name}' returned an empty DataFrame. "
@@ -659,7 +666,11 @@ class StatisticInteractivePlotter:
         plotter = ChartGenerator(self._n)
 
         # Create context for schema application
-        context = {"index_names": self._n._index_names}
+        periods = _get_investment_periods(self._n)
+        context = {
+            "index_names": self._n._index_names,
+            "period_name": (periods.name or "period") if periods is not None else None,
+        }
 
         # Apply schema to plotting kwargs
         stats_name = self._bound_method.__name__
@@ -688,6 +699,7 @@ class StatisticInteractivePlotter:
                 category=DeprecationWarning,
             )
             data = self._bound_method(**stats_kwargs)
+        data = prepare_bar_data(self._n, chart_type, data)
         if data.empty:
             msg = (
                 f"The statistics function '{stats_name}' returned an empty DataFrame. "

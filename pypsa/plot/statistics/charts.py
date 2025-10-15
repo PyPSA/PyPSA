@@ -31,6 +31,25 @@ CHART_TYPES = [
 ]
 
 
+def _get_investment_periods(network: Any) -> pd.Index | None:
+    """Return investment periods for a network if multi-invest is enabled."""
+    try:
+        periods = network.investment_periods
+    except (AttributeError, NotImplementedError):
+        return None
+
+    if periods is None:
+        return None
+
+    if not isinstance(periods, pd.Index):
+        periods = pd.Index(periods)
+
+    if len(periods) <= 1:
+        return None
+
+    return periods
+
+
 def adjust_collection_bar_defaults(
     network: Any,
     chart_type: str,
@@ -38,32 +57,78 @@ def adjust_collection_bar_defaults(
     stacked: bool,
     order: Sequence[Any] | None,
 ) -> tuple[str | None, bool, Sequence[Any] | None]:
-    """Return adjusted defaults for bar charts on NetworkCollections.
-
-    For single-level indexed collections we prefer grouped bars by scenario instead
-    of auto-faceting. Multi-level indices keep the existing faceting behaviour.
-    """
+    """Return adjusted defaults for bar charts on collections and multi-period data."""
     if chart_type != "bar":
         return color, stacked, order
 
     index_names = getattr(network, "_index_names", [])
-    if len(index_names) != 1:
-        return color, stacked, order
+    index_name = index_names[0] if len(index_names) == 1 else None
 
-    index_name = index_names[0]
-    if not index_name:
-        return color, stacked, order
+    if index_name:
+        if color is None:
+            color = index_name
+        if stacked and color == index_name:
+            stacked = False
+        if order is None:
+            index_values = getattr(network, "index", None)
+            if index_values is not None:
+                order = list(index_values)
 
-    if color is None:
-        color = index_name
-    if stacked and color == index_name:
-        stacked = False
-    if order is None:
-        index_values = getattr(network, "index", None)
-        if index_values is not None:
-            order = list(index_values)
+    periods = _get_investment_periods(network)
+    if periods is not None:
+        period_name = periods.name or "period"
+        if color is None:
+            color = period_name
+        if stacked and color == period_name:
+            stacked = False
+        if order is None and color == period_name:
+            order = list(periods)
 
     return color, stacked, order
+
+
+def prepare_bar_data(
+    network: Any, chart_type: str, data: pd.Series | pd.DataFrame
+) -> pd.Series | pd.DataFrame:
+    """Return data with investment-period columns stacked for bar charts."""
+    if chart_type != "bar":
+        return data
+
+    periods = _get_investment_periods(network)
+    if periods is None:
+        return data
+
+    if isinstance(data, pd.Series):
+        period_name = periods.name or "period"
+        index_names = list(data.index.names) if data.index.names else []
+        if period_name in index_names:
+            return data
+        return data
+
+    # DataFrame case
+    columns = data.columns
+    period_name = periods.name or "period"
+
+    filled = data.fillna(0)
+
+    if isinstance(columns, pd.MultiIndex):
+        if period_name not in columns.names:
+            return data
+        stacked = filled.stack(level=period_name, future_stack=True)
+    elif (
+        columns.name == period_name
+        or columns.equals(periods)
+        or columns.astype(str).equals(periods.astype(str))
+    ):
+        stacked = filled.stack(future_stack=True)
+    else:
+        return data
+
+    if period_name in getattr(stacked.index, "names", []):
+        stacked = stacked.rename(lambda value: str(value), level=period_name)
+
+    stacked.attrs = data.attrs
+    return stacked
 
 
 def facet_iter(
