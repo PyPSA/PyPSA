@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import signal
 import tempfile
 from multiprocessing import get_context
@@ -185,17 +184,18 @@ def hash_mga(  # noqa: ANN201
 
     hash_str = json.dumps(hash_input, sort_keys=True).encode("utf-8")
     hash_value = hashlib.sha256(hash_str).hexdigest()[:8]
-    print(f"Hash value for MGA optimization: {hash_value}")  # noqa: T201
+    logger.info("Hash value for MGA optimization: %s", hash_value)
     return hash_value
 
 
-def reuse_results(
+def reuse_results(  # noqa: ANN201
     cache_dir: str,
     cache_key: str,
 ):
-    cache_file_directions = os.path.join(cache_dir, f"directions_{cache_key}.csv")
-    cache_file_coords = os.path.join(cache_dir, f"coords_{cache_key}.csv")
-    if os.path.exists(cache_file_directions) and os.path.exists(cache_file_coords):
+    """Check if cached results exist for a given cache key and load them if they exist."""
+    cache_file_directions = Path(cache_dir) / f"directions_{cache_key}.csv"
+    cache_file_coords = Path(cache_dir) / f"coords_{cache_key}.csv"
+    if cache_file_directions.exists() and cache_file_coords.exists():
         # Load cached results
         directions_df = pd.read_csv(cache_file_directions)
         coords_df = pd.read_csv(cache_file_coords)
@@ -205,14 +205,14 @@ def reuse_results(
             raise ValueError(msg)
         iter_nb = len(directions_df)
         if iter_nb > 0:
-            print(f"Found cached results for {iter_nb} directions.")
+            logger.info("Found cached results for %s directions.", iter_nb)
         # Drop duplicates from directions_df and coords_df.
         directions_df = directions_df.drop_duplicates().reset_index(drop=True)
         coords_df = coords_df.drop_duplicates().reset_index(drop=True)
         last_iter = directions_df.index[-1] if not directions_df.empty else -1
         return directions_df, coords_df, last_iter
     else:
-        print("No cached results found to re-use.")
+        logger.info("No cached results found to re-use.")
         return None, None, -1
 
 
@@ -598,8 +598,8 @@ class OptimizationAbstractMGAMixin:
         kwargs: dict,
     ) -> tuple[dict, pd.Series | None]:
         """Solve a single direction for parallel execution (helper method).
-        Caches the results in a temporary file.
 
+        Caches the results in a temporary file.
         This wrapper is necessary since the network is read from a file in
         this case; also simplifies the return argument management.
 
@@ -631,18 +631,14 @@ class OptimizationAbstractMGAMixin:
         else:
             if cache_dir is not None and cache_key is not None:
                 # saves results to cache
-                os.makedirs(cache_dir, exist_ok=True)
-                cache_directions_path = os.path.join(
-                    cache_dir, f"directions_{cache_key}.csv"
-                )
-                cache_coordinates_path = os.path.join(
-                    cache_dir, f"coords_{cache_key}.csv"
-                )
-                if os.path.exists(cache_directions_path):
+                Path(cache_dir).mkdir(parents=True, exist_ok=True)
+                cache_directions_path = Path(cache_dir) / f"directions_{cache_key}.csv"
+                cache_coordinates_path = Path(cache_dir) / f"coords_{cache_key}.csv"
+                if cache_directions_path.exists():
                     cache_directions = pd.read_csv(cache_directions_path)
                 else:
                     cache_directions = pd.DataFrame()
-                if os.path.exists(cache_coordinates_path):
+                if cache_coordinates_path.exists():
                     cache_coordinates = pd.read_csv(cache_coordinates_path)
                 else:
                     cache_coordinates = pd.DataFrame()
@@ -913,7 +909,9 @@ class OptimizationAbstractMGAMixin:
 
         """
         if cache_dir is None:
-            print("No cache directory provided. Running optimizations without caching.")
+            logger.info(
+                "No cache directory provided. Running optimizations without caching."
+            )
             return self.optimize_mga_in_multiple_directions(
                 directions=directions,
                 dimensions=dimensions,
@@ -926,14 +924,14 @@ class OptimizationAbstractMGAMixin:
             )
         else:
             # Ensure cache directory exists
-            os.makedirs(cache_dir, exist_ok=True)
+            Path(cache_dir).mkdir(parents=True, exist_ok=True)
             # Check if cached results already exist for these parameters.
             cache_key = hash_mga(self._n, directions, dimensions, slack)
             cached_directions, cached_coordinates, last_iter = reuse_results(
                 cache_dir=cache_dir, cache_key=cache_key
             )
             if last_iter < 0:
-                print(
+                logger.info(
                     "No previous iterations found. Starting optimizations from scratch."
                 )
                 cached_directions = pd.DataFrame()
@@ -941,7 +939,7 @@ class OptimizationAbstractMGAMixin:
                 if isinstance(directions, pd.DataFrame):
                     directions = list(directions.T.to_dict().values())
             else:
-                print(f"Found cached results for {last_iter + 1} directions.")
+                logger.info("Found cached results for %s directions.", last_iter + 1)
                 # First round the directions to avoid issues with floating point precision.
                 directions_rounded = directions.round(decimals=3)
                 cached_directions_rounded = cached_directions.round(decimals=3)
@@ -953,11 +951,15 @@ class OptimizationAbstractMGAMixin:
                 ]
                 cached_results = (cached_directions, cached_coordinates)
                 if filtered_directions.empty:
-                    print("All directions already cached. Returning cached results.")
+                    logger.info(
+                        "All directions already cached. Returning cached results."
+                    )
                     return cached_results
                 else:
-                    print(
-                        f"Continuing optimization from iteration {last_iter + 1} with {len(filtered_directions)} remaining directions."
+                    logger.info(
+                        "Continuing optimization from iteration %s with %s remaining directions.",
+                        last_iter + 1,
+                        len(filtered_directions),
                     )
                     if isinstance(filtered_directions, pd.DataFrame):
                         directions = list(filtered_directions.T.to_dict().values())
