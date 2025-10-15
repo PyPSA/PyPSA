@@ -38,7 +38,11 @@ CHART_TYPES = [
 
 def _get_investment_periods(network: Any) -> pd.Index | None:
     """Return investment periods for a network if multi-invest is enabled."""
-    periods = network.periods
+    try:
+        periods = network.periods
+    except (AttributeError, NotImplementedError):
+        # NetworkCollection and some other types don't support periods
+        return None
 
     if periods is None or periods.empty:
         return None
