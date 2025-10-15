@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 name: Test models
 
 on:
@@ -117,99 +121,100 @@ jobs:
           results
         retention-days: 3
 
-  test-pypsa-de:
-    name: PyPSA-DE
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-        - master
-        # - latest
+# Temporarily disabled until PyPSA-DE issues are resolved. This is not a problem of PyPSA.
+  # test-pypsa-de:
+  #   name: PyPSA-DE
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       version:
+  #       - master
+  #       # - latest
 
-    defaults:
-      run:
-        shell: bash -l {0}
+  #   defaults:
+  #     run:
+  #       shell: bash -l {0}
 
-    steps:
-    - uses: actions/checkout@v5
-      with:
-        repository: PyPSA/pypsa-de
-        ref: main
+  #   steps:
+  #   - uses: actions/checkout@v5
+  #     with:
+  #       repository: PyPSA/pypsa-de
+  #       ref: main
 
-    - name: Check out latest release
-      if: matrix.version == 'latest'
-      run: |
-        git fetch --tags
-        latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
-        git checkout $latest_tag
+  #   - name: Check out latest release
+  #     if: matrix.version == 'latest'
+  #     run: |
+  #       git fetch --tags
+  #       latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+  #       git checkout $latest_tag
 
-    - name: Setup cache keys
-      run: |
-        echo "WEEK=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
+  #   - name: Setup cache keys
+  #     run: |
+  #       echo "WEEK=$(date +'%Y%U')" >> $GITHUB_ENV # data and cutouts
 
-    # Only run check if package is not pinned
-    - name: Check if inhouse package is pinned
-      run: |
-        grep_line=$(grep -- '- pypsa' envs/environment.yaml)
-        if [[ $grep_line == *"<"* || $grep_line == *"=="* ]]; then
-            echo "pinned=true" >> $GITHUB_ENV
-        else
-            echo "pinned=false" >> $GITHUB_ENV
-        fi
+  #   # Only run check if package is not pinned
+  #   - name: Check if inhouse package is pinned
+  #     run: |
+  #       grep_line=$(grep -- '- pypsa' envs/environment.yaml)
+  #       if [[ $grep_line == *"<"* || $grep_line == *"=="* ]]; then
+  #           echo "pinned=true" >> $GITHUB_ENV
+  #       else
+  #           echo "pinned=false" >> $GITHUB_ENV
+  #       fi
 
-    - uses: actions/cache@v4
-      if: env.pinned == 'false'
-      with:
-        path: |
-          data
-          cutouts
-          resources/ariadne_database.csv
-        key: data-cutouts-pypsa-de-${{ env.WEEK }}
+  #   - uses: actions/cache@v4
+  #     if: env.pinned == 'false'
+  #     with:
+  #       path: |
+  #         data
+  #         cutouts
+  #         resources/ariadne_database.csv
+  #       key: data-cutouts-pypsa-de-${{ env.WEEK }}
 
-    - uses: conda-incubator/setup-miniconda@v3
-      if: env.pinned == 'false'
-      with:
-        miniforge-version: latest
-        activate-environment: pypsa-de
-        channel-priority: strict
+  #   - uses: conda-incubator/setup-miniconda@v3
+  #     if: env.pinned == 'false'
+  #     with:
+  #       miniforge-version: latest
+  #       activate-environment: pypsa-de
+  #       channel-priority: strict
 
-    - name: Cache Conda env
-      if: env.pinned == 'false'
-      uses: actions/cache@v4
-      with:
-        path: ${{ env.CONDA }}/envs
-        key: conda-pypsa-de-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
-      id: cache-env
+  #   - name: Cache Conda env
+  #     if: env.pinned == 'false'
+  #     uses: actions/cache@v4
+  #     with:
+  #       path: ${{ env.CONDA }}/envs
+  #       key: conda-pypsa-de-${{ env.WEEK }}-${{ hashFiles('envs/linux-64.lock.yaml') }}
+  #     id: cache-env
 
-    - name: Update environment
-      if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
-      run: |
-        conda env update -n pypsa-de -f envs/linux-64.lock.yaml
-        echo "Run conda list" && conda list
+  #   - name: Update environment
+  #     if: env.pinned == 'false' && steps.cache-env.outputs.cache-hit != 'true'
+  #     run: |
+  #       conda env update -n pypsa-de -f envs/linux-64.lock.yaml
+  #       echo "Run conda list" && conda list
 
-    - name: Install package from ref
-      if: env.pinned == 'false'
-      run: |
-        python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  #   - name: Install package from ref
+  #     if: env.pinned == 'false'
+  #     run: |
+  #       python -m pip install git+https://github.com/${{ github.repository }}@${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
-    - name: Run snakemake test workflows
-      if: env.pinned == 'false'
-      run: |
-        make test
+  #   - name: Run snakemake test workflows
+  #     if: env.pinned == 'false'
+  #     run: |
+  #       make test
 
-    - name: Run unit tests
-      if: env.pinned == 'false'
-      run: |
-        make unit-test
+  #   - name: Run unit tests
+  #     if: env.pinned == 'false'
+  #     run: |
+  #       make unit-test
 
-    - name: Upload artifacts
-      if: env.pinned == 'false'
-      uses: actions/upload-artifact@v4
-      with:
-        name: results-pypsa-de-${{ matrix.version }}
-        path: |
-          logs
-          .snakemake/log
-          results
-        retention-days: 3
+  #   - name: Upload artifacts
+  #     if: env.pinned == 'false'
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: results-pypsa-de-${{ matrix.version }}
+  #       path: |
+  #         logs
+  #         .snakemake/log
+  #         results
+  #       retention-days: 3

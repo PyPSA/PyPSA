@@ -1,4 +1,6 @@
-"""Test carrier functionality."""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 from pypsa import Network
 

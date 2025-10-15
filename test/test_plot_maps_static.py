@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import os
 
 import matplotlib.pyplot as plt
@@ -61,20 +65,20 @@ def test_plot_on_axis_w_geomap(ac_dc_network):
 def test_plot_bus_circles(ac_dc_network):
     n = ac_dc_network
 
-    bus_sizes = n.c.generators.static.groupby(["bus", "carrier"]).p_nom.mean()
-    bus_sizes[:] = 1
-    bus_colors = n.c.carriers.static.color
-    n.plot.map(bus_sizes=bus_sizes, bus_colors=bus_colors, geomap=False)
+    bus_size = n.c.generators.static.groupby(["bus", "carrier"]).p_nom.mean()
+    bus_size[:] = 1
+    bus_color = n.c.carriers.static.color
+    n.plot.map(bus_size=bus_size, bus_color=bus_color, geomap=False)
     plt.close()
 
     # Retrieving the colors from carriers also should work
-    n.c.carriers.static["color"] = bus_colors
-    n.plot.map(bus_sizes=bus_sizes)
+    n.c.carriers.static["color"] = bus_color
+    n.plot.map(bus_size=bus_size)
     plt.close()
 
     # Retrieving the colors from carriers also should work
-    n.c.carriers.static["color"] = bus_colors
-    n.plot.map(bus_sizes=bus_sizes)
+    n.c.carriers.static["color"] = bus_color
+    n.plot.map(bus_size=bus_size)
     plt.close()
 
 
@@ -89,10 +93,10 @@ def test_plot_split_circles(ac_dc_network):
         .groupby([n.c.loads.static.bus, n.c.loads.static.carrier])
         .max()
     )
-    bus_sizes = pd.concat((gen_sizes, load_sizes)) / 1e3
-    bus_colors = n.c.carriers.static.color
+    bus_size = pd.concat((gen_sizes, load_sizes)) / 1e3
+    bus_color = n.c.carriers.static.color
     n.plot.map(
-        bus_sizes=bus_sizes, bus_colors=bus_colors, bus_split_circles=True, geomap=False
+        bus_size=bus_size, bus_color=bus_color, bus_split_circle=True, geomap=False
     )
     plt.close()
 
@@ -103,7 +107,7 @@ def test_plot_with_bus_cmap(ac_dc_network):
     buses = n.c.buses.static.index
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(buses)), buses)
-    n.plot.map(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
+    n.plot.map(bus_color=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
 
@@ -113,19 +117,19 @@ def test_plot_with_line_cmap(ac_dc_network):
     lines = n.c.lines.static.index
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(lines)), lines)
-    n.plot.map(line_colors=colors, line_cmap="coolwarm", geomap=False)
+    n.plot.map(line_color=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
 
 def test_plot_alpha(ac_dc_network):
     n = ac_dc_network
 
-    bus_sizes = n.c.generators.static.groupby(["bus", "carrier"]).p_nom.mean()
-    bus_sizes[:] = 1
-    bus_colors = n.c.carriers.static.color
+    bus_size = n.c.generators.static.groupby(["bus", "carrier"]).p_nom.mean()
+    bus_size[:] = 1
+    bus_color = n.c.carriers.static.color
     n.plot.map(
-        bus_sizes=bus_sizes,
-        bus_colors=bus_colors,
+        bus_size=bus_size,
+        bus_color=bus_color,
         geomap=False,
         bus_alpha=0.5,
         line_alpha=0.5,
@@ -134,8 +138,8 @@ def test_plot_alpha(ac_dc_network):
     plt.close()
 
     # Retrieving the colors from carriers also should work
-    n.c.carriers.static["color"] = bus_colors
-    n.plot.map(bus_sizes=bus_sizes)
+    n.c.carriers.static["color"] = bus_color
+    n.plot.map(bus_size=bus_size)
     plt.close()
 
 
@@ -145,7 +149,7 @@ def test_plot_line_subset(ac_dc_network):
     lines = n.c.lines.static.index[:2]
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(lines)), lines)
-    n.plot.map(line_colors=colors, line_cmap="coolwarm", geomap=False)
+    n.plot.map(line_color=colors, line_cmap="coolwarm", geomap=False)
     plt.close()
 
 
@@ -155,15 +159,15 @@ def test_plot_bus_subset(ac_dc_network):
     buses = n.c.buses.static.index[:2]
     rng = np.random.default_rng()  # Create a random number generator
     colors = pd.Series(rng.random(size=len(buses)), buses)
-    n.plot.map(bus_colors=colors, bus_cmap="coolwarm", geomap=False)
+    n.plot.map(bus_color=colors, bus_cmap="coolwarm", geomap=False)
     plt.close()
 
-    bus_sizes = n.c.generators.static.groupby(["bus", "carrier"]).p_nom.mean()[:3]
-    bus_sizes[:] = 1
-    bus_colors = n.c.carriers.static.color
+    bus_size = n.c.generators.static.groupby(["bus", "carrier"]).p_nom.mean()[:3]
+    bus_size[:] = 1
+    bus_color = n.c.carriers.static.color
     n.plot.map(
-        bus_sizes=bus_sizes,
-        bus_colors=bus_colors,
+        bus_size=bus_size,
+        bus_color=bus_color,
         geomap=False,
         bus_alpha=0.5,
         line_alpha=0.5,
@@ -177,26 +181,26 @@ def test_plot_from_statistics(ac_dc_network):
     bus_carrier = "AC"
 
     grouper = groupers["bus", "carrier"]
-    bus_sizes = n.statistics.installed_capacity(
+    bus_size = n.statistics.installed_capacity(
         bus_carrier=bus_carrier, groupby=grouper, nice_names=False
     )
-    bus_sizes = bus_sizes.Generator
+    bus_size = bus_size.Generator
 
     transmission_branches = get_transmission_branches(n, bus_carrier=bus_carrier)
-    branch_widths = n.statistics.installed_capacity(groupby=False).loc[
+    branch_width = n.statistics.installed_capacity(groupby=False).loc[
         transmission_branches
     ]
 
     bus_scale = 5e-6
     branch_scale = 1e-4
-    bus_colors = n.c.carriers.static.color
+    bus_color = n.c.carriers.static.color
 
     n.plot.map(
-        bus_sizes=bus_sizes * bus_scale,
+        bus_size=bus_size * bus_scale,
         bus_alpha=0.8,
-        bus_colors=bus_colors,
-        link_widths=branch_widths.get("Link", 0) * branch_scale,
-        line_widths=branch_widths.get("Line", 0) * branch_scale,
+        bus_color=bus_color,
+        link_width=branch_width.get("Link", 0) * branch_scale,
+        line_width=branch_width.get("Line", 0) * branch_scale,
     )
     plt.close()
 
@@ -234,7 +238,7 @@ def test_plot_map_line_colorbar(ac_dc_network):
     norm = plt.Normalize(vmin=0, vmax=10)
 
     n.plot.map(
-        line_colors=n.c.lines.static.index.astype(int),
+        line_color=n.c.lines.static.index.astype(int),
         line_cmap="viridis",
         line_cmap_norm=norm,
     )
@@ -247,7 +251,7 @@ def test_plot_map_bus_colorbar(ac_dc_network):
 
     norm = plt.Normalize(vmin=0, vmax=10)
 
-    n.plot.map(bus_colors=n.c.buses.static.x, bus_cmap="viridis", bus_cmap_norm=norm)
+    n.plot.map(bus_color=n.c.buses.static.x, bus_cmap="viridis", bus_cmap_norm=norm)
 
     plt.colorbar(plt.cm.ScalarMappable(cmap="viridis", norm=norm), ax=plt.gca())
 

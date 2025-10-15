@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Generators components module."""
 
 from __future__ import annotations
@@ -30,7 +34,7 @@ def create_docstring_parameters(component_name: str) -> str:
 
     docstring = (
         "kwargs : Any\n"
-        "    Component attributes to add. See Additinal Parameters for list of default"
+        "    Component attributes to add. See Other Parameters for list of default"
         "    attributes but any attribute could be added.\n"
         "\n"
         "Other Parameters\n"

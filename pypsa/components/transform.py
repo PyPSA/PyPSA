@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components transform module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.
@@ -25,8 +29,8 @@ logger = logging.getLogger(__name__)
 class ComponentsTransformMixin:
     """Mixin class for components descriptors methods.
 
-    Class only inherits to [pypsa.Components][] and should not be used directly.
-    All attributes and methods can be used within any Components instance.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
     """
 
     static: pd.DataFrame
@@ -45,6 +49,8 @@ class ComponentsTransformMixin:
     ) -> pd.Index | None:
         """Add new components.
 
+        <!-- md:badge-version v0.33.0 -->
+
         Handles addition of single and multiple components along with their attributes.
         Pass a list of names to add multiple components at once or pass a single name
         to add a single component.
@@ -60,7 +66,7 @@ class ComponentsTransformMixin:
         dimension is names.
 
         Any attributes which are not specified will be given the default
-        value from :doc:`/user-guide/components`.
+        value from <!-- md:guide components.md -->.
 
         Parameters
         ----------
@@ -74,7 +80,7 @@ class ComponentsTransformMixin:
             ignored.
         return_names : bool | None, default=None
             Whether to return the names of the new components. Defaults to module wide
-            option (default: False). See https://go.pypsa.org/options-params for more
+            option (default: False). See `https://go.pypsa.org/options-params` for more
             information.
         kwargs : Any
             Component attributes, e.g. x=[0.1, 0.2], can be list, pandas.Series
@@ -83,8 +89,8 @@ class ComponentsTransformMixin:
         Returns
         -------
         new_names : pandas.index or None
-            Names of new components (including suffix) if return_names is True,
-            otherwise None
+            Names of new components (including suffix) if return_names is `True`,
+            otherwise `None`.
 
         Examples
         --------
@@ -139,7 +145,7 @@ class ComponentsTransformMixin:
 
         See Also
         --------
-        [pypsa.Network.add][] : Add components to the network instance.
+        [pypsa.Network.add][]
 
         """
         if not self.attached:

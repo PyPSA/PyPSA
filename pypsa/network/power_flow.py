@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Power flow functionality."""
 
 from __future__ import annotations
@@ -246,7 +250,7 @@ def allocate_series_dataframes(n: Network, series: dict) -> None:
         for attr in attributes:
             dynamic[attr] = dynamic[attr].reindex(
                 columns=static.index,
-                fill_value=n.components[component]["attrs"].at[attr, "default"],
+                fill_value=n.components[component]["defaults"].at[attr, "default"],
             )
 
 
@@ -314,9 +318,9 @@ def sub_network_pf_singlebus(
     skip_pre: bool, default False
         Skip the preliminary steps of computing topology, calculating dependent values and finding bus controls.
     distribute_slack : bool, default False
-        If ``True``, distribute the slack power across generators proportional to generator dispatch by default
-        or according to the distribution scheme provided in ``slack_weights``.
-        If ``False`` only the slack generator takes up the slack.
+        If `True`, distribute the slack power across generators proportional to generator dispatch by default
+        or according to the distribution scheme provided in `slack_weights`.
+        If `False` only the slack generator takes up the slack.
     slack_weights : pandas.Series|str, default 'p_set'
         Distribution scheme describing how to determine the fraction of the total slack power
         a bus of the sub-network takes up. Default is to distribute proportional to generator dispatch
@@ -324,7 +328,7 @@ def sub_network_pf_singlebus(
         Custom weights can be provided via a pandas.Series/dict
         that has the generators of the single bus as index/keys.
     linear : bool, default False
-        If ``True``, use linear power flow instead of non-linear power flow.
+        If `True`, use linear power flow instead of non-linear power flow.
 
     """
     sns = as_index(sub_network.n, snapshots, "snapshots")
@@ -703,8 +707,8 @@ def network_batch_lpf(n: Network, snapshots: Sequence | None = None) -> None:
 class NetworkPowerFlowMixin(_NetworkABC):
     """Mixin class for network power flow methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     def calculate_dependent_values(self) -> None:
@@ -825,20 +829,20 @@ class NetworkPowerFlowMixin(_NetworkABC):
         use_seed : bool, default False
             Use a seed for the initial guess for the Newton-Raphson algorithm.
         distribute_slack : bool, default False
-            If ``True``, distribute the slack power across generators proportional to generator dispatch by default
-            or according to the distribution scheme provided in ``slack_weights``.
-            If ``False`` only the slack generator takes up the slack.
+            If `True`, distribute the slack power across generators proportional to generator dispatch by default
+            or according to the distribution scheme provided in `slack_weights`.
+            If `alse` only the slack generator takes up the slack.
         slack_weights : dict|str, default 'p_set'
             Distribution scheme describing how to determine the fraction of the total slack power
             (of each sub network individually) a bus of the sub-network takes up.
             Default is to distribute proportional to generator dispatch ('p_set').
             Another option is to distribute proportional to (optimised) nominal capacity ('p_nom' or 'p_nom_opt').
             Custom weights can be specified via a dictionary that has a key for each
-            sub-network index (``n.sub_networks.index``) and a
+            sub-network index (`n.sub_networks.index`) and a
             pandas.Series/dict with buses or generators of the
             corresponding sub-network as index/keys.
             When specifying custom weights with buses as index/keys the slack power of a bus is distributed
-            among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
+            among its generators in proportion to their nominal capacity (`p_nom`) if given, otherwise evenly.
 
         Returns
         -------
@@ -939,8 +943,8 @@ class NetworkPowerFlowMixin(_NetworkABC):
 class SubNetworkPowerFlowMixin:
     """Mixin class for sub-network power flow methods.
 
-    Class only inherits to [pypsa.SubNetwork][] and should not be used directly.
-    All attributes and methods can be used within any SubNetwork instance.
+    Class inherits to [pypsa.SubNetwork][]. All attributes and methods can be used
+    within any SubNetwork instance.
     """
 
     # Type Hints
@@ -1320,9 +1324,9 @@ class SubNetworkPowerFlowMixin:
         use_seed : bool, default False
             Use a seed for the initial guess for the Newton-Raphson algorithm.
         distribute_slack : bool, default False
-            If ``True``, distribute the slack power across generators proportional to generator dispatch by default
-            or according to the distribution scheme provided in ``slack_weights``.
-            If ``False`` only the slack generator takes up the slack.
+            If `True`, distribute the slack power across generators proportional to generator dispatch by default
+            or according to the distribution scheme provided in `slack_weights`.
+            If `False` only the slack generator takes up the slack.
         slack_weights : pandas.Series|str, default 'p_set'
             Distribution scheme describing how to determine the fraction of the total slack power
             a bus of the sub-network takes up. Default is to distribute proportional to generator dispatch
@@ -1330,7 +1334,7 @@ class SubNetworkPowerFlowMixin:
             Custom weights can be provided via a pandas.Series/dict
             that has the buses or the generators of the sub-network as index/keys.
             When using custom weights with buses as index/keys the slack power of a bus is distributed
-            among its generators in proportion to their nominal capacity (``p_nom``) if given, otherwise evenly.
+            among its generators in proportion to their nominal capacity (`p_nom`) if given, otherwise evenly.
 
         Returns
         -------

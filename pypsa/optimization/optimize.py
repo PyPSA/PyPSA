@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Build optimisation problems from PyPSA networks with Linopy."""
 
 from __future__ import annotations
@@ -363,7 +367,10 @@ def define_objective(n: Network, sns: pd.Index) -> None:
 
 
 class OptimizationAccessor(OptimizationAbstractMixin):
-    """Optimization accessor for building and solving models using linopy."""
+    """Optimization accessor for building and solving models using linopy.
+
+    <!-- md:guide network-optimization.md -->
+    """
 
     def __init__(self, n: Network) -> None:
         """Initialize the optimization accessor."""
@@ -393,7 +400,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.snapshots, defaults to n.snapshots
         multi_investment_periods : bool, default False
             Whether to optimise as a single investment period or to optimise in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`.
         transmission_losses : int, default 0
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation. A passed number will denote
@@ -404,7 +411,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         model_kwargs : dict, optional
             Keyword arguments used by `linopy.Model`, such as `solver_dir` or `chunk`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         extra_functionality : callable
             This function must take two arguments
             `extra_functionality(n, snapshots)` and is called after
@@ -416,12 +423,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             have a designated place in the network.
         solver_name : str, optional
             Name of the solver to use. Defaults to module wide option
-            (default: 'highs'). See https://go.pypsa.org/options-params for more
+            (default: 'highs'). See `https://go.pypsa.org/options-params` for more
             information.
         solver_options : dict, optional
             Keyword arguments used by the solver. Can also be passed via `**kwargs`.
             Defaults to module wide option (default: {}). See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         compute_infeasibilities : bool, default False
             Whether to compute and print Irreducible Inconsistent Subsystem (IIS) in case
             of an infeasible solution. Requires Gurobi.
@@ -433,11 +440,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         -------
         status : str
             The status of the optimization, either "ok" or one of the codes listed
-            in https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            in [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html)
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
         # Handle default parameters from options
@@ -500,7 +507,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             n.snapshots, defaults to n.snapshots
         multi_investment_periods : bool, default: False
             Whether to optimise as a single investment period or to optimize in multiple
-            investment periods. Then, snapshots should be a ``pd.MultiIndex``.
+            investment periods. Then, snapshots should be a `pd.MultiIndex`.
         transmission_losses : int, default: 0
             Whether an approximation of transmission losses should be included
             in the linearised power flow formulation.
@@ -639,12 +646,12 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             add/change constraints and add/change the objective function.
         solver_name : str | None, default=None
             Name of the solver to use. Defaults to module wide option
-            (default: 'highs'). See https://go.pypsa.org/options-params for more
+            (default: 'highs'). See `https://go.pypsa.org/options-params` for more
             information.
         solver_options : dict | None, default=None
             Keyword arguments used by the solver. Defaults to module wide option
             (default: {}). Can also be passed via `**kwargs`. See
-            https://go.pypsa.org/options-params for more information.
+            `https://go.pypsa.org/options-params` for more information.
         assign_all_duals : bool, default False
             Whether to assign all dual values or only those that already
             have a designated place in the network.
@@ -657,11 +664,11 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         status : str
             The status of the optimization, either "ok" or one of the
             codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html
+            [linopy.constants.SolverStatus](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.SolverStatus.html)
         condition : str
             The termination condition of the optimization, either
             "optimal" or one of the codes listed in
-            https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html
+            [linopy.constants.TerminationCondition](https://linopy.readthedocs.io/en/latest/generated/linopy.constants.TerminationCondition.html)
 
         """
         # Handle default parameters from options
@@ -739,7 +746,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
                         _set_dynamic_data(n, c.name, f"p{i}", -df * eff)
                         c.dynamic[f"p{i}"].loc[
                             sns, c.static.index[c.static[f"bus{i}"] == ""]
-                        ] = float(c.attrs.loc[f"p{i}", "default"])
+                        ] = float(c.defaults.loc[f"p{i}", "default"])
 
                 else:
                     _set_dynamic_data(n, c.name, attr, df)

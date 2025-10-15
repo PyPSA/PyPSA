@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Schema for plotting statistics in PyPSA.
 
 This module defines default parameters for different statistics/plot combinations.
@@ -34,7 +38,7 @@ DEFAULTS = {
     "color": "carrier",
     "height": 4,
     "aspect": 1,
-    "bus_split_circles": False,
+    "bus_split_circle": False,
     "transmission_flow": False,
     "draw_legend_arrows": False,
     "draw_legend_lines": True,
@@ -114,7 +118,7 @@ STAT_OVERRIDES: dict = {
         "line": {"x": "snapshot"},
         "area": {"x": "snapshot", "color": "carrier"},
         "map": {
-            "bus_split_circles": True,
+            "bus_split_circle": True,
             "transmission_flow": True,
             "draw_legend_arrows": True,
             "draw_legend_lines": False,

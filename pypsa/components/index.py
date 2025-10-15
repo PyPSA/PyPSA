@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Components index module.
 
 Contains single mixin class which is used to inherit to [pypsa.Components][] class.
@@ -26,14 +30,19 @@ logger = logging.getLogger(__name__)
 class ComponentsIndexMixin(_ComponentsABC):
     """Mixin class for components index methods.
 
-    Class only inherits to [pypsa.Components][] and should not be used directly.
-    All attributes and methods can be used within any Components instance.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
 
     """
 
     @property
     def names(self) -> pd.Series:
         """Get component names.
+
+        <!-- md:badge-version v1.0.0 -->
+
+        The names are corresponding to [`c.static.index`][pypsa.Components.static] for
+        non stochastic networks. For stochastic networks the index will be multi-indexed.
 
         Returns
         -------
@@ -55,8 +64,8 @@ class ComponentsIndexMixin(_ComponentsABC):
     def component_names(self) -> pd.Series:
         """Get component names.
 
-        .. deprecated:: 1.0.0
-            Use :attr:`names` instead.
+        !!! warning "Deprecated in <!-- md:badge-version v1.0.0 -->"
+            Use [`names`][pypsa.Components.names] instead.
 
         Returns
         -------
@@ -77,10 +86,11 @@ class ComponentsIndexMixin(_ComponentsABC):
     def snapshots(self) -> pd.Index | pd.MultiIndex:
         """Snapshots of the network.
 
+        <!-- md:badge-version v0.34.0 -->
+
         See Also
         --------
-        [pypsa.Network.snapshots][] :
-            Snapshots of the network.
+        [pypsa.Network.snapshots][]
 
         """
         return self.n_save.snapshots
@@ -89,10 +99,11 @@ class ComponentsIndexMixin(_ComponentsABC):
     def timesteps(self) -> pd.Index:
         """Time steps of the network.
 
+        <!-- md:badge-version v0.34.0 -->
+
         See Also
         --------
-        [pypsa.Network.timesteps][] :
-            Time steps of the network.
+        [pypsa.Network.timesteps][]
 
         """
         return self.n_save.timesteps
@@ -101,10 +112,11 @@ class ComponentsIndexMixin(_ComponentsABC):
     def investment_periods(self) -> pd.Index:
         """Investment periods of the network.
 
+        <!-- md:badge-version v0.34.0 -->
+
         See Also
         --------
-        [pypsa.Network.investment_periods][] :
-            Investment periods of the network.
+        [pypsa.Network.investment_periods][]
 
         """
         return self.n_save.investment_periods
@@ -113,10 +125,11 @@ class ComponentsIndexMixin(_ComponentsABC):
     def has_investment_periods(self) -> bool:
         """Indicator whether network has investment periods.
 
+        <!-- md:badge-version v0.34.0 -->
+
         See Also
         --------
-        [pypsa.Network.has_investment_periods][] :
-            Indicator whether network has investment periods.
+        [pypsa.Network.has_investment_periods][]
 
         """
         return self.n_save.has_investment_periods
@@ -125,25 +138,35 @@ class ComponentsIndexMixin(_ComponentsABC):
     def periods(self) -> pd.Index:
         """Periods of the network.
 
+        <!-- md:badge-version v0.34.0 -->
+
         See Also
         --------
-        [pypsa.Network.periods][] :
-            Periods of the network.
+        [pypsa.Network.periods][]
 
         """
         return self.n_save.periods
 
     @property
     def has_periods(self) -> bool:
-        """Investment periods of the network."""
+        """Investment periods of the network.
+
+        <!-- md:badge-version v0.34.0 -->
+        """
         return self.n_save.has_periods
 
     @property
     def scenarios(self) -> pd.Index:
-        """Scenarios of networks."""
+        """Scenarios of networks.
+
+        <!-- md:badge-version v1.0.0 -->
+        """
         return self.n_save.scenarios
 
     @property
     def has_scenarios(self) -> bool:
-        """Boolean indicating if the network has scenarios defined."""
+        """Boolean indicating if the network has scenarios defined.
+
+        <!-- md:badge-version v1.0.0 -->
+        """
         return len(self.scenarios) > 0

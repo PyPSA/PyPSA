@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Descriptors for component attributes."""
 
 from __future__ import annotations
@@ -13,7 +17,7 @@ logger = logging.getLogger(__name__)
 class Dict(dict):
     """Subclass of dict, which allows to use attribute syntax to get and set items.
 
-    Stripped down from addict https://github.com/mewwts/addict/ .
+    Stripped down from addict `https://github.com/mewwts/addict/`.
     """
 
     def __copy__(self) -> Dict:  # e.g. copy.copy()

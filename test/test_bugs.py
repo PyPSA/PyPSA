@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -33,11 +37,11 @@ def test_890():
     n.calculate_dependent_values()
 
     n.c.lines.static = n.c.lines.static.reindex(
-        columns=n.components["Line"]["attrs"].index[1:]
+        columns=n.components["Line"]["defaults"].index[1:]
     )
     n.c.lines.static["type"] = np.nan
     n.c.buses.static = n.c.buses.static.reindex(
-        columns=n.components["Bus"]["attrs"].index[1:]
+        columns=n.components["Bus"]["defaults"].index[1:]
     )
     n.c.buses.static["frequency"] = 50
 

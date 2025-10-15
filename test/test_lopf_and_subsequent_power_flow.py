@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+
 def test_optimize_with_power_flow(scipy_network):
     n = scipy_network
 

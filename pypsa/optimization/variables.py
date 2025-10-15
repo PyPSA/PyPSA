@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Define optimisation variables from PyPSA networks with Linopy."""
 
 from __future__ import annotations
@@ -242,10 +246,10 @@ def define_cvar_variables(n: Network) -> None:
     This helper adds three auxiliary variables to the model when
     stochastic optimisation with risk preference is enabled.
 
-    * ``CVaR-a`` (per-scenario, non-negative): auxiliary excess loss variables ``a_s``.
-      They linearise the tail expectation: ``a_s >= OPEX_s - theta``.
-    * ``CVaR-theta`` (scalar): the Value-at-Risk (VaR) level ``theta`` at confidence ``alpha``.
-    * ``CVaR`` (scalar): the Conditional Value-at-Risk (Expected Shortfall) objective term.
+    * `CVaR-a` (per-scenario, non-negative): auxiliary excess loss variables `a_s`.
+      They linearise the tail expectation: `a_s >= OPEX_s - theta`.
+    * `CVaR-theta` (scalar): the Value-at-Risk (VaR) level `theta` at confidence `alpha`.
+    * `CVaR` (scalar): the Conditional Value-at-Risk (Expected Shortfall) objective term.
 
     These variables are linked by constraints (added in the objective construction)
     to implement the linear CVaR formulation.
