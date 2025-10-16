@@ -15,12 +15,15 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Features
 
-- New method `n.components.carriers.add_missing_carriers()` automatically discovers and adds carriers used in components (<!-- md:pr 1401 -->)
+- New carrier management features (<!-- md:pr 1401 -->)
 
-    - Automatically detects carriers from all components (generators, loads, storage_units, stores, links, lines, sub_networks)
-    - Optional automatic color assignment using matplotlib color palettes (default: tab10)
-    - Supports stochastic networks with proper scenario handling
-    - Additional carrier attributes can be passed via kwargs (e.g., `co2_emissions`, `nice_name`)
+    - `c.unique_carriers` property: Get all unique carrier values for a component (e.g., `n.c.generators.unique_carriers`)
+    - `n.c.carriers.add_missing_carriers()` method: Automatically discovers and adds carriers used in components
+        - Automatically detects carriers from all components (generators, loads, storage_units, stores, links, lines, sub_networks)
+        - Optional automatic color assignment using matplotlib color palettes (default: tab10)
+        - Supports stochastic networks with proper scenario handling
+        - Additional carrier attributes can be passed via kwargs (e.g., `co2_emissions`, `nice_name`)
+    - `n.c.carriers.assign_colors()` method: Assign colors to carriers using matplotlib color palettes
 
 - Enhanced statistics plotting for stochastic networks and network collections (<!-- md:pr 1401 -->)
 

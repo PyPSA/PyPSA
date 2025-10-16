@@ -247,7 +247,9 @@ class Carriers(Components):
             raise ValueError(msg)
 
         # Collect all unique carrier values from components
-        all_carriers = self.n_save.unique_carriers
+        all_carriers = set()
+        for c in self.n_save.c.values():
+            all_carriers.update(c.unique_carriers)
 
         # Get existing carriers
         if self.n.has_scenarios:
