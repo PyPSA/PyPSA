@@ -884,6 +884,67 @@ def _scenarios_not_implemented(func: Callable) -> Callable:
     return wrapper
 
 
+def generate_colors(n_colors: int, palette: str = "tab10") -> list[str]:
+    """Generate a list of colors from a matplotlib palette.
+
+    <!-- md:badge-version v1.0.0 -->
+
+    Parameters
+    ----------
+    n_colors : int
+        Number of colors to generate.
+    palette : str, default "tab10"
+        Matplotlib color palette name.
+
+    Returns
+    -------
+    list of str
+        List of hex color strings.
+
+    Examples
+    --------
+    >>> colors = pypsa.common.generate_colors(3, "tab10")
+    >>> len(colors)
+    3
+    >>> all(c.startswith("#") for c in colors)
+    True
+
+    """
+    import matplotlib.colors as mcolors  # noqa: PLC0415
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
+    try:
+        cmap = plt.get_cmap(palette)
+    except ValueError:
+        logger.warning(
+            "Color palette '%s' not found. Using 'tab10' as fallback.", palette
+        )
+        cmap = plt.get_cmap("tab10")
+
+    # Get the number of colors in the palette
+    if hasattr(cmap, "N"):
+        n_palette_colors = cmap.N
+    else:
+        # For continuous colormaps, use a reasonable number
+        n_palette_colors = 256
+
+    # Generate colors
+    colors = []
+    for i in range(n_colors):
+        # Cycle through palette if we have more carriers than colors
+        idx = i % n_palette_colors
+        if n_palette_colors <= 20:
+            # For discrete palettes, use integer indices
+            rgba = cmap(idx)
+        else:
+            # For continuous palettes, normalize to [0, 1]
+            rgba = cmap(idx / n_palette_colors)
+        # Convert RGBA to hex
+        colors.append(mcolors.to_hex(rgba))
+
+    return colors
+
+
 def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
     """Calculate the annuity factor for a given discount rate and lifetime.
 

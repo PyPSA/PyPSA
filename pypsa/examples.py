@@ -211,7 +211,6 @@ def stochastic_network() -> Network:
     n = _retrieve_if_not_local(
         "examples/networks/stochastic-network/stochastic-network.nc"
     )
-
     return n
 
 

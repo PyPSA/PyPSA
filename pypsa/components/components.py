@@ -734,6 +734,38 @@ class Components(
         ]
 
     @property
+    def unique_carriers(self) -> set[str]:
+        """Get all unique carrier values for this component.
+
+        <!-- md:badge-version v1.0.0 -->
+
+        Returns
+        -------
+        set of str
+            Set of all unique carrier names found in this component.
+
+        Examples
+        --------
+        >>> n.c.generators.unique_carriers
+        {'wind', 'solar', 'gas'}
+
+        >>> n.c.buses.unique_carriers
+        {'AC', 'DC'}
+
+        See Also
+        --------
+        [pypsa.components.Carriers.add_missing_carriers][]
+
+        """
+        if self.static.empty or "carrier" not in self.static.columns:
+            return set()
+
+        # Get carriers and filter out empty strings and NaN
+        c_carriers = self.static["carrier"].dropna()
+        c_carriers = c_carriers[c_carriers != ""]
+        return set(c_carriers.unique())
+
+    @property
     def extendables(self) -> pd.Index:
         """Get the index of extendable elements of this component.
 
