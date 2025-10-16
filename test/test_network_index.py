@@ -152,7 +152,7 @@ def test_get_scenario_empty_components_bug_1402():
     """
     Test that get_scenario() and __getitem__ properly reset MultiIndex for empty components.
 
-    Fixes bug from issue #1402:
+    See https://github.com/PyPSA/PyPSA/issues/1402:
     When extracting a scenario from a stochastic network, empty components (like Links)
     should have their MultiIndex reset to a simple Index, not retain the scenario level.
     This ensures the extracted network can be optimized without MultiIndex conflicts.
