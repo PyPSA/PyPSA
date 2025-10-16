@@ -398,6 +398,12 @@ class ChartGenerator(PlotsGenerator, ABC):
         else:
             df = data.fillna(0).melt(ignore_index=False).reset_index()
 
+            # For multi-period networks, use timestep as snapshot since period is faceted
+            if "period" in df.columns and "timestep" in df.columns:
+                # Use timestep for x-axis; period will be used for faceting
+                df["snapshot"] = df["timestep"]
+                # Keep the original columns for potential faceting by period
+
         return df
 
     def plot(
@@ -778,8 +784,13 @@ class ChartGenerator(PlotsGenerator, ABC):
                 # To fix this, we need to add an artificial trace with the last value
                 # of each color and use that for the legend.
                 unique_colors = ldata[color].unique() if color else []
+                n_colors = len(unique_colors)
                 artificial_zeros = pd.DataFrame(
-                    {x: ldata[x].iloc[-1], y: np.nan, color: unique_colors}
+                    {
+                        x: [ldata[x].iloc[-1]] * n_colors,
+                        y: [np.nan] * n_colors,
+                        color: unique_colors,
+                    }
                 )
                 if facet_col:
                     artificial_zeros[facet_col] = ldata[facet_col].iloc[-1]
@@ -833,7 +844,7 @@ class ChartGenerator(PlotsGenerator, ABC):
             List of groupby columns and boolean for component aggregation
 
         """
-        filtered = ["value", "name", "snapshot"]
+        filtered = ["value", "name", "snapshot", "scenario", "period"]
         filtered_cols = [c for c in args if c not in filtered and c is not None]
 
         stats_kwargs: dict[str, str | bool | list] = {}

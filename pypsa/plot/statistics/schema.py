@@ -267,20 +267,30 @@ def apply_parameter_schema(
         kwargs.pop(param)
 
     # Auto-faceting logic
-    if (
-        context
-        and context.get("index_names")
-        and not kwargs.get("facet_col")
-        and not kwargs.get("facet_row")
-    ):
+    if context and not kwargs.get("facet_col") and not kwargs.get("facet_row"):
+        index_names = context.get("index_names", [])
         # Ignore unnamed index levels to avoid creating empty facets
-        index_names = [name for name in context["index_names"] if name is not None]
+        index_names = [name for name in index_names if name is not None]
 
         # Check if we have stochastic scenarios by seeing if 'has_scenarios' flag is set
         # (This flag is set by the plotting code when member networks have scenarios)
         has_scenarios = context.get("has_scenarios", False)
+        period_name = context.get("period_name")
 
-        if len(index_names) >= 2:
+        # For area plots, we want to facet by period if multi-invest or scenario if stochastic
+        if plot_name != "bar" and period_name and not index_names and not has_scenarios:
+            # Multi-invest network without collection: facet by period
+            kwargs["facet_col"] = period_name
+        elif (
+            plot_name != "bar" and has_scenarios and not index_names and not period_name
+        ):
+            # Stochastic network without collection or multi-invest: facet by scenario
+            kwargs["facet_col"] = "scenario"
+        elif plot_name != "bar" and len(index_names) == 1 and has_scenarios:
+            # Collection of stochastic networks: 2D faceting (collection index + scenario)
+            kwargs["facet_row"] = index_names[0]
+            kwargs["facet_col"] = "scenario"
+        elif len(index_names) >= 2:
             # When scenarios present: use 2D faceting for bar plots (so scenarios can be aggregated)
             # When no scenarios: use 1D faceting + color for bar plots (original behavior)
             if plot_name == "bar" and has_scenarios:
