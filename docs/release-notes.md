@@ -13,6 +13,11 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need 
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`. -->
 
+### Bug Fixes
+
+* Fix scenario extraction methods (`get_scenario()` and `n['scenario']`) to properly handle empty components ([#1402](https://github.com/PyPSA/PyPSA/issues/1402)).
+
+
 ## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" } 
 
 ### **PyPSA 1.0** is here!
