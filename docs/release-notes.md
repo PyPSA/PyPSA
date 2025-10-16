@@ -15,7 +15,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-* Fix scenario extraction methods (`get_scenario()` and `n['scenario']`) to properly handle empty components ([#1402](https://github.com/PyPSA/PyPSA/issues/1402)).
+* Fix scenario extraction methods ([pypsa.Network.get_scenario][] and [`n['scenario']`][pypsa.Network.__getitem__]) to properly handle empty components ([#1402](https://github.com/PyPSA/PyPSA/issues/1402)).
 
 
 ## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" } 
