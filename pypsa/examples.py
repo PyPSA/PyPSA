@@ -211,10 +211,6 @@ def stochastic_network() -> Network:
     n = _retrieve_if_not_local(
         "examples/networks/stochastic-network/stochastic-network.nc"
     )
-    n.c.generators.static.carrier = n.c.generators.static.index.get_level_values("name")
-    n.c.loads.static.carrier = "load"
-    n.c.buses.static.carrier = "AC"
-    n.c.carriers.add_missing_carriers()
     return n
 
 
