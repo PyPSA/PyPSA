@@ -44,33 +44,6 @@ class Carriers(Components):
 
     """
 
-    @property
-    def unique(self) -> pd.Index:
-        """Get unique carrier names from the index.
-
-        For stochastic networks with MultiIndex, extracts unique carrier names
-        from the 'name' level. For regular networks, returns the full index.
-
-        Returns
-        -------
-        pd.Index
-            Index of unique carrier names.
-
-        Examples
-        --------
-        >>> n.c.carriers.unique
-        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
-
-        For stochastic networks:
-        >>> n_stoch.c.carriers.unique
-        Index(['AC', 'gas', 'solar', 'wind'], dtype='object', name='name')
-
-        """
-        if self.n.has_scenarios:
-            # For stochastic networks, extract carrier names from MultiIndex
-            return self.static.index.get_level_values("name").unique()
-        return self.static.index
-
     def add(
         self,
         name: str | int | Sequence[int | str],
@@ -138,7 +111,7 @@ class Carriers(Components):
         # Determine which carriers to color
         if carriers is None:
             if overwrite:
-                target_carriers = self.unique
+                target_carriers = self.names
             else:
                 # Only carriers without colors
                 mask = (self.static["color"] == "") | self.static["color"].isna()
@@ -276,7 +249,7 @@ class Carriers(Components):
             all_carriers.update(c.unique_carriers)
 
         # Get existing carriers
-        existing_carriers = set(self.unique)
+        existing_carriers = set(self.names)
 
         # Find missing carriers
         missing_carriers = sorted(all_carriers - existing_carriers)

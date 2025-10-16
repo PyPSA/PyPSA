@@ -36,7 +36,7 @@ CHART_TYPES = [
 ]
 
 
-def _get_investment_periods(network: Any) -> pd.Index | None:
+def _get_periods(network: Any) -> pd.Index | None:
     """Return investment periods for a network if multi-invest is enabled."""
     try:
         periods = network.periods
@@ -100,7 +100,7 @@ def adjust_collection_bar_defaults(
             if index_values is not None:
                 order = list(index_values)
 
-    periods = _get_investment_periods(network)
+    periods = _get_periods(network)
     if periods is not None:
         period_name = periods.name or "period"
         if color is None:
@@ -120,7 +120,7 @@ def prepare_bar_data(
     if chart_type != "bar":
         return data
 
-    periods = _get_investment_periods(network)
+    periods = _get_periods(network)
     if periods is None:
         return data
 

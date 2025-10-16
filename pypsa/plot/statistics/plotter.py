@@ -13,7 +13,7 @@ from pypsa.common import deprecated_kwargs
 from pypsa.plot.statistics.charts import (
     CHART_TYPES,
     ChartGenerator,
-    _get_investment_periods,
+    _get_periods,
     adjust_collection_bar_defaults,
     prepare_bar_data,
 )
@@ -90,7 +90,7 @@ class _StatisticPlotterBase:
         plotter = ChartGenerator(self._n)
 
         # Create context for schema application
-        periods = _get_investment_periods(self._n)
+        periods = _get_periods(self._n)
         has_scenarios = self._n.has_scenarios
 
         context = {
