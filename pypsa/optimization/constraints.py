@@ -1664,12 +1664,12 @@ def define_loss_constraints(
     else:
         s_nom_max = c.da.s_nom_max.where(is_extendable, c.da.s_nom)
 
-    if not isfinite(s_nom_max).all():
-        msg = (
-            f"Loss approximation requires finite 's_nom_max' for extendable "
-            f"branches:\n {s_nom_max.sel(name=~isfinite(s_nom_max))}"
-        )
-        raise ValueError(msg)
+        if not isfinite(s_nom_max).all():
+            msg = (
+                f"Loss approximation requires finite 's_nom_max' for extendable "
+                f"branches:\n {s_nom_max.sel(name=~isfinite(s_nom_max))}"
+            )
+            raise ValueError(msg)
 
     r_pu_eff = c.da.r_pu_eff
 
