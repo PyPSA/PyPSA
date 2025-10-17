@@ -181,6 +181,7 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
 
         """
         n = self._n
+        n._optimize_transmission_expansion_iteratively = True
 
         n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(
             n.c.buses.static.carrier
@@ -369,6 +370,8 @@ class OptimizationAbstractMixin(OptimizationAbstractMGAMixin):
         ).sum()
         n._objective += obj_links + obj_lines
         n._objective_constant -= obj_links + obj_lines
+
+        n._optimize_transmission_expansion_iteratively = False
 
         return status, condition
 
