@@ -1655,7 +1655,7 @@ def define_loss_constraints(
 
     # Define nominal capacity (depends on extendability of lines)
     is_extendable = c.da.s_nom_extendable
-    # If optimizing transmission expansion, use s_nom_opt if available
+    # If optimizing transmission expansion, use s_nom_opt from the last iteration if available
     if getattr(n, "_optimize_transmission_expansion_iteratively", False):
         s_nom_opt = c.da.get("s_nom_opt", c.da.s_nom)
         # Use s_nom_opt where it's positive, otherwise fall back to s_nom
