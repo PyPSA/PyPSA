@@ -917,9 +917,13 @@ class NetworkIndexMixin(_NetworkABC):
         for c in n.components.values():
             if not c.static.empty:
                 c.static = c.static.xs(scenario, level="scenario", axis=0)
+            else:
+                c.static.index = c.static.index.droplevel("scenario")
             for k, v in c.dynamic.items():
                 if not c.dynamic[k].empty:
                     c.dynamic[k] = v.xs(scenario, level="scenario", axis=1)
+                else:
+                    c.dynamic[k].columns = c.dynamic[k].columns.droplevel("scenario")
 
         return n
 
