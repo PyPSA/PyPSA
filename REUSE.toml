@@ -24,6 +24,7 @@ path = [
     "examples/**.csv",
     "examples/**.json",
     "examples/**.nc",
+    "examples/notebooks/**.ipynb",
 ]
 SPDX-FileCopyrightText = "PyPSA Contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
