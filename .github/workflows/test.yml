@@ -175,7 +175,10 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
-          doc-tests
+          doc-tests,
+          os-ubuntu-latest,
+          python3.13,
+          api-old-api
 
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
@@ -183,7 +186,10 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: >
-          doc-tests
+          doc-tests,
+          os-ubuntu-latest,
+          python3.13,
+          api-old-api
 
   check-types:
     name: Check types
