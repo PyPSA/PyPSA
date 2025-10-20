@@ -133,6 +133,7 @@ jobs:
         commit_message: '${{ env.PREPARATION_COMMIT }}'
         tagging_message: '${{ github.ref_name }}' # add tag again
         push_options: '${{ github.ref_name }}'
+        add_options: '-u' # Never add untracked files
 
   build:
     name: Build and verify package
