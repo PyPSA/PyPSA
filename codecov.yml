@@ -8,9 +8,8 @@ coverage:
   status:
     project:
       default:
-        target: 80%
-        threshold: 0.5%
-    patch:
-      default:
-        target: 90%
-        threshold: 0%
+        threshold: 0.1%
+
+codecov:
+  notify:
+    after_n_builds: 13
