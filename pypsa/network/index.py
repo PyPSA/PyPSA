@@ -149,6 +149,14 @@ class NetworkIndexMixin(_NetworkABC):
                 else:
                     dynamic[k] = dynamic[k].reindex(self.snapshots)
 
+        # Synchronize investment_periods_data when snapshots have a period level
+        if isinstance(sns, pd.MultiIndex):
+            self.investment_period_weightings = (
+                self.investment_period_weightings.reindex(
+                    self.periods, fill_value=1.0
+                ).astype(float)
+            )
+            
         if options.debug.runtime_verification:
             _assert_data_integrity(self)
 
