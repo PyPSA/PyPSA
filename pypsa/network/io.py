@@ -28,6 +28,7 @@ from pyproj import CRS
 
 from pypsa._options import options
 from pypsa.common import _check_for_update, check_optional_dependency
+from pypsa.consistency import check_for_unknown_buses
 from pypsa.descriptors import _update_linkports_component_attrs
 from pypsa.network.abstract import _NetworkABC
 from pypsa.version import __version_base__
@@ -1797,23 +1798,6 @@ class NetworkIOMixin(_NetworkABC):
                     else:
                         df[k] = df[k].astype(static_attrs.at[k, "typ"])
 
-        # check all the buses are well-defined
-        # TODO use func from consistency checks
-        for attr in [attr for attr in df if attr.startswith("bus")]:
-            # allow empty buses for multi-ports
-            port = int(attr[-1]) if attr[-1].isdigit() else 0
-            buses = self.c.buses.names
-            mask = ~df[attr].isin(buses)
-            if port > 1:
-                mask &= df[attr].ne("")
-            missing = df.index[mask]
-            if len(missing) > 0:
-                logger.warning(
-                    "The following %s have buses which are not defined:\n%s",
-                    cls_name,
-                    missing,
-                )
-
         non_static_attrs_in_df = non_static_attrs.index.intersection(df.columns)
         old_static = self.c[cls_name].static
         new_static = df.drop(non_static_attrs_in_df, axis=1)
@@ -1874,6 +1858,9 @@ class NetworkIOMixin(_NetworkABC):
                 dynamic[k].loc[:, new_components] = df.loc[new_components, k].values
 
         self.components[cls_name].dynamic = dynamic
+
+        # Run consistency checks
+        check_for_unknown_buses(self, self.c[cls_name])
 
     def _import_series_from_df(
         self,

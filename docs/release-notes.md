@@ -15,7 +15,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 ### Bug Fixes
 
-* Fix scenario extraction methods ([pypsa.Network.get_scenario][] and [`n['scenario']`][pypsa.Network.__getitem__]) to properly handle empty components (<!-- md:pr 1402 -->).
+- Fix scenario extraction methods ([pypsa.Network.get_scenario][] and [`n['scenario']`][pypsa.Network.__getitem__]) to properly handle empty components (<!-- md:pr 1402 -->).
+- Fix bus validation when adding global constraints via [pypsa.Network.add][], eliminating false warnings for GlobalConstraints.
 
 - Fix dimension name consistency when adding investment period weightings.
 
