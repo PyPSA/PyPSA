@@ -118,12 +118,22 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          unit-tests,
+          os-${{ matrix.os }},
+          python${{ matrix.python-version }},
+          api-${{ matrix.api }}
 
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
       uses: codecov/test-results-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          unit-tests,
+          os-${{ matrix.os }},
+          python${{ matrix.python-version }},
+          api-${{ matrix.api }}
 
   check-docs:
     name: Check docs
@@ -164,12 +174,16 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          doc-tests
 
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
       uses: codecov/test-results-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        flags: >
+          doc-tests
 
   check-types:
     name: Check types
