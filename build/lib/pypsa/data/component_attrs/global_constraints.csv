@@ -1,0 +1,9 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+type,string,n/a,primary_energy,"Type of constraint (e.g. ""primary energy"", ""tech_capacity_expansion_limit"", ""operational_limit"", ""transmission_volume_expansion_limit"", ""transmission_expansion_cost_limit"")",Input (optional)
+investment_period,float,n/a,NaN,"Investment period for which the constraint is applied. If not specified, the constraint is applied to all investment periods together.",Input (optional)
+bus,string,n/a,n/a,"Bus to which the global constraint applies. Only relevant for `type=""tech_expansion_limit"". If not specified, the constraint applies to all buses.",Input (optional)
+carrier_attribute,string,n/a,co2_emissions,"If the global constraint is connected with a carrier, name the associated carrier attribute. This must appear as a column in `n.carriers`.",Input (optional)
+sense,string,n/a,==,"Constraint sense; must be one of <=, == or >=",Input (optional)
+constant,float,n/a,0,"Constant for right-hand-side of constraint for optimisation period. For a CO~2~ constraint, this would be tonnes of CO~2~.",Input (optional)
+mu,float,currency/constant,0,Shadow price of global constraint,Output

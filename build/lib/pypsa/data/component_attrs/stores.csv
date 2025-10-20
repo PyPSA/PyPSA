@@ -1,0 +1,36 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+bus,string,n/a,n/a,Name of bus to which store is attached.,Input (required)
+type,string,n/a,n/a,Placeholder for store type. Not yet implemented.,Input (optional)
+carrier,string,n/a,,"Carrier of the store.",Input (optional)
+e_nom,float,MWh,0,Nominal energy capacity (i.e. limit on `e`). Ignored if `e_nom_extendable=True`.,Input (optional)
+e_nom_mod,float,MWh,0,Nominal energy capacity of the store module. Introduces integer variables if set.,Input (optional)
+e_nom_extendable,boolean,n/a,False,Switch to allow capacity `e_nom` to be extended in optimisation.,Input (optional)
+e_nom_min,float,MWh,0,"If `e_nom_extendable=True`, set the minimum value of `e_nom_opt`.",Input (optional)
+e_nom_max,float,MWh,inf,"If `e_nom_extendable=True`, set the maximum value of `e_nom_opt`.",Input (optional)
+e_nom_set,float,MWh,n/a,"If `e_nom_extendable=True`, set the value of `e_nom_opt`.",Input (optional)
+e_min_pu,static or series,per unit,0,Minimal value of `e` relative to `e_nom` for the optimisation.,Input (optional)
+e_max_pu,static or series,per unit,1,Maximal value of `e` relative to `e_nom` for the optimisation.,Input (optional)
+e_initial,float,MWh,0,Energy before the snapshots in the optimisation.,Input (optional)
+e_initial_per_period,boolean,n/a,False,"Switch: if True, then at the beginning of each investment period `e` is set to `e_initial`.",Input (optional)
+e_cyclic,boolean,n/a,False,"Switch: if True, then `e_initial` is ignored and the initial energy is set to the final energy for the group of snapshots in the optimisation.",Input (optional)
+e_cyclic_per_period,boolean,n/a,False,"Switch: if True, then the cyclic constraints are applied to each investment period separately.",Input (optional)
+p_set,static or series,MW,n/a,Active power set point (for power flow only),Input (optional)
+q_set,static or series,MVar,0,Reactive power set point (for power flow only),Input (optional)
+e_set,static or series,MWh,NaN,Fixed energy filling level set point (for optimisation only),Input (optional)
+sign,float,n/a,1,Sign denoting orientation of the energy variable (`e`).,Input (optional)
+marginal_cost,static or series,currency/MWh,0,Marginal cost applied to both charging and discharging of 1 MWh.,Input (optional)
+marginal_cost_quadratic,static or series,currency/MWh,0,Quadratic marginal cost of applied to charging and discharging of 1 MWh.,Input (optional)
+marginal_cost_storage,static or series,currency/MWh/h,0,Marginal cost of energy storage of 1 MWh for one hour.,Input (optional)
+capital_cost,float,currency/MWh,0,"Fixed period costs of extending `e_nom` by 1 MWh, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
+standing_loss,static or series,per unit,0,Losses per hour to energy level.,Input (optional)
+active,boolean,n/a,True,"Whether to consider the component in optimisation or not",Input (optional)
+build_year,int,year,0,Build year,Input (optional)
+lifetime,float,years,inf,Lifetime,Input (optional)
+p,series,MW,0,Power at bus (positive if net supply),Output
+q,series,MVar,0,Reactive power (positive if net supply),Output
+e,series,MWh,0,Energy level of store as calculated by the optimisation.,Output
+e_nom_opt,float,MWh,0,Optimised nominal energy capacity outputed by optimisation.,Output
+mu_upper,series,currency/MWh,n/a,Shadow price of upper `e_nom` limit,Output
+mu_lower,series,currency/MWh,n/a,Shadow price of lower `e_nom` limit,Output
+mu_energy_balance,series,currency/MWh,n/a,Shadow price of storage consistency equations (i.e. water values),Output

@@ -1,0 +1,10 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+f_nom,float,Hz,50.,Nominal frequency,Input (required)
+r_per_length,float,Ohm per km,0.,Series resistance per length,Input (required)
+x_per_length,float,Ohm per km,0.,Series resistance per length,Input (required)
+c_per_length,float,nF per km,0.,Shunt capacitance per length,Input (optional)
+i_nom,float,kA,0.,Nominal current,Input (optional)
+mounting,string,n/a,ol,"Can be ""ol"" for overhead line or ""cs"" for cable",Input (optional)
+cross_section,float,mm2,0.,Wire cross-section,Input (optional)
+references,string,n/a,n/a,References for electrical parameters,Input (optional)

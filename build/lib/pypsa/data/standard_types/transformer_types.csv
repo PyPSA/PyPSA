@@ -1,0 +1,15 @@
+name,f_nom,s_nom,v_nom_0,v_nom_1,vsc,vscr,pfe,i0,phase_shift,tap_side,tap_neutral,tap_min,tap_max,tap_step,references
+0.25 MVA 10/0.4 kV,50.,0.250,10,0.4,4,1.2,0.6,0.24,150,0,0,-2,2,2.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+0.25 MVA 20/0.4 kV,50.,0.250,20,0.4,6,1.44,0.8,0.32,150,0,0,-2,2,2.5,pandapowe;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilenr
+0.4 MVA 10/0.4 kV,50.,0.400,10,0.4,4,1.325,0.95,0.2375,150,0,0,-2,2,2.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+0.4 MVA 20/0.4 kV,50.,0.400,20,0.4,6,1.425,1.35,0.3375,150,0,0,-2,2,2.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+0.63 MVA 10/0.4 kV,50.,0.630,10,0.4,4,1.0794,1.18,0.1873,150,0,0,-2,2,2.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+0.63 MVA 20/0.4 kV,50.,0.630,20,0.4,6,1.206,1.65,0.2619,150,0,0,-2,2,2.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+100 MVA 220/110 kV,50.,100.0,220.0,110.0,12.0,0.26,55,0.06,0,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+160 MVA 380/110 kV,50.,160.0,380.0,110.0,12.2,0.25,60,0.06,0,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+25 MVA 110/10 kV,50.,25.,110,10,10.04,0.276,28.51,0.073,150,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+25 MVA 110/20 kV,50.,25.,110.0,20.0,11.2,0.282,29,0.071,150,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+40 MVA 110/10 kV,50.,40.,110,10,10.04,0.295,30.45,0.076,150,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+40 MVA 110/20 kV,50.,40.,110.0,20.0,11.2,0.302,31,0.08,150,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+63 MVA 110/10 kV,50.,63.,110,10,10.04,0.31,31.51,0.078,150,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen
+63 MVA 110/20 kV,50.,63.,110.0,20.0,11.2,0.322,33,0.086,150,0,0,-9,9,1.5,pandapower;Oswald - Transformatoren - Vorlesungsskript Elektrische Energieversorgung I;Werth Netzberechnung mit Erzeugungsprofilen

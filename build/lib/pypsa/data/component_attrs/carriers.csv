@@ -1,0 +1,7 @@
+attribute,type,unit,default,description,status
+name,string,n/a,n/a,Unique name,Input (required)
+co2_emissions,float,tonnes/MWh,0,Emissions in tCO~2~ per MWh of primary energy (e.g. methane has 0.2 tCO~2~/MWh~thermal~).,Input (optional)
+color,string,n/a,n/a,Color for plotting (e.g. `matplotlib` [named colors](https://matplotlib.org/stable/gallery/color/named_colors.html) or hexadecimal color codes like "#AB9812"),Input (optional)
+nice_name,string,n/a,n/a,Descriptive name for statistics and visualisations (e.g. "Natural Gas" for carrier `gas`),Input (optional)
+max_growth,float,MW,inf,Maximum new installed capacity per investment period,Input (optional)
+max_relative_growth,float,MW,0,Maximum capacity ratio for new installed capacity per investment period,Input (optional)

@@ -1,0 +1,16 @@
+component,list_name,description,category
+Bus,buses,"Fundamental node where all components attach."
+Carrier,carriers,"Energy carriers of buses (e.g. ""AC"" for alternating current, ""DC"" for direct current, ""hydrogen"", or ""heat"") or technologies of other components (e.g. ""wind"", ""gas turbine"", ""electrolyser"", or ""heat pump"")"
+Generator,generators,"Power generator for the bus carrier it attaches to.",controllable_one_port
+Load,loads,"Loads represent a demand at the bus they are connected to (e.g. PQ power consumer).",controllable_one_port
+Link,links,"Links are used for controllable directed flows between two or more buses with arbitrary energy carriers (e.g. HVDC links, converters, conversions between carriers).",controllable_branch
+Store,stores,"Stores provide fundamental inter-temporal storage functionality not limited in charging or discharging power.",controllable_one_port
+StorageUnit,storage_units,"Storage units enable inter-temporal energy shifting with fixed nominal-energy-to-nominal-power ratio.",controllable_one_port
+Line,lines,"Lines include distribution and transmission lines, overhead lines and cables.",passive_branch
+LineType,line_types,"Standard line types with per length values for impedances.",standard_type
+Transformer,transformers,"2-winding transformer.",passive_branch
+TransformerType,transformer_types,"Standard 2-winding transformer types.",standard_type
+ShuntImpedance,shunt_impedances,"Shunt with voltage-dependent admittance.",passive_one_port
+GlobalConstraint,global_constraints,"Constraints in the optimisation problem that apply to multiple components at once."
+Shape,shapes,"Geographical shapes of network components.",shape
+SubNetwork,sub_networks,"Subsets of buses and passive branches (i.e. lines and transformers) that are connected (i.e. synchronous areas)."
