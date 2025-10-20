@@ -101,7 +101,7 @@ jobs:
         --new-components-api
         --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
         --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
-        uv run coverage xml
+        && uv run coverage xml
 
     - name: Upload artifacts
       if: matrix.api == 'default' && matrix.os == 'macos-latest' && matrix.python-version == '3.13'
