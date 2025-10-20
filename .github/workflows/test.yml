@@ -90,7 +90,18 @@ jobs:
     - name: Run unit tests (old API)
       if: matrix.api == 'default'
       run: |
-        uv run pytest --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results --cov=pypsa
+        uv run pytest \
+        --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results \
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
+        uv run coverage xml
+
+    - name: Run unit tests (new API)
+      if: matrix.api == 'new_api'
+      run: |
+        uv run pytest \
+        --new-components-api \
+        --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results \
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         uv run coverage xml
 
     - name: Upload artifacts
@@ -103,20 +114,15 @@ jobs:
         retention-days: 14
         if-no-files-found: ignore
 
-    - name: Run unit tests (new API)
-      if: matrix.api == 'new_api'
-      run: |
-        uv run pytest --new-components-api --cov=pypsa
-        uv run coverage xml
-
-    - name: Run unit tests (new API)
-      if: matrix.api == 'new_api'
-      run: |
-        uv run pytest --new-components-api
-
     - name: Upload code coverage report
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+      if: ${{ !cancelled() }}
       uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -147,10 +153,24 @@ jobs:
         uv sync --all-extras --no-install-project
         uv pip install "$(ls dist/*.whl)"
 
-    - name: Run type checker (mypy)
+    - name: Run doc tests
       run: |
-        uv run pytest --test-docs --cov=pypsa test/test_docs.py
+        uv run pytest \
+        test/test_docs.py --test-docs \
+        --cov=pypsa --junitxml=junit.xml -o junit_family=legacy
         uv run coverage xml
+
+    - name: Upload code coverage report
+      if: ${{ !cancelled() }}
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   check-types:
     name: Check types
