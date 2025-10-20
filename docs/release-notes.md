@@ -21,6 +21,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 - Fix bus validation when adding global constraints via [pypsa.Network.add][], eliminating false warnings for GlobalConstraints. (<!-- md:pr 1413 -->).
 
+- Fix dimension name consistency when adding investment period weightings.
+
 ## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" } 
 
 ### **PyPSA 1.0** is here!
