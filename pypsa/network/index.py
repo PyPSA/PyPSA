@@ -156,7 +156,7 @@ class NetworkIndexMixin(_NetworkABC):
                     self.periods, fill_value=1.0
                 ).astype(float)
             )
-            
+
         if options.debug.runtime_verification:
             _assert_data_integrity(self)
 
