@@ -20,10 +20,13 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pandas as pd
 
+from pypsa._options import options
+from pypsa.guards import _assert_data_integrity
+from pypsa.network.abstract import _NetworkABC
+
 if TYPE_CHECKING:
     from pypsa import Network
 
-from pypsa.network.abstract import _NetworkABC
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +120,7 @@ class NetworkIndexMixin(_NetworkABC):
                 .apply(lambda x: x.total_seconds() / 3600)
             )
             self._snapshots_data = pd.DataFrame(
-                dict.fromkeys(self._snapshots_data.columns, hours_per_step)
+                dict.fromkeys(self._snapshots_data.columns, hours_per_step), index=sns
             )
         elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             logger.info(
@@ -146,7 +149,16 @@ class NetworkIndexMixin(_NetworkABC):
                 else:
                     dynamic[k] = dynamic[k].reindex(self.snapshots)
 
-        # NB: No need to rebind dynamic to self, since haven't changed it
+        # Synchronize investment_periods_data when snapshots have a period level
+        if isinstance(sns, pd.MultiIndex):
+            self.investment_period_weightings = (
+                self.investment_period_weightings.reindex(
+                    self.periods, fill_value=1.0
+                ).astype(float)
+            )
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
@@ -356,6 +368,9 @@ class NetworkIndexMixin(_NetworkABC):
         self.investment_period_weightings = self.investment_period_weightings.reindex(
             self.periods, fill_value=1.0
         ).astype(float)
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def periods(self) -> pd.Index:
@@ -600,8 +615,12 @@ class NetworkIndexMixin(_NetworkABC):
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
             df = pd.DataFrame(dict.fromkeys(self._snapshots_data.columns, df))
+        df.index.name = self.snapshots.name
         df.index.names = self.snapshots.names
         self._snapshots_data = df
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -650,6 +669,9 @@ class NetworkIndexMixin(_NetworkABC):
             )
             df = pd.DataFrame(dict.fromkeys(self._investment_periods_data.columns, df))
         self._investment_periods_data = df
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     # -----------
     # Scenarios
@@ -731,6 +753,9 @@ class NetworkIndexMixin(_NetworkABC):
                 )
 
         self._scenarios_data = scenarios_.to_frame()
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def scenarios(self) -> pd.Index:
@@ -820,6 +845,9 @@ class NetworkIndexMixin(_NetworkABC):
 
         # Store risk preferences
         self._risk_preference = {"alpha": alpha, "omega": omega}
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def risk_preference(self) -> dict[str, float] | None:

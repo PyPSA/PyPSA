@@ -20,7 +20,7 @@ import xarray
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index, list_as_string
 from pypsa.components.abstract import _ComponentsABC
-from pypsa.guards import _as_xarray_guard
+from pypsa.guards import _assert_xarray_integrity
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -304,6 +304,6 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            _as_xarray_guard(self, res)
+            _assert_xarray_integrity(self, res)
 
         return res

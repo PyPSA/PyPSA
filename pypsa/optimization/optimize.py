@@ -21,7 +21,7 @@ from pypsa.common import UnexpectedError, as_index
 from pypsa.components.array import _from_xarray
 from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
-from pypsa.guards import _optimize_guard
+from pypsa.guards import _assert_data_integrity
 from pypsa.optimization.abstract import OptimizationAbstractMixin
 from pypsa.optimization.common import _set_dynamic_data, get_strongly_meshed_buses
 from pypsa.optimization.constraints import (
@@ -690,7 +690,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            _optimize_guard(self._n)
+            _assert_data_integrity(self._n)
 
         return status, condition
 

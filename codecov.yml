@@ -3,3 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 comment: false
+
+coverage:
+  status:
+    project:
+      default:
+        threshold: 0.1%
+
+codecov:
+  notify:
+    after_n_builds: 13

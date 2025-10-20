@@ -13,9 +13,17 @@ SPDX-License-Identifier: CC-BY-4.0
     next update! If you would like to use these features in the meantime, you will need 
     to install the `master` branch, e.g. `pip install git+https://github.com/pypsa/pypsa`.
 
+## [**v1.0.1**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.1) <small>20 October 2025</small> 🎉 { id="v1.0.1" }
+
 ### Bug Fixes
 
-* Fix scenario extraction methods ([pypsa.Network.get_scenario][] and [`n['scenario']`][pypsa.Network.__getitem__]) to properly handle empty components (<!-- md:pr 1402 -->).
+- Fix [`n.set_snapshots`][pypsa.Network.set_snapshots] to synchronize investment period weightings when snapshots with new periods are set. (<!-- md:pr 1414 -->)
+
+- Fix scenario extraction methods ([pypsa.Network.get_scenario][] and [`n['scenario']`][pypsa.Network.__getitem__]) to properly handle empty components (<!-- md:pr 1402 -->)
+
+- Fix bus validation when adding global constraints via [pypsa.Network.add][], eliminating false warnings for GlobalConstraints. (<!-- md:pr 1413 -->)
+
+- Fix dimension name consistency when adding investment period weightings. (<!-- md:pr 1416 -->)
 
 ## [**v1.0.0**](https://github.com/PyPSA/PyPSA/releases/tag/v1.0.0) <small>14 October 2025</small> 🎉 { id="v1.0.0" } 
 
