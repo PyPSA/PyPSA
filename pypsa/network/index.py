@@ -120,7 +120,7 @@ class NetworkIndexMixin(_NetworkABC):
                 .apply(lambda x: x.total_seconds() / 3600)
             )
             self._snapshots_data = pd.DataFrame(
-                dict.fromkeys(self._snapshots_data.columns, hours_per_step)
+                dict.fromkeys(self._snapshots_data.columns, hours_per_step), index=sns
             )
         elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             logger.info(
