@@ -1,2 +1,0 @@
-name,type,carrier_attribute,sense,constant
-co2_limit,primary_energy,co2_emissions,<=,1000

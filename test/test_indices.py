@@ -1,8 +1,12 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pandas as pd
 import pytest
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def network(ac_dc_network):
     return ac_dc_network  # Change scope of existing fixture to function
 
@@ -38,7 +42,7 @@ def network_add_snapshots_multiindex(network):
 def test_snapshot_index_consistency(request, network_fixture):
     n = request.getfixturevalue(network_fixture)
     for component in n.all_components:
-        dynamic = n.dynamic(component)
+        dynamic = n.c[component].dynamic
         for k in dynamic.keys():
             assert dynamic[k].index.equals(n.snapshots)
 
@@ -53,10 +57,10 @@ def test_existing_value_casting(request, network_fixture):
     assert not isinstance(base_network.snapshots, pd.MultiIndex)
     snapshots = base_network.snapshots
     if isinstance(n.snapshots, pd.MultiIndex):
-        vals = n.generators_t.p_max_pu.xs(2015).loc[snapshots, :]
+        vals = n.c.generators.dynamic.p_max_pu.xs(2015).loc[snapshots, :]
     else:
-        vals = n.generators_t.p_max_pu.loc[snapshots, :]
-    assert vals.equals(base_network.generators_t.p_max_pu)
+        vals = n.c.generators.dynamic.p_max_pu.loc[snapshots, :]
+    assert vals.equals(base_network.c.generators.dynamic.p_max_pu)
 
 
 # @pytest.mark.parametrize("meta", [{"test": "test"}, {"test": {"test": "test"}}])

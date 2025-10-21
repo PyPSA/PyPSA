@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pypsa
 
 
@@ -27,19 +31,21 @@ def test_optimize_post_discretization():
     )
 
     line_unit_size = 500
-    link_unit_size = dict(HVDC=600)
+    link_unit_size = {"HVDC": 600}
 
     status, _ = n.optimize.optimize_transmission_expansion_iteratively(
         max_iterations=1,
         line_unit_size=line_unit_size,
         link_unit_size=link_unit_size,
-        link_threshold=dict(HVDC=0.4),
+        link_threshold={"HVDC": 0.4},
     )
 
     assert status == "ok"
-    assert all(n.lines.query("s_nom_extendable").s_nom_opt % line_unit_size == 0.0)
     assert all(
-        n.links.query("p_nom_extendable and carrier == 'HVDC'").p_nom_opt
+        n.c.lines.static.query("s_nom_extendable").s_nom_opt % line_unit_size == 0.0
+    )
+    assert all(
+        n.c.links.static.query("p_nom_extendable and carrier == 'HVDC'").p_nom_opt
         % link_unit_size["HVDC"]
         == 0.0
     )

@@ -1,0 +1,4 @@
+name,bus,p_nom,p_nom_extendable,carrier,marginal_cost,capital_cost
+load shedding,electricity,10901.16,False,load shedding,2000.0,0.0
+wind,electricity,0.0,True,wind,0.0,101644.12332388276
+solar,electricity,0.0,True,solar,0.0,51346.82981964593

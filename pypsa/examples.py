@@ -1,159 +1,266 @@
-#!/usr/bin/env python3
-"""
-This module contains functions for retrieving/loading example networks provided
-by the PyPSA project.
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+"""Retrieve PyPSA example networks."""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
-from urllib.error import HTTPError
-from urllib.request import urlretrieve
+import warnings
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
-from pypsa.io import _data_dir
+from packaging.version import parse as parse_version
+
 from pypsa.networks import Network
+from pypsa.version import __version_base__
 
-if TYPE_CHECKING:
-    from pypsa import Network
 logger = logging.getLogger(__name__)
 
 
-def _decrement_version(version: str) -> str:
-    x, y, z = map(int, version.split("."))
-    if z > 0:
-        z -= 1
-    elif y > 0:
-        y -= 1
-        z = 25  # TODO: This is a hack right now
-    elif x > 0:
-        x -= 1
-        y = z = 25  # TODO: This is a hack right now
-    return f"{x}.{y}.{z}"
-
-
-def _repo_url(master: bool = False) -> str:
-    url = "https://github.com/PyPSA/PyPSA/raw/"
-    if master:
-        return f"{url}master/"
-    from pypsa import release_version  # avoid cyclic imports
-
-    assert release_version is not None, "release_version is None"
-    # If the release version is not found, use the latest version, since this is
-    # because we are in a dev branch which has not been released yet.
-    version_with_data = release_version
-    while True:
-        try:
-            urlretrieve(f"{url}v{version_with_data}/".replace("raw", "releases/tag"))
-            break
-        except HTTPError:
-            version_with_data = _decrement_version(version_with_data)
-
-    return f"{url}v{version_with_data}/"
-
-
-def _retrieve_if_not_local(
-    name: str, repofile: str, update: bool = False, from_master: bool = False
+def _repo_url(
+    master: bool = False, url: str = "https://github.com/PyPSA/PyPSA/raw/"
 ) -> str:
-    path = (_data_dir / name).with_suffix(".nc")
-
-    if not path.exists() or update:
-        url = _repo_url(from_master) + repofile
-        logger.info(f"Retrieving network data from {url}")
-        urlretrieve(url, path)
-
-    return str(path)
+    if master or parse_version(__version_base__) < parse_version(
+        "0.35.0"
+    ):  # Feature was added in 0.35.0
+        return f"{url}master/"
+    return f"{url}v{__version_base__}/"
 
 
-def _sanitize_ac_dc_meshed(n: Network, remove_link_p_set: bool = True) -> None:
-    # TODO: make this function obsolete by adjusting the input files
-    n.buses["country"] = ["UK", "UK", "UK", "UK", "DE", "DE", "DE", "NO", "NO"]
-    n.carriers["color"] = ["red", "blue", "green"]
-    n.loads["carrier"] = "load"
-    n.lines["carrier"] = "AC"
-    n.links["carrier"] = "DC"
-    n.add("Carrier", "load", color="black")
-    n.add("Carrier", "AC", color="orange")
-    n.add("Carrier", "DC", color="purple")
-    if remove_link_p_set:
-        n.links_t.p_set.drop(columns=n.links_t.p_set.columns, inplace=True)
+def _check_url_availability(url: str) -> bool:
+    """Check if a URL is available by making a HEAD request."""
+    if not url.startswith(("http://", "https://")):
+        return False
+    try:
+        with urlopen(url) as response:  # noqa: S310
+            return response.status == 200
+    except (HTTPError, URLError, OSError):
+        return False
 
 
-def ac_dc_meshed(
-    update: bool = False, from_master: bool = False, remove_link_p_set: bool = True
-) -> Network:
-    """
-    Load the meshed AC-DC network example of pypsa stored in the PyPSA
-    repository.
+def _retrieve_if_not_local(path: str | Path) -> Network:
+    if not (Path.cwd() / path).exists():
+        path = _repo_url() + str(path)
+        Path.cwd()
 
-    Parameters
-    ----------
-    update : bool, optional
-        Whether to update the locally stored network data. The default is False.
-    from_master : bool, optional
-        Whether to retrieve from the master branch of the pypsa repository.
+    # Suppress warning which occurs due to numpy version mismatch
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="numpy.ndarray size changed, may indicate binary incompatibility",
+            category=RuntimeWarning,
+        )
+        return Network(path)
+
+
+def ac_dc_meshed() -> Network:
+    """Load the meshed AC-DC example network.
+
+    <!-- md:badge-version v0.18.0 -->
 
     Returns
     -------
     pypsa.Network
+        AC-DC meshed network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.ac_dc_meshed()
+    >>> n
+    PyPSA Network 'AC-DC-Meshed'
+    ----------------------------
+    Components:
+     - Bus: 9
+     - Carrier: 6
+     - Generator: 6
+     - GlobalConstraint: 1
+     - Line: 7
+     - Link: 4
+     - Load: 6
+    Snapshots: 10
+
     """
-    name = "ac-dc-meshed"
-    repofile = "examples/ac-dc-meshed/ac-dc-data.nc"
-    path = _retrieve_if_not_local(
-        name, repofile, update=update, from_master=from_master
+    return _retrieve_if_not_local("examples/networks/ac-dc-meshed/ac-dc-meshed.nc")
+
+
+def storage_hvdc() -> Network:
+    """Load the storage network example of PyPSA.
+
+    <!-- md:badge-version v0.18.0 -->
+
+    Returns
+    -------
+    pypsa.Network
+        Storage network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.storage_hvdc()
+    >>> n
+    PyPSA Network 'Storage-HVDC'
+    ----------------------------
+    Components:
+     - Bus: 6
+     - Carrier: 3
+     - Generator: 12
+     - GlobalConstraint: 1
+     - Line: 6
+     - Link: 2
+     - Load: 6
+     - StorageUnit: 6
+    Snapshots: 12
+
+    """
+    return _retrieve_if_not_local("examples/networks/storage-hvdc/storage-hvdc.nc")
+
+
+def scigrid_de() -> Network:
+    """Load the SciGrid network example of PyPSA.
+
+    <!-- md:badge-version v0.18.0 --> | <!-- md:badge-example scigrid-lopf-then-pf.ipynb -->
+
+    Returns
+    -------
+    pypsa.Network
+        SciGrid network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.scigrid_de()
+    >>> n
+    PyPSA Network 'SciGrid-DE'
+    --------------------------
+    Components:
+     - Bus: 585
+     - Carrier: 16
+     - Generator: 1423
+     - Line: 852
+     - Load: 489
+     - StorageUnit: 38
+     - Transformer: 96
+    Snapshots: 24
+
+    """
+    return _retrieve_if_not_local("examples/networks/scigrid-de/scigrid-de.nc")
+
+
+def model_energy() -> Network:
+    """Load the single-node capacity expansion model in style of model.energy.
+
+    <!-- md:badge-version v0.34.1 -->
+
+    Check out the [model.energy website](https://model.energy/) for more information.
+
+
+    Returns
+    -------
+    pypsa.Network
+        Single-node capacity expansion model in style of model.energy.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.model_energy()
+    >>> n
+    PyPSA Network 'Model-Energy'
+    ----------------------------
+    Components:
+     - Bus: 2
+     - Carrier: 9
+     - Generator: 3
+     - Link: 2
+     - Load: 1
+     - StorageUnit: 1
+     - Store: 1
+    Snapshots: 2920
+
+    References
+    ----------
+    [^1]: See https://model.energy/
+
+    """
+    return _retrieve_if_not_local("examples/networks/model-energy/model-energy.nc")
+
+
+def stochastic_network() -> Network:
+    """Load the stochastic network example.
+
+    <!-- md:badge-version v1.0.0 --> | <!-- md:guide-badge optimization/stochastic.md -->
+
+    Returns
+    -------
+    pypsa.Network
+        Stochastic network example network.
+
+    Examples
+    --------
+    >>> n = pypsa.examples.stochastic_network()
+    >>> n
+    Stochastic PyPSA Network 'Stochastic-Network'
+    ---------------------------------------------
+    Components:
+        - Bus: 3
+        - Generator: 12
+        - Load: 3
+    Snapshots: 2920
+    Scenarios: 3
+
+    """
+    n = _retrieve_if_not_local(
+        "examples/networks/stochastic-network/stochastic-network.nc"
     )
-    n = Network(path)
-    _sanitize_ac_dc_meshed(n, remove_link_p_set=remove_link_p_set)
+
     return n
 
 
-def storage_hvdc(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the storage network example of pypsa stored in the PyPSA repository.
+def carbon_management() -> Network:
+    """Load the carbon management network example of PyPSA.
 
-    Parameters
+    <!-- md:badge-version v1.0.0 -->
+
+    The Carbon Management Network has 20 days of data on the hybrid case from a
+    recently published paper on carbon management based on PyPSA-Eur. It is
+    sector-coupled and currently the most complex example network within PyPSA,
+    making it ideal for exploring the plotting and statistical functionality.
+
+    References
     ----------
-    update : bool, optional
-        Whether to update the locally stored network data. The default is False.
+    [^1]: Hofmann, F., Tries, C., Neumann, F. et al. H2 and CO2 network strategies for
+    the European energy system. Nat Energy 10, 715–724 (2025).
+    https://doi.org/10.1038/s41560-025-01752-6
 
-    Returns
-    -------
-    pypsa.Network
+    Examples
+    --------
+    >>> n = pypsa.examples.carbon_management()
+    >>> n
+    PyPSA Network 'Hybrid Scenario from https://www.nature.com/articles/s41560-025-01752-6'
+    ---------------------------------------------------------------------------------------
+    Components:
+     - Bus: 2164
+     - Carrier: 89
+     - Generator: 1489
+     - GlobalConstraint: 4
+     - Line: 157
+     - Link: 6830
+     - Load: 1357
+     - StorageUnit: 106
+     - Store: 1263
+    Snapshots: 168
+    <BLANKLINE>
+
     """
-    name = "storage-hvdc"
-    repofile = "examples/opf-storage-hvdc/storage-hvdc.nc"
-    path = _retrieve_if_not_local(
-        name, repofile, update=update, from_master=from_master
+    primary_url = (
+        "https://tubcloud.tu-berlin.de/s/4nsj6XSAbnq8skc/download/carbon-management.nc"
     )
-    return Network(path)
 
-
-def scigrid_de(update: bool = False, from_master: bool = False) -> Network:
-    """
-    Load the SciGrid network example of pypsa stored in the PyPSA repository.
-
-    Parameters
-    ----------
-    update : bool, optional
-        Whether to update the locally stored network data. The default is False.
-
-    Returns
-    -------
-    pypsa.Network
-    """
-    name = "scigrid-de"
-    repofile = "examples/scigrid-de/scigrid-with-load-gen-trafos.nc"
-    path = _retrieve_if_not_local(
-        name, repofile, update=update, from_master=from_master
-    )
-    n = Network(path)
-    carriers = list(
-        {
-            carrier
-            for c in n.iterate_components()
-            if "carrier" in c.static
-            for carrier in c.static.carrier.unique()
-        }
-    )
-    n.add("Carrier", carriers)
-    return n
+    if _check_url_availability(primary_url):
+        return Network(primary_url)
+    else:
+        msg = (
+            "The carbon management example is currently unavailable. Please check "
+            "your internet connection and make sure you are on the latest version of "
+            "PyPSA."
+        )
+        raise RuntimeError(msg)

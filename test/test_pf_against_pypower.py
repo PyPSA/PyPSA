@@ -1,28 +1,18 @@
-from packaging.version import Version, parse
-
-try:
-    # pypower is not maintained and with recent numpy verion it breaks
-    from pypower.api import case118 as case
-    from pypower.api import ppoption, runpf
-    from pypower.ppver import ppver
-
-    pypower_version = parse(ppver()["Version"])
-except ImportError:
-    pypower_version = Version("0.0.0")
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import numpy as np
 import pandas as pd
-import pytest
 from numpy.testing import assert_array_almost_equal as equal
+from pypower.case30 import case30 as case
+from pypower.ppoption import ppoption
+from pypower.runpf import runpf
 
 import pypsa
 from pypsa.constants import DEFAULT_TIMESTAMP
 
 
-@pytest.mark.skipif(
-    pypower_version <= Version("5.0.0"),
-    reason="PyPOWER 5.0.0 is broken with recent numpy and unmaintained since Aug 2017.",
-)
 def test_pypower_case():
     # ppopt is a dictionary with the details of the optimization routine to run
     ppopt = ppoption(PF_ALG=2)
@@ -36,9 +26,25 @@ def test_pypower_case():
     results, success = runpf(ppc, ppopt)
 
     # branches
-    columns = "bus0, bus1, r, x, b, rateA, rateB, rateC, ratio, angle, status, angmin, angmax, p0, q0, p1, q1".split(
-        ", "
-    )
+    columns = [
+        "bus0",
+        "bus1",
+        "r",
+        "x",
+        "b",
+        "rateA",
+        "rateB",
+        "rateC",
+        "ratio",
+        "angle",
+        "status",
+        "angmin",
+        "angmax",
+        "p0",
+        "q0",
+        "p1",
+        "q1",
+    ]
     results_df = {"branch": pd.DataFrame(data=results["branch"], columns=columns)}
     # buses
     columns = [
@@ -61,9 +67,29 @@ def test_pypower_case():
     )
 
     # generators
-    columns = "bus, p, q, q_max, q_min, Vg, mBase, status, p_max, p_min, Pc1, Pc2, Qc1min, Qc1max, Qc2min, Qc2max, ramp_agc, ramp_10, ramp_30, ramp_q, apf".split(
-        ", "
-    )
+    columns = [
+        "bus",
+        "p",
+        "q",
+        "q_max",
+        "q_min",
+        "Vg",
+        "mBase",
+        "status",
+        "p_max",
+        "p_min",
+        "Pc1",
+        "Pc2",
+        "Qc1min",
+        "Qc1max",
+        "Qc2min",
+        "Qc2max",
+        "ramp_agc",
+        "ramp_10",
+        "ramp_30",
+        "ramp_q",
+        "apf",
+    ]
     results_df["gen"] = pd.DataFrame(data=results["gen"], columns=columns)
 
     # now compute in PyPSA
@@ -73,12 +99,14 @@ def test_pypower_case():
 
     # PYPOWER uses PI model for transformers, whereas PyPSA defaults to
     # T since version 0.8.0
-    n.transformers.model = "pi"
+    n.c.transformers.static.model = "pi"
 
     n.pf()
 
     # compare branch flows
-    for c in n.iterate_components(n.passive_branch_components):
+    for c in n.components:
+        if c.name not in n.passive_branch_components:
+            continue
         for si in ["p0", "p1", "q0", "q1"]:
             si_pypsa = getattr(c.dynamic, si).loc[DEFAULT_TIMESTAMP].values
             si_pypower = results_df["branch"][si][c.static.original_index].values
@@ -86,17 +114,17 @@ def test_pypower_case():
 
     # compare generator dispatch
     for s in ["p", "q"]:
-        s_pypsa = getattr(n.generators_t, s).loc[DEFAULT_TIMESTAMP].values
+        s_pypsa = getattr(n.c.generators.dynamic, s).loc[DEFAULT_TIMESTAMP].values
         s_pypower = results_df["gen"][s].values
         equal(s_pypsa, s_pypower)
 
     # compare voltages
-    v_mag_pypsa = n.buses_t.v_mag_pu.loc[DEFAULT_TIMESTAMP]
+    v_mag_pypsa = n.c.buses.dynamic.v_mag_pu.loc[DEFAULT_TIMESTAMP]
     v_mag_pypower = results_df["bus"]["v_mag_pu"]
 
     equal(v_mag_pypsa, v_mag_pypower)
 
-    v_ang_pypsa = n.buses_t.v_ang.loc[DEFAULT_TIMESTAMP]
+    v_ang_pypsa = n.c.buses.dynamic.v_ang.loc[DEFAULT_TIMESTAMP]
     pypower_slack_angle = results_df["bus"]["v_ang"][
         results_df["bus"]["type"] == 3
     ].values[0]

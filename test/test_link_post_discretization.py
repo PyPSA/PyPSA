@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pypsa
 from pypsa.optimization.abstract import discretized_capacity
 
@@ -93,7 +97,7 @@ def test_post_discretization():
 
     n = build_network(unit_size=unit_size)
 
-    n.links["p_nom"] = n.links.apply(
+    n.c.links.static["p_nom"] = n.c.links.static.apply(
         lambda row: discretized_capacity(
             nom_opt=row["p_nom_opt"],
             nom_max=row["p_nom_max"],
@@ -106,21 +110,21 @@ def test_post_discretization():
 
     # p_nom_opt   | p_nom_max | p_nom     | unit_size
     # 5           | 10        | 10        | 10
-    assert n.links.loc["Link0"].p_nom == unit_size
+    assert n.c.links.static.loc["Link0"].p_nom == unit_size
     # 15          | 20        | 20        | 10
-    assert n.links.loc["Link1"].p_nom == 2 * unit_size
+    assert n.c.links.static.loc["Link1"].p_nom == 2 * unit_size
     # 5           | 8         | 8         | 10
-    assert n.links.loc["Link2"].p_nom == 0.8 * unit_size
+    assert n.c.links.static.loc["Link2"].p_nom == 0.8 * unit_size
     # 13          | 15        | 15        | 10
-    assert n.links.loc["Link3"].p_nom == 1.5 * unit_size
+    assert n.c.links.static.loc["Link3"].p_nom == 1.5 * unit_size
     # 11          | 15        | 5         | 10
-    assert n.links.loc["Link4"].p_nom == unit_size
+    assert n.c.links.static.loc["Link4"].p_nom == unit_size
     # 15          | inf       | 20        | 10
-    assert n.links.loc["Link5"].p_nom == 2 * unit_size
+    assert n.c.links.static.loc["Link5"].p_nom == 2 * unit_size
 
     n = build_network(unit_size=unit_size)
 
-    n.links["p_nom"] = n.links.apply(
+    n.c.links.static["p_nom"] = n.c.links.static.apply(
         lambda row: discretized_capacity(
             nom_opt=row["p_nom_opt"],
             nom_max=row["p_nom_max"],
@@ -133,14 +137,14 @@ def test_post_discretization():
 
     # p_nom_opt   | p_nom_max | p_nom     | unit_size
     # 5           | 10        | 10        | 10
-    assert n.links.loc["Link0"].p_nom == unit_size
+    assert n.c.links.static.loc["Link0"].p_nom == unit_size
     # 15          | 20        | 20        | 10
-    assert n.links.loc["Link1"].p_nom == 2 * unit_size
+    assert n.c.links.static.loc["Link1"].p_nom == 2 * unit_size
     # 5           | 8         | 0         | 10
-    assert n.links.loc["Link2"].p_nom == 8
+    assert n.c.links.static.loc["Link2"].p_nom == 8
     # 13          | 15        | 10        | 10
-    assert n.links.loc["Link3"].p_nom == unit_size
+    assert n.c.links.static.loc["Link3"].p_nom == unit_size
     # 11          | 15        | 10        | 10
-    assert n.links.loc["Link4"].p_nom == unit_size
+    assert n.c.links.static.loc["Link4"].p_nom == unit_size
     # 15          | inf       | 20        | 10
-    assert n.links.loc["Link5"].p_nom == 2 * unit_size
+    assert n.c.links.static.loc["Link5"].p_nom == 2 * unit_size

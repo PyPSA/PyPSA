@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import pytest
 from linopy import available_solvers
 
@@ -10,12 +14,12 @@ def test_optimize_quadratic(ac_dc_network):
 
     assert status == "ok"
 
-    gas_i = n.generators.index[n.generators.carrier == "gas"]
+    gas_i = n.c.generators.static.index[n.c.generators.static.carrier == "gas"]
 
     objective_linear = n.objective
 
     # quadratic costs
-    n.generators.loc[gas_i, "marginal_cost_quadratic"] = 2
+    n.c.generators.static.loc[gas_i, "marginal_cost_quadratic"] = 2
     status, _ = n.optimize(solver_name="gurobi")
 
     assert status == "ok"

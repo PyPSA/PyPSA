@@ -1,0 +1,3 @@
+name,bus0,bus1,carrier,efficiency,p_nom_extendable,capital_cost
+electrolysis,electricity,hydrogen,electrolysis,0.6217,True,188715.7758309984
+turbine,hydrogen,electricity,turbine,0.41,True,116387.00137488062

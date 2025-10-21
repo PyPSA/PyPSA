@@ -1,31 +1,78 @@
-"""
-General utility functions for PyPSA.
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+"""General utility functions for PyPSA."""
 
 from __future__ import annotations
 
 import functools
+import json
 import logging
 import warnings
-from collections.abc import Callable, Sequence
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
+from urllib import parse, request
 
 import numpy as np
 import pandas as pd
+import pandas.testing as pd_testing
 from deprecation import deprecated
+from packaging import version
 from pandas.api.types import is_list_like
 
+from pypsa._options import options
 from pypsa.definitions.structures import Dict
+from pypsa.version import __version_base__
 
 if TYPE_CHECKING:
-    from pypsa import Network
+    from collections.abc import Callable, Sequence
+
+    from pypsa.type_utils import NetworkType
 
 logger = logging.getLogger(__name__)
 
 
-class MethodHandlerWrapper:
+class UnexpectedError(AssertionError):
+    """Custom error for unexpected conditions with issue tracker reference.
+
+    <!-- md:badge-version v0.35.0 -->
     """
-    Decorator to wrap a method with a handler class.
+
+    URL_CREATE_ISSUE = "https://go.pypsa.org/report-bug"
+
+    def __init__(self, message: str = "") -> None:
+        """Initialize the UnexpectedError.
+
+        Parameters
+        ----------
+        message : str, optional
+            Message to be displayed.
+
+        Examples
+        --------
+        >>> try:
+        ...     raise UnexpectedError("This is an unexpected error.")
+        ... except UnexpectedError as e:
+        ...     print(str(e))  # doctest: +ELLIPSIS
+        This is an unexpected error.
+        Please track this issue in our issue tracker: https://go.pypsa.org/report-bug
+
+        """
+        track_message = (
+            f"Please track this issue in our issue tracker: {self.URL_CREATE_ISSUE}"
+        )
+
+        if message:
+            message += f"\n{track_message}"
+        else:
+            message = track_message
+
+        super().__init__(message)
+
+
+class MethodHandlerWrapper:
+    """Decorator to wrap a method with a handler class.
 
     This decorator wraps any method with a handler class that is used to
     process the method's return value. The handler class must be a callable with
@@ -54,8 +101,7 @@ class MethodHandlerWrapper:
         handler_class: Any = None,
         inject_attrs: dict[str, str] | None = None,
     ) -> None:
-        """
-        Initialize the decorator.
+        """Initialize the decorator.
 
         Parameters
         ----------
@@ -70,6 +116,7 @@ class MethodHandlerWrapper:
             passed, and the values are the names of the attributes in the handler
             class. If None, no attributes are passed. Pass only strings, not
             attributes of the instance.
+
         """
         self.func = func
         self.handler_class = handler_class
@@ -88,7 +135,8 @@ class MethodHandlerWrapper:
             return self
 
         if self.func is None:
-            raise TypeError("Method has not been set correctly in MethodHandlerWrapper")
+            msg = "Method has not been set correctly in MethodHandlerWrapper"
+            raise TypeError(msg)
 
         # Create a bound method wrapper
         bound_method = self.func.__get__(obj, objtype)
@@ -105,16 +153,74 @@ class MethodHandlerWrapper:
                 )
                 raise AttributeError(msg)
 
-        # Create a callable instance with the bound method and optional attributes
         wrapper = self.handler_class(bound_method, **handler_kwargs)
+        wrapper.__name__ = self.func.__name__
+        wrapper.__doc__ = self.func.__doc__
+
         return wrapper
 
 
-def as_index(
-    n: Network, values: Any, network_attribute: str, force_subset: bool = True
-) -> pd.Index:
+@lru_cache(maxsize=1)
+def _check_for_update(current_version: str, repo_owner: str, repo_name: str) -> str:
+    """Log a message if a newer version is available.
+
+    Checks the latest release on GitHub and compares it to the current version. Does
+    nothing if the latest version is not available or if the current version is up
+    to date.
+
+    Parameters
+    ----------
+    current_version : str
+        The current version of the package as a semantic version string.
+    repo_owner : str
+        The owner of the repository.
+    repo_name : str
+        The name of the repository.
+
+    Returns
+    -------
+    str
+        A message if a newer version is available.
+
     """
-    Returns a pd.Index object from a list-like or scalar object.
+    # Check if network requests are allowed
+    if not options.get_option("general.allow_network_requests"):
+        return ""
+
+    try:
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+
+        # Validate URL scheme
+        parsed_url = parse.urlparse(url)
+        if parsed_url.scheme not in ("https", "http"):
+            return ""
+
+        headers = {"User-Agent": "Python"}  # GitHub API requires a user-agent
+        req = request.Request(url, headers=headers)  # noqa: S310
+        response = request.urlopen(req)  # noqa: S310
+        latest_version = json.loads(response.read())["tag_name"].replace("v", "")
+
+        # Version comparison using packaging.version
+        latest_parsed = version.parse(latest_version)
+        current_parsed = version.parse(current_version)
+
+        if latest_parsed > current_parsed:
+            return (
+                f"New version {latest_version} available! (Current: {current_version})"
+            )
+
+    except Exception:  # noqa: S110
+        pass
+
+    return ""
+
+
+def as_index(
+    n: NetworkType, values: Any, network_attribute: str, force_subset: bool = True
+) -> pd.Index:
+    """Return a pd.Index object from a list-like or scalar object.
+
+    <!-- md:badge-version v0.30.0 -->
 
     Also checks if the values are a subset of the corresponding attribute of the
     network object. If values is None, it is also used as the default.
@@ -135,6 +241,18 @@ def as_index(
     Returns
     -------
     pd.Index: values as a pd.Index object.
+
+    Examples
+    --------
+    >>> # Convert list to Index using network snapshots
+    >>> first_two = list(n.snapshots[:2])
+    >>> pypsa.common.as_index(n, first_two, 'snapshots')  # doctest: +ELLIPSIS
+    DatetimeIndex([..., ...], dtype='datetime64[ns]', name='snapshot', freq=None)
+
+    >>> # Using None returns all snapshots
+    >>> pypsa.common.as_index(n, None, 'snapshots')  # doctest: +ELLIPSIS
+    DatetimeIndex([..., ...], dtype='datetime64[ns]', name='snapshot', freq=None)
+
     """
     n_attr = getattr(n, network_attribute)
 
@@ -154,99 +272,183 @@ def as_index(
     else:
         values_ = pd.Index(values, name=n_attr.names[0])
 
-    # if n_attr.nlevels != values_.nlevels:
-    #     raise ValueError(
-    #         f"Number of levels of the given MultiIndex does not match the number"
-    #         f" of levels of the network attribute '{network_attribute}'. Please"
-    #         f" set them for the network first."
-    #     )
-
-    if force_subset:
-        if not values_.isin(n_attr).all():
-            msg = (
-                f"Values must be a subset of the network attribute "
-                f"'{network_attribute}'. Pass force_subset=False to disable this check."
-            )
-            raise ValueError(msg)
-    assert isinstance(values_, pd.Index)
+    if force_subset and not all(val in n_attr for val in values_):
+        msg = (
+            f"Values must be a subset of the network attribute "
+            f"'{network_attribute}'. Pass force_subset=False to disable this check."
+        )
+        raise ValueError(msg)
 
     return values_
 
 
-def equals(a: Any, b: Any, ignored_classes: Any = None) -> bool:
-    assert isinstance(a, type(b)), f"Type mismatch: {type(a)} != {type(b)}"
+def equals(
+    a: Any,
+    b: Any,
+    ignored_classes: Any = None,
+    log_mode: str = "silent",
+    path: str = "",
+) -> bool:
+    """Check if two objects are equal and track the location of differences.
 
-    if ignored_classes is not None:
-        if isinstance(a, tuple(ignored_classes)):
-            return True
+    Parameters
+    ----------
+    a : Any
+        First object to compare.
+    b : Any
+        Second object to compare.
+    ignored_classes : Any, default=None
+        Classes to ignore during comparison. If None, no classes are ignored.
+    log_mode: str, default="silent"
+        Controls how differences are reported:
+        - 'silent': No logging, just returns True/False
+        - 'verbose': Prints differences but doesn't raise errors
+        - 'strict': Raises ValueError on first difference
+    path: str, default=""
+        Current path in the object structure (used for tracking differences).
+
+    Raises
+    ------
+    ValueError
+        If log_mode is 'strict' and components are not equal.
+
+    Returns
+    -------
+    bool
+        True if the objects are equal, False otherwise.
+
+    Examples
+    --------
+    >>> # Compare pandas DataFrames
+    >>> df1 = pd.DataFrame({'a': [1, 2], 'b': [3, 4]})
+    >>> df2 = pd.DataFrame({'a': [1, 2], 'b': [3, 4]})
+    >>> pypsa.common.equals(df1, df2)
+    True
+
+    >>> # Compare lists
+    >>> pypsa.common.equals([1, 2, 3], [1, 2, 4])
+    False
+
+    >>> # Handle NaN values correctly
+    >>> pypsa.common.equals(np.nan, np.nan)
+    True
+
+    """
+    if not isinstance(log_mode, str):
+        msg = "'log_mode' must be a string, not {type(log_mode)}."
+    if log_mode not in ["silent", "verbose", "strict"]:
+        msg = (
+            f"'log_mode' must be one of 'silent', 'verbose', 'strict'], not {log_mode}."
+        )
+        raise ValueError(msg)
+
+    current_path = path or "root"
+
+    def handle_diff(message: str) -> bool:
+        if log_mode == "strict":
+            raise ValueError(message)
+        if log_mode == "verbose":
+            logger.warning(message)
+        return False
+
+    if not isinstance(a, type(b)):
+        # Ignore if they are subtypes # TODO: remove with data validation PR
+        if np.issubdtype(type(a), type(b)) or np.issubdtype(type(b), type(a)):
+            pass
+        else:
+            msg = f"Types differ at '{current_path}'\n\n{a} ({type(a)})\n\n!=\n\n{b} ({type(b)})\n"
+            return handle_diff(msg)
+
+    if ignored_classes is not None and isinstance(a, tuple(ignored_classes)):
+        return True
+    from pypsa.components.store import ComponentsStore  # noqa: PLC0415
 
     # Classes with equality methods
     if isinstance(a, np.ndarray):
-        if not np.array_equal(a, b):
-            return False
-    elif isinstance(a, (pd.DataFrame | pd.Series | pd.Index)):
+        if not np.array_equal(a, b, equal_nan=True):
+            msg = f"numpy arrays differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
+
+    elif isinstance(a, pd.DataFrame | pd.Series | pd.Index):
+        if a.empty and b.empty:
+            return True
         if not a.equals(b):
-            return False
-    # Iterators
-    elif isinstance(a, (dict | Dict)):
+            # TODO: Resolve with data validation PR
+            # Check if dtypes are equal
+            try:
+                pd_testing.assert_frame_equal(
+                    a, b, check_dtype=False, check_exact=False
+                )
+            except AssertionError:
+                msg = f"pandas objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+                return handle_diff(msg)
+
+    elif isinstance(a, ComponentsStore):
         for k, v in a.items():
-            if not equals(v, b[k]):
+            if not hasattr(b, k):
+                msg = (
+                    f"Key '{k}' missing from second ComponentsStore at '{current_path}'"
+                )
+                return handle_diff(msg)
+            if not equals(v, b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
                 return False
-    elif isinstance(a, (list | tuple)):
+        # Check for extra keys in b
+        for k in b.keys():
+            if not hasattr(a, k):
+                msg = (
+                    f"Key '{k}' missing from first ComponentsStore at '{current_path}'"
+                )
+                return handle_diff(msg)
+
+    # Iterators
+    elif isinstance(a, dict | Dict):
+        for k, v in a.items():
+            if k not in b:
+                msg = f"Key '{k}' missing from second dict at '{current_path}'"
+                return handle_diff(msg)
+            if not equals(v, b[k], ignored_classes, log_mode, f"{current_path}.{k}"):
+                return False
+        # Check for extra keys in b
+        for k in b:
+            if k not in a:
+                msg = f"Key '{k}' missing from first dict at '{current_path}'"
+                return handle_diff(msg)
+
+    elif isinstance(a, list | tuple):
+        if len(a) != len(b):
+            msg = f"Collections have different lengths at '{current_path}': {len(a)} != {len(b)}"
+            return handle_diff(msg)
+
         for i, v in enumerate(a):
-            if not equals(v, b[i]):
+            if not equals(v, b[i], ignored_classes, log_mode, f"{current_path}[{i}]"):
                 return False
+
     # Nans
     elif pd.isna(a) and pd.isna(b):
         pass
-    else:
-        if a != b:
-            return False
+
+    # Floating point numbers with tolerance
+    elif isinstance(a, float | int) and isinstance(b, float | int):
+        if not np.isclose(a, b, rtol=1e-9, atol=1e-12):
+            msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+            return handle_diff(msg)
+
+    # Other objects
+    elif a != b:
+        msg = f"Objects differ at '{current_path}'\n\n{a}\n\n!=\n\n{b}\n"
+        return handle_diff(msg)
 
     return True
 
 
-def deprecated_kwargs(**aliases: str) -> Callable:
-    """
-    Decorator for deprecated function and method arguments.
-    Based on solution from [here](https://stackoverflow.com/questions/49802412).
-
-    Parameters
-    ----------
-    aliases : dict
-        A mapping of old argument names to new argument names.
-
-    Returns
-    -------
-    Callable
-        A decorator that renames the old arguments to the new arguments.
-
-    Examples
-    --------
-    >>> @deprecated_kwargs(object_id="id_object")
-    ... def some_func(id_object):
-    ...     print(id_object)
-    >>> some_func(object_id=1) # doctest: +SKIP
-    1
-
-    """
-
-    def deco(f: Callable) -> Callable:
-        @functools.wraps(f)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            rename_kwargs(f.__name__, kwargs, aliases)
-            return f(*args, **kwargs)
-
-        return wrapper
-
-    return deco
-
-
-def rename_kwargs(
-    func_name: str, kwargs: dict[str, Any], aliases: dict[str, str]
+def rename_deprecated_kwargs(
+    func_name: str,
+    kwargs: dict[str, Any],
+    aliases: dict[str, str],
+    deprecated_in: str,
+    removed_in: str,
 ) -> None:
-    """
-    Helper function for deprecating function arguments.
+    """Decorate functions to deprecate function parameters.
 
     Based on solution from [here](https://stackoverflow.com/questions/49802412).
 
@@ -258,29 +460,83 @@ def rename_kwargs(
         The keyword arguments of the function.
     aliases : dict
         A mapping of old argument names to new argument names.
+    deprecated_in : str
+        Version in which the argument was deprecated.
+    removed_in : str
+        Version in which the argument will be removed.
 
     """
     for alias, new in aliases.items():
         if alias in kwargs:
             if new in kwargs:
-                raise TypeError(
+                msg = (
                     f"{func_name} received both {alias} and {new} as arguments!"
                     f" {alias} is deprecated, use {new} instead."
                 )
+                raise DeprecationWarning(msg)
+
+            message = f"`{alias}` is deprecated as an argument to `{func_name}`; use `{new}` instead."
+            if deprecated_in:
+                message += f" Deprecated in version {deprecated_in}."
+            if removed_in:
+                message += f" Will be removed in version {removed_in}."
+
             warnings.warn(
-                message=(
-                    f"`{alias}` is deprecated as an argument to `{func_name}`; use"
-                    f" `{new}` instead."
-                ),
+                message=message,
                 category=DeprecationWarning,
                 stacklevel=3,
             )
             kwargs[new] = kwargs.pop(alias)
 
 
-def deprecated_common_kwargs(f: Callable) -> Callable:
+def deprecated_kwargs(deprecated_in: str, removed_in: str, **aliases: str) -> Callable:
+    """Decorate functions and methods with deprecated arguments.
+
+    Based on solution from [here](https://stackoverflow.com/questions/49802412).
+
+    Parameters
+    ----------
+    deprecated_in : str
+        Version in which the argument was deprecated.
+    removed_in : str
+        Version in which the argument will be removed.
+    aliases : dict
+        A mapping of old argument names to new argument names.
+
+    Returns
+    -------
+    Callable
+        A decorator that renames the old arguments to the new arguments.
+
+    Examples
+    --------
+    >>> @deprecated_kwargs(deprecated_in="0.32.0", removed_in="1.0", object_id="id_object")
+    ... def some_func(id_object):
+    ...     print(id_object)
+    >>> some_func(object_id=1) # doctest: +SKIP
+    1
+
     """
-    Decorator that predefines the 'a' keyword to be renamed to 'b'.
+
+    def deco(f: Callable) -> Callable:
+        @functools.wraps(f)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            rename_deprecated_kwargs(
+                f.__name__, kwargs, aliases, deprecated_in, removed_in
+            )
+            return f(*args, **kwargs)
+
+        return wrapper
+
+    return deco
+
+
+def deprecated_common_kwargs(f: Callable) -> Callable:
+    """Decorate functions with predefined common kwarg deprecations.
+
+    Backwards compatibility is given and just adds more deprecated kwargs without
+    having to specify them in each decorator call.
+
     This allows its usage as `@deprecated_ab` without parentheses.
 
     Parameters
@@ -291,40 +547,90 @@ def deprecated_common_kwargs(f: Callable) -> Callable:
     Returns
     -------
     Callable
-        A decorated function that renames 'a' to 'b'.
+        A decorated function that renames 'network' to 'n'.
+
     """
-    return deprecated_kwargs(network="n")(f)
+    return deprecated_kwargs(network="n", deprecated_in="0.31", removed_in="1.0")(f)
 
 
-def future_deprecation(*args: Any, activate: bool = False, **kwargs: Any) -> Callable:
+def deprecated_in_next_major(details: str) -> Callable:
+    """Wrap the @deprecated decorator to only require specifying the details.
+
+    Deprecates the function in the next major version and removes it in the
+    following major version. Currently set to deprecate in version 1.0 and remove
+    in version 2.0.
+
+    Parameters
+    ----------
+    details : str
+        Details about the deprecation.
+
+    Returns
+    -------
+    Callable
+        A decorator that marks the function as deprecated.
+
     """
-    Decorator factory which conditionally applies a deprecation warning.
 
-    This way future deprecations can be marked without already raising the warning.
+    def decorator(func: Callable) -> Callable:
+        return deprecated(
+            deprecated_in="1.0rc1",
+            removed_in="2.0",
+            current_version=__version_base__,
+            details=details,
+        )(func)
+
+    return decorator
+
+
+def deprecated_namespace(
+    func: Callable,
+    previous_module: str,
+    deprecated_in: str,
+    removed_in: str,
+) -> Callable:
+    """Decorate functions that have been moved from one namespace to another.
+
+    Parameters
+    ----------
+    func : Callable
+        The function that has been moved.
+    previous_module : str
+        The previous module path where the function was located.
+    deprecated_in : str
+        Version in which the namespace was deprecated.
+    removed_in : str
+        Version in which the namespace will be removed.
+
+    Returns
+    -------
+    Callable
+        A wrapper function that warns about the deprecated namespace.
+
     """
+    current_version = version.parse(__version_base__)
+    if version.parse(deprecated_in) > current_version and __version_base__ != "0.0":
+        msg = (
+            "'deprecated_namespace' can only be used in a version >= deprecated_in "
+            f"(current version: {__version_base__}, deprecated_in: {deprecated_in})."
+        )
+        raise ValueError(msg)
 
-    def custom_decorator(func: Callable) -> Callable:
-        if activate:
-            # Apply the deprecated decorator conditionally
-            decorated_func = deprecated(*args, **kwargs)(func)
-        else:
-            decorated_func = func
-
-        @functools.wraps(decorated_func)
-        def wrapper(*func_args: Any, **func_kwargs: Any) -> Any:
-            return decorated_func(*func_args, **func_kwargs)
-
-        return wrapper
-
-    return custom_decorator
-
-
-def deprecated_namespace(func: Callable, previous_module: str) -> Callable:
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
+        # Build the warning message with version information
+        message = (
+            f"`{previous_module}.{func.__name__}` is deprecated and will be removed in a future version. "
+            f"Please use `{func.__module__}.{func.__name__}` instead."
+        )
+
+        if deprecated_in:
+            message += f" Deprecated since version {deprecated_in}."
+        if removed_in:
+            message += f" Will be removed in version {removed_in}."
+
         warnings.warn(
-            f"The namespace `{previous_module}.{func.__name__}` is deprecated and will be removed in a future version. "
-            f"Please use the new namespace `{func.__module__}.{func.__name__}` instead.",
+            message,
             DeprecationWarning,
             stacklevel=2,
         )
@@ -334,10 +640,9 @@ def deprecated_namespace(func: Callable, previous_module: str) -> Callable:
 
 
 def list_as_string(
-    list_: Sequence | dict, prefix: str = "", style: str = "comma-seperated"
+    list_: Sequence | dict | set, prefix: str = "", style: str = "comma-separated"
 ) -> str:
-    """
-    Convert a list to a formatted string.
+    """Convert a list to a formatted string.
 
     Parameters
     ----------
@@ -362,23 +667,39 @@ def list_as_string(
     --------
     >>> list_as_string(['a', 'b', 'c'])
     'a, b, c'
+
+    >>> list_as_string(['x', 'y'], prefix='  ')
+    '  x, y'
+
     """
     if isinstance(list_, dict):
         list_ = list(list_.keys())
     if len(list_) == 0:
         return ""
 
-    if style == "comma-seperated":
+    if style == "comma-separated":
         return prefix + ", ".join(list_)
-    elif style == "bullet-list":
+    if style == "bullet-list":
         return prefix + "- " + f"\n{prefix}- ".join(list_)
-    else:
-        raise ValueError(
-            f"Style '{style}' not recognized. Use 'comma-seperated' or 'bullet-list'."
-        )
+    msg = f"Style '{style}' not recognized. Use 'comma-separated' or 'bullet-list'."
+    raise ValueError(msg)
 
 
 def pass_none_if_keyerror(func: Callable) -> Callable:
+    """Decorate functions to pass None if a KeyError or AttributeError is raised.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to decorate.
+
+    Returns
+    -------
+    Callable
+        The decorated function.
+
+    """
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -390,6 +711,20 @@ def pass_none_if_keyerror(func: Callable) -> Callable:
 
 
 def pass_empty_series_if_keyerror(func: Callable) -> Callable:
+    """Decorate functions to pass an empty series if a KeyError or AttributeError is raised.
+
+    Parameters
+    ----------
+    func : Callable
+        The function to decorate.
+
+    Returns
+    -------
+    Callable
+        The decorated function.
+
+    """
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> pd.Series:
         try:
@@ -401,22 +736,18 @@ def pass_empty_series_if_keyerror(func: Callable) -> Callable:
 
 
 def check_optional_dependency(module_name: str, install_message: str) -> None:
-    """
-    Check if an optional dependency is installed.
+    """Check if an optional dependency is installed.
 
     If not, raise an ImportError with an install message.
     """
     try:
         __import__(module_name)
-    except ImportError:
-        raise ImportError(install_message)
+    except ImportError as e:
+        raise ImportError(install_message) from e
 
 
-def _convert_to_series(
-    variable: dict | Sequence | float | int, index: pd.Index
-) -> pd.Series:
-    """
-    Convert a variable to a pandas Series with the given index.
+def _convert_to_series(variable: dict | Sequence | float, index: pd.Index) -> pd.Series:
+    """Convert a variable to a pandas Series with the given index.
 
     Parameters
     ----------
@@ -433,10 +764,20 @@ def _convert_to_series(
     c    3
     dtype: int64
 
+    >>> _convert_to_series({'a': 10, 'c': 30}, pd.Index(['a', 'b', 'c']))
+    a    10
+    c    30
+    dtype: int64
+
+    >>> _convert_to_series(5.0, pd.Index(['x', 'y']))
+    x    5.0
+    y    5.0
+    dtype: float64
+
     """
     if isinstance(variable, dict):
         return pd.Series(variable)
-    elif not isinstance(variable, pd.Series):
+    if not isinstance(variable, pd.Series):
         return pd.Series(variable, index=index)
     return variable
 
@@ -444,8 +785,7 @@ def _convert_to_series(
 def resample_timeseries(
     df: pd.DataFrame, freq: str, numeric_columns: list[str] | None = None
 ) -> pd.DataFrame:
-    """
-    Resample a DataFrame with proper handling of numeric and non-numeric columns.
+    """Resample a DataFrame with proper handling of numeric and non-numeric columns.
 
     Parameters
     ----------
@@ -461,6 +801,21 @@ def resample_timeseries(
     pd.DataFrame
         Resampled DataFrame with numeric columns aggregated by mean
         and non-numeric columns forward-filled
+
+    Examples
+    --------
+    >>> # Create time series with mixed data types
+    >>> dates = pd.date_range('2020-01-01', periods=4, freq='15min')
+    >>> df = pd.DataFrame({
+    ...     'value': [1.0, 2.0, 3.0, 4.0],
+    ...     'label': ['A', 'A', 'B', 'B']
+    ... }, index=dates)
+    >>> resampled = pypsa.common.resample_timeseries(df, '30min')
+    >>> resampled['value'].iloc[0]  # Mean of first two values
+    np.float64(1.5)
+    >>> resampled['label'].iloc[0]  # Forward-filled non-numeric
+    'A'
+
     """
     if not isinstance(df.index, pd.DatetimeIndex):
         df = df.set_index(pd.to_datetime(df.index))
@@ -482,12 +837,74 @@ def resample_timeseries(
     return pd.concat([numeric_df, non_numeric_df], axis=1)[df.columns]
 
 
-def check_pypsa_version(version_string: str) -> None:
+def expand_series(ser: pd.Series, columns: Sequence[str]) -> pd.DataFrame:
+    """Expand a series to a dataframe quickly.
+
+    Columns are the given series and every single column being the equal to
+    the given series.
+
+    Parameters
+    ----------
+    ser : pd.Series
+        Input series to expand.
+    columns : Sequence[str]
+        Column names for the resulting DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with all columns containing the same values as the input series.
+
+    Examples
+    --------
+    >>> ser = pd.Series([1, 2, 3], index=['a', 'b', 'c'])
+    >>> df = pypsa.common.expand_series(ser, ['col1', 'col2'])
+    >>> df
+       col1  col2
+    a   1.0   1.0
+    b   2.0   2.0
+    c   3.0   3.0
+
     """
-    Check if the installed PyPSA version was resolved correctly.
+    return ser.to_frame(columns[0]).reindex(columns=columns).ffill(axis=1)
+
+
+def _scenarios_not_implemented(func: Callable) -> Callable:
+    """Raise ValueError when used with stochastic networks."""
+
+    @functools.wraps(func)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        # Check if self is the network or has an 'n' attribute pointing to the network
+        network = getattr(self, "n", self)
+        if network.has_scenarios:
+            msg = f"Method '{func.__name__}' is not yet implemented for stochastic networks."
+            raise ValueError(msg)
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def annuity(r: float | pd.Series, n: int | pd.Series) -> float | pd.Series:
+    """Calculate the annuity factor for a given discount rate and lifetime.
+
+    According to formula $r / (1 - (1 + r)^{-n})$.
+
+    Parameters
+    ----------
+    r : float | pd.Series
+        Discount rate (as a decimal, e.g. 0.05 for 5%).
+    n : int | pd.Series
+        Lifetime of loan or asset (in years).
+
+    Returns
+    -------
+    float | pd.Series
+        The annuity factor.
+
+    Examples
+    --------
+    >>> pypsa.common.annuity(0.05, 10)  # 5% discount rate over 10 years
+    0.12950457496545661
+
     """
-    if version_string.startswith("0.0"):
-        logger.warning(
-            "The correct version of PyPSA could not be resolved. This is likely due to "
-            "a local clone without pulling tags. Please run `git fetch --tags`."
-        )
+    return r / (1.0 - 1.0 / (1.0 + r) ** n)

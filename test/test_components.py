@@ -1,8 +1,25 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+import warnings
+
 import pandas as pd
 import pytest
 
-from pypsa import Network
-from pypsa.components.components import Component
+from pypsa import Components, Network
+from pypsa.components.legacy import Component
+from pypsa.components.types import get as get_component_type
+
+
+def test_components_non_implemented():
+    """Test that the components module raises an ImportError if imported directly."""
+    ct = get_component_type("Generator")
+    with pytest.raises(NotImplementedError):
+        Components(ctype=ct, names=["Generator"])
+    n = Network()
+    with pytest.raises(NotImplementedError):
+        Components(ctype=ct, n=n)
 
 
 @pytest.fixture
@@ -22,11 +39,6 @@ def legacy_component():
     return component
 
 
-def test_deprecated_arguments():
-    with pytest.warns(DeprecationWarning):
-        Component(name="Generator", list_name="x", attrs=pd.DataFrame())
-
-
 def test_component_initialization(legacy_component):
     component = legacy_component
     assert component.name == "Generator"
@@ -41,6 +53,23 @@ def test_active_assets(legacy_component):
     assert len(active_assets) == 2
     assert "asset1" in active_assets
     assert "asset3" in active_assets
+
+
+def test_components_iteration_equivalence():
+    """Test that self.components and self.iterate_components yield the same results."""
+    n = Network()
+    n.add("Bus", "bus")
+    n.add("Load", "load", bus="bus", p_set=10)
+    n.add("Line", "line", bus0="bus", bus1="bus", x=0.1, r=0.01)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        old_components = sorted([c.name for c in n.iterate_components()])
+
+    new_components = sorted([c.name for c in n.components])
+
+    assert old_components == new_components
+    assert all(not c.empty for c in n.components)
 
 
 def test_active_in_investment_period(legacy_component):

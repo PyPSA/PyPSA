@@ -1,6 +1,12 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import copy
 import sys
+import warnings
 
+import linopy
 import numpy as np
 import pandas as pd
 import pytest
@@ -61,8 +67,8 @@ def test_remove(ac_dc_network):
 
     n.remove("Generator", generators)
 
-    assert not generators.issubset(n.generators.index)
-    assert not generators.issubset(n.generators_t.p_max_pu.columns)
+    assert not generators.issubset(n.c.generators.static.index)
+    assert not generators.issubset(n.c.generators.dynamic.p_max_pu.columns)
 
 
 def test_remove_misspelled_component(ac_dc_network):
@@ -116,7 +122,7 @@ def test_add_duplicated_names(n_5bus):
 
 @pytest.mark.parametrize("slicer", [0, slice(0, 1), slice(None, None)])
 def test_add_static(n_5bus, slicer):
-    buses = n_5bus.buses.index[slicer]
+    buses = n_5bus.c.buses.static.index[slicer]
 
     load_names = "load_" + buses
 
@@ -125,11 +131,11 @@ def test_add_static(n_5bus, slicer):
     if slicer == 0:
         load_names = pd.Index([load_names])
 
-    assert len(n_5bus.loads) == len(load_names)
-    assert n_5bus.loads.index.name == "Load"
-    assert n_5bus.loads.index.equals(load_names)
-    assert (n_5bus.loads.bus == buses).all()
-    assert (n_5bus.loads.p_set == 3).all()
+    assert len(n_5bus.c.loads.static) == len(load_names)
+    assert n_5bus.c.loads.static.index.name == "name"
+    assert n_5bus.c.loads.static.index.equals(load_names)
+    assert (n_5bus.c.loads.static.bus == buses).all()
+    assert (n_5bus.c.loads.static.p_set == 3).all()
 
     if slicer == slice(None, None):
         # Test different names shape
@@ -139,7 +145,7 @@ def test_add_static(n_5bus, slicer):
 
 @pytest.mark.parametrize("slicer", [slice(0, 1), slice(None, None)])
 def test_add_static_with_index(n_5bus, slicer):
-    buses = n_5bus.buses.index[slicer]
+    buses = n_5bus.c.buses.static.index[slicer]
 
     load_names = "load_" + buses
     buses = pd.Series(buses, index=load_names)
@@ -151,11 +157,11 @@ def test_add_static_with_index(n_5bus, slicer):
         p_set=3,
     )
 
-    assert len(n_5bus.loads) == len(load_names)
-    assert n_5bus.loads.index.name == "Load"
-    assert n_5bus.loads.index.equals(load_names)
-    assert (n_5bus.loads.bus == buses).all()
-    assert (n_5bus.loads.p_set == 3).all()
+    assert len(n_5bus.c.loads.static) == len(load_names)
+    assert n_5bus.c.loads.static.index.name == "name"
+    assert n_5bus.c.loads.static.index.equals(load_names)
+    assert (n_5bus.c.loads.static.bus == buses).all()
+    assert (n_5bus.c.loads.static.p_set == 3).all()
 
     if len(buses) > 1:
         # Test unaligned names index
@@ -164,7 +170,7 @@ def test_add_static_with_index(n_5bus, slicer):
 
 
 def test_add_varying_single(n_5bus_7sn):
-    buses = n_5bus_7sn.buses.index
+    buses = n_5bus_7sn.c.buses.static.index
 
     # Add load component at every bus with time-dependent attribute p_set.
     p_set = rng.random(size=(len(n_5bus_7sn.snapshots)))
@@ -175,12 +181,14 @@ def test_add_varying_single(n_5bus_7sn):
         p_set=p_set,
     )
 
-    assert len(n_5bus_7sn.loads) == 1
-    assert n_5bus_7sn.loads.index.name == "Load"
-    assert (n_5bus_7sn.loads.index == "load_1").all()
-    assert (n_5bus_7sn.loads.bus == buses[0]).all()
-    assert (n_5bus_7sn.loads_t.p_set.T == p_set).all().all()
-    assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
+    assert len(n_5bus_7sn.c.loads.static) == 1
+    assert n_5bus_7sn.c.loads.static.index.name == "name"
+    assert (n_5bus_7sn.c.loads.static.index == "load_1").all()
+    assert (n_5bus_7sn.c.loads.static.bus == buses[0]).all()
+    assert (p_set == n_5bus_7sn.c.loads.dynamic.p_set.T).all().all()
+    assert (
+        n_5bus_7sn.c.loads.static.p_set == 0
+    ).all()  # Assert that default value is set
 
     # Test different snapshots shape
     with pytest.raises(ValueError, match="for each snapshot"):
@@ -193,7 +201,7 @@ def test_add_varying_single(n_5bus_7sn):
 
 @pytest.mark.parametrize("slicer", [slice(0, 1), slice(None, None)])
 def test_add_varying_multiple(n_5bus_7sn, slicer):
-    buses = n_5bus_7sn.buses.index[slicer]
+    buses = n_5bus_7sn.c.buses.static.index[slicer]
 
     # Add load component at every bus with time-dependent attribute p_set.
     load_names = "load_" + buses
@@ -205,12 +213,14 @@ def test_add_varying_multiple(n_5bus_7sn, slicer):
         p_set=p_set,
     )
 
-    assert len(n_5bus_7sn.loads) == len(load_names)
-    assert n_5bus_7sn.loads.index.name == "Load"
-    assert n_5bus_7sn.loads.index.equals(load_names)
-    assert (n_5bus_7sn.loads.bus == buses).all()
-    assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
-    assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
+    assert len(n_5bus_7sn.c.loads.static) == len(load_names)
+    assert n_5bus_7sn.c.loads.static.index.name == "name"
+    assert n_5bus_7sn.c.loads.static.index.equals(load_names)
+    assert (n_5bus_7sn.c.loads.static.bus == buses).all()
+    assert (n_5bus_7sn.c.loads.dynamic.p_set == p_set).all().all()
+    assert (
+        n_5bus_7sn.c.loads.static.p_set == 0
+    ).all()  # Assert that default value is set
 
     if len(buses) > 1:
         # Test different names shape
@@ -223,7 +233,7 @@ def test_add_varying_multiple(n_5bus_7sn, slicer):
 
 
 def test_add_varying_multiple_with_index(n_5bus_7sn):
-    buses = n_5bus_7sn.buses.index
+    buses = n_5bus_7sn.c.buses.static.index
 
     # Add load component at every bus with time-dependent attribute p_set.
     load_names = "load_" + buses
@@ -240,12 +250,14 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
         p_set=p_set,
     )
 
-    assert len(n_5bus_7sn.loads) == len(load_names)
-    assert n_5bus_7sn.loads.index.name == "Load"
-    assert n_5bus_7sn.loads.index.equals(load_names)
-    assert (n_5bus_7sn.loads.bus == buses).all()
-    assert (n_5bus_7sn.loads_t.p_set == p_set).all().all()
-    assert (n_5bus_7sn.loads.p_set == 0).all()  # Assert that default value is set
+    assert len(n_5bus_7sn.c.loads.static) == len(load_names)
+    assert n_5bus_7sn.c.loads.static.index.name == "name"
+    assert n_5bus_7sn.c.loads.static.index.equals(load_names)
+    assert (n_5bus_7sn.c.loads.static.bus == buses).all()
+    assert (n_5bus_7sn.c.loads.dynamic.p_set == p_set).all().all()
+    assert (
+        n_5bus_7sn.c.loads.static.p_set == 0
+    ).all()  # Assert that default value is set
 
     # Test different names shape
     with pytest.raises(ValueError, match="index which does not align"):
@@ -267,31 +279,55 @@ def test_add_varying_multiple_with_index(n_5bus_7sn):
 def test_add_overwrite_static(n_5bus, caplog):
     n_5bus.add("Bus", [f"bus_{i} " for i in range(6)], x=1)
 
-    assert (n_5bus.buses.iloc[:5].x == 0).all()
-    assert (n_5bus.buses.iloc[5].x == 1).all()
+    assert (n_5bus.c.buses.static.iloc[:5].x == 0).all()
+    assert (n_5bus.c.buses.static.iloc[5].x == 1).all()
     assert caplog.records[-1].levelname == "WARNING"
 
     n_5bus.add("Bus", [f"bus_{i} " for i in range(5)], x=1, overwrite=True)
-    assert (n_5bus.buses.x == 1).all()
+    assert (n_5bus.c.buses.static.x == 1).all()
 
 
 def test_add_overwrite_varying(n_5bus_7sn, caplog):
     bus_names = [f"bus_{i} " for i in range(6)]
 
     n_5bus_7sn.add("Bus", bus_names, p=[1] * 6)
-    assert (n_5bus_7sn.buses_t.p.iloc[:, :5] == 0).all().all()
-    assert (n_5bus_7sn.buses_t.p.iloc[:, 5] == 1).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.iloc[:, :5] == 0).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.iloc[:, 5] == 1).all().all()
     assert caplog.records[-1].levelname == "WARNING"
 
     n_5bus_7sn.add("Bus", bus_names[:5], p=[2] * 5, overwrite=True)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[5]] == 1).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == 2).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[5]] == 1).all().all()
 
     p = rng.random(size=(7, 5))
     n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=False)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == 2).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == 2).all().all()
     n_5bus_7sn.add("Bus", bus_names[:5], p=p, overwrite=True)
-    assert (n_5bus_7sn.buses_t.p.loc[:, bus_names[:5]] == p).all().all()
+    assert (n_5bus_7sn.c.buses.dynamic.p.loc[:, bus_names[:5]] == p).all().all()
+
+
+def test_add_stochastic():
+    n = pypsa.Network()
+    n.add("Bus", "bus_1", v_mag_pu_set=0.1)
+    n.add("Bus", "bus_2", v_mag_pu_set=0.1)
+
+    multi_indexed = pd.MultiIndex.from_product(
+        [["bus_3", "bus_4"], ["scenario_1", "scenario_2"]]
+    )
+
+    with pytest.raises(TypeError, match="Component names must be a one-dimensional."):
+        n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
+
+    n.set_scenarios(["scenario_1", "scenario_2"])
+
+    with pytest.raises(
+        TypeError,
+        match=(
+            "Component names must be a one-dimensional. For stochastic networks, they "
+            "will be casted to all dimensions and data per scenario can be changed after adding them."
+        ),
+    ):
+        n.add("Bus", multi_indexed, v_mag_pu_set=0.1)
 
 
 def test_multiple_add_defaults(n_5bus):
@@ -319,21 +355,46 @@ def test_multiple_add_defaults(n_5bus):
 
     # TODO: Improve tests since component is the same now
     assert (
-        n_5bus.generators.loc[gen_names[0], "control"]
-        == n_5bus.components.Generator.attrs.loc["control", "default"]
+        n_5bus.c.generators.static.loc[gen_names[0], "control"]
+        == n_5bus.components.Generator.defaults.loc["control", "default"]
     )
 
     assert (
-        n_5bus.loads.loc[line_names[0], "p_set"]
-        == n_5bus.components.Load.attrs.loc["p_set", "default"]
+        n_5bus.c.loads.static.loc[line_names[0], "p_set"]
+        == n_5bus.components.Load.defaults.loc["p_set", "default"]
     )
+
+
+def test_add_return_names():
+    """Test that return_names parameter controls return behavior."""
+    n = pypsa.Network()
+
+    # Default behavior - should return None
+    assert n.add("Bus", "bus1") is None
+    assert n.add("Bus", "bus2", return_names=False) is None
+
+    # With return_names=True - should return Index
+    result = n.add("Bus", "bus3", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus3"
+
+    # Multiple components
+    result = n.add("Bus", ["bus4", "bus5"], return_names=True)
+    assert len(result) == 2
+    assert all(name in result for name in ["bus4", "bus5"])
+
+    # Component method
+    assert n.components.buses.add("bus6") is None
+    result = n.components.buses.add("bus7", return_names=True)
+    assert isinstance(result, pd.Index)
+    assert result[0] == "bus7"
 
 
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_equality_behavior(all_networks):
+def test_equality_behavior(networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -341,23 +402,25 @@ def test_equality_behavior(all_networks):
 
     THEN    the networks should be equal.
     """
-    for n in all_networks:
-        deep_copy = copy.deepcopy(n)
-        assert n == deep_copy
-        assert n is not deep_copy
+    n = networks
+    deep_copy = copy.deepcopy(n)
+    assert n is not deep_copy
+    assert n.equals(deep_copy, log_mode="strict")
 
-        # TODO: Could add more property based tests here (hypothesis)
-        deep_copy.name = "new_name"
-        assert n != deep_copy
+    assert n == deep_copy
 
-        assert n != "other_type"
+    # TODO: Could add more property based tests here (hypothesis)
+    deep_copy.name = "new_name"
+    assert n != deep_copy
+
+    assert n != "other_type"
 
 
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_copy_default_behavior(all_networks):
+def test_copy_default_behavior(networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -366,17 +429,41 @@ def test_copy_default_behavior(all_networks):
     THEN    the copied network should have the same generators, loads
     and timestamps.
     """
-    for n in all_networks:
-        network_copy = n.copy()
-        assert n == network_copy
-        assert n is not network_copy
+    n = networks
+    network_copy = n.copy()
+    assert n == network_copy
+    assert n is not network_copy
+
+
+def test_copy_with_model(ac_dc_network):
+    n = ac_dc_network
+    n.optimize.create_model()
+    n_copy = n.copy()
+
+    assert n.equals(n_copy, log_mode="strict")
+    assert isinstance(n.model, linopy.Model)
+    assert isinstance(n_copy.model, linopy.Model)
+
+    n.optimize.solve_model()
+    with pytest.raises(
+        ValueError,
+        match="Copying a solved network with an attached solver model is not supported.",
+    ):
+        n_copy = n.copy()
+
+    n.optimize()
+    with pytest.raises(
+        ValueError,
+        match="Copying a solved network with an attached solver model is not supported.",
+    ):
+        n_copy = n.copy()
 
 
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="pd.equals fails on windows (https://stackoverflow.com/questions/62128721).",
 )
-def test_copy_snapshots(all_networks):
+def test_copy_snapshots(networks):
     """
     GIVEN   the AC DC exemplary pypsa network.
 
@@ -384,19 +471,23 @@ def test_copy_snapshots(all_networks):
 
     THEN    the copied network should only have the current time index.
     """
-    for n in all_networks:
-        copied_n = n.copy(snapshots=[])
-        assert copied_n.snapshots.size == 1
+    n = networks
 
-        copied_n = n.copy(snapshots=n.snapshots[:5])
-        n.set_snapshots(n.snapshots[:5])
-        try:
-            assert copied_n == n
-        except AssertionError:
-            from deepdiff import DeepDiff
+    if n.has_scenarios:
+        with pytest.raises(
+            NotImplementedError,
+            match="Copying a stochastic network with a selection is currently not supported.",
+        ):
+            n.copy(snapshots=n.snapshots[:5])
 
-            differences = DeepDiff(copied_n, n)
-            raise AssertionError(f"DeepDiff: {differences}")
+        return
+
+    copied_n = n.copy(snapshots=[])
+    assert copied_n.snapshots.size == 1
+
+    copied_n = n.copy(snapshots=n.snapshots[:5])
+    n.set_snapshots(n.snapshots[:5])
+    assert copied_n == n
 
 
 def test_single_add_network_static(ac_dc_network, n_5bus):
@@ -410,8 +501,8 @@ def test_single_add_network_static(ac_dc_network, n_5bus):
     also the buses in the second network
     """
     n = ac_dc_network.merge(n_5bus, with_time=False)
-    new_buses = set(n.buses.index)
-    assert new_buses.issuperset(n_5bus.buses.index)
+    new_buses = set(n.c.buses.static.index)
+    assert new_buses.issuperset(n_5bus.c.buses.static.index)
 
 
 def test_single_add_network_with_time(ac_dc_network, n_5bus):
@@ -429,30 +520,34 @@ def test_single_add_network_with_time(ac_dc_network, n_5bus):
 
     n_5bus.set_snapshots(ac_dc_network.snapshots)
     n = ac_dc_network.merge(n_5bus, with_time=True)
-    new_buses = set(n.buses.index)
-    assert new_buses.issuperset(n_5bus.buses.index)
+    new_buses = set(n.c.buses.static.index)
+    assert new_buses.issuperset(n_5bus.c.buses.static.index)
 
 
-def test_shape_reprojection(ac_dc_network_shapes):
-    n = ac_dc_network_shapes
+def test_shape_reprojection(ac_dc_shapes):
+    n = ac_dc_shapes
 
-    with pytest.warns(UserWarning):
-        area_before = n.shapes.geometry.area.sum()
-    x, y = n.buses.x.values, n.buses.y.values
+    with pytest.warns(UserWarning):  # noqa
+        area_before = n.c.shapes.static.geometry.area.sum()
+    x, y = n.c.buses.static.x.values, n.c.buses.static.y.values
 
     n.to_crs("epsg:3035")
 
-    assert n.shapes.crs == "epsg:3035"
+    assert n.c.shapes.static.crs == "epsg:3035"
     assert n.crs == "epsg:3035"
-    assert area_before != n.shapes.geometry.area.sum()
-    assert not np.allclose(x, n.buses.x.values)
-    assert not np.allclose(y, n.buses.y.values)
+    assert area_before != n.c.shapes.static.geometry.area.sum()
+    assert not np.allclose(x, n.c.buses.static.x.values)
+    assert not np.allclose(y, n.c.buses.static.y.values)
 
 
 def test_components_referencing(ac_dc_network):
-    assert id(ac_dc_network.buses) == id(ac_dc_network.components.buses.static)
-    assert id(ac_dc_network.buses_t) == id(ac_dc_network.components.buses.dynamic)
-    assert id(ac_dc_network.components.buses) == id(ac_dc_network.components.Bus)
+    with pypsa.option_context("api.new_components_api", False):
+        ac_dc_network = pypsa.examples.ac_dc_meshed()
+        assert id(ac_dc_network.buses) == id(ac_dc_network.components.buses.static)
+        assert id(ac_dc_network.c.buses.dynamic) == id(
+            ac_dc_network.components.buses.dynamic
+        )
+        assert id(ac_dc_network.components.buses) == id(ac_dc_network.components.Bus)
 
 
 @pytest.mark.parametrize("use_component", [True, False])
@@ -493,9 +588,95 @@ def test_rename_component_names(use_component):
 def test_components_repr(ac_dc_network):
     n = ac_dc_network
 
-    assert repr(n).startswith("PyPSA Network 'AC-DC'")
+    assert repr(n).startswith("PyPSA Network 'AC-DC-Meshed'")
     assert len(repr(n)) > len(str(n))
 
     n = pypsa.Network()
-    assert repr(n).startswith("Empty Unnamed PyPSA Network")
+    assert repr(n).startswith("Empty PyPSA Network 'Unnamed Network'")
     assert len(repr(n)) > len(str(n))
+
+
+@pytest.mark.parametrize("new_components_api", [True, False])
+def test_api_components_legacy(new_components_api):
+    """
+    Test the API of the components module.
+    """
+    with pypsa.option_context("api.new_components_api", new_components_api):
+        n = pypsa.examples.ac_dc_meshed()
+
+        if not new_components_api:
+            assert n.buses is n.components.buses.static
+            assert n.c.buses.dynamic is n.components.buses.dynamic
+            assert n.lines is n.components.lines.static
+            assert n.c.lines.dynamic is n.components.lines.dynamic
+            assert n.generators is n.components.generators.static
+            assert n.c.generators.dynamic is n.components.generators.dynamic
+        else:
+            assert n.buses is n.components.buses
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.buses\.dynamic` as a drop-in"
+            ):
+                assert n.buses_t is n.components.buses.dynamic
+            assert n.lines is n.components.lines
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.lines\.dynamic` as a drop-in"
+            ):
+                assert n.lines_t is n.components.lines.dynamic
+            assert n.generators is n.components.generators
+            with pytest.warns(
+                DeprecationWarning, match=r"Use `n\.generators\.dynamic` as a drop-in"
+            ):
+                assert n.generators_t is n.components.generators.dynamic
+
+
+@pytest.mark.parametrize("new_components_api", [True, False])
+def test_api_new_components_api(component_name, new_components_api):
+    """
+    Test the API of the components module.
+    """
+    warnings.filterwarnings(
+        "ignore",
+        message=".*is deprecated as of 1.0 and will be .*",
+        category=DeprecationWarning,
+    )
+    with pypsa.option_context("api.new_components_api", new_components_api):
+        n = pypsa.examples.ac_dc_meshed()
+        if not new_components_api:
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
+
+            setattr(n, component_name, "test")
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) == "test"
+            setattr(n, f"{component_name}_t", "test")
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) == "test"
+        else:
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.static` instead.",
+            ):
+                assert n.static(component_name) is n.c[component_name].static
+            with pytest.warns(
+                DeprecationWarning,
+                match="Use `self.components.<component>.dynamic` instead.",
+            ):
+                assert n.dynamic(component_name) is n.c[component_name].dynamic
+            with pytest.raises(AttributeError):
+                setattr(n, component_name, "test")
+            with pytest.warns(DeprecationWarning, match="cannot be set"):
+                setattr(n, f"{component_name}_t", "test")

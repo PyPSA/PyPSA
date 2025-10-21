@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import numpy as np
 from numpy.testing import assert_array_almost_equal as equal
 
@@ -6,7 +10,7 @@ import pypsa
 
 def test_modular_components():
     """
-    This test is based on https://pypsa.readthedocs.io/en/latest/examples/unit-
+    This test is based on https://docs.pypsa.org/en/latest/examples/unit-
     commitment.html and is not very comprehensive.
     """
     n = pypsa.Network()
@@ -44,5 +48,5 @@ def test_modular_components():
     expected_p_nom_opt_gen = np.array([5000], dtype=float).T
     expected_e_nom_opt_store = np.array([1000], dtype=float).T
 
-    equal(n.generators.p_nom_opt, expected_p_nom_opt_gen)
-    equal(n.stores.e_nom_opt, expected_e_nom_opt_store)
+    equal(n.c.generators.static.p_nom_opt, expected_p_nom_opt_gen)
+    equal(n.c.stores.static.e_nom_opt, expected_e_nom_opt_store)

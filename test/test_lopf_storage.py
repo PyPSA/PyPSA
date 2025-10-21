@@ -1,4 +1,8 @@
-import os
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -9,33 +13,20 @@ import pypsa
 
 @pytest.fixture
 def target_gen_p():
-    target_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "opf-storage-hvdc",
-        "opf-storage-data",
-        "results",
-        "generators-p.csv",
+    target_path = (
+        Path(__file__).parent
+        / "data"
+        / "storage-hvdc"
+        / "results-lopf"
+        / "generators-p.csv"
     )
     return pd.read_csv(target_path, index_col=0, parse_dates=True)
 
 
-@pytest.fixture
-def n():
-    csv_folder = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "examples",
-        "opf-storage-hvdc",
-        "opf-storage-data",
-    )
-    return pypsa.Network(csv_folder)
-
-
-def test_optimize(n, target_gen_p):
+def test_optimize(storage_hvdc_network, target_gen_p):
+    n = storage_hvdc_network
     n.optimize()
-    equal(n.generators_t.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
+    equal(n.c.generators.dynamic.p.reindex_like(target_gen_p), target_gen_p, decimal=2)
 
 
 def test_storage_energy_marginal_cost():
@@ -104,14 +95,14 @@ def test_spill_cost():
         overlap = 2
         for i in range(sets_of_snapshots):
             if i == 1:
-                n.storage_units.state_of_charge_initial = (
-                    n.storage_units_t.state_of_charge.loc[n.snapshots[4]]
+                n.c.storage_units.static.state_of_charge_initial = (
+                    n.c.storage_units.dynamic.state_of_charge.loc[n.snapshots[4]]
                 )
             n.optimize(
                 n.snapshots[i * len(p_set) : (i + 1) * len(p_set) + overlap],
             )
 
-        spill = n.storage_units_t["spill"].loc[:, "hydro"]
+        spill = n.c.storage_units.dynamic["spill"].loc[:, "hydro"]
         total_spill = spill.sum()
 
         if has_spill_cost:

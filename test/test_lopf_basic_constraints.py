@@ -1,16 +1,13 @@
-#!/usr/bin/env python3
-"""
-Created on Tue Feb  1 15:20:12 2022.
-
-@author: fabian
-"""
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 
 import pandas as pd
 import pytest
 
 import pypsa
-from pypsa.descriptors import expand_series, nominal_attrs
-from pypsa.descriptors import get_switchable_as_dense as get_as_dense
+from pypsa.common import expand_series
+from pypsa.descriptors import nominal_attrs
 
 TOLERANCE = 1e-2
 
@@ -26,19 +23,19 @@ def describe_storage_unit_contraints(n):
     Therefor p_store is necessarily equal to negative entries of p, vice
     versa for p_dispatch.
     """
-    sus = n.storage_units
+    sus = n.c.storage_units.static
     sus_i = sus.index
     if sus_i.empty:
-        return
+        return None
     sns = n.snapshots
     c = "StorageUnit"
-    dynamic = n.dynamic(c)
+    dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], sus_i)
-    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
-    dispatch_eff = get_as_dense(n, c, "efficiency_dispatch", sns)
-    store_eff = get_as_dense(n, c, "efficiency_store", sns)
-    inflow = get_as_dense(n, c, "inflow") * eh
+    stand_eff = (1 - n.get_switchable_as_dense(c, "standing_loss", sns)).pow(eh)
+    dispatch_eff = n.get_switchable_as_dense(c, "efficiency_dispatch", sns)
+    store_eff = n.get_switchable_as_dense(c, "efficiency_store", sns)
+    inflow = n.get_switchable_as_dense(c, "inflow") * eh
     spill = eh[dynamic.spill.columns] * dynamic.spill
 
     description = {
@@ -75,7 +72,7 @@ def describe_nodal_balance_constraint(n):
     network_injection = (
         pd.concat(
             [
-                n.dynamic(c)[f"p{inout}"].rename(columns=n.static(c)[f"bus{inout}"])
+                n.c[c].dynamic[f"p{inout}"].rename(columns=n.c[c].static[f"bus{inout}"])
                 for inout in (0, 1)
                 for c in ("Line", "Transformer")
             ],
@@ -86,7 +83,7 @@ def describe_nodal_balance_constraint(n):
         .T
     )
     return (
-        (n.buses_t.p - network_injection)
+        (n.c.buses.dynamic.p - network_injection)
         .unstack()
         .describe()
         .to_frame("Nodal Balance Constr.")
@@ -105,8 +102,9 @@ def describe_upper_dispatch_constraints(n):
         description[c + key] = pd.Series(
             {
                 "min": (
-                    n.static(c)[attr + "_opt"] * get_as_dense(n, c, attr[0] + "_max_pu")
-                    - n.dynamic(c)[dispatch_attr]
+                    n.c[c].static[attr + "_opt"]
+                    * n.get_switchable_as_dense(c, attr[0] + "_max_pu")
+                    - n.c[c].dynamic[dispatch_attr]
                 )
                 .min()
                 .min()
@@ -124,9 +122,9 @@ def describe_lower_dispatch_constraints(n):
             description[c] = pd.Series(
                 {
                     "min": (
-                        n.static(c)[attr + "_opt"]
-                        * get_as_dense(n, c, attr[0] + "_max_pu")
-                        + n.dynamic(c)[dispatch_attr]
+                        n.c[c].static[attr + "_opt"]
+                        * n.get_switchable_as_dense(c, attr[0] + "_max_pu")
+                        + n.c[c].dynamic[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -137,9 +135,9 @@ def describe_lower_dispatch_constraints(n):
             description[c + key] = pd.Series(
                 {
                     "min": (
-                        -n.static(c)[attr + "_opt"]
-                        * get_as_dense(n, c, attr[0] + "_min_pu")
-                        + n.dynamic(c)[dispatch_attr]
+                        -n.c[c].static[attr + "_opt"]
+                        * n.get_switchable_as_dense(c, attr[0] + "_min_pu")
+                        + n.c[c].dynamic[dispatch_attr]
                     )
                     .min()
                     .min()
@@ -152,16 +150,16 @@ def describe_store_contraints(n):
     """
     Checks whether all stores are balanced over time.
     """
-    stores = n.stores
+    stores = n.c.stores.static
     stores_i = stores.index
     if stores_i.empty:
-        return
+        return None
     sns = n.snapshots
     c = "Store"
-    dynamic = n.dynamic(c)
+    dynamic = n.c[c].dynamic
 
     eh = expand_series(n.snapshot_weightings.stores[sns], stores_i)
-    stand_eff = (1 - get_as_dense(n, c, "standing_loss", sns)).pow(eh)
+    stand_eff = (1 - n.get_switchable_as_dense(c, "standing_loss", sns)).pow(eh)
 
     start = dynamic.e.iloc[-1].where(stores.e_cyclic, stores.e_initial)
     previous_e = stand_eff * dynamic.e.shift().fillna(start)
@@ -175,17 +173,19 @@ def describe_store_contraints(n):
 
 
 def describe_cycle_constraints(n):
-    weightings = n.lines.x_pu_eff.where(n.lines.carrier == "AC", n.lines.r_pu_eff)
+    weightings = n.c.lines.static.x_pu_eff.where(
+        n.c.lines.static.carrier == "AC", n.c.lines.static.r_pu_eff
+    )
 
     def cycle_flow(sub):
-        C = pd.DataFrame(sub.C.todense(), index=sub.lines_i())
+        C = pd.DataFrame(sub.C.todense(), index=sub.components.lines.static.index)
         if C.empty:
             return None
-        C_weighted = 1e5 * C.mul(weightings[sub.lines_i()], axis=0)
-        return C_weighted.apply(lambda ds: ds @ n.lines_t.p0[ds.index].T)
+        C_weighted = 1e5 * C.mul(weightings[sub.components.lines.static.index], axis=0)
+        return C_weighted.apply(lambda ds: ds @ n.c.lines.dynamic.p0[ds.index].T)
 
     return (
-        pd.concat([cycle_flow(sub) for sub in n.sub_networks.obj], axis=0)
+        pd.concat([cycle_flow(sub) for sub in n.c.sub_networks.static.obj], axis=0)
         .stack()
         .describe()
         .to_frame("Cycle Constr.")
@@ -208,7 +208,7 @@ funcs = (
 def solved_n(ac_dc_network):
     n = ac_dc_network
     n.optimize()
-    n.lines["carrier"] = n.lines.bus0.map(n.buses.carrier)
+    n.c.lines.static["carrier"] = n.c.lines.static.bus0.map(n.c.buses.static.carrier)
     return n
 
 
@@ -244,8 +244,8 @@ def test_optimization_with_strongly_meshed_bus():
 
     n.optimize()
 
-    assert n.buses_t.marginal_price.shape == (2, 2)
-    assert n.buses_t.marginal_price.eq(10).all().all()
+    assert n.c.buses.dynamic.marginal_price.shape == (2, 2)
+    assert n.c.buses.dynamic.marginal_price.eq(10).all().all()
 
 
 def test_define_generator_constraints_static():
@@ -261,9 +261,9 @@ def test_define_generator_constraints_static():
 
     n.optimize()
 
-    assert n.generators_t.p["gen0"].eq(0).all()
-    assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.generators_t.p["gen2"].eq(10).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(10).all()
 
 
 def test_define_generator_constraints():
@@ -314,7 +314,93 @@ def test_define_generator_constraints():
 
     n.optimize()
 
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen0"] == 10 * eh
-    assert n.generators_t.p["gen1"].eq(0).all()
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen2"] == e_sum_min
-    assert n.snapshot_weightings.generators @ n.generators_t.p["gen3"] == e_sum_max
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen0"] == 10 * eh
+    )
+    assert n.c.generators.dynamic.p["gen1"].eq(0).all()
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen2"] == e_sum_min
+    )
+    assert (
+        n.snapshot_weightings.generators @ n.c.generators.dynamic.p["gen3"] == e_sum_max
+    )
+
+
+def test_define_fixed_operational_constraints_positive():
+    """
+    Test fixed operational constraints: fix to a positive value
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=4, marginal_cost=0)
+    n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
+    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
+
+    n.c.generators.dynamic.p_set["gen2"] = 10
+
+    n.optimize()
+
+    assert n.c.generators.dynamic.p["gen2"].eq(10).all()
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+
+
+def test_define_fixed_operational_constraints_zero():
+    """
+    Test fixed operational constraints: fix to a zero value
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add("Generator", "gen0", bus="bus0", p_nom=4, marginal_cost=0)
+    n.add("Generator", "gen1", bus="bus0", p_nom=5, marginal_cost=5)
+    n.add("Generator", "gen2", bus="bus0", p_nom=10, marginal_cost=9)
+
+    n.c.generators.dynamic.p_set["gen0"] = 0
+
+    n.optimize()
+
+    assert n.c.generators.dynamic.p["gen0"].eq(0).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(5).all()
+
+
+def test_define_fixed_operational_constraints_extendable():
+    """
+    Test fixed operational constraints: extendable component"
+    """
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Load", "load0", bus="bus0", p_set=10)
+    n.add(
+        "Generator",
+        "gen0",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=0,
+    )
+    n.add(
+        "Generator",
+        "gen1",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=5,
+    )
+    n.add(
+        "Generator",
+        "gen2",
+        bus="bus0",
+        p_nom_extendable=True,
+        capital_cost=10,
+        marginal_cost=9,
+    )
+
+    n.c.generators.dynamic.p_set["gen1"] = 5
+
+    n.optimize()
+
+    assert n.c.generators.dynamic.p["gen0"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen1"].eq(5).all()
+    assert n.c.generators.dynamic.p["gen2"].eq(0).all()
