@@ -1462,7 +1462,7 @@ class NetworkIOMixin(_NetworkABC):
 
     def export_to_csv_folder(
         self,
-        path: str,
+        path: Path | str,
         encoding: str | None = None,
         quotechar: str = '"',
         export_standard_types: bool = False,
@@ -1484,7 +1484,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        path : string
+        path : Path | str
             Name of folder to which to export.
         encoding : str, default None
             Encoding to use for UTF when reading (ex. 'utf-8'). See [List of Python
@@ -1664,7 +1664,7 @@ class NetworkIOMixin(_NetworkABC):
 
         Parameters
         ----------
-        path : string|xr.Dataset
+        path : string | Path | xr.Dataset
             Path to netCDF dataset or instance of xarray Dataset.
             The string could be a URL.
         skip_time : bool, default False
