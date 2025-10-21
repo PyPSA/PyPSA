@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
 """Test the committable+extendable functionality using big-M formulation."""
 
 import time
