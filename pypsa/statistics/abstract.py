@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Statistics Accessor."""
 
 from __future__ import annotations
@@ -55,7 +59,7 @@ class AbstractStatisticsAccessor(ABC):
         elif isinstance(groupby, (str | list)):
             by = groupers[groupby](n, c, port=port, nice_names=nice_names)
         elif groupby is not False:
-            msg = f"Argument `groupby` must be a function, list, string, False or dict, got {repr(groupby)}."
+            msg = f"Argument `groupby` must be a string, list, callable, or False, got {repr(groupby)}."
             raise ValueError(msg)
         return {"by": by, "level": level}
 

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import os
 
 import numpy as np
@@ -71,14 +75,19 @@ def test_nans_in_capacity_limits(consistent_n, caplog, strict):
 @pytest.mark.parametrize("strict", [[], ["shapes"]])
 def test_shapes_with_missing_idx(ac_dc_shapes, caplog, strict):
     n = ac_dc_shapes
-    n.add(
-        "Shape",
-        "missing_idx",
-        geometry=n.c.shapes.static.geometry.iloc[0],
-        component="Bus",
-        idx="missing_idx",
-    )
+    with pytest.warns(UserWarning, match="CRS not set"):  # Userwarning from pyproj
+        n.add(
+            "Shape",
+            "missing_idx",
+            geometry=n.c.shapes.static.geometry.iloc[0],
+            component="Bus",
+            idx="missing_idx",
+        )
     assert_log_or_error_in_consistency(ac_dc_shapes, caplog, strict=strict)
+    if not strict:
+        assert any(
+            "have idx values that are not included" in r.message for r in caplog.records
+        )
 
 
 @pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
@@ -397,3 +406,44 @@ def test_line_types_consistency_non_stochastic():
 
     # This should pass because it's not a stochastic network
     pypsa.consistency.check_line_types_consistency(n, strict=True)
+
+
+@pytest.mark.parametrize("strict", [[], ["unknown_buses"]])
+def test_check_for_unknown_buses(caplog, strict):
+    """Test check_for_unknown_buses via consistency_check(): GlobalConstraint/Link empty buses OK, invalid warns."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # Add components with empty buses (should be OK)
+    n.add("GlobalConstraint", "gc1")
+    n.add("Link", "link1", bus0="bus0", bus1="bus1")
+    caplog.clear()
+    n.consistency_check(strict=strict)
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Add component with invalid bus (should warn/error)
+    n.add("Generator", "gen1", bus="invalid_bus")
+    assert_log_or_error_in_consistency(n, caplog, strict=strict)
+
+
+def test_check_for_unknown_buses_when_adding(caplog):
+    """Test check_for_unknown_buses: empty buses in GlobalConstraint/Links OK, invalid buses warn."""
+    n = pypsa.Network()
+    n.add("Bus", "bus0")
+    n.add("Bus", "bus1")
+
+    # GlobalConstraint with empty bus - no warning
+    caplog.clear()
+    n.add("GlobalConstraint", "gc1")
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Link with empty bus2/bus3 - no warning
+    caplog.clear()
+    n.add("Link", "link1", bus0="bus0", bus1="bus1")
+    assert not any("buses which are not defined" in r.message for r in caplog.records)
+
+    # Invalid bus - should warn
+    caplog.clear()
+    n.add("Generator", "gen1", bus="invalid")
+    assert any("buses which are not defined" in r.message for r in caplog.records)

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 import sys
 
 import matplotlib.pyplot as plt
@@ -7,7 +11,7 @@ import pytest
 import seaborn as sns
 
 from pypsa.consistency import ConsistencyError
-from pypsa.plot.statistics.charts import ChartGenerator
+from pypsa.plot.statistics.charts import CHART_TYPES, ChartGenerator
 from pypsa.statistics.expressions import StatisticsAccessor
 
 # Set random seed for reproducibility
@@ -19,8 +23,8 @@ plt.rcParams["figure.dpi"] = 100
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
+    reason="Run only once for stability.",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
 @pytest.mark.mpl_image_compare(tolerance=40)
@@ -32,56 +36,19 @@ def test_simple_plot(ac_dc_network_r, stat_func):
 
 
 @pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
+    sys.version_info < (3, 13) or sys.platform not in ["darwin"],
+    reason="Run only once for stability.",
 )
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
+@pytest.mark.parametrize("kind", CHART_TYPES + ["map"])
 @pytest.mark.mpl_image_compare(tolerance=40)
-def test_bar_plot(ac_dc_network_r, stat_func):
+def test_plot_types(ac_dc_network_r, stat_func, kind):
+    if kind == "map" and stat_func == "prices":
+        pytest.skip("Map plotting for 'prices' is not implemented.")
     plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.bar()
+    fig, *_ = plotter.plot(kind=kind)
 
     return fig
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
-)
-@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=40)
-def test_line_plot(ac_dc_network_r, stat_func):
-    plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.line()
-
-    return fig
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
-)
-@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-@pytest.mark.mpl_image_compare(tolerance=40)
-def test_area_plot(ac_dc_network_r, stat_func):
-    plotter = getattr(ac_dc_network_r.statistics, stat_func)
-    fig, _, _ = plotter.plot.area()
-
-    return fig
-
-
-@pytest.mark.skipif(
-    sys.version_info < (3, 13) or sys.platform not in ["linux", "darwin"],
-    reason="Check only on Linux/macOS and Python 3.13 for stability",
-)
-@pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
-# @pytest.mark.mpl_image_compare(tolerance=40) # TODO find better way to compare
-def test_map_plot(ac_dc_network_r, stat_func):
-    plotter = getattr(ac_dc_network_r.statistics, stat_func)
-
-    fig, _ = plotter.plot.map()
-
-    # return fig
 
 
 def test_to_long_format_static(ac_dc_network_r):
@@ -182,6 +149,7 @@ def test_query_filtering(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 def test_consistency_checks(ac_dc_network_r):
@@ -202,6 +170,7 @@ def test_stacking(ac_dc_network_r):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -220,6 +189,7 @@ def test_networks_bar_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -229,6 +199,7 @@ def test_networks_line_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 @pytest.mark.parametrize("stat_func", StatisticsAccessor._methods)
@@ -238,6 +209,7 @@ def test_networks_area_plot(network_collection, stat_func):
     assert isinstance(fig, plt.Figure)
     assert isinstance(ax, plt.Axes)
     assert isinstance(g, sns.FacetGrid)
+    plt.close(fig)
 
 
 def test_networks_query_filtering(network_collection):

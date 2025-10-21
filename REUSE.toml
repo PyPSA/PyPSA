@@ -1,0 +1,51 @@
+version = 1
+SPDX-PackageName = "PyPSA"
+SPDX-PackageSupplier = "Tom Brown <t.brown@tu-berlin.de>"
+SPDX-PackageDownloadLocation = "https://github.com/pypsa/pypsa"
+
+[[annotations]]
+# As an essential part of PyPSA package, these parts are licensed under the same MIT license as the code itself
+path = [
+    ".github/**/*.md",
+    "pypsa/data/component_attrs/*.csv",
+    "pypsa/data/standard_types/*.csv",
+    "pypsa/data/*.csv",
+    "test/baseline/*.png",
+    "test/data/**/*.csv",
+    "test/data/**/*.json",
+    "docs/requirements.txt",
+]
+SPDX-FileCopyrightText = "PyPSA Contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+# Data for examples, CC-BY-4.0 license for reuse by others
+path = [
+    "examples/**.csv",
+    "examples/**.json",
+    "examples/**.nc",
+]
+SPDX-FileCopyrightText = "PyPSA Contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+# All documentation figures and notebooks (including their code) are for simplicity licensed under CC-BY-4.0
+path = [
+    "docs/**/*.ipynb",
+    "docs/**/*.png",
+    "docs/**/*.html",
+    "docs/**/*.svg",
+    "docs/**/*.jpg",
+]
+SPDX-FileCopyrightText = "PyPSA Contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+    
+[[annotations]]
+# TODO find correct information for this external image
+path = [
+    "docs/assets/images/reserve-power-funding.gif",
+]
+# We think this is the correct attribution (copyright holder and license)
+SPDX-FileCopyrightText = "Ministry for Economic Affairs and Climate Action"
+SPDX-License-Identifier = "CC-BY-4.0"

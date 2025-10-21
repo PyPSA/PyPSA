@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Network index module.
 
 Contains single mixin class which is used to inherit to [pypsa.Networks] class.
@@ -11,11 +15,18 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 
+from pypsa._options import options
+from pypsa.guards import _assert_data_integrity
 from pypsa.network.abstract import _NetworkABC
+
+if TYPE_CHECKING:
+    from pypsa import Network
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +34,8 @@ logger = logging.getLogger(__name__)
 class NetworkIndexMixin(_NetworkABC):
     """Mixin class for network index methods.
 
-    Class only inherits to [pypsa.Network][] and should not be used directly.
-    All attributes and methods can be used within any Network instance.
+    Class inherits to [pypsa.Network][]. All attributes and methods can be used
+    within any Network instance.
     """
 
     _risk_preference: dict[str, float] | None
@@ -47,7 +58,7 @@ class NetworkIndexMixin(_NetworkABC):
         of type `pd.DatetimeIndex`.
 
         This will reindex all components time-dependent DataFrames
-        (:py:meth:`pypsa.Network.dynamic`). NaNs are filled with the default value for
+        ([`pypsa.Network.dynamic`][]). NaNs are filled with the default value for
         that quantity.
 
         Parameters
@@ -109,7 +120,7 @@ class NetworkIndexMixin(_NetworkABC):
                 .apply(lambda x: x.total_seconds() / 3600)
             )
             self._snapshots_data = pd.DataFrame(
-                dict.fromkeys(self._snapshots_data.columns, hours_per_step)
+                dict.fromkeys(self._snapshots_data.columns, hours_per_step), index=sns
             )
         elif not isinstance(snapshots, pd.DatetimeIndex) and weightings_from_timedelta:
             logger.info(
@@ -118,7 +129,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         for component in self.all_components:
             dynamic = self.c[component].dynamic
-            attrs = self.components[component]["attrs"]
+            attrs = self.components[component]["defaults"]
 
             for k in dynamic:
                 if dynamic[k].empty:  # avoid expensive reindex operation
@@ -138,7 +149,16 @@ class NetworkIndexMixin(_NetworkABC):
                 else:
                     dynamic[k] = dynamic[k].reindex(self.snapshots)
 
-        # NB: No need to rebind dynamic to self, since haven't changed it
+        # Synchronize investment_periods_data when snapshots have a period level
+        if isinstance(sns, pd.MultiIndex):
+            self.investment_period_weightings = (
+                self.investment_period_weightings.reindex(
+                    self.periods, fill_value=1.0
+                ).astype(float)
+            )
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def snapshots(self) -> pd.Index | pd.MultiIndex:
@@ -155,8 +175,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.timesteps][] : Get the timestep level only.
-        [pypsa.Network[] : Get the period level only.
+        [pypsa.Network.timesteps][], [pypsa.Network.periods][]
 
         Notes
         -----
@@ -187,8 +206,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Getter method
-        [pypsa.Network.set_snapshots][] : Setter method
+        [pypsa.Network.snapshots][], [pypsa.Network.set_snapshots][]
 
         """
         self.set_snapshots(snapshots)
@@ -209,8 +227,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the period level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][]
 
         Examples
         --------
@@ -253,7 +270,7 @@ class NetworkIndexMixin(_NetworkABC):
     def timesteps(self, timesteps: Sequence) -> None:
         """Setter for timesteps level of snapshots dimension.
 
-        .. warning::
+        !!! warning
             Setting `timesteps` is not supported. Please set `snapshots` instead.
 
         Parameters
@@ -352,6 +369,9 @@ class NetworkIndexMixin(_NetworkABC):
             self.periods, fill_value=1.0
         ).astype(float)
 
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
+
     @property
     def periods(self) -> pd.Index:
         """Periods level of snapshots dimension.
@@ -367,8 +387,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.timesteps][]
 
         Examples
         --------
@@ -427,7 +446,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
+        [pypsa.Network.snapshots][]
 
         Examples
         --------
@@ -453,7 +472,8 @@ class NetworkIndexMixin(_NetworkABC):
         investment periods without timesteps are defined. Otherwise only the period
         level will be returned.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Returns
         -------
@@ -462,9 +482,8 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Get the snapshots dimension.
-        [pypsa.Network.periods][] : Get the snapshots dimension.
-        [pypsa.Network.timesteps][] : Get the timestep level only.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][],
+        [pypsa.Network.timesteps][]
 
         Examples
         --------
@@ -498,7 +517,8 @@ class NetworkIndexMixin(_NetworkABC):
     def investment_periods(self, periods: Sequence) -> None:
         """Setter for periods level of snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.periods`.
+        !!! note
+            Alias for [`pypsa.Network.periods`][].
 
         Parameters
         ----------
@@ -517,7 +537,8 @@ class NetworkIndexMixin(_NetworkABC):
     def has_investment_periods(self) -> bool:
         """Check if network has investment periods assigned to snapshots dimension.
 
-        .. Note :: Alias for :py:meth:`pypsa.Network.has_periods`.
+        !!! note
+            Alias for [`pypsa.Network.has_periods`][].
 
         Returns
         -------
@@ -526,8 +547,7 @@ class NetworkIndexMixin(_NetworkABC):
 
         See Also
         --------
-        [pypsa.Network.snapshots][] : Snapshots dimension of the network.
-        [pypsa.Network.periods][] : Periods level of snapshots dimension.
+        [pypsa.Network.snapshots][], [pypsa.Network.periods][]
 
         Examples
         --------
@@ -595,8 +615,12 @@ class NetworkIndexMixin(_NetworkABC):
         if isinstance(df, pd.Series):
             logger.info("Applying weightings to all columns of `snapshot_weightings`")
             df = pd.DataFrame(dict.fromkeys(self._snapshots_data.columns, df))
+        df.index.name = self.snapshots.name
         df.index.names = self.snapshots.names
         self._snapshots_data = df
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     @property
     def investment_period_weightings(self) -> pd.DataFrame:
@@ -645,6 +669,9 @@ class NetworkIndexMixin(_NetworkABC):
             )
             df = pd.DataFrame(dict.fromkeys(self._investment_periods_data.columns, df))
         self._investment_periods_data = df
+
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
 
     # -----------
     # Scenarios
@@ -727,6 +754,9 @@ class NetworkIndexMixin(_NetworkABC):
 
         self._scenarios_data = scenarios_.to_frame()
 
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
+
     @property
     def scenarios(self) -> pd.Index:
         """Get the scenarios index for the network.
@@ -760,9 +790,7 @@ class NetworkIndexMixin(_NetworkABC):
         """Boolean indicating if the network has scenarios defined."""
         return len(self._scenarios_data) > 0
 
-    # -----------
     # Risk Preferences (CVaR)
-    # -----------
 
     def set_risk_preference(self, alpha: float, omega: float) -> None:
         """Set risk aversion preferences for stochastic optimization using CVaR formulation.
@@ -818,6 +846,9 @@ class NetworkIndexMixin(_NetworkABC):
         # Store risk preferences
         self._risk_preference = {"alpha": alpha, "omega": omega}
 
+        if options.debug.runtime_verification:
+            _assert_data_integrity(self)
+
     @property
     def risk_preference(self) -> dict[str, float] | None:
         """Get the risk preference parameters for the network.
@@ -835,3 +866,330 @@ class NetworkIndexMixin(_NetworkABC):
     def has_risk_preference(self) -> bool:
         """Boolean indicating if the network has risk preferences defined."""
         return self._risk_preference is not None
+
+    # -----------
+    # Collections
+    # -----------
+
+    @property
+    def is_collection(self) -> bool:
+        """Check if this is a collection of networks or a single network.
+
+        Returns
+        -------
+        bool
+            True, since this is a NetworkCollection.
+
+        See Also
+        --------
+        [pypsa.Network][], [pypsa.NetworkCollection][]
+
+        """
+        return False
+
+    # -----------
+    # Selectors
+    # -----------
+
+    def get_scenario(self, scenario: str) -> Network:
+        """Return a network for a single scenario from a stochastic network.
+
+        Parameters
+        ----------
+        scenario : str
+            Name of the scenario to extract.
+
+        Returns
+        -------
+        n : pypsa.Network
+            A new network instance containing only the selected scenario.
+
+        Examples
+        --------
+        >>> n_stochastic
+        Stochastic PyPSA Network 'Stochastic-Network'
+        ---------------------------------------------
+        Components:
+         - Bus: 3
+         - Generator: 12
+         - Load: 3
+        Snapshots: 2920
+        Scenarios: 3
+        >>> n_high = n_stochastic.get_scenario("high")
+        >>> n_high
+        PyPSA Network 'Stochastic-Network - Scenario 'high''
+        ----------------------------------------------------
+        Components:
+         - Bus: 1
+         - Generator: 4
+         - Load: 1
+        Snapshots: 2920
+
+        """
+        if not self.has_scenarios:
+            msg = "This method can only be used on a stochastic network with scenarios."
+            raise ValueError(msg)
+
+        try:
+            self._scenarios_data.loc[scenario]
+        except KeyError as e:
+            msg = f"Scenario '{scenario}' not found in network scenarios."
+            raise KeyError(msg) from e
+
+        n = self.copy()
+
+        n.name = f"{n.name} - Scenario '{scenario}'"
+        # Remove
+        n._scenarios_data = n._scenarios_data.iloc[:0]
+
+        for c in n.components.values():
+            if not c.static.empty:
+                c.static = c.static.xs(scenario, level="scenario", axis=0)
+            else:
+                c.static.index = c.static.index.droplevel("scenario")
+            for k, v in c.dynamic.items():
+                if not c.dynamic[k].empty:
+                    c.dynamic[k] = v.xs(scenario, level="scenario", axis=1)
+                else:
+                    c.dynamic[k].columns = c.dynamic[k].columns.droplevel("scenario")
+
+        return n
+
+    def get_network(self, collection: str) -> None | Network:
+        """Return a single network from a NetworkCollection.
+
+        Parameters
+        ----------
+        collection : str
+            Name of the network to be selected from the collection.
+
+        Returns
+        -------
+        n : pypsa.Network
+            Reference to the selected network from the collection.
+
+        Examples
+        --------
+        >>> nc
+        NetworkCollection
+        -----------------
+        Networks: 2
+        Index name: 'network'
+        Entries: ['AC-DC-Meshed', 'AC-DC-Meshed-Shuffled-Load']
+
+        >>> selected = nc.get_network("AC-DC-Meshed")
+        >>> selected
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+         - Bus: 9
+         - Carrier: 6
+         - Generator: 6
+         - GlobalConstraint: 1
+         - Line: 7
+         - Link: 4
+         - Load: 6
+         - SubNetwork: 3
+        Snapshots: 10
+        <BLANKLINE>
+
+        A network collection does not copy the selected network, but returns
+        a reference to it:
+        >>> n1 = pypsa.Network(name="Network1")
+        >>> n2 = pypsa.Network(name="Network2")
+        >>> nc = pypsa.NetworkCollection([n1, n2])
+        >>> nc.get_network("Network1") is n1
+        True
+
+        """
+        if not self.is_collection:
+            msg = "This method can only be used on a NetworkCollection."
+            raise ValueError(msg)
+
+        return None
+
+    def slice_network(
+        self,
+        buses: str | Sequence[str] | pd.Index | slice | None = None,
+        snapshots: int | Sequence | pd.Index | slice | None = None,
+    ) -> Network:
+        """Return a sliced copy of the network.
+
+        Parameters
+        ----------
+        buses : slice, list, or str, or tuple
+            Used to slice a network by buses. Any valid indexer
+            for pandas.DataFrame.loc is allowed (refer to pandas.DataFrame.loc).
+        snapshots : int, slice, list or boolean array, optional
+            Used to slice a network by snapshots. Any valid indexer
+            for pandas.Index is allowed (refer to pandas.Index.__getitem__). If
+            None, all snapshots are used.
+
+        Returns
+        -------
+        n : pypsa.Network
+            A new network instance containing only the selected buses with attached
+            components and/or the selected snapshots.
+
+        Examples
+        --------
+        Slice network to a single bus and its connected components:
+
+        >>> n_manchester = n.slice_network(buses="Manchester")
+        >>> n_manchester
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 1
+        - Carrier: 6
+        - Generator: 2
+        - GlobalConstraint: 1
+        - Load: 1
+        Snapshots: 10
+
+        >>> n_manchester.buses.index.tolist()
+        ['Manchester']
+
+        Slice network to multiple buses:
+
+        >>> n_subset = n.slice_network(buses=["Manchester", "Frankfurt"])
+        >>> n_subset
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 2
+        - Carrier: 6
+        - Generator: 4
+        - GlobalConstraint: 1
+        - Load: 2
+        Snapshots: 10
+
+        >>> sorted(n_subset.buses.index.tolist())
+        ['Frankfurt', 'Manchester']
+
+        Slice network by DC carrier:
+
+        >>> n_hv = n.slice_network(buses=n.buses.carrier == "DC")
+        >>> n_hv
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 3
+        - Carrier: 6
+        - GlobalConstraint: 1
+        - Line: 3
+        Snapshots: 10
+
+        Slice network to first 3 snapshots:
+
+        >>> n_snap = n.slice_network(snapshots=slice(None, 3))
+        >>> n_snap
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 9
+        - Carrier: 6
+        - Generator: 6
+        - GlobalConstraint: 1
+        - Line: 7
+        - Link: 4
+        - Load: 6
+        Snapshots: 3
+
+        Slice both buses and snapshots:
+
+        >>> n_both = n.slice_network(buses="Manchester", snapshots=slice(None, 2))
+        >>> n_both
+        PyPSA Network 'AC-DC-Meshed'
+        ----------------------------
+        Components:
+        - Bus: 1
+        - Carrier: 6
+        - Generator: 2
+        - GlobalConstraint: 1
+        - Load: 1
+        Snapshots: 2
+
+        """
+        if buses is None and snapshots is None:
+            msg = "Either `buses` or `snapshots` must be provided to slice the network."
+            raise ValueError(msg)
+
+        # Set defaults
+        if buses is None:
+            buses = slice(None)
+        if snapshots is None:
+            snapshots = slice(None)
+
+        # Allow single selection without losing a dimension
+        if np.isscalar(buses):
+            buses = pd.Index([buses])
+
+        # Handle scalar snapshot selection
+        selected_snapshots = self.snapshots[snapshots]
+        if not isinstance(selected_snapshots, pd.Index):
+            # Single snapshot was selected, wrap in Index
+            selected_snapshots = pd.Index([selected_snapshots])
+
+        # Setup new network
+        n = self.__class__()
+
+        n.add(
+            "Bus",
+            pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network="").index,
+            **pd.DataFrame(self.c.buses.static.loc[buses]).assign(sub_network=""),
+        )
+
+        buses_i = n.c.buses.static.index
+
+        rest_components = (
+            self.all_components
+            - self.standard_type_components
+            - self.one_port_components
+            - self.branch_components
+        )
+        for c in rest_components - {"Bus", "SubNetwork"}:
+            n.add(c, self.components[c].static.index, **self.components[c].static)
+
+        for c in self.standard_type_components:
+            static = pd.DataFrame(
+                self.components[c].static.drop(
+                    self.components[c]["standard_types"].index
+                )
+            )
+            n.add(c, static.index, **static)
+
+        for c in self.one_port_components:
+            static = pd.DataFrame(self.c[c].static.loc[lambda df: df.bus.isin(buses_i)])
+            n.add(c, static.index, **static)
+
+        for c in self.branch_components:
+            static = pd.DataFrame(
+                self.c[c].static.loc[
+                    lambda df: df.bus0.isin(buses_i) & df.bus1.isin(buses_i)
+                ]
+            )
+            n.add(c, static.index, **static)
+
+        n.set_snapshots(selected_snapshots)
+        for c in self.all_components:
+            c = n.c[c]
+            i = c.static.index
+            try:
+                ndynamic = n.c[c.name].dynamic
+                dynamic = self.c[c.name].dynamic
+
+                for k in dynamic:
+                    ndynamic[k] = dynamic[k].loc[
+                        n.snapshots, i.intersection(dynamic[k].columns)
+                    ]
+            except AttributeError:
+                pass
+
+        # catch all remaining attributes of network
+        for attr in ["name", "_crs"]:
+            setattr(n, attr, getattr(self, attr))
+
+        n.snapshot_weightings = self.snapshot_weightings.loc[n.snapshots]
+
+        return n  # type: ignore[return-value]

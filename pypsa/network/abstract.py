@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Abstract network module.
 
 Only defines a base class for all Network mixin classes which inherit to
@@ -78,6 +82,12 @@ class _NetworkABC(ABC):
     @property
     @abstractmethod
     def passive_branch_components(self) -> set[str]:
+        """Read only placeholder."""
+        ...
+
+    @property
+    @abstractmethod
+    def one_port_components(self) -> set[str]:
         """Read only placeholder."""
         ...
 

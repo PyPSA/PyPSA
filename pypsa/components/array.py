@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: PyPSA Contributors
+#
+# SPDX-License-Identifier: MIT
+
 """Array module of PyPSA components.
 
 Contains logic to combine static and dynamic pandas DataFrames to single xarray
@@ -16,7 +20,7 @@ import xarray
 from pypsa._options import options
 from pypsa.common import UnexpectedError, as_index, list_as_string
 from pypsa.components.abstract import _ComponentsABC
-from pypsa.guards import _as_xarray_guard
+from pypsa.guards import _assert_xarray_integrity
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -39,7 +43,7 @@ def _from_xarray(da: xarray.DataArray, c: Components) -> pd.DataFrame | pd.Serie
     """
     # Add missing dimensions if needed
     if "name" not in da.dims:
-        da = da.expand_dims(name=c.component_names)
+        da = da.expand_dims(name=c.names)
     if "scenario" not in da.dims and c.has_scenarios:
         da = da.expand_dims(scenario=c.scenarios)
 
@@ -134,12 +138,25 @@ class _XarrayAccessor:
 class ComponentsArrayMixin(_ComponentsABC):
     """Helper class for components array methods.
 
-    Class only inherits to Components and should not be used directly.
+    Class inherits to [pypsa.Components][]. All attributes and methods can be used
+    within any Components instance.
     """
 
     def __init__(self) -> None:
         """Initialize the ComponentsArrayMixin."""
         self.da = _XarrayAccessor(self)
+        """
+        xArray accessor to get component attributes as xarray DataArray.
+
+        Examples
+        --------
+        c = n.components.generators
+        c.da.p_max_pu
+
+        For stochastic networks the scenarios are unstacked automatically:
+        c = n_stoch.components.generators
+        c.da.p_max_pu
+        """
 
     def __deepcopy__(
         self, memo: dict[int, object] | None = None
@@ -278,7 +295,7 @@ class ComponentsArrayMixin(_ComponentsABC):
         if self.has_scenarios:
             res = (
                 res.unstack(res.indexes["scenario"].name)
-                .reindex(name=self.component_names)
+                .reindex(name=self.names)
                 .reindex(scenario=self.scenarios)
             )
 
@@ -287,6 +304,6 @@ class ComponentsArrayMixin(_ComponentsABC):
 
         # Optional runtime verification
         if options.debug.runtime_verification:
-            _as_xarray_guard(self, res)
+            _assert_xarray_integrity(self, res)
 
         return res
