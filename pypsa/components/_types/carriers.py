@@ -116,7 +116,7 @@ class Carriers(Components):
                 # Only carriers without colors
                 mask = (self.static["color"] == "") | self.static["color"].isna()
                 filtered_static = self.static[mask]
-                if self.n.has_scenarios:
+                if self.n_save.has_scenarios:
                     target_carriers = filtered_static.index.get_level_values(
                         "name"
                     ).unique()
@@ -139,9 +139,9 @@ class Carriers(Components):
 
         # Assign colors
         for carrier, color in zip(target_carriers, colors, strict=False):
-            if self.n.has_scenarios:
+            if self.n_save.has_scenarios:
                 # Update color for all scenarios
-                for scenario in self.n.scenarios:
+                for scenario in self.n_save.scenarios:
                     self.static.loc[(scenario, carrier), "color"] = color
             else:
                 self.static.loc[carrier, "color"] = color
@@ -264,7 +264,7 @@ class Carriers(Components):
         )
 
         # For stochastic networks, add carriers with scenario wrapping
-        if self.n.has_scenarios:
+        if self.n_save.has_scenarios:
             # Create a temporary network to leverage the standard add() method
             temp_static = self.static.copy()
             self.static = self.static.iloc[:0]  # Temporarily clear for clean add
@@ -278,7 +278,8 @@ class Carriers(Components):
 
             # Wrap new carriers across all scenarios
             wrapped_df = pd.concat(
-                dict.fromkeys(self.n.scenarios, new_carriers_df), names=["scenario"]
+                dict.fromkeys(self.n_save.scenarios, new_carriers_df),
+                names=["scenario"],
             )
 
             # Append to existing carriers
